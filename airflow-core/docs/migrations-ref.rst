@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``f7ed13533d23`` (head) | ``90e4d18ccadf`` | ``3.4.0``         | Add lang_sdk_task_handler_artifact and lang_sdk_task_handler |
+| ``37d645374a9c`` (head) | ``f7ed13533d23`` | ``3.4.0``         | Add last_probed_at index to lang_sdk_task_handler_artifact.  |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``f7ed13533d23``        | ``90e4d18ccadf`` | ``3.4.0``         | Add lang_sdk_task_handler_artifact and lang_sdk_task_handler |
 |                         |                  |                   | tables.                                                      |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``90e4d18ccadf``        | ``e5a91c7f42b3`` | ``3.4.0``         | Add timetable_asset_gated to DagModel.                       |

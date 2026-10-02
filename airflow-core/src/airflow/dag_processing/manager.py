@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 import attrs
 import structlog
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, exists, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
@@ -55,7 +55,10 @@ from airflow.dag_processing.bundles.base import (
     unpack_bundle_version,
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+from airflow.dag_processing.collection import (
+    record_probed_task_handler_artifacts,
+    update_dag_parsing_results_in_db,
+)
 from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
@@ -68,7 +71,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
-from airflow.models.lang_sdk_task_handler import LangSDKTaskHandlerArtifact
+from airflow.models.lang_sdk_task_handler import LangSDKTaskHandler, LangSDKTaskHandlerArtifact
 from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
 from airflow.sdk.execution_time.coordinator import get_coordinator_manager  # noqa: SDK001
@@ -81,7 +84,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import (
     kill_child_processes_by_pids,
 )
-from airflow.utils.retries import retry_db_transaction
+from airflow.utils.retries import retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     is_lock_not_available_error,
@@ -94,6 +97,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
     from socket import socket
 
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
@@ -166,6 +170,14 @@ class _TaskHandlerBundles(NamedTuple):
 
     include_dag_bundles: bool
     """Whether a coordinator without ``task_handler_bundle_name`` reads the task's own Dag bundle."""
+
+
+_TASK_HANDLER_ARTIFACT_SWEEP_BATCH_SIZE = 1000
+
+# A probed artifact that serves no stub task can have a row too, so that parses do not probe it again,
+# and such a row is unreferenced from the start. An unreferenced row is therefore kept for this many
+# sweep intervals after its last probe, long enough for the Dag files parsed next to reuse it.
+_TASK_HANDLER_ARTIFACT_SWEEP_GRACE_INTERVALS = 5
 
 
 def _config_int_factory(section: str, key: str):
@@ -258,6 +270,7 @@ class DagFileProcessorManager(LoggingMixin):
     )
 
     _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
+    _last_task_handler_artifact_sweep_time: float = attrs.field(default=0, init=False)
     _last_stale_bundle_cleanup_time: float = attrs.field(default=0, init=False)
     print_stats_interval: float = attrs.field(
         factory=_config_int_factory("dag_processor", "print_stats_interval")
@@ -448,6 +461,61 @@ class DagFileProcessorManager(LoggingMixin):
             self.deactivate_stale_dags(last_parsed=last_parsed)
             self._last_deactivate_stale_dags_time = time.monotonic()
 
+    def _sweep_task_handler_artifacts(self) -> None:
+        now = time.monotonic()
+        if now - self._last_task_handler_artifact_sweep_time < self.parsing_cleanup_interval:
+            return
+        try:
+            self.delete_unreferenced_task_handler_artifacts()
+        except Exception:
+            self.log.exception("Error deleting unreferenced task handler artifacts")
+        finally:
+            self._last_task_handler_artifact_sweep_time = now
+
+    def delete_unreferenced_task_handler_artifacts(self) -> int:
+        """
+        Delete the task handler artifact rows that no stub task references and no recent parse probed.
+
+        Deletes in batches, each committed on its own, and returns how many rows it deleted. Default
+        implementation writes to the metadata DB; override to do it through an API.
+        """
+        cutoff = timezone.utcnow() - timedelta(
+            seconds=self.parsing_cleanup_interval * _TASK_HANDLER_ARTIFACT_SWEEP_GRACE_INTERVALS
+        )
+        sweepable = (
+            LangSDKTaskHandlerArtifact.last_probed_at < cutoff,
+            ~exists().where(LangSDKTaskHandler.artifact_id == LangSDKTaskHandlerArtifact.id),
+        )
+        deleted = 0
+        while True:
+            with create_session() as session:
+                # SKIP LOCKED passes over the artifacts a concurrent parse holds while it binds them.
+                ids = session.scalars(
+                    with_row_locks(
+                        select(LangSDKTaskHandlerArtifact.id)
+                        .where(*sweepable)
+                        .order_by(LangSDKTaskHandlerArtifact.last_probed_at)
+                        .limit(_TASK_HANDLER_ARTIFACT_SWEEP_BATCH_SIZE),
+                        session,
+                        of=LangSDKTaskHandlerArtifact,
+                        skip_locked=True,
+                        key_share=False,
+                    )
+                ).all()
+                if ids:
+                    # Checked again for handler rows a parse committed since the select.
+                    result = session.execute(
+                        delete(LangSDKTaskHandlerArtifact)
+                        .where(LangSDKTaskHandlerArtifact.id.in_(ids), *sweepable)
+                        .execution_options(synchronize_session=False)
+                    )
+                    deleted += cast("CursorResult", result).rowcount
+            if len(ids) < _TASK_HANDLER_ARTIFACT_SWEEP_BATCH_SIZE:
+                break
+        if deleted:
+            self.log.info("Deleted %i unreferenced task handler artifacts.", deleted)
+        return deleted
+
     def _cleanup_stale_bundle_versions(self):
         if self.stale_bundle_cleanup_interval <= 0:
             return
@@ -601,6 +669,7 @@ class DagFileProcessorManager(LoggingMixin):
             for callback in self.fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
+            self._sweep_task_handler_artifacts()
             self._cleanup_stale_bundle_versions()
             self.purge_inactive_dag_warnings()
 
@@ -1318,6 +1387,19 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
         if proc.parsing_result is not None:
+            if proc.parsing_result.probed_artifacts:
+                try:
+                    self.persist_probed_task_handler_artifacts(
+                        bundle_name=file.bundle_name, artifacts=proc.parsing_result.probed_artifacts
+                    )
+                except Exception:
+                    # The parse result is still persisted; a binding whose artifact has no row leaves its
+                    # Dag unchanged, and the next parse probes the artifact again.
+                    self.log.exception(
+                        "Failed to record probed task handler artifacts",
+                        bundle_name=file.bundle_name,
+                        relative_fileloc=str(file.rel_path),
+                    )
             try:
                 self.persist_parsing_result(
                     bundle_name=file.bundle_name,
@@ -1390,7 +1472,30 @@ class DagFileProcessorManager(LoggingMixin):
             session=session,
             files_parsed=files_parsed,
             dag_source_codes=parsing_result.dag_source_codes,
+            relative_fileloc=relative_fileloc,
+            task_handler_bindings=parsing_result.task_handler_bindings,
+            task_handler_artifact_bundles=(
+                None
+                if parsing_result.task_handler_bindings is None
+                else self._get_task_handler_artifact_bundle_names(bundle_name)
+            ),
         )
+
+    def persist_probed_task_handler_artifacts(
+        self, *, bundle_name: str, artifacts: Sequence[TaskHandlerArtifact]
+    ) -> None:
+        """
+        Record the artifacts a Dag file's parse probed, with their answers, in a transaction of their own.
+
+        *bundle_name* is the Dag file's bundle. Default implementation writes to the metadata DB; override
+        to do it through an API.
+        """
+        artifact_bundle_names = self._get_task_handler_artifact_bundle_names(bundle_name)
+        for attempt in run_with_db_retries(logger=self.log):
+            with attempt, create_session() as session:
+                record_probed_task_handler_artifacts(
+                    artifacts, bundle_names=artifact_bundle_names, session=session
+                )
 
     def _collect_results(self):
         finished = []

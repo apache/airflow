@@ -59,6 +59,7 @@ from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
     TaskHandlerArtifact,
+    TaskHandlerBinding,
     TaskHandlerDeclaration,
     TaskHandlerParam,
     TaskHandlerParseRequest,
@@ -2487,6 +2488,73 @@ class TestTaskHandlerDeclaration:
     def test_rejects_invalid_binding(self, declaration):
         with pytest.raises(ValidationError, match="binding"):
             TaskHandlerDeclaration.model_validate(declaration)
+
+
+def _make_binding_body(**overrides) -> dict:
+    return {
+        "dag_id": "etl",
+        "task_id": "extract",
+        "artifact_bundle_name": "java-task-handlers",
+        "artifact_rel_path": "etl.jar",
+        **overrides,
+    }
+
+
+class TestTaskHandlerBinding:
+    def test_parsing_result_decodes_bindings(self):
+        result = TypeAdapter(ToManager).validate_python(
+            {
+                "type": "DagFileParsingResult",
+                "fileloc": "/files/dags/etl.py",
+                "serialized_dags": [],
+                "task_handler_bindings": [_make_binding_body()],
+            }
+        )
+
+        assert isinstance(result, DagFileParsingResult)
+        assert result.task_handler_bindings == [
+            TaskHandlerBinding(
+                dag_id="etl",
+                task_id="extract",
+                artifact_bundle_name="java-task-handlers",
+                artifact_rel_path="etl.jar",
+            )
+        ]
+        assert result.probed_artifacts == []
+
+    def test_parsing_result_decodes_probed_artifacts(self):
+        result = TypeAdapter(ToManager).validate_python(
+            {
+                "type": "DagFileParsingResult",
+                "fileloc": "/files/dags/etl.py",
+                "serialized_dags": [],
+                "probed_artifacts": [_make_known_artifact_body()],
+            }
+        )
+
+        assert isinstance(result, DagFileParsingResult)
+        assert result.task_handler_bindings is None
+        assert result.probed_artifacts == [
+            TaskHandlerArtifact(
+                bundle_name="java-task-handlers",
+                relative_fileloc="etl.jar",
+                size_bytes=1024,
+                cache_digest="ab12",
+                task_handlers={
+                    "etl": [
+                        TaskHandlerDeclaration(
+                            task_id="extract",
+                            binding="positional",
+                            params=[TaskHandlerParam(name=None)],
+                        )
+                    ]
+                },
+            )
+        ]
+
+    def test_rejects_a_path_wider_than_its_column(self):
+        with pytest.raises(ValidationError, match="artifact_rel_path"):
+            TaskHandlerBinding.model_validate(_make_binding_body(artifact_rel_path="a" * 2001))
 
 
 class TestDagFileProcessorProcess:

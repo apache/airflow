@@ -28,11 +28,12 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DataError, IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
 from airflow._shared.timezones.timezone import utcnow
@@ -54,6 +55,11 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
+from airflow.models.lang_sdk_task_handler import (
+    LangSDKTaskHandler,
+    LangSDKTaskHandlerArtifact,
+    compute_fileloc_hash,
+)
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
 from airflow.plugins_manager import get_scheduling_class_teams
@@ -68,15 +74,17 @@ from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
-from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
+from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name, with_row_locks
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Iterator
+    from uuid import UUID
 
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
+    from airflow.dag_processing.processor import TaskHandlerArtifact, TaskHandlerBinding
     from airflow.models.serialized_dag import DagWriteMetadata
     from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
     from airflow.typing_compat import Self, Unpack
@@ -581,6 +589,211 @@ def _reject_other_teams_plugin_classes(
     return accepted
 
 
+_ArtifactKey = tuple[str, str]
+"""``(bundle_name, relative_fileloc_hash)``, the unique key of ``lang_sdk_task_handler_artifact``."""
+
+
+def record_probed_task_handler_artifacts(
+    artifacts: Collection[TaskHandlerArtifact], *, bundle_names: Collection[str], session: Session
+) -> None:
+    """Upsert each probed artifact's fingerprint and answer; those outside *bundle_names* are dropped with a warning."""
+    if outside := sorted(
+        {
+            f"{artifact.bundle_name}/{artifact.relative_fileloc}"
+            for artifact in artifacts
+            if artifact.bundle_name not in bundle_names
+        }
+    ):
+        log.warning("Ignoring probed task handler artifacts outside the Dag file's scope", artifacts=outside)
+    by_key: dict[_ArtifactKey, TaskHandlerArtifact] = {}
+    for artifact in artifacts:
+        if artifact.bundle_name in bundle_names:
+            by_key.setdefault(
+                (artifact.bundle_name, compute_fileloc_hash(artifact.relative_fileloc)), artifact
+            )
+    if not by_key:
+        return
+    dialect = get_dialect_name(session)
+    now = utcnow()
+    # In key order, so two transactions recording the same artifacts lock them in the same order.
+    for key in sorted(by_key):
+        artifact = by_key[key]
+        probe = {
+            "size_bytes": artifact.size_bytes,
+            "cache_digest": artifact.cache_digest,
+            "task_handlers": {
+                dag_id: [declaration.model_dump(mode="json") for declaration in declarations]
+                for dag_id, declarations in artifact.task_handlers.items()
+            },
+            "last_probed_at": now,
+        }
+        session.execute(
+            build_upsert_stmt(
+                dialect,
+                LangSDKTaskHandlerArtifact,
+                conflict_cols=["bundle_name", "relative_fileloc_hash"],
+                values={
+                    "bundle_name": artifact.bundle_name,
+                    "relative_fileloc": artifact.relative_fileloc,
+                    # Upserts skip the model's @validates hook, which keeps the hash in sync on ORM writes.
+                    "relative_fileloc_hash": key[1],
+                    **probe,
+                },
+                update_fields=probe,
+            )
+        )
+
+
+def _get_artifact_key(binding: TaskHandlerBinding) -> _ArtifactKey:
+    return binding.artifact_bundle_name, compute_fileloc_hash(binding.artifact_rel_path)
+
+
+def _find_task_handler_artifacts(
+    keys: Collection[_ArtifactKey], *, session: Session
+) -> dict[_ArtifactKey, UUID]:
+    """Return the ids of the recorded artifacts among *keys*, share-locked until commit."""
+    # The orphan sweep skips locked rows, so it cannot delete an artifact between this read and the
+    # insert of the handler rows that reference it. size_bytes is not in the unique index: reading it
+    # makes MySQL lock the row itself, which the sweep checks, and not only the index entry.
+    query = with_row_locks(
+        select(
+            LangSDKTaskHandlerArtifact.bundle_name,
+            LangSDKTaskHandlerArtifact.relative_fileloc_hash,
+            LangSDKTaskHandlerArtifact.id,
+            LangSDKTaskHandlerArtifact.size_bytes,
+        )
+        .where(
+            tuple_(
+                LangSDKTaskHandlerArtifact.bundle_name, LangSDKTaskHandlerArtifact.relative_fileloc_hash
+            ).in_(list(keys))
+        )
+        .order_by(LangSDKTaskHandlerArtifact.bundle_name, LangSDKTaskHandlerArtifact.relative_fileloc_hash),
+        session,
+        read=True,
+        key_share=True,
+    )
+    return {
+        (bundle_name, fileloc_hash): artifact_id
+        for bundle_name, fileloc_hash, artifact_id, _ in session.execute(query)
+    }
+
+
+def _sync_task_handlers(
+    bindings: dict[tuple[str, str], TaskHandlerBinding],
+    artifact_ids: dict[_ArtifactKey, UUID],
+    *,
+    dag_ids: Collection[str],
+    dag_bundle_name: str,
+    dag_relative_fileloc: str,
+    session: Session,
+) -> None:
+    desired = {
+        key: {
+            "dag_id": binding.dag_id,
+            "task_id": binding.task_id,
+            "artifact_id": artifact_ids[_get_artifact_key(binding)],
+            "dag_bundle_name": dag_bundle_name,
+            "dag_relative_fileloc": dag_relative_fileloc,
+            # Bulk writes skip the model's @validates hook, which keeps the hash in sync on ORM writes.
+            "dag_relative_fileloc_hash": compute_fileloc_hash(dag_relative_fileloc),
+        }
+        for key, binding in bindings.items()
+    }
+    recorded = {
+        (row.dag_id, row.task_id): row._asdict()
+        for row in session.execute(
+            select(
+                LangSDKTaskHandler.dag_id,
+                LangSDKTaskHandler.task_id,
+                LangSDKTaskHandler.artifact_id,
+                LangSDKTaskHandler.dag_bundle_name,
+                LangSDKTaskHandler.dag_relative_fileloc,
+                LangSDKTaskHandler.dag_relative_fileloc_hash,
+            ).where(LangSDKTaskHandler.dag_id.in_(dag_ids))
+        )
+    }
+    if gone := sorted(recorded.keys() - desired.keys()):
+        session.execute(
+            delete(LangSDKTaskHandler)
+            .where(tuple_(LangSDKTaskHandler.dag_id, LangSDKTaskHandler.task_id).in_(gone))
+            .execution_options(synchronize_session=False)
+        )
+    if added := [desired[key] for key in sorted(desired.keys() - recorded.keys())]:
+        session.execute(insert(LangSDKTaskHandler), added)
+    if changed := [
+        desired[key] for key in sorted(desired.keys() & recorded.keys()) if desired[key] != recorded[key]
+    ]:
+        session.execute(update(LangSDKTaskHandler), changed)
+
+
+def _reconcile_task_handler_bindings(
+    bindings: Iterable[TaskHandlerBinding],
+    *,
+    dag_ids: Collection[str],
+    rejected_dag_ids: Collection[str],
+    artifact_bundle_names: Collection[str],
+    dag_bundle_name: str,
+    dag_relative_fileloc: str,
+    session: Session,
+) -> None:
+    """
+    Make the recorded task handler bindings of each Dag in *dag_ids* match *bindings*.
+
+    Rows are keyed by Dag id, not by file. Rows of other Dags are left alone, including those of a Dag
+    that moved to another file, which that file's parse reconciles. A Dag bound to an artifact outside
+    *artifact_bundle_names*, or to one with no recorded row, keeps its rows as they are. Artifact rows are
+    only read: the probed-artifact write records them, and the Dag processor's orphan sweep deletes them.
+    Bindings of *rejected_dag_ids*, Dags the parse produced but that are not persisted, are dropped
+    quietly: their import error explains why.
+    """
+    by_task: dict[tuple[str, str], list[TaskHandlerBinding]] = defaultdict(list)
+    unknown_dag_ids: set[str] = set()
+    for binding in bindings:
+        if binding.dag_id in dag_ids:
+            by_task[(binding.dag_id, binding.task_id)].append(binding)
+        elif binding.dag_id not in rejected_dag_ids:
+            unknown_dag_ids.add(binding.dag_id)
+    if unknown_dag_ids:
+        log.warning(
+            "Ignoring task handler bindings of Dags not in the parse result", dag_ids=sorted(unknown_dag_ids)
+        )
+    # The parse reports a task bound twice as an import error; this only keeps the rows as they are.
+    if conflicting := {dag_id for (dag_id, _), group in by_task.items() if len(group) > 1}:
+        log.warning(
+            "Ignoring task handler bindings of Dags that bind a task twice", dag_ids=sorted(conflicting)
+        )
+    resolved = {key: group[0] for key, group in by_task.items() if key[0] not in conflicting}
+    if out_of_scope := {
+        binding.dag_id
+        for binding in resolved.values()
+        if binding.artifact_bundle_name not in artifact_bundle_names
+    }:
+        log.warning(
+            "Ignoring task handler bindings of Dags bound to an artifact outside their scope",
+            dag_ids=sorted(out_of_scope),
+        )
+    in_scope = [binding for key, binding in resolved.items() if key[0] not in out_of_scope]
+    keys = {_get_artifact_key(binding) for binding in in_scope}
+    artifact_ids = _find_task_handler_artifacts(keys, session=session) if keys else {}
+    # A concurrent orphan sweep or a failed probed-artifact write leaves no row; the next parse probes again.
+    if unrecorded := {
+        binding.dag_id for binding in in_scope if _get_artifact_key(binding) not in artifact_ids
+    }:
+        log.warning(
+            "Ignoring task handler bindings of Dags bound to an unrecorded artifact",
+            dag_ids=sorted(unrecorded),
+        )
+    unchanged = conflicting | out_of_scope | unrecorded
+    _sync_task_handlers(
+        {key: binding for key, binding in resolved.items() if key[0] not in unchanged},
+        artifact_ids,
+        dag_ids=[dag_id for dag_id in dag_ids if dag_id not in unchanged],
+        dag_bundle_name=dag_bundle_name,
+        dag_relative_fileloc=dag_relative_fileloc,
+        session=session,
+    )
+
+
 def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
@@ -598,6 +811,9 @@ def update_dag_parsing_results_in_db(
     ),
     files_parsed: set[tuple[str, str]] | None = None,
     dag_source_codes: dict[str, DagSourceCode] | None = None,
+    relative_fileloc: str | None = None,
+    task_handler_bindings: list[TaskHandlerBinding] | None = None,
+    task_handler_artifact_bundles: Collection[str] | None = None,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -609,6 +825,7 @@ def update_dag_parsing_results_in_db(
     - ParseImportError (including with any errors as a result of serialization, not just parsing)
     - DagWarning
     - DAG Permissions
+    - LangSDKTaskHandler, when ``task_handler_bindings`` is given
 
     This function will not remove any rows for dags not passed in. It will remove parse errors and warnings
     from dags/dag files that are passed in. In order words, if a DAG is passed in with a fileloc of `a.py`
@@ -621,8 +838,19 @@ def update_dag_parsing_results_in_db(
         import errors are cleared for files that were parsed but no longer contain DAGs.
     :param dag_source_codes: Source code read by the Dag importers, keyed by Dag fileloc. Dags
         without an entry have their source read from ``fileloc``.
+    :param relative_fileloc: The parsed file, relative to its bundle. Required with ``task_handler_bindings``.
+    :param task_handler_bindings: The stub-task bindings of every Dag in ``dags``. ``None`` leaves the
+        recorded bindings as they are; a list replaces the recorded bindings of each Dag in ``dags``. If
+        the database rejects that write, the recorded bindings stay and the rest is still written.
+    :param task_handler_artifact_bundles: The bundles whose artifacts the bindings may reference. Required
+        with ``task_handler_bindings``; a Dag bound to an artifact outside them keeps its recorded bindings.
     """
+    if task_handler_bindings is not None and relative_fileloc is None:
+        raise ValueError("relative_fileloc is required with task_handler_bindings")
+    if task_handler_bindings is not None and task_handler_artifact_bundles is None:
+        raise ValueError("task_handler_artifact_bundles is required with task_handler_bindings")
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    rejected_ids: set[str] = set()
     if len(accepted) != len(dags):
         # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
         rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}
@@ -653,6 +881,35 @@ def update_dag_parsing_results_in_db(
                 SerializedDAG.bulk_write_to_db(
                     bundle_name, bundle_version, dags, parse_duration, session=session
                 )
+                # After the Dag rows, which the handler rows reference, and before the serialized Dags.
+                if (
+                    task_handler_bindings is not None
+                    and relative_fileloc is not None
+                    and task_handler_artifact_bundles is not None
+                    and dags
+                ):
+                    # A savepoint, so bindings the database rejects cannot discard the rest of the result.
+                    savepoint = session.begin_nested()
+                    try:
+                        _reconcile_task_handler_bindings(
+                            task_handler_bindings,
+                            dag_ids={dag.dag_id for dag in dags},
+                            rejected_dag_ids=rejected_ids,
+                            artifact_bundle_names=task_handler_artifact_bundles,
+                            dag_bundle_name=bundle_name,
+                            dag_relative_fileloc=relative_fileloc,
+                            session=session,
+                        )
+                    except (IntegrityError, DataError):
+                        savepoint.rollback()
+                        log.warning(
+                            "Failed to record task handler bindings; the rest of the parse result is kept",
+                            bundle_name=bundle_name,
+                            relative_fileloc=relative_fileloc,
+                            exc_info=True,
+                        )
+                    else:
+                        savepoint.commit()
                 # Bulk prefetch metadata for all DAGs to avoid the standard per-DAG
                 # metadata lookups in write_dag. This replaces the update-interval,
                 # hash, and version queries with 2 bulk queries total; DAGs with

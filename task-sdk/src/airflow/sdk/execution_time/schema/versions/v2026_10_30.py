@@ -74,3 +74,23 @@ class AddKnownArtifactsToDagFileParseRequest(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(DagFileParseRequest).field("known_artifacts").didnt_exist,
     )
+
+
+class AddTaskHandlerBindingsToDagFileParsingResult(VersionChange):
+    """Add ``task_handler_bindings``, the resolved stub-task bindings, to ``DagFileParsingResult``."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagFileParsingResult).field("task_handler_bindings").didnt_exist,
+    )
+
+
+class AddProbedArtifactsToDagFileParsingResult(VersionChange):
+    """Add ``probed_artifacts``, the task-handler artifacts a parse probed and their answers, to ``DagFileParsingResult``."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagFileParsingResult).field("probed_artifacts").didnt_exist,
+    )
