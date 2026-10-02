@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
+import json
+import logging
 
 from airflow.dag_processing.importer_routing import get_claiming_coordinator
 
+from tests_common.test_utils.config import conf_vars
 from unit.dag_processing.fake_lang_sdk import FakeCoordinator, fake_coordinator
 
 
@@ -33,6 +35,17 @@ def test_get_claiming_coordinator_returns_the_coordinator_of_its_importer(tmp_pa
     assert others == [None, None]
 
 
-@mock.patch("airflow.dag_processing.importer_routing._get_registry", autospec=True, return_value=None)
-def test_get_claiming_coordinator_without_a_registry(mock_registry, tmp_path):
-    assert get_claiming_coordinator(tmp_path / "dags.native", "testing") is None
+def test_get_claiming_coordinator_logs_a_broken_configuration(tmp_path, caplog):
+    spec = {"classpath": f"{FakeCoordinator.__module__}.FakeCoordinator", "kwargs": {}}
+    with (
+        conf_vars({("sdk", "coordinators"): json.dumps({"first": spec, "second": spec})}),
+        caplog.at_level(logging.ERROR, logger="airflow.dag_processing.importer_routing"),
+    ):
+        assert get_claiming_coordinator(tmp_path / "dags.native", "testing") is None
+
+    [record] = caplog.records
+    assert (
+        record.getMessage()
+        == f"Cannot load the Dag importer for {tmp_path / 'dags.native'} in bundle testing"
+    )
+    assert "Coordinators 'first' and 'second' both parse .native files" in str(record.exc_info[1])
