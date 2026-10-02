@@ -122,7 +122,9 @@ The ``dagId`` a handler binds must match the ``dag_id`` of the Python Dag, and t
 ``@task.stub`` function in that Dag, including any TaskGroup prefix.
 
 ``register`` takes any number of task handlers and Dags, and ``bundle.serve()`` serves exactly what is
-registered, so a task left out is not part of the packed bundle and is marked removed at runtime.
+registered, so a task left out is not part of the packed bundle. A stub task whose handler is left out
+fails the import of its Python Dag file (see :ref:`language-sdks/dag-processor-checks`), and a task that
+still reaches a bundle without its handler is marked removed at runtime.
 A second ``bundle.serve()`` call is rejected.
 Registering holds no sockets and starts nothing, so a unit test can build a bundle and dispatch a handler
 through ``bundle.getTaskHandler(dagId, taskId)`` without a coordinator runtime.
