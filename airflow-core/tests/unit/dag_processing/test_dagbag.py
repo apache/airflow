@@ -1534,8 +1534,15 @@ class TestBundlePathSysPath:
         assert sys.path == syspath_before
 
 
-def test_sync_bag_to_db_leaves_native_files_to_the_dag_processor(tmp_path, session, testing_dag_bundle):
+@pytest.fixture
+def clean_import_errors():
     db.clear_db_import_errors()
+    yield
+    db.clear_db_import_errors()
+
+
+@pytest.mark.usefixtures("clean_import_errors")
+def test_sync_bag_to_db_leaves_native_files_to_the_dag_processor(tmp_path, session, testing_dag_bundle):
     write_native_file(tmp_path / "dags.native")
     session.add(ParseImportError(bundle_name="testing", filename="dags.native", stacktrace="stored"))
     session.commit()
