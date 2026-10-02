@@ -102,6 +102,17 @@ class TestJarMetadata:
 
         assert _JarMetadata.from_jar(jar) is None
 
+    def test_permission_error_propagates(self, tmp_path):
+        jar = tmp_path / "locked.jar"
+        with (
+            patch(
+                "airflow.sdk.coordinators.java.coordinator.zipfile.ZipFile",
+                side_effect=PermissionError(13, "Permission denied", str(jar)),
+            ),
+            pytest.raises(PermissionError, match="locked.jar"),
+        ):
+            _JarMetadata.from_jar(jar)
+
 
 class TestCalculateClasspath:
     def test_single_jar(self, tmp_path):
@@ -479,7 +490,7 @@ class TestBuildParseDagCommand:
     @pytest.mark.parametrize(
         ("attributes", "match"),
         [
-            pytest.param(None, "Cannot read the manifest", id="no-manifest"),
+            pytest.param(None, "has no META-INF/MANIFEST.MF", id="no-manifest"),
             pytest.param({"Manifest-Version": "1.0"}, "sets no Main-Class", id="no-main-class"),
             pytest.param({"Main-Class": "com.example.Other"}, "main_class is 'com.example.Dags'", id="pin"),
         ],
@@ -494,11 +505,11 @@ class TestBuildParseDagCommand:
         jar = tmp_path / "broken.jar"
         jar.write_bytes(b"not a zip")
 
-        with pytest.raises(ValueError, match="Cannot read the manifest"):
+        with pytest.raises(ValueError, match="broken.jar is not a valid JAR: File is not a zip file"):
             self._build(JavaCoordinator(), tmp_path, jar)
 
     def test_rejects_a_jar_deleted_after_discovery(self, tmp_path):
-        with pytest.raises(ValueError, match="Cannot read the manifest"):
+        with pytest.raises(FileNotFoundError, match="gone.jar"):
             self._build(JavaCoordinator(), tmp_path, tmp_path / "gone.jar")
 
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))

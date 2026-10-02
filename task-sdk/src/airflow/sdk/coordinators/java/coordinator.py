@@ -102,13 +102,27 @@ class _JarMetadata:
         try:
             with zipfile.ZipFile(path) as zf:
                 attributes = read_main_attributes(zf)
-        except (OSError, zipfile.BadZipFile):
+        except (FileNotFoundError, IsADirectoryError, zipfile.BadZipFile):
             log.exception("Cannot read JAR; ignored", path=path)
             return None
         if attributes is None:
             log.debug("JAR does not contain META-INF/MANIFEST.MF; ignored", path=path)
             return None
         return cls(attributes.get(MAIN_CLASS), attributes.get(SUPERVISOR_SCHEMA_VERSION))
+
+
+def _read_executable_jar(path: pathlib.Path) -> tuple[str, str | None]:
+    """Return the Main-Class and schema version of the JAR at *path*, raising ``ValueError`` if it cannot run."""
+    try:
+        with zipfile.ZipFile(path) as zf:
+            attributes = read_main_attributes(zf)
+    except zipfile.BadZipFile as e:
+        raise ValueError(f"{path} is not a valid JAR: {e}") from e
+    if attributes is None:
+        raise ValueError(f"{path} has no META-INF/MANIFEST.MF")
+    if not (main_class := attributes.get(MAIN_CLASS)):
+        raise ValueError(f"{path} is not an executable JAR: its manifest sets no Main-Class")
+    return main_class, attributes.get(SUPERVISOR_SCHEMA_VERSION)
 
 
 @attrs.define
@@ -232,15 +246,11 @@ class JavaCoordinator(SubprocessCoordinator):
     def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         # Same command shape as execution. With one executable JAR per bundle, or main_class set,
         # a parse runs the class a task runs.
-        meta = _JarMetadata.from_jar(path)
-        if meta is None:
-            raise ValueError(f"Cannot read the manifest of {path}")
-        if not meta.main_class:
-            raise ValueError(f"{path} is not an executable JAR: its manifest sets no Main-Class")
-        if self.main_class and meta.main_class != self.main_class:
+        main_class, _ = _read_executable_jar(path)
+        if self.main_class and main_class != self.main_class:
             raise ValueError(
-                f"{path} runs {meta.main_class!r}, but this coordinator's main_class is {self.main_class!r}"
+                f"{path} runs {main_class!r}, but this coordinator's main_class is {self.main_class!r}"
             )
         roots = self._get_scan_roots()
-        jar = _JarInfo.find(roots, meta.main_class)
+        jar = _JarInfo.find(roots, main_class)
         return self._build_command(roots, jar.main_class), jar.schema_version
