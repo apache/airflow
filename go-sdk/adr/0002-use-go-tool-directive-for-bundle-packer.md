@@ -36,6 +36,12 @@ A standalone binary + Option D introspection contract + Option H
 ZIP output; read them with the ADR 0004 substitution in mind, and
 treat ADR 0004 as authoritative wherever the two disagree.
 
+The `--airflow-metadata` introspection this ADR has the packer run is retired:
+the packer no longer runs the binary but reads the go-sdk version from its
+build information, and neither the bundle binary nor the packer accepts
+`--airflow-metadata` any more (see
+[ADR-0014](../../airflow-core/adr/lang-sdk/0014-bundle-metadata-and-cache-digest.md)).
+
 ## Context
 
 [ADR 0001](0001-bundle-packing-options.md) enumerated nine candidate

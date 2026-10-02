@@ -44,6 +44,11 @@ options below still describe valid *packer mechanisms*; only the
 artefact each one writes has changed from a ZIP to a footer-augmented
 executable.
 
+Option D is retired: the bundle binary no longer accepts `--airflow-metadata`,
+and the packer no longer runs the binary but reads the go-sdk version from
+its build information (see
+[ADR-0014](../../airflow-core/adr/lang-sdk/0014-bundle-metadata-and-cache-digest.md)).
+
 ## Context
 
 The executable provider's bundle spec

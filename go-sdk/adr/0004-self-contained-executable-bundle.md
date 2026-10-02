@@ -30,6 +30,11 @@ packer mechanism (Option A standalone packer + Option D introspection
 contract + Option H `tool` directive) is unchanged; only the artefact
 the packer writes is changed.
 
+The `--airflow-metadata` introspection this ADR has the packer run is retired:
+the packer no longer runs the binary but reads the go-sdk version from its
+build information, and the manifest no longer lists Dags (see
+[ADR-0014](../../airflow-core/adr/lang-sdk/0014-bundle-metadata-and-cache-digest.md)).
+
 ## Context
 
 ADR 0001 / ADR 0002 picked a ZIP archive as the bundle container,

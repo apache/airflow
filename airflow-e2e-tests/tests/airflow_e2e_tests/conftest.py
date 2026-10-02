@@ -543,9 +543,10 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
 def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
     """Run ``go tool airflow-go-pack`` natively or inside the pinned Go toolchain container.
 
-    ``go tool airflow-go-pack`` builds the bundle package, reads its
-    --airflow-metadata, and appends the source + airflow-metadata.yaml + the
-    AFBNDL01 trailer, writing a single self-contained executable bundle.
+    ``go tool airflow-go-pack`` builds the bundle package, reads the go-sdk
+    version from the binary's build information (it never runs the binary), and
+    appends the source + airflow-metadata.yaml + the AFBNDL01 trailer, writing a
+    single self-contained executable bundle.
     CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
 
     In ``native`` mode (used in CI, where the host already has a Go toolchain plus
@@ -559,10 +560,6 @@ def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
     * HOME points at a writable, gitignored dir under go-sdk/bin so the Go build
       and module caches persist between runs (first run downloads modules once;
       subsequent runs skip straight to compilation).
-    * USER/HOME must be set because the SDK calls user.Current() at init; with
-      cgo disabled Go's pure-Go resolver reads those env vars instead of libc,
-      and panics if either is empty (the same vars are set on the worker and
-      the Dag processor in go.yml so the packed binary runs the same way there).
     """
     if native:
         cwd = GO_SDK_ROOT_PATH

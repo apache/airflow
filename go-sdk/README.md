@@ -37,10 +37,10 @@ another.
 Python tasks are imported and run in-process. Go is compiled, so the model is different.
 
 A single binary that bundles one or more Dags' task functions is called a **bundle**. You build one with
-the SDK's packer, `airflow-go-pack`, which compiles your code and appends a metadata footer (the manifest
-of `dag_id`s and `task_id`s, plus the Dag source) to the executable. The result is a **self-contained
-executable bundle**: a single runnable file that *is* the bundle, with no separate manifest or archive to
-ship alongside it.
+the SDK's packer, `airflow-go-pack`, which compiles your code and appends a metadata footer (a small
+manifest with the SDK and supervisor schema versions, plus the Dag source) to the executable. The result
+is a **self-contained executable bundle**: a single runnable file that *is* the bundle, with no separate
+manifest or archive to ship alongside it.
 
 ## You still need a Python stub Dag (for now)
 
@@ -265,17 +265,14 @@ the full range of task states, and alternate XCom backends without implementing 
     ./example/bundle
   ```
 
-  Alternatively, use `--executable`/`--source`. The packer normally execs the binary to read
-  its metadata; a cross-compiled binary cannot run on the host, so generate the metadata on a machine that
-  can run it and pass the file with `--airflow-metadata`:
+  Alternatively, use `--executable`/`--source`. The packer never runs the binary, so one built for any
+  platform packs on any host. It reads the go-sdk version from the binary's build information and refuses a
+  binary built against a different go-sdk version than the packer's, so run it from the module that builds
+  the bundle:
 
   ```bash
-  # on linux/amd64 machine:
-  go build -o my-bundle ./example/bundle
-  ./my-bundle --airflow-metadata > airflow-metadata.yaml
-
-  # on darwin/arm64 machine:
-  go tool airflow-go-pack --executable ./my-bundle --source main.go --airflow-metadata airflow-metadata.yaml
+  GOOS=linux GOARCH=amd64 go build -o my-bundle ./example/bundle
+  go tool airflow-go-pack --executable ./my-bundle --source ./example/bundle/main.go
   ```
 
   > [!NOTE]

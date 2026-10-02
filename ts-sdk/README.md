@@ -311,7 +311,9 @@ airflow-ts-pack src/main.ts --outdir dist
 ```
 
 It bundles the entrypoint into a minified `dist/bundle.min.mjs` with esbuild, then runs that bundle with
-`--airflow-metadata` so it reports its own registered Dag/task pairs and supervisor schema version. The manifest is
+`--airflow-metadata` so it reports its supervisor schema version and the file each of its Dags was declared in. The
+packer also checks the Dag and task pairs the bundle registers, and warns about ids the Airflow server would reject,
+but does not embed them. The manifest, with the SDK version, the schema version and those source files, is
 embedded as a compact JSON `//# airflowMetadata=...` comment after a leading compact JSON `//# airflowBundle=...`
 layout descriptor, and the entry module is embedded verbatim in a `/*# airflowSource ... #*/` block comment so
 Airflow can show the source a bundle was authored from, which its minified code no longer is. The CLI records the
@@ -326,7 +328,6 @@ Options:
 
 - `--outdir <dir>`: output directory (default `dist`)
 - `--outfile <path>`: exact output path, whose name must end in `.min.mjs`
-- `--source <name>`: display name of the primary source file shown in the Airflow UI (default: entry basename)
 
 ## TaskClient
 

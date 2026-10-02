@@ -493,10 +493,11 @@ Building and packaging
 ----------------------
 
 ``airflow-ts-pack`` (shipped with the SDK) bundles the entry module and all of its imports with esbuild into
-a single self-contained, minified ESM file, ``bundle.min.mjs``, and embeds the manifest (the ``dag_id`` and
-``task_id`` map plus the supervisor schema version) after a leading compact JSON ``//# airflowBundle=...``
-layout header. The layout records the byte ranges and SHA-256 digests of the manifest and executable code,
-so there is one file to deploy, with no separate manifest or ``node_modules``.
+a single self-contained, minified ESM file, ``bundle.min.mjs``, and embeds the manifest (the SDK version, the
+supervisor schema version, the entry file and, for each Dag declared in TypeScript, the file that declares it)
+after a leading compact JSON ``//# airflowBundle=...`` layout header. The layout records the byte ranges and
+SHA-256 digests of the manifest and executable code, so there is one file to deploy, with no separate manifest or
+``node_modules``.
 
 The code is minified because an integrity digest is only worth taking over an artifact nobody is expected to
 read or edit in place. Function names are kept through minification, since a task id defaults to its
@@ -517,9 +518,8 @@ that only supply utilities or types are not embedded.
     npm install --save-dev esbuild
     npx airflow-ts-pack src/main.ts --outdir dist
 
-Use ``--outdir <dir>`` to choose the output directory (default ``dist``), ``--outfile <path>`` to name the
-artifact exactly, which helps when one Dag bundle holds several bundles, and ``--source <name>`` to set
-the source name displayed in the Airflow UI (default: the entry file's basename). ``--outdir`` and
+Use ``--outdir <dir>`` to choose the output directory (default ``dist``), or ``--outfile <path>`` to name the
+artifact exactly, which helps when one Dag bundle holds several bundles. ``--outdir`` and
 ``--outfile`` are mutually exclusive, and an ``--outfile`` name must end in ``.min.mjs`` so the coordinator
 can find it.
 

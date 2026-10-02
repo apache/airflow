@@ -40,6 +40,10 @@ decision in this ADR is unaffected: the binary still honours
 the container format it ships inside. Read the ZIP mentions below with
 the ADR 0004 substitution in mind.
 
+The `--airflow-metadata` mode described below is removed, so the bundle binary
+speaks only the coordinator protocol (see
+[ADR-0014](../../airflow-core/adr/lang-sdk/0014-bundle-metadata-and-cache-digest.md)).
+
 ## Context
 
 A Go SDK bundle binary today (the artefact built from
