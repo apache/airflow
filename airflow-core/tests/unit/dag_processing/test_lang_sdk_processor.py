@@ -28,6 +28,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
+from typing import BinaryIO
 from unittest.mock import ANY, MagicMock, call, patch
 
 import psutil
@@ -117,6 +118,7 @@ def _start(tmp_path, selector, *, client: Client | None = None, **spec) -> LangS
         dag_file_rel_path="dag.native",
         selector=selector,
         logger=structlog.get_logger(),
+        logger_filehandle=MagicMock(spec=BinaryIO),
         client=client or MagicMock(spec=Client),
     )
 
@@ -439,6 +441,7 @@ def test_only_a_positive_import_timeout_applies(mock_timeout, configured, expect
 
 def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
     kwargs.setdefault("process", MagicMock(spec=PsutilTracker))
+    kwargs.setdefault("logger_filehandle", MagicMock(spec=BinaryIO))
     return LangSDKDagFileProcessorProcess(
         id=uuid.uuid4(),
         pid=1,
@@ -537,13 +540,15 @@ def test_the_schema_version_is_reported_once(mock_send_msg):
 @patch("airflow.dag_processing.lang_sdk_processor.psutil.pid_exists", autospec=True)
 def test_close_kills_what_an_exited_runtime_left_once(mock_pid_exists, mock_killpg, pid_reused, killed):
     mock_pid_exists.return_value = pid_reused
-    proc = _make_process(new_process_group=True)
+    logger_filehandle = MagicMock(spec=BinaryIO)
+    proc = _make_process(new_process_group=True, logger_filehandle=logger_filehandle)
     proc._exit_code = 0
 
     proc.close()
     proc.close()
 
     assert mock_killpg.call_args_list == ([call(1, signal.SIGKILL)] if killed else [])
+    logger_filehandle.close.assert_called()
 
 
 @patch.object(LangSDKDagFileProcessorProcess, "_signal_subprocess", autospec=True)
