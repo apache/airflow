@@ -1276,9 +1276,6 @@ def get_task_instance_count(
     """Get the count of task instances matching the given criteria."""
     query = select(func.count()).select_from(TI).where(TI.dag_id == dag_id)
 
-    if task_ids:
-        query = query.where(TI.task_id.in_(task_ids))
-
     if map_index is not None:
         query = query.where(TI.map_index == map_index)
 
@@ -1290,12 +1287,17 @@ def get_task_instance_count(
 
     if task_group_id:
         group_task_ids = _get_group_task_ids(dag_id, task_group_id, dag_bag, session=session)
+        task_filter = and_(TI.task_id == task_group_id, TI.map_index == -1)
         if group_task_ids:
-            query = query.where(TI.task_id.in_(group_task_ids))
-        else:
-            # If no task group tasks found, default to checking the task group ID itself
-            # This matches the behavior in _get_external_task_group_task_ids
-            query = query.where(TI.task_id == task_group_id, TI.map_index == -1)
+            group_filter = TI.task_id.in_(group_task_ids)
+            # Historical runs may have a task named after the group but no group members.
+            # Task IDs and states must not affect whether those members exist.
+            group_tasks_exist = query.with_only_columns(TI.id).where(group_filter).correlate(None).exists()
+            task_filter = or_(group_filter, and_(task_filter, ~group_tasks_exist))
+        query = query.where(task_filter)
+
+    if task_ids:
+        query = query.where(TI.task_id.in_(task_ids))
 
     if states:
         if "null" in states:
