@@ -24,7 +24,10 @@ import uuid
 import pytest
 from confluent_kafka import Consumer, Producer, TopicPartition
 
-pytest.importorskip("airflow.triggers.shared_stream")
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+if not AIRFLOW_V_3_3_PLUS:
+    pytest.skip("Kafka shared-stream triggers need Airflow 3.3+", allow_module_level=True)
 
 from airflow.models import Connection
 from airflow.providers.apache.kafka.triggers.shared_stream import KafkaSharedStreamProducer

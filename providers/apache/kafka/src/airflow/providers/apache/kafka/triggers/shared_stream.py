@@ -24,11 +24,18 @@ The :class:`KafkaSharedStreamProducer` owns that consumer and commits
 offsets only after the derived :class:`~airflow.triggers.base.TriggerEvent`
 instances have been persisted, via the shared-stream ack channel.
 
-Requires an Airflow version whose ``airflow.triggers.shared_stream`` module
-provides the producer-side ack channel.
+This module builds on the shared-stream ack channel, which was added in
+Airflow 3.3. Importing this module on an older version raises
+``AirflowOptionalProviderFeatureException``.
 """
 
 from __future__ import annotations
+
+from airflow.providers.apache.kafka.version_compat import AIRFLOW_V_3_3_PLUS
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+if not AIRFLOW_V_3_3_PLUS:
+    raise AirflowOptionalProviderFeatureException("Kafka shared-stream triggers need Airflow 3.3+.")
 
 import logging
 from collections.abc import AsyncIterator, Hashable, Sequence
@@ -271,14 +278,16 @@ class KafkaSharedStreamProducer(SharedStreamProducer):
 
     def _commit(self, topic: str, partition: int, offset: int) -> None:
         if self._consumer is None:
-            log.warning("Cannot commit %s[%d]@%d: no open consumer", topic, partition, offset)
-            return
+            # When advance() raises, the triggerer fails every trigger that shares this
+            # producer, and Kafka redelivers from the last committed offset. Returning
+            # here would let the triggerer treat the batch as advanced although nothing
+            # was committed.
+            raise RuntimeError(f"Cannot commit {topic}[{partition}]@{offset}: no open consumer")
         self._consumer.commit(offsets=[TopicPartition(topic, partition, offset)], asynchronous=False)
 
     def _seek(self, topic: str, partition: int, offset: int) -> None:
         if self._consumer is None:
-            log.warning("Cannot seek %s[%d] to %d: no open consumer", topic, partition, offset)
-            return
+            raise RuntimeError(f"Cannot seek {topic}[{partition}] to {offset}: no open consumer")
         self._consumer.seek(TopicPartition(topic, partition, offset))
 
     def _dead_letter(self, topic: str, payloads: list[KafkaBrokerPayload]) -> None:

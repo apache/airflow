@@ -18,7 +18,10 @@ from __future__ import annotations
 
 import pytest
 
-pytest.importorskip("airflow.triggers.shared_stream")
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+if not AIRFLOW_V_3_3_PLUS:
+    pytest.skip("Kafka shared-stream triggers need Airflow 3.3+", allow_module_level=True)
 
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
@@ -380,6 +383,20 @@ class TestKafkaSharedStreamProducer:
         assert all(c[0].offset <= 11 for c in producer._consumer.committed)
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("batch", "expected_message"),
+        [
+            pytest.param([_acked("orders", 0, 10)], "Cannot commit", id="commit"),
+            pytest.param([_failed("orders", 0, 11)], "Cannot seek", id="seek"),
+        ],
+    )
+    async def test_advance_raises_when_the_consumer_is_gone(self, batch, expected_message):
+        producer = KafkaSharedStreamProducer(topics=["orders"])
+
+        with pytest.raises(RuntimeError, match=expected_message):
+            await producer.advance(batch)
+
+    @pytest.mark.asyncio
     async def test_aclose_closes_consumer_once(self):
         producer = KafkaSharedStreamProducer(topics=["orders"])
         consumer = _FakeConsumer()
@@ -413,6 +430,20 @@ class TestKafkaSharedStreamTrigger:
         assert a.shared_stream_key() == b.shared_stream_key()
         # Must be usable as a dict key.
         assert {a.shared_stream_key(): 1}
+
+    @pytest.mark.parametrize(
+        "other",
+        [
+            pytest.param({"topics": ["t2"], "kafka_config_id": "c"}, id="topics"),
+            pytest.param({"topics": ["t1"], "kafka_config_id": "d"}, id="kafka_config_id"),
+        ],
+    )
+    def test_shared_stream_key_separates_topics_and_connections(self, other):
+        # A shared consumer reads one topic list with the settings of one connection,
+        # so a trigger with other topics or another connection needs its own consumer.
+        base = KafkaSharedStreamTrigger(topics=["t1"], kafka_config_id="c")
+
+        assert base.shared_stream_key() != KafkaSharedStreamTrigger(**other).shared_stream_key()
 
     def test_poll_timeout_does_not_affect_key(self):
         # poll_timeout only tunes the poll wait, not which messages -- still share.
