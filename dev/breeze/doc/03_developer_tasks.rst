@@ -335,23 +335,23 @@ Each row says what kind of check it is, whether it runs on the host or needs Doc
 CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
 (breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
 check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
-Use ``--json`` for machine-readable output with the same fields. The ``prek`` row uses
-``--from-ref`` by default, the scope AGENTS.md recommends; ``--full`` shows CI's ``--all-files`` form.
+Static checks are not listed either, including the ``mypy-providers`` and ``migration-round-trip``
+jobs: ``prek`` already picks the hooks to run for the changed files, so run it as usual.
+Use ``--json`` for machine-readable output with the same fields.
 
 When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
 The default list leaves that expansion out and only shows what the changed files match themselves,
 with a note that CI will run more. ``--full`` lists everything CI runs for the default matrix cell
-(default Python, sqlite).
+(default Python, sqlite), apart from static checks.
 
 Even ``--full`` is not the full CI matrix. Other Python versions, Postgres and MySQL,
 lowest-dependency runs, Kubernetes, Helm, e2e suites, the provider compatibility matrix and ARM
-runners only run in CI. Three more caveats. Selective checks compare ``pyproject.toml`` contents
+runners only run in CI. Two more caveats. Selective checks compare ``pyproject.toml`` contents
 between ``HEAD`` and ``HEAD^`` only, so dependency changes that are uncommitted or in earlier
 commits of your branch are not detected as such (test selection is unaffected, only the
-dependency-bump checks are). Untracked files count for test selection but ``prek`` only sees
-tracked files, so ``git add`` new files before running the prek row. Packaging steps CI runs
-around some tests (building and twine-checking the Task SDK and airflow-ctl wheels, regenerating
-the Python API client from its own repository) are not listed.
+dependency-bump checks are). Packaging steps CI runs around some tests (building and
+twine-checking the Task SDK and airflow-ctl wheels, regenerating the Python API client from its
+own repository) are not listed.
 
 These are all available flags of ``verify`` command:
 

@@ -69,8 +69,8 @@ def get_changed_files_against(base_ref: str) -> tuple[str, ...]:
 @click.option(
     "--full",
     is_flag=True,
-    help="List everything CI runs for the default matrix cell, including the full suite CI adds "
-    "when a change touches CI tooling or dependency files.",
+    help="List everything CI runs for the default matrix cell except static checks, including the full "
+    "suite CI adds when a change touches CI tooling or dependency files.",
 )
 @click.option("--json", "as_json", is_flag=True, help="Print machine-readable JSON instead of a table.")
 @option_verbose
@@ -110,6 +110,9 @@ def verify(ctx: click.Context, base_ref: str, full: bool, as_json: bool):
     for item in result["items"]:
         table.add_row(item["kind"], item["runs_in"], escape(item["command"]))
     console.print(table)
+    console.print(
+        "\n[info]Static checks are not listed. Run prek as usual. It picks the hooks for the changed files.[/]"
+    )
     if result["full_tests_needed"] and not full:
         console.print(
             "\n[warning]CI also runs the full suite for this change because it touches CI tooling or "

@@ -50,8 +50,9 @@ def test_json_output_keeps_stdout_parseable(mock_files, monkeypatch):
         "items",
     }
     assert payload["changed_files"] == ["airflow-core/docs/index.rst"]
-    assert set(payload["items"][0]) == {"kind", "command", "runs_in"}
-    assert payload["items"][0]["kind"] == "prek"
+    assert payload["items"] == [
+        {"kind": "docs", "command": "breeze build-docs apache-airflow", "runs_in": "breeze"}
+    ]
 
 
 @patch(
@@ -78,6 +79,20 @@ def test_selective_checks_narration_is_hidden_unless_verbose(mock_files):
     assert result.exit_code == 0
     assert "FileGroupForCi" not in result.output
     assert "FileGroupForCi" not in result.stderr
+
+
+@pytest.mark.parametrize("args", [[], ["--full"]])
+@patch(
+    "airflow_breeze.commands.verify_commands.get_changed_files_against",
+    autospec=True,
+    return_value=("providers/amazon/src/airflow/providers/amazon/hooks/s3.py",),
+)
+def test_static_checks_are_left_to_prek(mock_files, args: list[str]):
+    result = CliRunner().invoke(verify, args, catch_exceptions=False)
+    assert result.exit_code == 0
+    output = " ".join(result.output.split())
+    assert "Static checks are not listed. Run prek as usual." in output
+    assert "prek run" not in output
 
 
 @pytest.mark.parametrize(
@@ -114,11 +129,11 @@ def test_changed_files_list_renames_like_ci_diff_tree(mock_run):
 @patch(
     "airflow_breeze.commands.verify_commands.get_changed_files_against",
     autospec=True,
-    return_value=("airflow-core/docs/index.rst",),
+    return_value=("airflow-core/src/airflow/models/dag.py",),
 )
 def test_long_commands_are_folded_not_truncated(mock_files):
     result = CliRunner().invoke(verify, [], catch_exceptions=False)
     assert result.exit_code == 0
     assert "\u2026" not in result.output
     compact = re.sub(r"[\u2502\s]", "", result.output)
-    assert "prekrun--from-refmain--to-refHEAD" in compact
+    assert "breezetestingcore-tests--use-xdist--skip-db-tests--no-db-cleanup--backendnone" in compact

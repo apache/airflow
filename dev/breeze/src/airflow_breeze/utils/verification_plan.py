@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import shlex
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -35,8 +34,6 @@ class VerificationItem:
 # Mirrors .github/workflows/ci-amd.yml and basic-tests.yml; "breeze" means the command needs
 # Docker and the CI image, "host" means only host tooling.
 FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
-    "run_mypy_providers": (("mypy", "prek run --stage manual mypy-providers --all-files", "breeze"),),
-    "has_migrations": (("schema", "prek run --stage manual migration-round-trip --all-files", "breeze"),),
     "run_task_sdk_tests": (("unit", "breeze testing task-sdk-tests", "breeze"),),
     "run_airflow_ctl_tests": (("unit", "breeze testing airflow-ctl-tests", "breeze"),),
     "run_scripts_tests": (("unit", "uv run --project scripts pytest scripts/tests/", "host"),),
@@ -55,6 +52,18 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("docs", "breeze build-docs --sdk-docs-only --sdk=java", "breeze"),
     ),
     "run_ts_sdk_docs": (("docs", "breeze build-docs --sdk-docs-only --sdk=typescript", "breeze"),),
+    "run_agent_framework_tests": (
+        (
+            "unit",
+            'breeze shell --backend none --skip-db-tests "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh strands-agents"',
+            "breeze",
+        ),
+        (
+            "unit",
+            'breeze shell --backend none --skip-db-tests "bash /opt/airflow/scripts/in_container/run_agent_framework_tests.sh google-adk"',
+            "breeze",
+        ),
+    ),
     "run_breeze_integration_tests": (
         ("unit", "cd dev/breeze && uv run --locked pytest", "host"),
         ("unit", "cd dev/breeze && uv run --locked pytest -m integration_tests", "host"),
@@ -83,22 +92,9 @@ NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
     }
 )
 
-
-def build_prek_item(sc: SelectiveChecks, base_ref: str, *, full: bool) -> VerificationItem:
-    from_ref = f"prek run --from-ref {shlex.quote(base_ref)} --to-ref HEAD"
-    if sc.basic_checks_only:
-        return VerificationItem(
-            "prek", f"SKIP_BREEZE_PREK_HOOKS=true SKIP={sc.skip_prek_hooks} {from_ref}", "host"
-        )
-    # CI's static-checks job runs every file, because a non-basic change can affect hooks that
-    # read files outside the diff. Locally the diff is the practical scope, as AGENTS.md advises.
-    return VerificationItem(
-        "prek",
-        f"SKIP={sc.skip_prek_hooks} prek run --all-files"
-        if full
-        else f"SKIP={sc.skip_prek_hooks} {from_ref}",
-        "breeze",
-    )
+# Gated CI jobs that run a manual-stage prek hook. Classified only, never printed: like the
+# static-checks job, they are left to prek, which picks its hooks from the changed files.
+PREK_JOBS: frozenset[str] = frozenset({"run_mypy_providers", "has_migrations"})
 
 
 def build_unit_test_items(group: str, test_types_json: str | None) -> list[VerificationItem]:
@@ -135,7 +131,7 @@ def build_local_verification_plan(
     full_tests_needed: bool,
     full: bool = False,
 ) -> dict[str, Any]:
-    items = [build_prek_item(sc, base_ref, full=full)]
+    items: list[VerificationItem] = []
     if sc.run_unit_tests:
         items += build_unit_test_items("core", sc.core_test_types_list_as_strings_in_json)
     if not sc.skip_providers_tests:
