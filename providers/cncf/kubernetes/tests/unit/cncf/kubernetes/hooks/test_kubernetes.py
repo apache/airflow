@@ -1297,7 +1297,7 @@ class TestAsyncKubernetesHook:
         }
         hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_dict=exec_config)
         await hook._load_config()
-        assert hook._config_loaded is False
+        assert hook._client_cacheable is False
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -1336,7 +1336,7 @@ class TestAsyncKubernetesHook:
             side_effect=lambda field: str(kubeconfig_file) if field == "kube_config_path" else None
         )
         await hook._load_config()
-        assert hook._config_loaded is expected_cached
+        assert hook._client_cacheable is expected_cached
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -1386,7 +1386,7 @@ class TestAsyncKubernetesHook:
                 side_effect=lambda field: kubeconfig if field == "kube_config" else None
             )
         await hook._load_config()
-        assert hook._config_loaded is expected_cached
+        assert hook._client_cacheable is expected_cached
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -1444,7 +1444,7 @@ class TestAsyncKubernetesHook:
             await hook._load_config()
 
         mock_load_file.assert_awaited_once()
-        assert hook._config_loaded is expected_cached
+        assert hook._client_cacheable is expected_cached
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
@@ -1465,7 +1465,7 @@ class TestAsyncKubernetesHook:
         with mock.patch(f"{HOOK_MODULE}.async_config.KUBE_CONFIG_DEFAULT_LOCATION", default_location):
             await hook._load_config()
 
-        assert hook._config_loaded is True
+        assert hook._client_cacheable is True
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.async_config.load_kube_config")
@@ -1487,7 +1487,7 @@ class TestAsyncKubernetesHook:
         with mock.patch(f"{HOOK_MODULE}.async_config.KUBE_CONFIG_DEFAULT_LOCATION", "~/.kube/config"):
             await hook._load_config()
 
-        assert hook._config_loaded is True
+        assert hook._client_cacheable is True
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("list_namespaced_event"))
@@ -2170,6 +2170,69 @@ class TestAsyncKubernetesHook:
         mock_create_ssl.assert_called_once()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("source", ["file", "dict"])
+    @mock.patch(SSL_CREATE, autospec=True, side_effect=ssl.create_default_context)
+    async def test_cached_client_reloads_rotated_kubeconfig_token(
+        self, mock_create_ssl, hook, tmp_path, source
+    ):
+        kubeconfig = tmp_path / "config"
+        config_data = json.loads(json.dumps(self.STATIC_AUTH_CONFIG_DICT))
+        if source == "file":
+            kubeconfig.write_text(yaml.safe_dump(config_data))
+            hook._get_field = mock.AsyncMock(
+                side_effect=lambda field: str(kubeconfig) if field == "kube_config_path" else None
+            )
+        else:
+            hook.config_dict = config_data
+
+        async with hook.get_conn() as first_client:
+            first_headers: dict[str, str] = {}
+            await first_client.update_params_for_auth(first_headers, [], ["BearerToken"])
+
+        config_data["users"][0]["user"]["token"] = "rotated-token"
+        if source == "file":
+            kubeconfig.write_text(yaml.safe_dump(config_data))
+
+        async with hook.get_conn() as second_client:
+            second_headers: dict[str, str] = {}
+            await second_client.update_params_for_auth(second_headers, [], ["BearerToken"])
+
+        assert first_client is second_client
+        assert first_headers["authorization"] == "Bearer static-token"
+        assert second_headers["authorization"] == "Bearer rotated-token"
+        mock_create_ssl.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(SSL_CREATE, autospec=True, side_effect=ssl.create_default_context)
+    @mock.patch("kubernetes_asyncio.config.kube_config.google_auth_credentials", autospec=True)
+    async def test_cached_client_refreshes_expired_auth_provider_token(
+        self, mock_google_credentials, mock_create_ssl, hook, time_machine
+    ):
+        time_machine.move_to("2026-01-01T00:00:00Z")
+        config_data = json.loads(json.dumps(self.STATIC_AUTH_CONFIG_DICT))
+        provider_config = {"access-token": "initial-token", "expiry": "2026-01-01T02:00:00Z"}
+        config_data["users"][0]["user"] = {"auth-provider": {"name": "gcp", "config": provider_config}}
+        hook.config_dict = config_data
+        mock_google_credentials.return_value = mock.Mock(
+            token="refreshed-token", expiry="2026-01-01T04:00:00Z"
+        )
+
+        async with hook.get_conn() as first_client:
+            first_headers: dict[str, str] = {}
+            await first_client.update_params_for_auth(first_headers, [], ["BearerToken"])
+
+        time_machine.move_to("2026-01-01T03:00:00Z")
+        async with hook.get_conn() as second_client:
+            second_headers: dict[str, str] = {}
+            await second_client.update_params_for_auth(second_headers, [], ["BearerToken"])
+
+        assert first_client is second_client
+        assert first_headers["authorization"] == "Bearer initial-token"
+        assert second_headers["authorization"] == "Bearer refreshed-token"
+        mock_google_credentials.assert_awaited_once()
+        mock_create_ssl.assert_called_once()
+
+    @pytest.mark.asyncio
     @mock.patch(SSL_CREATE, autospec=True, side_effect=ssl.create_default_context)
     @mock.patch(HOOK_MODULE + ".async_config.load_kube_config_from_dict", autospec=True)
     async def test_exec_auth_keeps_per_call_clients(self, mock_load_config, mock_create_ssl, hook):
@@ -2184,7 +2247,7 @@ class TestAsyncKubernetesHook:
         assert mock_create_ssl.call_count == 3
         assert mock_load_config.await_count == 3
         assert hook._cached_kube_client is None
-        assert not hook._config_loaded
+        assert not hook._client_cacheable
 
     @pytest.mark.asyncio
     async def test_close_releases_cached_client_and_is_idempotent(self, hook):

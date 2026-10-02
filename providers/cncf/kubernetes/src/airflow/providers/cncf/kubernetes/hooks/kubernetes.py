@@ -835,7 +835,7 @@ class AsyncKubernetesHook(KubernetesHook):
         self.config_dict = config_dict
         self._extras: dict | None = connection_extras
         self._event_polling_fallback = False
-        self._config_loaded = False
+        self._client_cacheable = False
         # Override the parent's sync-typed client_configuration with the async type.
         self.client_configuration: async_client.Configuration | None = client_configuration
         # Cached result of exec-auth detection. None means not yet detected.
@@ -913,15 +913,11 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         Load Kubernetes configuration.
 
-        For static auth (token, certificate), configuration is loaded once per hook instance
-        and cached. For exec-based auth (EKS, GKE), the config is reloaded on every call so
-        that short-lived tokens are always refreshed.
+        Reload credentials on every access while retaining the client for non-exec auth.
+        Exec-based auth continues to use a new client for each access.
         """
         if self.client_configuration is None:
             self.client_configuration = async_client.Configuration()
-
-        if self._config_loaded:
-            return
 
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
@@ -943,7 +939,7 @@ class AsyncKubernetesHook(KubernetesHook):
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
             async_config.load_incluster_config(client_configuration=self.client_configuration)
             self._is_in_cluster = True
-            self._config_loaded = True
+            self._client_cacheable = True
             return
 
         self._is_in_cluster = False
@@ -960,7 +956,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 self._is_exec_auth = self._uses_exec_auth(self.config_dict, context=cluster_context)
 
             if not self._is_exec_auth:
-                self._config_loaded = True
+                self._client_cacheable = True
 
             return
         if kubeconfig_path is not None:
@@ -978,7 +974,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
 
             if not self._is_exec_auth:
-                self._config_loaded = True
+                self._client_cacheable = True
 
             return
         if kubeconfig is not None:
@@ -1015,7 +1011,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     )
 
                 if not self._is_exec_auth:
-                    self._config_loaded = True
+                    self._client_cacheable = True
 
             return
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
@@ -1029,7 +1025,7 @@ class AsyncKubernetesHook(KubernetesHook):
             self._is_exec_auth = await self._default_kubeconfig_uses_exec_auth(cluster_context)
 
         if not self._is_exec_auth:
-            self._config_loaded = True
+            self._client_cacheable = True
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
@@ -1061,7 +1057,7 @@ class AsyncKubernetesHook(KubernetesHook):
     @contextlib.asynccontextmanager
     async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
         await self._load_config()
-        if self._config_loaded:
+        if self._client_cacheable:
             # Reuse one client per hook: each construction runs ssl.create_default_context()
             # on the event loop and opens a new connection pool. Owners release it via
             # close(); triggers do so in cleanup().
@@ -1069,8 +1065,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 self._cached_kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
             yield self._cached_kube_client
             return
-        # Exec-based auth rotates short-lived tokens by reloading the config on
-        # every call, so the client cannot be reused.
+        # Exec-based auth is not cacheable: build and close a client per call.
         kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
         try:
             yield kube_client
