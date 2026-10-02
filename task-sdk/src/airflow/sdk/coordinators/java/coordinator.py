@@ -23,7 +23,7 @@ import os
 import pathlib
 import stat
 import zipfile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 import attrs
 import structlog
@@ -48,6 +48,9 @@ if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import TaskInstance
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.java")
+
+# The first supervisor schema version whose runtime can answer a Dag parse request.
+_DAG_PARSING_SCHEMA_VERSION: Final = "2026-10-30"
 
 
 def _find_jars(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
@@ -291,4 +294,9 @@ class JavaCoordinator(SubprocessCoordinator):
             )
         roots = self._get_scan_roots()
         jar = _JarInfo.for_jar(roots, path, main_class, schema_version)
+        if jar.schema_version < _DAG_PARSING_SCHEMA_VERSION:
+            raise ValueError(
+                f"{path} uses supervisor schema {jar.schema_version}, which cannot parse Dags; "
+                "rebuild it with a newer Java SDK or list it in .airflowignore"
+            )
         return self._build_command(roots, jar.main_class), jar.schema_version
