@@ -38,21 +38,17 @@ coordinator does. This ADR settles where that importer comes from, which coordin
 ### The coordinator hands out its importer
 
 ```
-BaseCoordinator.get_dag_importer_class() -> type[AbstractDagImporter] | None    (classmethod)
+BaseCoordinator.get_dag_importer() -> AbstractDagImporter | None
     None, the default, means the coordinator parses no native Dags
-    JavaCoordinator.get_dag_importer_class() -> JavaDagImporter
-BaseCoordinator.get_parsed_bundles(kwargs) -> frozenset[str] | None             (classmethod)
-    the bundles a coordinator built with kwargs parses; None means every bundle
-BaseCoordinator.get_dag_importer() -> AbstractDagImporter
     JavaCoordinator.get_dag_importer() -> JavaDagImporter(coordinator=self)
 ```
 
 The importer comes back already bound to the coordinator, so an operator never configures which coordinator an importer uses. `[sdk] coordinators` stays the one place a runtime is
 declared.
 
-What a coordinator can parse and where it gets registered are separate questions, and each has one answer. `get_dag_importer_class` answers the first and `get_parsed_bundles`
-the second. Both are class-level and read only the spec, so `for_bundle` below can select coordinators and check their claims without building any. `get_dag_importer` is
-called only on a coordinator `for_bundle` selected, so its return is not optional.
+What a coordinator can parse and where it gets registered are separate questions, and each has one answer. `get_dag_importer` answers the first. The coordinator's
+`dag_bundle_name` kwarg answers the second: a coordinator that sets it parses only that bundle, and one that leaves it unset parses every bundle. `for_bundle` below reads the
+kwarg from the spec, so a coordinator configured for another bundle is never built.
 
 ### Registration order
 
@@ -60,7 +56,7 @@ called only on a coordinator `for_bundle` selected, so its return is not optiona
 DagImporterRegistry.from_config(bundle_name)
   ├── defaults                              PythonDagImporter, ZipImporter
   ├── CoordinatorManager.for_bundle(bundle_name)                    (new)
-  │     └── register(coordinator.get_dag_importer())
+  │     └── register(importer) for each importer it returns
   ├── [dag_processor] dag_importer_configs             (global, unchanged)
   └── that bundle's own `importers` list                   (unchanged)
 ```
@@ -72,11 +68,12 @@ DagImporterRegistry.from_config(bundle_name)
 ```
 CoordinatorManager
   ├── for_queue(queue)    → one coordinator      (shipped — task execution)
-  └── for_bundle(name)    → the coordinators serving that bundle    (new)
+  └── for_bundle(name)    → the Dag importers of the coordinators parsing that bundle    (new)
 ```
 
 `for_queue` answers "who runs this task". `for_bundle` answers "who can parse Dags in this bundle", which is what the registry tier above needs. It reads the same `[sdk]
-coordinators` specs, selecting by the artifact source below.
+coordinators` specs, selecting by `dag_bundle_name`, and raises when two of the importers it collects claim one extension in the bundle. `for_queue` never runs that check, so
+such a conflict stops that bundle from being parsed but not tasks from running.
 
 ### One coordinator instance owns a DagBundle
 
@@ -186,10 +183,10 @@ DagModelOperation → PERSIST
 `SubprocessCoordinator` classifies artifact ownership at construction. The explicit root and `dag_bundle_name` are mutually exclusive, and both that conflict and a
 `dag_bundle_name` naming an unconfigured bundle are rejected there.
 
-`NAMED_BUNDLE` is the unambiguous case. `for_bundle(name)` returns it when its `dag_bundle_name` matches, so its importer lands in exactly one bundle-scoped registry. Two
+`NAMED_BUNDLE` is the unambiguous case. `for_bundle(name)` returns its importer when its `dag_bundle_name` matches, so the importer lands in exactly one bundle-scoped registry. Two
 `dag_bundle_name` values give two registries, and `.jar` is claimed once in each.
 
-`TASK_BUNDLE` has no fixed bundle — its artifacts ride along with whichever Dag delegates to them — so `for_bundle` returns it for every bundle and its importer registers
+`TASK_BUNDLE` has no fixed bundle — its artifacts ride along with whichever Dag delegates to them — so `for_bundle` returns its importer for every bundle and it registers
 everywhere. That is sound only while it is the sole claimant of its extension, which is the co-located single-runtime deployment.
 
 `EXPLICIT_ROOT` points at a filesystem path outside any DagBundle. The Dag processor never scans it, so there is no file for an importer to claim and `for_bundle` never returns it.
@@ -204,7 +201,7 @@ registration order because `_ordered_importers` is scanned in reverse.
 
 Three places assume a non-empty suffix today:
 
-- `normalize_extensions` rewrites `""` to `"."`.
+- `_normalize_extensions` rewrites `""` to `"."`.
 - `get_importer` and `can_handle` guard on `if suffix:`, which skips the extension map entirely for an extensionless file.
 - `find_file_dag_definitions` filters on `path.suffix.lower()`.
 

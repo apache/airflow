@@ -36,7 +36,7 @@ import signal
 import socket
 import subprocess
 import time
-from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
 
 import attrs
 import psutil
@@ -53,7 +53,7 @@ from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaise
 
 if TYPE_CHECKING:
     import pathlib
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Sequence
 
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
@@ -460,13 +460,6 @@ class SubprocessCoordinator(BaseCoordinator):
             raise ValueError(
                 f"Coordinator 'dag_bundle_name' references unconfigured Dag bundle {self.dag_bundle_name!r}."
             )
-
-    @classmethod
-    def get_parsed_bundles(cls, kwargs: Mapping[str, Any]) -> frozenset[str] | None:
-        """Parse only the ``dag_bundle_name`` bundle when it is set, and every bundle otherwise."""
-        if (dag_bundle_name := kwargs.get("dag_bundle_name")) is not None:
-            return frozenset({dag_bundle_name})
-        return None
 
     def _init_root_source(
         self, bundle_info: BundleInfo, logger: FilteringBoundLogger

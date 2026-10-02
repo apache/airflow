@@ -208,7 +208,7 @@ class DagSourceCode:
     language: str
 
 
-def normalize_extensions(extensions: Iterable[str]) -> list[str]:
+def _normalize_extensions(extensions: Iterable[str]) -> list[str]:
     """Normalize file extensions to lowercase with leading dot."""
     return [ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in extensions]
 
@@ -217,9 +217,9 @@ def _get_importer_extensions(importer: AbstractDagImporter) -> list[str]:
     """Extract supported extensions from an importer via duck typing."""
     exts = getattr(importer, "supported_extensions", None)
     if callable(exts):
-        return normalize_extensions(exts())
+        return _normalize_extensions(exts())
     if exts is not None:
-        return normalize_extensions(exts)
+        return _normalize_extensions(exts)
     return []
 
 
@@ -307,7 +307,7 @@ def find_file_dag_definitions(
     belongs to :meth:`AbstractDagImporter.import_definition`, so importers whose
     validity can only be determined by attempting the import behave the same way.
     """
-    supported_exts = normalize_extensions(supported_extensions)
+    supported_exts = _normalize_extensions(supported_extensions)
 
     def _is_candidate(path: Path) -> bool:
         return path.is_file() and path.suffix.lower() in supported_exts and "__pycache__" not in path.parts
@@ -380,7 +380,7 @@ def _parse_importer_specs(configs: Any, context: str) -> list[_ImporterSpec]:
                 raise AirflowConfigException(
                     f"Field 'extensions' must be a list of strings in importer configuration for {context}."
                 )
-            extensions = normalize_extensions(extensions)
+            extensions = _normalize_extensions(extensions)
         specs.append(
             _ImporterSpec(
                 classpath=classpath,
@@ -450,7 +450,7 @@ class DagImporterRegistry:
         are a configuration error, which is raised.
         """
         try:
-            coordinators = get_coordinator_manager().for_bundle(bundle_name)
+            importers = get_coordinator_manager().for_bundle(bundle_name)
         except InvalidCoordinatorError:
             raise
         except Exception:
@@ -460,8 +460,8 @@ class DagImporterRegistry:
                 bundle_name,
             )
             return
-        for coordinator in coordinators.values():
-            self.register(coordinator.get_dag_importer())
+        for importer in importers.values():
+            self.register(importer)
 
     def register(self, importer: AbstractDagImporter[Any], extensions: list[str] | None = None) -> None:
         """
@@ -474,7 +474,7 @@ class DagImporterRegistry:
             extensions = _get_importer_extensions(importer)
 
         if extensions:
-            normalized_extensions = normalize_extensions(extensions)
+            normalized_extensions = _normalize_extensions(extensions)
             if hasattr(importer, "supported_extensions"):
                 with contextlib.suppress(AttributeError, TypeError):
                     importer.supported_extensions = normalized_extensions
