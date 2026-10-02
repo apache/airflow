@@ -814,8 +814,8 @@ the drain until its Dag runs have been created and finished. While a Dag is drai
 to make the Dag active again.
 
 Dags can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
-``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the Dag that it had seen
-before and stored in the database it will set is as deactivated. The metadata and history of the
+``DAGS_FOLDER``. When the Dag processor parses the ``DAGS_FOLDER`` and misses the Dag that it had seen
+before and stored in the database it will set it as deactivated. The metadata and history of the
 Dag is kept for deactivated Dags and when the Dag is re-added to the ``DAGS_FOLDER`` it will be again
 activated and history will be visible. You cannot activate/deactivate Dag via UI or API, this
 can only be done by removing files from the ``DAGS_FOLDER``. Once again - no data for historical runs of the
@@ -829,7 +829,7 @@ see the information about those you will see the error that the Dag is missing.
 You can also delete the Dag metadata from the metadata database using UI or API, but it does not
 always result in disappearing of the Dag from the UI - which might be also initially a bit confusing.
 If the Dag is still in ``DAGS_FOLDER`` when you delete the metadata, the Dag will re-appear as
-Scheduler will parse the folder, only historical runs information for the Dag will be removed.
+the Dag processor will parse the folder, only historical runs information for the Dag will be removed.
 
 This all means that if you want to actually delete a Dag and its all historical metadata, you need to do
 it in three steps:
