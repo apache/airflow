@@ -481,7 +481,8 @@ class TestRun:
             result = self._run(tmp_path, argv=["/bin/sh", "-c", "exec sleep 60"])
 
         assert result.import_errors == {
-            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s"
+            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s, "
+            "the limit set by [core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
         }
         [proc] = [c.args[0] for c in mock_close.call_args_list]
         assert proc._exit_code == -9
@@ -501,7 +502,8 @@ class TestRun:
         [proc] = [c.args[0] for c in mock_close.call_args_list]
 
         assert result.import_errors == {
-            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s"
+            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s, "
+            "the limit set by [core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
         }
         assert proc._exit_code == 0
         assert not proc._open_sockets
@@ -519,7 +521,8 @@ class TestRun:
         result = self._run(tmp_path)
 
         assert result.import_errors == {
-            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s"
+            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s, "
+            "the limit set by [dag_processor] dag_file_processor_timeout"
         }
 
 
