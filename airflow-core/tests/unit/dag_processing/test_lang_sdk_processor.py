@@ -92,6 +92,16 @@ def _is_running(pid: int) -> bool:
         return False
 
 
+def _stops_running(pid: int, timeout: float = 10) -> bool:
+    # SIGKILL is delivered asynchronously, so the process may still run right after the kill.
+    deadline = time.monotonic() + timeout
+    while _is_running(pid):
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.05)
+    return True
+
+
 @pytest.fixture(autouse=True)
 def _coordinator():
     with fake_coordinator():
@@ -372,7 +382,7 @@ class TestLangSDKDagFileProcessorProcess:
             "The Lang-SDK runtime left processes holding its output after its parse result; killing them"
             in cap_structlog
         )
-        assert not _is_running(int((tmp_path / "leftover.pid").read_text()))
+        assert _stops_running(int((tmp_path / "leftover.pid").read_text()))
 
     @pytest.mark.parametrize(
         ("policy", "error"),
