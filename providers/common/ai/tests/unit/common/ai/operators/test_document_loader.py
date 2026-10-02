@@ -501,11 +501,10 @@ class TestDocxParser:
         _fill_docx_table(doc.add_table(rows=1, cols=2), [["Name", "Qty"]])
 
         assert _load_docx_text(_get_docx_bytes(doc)) == "Before\n\nAfter\n\n| Name | Qty |"
-        assert {
-            "event": "Skipping a table in <bytes:.docx> that python-docx could not read: "
-            "ValueError('no tr above topmost tr in w:tbl')",
-            "log_level": "warning",
-        } in caplog
+        assert (
+            "Skipping a table in <bytes:.docx> that python-docx could not read: "
+            "ValueError('no tr above topmost tr in w:tbl')"
+        ) in caplog.messages
 
     @patch.object(
         DocumentLoaderOperator,
@@ -515,11 +514,10 @@ class TestDocxParser:
     )
     def test_docx_table_too_deep_to_read_skipped_with_warning(self, mock_get_rows, caplog):
         assert _load_docx_text(_build_docx_bytes("Before", [["a", "b"]], "After")) == "Before\n\nAfter"
-        assert {
-            "event": "Skipping a table in <bytes:.docx> that python-docx could not read: "
-            "RecursionError('maximum recursion depth exceeded')",
-            "log_level": "warning",
-        } in caplog
+        assert (
+            "Skipping a table in <bytes:.docx> that python-docx could not read: "
+            "RecursionError('maximum recursion depth exceeded')"
+        ) in caplog.messages
 
     def test_docx_nested_table_flattened_into_its_cell(self):
         doc = _create_docx()
