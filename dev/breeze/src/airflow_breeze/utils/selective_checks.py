@@ -679,10 +679,18 @@ TESTS_COMMON_SOURCE_ROOT = "devel-common/src/"
 TESTS_COMMON_PYTEST_PLUGIN = "devel-common/src/tests_common/pytest_plugin.py"
 
 
-def _imports_module(text: str, module: str) -> bool:
+def _imports_module(text: str, module: str, importer_package: str | None = None) -> bool:
+    """
+    Whether ``text`` imports ``module``.
+
+    ``importer_package`` is the dotted package of the importing file; relative imports are only resolved
+    when it is given.
+    """
     package, _, name = module.rpartition(".")
-    if not re.search(rf"\b{re.escape(module)}\b", text) and not (
-        f"from {package} import" in text and re.search(rf"\b{re.escape(name)}\b", text)
+    if (
+        not re.search(rf"\b{re.escape(module)}\b", text)
+        and not (f"from {package} import" in text and re.search(rf"\b{re.escape(name)}\b", text))
+        and not (importer_package and re.search(r"^\s*from \.", text, re.MULTILINE))
     ):
         return False
     try:
@@ -693,10 +701,20 @@ def _imports_module(text: str, module: str) -> bool:
         if isinstance(node, ast.Import):
             if any(alias.name == module or alias.name.startswith(f"{module}.") for alias in node.names):
                 return True
-        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            if node.module == module or node.module.startswith(f"{module}."):
+        elif isinstance(node, ast.ImportFrom):
+            if node.level == 0:
+                imported = node.module
+            elif importer_package:
+                base_parts = importer_package.split(".")
+                base = ".".join(base_parts[: len(base_parts) - (node.level - 1)])
+                imported = f"{base}.{node.module}" if node.module else base
+            else:
+                continue
+            if not imported:
+                continue
+            if imported == module or imported.startswith(f"{module}."):
                 return True
-            if node.module == package and any(alias.name == name for alias in node.names):
+            if imported == package and any(alias.name == name for alias in node.names):
                 return True
     # Dotted references outside import statements, e.g. `pytest_plugins` entries.
     return re.search(rf"\b{re.escape(module)}\b", text) is not None
@@ -708,8 +726,8 @@ def _find_test_helper_importers(helper: str) -> frozenset[str] | None:
     Return the files outside ``tests_common`` that import ``helper``, directly or through other helpers.
 
     ``None`` means the change cannot be narrowed down to its importers: the helper is loaded for every
-    test run (the pytest plugin, anything it imports, conftest and package ``__init__`` modules) or it
-    no longer exists.
+    test run (the pytest plugin, anything it imports, conftest and package ``__init__`` modules), it
+    no longer exists, or the importers could not be searched.
     """
     if (
         helper == TESTS_COMMON_PYTEST_PLUGIN
@@ -729,14 +747,27 @@ def _find_test_helper_importers(helper: str) -> frozenset[str] | None:
             cwd=AIRFLOW_ROOT_PATH,
             check=False,
         )
+        # git grep exits with 1 when nothing matches; anything else means the search did not happen.
+        if result.returncode not in (0, 1):
+            return None
         for candidate in result.stdout.splitlines():
             if candidate in seen:
                 continue
-            if not _imports_module((AIRFLOW_ROOT_PATH / candidate).read_text(errors="replace"), module):
+            in_tests_common = candidate.startswith(f"{TESTS_COMMON_SOURCE_ROOT}tests_common/")
+            importer_package = (
+                str(Path(candidate[len(TESTS_COMMON_SOURCE_ROOT) :]).parent).replace("/", ".")
+                if in_tests_common
+                else None
+            )
+            text = (AIRFLOW_ROOT_PATH / candidate).read_text(errors="replace")
+            if not _imports_module(text, module, importer_package):
                 continue
             seen.add(candidate)
-            if candidate.startswith(f"{TESTS_COMMON_SOURCE_ROOT}tests_common/"):
-                if candidate == TESTS_COMMON_PYTEST_PLUGIN or Path(candidate).name == "conftest.py":
+            if in_tests_common:
+                if candidate == TESTS_COMMON_PYTEST_PLUGIN or Path(candidate).name in (
+                    "conftest.py",
+                    "__init__.py",
+                ):
                     return None
                 pending.append(candidate)
             else:

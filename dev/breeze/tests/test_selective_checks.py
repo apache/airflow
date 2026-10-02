@@ -44,6 +44,7 @@ from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
     SelectiveChecks,
+    _find_test_helper_importers,
     _get_test_list_as_json,
     _imports_module,
     _split_list,
@@ -4310,25 +4311,72 @@ def test_helm_test_kubernetes_versions(
 
 
 @pytest.mark.parametrize(
-    ("source", "expected"),
+    ("source", "importer_package", "expected"),
     [
         pytest.param(
-            "from tests_common.test_utils.mock_context import mock_context\n", True, id="from-module"
+            "from tests_common.test_utils.mock_context import mock_context\n", None, True, id="from-module"
         ),
-        pytest.param("from tests_common.test_utils import mock_context\n", True, id="from-package"),
+        pytest.param("from tests_common.test_utils import mock_context\n", None, True, id="from-package"),
         pytest.param(
             "from tests_common.test_utils import (\n    db,\n    mock_context,\n)\n",
+            None,
             True,
             id="multiline-from",
         ),
-        pytest.param("import tests_common.test_utils.mock_context as mc\n", True, id="import"),
-        pytest.param('pytest_plugins = ["tests_common.test_utils.mock_context"]\n', True, id="dotted-string"),
-        pytest.param("mock_context = {}\n", False, id="same-name-variable"),
-        pytest.param("from tests_common.test_utils.mock_context_extra import x\n", False, id="longer-module"),
+        pytest.param("import tests_common.test_utils.mock_context as mc\n", None, True, id="import"),
         pytest.param(
-            "# mock_context\nfrom tests_common.test_utils import db\n", False, id="other-package-member"
+            'pytest_plugins = ["tests_common.test_utils.mock_context"]\n', None, True, id="dotted-string"
+        ),
+        pytest.param("mock_context = {}\n", None, False, id="same-name-variable"),
+        pytest.param(
+            "from tests_common.test_utils.mock_context_extra import x\n", None, False, id="longer-module"
+        ),
+        pytest.param(
+            "# mock_context\nfrom tests_common.test_utils import db\n", None, False, id="other-package-member"
+        ),
+        pytest.param(
+            "from ..mock_context import mock_context\n",
+            "tests_common.test_utils.operators",
+            True,
+            id="relative-from-parent",
+        ),
+        pytest.param("from . import mock_context\n", "tests_common.test_utils", True, id="relative-package"),
+        pytest.param("from .mock_context import mock_context\n", None, False, id="relative-without-package"),
+        pytest.param(
+            "from .mock_context import mock_context\n",
+            "tests_common.other",
+            False,
+            id="relative-other-package",
         ),
     ],
 )
-def test_imports_module(source: str, expected: bool):
-    assert _imports_module(source, "tests_common.test_utils.mock_context") is expected
+def test_imports_module(source: str, importer_package: str | None, expected: bool):
+    assert _imports_module(source, "tests_common.test_utils.mock_context", importer_package) is expected
+
+
+@pytest.mark.parametrize(
+    ("grep_returncode", "grep_output", "expected"),
+    [
+        pytest.param(
+            0,
+            "airflow-core/tests/unit/utils/test_db.py\n",
+            frozenset({"airflow-core/tests/unit/utils/test_db.py"}),
+            id="importer",
+        ),
+        pytest.param(1, "", frozenset(), id="no-importers"),
+        pytest.param(128, "", None, id="search-failed"),
+        pytest.param(
+            0, "devel-common/src/tests_common/test_utils/__init__.py\n", None, id="imported-by-package-init"
+        ),
+        pytest.param(
+            0, "devel-common/src/tests_common/pytest_plugin.py\n", None, id="imported-by-pytest-plugin"
+        ),
+    ],
+)
+@patch("airflow_breeze.utils.selective_checks._imports_module", autospec=True, return_value=True)
+@patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
+def test_find_test_helper_importers(
+    mock_run_command, mock_imports_module, grep_returncode, grep_output, expected
+):
+    mock_run_command.return_value = Mock(returncode=grep_returncode, stdout=grep_output)
+    assert _find_test_helper_importers("devel-common/src/tests_common/test_utils/mock_context.py") == expected
