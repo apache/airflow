@@ -901,6 +901,27 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
     return imports
 
 
+GIT_REPO_OVERRIDE_VARIABLES = (
+    "GIT_INDEX_FILE",
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_PREFIX",
+    "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+)
+
+
+def git_env_without_repo_overrides() -> dict[str, str]:
+    """
+    Return an environment for git commands that must not act on the repo being committed.
+
+    ``git commit`` exports ``GIT_INDEX_FILE`` (and friends) to hooks; a child ``git worktree add``
+    would otherwise check out into the committing repo's index instead of its own.
+    """
+    return {k: v for k, v in os.environ.items() if k not in GIT_REPO_OVERRIDE_VARIABLES}
+
+
 def get_remote_for_main() -> str:
     """
     Return the remote name to use when fetching main.
