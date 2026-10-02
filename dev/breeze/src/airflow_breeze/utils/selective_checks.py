@@ -677,6 +677,19 @@ def _matching_files(
 
 TESTS_COMMON_SOURCE_ROOT = "devel-common/src/"
 TESTS_COMMON_PYTEST_PLUGIN = "devel-common/src/tests_common/pytest_plugin.py"
+# Only in these trees does a changed test file select the job that runs it; narrowing to an importer
+# elsewhere (e2e, python client, core integration, docker-tests) would skip tests the full matrix ran.
+TEST_HELPER_IMPORTER_ROOTS = (
+    "airflow-core/tests/system/",
+    "airflow-core/tests/unit/",
+    "airflow-ctl/tests/",
+    "airflow-ctl-tests/",
+    "kubernetes-tests/",
+    "providers/",
+    "shared/",
+    "task-sdk/tests/",
+    "task-sdk-integration-tests/",
+)
 
 
 def _imports_module(text: str, module: str, importer_package: str | None = None) -> bool:
@@ -727,7 +740,8 @@ def _find_test_helper_importers(helper: str) -> frozenset[str] | None:
 
     ``None`` means the change cannot be narrowed down to its importers: the helper is loaded for every
     test run (the pytest plugin, anything it imports, conftest and package ``__init__`` modules), it
-    no longer exists, or the importers could not be searched.
+    no longer exists, the importers could not be searched, or an importer lies outside
+    ``TEST_HELPER_IMPORTER_ROOTS``.
     """
     if (
         helper == TESTS_COMMON_PYTEST_PLUGIN
@@ -746,6 +760,7 @@ def _find_test_helper_importers(helper: str) -> frozenset[str] | None:
             text=True,
             cwd=AIRFLOW_ROOT_PATH,
             check=False,
+            dry_run_override=False,
         )
         # git grep exits with 1 when nothing matches; anything else means the search did not happen.
         if result.returncode not in (0, 1):
@@ -772,8 +787,10 @@ def _find_test_helper_importers(helper: str) -> frozenset[str] | None:
                 ):
                     return None
                 pending.append(candidate)
-            else:
+            elif candidate.startswith(TEST_HELPER_IMPORTER_ROOTS):
                 importers.add(candidate)
+            else:
+                return None
     return frozenset(importers)
 
 
@@ -857,6 +874,7 @@ class SelectiveChecks:
             else:
                 self._test_helpers_replaced_by_importers += (helper,)
                 helper_importers |= importers
+        self._test_helper_importers = frozenset(helper_importers - set(files))
         if helper_importers:
             self._files = tuple(sorted(set(files) | helper_importers))
         self._default_branch = default_branch
@@ -999,8 +1017,8 @@ class SelectiveChecks:
             return True
         if self._test_helpers_loaded_by_all_tests:
             console_print(
-                "[warning]Running full set of tests because test helpers loaded by every test run "
-                f"changed: {', '.join(self._test_helpers_loaded_by_all_tests)}[/]"
+                "[warning]Running full set of tests because test helpers that cannot be narrowed to their "
+                f"importers changed: {', '.join(self._test_helpers_loaded_by_all_tests)}[/]"
             )
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
@@ -2110,7 +2128,8 @@ class SelectiveChecks:
                 all_providers_affected = True
             elif provider is not None:
                 if provider not in get_provider_dependencies():
-                    suspended_providers.add(provider)
+                    if changed_file not in self._test_helper_importers:
+                        suspended_providers.add(provider)
                 else:
                     affected_providers.add(provider)
         if self.run_api_tests:
@@ -2337,12 +2356,17 @@ class SelectiveChecks:
 
     def _has_common_compat_changed(self) -> bool:
         """Check if any common.compat provider file was changed."""
-        return any(f.startswith("providers/common/compat/") for f in self._files)
+        return any(
+            f.startswith("providers/common/compat/") and f not in self._test_helper_importers
+            for f in self._files
+        )
 
     def _get_changed_providers_excluding_common_compat(self) -> set[str]:
         """Get set of changed providers excluding common.compat itself."""
         changed_providers: set[str] = set()
         for changed_file in self._files:
+            if changed_file in self._test_helper_importers:
+                continue
             provider = find_provider_affected(changed_file, include_docs=False)
             if provider and provider not in ["common.compat", "Providers"]:
                 changed_providers.add(provider)

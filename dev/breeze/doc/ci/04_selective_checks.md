@@ -336,7 +336,9 @@ all versions), the cause is almost always a single rule that fired. To find it:
    * **`pyproject.toml`** or generated provider dependencies changed (also forces `all_versions`);
    * the **generated OpenAPI spec** or the client generator changed (the API contract);
    * a **`tests_common` helper loaded by every test run** (the pytest plugin, anything it imports,
-     conftest or package `__init__` modules) or **git/standard provider** files changed;
+     conftest or package `__init__` modules), a helper whose importers cannot be narrowed (it was
+     deleted or renamed, `git grep` failed, or an importer lies outside the known test trees), or
+     **git/standard provider** files changed;
    * the **`full tests needed`** or **`all versions`** label is set on the PR.
 4. **All providers running?** That means selective checks decided *all* providers are affected — usually
    because *common* provider code under `devel-common/` changed, or because
@@ -422,9 +424,10 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   miss commit info, or any of the important environment files (`pyproject.toml`, `Dockerfile`, `scripts`,
   etc.) changed, or the API *contract* changed (the generated OpenAPI spec or the client generator —
   plain API source/test edits that leave the committed spec
-  untouched do **not** force full tests), or a `tests_common` helper loaded by every test run, or git /
-  standard provider files changed, or when the `full tests needed` label is set. Any other changed
-  `tests_common` helper only selects the tests that import it.
+  untouched do **not** force full tests), or a `tests_common` helper loaded by every test run or whose
+  importers cannot be narrowed (helper deleted or renamed, `git grep` failed, or an importer outside the
+  known test trees), or git / standard provider files changed, or when the `full tests needed` label is
+  set. Any other changed `tests_common` helper only selects the tests that import it.
   That enables all matrix combinations of variables (representative) and all possible test type. No further
   checks are performed. See also [1] note below. Two exceptions narrow this: a PUSH that changed **only**
   `.txt`/`.md` files skips full tests, and a PUSH to a **release branch** (`v3-X-test`, i.e. not `main`)

@@ -4358,41 +4358,104 @@ def test_imports_module(source: str, importer_package: str | None, expected: boo
 
 
 @pytest.mark.parametrize(
-    ("grep_returncode", "grep_output", "expected"),
+    ("grep_results", "expected"),
     [
         pytest.param(
-            0,
-            "airflow-core/tests/unit/utils/test_db.py\n",
+            [(0, "airflow-core/tests/unit/utils/test_db.py\n")],
             frozenset({"airflow-core/tests/unit/utils/test_db.py"}),
             id="importer",
         ),
         pytest.param(
-            0,
-            "dev/airflow_perf/x.py\nairflow-core/tests/unit/utils/test_db.py\n",
+            [(0, "dev/airflow_perf/x.py\nairflow-core/tests/unit/utils/test_db.py\n")],
             frozenset({"airflow-core/tests/unit/utils/test_db.py"}),
             id="skips-dev-importer",
         ),
-        pytest.param(1, "", frozenset(), id="no-importers"),
-        pytest.param(128, "", None, id="search-failed"),
         pytest.param(
-            0, "devel-common/src/tests_common/test_utils/__init__.py\n", None, id="imported-by-package-init"
+            [
+                (0, "devel-common/src/tests_common/test_utils/other_helper.py\n"),
+                (0, "providers/fab/tests/unit/fab/test_x.py\n"),
+            ],
+            frozenset({"providers/fab/tests/unit/fab/test_x.py"}),
+            id="transitive-importer",
+        ),
+        pytest.param([(1, "")], frozenset(), id="no-importers"),
+        pytest.param([(128, "")], None, id="search-failed"),
+        pytest.param(
+            [(0, "devel-common/src/tests_common/test_utils/__init__.py\n")],
+            None,
+            id="imported-by-package-init",
         ),
         pytest.param(
-            0, "devel-common/src/tests_common/pytest_plugin.py\n", None, id="imported-by-pytest-plugin"
+            [(0, "devel-common/src/tests_common/pytest_plugin.py\n")], None, id="imported-by-pytest-plugin"
+        ),
+        pytest.param([(0, "clients/python/test_python_client.py\n")], None, id="importer-outside-test-trees"),
+        pytest.param(
+            [(0, "airflow-core/tests/integration/otel/test_otel.py\n")],
+            None,
+            id="importer-in-core-integration-tests",
         ),
     ],
 )
 @patch("airflow_breeze.utils.selective_checks._imports_module", autospec=True, return_value=True)
 @patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
 def test_find_test_helper_importers(
-    mock_run_command, mock_imports_module, grep_returncode, grep_output, expected, tmp_path, monkeypatch
+    mock_run_command, mock_imports_module, grep_results, expected, tmp_path, monkeypatch
 ):
     helper = "devel-common/src/tests_common/test_utils/mock_context.py"
-    for name in [helper, *grep_output.splitlines()]:
+    for name in [helper, *(line for _, output in grep_results for line in output.splitlines())]:
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / name).touch()
     monkeypatch.setattr("airflow_breeze.utils.selective_checks.AIRFLOW_ROOT_PATH", tmp_path)
-    mock_run_command.return_value = subprocess.CompletedProcess(
-        args=[], returncode=grep_returncode, stdout=grep_output
-    )
+    mock_run_command.side_effect = [
+        subprocess.CompletedProcess(args=[], returncode=returncode, stdout=output)
+        for returncode, output in grep_results
+    ]
     assert _find_test_helper_importers(helper) == expected
+    assert mock_run_command.call_args.kwargs["dry_run_override"] is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
+def test_find_test_helper_importers_missing_helper(mock_run_command, tmp_path, monkeypatch):
+    monkeypatch.setattr("airflow_breeze.utils.selective_checks.AIRFLOW_ROOT_PATH", tmp_path)
+    assert _find_test_helper_importers("devel-common/src/tests_common/test_utils/removed.py") is None
+    mock_run_command.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("files", "importers"),
+    [
+        pytest.param(
+            (
+                "providers/common/compat/src/airflow/providers/common/compat/check.py",
+                "devel-common/src/tests_common/test_utils/permissions.py",
+            ),
+            frozenset({"providers/fab/tests/unit/fab/auth_manager/test_security.py"}),
+            id="importer-in-other-provider",
+        ),
+        pytest.param(
+            (
+                "providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",
+                "devel-common/src/tests_common/test_utils/permissions.py",
+            ),
+            frozenset({"providers/common/compat/tests/unit/common/compat/test_check.py"}),
+            id="importer-in-common-compat",
+        ),
+    ],
+)
+@patch("airflow_breeze.utils.selective_checks._find_test_helper_importers", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
+def test_common_compat_check_ignores_test_helper_importers(
+    mock_run_command, mock_find_test_helper_importers, files, importers
+):
+    mock_find_test_helper_importers.return_value = importers
+    mock_run_command.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout='"apache-airflow-providers-common-compat>=1.8.0",\n'
+    )
+    selective_checks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert selective_checks.common_compat_changed_without_next_version is False
