@@ -327,6 +327,7 @@ class AssetsCoverageTest(ProjectStructureTest):
                 no_assets.add(name)
 
         asset_should_be_missing = self.ASSETS_NOT_REQUIRED - no_assets
+        no_assets -= self.ASSETS_NOT_REQUIRED
         no_assets -= self.MISSING_ASSETS_FOR_CLASSES
         if set() != no_assets:
             print("Classes with missing assets:")
@@ -357,6 +358,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.automl.AutoMLImportDataOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLGetModelOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLListDatasetOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator",
@@ -369,12 +371,13 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360UploadLineItemsOperator",
-        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadLineItemsOperator",
         "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
         "airflow.providers.google.cloud.operators.stackdriver.StackdriverListAlertPoliciesOperator",
         "airflow.providers.google.cloud.operators.stackdriver.StackdriverEnableAlertPoliciesOperator",
         "airflow.providers.google.cloud.operators.stackdriver.StackdriverDisableAlertPoliciesOperator",
         "airflow.providers.google.cloud.operators.stackdriver.StackdriverUpsertAlertOperator",
+        "airflow.providers.google.cloud.operators.stackdriver.StackdriverDeleteAlertOperator",
         "airflow.providers.google.cloud.operators.stackdriver.StackdriverListNotificationChannelsOperator",
         "airflow.providers.google.cloud.operators.stackdriver.StackdriverEnableNotificationChannelsOperator",
         "airflow.providers.google.cloud.operators.stackdriver.StackdriverDisableNotificationChannelsOperator",
@@ -431,7 +434,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceDeleteJobOperator",
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-        "CloudDataTransferServiceGetOperationStatusOperator",
+        "CloudDataTransferServiceGetOperationOperator",
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceListOperationsOperator",
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
@@ -446,14 +449,13 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteBackupOperator",
         "airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteServiceOperator",
         "airflow.providers.google.cloud.operators.datastore.CloudDatastoreBeginTransactionOperator",
-        "airflow.providers.google.cloud.operators.datastore.CloudDatastoreDeleteDatasetOperator",
         "airflow.providers.google.cloud.operators.datastore.CloudDatastoreDeleteOperationOperator",
         "airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator",
         "airflow.providers.google.cloud.operators.datastore.CloudDatastoreRollbackOperator",
         "airflow.providers.google.cloud.operators.datastore.CloudDatastoreRunQueryOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPDeidentifyContentOperator",
-        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDLPJobOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteInspectTemplateOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteJobTriggerOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator",
@@ -545,8 +547,8 @@ class TestSlackProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "slack"
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
     BASE_CLASSES = {
-        "airflow.providers.slack.operators.slack.SlackAPIOperator",
         "airflow.providers.slack.transfers.base_sql_to_slack.BaseSqlToSlackOperator",
+        "airflow.providers.slack.operators.slack.SlackAPIOperator",
     }
     MISSING_EXAMPLES_FOR_CLASSES = set()
     DEPRECATED_CLASSES = {
