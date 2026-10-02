@@ -402,15 +402,19 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │        ◀─SDKTaskHandlerParsingResult(task_handlers={"etl": […]})── runtime
         │        Get* from the runtime is relayed up ToManager unchanged
         │
-        ├─7─ VALIDATE per dag_id, against the recorded and the fresh answers,
-        │    unioned across coordinators
-        │      task_id sets must match exactly
+        ├─7─ VALIDATE per stub task, against the recorded and the fresh answers
+        │    of the coordinator its queue routes to
+        │      exactly one declaration of its (dag_id, task_id); none, or two
+        │      candidates claiming it → import error naming the candidates
+        │      a handler with no stub task → not an error
         │      arg_bindings[*]         ↔ declaration.params[*], per its binding:
-        │                                 by position, or by folded or exact name
+        │                                 by position, or by folded or exact name;
+        │                                 an argless call passes no arguments;
+        │                                 defaulted ones are dropped if that
+        │                                 makes a positional count match
         │      arg_bindings[*].schema  ↔ declaration.params[*].value_schema,
-        │                                 compared only where neither is null
-        │      two candidates claiming one (dag_id, task_id) → import error
-        │                                                      naming both paths
+        │                                 top-level JSON types, where both exist
+        │      mapped stub task, or params=None → the handler's presence only
         │
         └─8─ on success → task_handler_bindings=[…]
              on mismatch → import_errors[etl.py]=…  AND  bindings=None
