@@ -1493,3 +1493,5 @@ class EksPodExecOperator(KubernetesPodExecOperator):
                     return super().execute(context)
                 finally:
                     self.config_file = None
+                    self.__dict__.pop("client", None)
+                    self.__dict__.pop("hook", None)

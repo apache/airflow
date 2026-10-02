@@ -1408,6 +1408,49 @@ class TestEksPodExecOperator:
 
         assert operator.config_file is None
 
+    @pytest.mark.parametrize("first_execution_fails", [False, True])
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesHook", autospec=True)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator.execute",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.EksHook", autospec=True)
+    def test_execute_recreates_client_with_new_config(
+        self, eks_hook_mock, pod_exec_execute_mock, kubernetes_hook_mock, first_execution_fails
+    ):
+        eks_hook = self.configure_eks_auth(eks_hook_mock)
+        eks_hook.generate_config_file.return_value.__enter__.side_effect = [
+            "/tmp/first-kubeconfig",
+            "/tmp/second-kubeconfig",
+        ]
+        clients = []
+
+        def execute_with_client(operator, context):
+            clients.append(operator.client)
+            if first_execution_fails and len(clients) == 1:
+                raise RuntimeError("command failed")
+            return "command output"
+
+        pod_exec_execute_mock.side_effect = execute_with_client
+        operator = EksPodExecOperator(
+            task_id="run_command",
+            cluster_name=CLUSTER_NAME,
+            pod_name="existing-pod",
+            command=["true"],
+        )
+
+        if first_execution_fails:
+            with pytest.raises(RuntimeError, match="command failed"):
+                operator.execute({})
+        else:
+            operator.execute({})
+        assert operator.execute({}) == "command output"
+
+        assert kubernetes_hook_mock.call_args_list == [
+            mock.call(conn_id=None, in_cluster=False, config_file=config_file, cluster_context=None)
+            for config_file in ("/tmp/first-kubeconfig", "/tmp/second-kubeconfig")
+        ]
+
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator.execute",
         autospec=True,
