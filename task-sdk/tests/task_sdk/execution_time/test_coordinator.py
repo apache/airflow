@@ -333,6 +333,22 @@ class TestCoordinatorManager:
         assert manager.extra_for_queue(queue) == expected
         assert manager._created_coordinators == {}
 
+    @pytest.mark.parametrize(
+        ("queue", "expected"),
+        [pytest.param("queue-boom", "boom", id="routed"), pytest.param("default", None, id="unrouted")],
+    )
+    def test_get_coordinator_key(self, sdk_config, queue, expected):
+        sdk_config(
+            coordinators=json.dumps(
+                {"boom": {"classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator"}}
+            ),
+            queue_to_coordinator=json.dumps({"queue-boom": "boom"}),
+        )
+        manager = CoordinatorManager.from_config()
+
+        assert manager.get_coordinator_key(queue) == expected
+        assert manager._created_coordinators == {}
+
     def test_extra_not_forwarded_to_constructor(self, sdk_config):
         """``extra`` is kept separate from ``kwargs`` and never reaches the coordinator constructor."""
         sdk_config(
