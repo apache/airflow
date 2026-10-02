@@ -2555,13 +2555,22 @@ class InProcessSupervisorComms:
     supervisor: InProcessTestSupervisor
 
     def send(self, msg: BaseModel) -> BaseModel | None:
-        """Send a request to the supervisor and return its response."""
+        """
+        Send a request to the supervisor and return its response.
+
+        Safe to call from several threads: each call gets its own response sink, and only the code
+        serving the request stops seeing the comms meanwhile (``task_runner.serving_supervisor_request``,
+        also entered by the in-process API server for its own threads), so the task's other threads
+        keep theirs.
+        """
+        from airflow.sdk.execution_time.task_runner import serving_supervisor_request
+
         self.log.debug("Sending request", msg=msg)
 
         responses: deque[BaseModel | None] = deque()
         token = _IN_PROCESS_RESPONSE_SINK.set(responses)
         try:
-            with set_supervisor_comms(None):
+            with serving_supervisor_request():
                 self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
         finally:
             _IN_PROCESS_RESPONSE_SINK.reset(token)
@@ -2797,9 +2806,10 @@ def set_supervisor_comms(temp_comms):
     by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
     in place of the real inter-process communication layer.
 
-    Some parts of the code (e.g. models.Variable.get) check for the presence
-    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
-    This override ensures those code paths behave correctly during in-process tests.
+    Some parts of the code (e.g. models.Variable.get) ask `task_runner.supervisor_comms()`, in
+    airflow-core through `airflow.process_context.should_use_task_sdk_api_path()`, to determine if the code
+    is running in a Task SDK execution context. That reads the comms set here, so this override ensures
+    those code paths behave correctly during in-process tests.
     """
     from airflow.sdk.execution_time import task_runner
 
