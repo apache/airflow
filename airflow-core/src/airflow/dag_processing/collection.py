@@ -172,9 +172,9 @@ def _get_latest_runs_stmt_batch(dag_ids: Collection[str]) -> Select:
     """
     Batch equivalent of :func:`_get_latest_runs_stmt` for several Dags in one query.
 
-    Row selection matches the single-dag statement per dag: the run(s) whose logical_date
-    equals the dag's max logical_date among automated runs; a dag whose automated runs all
-    lack a logical_date matches nothing, like the single-dag statement.
+    Row selection matches the single-Dag statement per Dag: the run whose logical_date
+    equals the Dag's max logical_date among automated runs; a Dag whose automated runs all
+    lack a logical_date matches nothing, like the single-Dag statement.
     """
     max_logical_dates = (
         select(DagRun.dag_id, func.max(DagRun.logical_date).label("max_logical_date"))
@@ -200,7 +200,7 @@ def _get_latest_runs_stmt_partitioned_batch(dag_ids: Collection[str]) -> Select:
     """
     Batch equivalent of :func:`_get_latest_runs_stmt_partitioned` for several Dags in one query.
 
-    Row selection matches the single-dag statement per dag: the top run ordered by
+    Row selection matches the single-Dag statement per Dag: the top run ordered by
     (partition_date IS NULL, partition_date DESC, run_after DESC) among automated runs
     with a partition_key.
     """
@@ -305,9 +305,7 @@ class _RunInfo(NamedTuple):
                     latest_runs[run.dag_id] = run
             else:
                 for run in session.scalars(batch_stmt(dag_ids)):
-                    # The single-dag statement returns an arbitrary row on a logical_date
-                    # tie; keeping the first row per dag matches that.
-                    latest_runs.setdefault(run.dag_id, run)
+                    latest_runs[run.dag_id] = run
 
         active_run_counts = DagRun.active_runs_of_dags(
             dag_ids=list(schedulable),
