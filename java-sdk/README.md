@@ -44,17 +44,19 @@ development tools may have further requirements (see the toolchain in
 
 Repositories are centralized in `settings.gradle.kts`, and dynamic and changing versions are rejected for project dependency configurations (not for plugin markers or detached configurations — pin those by hand). `buildSrc/` declares its own repositories, but its dependencies *are* covered by this metadata.
 
-To update a dependency or plugin, regenerate from a trusted network. The task list must cover everything CI runs, since only what the invoked tasks resolve gets recorded:
+To update a dependency or plugin, regenerate the file from a trusted network. Run the command from the repository root:
 
 ```bash
-./gradlew --write-verification-metadata sha256 --refresh-dependencies \
-  build \
-  :sdk:dokkaGeneratePublicationHtml :sdk:dokkaGeneratePublicationJavadoc \
-  sourceTarball checksumSourceTarball \
-  publishToMavenLocal -PskipSigning=true
+prek run regenerate-java-sdk-verification-metadata --all-files
 ```
 
-Without `-PskipSigning=true` the signing tasks fail and Gradle still writes metadata from the partial run. Regeneration only appends, so delete superseded entries by hand after a version bump.
+The hook runs on its own whenever a change moves the resolved dependency set, and it keeps failing until you stage the rewritten file too. It is a plain script, so you can also run it directly:
+
+```bash
+uv run scripts/ci/prek/regenerate_java_sdk_verification_metadata.py
+```
+
+Gradle only appends to the file, so the script empties the component list before regenerating. Otherwise every version bump leaves its superseded entries behind, and they stay trusted. The script also owns the task list, which has to cover everything CI builds, because Gradle records only what the invoked tasks resolve.
 
 Review every entry in the diff. Generating the file records what the repositories served at that moment; it does not make those bytes trustworthy. Cross-check new coordinates and checksums against the dependency's official release information, and never bypass a failure with lenient or disabled verification.
 
@@ -724,9 +726,13 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
   not the implementation language.
 - Keep `sdk/src/main/kotlin/` (the public API surface) free of internal
   implementation details; those belong in the `execution/` sub-package.
-- The annotation processor (`BuilderProcessor.kt`) uses `kapt`. When adding a
-  new annotation, define it in `Builder.kt`, handle it in
-  `BuilderProcessor.kt`, and add a golden-output test in
+- The annotation processor (`BuilderProcessor.kt`) uses `kapt`. The `Builder`
+  class holding the `@Builder.Dag` / `@Builder.Task` annotations is generated
+  from the Dag serialization schema by `:sdk:generateDagDsl` (vendored at
+  `sdk/schema/dag-schema.json`). The `Arg`/`TaskRef` and `Deps`/`Flow` graph
+  types are hand-written next to the rest of the public surface in
+  `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
+  behaviour, handle it in `BuilderProcessor.kt` and add a golden-output test in
   `processor/src/test/kotlin/`.
 - The Python coordinator subclasses `SubprocessCoordinator`. Do not reach into
   the JVM process from Python beyond what `_build_execute_task_command`
@@ -748,9 +754,14 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 5. Update `airflow-core/docs/authoring-and-scheduling/language-sdks/java.rst`
    if the change is user-visible.
 
-**Adding a new annotation**:
+**Adding a new annotation or configuration attribute**:
 
-1. Define the annotation interface in `Builder.kt`.
+1. Hand-written annotations live in `sdk/src/main/kotlin/org/apache/airflow/sdk/`
+   next to the runtime types (one package, so user code needs a single
+   `import org.apache.airflow.sdk.*`); the configuration attributes of
+   `@Builder.Dag` / `@Builder.Task` come from the Dag serialization schema via
+   `:sdk:generateDagDsl` (adjust its allowlist/exclusion rules in
+   `sdk/build.gradle.kts` when the exposed field set should change).
 2. Handle it in `BuilderProcessor.kt` — generate the appropriate code in the
    `*Builder` class.
 3. Add a test in `BuilderTest.kt` with expected generated output.

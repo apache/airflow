@@ -20,6 +20,11 @@
 Code mode
 =========
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Set ``code_mode=True`` to collapse the agent's tools into a single ``run_code``
 tool powered by the `Monty <https://github.com/pydantic/monty>`__ sandbox (via
 pydantic-ai-harness). Instead of one model round-trip per tool call, the model
@@ -76,10 +81,9 @@ Requires the ``code-mode`` extra::
     :start-after: [START howto_operator_agent_code_mode]
     :end-before: [END howto_operator_agent_code_mode]
 
-Unlike passing a capability through ``agent_params`` (see
-:ref:`capabilities-passthrough`), ``code_mode`` is a plain boolean and is
-serialization-safe: the ``CodeMode`` capability is built at execution time, not
-stored on the serialized operator.
+``code_mode=True`` is the same as adding ``CodeMode()`` at the end of ``capabilities=`` (see
+:ref:`capabilities`), except that the operator builds the capability when the task runs, so the
+Dag file does not import ``pydantic_ai_harness``.
 
 .. note::
 

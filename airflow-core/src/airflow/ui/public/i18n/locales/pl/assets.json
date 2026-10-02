@@ -1,5 +1,10 @@
 {
   "additional_data": "Dodatkowe dane",
+  "alias_few": "Aliasy",
+  "alias_many": "Aliasów",
+  "alias_one": "Alias",
+  "alias_other": "Aliasy",
+  "aliases": "Aliasy",
   "asset_few": "Zasoby",
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
@@ -15,6 +20,10 @@
     "deleteWarning": "Zasób utraci ten zachowany wpis magazynu stanu.",
     "edit": "Edytuj wpis magazynu stanu zasobu",
     "emptyState": "Magazyn stanu zasobu przechowuje wartości przypisane do tożsamości zasobu, współdzielone przez wszystkie wykonania Dagów. Workery mogą zapisywać do magazynu stanu zasobu przez Task SDK.",
+    "entry_few": "Wpisy",
+    "entry_many": "Wpisów",
+    "entry_one": "Wpis",
+    "entry_other": "Wpisy",
     "lastUpdatedBy": "Ostatnio zaktualizowane przez",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "Watcher",
@@ -44,7 +53,10 @@
     "title": "Utwórz zdarzenie zasobu dla {{name}}"
   },
   "events": "Zdarzenia",
-  "extra": "Dodatkowe",
+  "filters": {
+    "groupPlaceholder": "Szukaj grupy",
+    "lastEventDateRange": "Data ostatniego zdarzenia"
+  },
   "group": "Grupa",
   "lastAssetEvent": "Ostatnie zdarzenie zasobu",
   "name": "Nazwa",
@@ -52,5 +64,10 @@
   "scheduledDags": "Zaplanowane Dagi",
   "scheduling": "Planowanie",
   "searchPlaceholder": "Szukaj zasobów",
-  "taskDependencies": "Zależności zadań"
+  "taskDependencies": "Zależności zadań",
+  "watcher_few": "Watchery",
+  "watcher_many": "Watcherów",
+  "watcher_one": "Watcher",
+  "watcher_other": "Watchery",
+  "watchers": "Watchery"
 }

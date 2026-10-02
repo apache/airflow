@@ -49,6 +49,11 @@ class DecisionPolicy:
     """
     When an LLM operator may act on the model's answer by itself, and what happens when it may not.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     :param min_confidence: The confidence, from 0 to 1, the answer needs for the operator to act
         without a person. ``None`` (default) is no gate: the operator behaves as it always has.
         Confidence comes from models that report one, such as a classifier model (TypeSafe's),
@@ -86,6 +91,12 @@ class DecisionPolicy:
 class BranchOption:
     """
     One branch the model may pick: what choosing it means, and the confidence it needs.
+
+    .. note::
+
+        Experimental: ``min_confidence`` can change or be removed in a minor release of this
+        provider. ``description`` is stable.
+        See :ref:`howto/stability`.
 
     The value of :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`'s
     ``branches`` mapping, keyed by downstream task ID. A bare string in that mapping is shorthand

@@ -119,6 +119,16 @@ def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> l
     return file_paths
 
 
+def find_enclosing_file(path: Path) -> Path | None:
+    """
+    Return ``path`` or its nearest ancestor that is a file, or ``None`` if there is none.
+
+    A Dag definition nested in a container is referenced by a path that does not exist on
+    disk (``archive.zip/dag.py``, for instance); this resolves it to the container.
+    """
+    return next((candidate for candidate in (path, *path.parents) if candidate.is_file()), None)
+
+
 COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 

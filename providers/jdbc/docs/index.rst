@@ -150,7 +150,7 @@ Install them when installing from PyPI. For example:
 Extra            Dependencies
 ===============  ========================================
 ``openlineage``  ``apache-airflow-providers-openlineage``
-``sqlalchemy``   ``sqlalchemy>=1.4.54``
+``sqlalchemy``   ``sqlalchemy>=1.4.54,!=2.1.0``
 ===============  ========================================
 
 Downloading official packages

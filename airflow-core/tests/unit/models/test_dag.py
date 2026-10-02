@@ -57,6 +57,7 @@ from airflow.models.dag import (
     clear_team_name_cache,
     get_next_data_interval,
     get_run_data_interval,
+    infer_automated_data_interval,
 )
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -166,6 +167,17 @@ TEST_DAGS_FOLDER = Path(__file__).parents[1] / "dags"
 def test_dags_bundle(configure_testing_dag_bundle):
     with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
         yield
+
+
+def test_infer_automated_data_interval_uses_asset_triggered_behavior():
+    class CustomAssetTriggeredTimetable(Timetable):
+        asset_triggered = True
+
+    logical_date = timezone.datetime(2026, 6, 21)
+
+    assert infer_automated_data_interval(CustomAssetTriggeredTimetable(), logical_date) == DataInterval.exact(
+        logical_date
+    )
 
 
 def _create_dagrun(
@@ -360,6 +372,25 @@ class TestDag:
         # Only the owning bundle should have been parsed.
         assert "testing" in instantiated
         assert "unrelated" not in instantiated
+
+    def test_dag_test_runtime_start_date_decoupled_from_logical_date(self, dag_maker, time_machine):
+        """
+        Ensure DAG.test() decouples its execution start_date from historical logical_dates.
+        """
+        past_logical_date = pendulum.datetime(2024, 1, 1, tz="UTC")
+        frozen_now = pendulum.datetime(2026, 6, 22, 12, 0, 0, tz="UTC")
+
+        time_machine.move_to(frozen_now, tick=False)
+
+        with dag_maker(dag_id="test_runtime_duration_isolation", start_date=past_logical_date) as dag:
+            EmptyOperator(task_id="task1")
+
+        # Run dag.test against the DB
+        dr = dag.test(logical_date=past_logical_date)
+
+        # Assert directly on the created DagRun object returned from the DB
+        assert dr.logical_date == past_logical_date
+        assert dr.start_date == frozen_now
 
     def teardown_method(self) -> None:
         clear_db_runs()
@@ -1795,6 +1826,32 @@ class TestDag:
         dag.test()
         mock_object.assert_called_once()
 
+    @pytest.mark.parametrize("succeed_on_last_try", [False, True])
+    def test_dag_test_retries_use_consecutive_attempts(self, testing_dag_bundle, succeed_on_last_try):
+        attempts = []
+        dag = DAG(dag_id="test_dag_test_retry_attempts", schedule=None, start_date=DEFAULT_DATE)
+
+        @task_decorator(retries=2, retry_delay=timedelta(0))
+        def retry_task(ti):
+            attempts.append((ti.id, ti.try_number))
+            if not succeed_on_last_try or ti.try_number < 3:
+                raise RuntimeError("Retry this attempt")
+
+        with dag:
+            retry_task()
+        sync_dag_to_db(dag)
+
+        dr = dag.test()
+
+        ti = dr.get_task_instance("retry_task")
+        assert ti is not None
+        assert [try_number for _, try_number in attempts] == [1, 2, 3]
+        assert len({attempt_id for attempt_id, _ in attempts}) == 3
+        assert (ti.id, ti.try_number) == attempts[-1]
+        assert ti.max_tries == 2
+        assert ti.state == (TaskInstanceState.SUCCESS if succeed_on_last_try else TaskInstanceState.FAILED)
+        assert dr.state == (DagRunState.SUCCESS if succeed_on_last_try else DagRunState.FAILED)
+
     def test_dag_test_with_dependencies(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
         sync_dag_to_db(dag)
@@ -2059,8 +2116,13 @@ my_postgres_conn:
     @pytest.mark.parametrize(
         ("ti_state_begin", "ti_state_end"),
         [
-            *((state, None) for state in State.task_states if state != TaskInstanceState.RUNNING),
+            *(
+                (state, None)
+                for state in State.task_states
+                if state not in (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)
+            ),
             (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING),
+            (TaskInstanceState.RESTARTING, TaskInstanceState.RESTARTING),
         ],
     )
     def test_clear_dag(
