@@ -22,6 +22,7 @@ import json
 from argparse import BooleanOptionalAction
 from pathlib import Path
 from textwrap import dedent
+from typing import Any
 from unittest import mock
 
 import httpx
@@ -984,3 +985,72 @@ class TestCliConfigMethods:
         args.func(args, api_client=api_client)
 
         assert parse(capsys.readouterr().out) == expected
+
+    def test_list_of_records_prints_records_unwrapped(self, api_client_maker, capsys):
+        pools: list[dict[str, Any]] = [
+            {
+                "name": name,
+                "slots": 128,
+                "description": None,
+                "include_deferred": False,
+                "occupied_slots": 0,
+                "running_slots": 0,
+                "queued_slots": 0,
+                "scheduled_slots": 0,
+                "open_slots": 128,
+                "deferred_slots": 0,
+                "team_name": None,
+            }
+            for name in ("default_pool", "etl")
+        ]
+        api_client = api_client_maker(
+            path="/api/v2/pools",
+            response_json={"pools": pools, "total_entries": 2},
+            expected_http_status_code=200,
+        )
+        args = cli_parser.get_parser().parse_args(["pools", "list", "--output", "json"])
+
+        args.func(args, api_client=api_client)
+
+        rows = json.loads(capsys.readouterr().out)
+        assert [row["name"] for row in rows] == ["default_pool", "etl"]
+        assert all(row.keys() == pools[0].keys() for row in rows)
+
+    def test_nested_single_key_list_is_not_split_into_rows(self, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path="/api/v2/dags/example/dagRuns/manual_run",
+            response_json={
+                "dag_run_id": "manual_run",
+                "dag_id": "example",
+                "logical_date": None,
+                "queued_at": None,
+                "start_date": None,
+                "end_date": None,
+                "duration": None,
+                "data_interval_start": None,
+                "data_interval_end": None,
+                "run_after": "2025-01-01T00:00:00Z",
+                "last_scheduling_decision": None,
+                "run_type": "manual",
+                "state": "success",
+                "triggered_by": None,
+                "triggering_user_name": None,
+                "conf": {"ids": ["a", "b"]},
+                "note": None,
+                "dag_versions": [],
+                "bundle_version": None,
+                "dag_display_name": "example",
+                "partition_key": None,
+                "partition_date": None,
+            },
+            expected_http_status_code=200,
+        )
+        args = cli_parser.get_parser().parse_args(
+            ["dagrun", "get", "example", "manual_run", "--output", "json"]
+        )
+
+        args.func(args, api_client=api_client)
+
+        rows = json.loads(capsys.readouterr().out)
+        assert [row["dag_run_id"] for row in rows] == ["manual_run"]
+        assert rows[0]["conf"] == ["a", "b"]
