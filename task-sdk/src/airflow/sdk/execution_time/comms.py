@@ -941,6 +941,7 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
 
 
 class GetXCom(BaseModel):
+    previous_iteration: bool = False
     region_id: UUID | None = None
     region_index: int | None = None
     key: str
@@ -955,6 +956,7 @@ class GetXCom(BaseModel):
 class GetXComCount(BaseModel):
     """Get the number of (mapped) XCom values available."""
 
+    previous_iteration: bool = False
     region_id: UUID | None = None
     region_index: int | None = None
     key: str
@@ -965,6 +967,7 @@ class GetXComCount(BaseModel):
 
 
 class GetXComSequenceItem(BaseModel):
+    previous_iteration: bool = False
     region_id: UUID | None = None
     region_index: int | None = None
     key: str
@@ -976,6 +979,7 @@ class GetXComSequenceItem(BaseModel):
 
 
 class GetXComSequenceSlice(BaseModel):
+    previous_iteration: bool = False
     region_id: UUID | None = None
     region_index: int | None = None
     key: str
@@ -990,6 +994,7 @@ class GetXComSequenceSlice(BaseModel):
 
 
 class SetXCom(BaseModel):
+    loop_decision: bool = False
     region_id: UUID | None = None
     region_index: int | None = None
     key: str

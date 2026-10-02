@@ -88,7 +88,12 @@ from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion, public_region_filter
+from airflow.models.dynamic_region import (
+    LOOP_DECISION_KEY,
+    SENTINEL_REGION_ID,
+    DynamicRegion,
+    public_region_filter,
+)
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.tasklog import LogTemplate
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
@@ -127,6 +132,7 @@ if TYPE_CHECKING:
     from airflow.sdk import DAG as SDKDAG
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
+    from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
     from airflow.timetables.base import Timetable
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
@@ -139,6 +145,10 @@ RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{
 log = structlog.get_logger(__name__)
 
 tracer = trace.get_tracer(__name__)
+
+
+class InvalidLoopDecision(ValueError):
+    """A gate cannot complete successfully with the available decision."""
 
 
 class TISchedulingDecision(NamedTuple):
@@ -1931,11 +1941,10 @@ class DagRun(Base, LoggingMixin):
         # Create the missing tasks, including mapped tasks
         missing_tasks = [task for task in dag.task_dict.values() if task_filter(task)]
         tis_to_create = list(
-            self._create_tasks(
+            self._create_initial_tasks(
                 missing_tasks,
                 task_creator,
                 session=session,
-                expand_literals=True,
             )
         )
         self._create_task_instances(self.dag_id, tis_to_create, created_counts, hook_is_noop, session=session)
@@ -2133,6 +2142,121 @@ class DagRun(Base, LoggingMixin):
             creator = create_ti
         return creator
 
+    def complete_loop_gate(
+        self,
+        gate: TI,
+        group: SerializedLoopTaskGroup,
+        state: TaskInstanceState,
+        *,
+        session: Session,
+    ) -> None:
+        """Consume a gate decision while the caller holds the DagRun and TI locks."""
+        from airflow.models.xcom import XComModelV2
+        from airflow.settings import task_instance_mutation_hook
+
+        if gate.dag_version_id is None:
+            raise InvalidLoopDecision("Loop gate requires a pinned DAG version")
+        signal = XComModelV2.get_for_attempt(gate.id, LOOP_DECISION_KEY, session=session)
+        later_gate = session.scalar(
+            select(TI.id)
+            .where(
+                TI.working_set.is_(True),
+                TI.dag_id == self.dag_id,
+                TI.run_id == self.run_id,
+                TI.task_id == gate.task_id,
+                TI.region_id == gate.region_id,
+                TI.region_index > gate.region_index,
+            )
+            .limit(1)
+        )
+        if state != TaskInstanceState.SUCCESS or later_gate:
+            if signal is not None:
+                session.delete(signal)
+            return
+        decision = signal.value if signal is not None else None
+        at_limit = gate.region_index + 1 >= group.max_iterations
+        if decision not in ("continue", "stop"):
+            raise InvalidLoopDecision("Successful loop gate requires a decision")
+        if decision == "continue" and at_limit:
+            raise InvalidLoopDecision("Loop cannot continue beyond its iteration limit")
+        if not group.has_until and (decision == "stop") != at_limit:
+            raise InvalidLoopDecision("Fixed-count loop decision does not match its iteration limit")
+        session.delete(signal)
+        if decision == "stop":
+            return
+        created_counts: dict[str, int] = defaultdict(int)
+        hook_is_noop: Literal[True, False] = getattr(task_instance_mutation_hook, "is_noop", False)
+        creator = self._get_task_creator(
+            created_counts, task_instance_mutation_hook, hook_is_noop, gate.dag_version_id
+        )
+        tasks = list(
+            self._create_tasks(
+                group.iter_tasks(),
+                creator,
+                session=session,
+                parent_region=(gate.region_id, gate.region_index + 1),
+            )
+        )
+        self._create_task_instances(
+            self.dag_id, tasks, created_counts, hook_is_noop, session=session, propagate_errors=True
+        )
+
+    def _create_initial_tasks(
+        self,
+        tasks: Iterable[Operator],
+        task_creator: Callable[[Operator, Iterable[int], UUID], CreatedTasks],
+        *,
+        session: Session,
+    ) -> CreatedTasks:
+        from airflow.models.task_coordinates import enclosing_loop
+
+        ordinary_tasks = []
+        loop_tasks = defaultdict(list)
+        loops = {}
+        for task in tasks:
+            if loop := enclosing_loop(task):
+                loops[loop.group_id] = loop
+                loop_tasks[loop.group_id].append(task)
+            else:
+                ordinary_tasks.append(task)
+        yield from self._create_tasks(ordinary_tasks, task_creator, session=session, expand_literals=True)
+        for group_id, members in loop_tasks.items():
+            coordinates = (
+                session.execute(
+                    select(TI.region_id, TI.region_index).where(
+                        TI.working_set.is_(True),
+                        TI.dag_id == self.dag_id,
+                        TI.run_id == self.run_id,
+                        TI.task_id == loops[group_id].gate_task_id,
+                    )
+                )
+                .tuples()
+                .all()
+            )
+            if not coordinates:
+                if session.scalar(
+                    select(DynamicRegion.id)
+                    .where(
+                        DynamicRegion.dag_id == self.dag_id,
+                        DynamicRegion.run_id == self.run_id,
+                        DynamicRegion.node_id == group_id,
+                    )
+                    .limit(1)
+                ):
+                    raise ValueError(f"Loop {group_id!r} has regions but no live gate")
+                region = DynamicRegion(dag_id=self.dag_id, run_id=self.run_id, node_id=group_id)
+                session.add(region)
+                session.flush()
+                coordinates = [(region.id, 0)]
+            for region_id, region_index in coordinates:
+                yield from self._create_tasks(
+                    members,
+                    task_creator,
+                    session=session,
+                    parent_region=(region_id, region_index),
+                    expand_literals=True,
+                )
+
     def _create_tasks(
         self,
         tasks: Iterable[Operator],
@@ -2184,6 +2308,7 @@ class DagRun(Base, LoggingMixin):
         hook_is_noop: bool,
         *,
         session: Session,
+        propagate_errors: bool = False,
     ) -> None:
         """
         Create the necessary task instances from the given tasks.
@@ -2213,6 +2338,8 @@ class DagRun(Base, LoggingMixin):
                 )
             session.flush()
         except (IntegrityError, StaleDataError) as exc:
+            if propagate_errors:
+                raise
             self.log.info(
                 "Hit %s while creating the TIs for %s- %s",
                 type(exc).__name__,

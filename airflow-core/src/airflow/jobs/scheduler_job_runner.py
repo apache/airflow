@@ -1679,6 +1679,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     task = dag.get_task(ti.task_id)
                 except Exception:
+                    if state == TaskInstanceState.SUCCESS and ti.operator == "LoopGateOperator":
+                        ti.task = None
+                        ti.handle_failure(error=msg, session=session)
+                        continue
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)
                     continue

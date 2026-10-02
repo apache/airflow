@@ -24,6 +24,54 @@ from airflow.sdk import DAG, BaseOperator, TaskGroup, TriggerRule, task, task_gr
 from airflow.sdk.definitions._internal.loop import LoopGateOperator, create_loop
 
 
+@pytest.mark.parametrize("mapped", [False, True])
+def test_loop_body_accepts_omitted_keyword_only_loop_context(mapped):
+    @task
+    def terminal(value, *, loop):
+        return value + loop.index
+
+    @task_group
+    def body():
+        with TaskGroup("nested"):
+            if mapped:
+                terminal.expand(value=[1, 2])
+            else:
+                terminal(1)
+
+    with DAG("loop_context_argument", schedule=None) as dag:
+        group = create_loop(body, max_iterations=2)
+
+    assert group.terminal_task_id == "body.nested.terminal"
+    assert dag.get_task(group.gate_task_id).upstream_task_ids == {group.terminal_task_id}
+
+
+def test_ordinary_task_loop_argument_remains_required():
+    @task
+    def terminal(*, loop):
+        return loop
+
+    with DAG("ordinary_loop_argument", schedule=None):
+        with pytest.raises(TypeError, match="missing a required (keyword-only )?argument: 'loop'"):
+            terminal()
+        result = terminal(loop="user value")
+
+    assert result.operator.op_kwargs == {"loop": "user value"}
+
+
+def test_loop_context_cannot_be_replaced_by_mapped_input():
+    @task
+    def terminal(*, loop):
+        return loop.index
+
+    @task_group
+    def body():
+        terminal.expand(loop=["user value"])
+
+    with DAG("mapped_loop_context", schedule=None):
+        with pytest.raises(ValueError, match="task context variable 'loop'"):
+            create_loop(body, max_iterations=2)
+
+
 def test_loop_dependencies_follow_terminal_instead_of_body_return():
     @task_group
     def body():
@@ -142,6 +190,25 @@ def test_noncallable_condition_is_rejected(until):
     with DAG("invalid_condition", schedule=None):
         with pytest.raises(TypeError, match="callable"):
             create_loop(body, max_iterations=2, until=until)
+
+
+@pytest.mark.parametrize("kind", ["function", "partial", "object"])
+def test_async_condition_is_rejected(kind):
+    @task_group
+    def body():
+        BaseOperator(task_id="terminal")
+
+    async def until(*, loop):
+        return True
+
+    class AsyncCondition:
+        async def __call__(self, *, loop):
+            return True
+
+    condition = {"function": until, "partial": partial(until), "object": AsyncCondition()}[kind]
+    with DAG("async_condition", schedule=None):
+        with pytest.raises(TypeError, match="synchronous"):
+            create_loop(body, max_iterations=2, until=condition)
 
 
 @pytest.mark.parametrize("terminal_count", [0, 2])

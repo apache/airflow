@@ -421,11 +421,23 @@ class DagRun(StrictBaseModel):
         return values
 
 
+class LoopContext(BaseModel):
+    """Pinned loop definition and enclosing iteration for a task execution."""
+
+    node_id: str
+    index: int = Field(ge=0)
+    max_iterations: int = Field(gt=0)
+    terminal_task_id: str
+    terminal_is_mapped: bool
+
+
 class TIRunContext(BaseModel):
     """Response schema for TaskInstance run context."""
 
     dag_run: DagRun
     """DAG run information for the task instance."""
+
+    loop: LoopContext | None = None
 
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""

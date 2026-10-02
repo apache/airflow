@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 import attrs
@@ -30,7 +30,10 @@ from airflow.models.dynamic_region import (
     AmbiguousProducerError,
     DynamicRegion,
     ProducerContext,
+    load_region_ancestry,
+    loop_position,
     resolve_current_producers,
+    select_current_producer_ids,
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.definitions.mappedoperator import is_mapped
@@ -39,6 +42,7 @@ from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup,
 if TYPE_CHECKING:
     from collections.abc import Collection
 
+    from sqlalchemy import Select
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import ColumnElement
 
@@ -53,6 +57,7 @@ class TaskCoordinate(Protocol):
     task_id: str
     region_id: UUID
     region_index: int
+    dag_version_id: UUID | None
 
 
 def enclosing_loop(task: SerializedOperator) -> SerializedLoopTaskGroup | None:
@@ -103,6 +108,21 @@ class TaskCoordinateResolver:
     def adopt_dag(self, dag: SerializedDAG | None) -> None:
         if dag is not None and dag.dag_version_id is not None:
             self._dags.setdefault(dag.dag_version_id, dag)
+
+    def loop_context(self, ti: TaskCoordinate) -> tuple[SerializedLoopTaskGroup, int] | None:
+        if ti.region_id == SENTINEL_REGION_ID:
+            return None
+        task = self.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+        group = enclosing_loop(task)
+        if group is None:
+            return None
+        regions = load_region_ancestry(
+            [ti.region_id], dag_id=ti.dag_id, run_id=ti.run_id, session=self.session
+        )
+        position = loop_position(regions, ti.region_id, ti.region_index, group.node_id)
+        if position is None:
+            raise ValueError("Task coordinates do not belong to the pinned loop")
+        return group, position[1]
 
     def get_task(
         self, dag_id: str, run_id: str, task_id: str, *, dag_version_id: UUID | None = None
@@ -228,39 +248,110 @@ class TaskCoordinateResolver:
             query = query.where(TaskInstance.run_id == run_id)
         return bool(self.session.scalar(select(query.exists())))
 
-    def resolve(
+    def resolve_dependency(self, caller: TaskInstance, task_id: str) -> tuple[TaskInstance, ...]:
+        producer = self.get_task(caller.dag_id, caller.run_id, task_id, dag_version_id=caller.dag_version_id)
+        loop = enclosing_loop(producer)
+        caller_task = self.get_task(
+            caller.dag_id, caller.run_id, caller.task_id, dag_version_id=caller.dag_version_id
+        )
+        caller_loop = enclosing_loop(caller_task)
+        if (
+            loop is not None
+            and loop.gate_task_id == task_id
+            and (caller_loop is None or caller_loop.group_id != loop.group_id)
+        ):
+            gates = self.session.scalars(
+                select(TaskInstance)
+                .join(DynamicRegion, DynamicRegion.id == TaskInstance.region_id)
+                .where(
+                    TaskInstance.working_set.is_(True),
+                    TaskInstance.dag_id == caller.dag_id,
+                    TaskInstance.run_id == caller.run_id,
+                    TaskInstance.task_id == task_id,
+                    DynamicRegion.node_id == loop.group_id,
+                )
+                .order_by(TaskInstance.region_index.desc())
+                .limit(2)
+            ).all()
+            if len(gates) == 2 and gates[0].region_index == gates[1].region_index:
+                raise AmbiguousProducerError(f"Multiple live loop gates at pass {gates[0].region_index}")
+            return tuple(gates[:1])
+        return self.resolve(dag_id=caller.dag_id, run_id=caller.run_id, task_id=task_id, caller=caller)
+
+    def _filter_legacy_producers(
+        self,
+        query: Select,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        region_index: int | None,
+        map_indexes: int | Collection[int] | None,
+    ) -> Select:
+        query = query.where(
+            TaskInstance.working_set.is_(True),
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.task_id == task_id,
+            TaskInstance.region_id == SENTINEL_REGION_ID,
+        )
+        if region_index is not None:
+            query = query.where(TaskInstance.region_index == region_index)
+        if isinstance(map_indexes, int):
+            query = query.where(TaskInstance.region_index == map_indexes)
+        elif map_indexes is not None:
+            query = query.where(TaskInstance.region_index.in_(map_indexes))
+        return query
+
+    def _filter_removed_task_producers(
+        self,
+        query: Select,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        region_id: UUID | None,
+        region_index: int | None,
+        map_indexes: int | Collection[int] | None,
+    ) -> Select:
+        """Find live rows of a task whose definition is gone, using only its own expansion regions."""
+        query = query.join(DynamicRegion, DynamicRegion.id == TaskInstance.region_id).where(
+            TaskInstance.working_set.is_(True),
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.task_id == task_id,
+            DynamicRegion.node_id == task_id,
+        )
+        if region_id is not None:
+            query = query.where(TaskInstance.region_id == region_id)
+        if region_index is not None:
+            query = query.where(TaskInstance.region_index == region_index)
+        if isinstance(map_indexes, int):
+            query = query.where(TaskInstance.region_index == map_indexes)
+        elif map_indexes is not None:
+            query = query.where(TaskInstance.region_index.in_(map_indexes))
+        return query
+
+    def _is_legacy_lookup(
+        self, dag_id: str, run_id: str, task_id: str, region_id: UUID | None, previous_iteration: bool
+    ) -> bool:
+        return not previous_iteration and (
+            region_id == SENTINEL_REGION_ID
+            or (region_id is None and not self.has_regions(dag_id, run_id, task_id))
+        )
+
+    def _build_producer_request(
         self,
         *,
         dag_id: str,
         run_id: str,
         task_id: str,
-        caller: TaskInstance | None = None,
-        region_id: UUID | None = None,
-        region_index: int | None = None,
-        map_indexes: int | Collection[int] | None = None,
-        previous_iteration: bool = False,
-    ) -> tuple[TaskInstance, ...]:
-        if region_index is not None and region_id is None:
-            raise ValueError("region_index requires an explicit producer region_id")
-        if not previous_iteration and (
-            region_id == SENTINEL_REGION_ID
-            or (region_id is None and not self.has_regions(dag_id, run_id, task_id))
-        ):
-            query = select(TaskInstance).where(
-                TaskInstance.working_set.is_(True),
-                TaskInstance.dag_id == dag_id,
-                TaskInstance.run_id == run_id,
-                TaskInstance.task_id == task_id,
-                TaskInstance.region_id == SENTINEL_REGION_ID,
-            )
-            if region_index is not None:
-                query = query.where(TaskInstance.region_index == region_index)
-            if isinstance(map_indexes, int):
-                query = query.where(TaskInstance.region_index == map_indexes)
-            elif map_indexes is not None:
-                query = query.where(TaskInstance.region_index.in_(map_indexes))
-            return tuple(self.session.scalars(query.order_by(TaskInstance.region_index)))
-
+        caller: TaskInstance | None,
+        region_id: UUID | None,
+        region_index: int | None,
+        map_indexes: int | Collection[int] | None,
+        previous_iteration: bool,
+    ) -> dict[str, Any] | None:
         shared_run = caller is not None and (caller.dag_id, caller.run_id) == (dag_id, run_id)
         try:
             task = (
@@ -271,14 +362,7 @@ class TaskCoordinateResolver:
                 )
             )
         except TaskNotFound:
-            return self._resolve_removed_task(
-                dag_id=dag_id,
-                run_id=run_id,
-                task_id=task_id,
-                region_id=region_id,
-                region_index=region_index,
-                map_indexes=map_indexes,
-            )
+            return None
         loop = enclosing_loop(task)
         context = None
         if region_id is None and loop is not None:
@@ -294,46 +378,146 @@ class TaskCoordinateResolver:
             )
         if previous_iteration and context is None:
             raise ValueError("Previous-iteration lookup requires a shared loop scope")
-        return resolve_current_producers(
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            is_mapped=task.get_needs_expansion(),
-            context=context,
-            map_indexes=map_indexes,
-            region_id=region_id,
-            region_index=region_index,
-            session=self.session,
-        )
+        return {
+            "dag_id": dag_id,
+            "run_id": run_id,
+            "task_id": task_id,
+            "is_mapped": task.get_needs_expansion(),
+            "context": context,
+            "map_indexes": map_indexes,
+            "region_id": region_id,
+            "region_index": region_index,
+        }
 
-    def _resolve_removed_task(
+    def resolve(
         self,
         *,
         dag_id: str,
         run_id: str,
         task_id: str,
-        region_id: UUID | None,
-        region_index: int | None,
-        map_indexes: int | Collection[int] | None,
+        caller: TaskInstance | None = None,
+        region_id: UUID | None = None,
+        region_index: int | None = None,
+        map_indexes: int | Collection[int] | None = None,
+        previous_iteration: bool = False,
     ) -> tuple[TaskInstance, ...]:
-        """Find live rows of a task whose definition is gone, using only its own expansion regions."""
-        query = (
-            select(TaskInstance)
-            .join(DynamicRegion, DynamicRegion.id == TaskInstance.region_id)
-            .where(
-                TaskInstance.working_set.is_(True),
-                TaskInstance.dag_id == dag_id,
-                TaskInstance.run_id == run_id,
-                TaskInstance.task_id == task_id,
-                DynamicRegion.node_id == task_id,
+        if region_index is not None and region_id is None:
+            raise ValueError("region_index requires an explicit producer region_id")
+        if self._is_legacy_lookup(dag_id, run_id, task_id, region_id, previous_iteration):
+            query = self._filter_legacy_producers(
+                select(TaskInstance),
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                region_index=region_index,
+                map_indexes=map_indexes,
             )
+            return tuple(self.session.scalars(query.order_by(TaskInstance.region_index)))
+        request = self._build_producer_request(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            caller=caller,
+            region_id=region_id,
+            region_index=region_index,
+            map_indexes=map_indexes,
+            previous_iteration=previous_iteration,
         )
-        if region_id is not None:
-            query = query.where(TaskInstance.region_id == region_id)
-        if region_index is not None:
-            query = query.where(TaskInstance.region_index == region_index)
-        if isinstance(map_indexes, int):
-            query = query.where(TaskInstance.region_index == map_indexes)
-        elif map_indexes is not None:
-            query = query.where(TaskInstance.region_index.in_(map_indexes))
-        return tuple(self.session.scalars(query.order_by(TaskInstance.region_index)))
+        if request is None:
+            return tuple(
+                self.session.scalars(
+                    self._filter_removed_task_producers(
+                        select(TaskInstance),
+                        dag_id=dag_id,
+                        run_id=run_id,
+                        task_id=task_id,
+                        region_id=region_id,
+                        region_index=region_index,
+                        map_indexes=map_indexes,
+                    ).order_by(TaskInstance.region_index)
+                )
+            )
+        return resolve_current_producers(**request, session=self.session)
+
+    def select_skip_target_ids(
+        self, *, caller: TaskInstance, task_id: str, map_indexes: int | None = None
+    ) -> Select[tuple[UUID]]:
+        """
+        Select the task instance ids a skip request from ``caller`` reaches for ``task_id``.
+
+        A caller outside the loop that encloses ``task_id`` reaches every live pass and region of it.
+        """
+        try:
+            task = self.get_task(caller.dag_id, caller.run_id, task_id, dag_version_id=caller.dag_version_id)
+        except TaskNotFound:
+            task = None
+        loop = enclosing_loop(task) if task is not None else None
+        if loop is not None:
+            caller_loop = enclosing_loop(
+                self.get_task(
+                    caller.dag_id, caller.run_id, caller.task_id, dag_version_id=caller.dag_version_id
+                )
+            )
+            if caller_loop is None or caller_loop.group_id != loop.group_id:
+                query = select(TaskInstance.id).where(
+                    TaskInstance.working_set.is_(True),
+                    TaskInstance.dag_id == caller.dag_id,
+                    TaskInstance.run_id == caller.run_id,
+                    TaskInstance.task_id == task_id,
+                )
+                if map_indexes is not None:
+                    query = query.where(public_map_index_expression(TaskInstance) == map_indexes)
+                return query
+        return self.select_producer_ids(
+            dag_id=caller.dag_id,
+            run_id=caller.run_id,
+            task_id=task_id,
+            caller=caller,
+            map_indexes=map_indexes,
+        )
+
+    def select_producer_ids(
+        self,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        caller: TaskInstance | None = None,
+        region_id: UUID | None = None,
+        region_index: int | None = None,
+        map_indexes: int | Collection[int] | None = None,
+        previous_iteration: bool = False,
+    ) -> Select[tuple[UUID]]:
+        """Select the task instance ids :meth:`resolve` returns, without loading the producers."""
+        if region_index is not None and region_id is None:
+            raise ValueError("region_index requires an explicit producer region_id")
+        if self._is_legacy_lookup(dag_id, run_id, task_id, region_id, previous_iteration):
+            return self._filter_legacy_producers(
+                select(TaskInstance.id),
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                region_index=region_index,
+                map_indexes=map_indexes,
+            )
+        request = self._build_producer_request(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            caller=caller,
+            region_id=region_id,
+            region_index=region_index,
+            map_indexes=map_indexes,
+            previous_iteration=previous_iteration,
+        )
+        if request is None:
+            return self._filter_removed_task_producers(
+                select(TaskInstance.id),
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                region_id=region_id,
+                region_index=region_index,
+                map_indexes=map_indexes,
+            )
+        return select_current_producer_ids(**request, session=self.session)

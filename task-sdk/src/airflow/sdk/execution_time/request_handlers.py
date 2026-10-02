@@ -197,6 +197,7 @@ def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dic
         msg.map_index,
         dag_result=msg.dag_result,
         mapped_length=msg.mapped_length,
+        loop_decision=msg.loop_decision,
         region_id=msg.region_id,
         region_index=msg.region_index,
     )
@@ -268,7 +269,13 @@ def handle_get_prev_successful_dag_run(
 def handle_get_xcom_count(client: Client, msg: GetXComCount) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch XCom count metadata."""
     resp = client.xcoms.head(
-        msg.dag_id, msg.run_id, msg.task_id, msg.key, region_id=msg.region_id, region_index=msg.region_index
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        region_id=msg.region_id,
+        region_index=msg.region_index,
+        previous_iteration=msg.previous_iteration,
     )
     return resp, {}
 
@@ -283,6 +290,7 @@ def handle_get_xcom_sequence_item(
         msg.task_id,
         msg.key,
         msg.offset,
+        previous_iteration=msg.previous_iteration,
         region_id=msg.region_id,
         region_index=msg.region_index,
     )
@@ -304,6 +312,7 @@ def handle_get_xcom_sequence_slice(
         msg.stop,
         msg.step,
         msg.include_prior_dates,
+        previous_iteration=msg.previous_iteration,
         region_id=msg.region_id,
         region_index=msg.region_index,
     )
@@ -321,6 +330,7 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
         msg.key,
         msg.map_index,
         msg.include_prior_dates,
+        previous_iteration=msg.previous_iteration,
         region_id=msg.region_id,
         region_index=msg.region_index,
     )

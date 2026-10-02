@@ -150,6 +150,162 @@ def loop_xcoms(dag_maker, session, authenticate_as):
     return dr, producer, consumer, previous
 
 
+@pytest.mark.parametrize("suffix", ["", "/item/0", "/item/-1", "/slice"])
+def test_previous_iteration_xcom_uses_retained_predecessor(client, loop_xcoms, suffix):
+    dr, producer, _, _ = loop_xcoms
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}/key"
+    params = {"previous_iteration": True}
+
+    response = client.get(url + suffix, params=params)
+
+    assert response.status_code == 200
+    expected = {"": {"key": "key", "value": "previous"}, "/slice": ["previous"]}
+    assert response.json() == expected.get(suffix, "previous")
+    assert client.head(url, params=params).headers["Content-Range"] == "map_indexes 1"
+
+
+@pytest.mark.parametrize("selector", ["region_id", "region_index", "include_prior_dates"])
+def test_previous_iteration_rejects_incompatible_selector(client, loop_xcoms, selector):
+    dr, producer, _, _ = loop_xcoms
+    value = {"region_id": str(producer.region_id), "region_index": 1, "include_prior_dates": True}[selector]
+
+    response = client.get(
+        f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}/key",
+        params={"previous_iteration": True, selector: value},
+    )
+
+    assert response.status_code == 400
+
+
+def test_previous_mapped_iteration_reads_retained_slots_before_count_and_slice(client, dag_maker, session):
+    @task_group
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(
+            op_args=[[1], [2]]
+        ) >> EmptyOperator(task_id="consumer")
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    parent = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+    session.add(parent)
+    session.flush()
+    previous = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.mapped",
+        parent_region_id=parent.id,
+        parent_region_index=0,
+    )
+    current = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.mapped",
+        parent_region_id=parent.id,
+        parent_region_index=1,
+    )
+    session.add_all([previous, current])
+    session.flush()
+    replacement = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.mapped",
+        parent_region_id=parent.id,
+        parent_region_index=0,
+        forked_from_region_id=previous.id,
+    )
+    session.add(replacement)
+    session.flush()
+    consumer = next(ti for ti in dr.task_instances if ti.task_id == "body.consumer")
+    consumer.region_id, consumer.region_index = parent.id, 1
+    for ti in dr.task_instances:
+        if ti.task_id == "body.mapped":
+            ti.region_id = current.id
+    producers = {}
+    for region, index in [(previous, 0), (previous, 1), (replacement, 1)]:
+        ti = TaskInstance(
+            task=dag.get_task("body.mapped"), run_id=dr.run_id, dag_version_id=consumer.dag_version_id
+        )
+        ti.region_id, ti.region_index = region.id, index
+        session.add(ti)
+        producers[region.id, index] = ti
+    session.flush()
+    producers[previous.id, 1].archive(reason="cleared", session=session)
+    for (region, index), value in [
+        ((previous, 0), "retained"),
+        ((previous, 1), "archived"),
+        ((replacement, 1), "replacement"),
+    ]:
+        XComModel.set_for_attempt(
+            task_instance_id=producers[region.id, index].id,
+            key="key",
+            value=value,
+            serialize=False,
+            session=session,
+        )
+    session.commit()
+    exec_app = client.app.routes[-1].app
+    old_auth = exec_app.dependency_overrides[require_auth]
+    exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=consumer.id, claims=TIClaims())
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/body.mapped/key"
+    params = {"previous_iteration": True}
+    try:
+        assert client.head(url, params=params).headers["Content-Range"] == "map_indexes 2"
+        assert client.get(url + "/slice", params=params).json() == ["retained", "replacement"]
+        assert client.get(url + "/item/-1", params=params).json() == "replacement"
+    finally:
+        exec_app.dependency_overrides[require_auth] = old_auth
+
+
+def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_instance):
+    ti = create_task_instance()
+    response = client.post(
+        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/_airflow_loop_decision", json="continue"
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("value", ["continue", "stop", True, "invalid", {"decision": "stop"}])
+def test_internal_loop_decision_uses_token_gate_coordinates(client, loop_xcoms, session, value):
+    dr, producer, consumer, _ = loop_xcoms
+    gate = session.scalar(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == dr.dag_id, TaskInstance.task_id == "body.__loop_gate"
+        )
+    )
+    gate.region_id, gate.region_index = consumer.region_id, 2
+    gate.state = "running"
+    session.commit()
+    exec_app = client.app.routes[-1].app
+    exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=gate.id, claims=TIClaims())
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision"
+
+    response = client.post(url, params={"loop_decision": True}, json=value)
+
+    assert response.status_code == (201 if value in ("continue", "stop") else 400)
+    if response.status_code == 201:
+        stored = session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id))
+        assert (stored.region_id, stored.region_index, stored.value) == (gate.region_id, 2, value)
+        assert (
+            client.post(
+                url,
+                params={"loop_decision": True, "region_id": str(producer.region_id), "region_index": 1},
+                json="stop",
+            ).status_code
+            == 400
+        )
+        exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=consumer.id, claims=TIClaims())
+        assert client.post(url, params={"loop_decision": True}, json="stop").status_code == 400
+        assert (
+            client.post(
+                f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{consumer.task_id}/_airflow_loop_decision",
+                params={"loop_decision": True},
+                json="stop",
+            ).status_code
+            == 400
+        )
+
+
 def test_loop_xcom_omission_uses_consumer_pass_and_retained_region(client, loop_xcoms):
     dr, producer, consumer, previous = loop_xcoms
     base = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}"

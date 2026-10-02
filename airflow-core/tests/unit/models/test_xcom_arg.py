@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import delete, event
 
 from airflow.models.dynamic_region import DynamicRegion, ProducerContext
 from airflow.models.expandinput import NotFullyPopulated
@@ -36,6 +37,7 @@ from airflow.serialization.definitions.xcom_arg import (
 )
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -463,3 +465,52 @@ def test_member_of_mapped_task_group_has_no_map_length(dag_maker, session):
         )
         is None
     )
+
+
+def test_mapped_producer_without_live_instances_has_zero_length(dag_maker, session):
+    with dag_maker(session=session, serialized=True) as dag:
+
+        @dag.task
+        def source(value):
+            return value
+
+        source.expand(value=[1, 2])
+
+    dr = dag_maker.create_dagrun()
+    session.execute(delete(TaskInstance).where(TaskInstance.run_id == dr.run_id))
+    session.flush()
+    argument = SchedulerPlainXComArg(dag_maker.serialized_dag.get_task("source"), XCOM_RETURN_KEY)
+
+    assert get_task_map_length(argument, dr.run_id, session=session) == 0
+
+
+@pytest.mark.parametrize("mapped_count", [3, 60])
+def test_mapped_producer_length_loads_no_producer_rows(dag_maker, session, mapped_count):
+    with dag_maker(session=session, serialized=True) as dag:
+
+        @dag.task
+        def source(value):
+            return value
+
+        source.expand(value=list(range(mapped_count)))
+
+    dr = dag_maker.create_dagrun()
+    for ti in dr.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+        XComModel.set_for_attempt(
+            task_instance_id=ti.id, key=XCOM_RETURN_KEY, value=ti.map_index, session=session
+        )
+    session.flush()
+    session.expire_all()
+    argument = SchedulerPlainXComArg(dag_maker.serialized_dag.get_task("source"), XCOM_RETURN_KEY)
+    loaded: list[TaskInstance] = []
+    listener = loaded.append
+    event.listen(TaskInstance, "load", listener)
+    try:
+        with assert_queries_count(4):
+            length = get_task_map_length(argument, dr.run_id, session=session)
+    finally:
+        event.remove(TaskInstance, "load", listener)
+
+    assert length == mapped_count
+    assert loaded == []

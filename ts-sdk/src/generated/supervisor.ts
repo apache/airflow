@@ -231,6 +231,11 @@ export type TaskInstanceState =
   | "skipped"
   | "deferred"
   | "awaiting_input";
+export type NodeId = string;
+export type Index = number;
+export type MaxIterations = number;
+export type TerminalTaskId = string;
+export type TerminalIsMapped = boolean;
 export type TaskRescheduleCount = number;
 export type MaxTries = number;
 export type Key = string;
@@ -483,6 +488,7 @@ export type Prefix = string | null;
 export type Limit2 = number;
 export type Offset = number;
 export type Type49 = "GetVariableKeys";
+export type PreviousIteration = boolean;
 export type RegionId6 = string | null;
 export type RegionIndex6 = number | null;
 export type Key10 = string;
@@ -492,6 +498,7 @@ export type TaskId4 = string;
 export type MapIndex5 = number | null;
 export type IncludePriorDates = boolean;
 export type Type50 = "GetXCom";
+export type PreviousIteration1 = boolean;
 export type RegionId7 = string | null;
 export type RegionIndex7 = number | null;
 export type Key11 = string;
@@ -499,6 +506,7 @@ export type DagId17 = string;
 export type RunId10 = string;
 export type TaskId5 = string;
 export type Type51 = "GetXComCount";
+export type PreviousIteration2 = boolean;
 export type RegionId8 = string | null;
 export type RegionIndex8 = number | null;
 export type Key12 = string;
@@ -507,6 +515,7 @@ export type RunId11 = string;
 export type TaskId6 = string;
 export type Offset1 = number;
 export type Type52 = "GetXComSequenceItem";
+export type PreviousIteration3 = boolean;
 export type RegionId9 = string | null;
 export type RegionIndex9 = number | null;
 export type Key13 = string;
@@ -587,6 +596,7 @@ export type TiId8 = string;
 export type Key17 = string;
 export type ExpiresAt = string | null;
 export type Type70 = "SetTaskStateStore";
+export type LoopDecision = boolean;
 export type RegionId11 = string | null;
 export type RegionIndex11 = number | null;
 export type Key18 = string;
@@ -1056,6 +1066,7 @@ export interface TaskCallbackRequest {
  */
 export interface TIRunContext {
   dag_run: DagRun;
+  loop?: LoopContext | null;
   task_reschedule_count?: TaskRescheduleCount;
   max_tries: MaxTries;
   variables?: Variables;
@@ -1067,6 +1078,19 @@ export interface TIRunContext {
   start_date?: StartDate2;
   arg_bindings?: ArgBindings;
   multi_team?: MultiTeam;
+}
+/**
+ * Pinned loop definition and enclosing iteration for a task execution.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "LoopContext".
+ */
+export interface LoopContext {
+  node_id: NodeId;
+  index: Index;
+  max_iterations: MaxIterations;
+  terminal_task_id: TerminalTaskId;
+  terminal_is_mapped: TerminalIsMapped;
 }
 /**
  * Variable schema for responses with fields that are needed for Runtime.
@@ -1542,6 +1566,7 @@ export interface GetVariableKeys {
  * via the `definition` "GetXCom".
  */
 export interface GetXCom {
+  previous_iteration?: PreviousIteration;
   region_id?: RegionId6;
   region_index?: RegionIndex6;
   key: Key10;
@@ -1559,6 +1584,7 @@ export interface GetXCom {
  * via the `definition` "GetXComCount".
  */
 export interface GetXComCount {
+  previous_iteration?: PreviousIteration1;
   region_id?: RegionId7;
   region_index?: RegionIndex7;
   key: Key11;
@@ -1572,6 +1598,7 @@ export interface GetXComCount {
  * via the `definition` "GetXComSequenceItem".
  */
 export interface GetXComSequenceItem {
+  previous_iteration?: PreviousIteration2;
   region_id?: RegionId8;
   region_index?: RegionIndex8;
   key: Key12;
@@ -1586,6 +1613,7 @@ export interface GetXComSequenceItem {
  * via the `definition` "GetXComSequenceSlice".
  */
 export interface GetXComSequenceSlice {
+  previous_iteration?: PreviousIteration3;
   region_id?: RegionId9;
   region_index?: RegionIndex9;
   key: Key13;
@@ -1805,6 +1833,7 @@ export interface SetTaskStateStore {
  * via the `definition` "SetXCom".
  */
 export interface SetXCom {
+  loop_decision?: LoopDecision;
   region_id?: RegionId11;
   region_index?: RegionIndex11;
   key: Key18;

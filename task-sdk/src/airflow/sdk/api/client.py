@@ -633,11 +633,13 @@ class XComOperations:
         *,
         region_id: uuid.UUID | None = None,
         region_index: int | None = None,
+        previous_iteration: bool = False,
     ) -> XComCountResponse:
         """Get the number of mapped XCom values."""
-        resp = self.client.head(
-            f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=_region_params(region_id, region_index)
-        )
+        params = _region_params(region_id, region_index)
+        if previous_iteration:
+            params["previous_iteration"] = True
+        resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
 
         # content_range: str | None
         if not (content_range := resp.headers["Content-Range"]) or not content_range.startswith(
@@ -657,9 +659,12 @@ class XComOperations:
         *,
         region_id: uuid.UUID | None = None,
         region_index: int | None = None,
+        previous_iteration: bool = False,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
         params = _region_params(region_id, region_index)
+        if previous_iteration:
+            params["previous_iteration"] = True
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
         if include_prior_dates:
@@ -698,9 +703,12 @@ class XComOperations:
         mapped_length: int | None = None,
         region_id: uuid.UUID | None = None,
         region_index: int | None = None,
+        loop_decision: bool = False,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
         params = _region_params(region_id, region_index)
+        if loop_decision:
+            params["loop_decision"] = True
         if dag_result:
             params["dag_result"] = dag_result
         if map_index is not None and map_index >= 0:
@@ -744,11 +752,15 @@ class XComOperations:
         *,
         region_id: uuid.UUID | None = None,
         region_index: int | None = None,
+        previous_iteration: bool = False,
     ) -> XComSequenceIndexResponse | ErrorResponse:
+        params = _region_params(region_id, region_index)
+        if previous_iteration:
+            params["previous_iteration"] = True
         try:
             resp = self.client.get(
                 f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}",
-                params=_region_params(region_id, region_index),
+                params=params,
             )
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
@@ -788,8 +800,11 @@ class XComOperations:
         *,
         region_id: uuid.UUID | None = None,
         region_index: int | None = None,
+        previous_iteration: bool = False,
     ) -> XComSequenceSliceResponse:
         params = _region_params(region_id, region_index)
+        if previous_iteration:
+            params["previous_iteration"] = True
         if start is not None:
             params["start"] = start
         if stop is not None:

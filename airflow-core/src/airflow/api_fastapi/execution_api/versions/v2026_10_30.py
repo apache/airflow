@@ -36,6 +36,17 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 )
 
 
+class AddLoopContext(VersionChange):
+    """Provide the pinned loop definition and enclosing iteration at task startup."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("loop").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_loop_context(response: ResponseInfo) -> None:  # type: ignore[misc]
+        response.body.pop("loop", None)
+
+
 class AddTaskInstanceRegionCoordinates(VersionChange):
     """Carry task execution coordinates independently of public mapped position."""
 

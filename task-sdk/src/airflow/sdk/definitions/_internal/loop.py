@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -25,7 +26,11 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
+
+LOOP_XCOM_PREFIX = "_airflow_loop_"
+LOOP_DECISION_KEY = f"{LOOP_XCOM_PREFIX}decision"
 
 
 def _validate_max_iterations(instance, attribute, value: int) -> None:
@@ -60,6 +65,12 @@ class LoopGateOperator(BaseOperator):
         super().__init__(**kwargs)
         self.until = until
 
+    def execute(self, context: Context) -> None:
+        # execution_time.loop imports LOOP_DECISION_KEY from this module.
+        from airflow.sdk.execution_time.loop import execute_loop_gate
+
+        execute_loop_gate(self, context)
+
 
 def create_loop(
     factory: _TaskGroupFactory,
@@ -74,6 +85,10 @@ def create_loop(
 
     if until is not None and not callable(until):
         raise TypeError("until must be callable")
+    if until is not None and (
+        inspect.iscoroutinefunction(until) or inspect.iscoroutinefunction(type(until).__call__)
+    ):
+        raise TypeError("until must be synchronous")
     group = LoopTaskGroup(
         add_suffix_on_collision=True,
         **factory.tg_kwargs,
