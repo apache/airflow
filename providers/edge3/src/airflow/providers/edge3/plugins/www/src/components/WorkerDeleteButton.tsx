@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, CloseButton, Dialog, IconButton, Portal, Text, useDisclosure } from "@chakra-ui/react";
-import { useUiServiceDeleteWorker } from "openapi/queries";
+import { useDeleteWorker } from "openapi/queries";
 import { FaRegTrashCan } from "react-icons/fa6";
 
 interface WorkerDeleteButtonProps {
@@ -28,7 +28,7 @@ interface WorkerDeleteButtonProps {
 export const WorkerDeleteButton = ({ onDelete, workerName }: WorkerDeleteButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const deleteMutation = useUiServiceDeleteWorker({
+  const deleteMutation = useDeleteWorker(undefined, {
     onError: (error) => {
       onDelete({
         description: `Unable to delete worker ${workerName}: ${error}`,
@@ -47,7 +47,7 @@ export const WorkerDeleteButton = ({ onDelete, workerName }: WorkerDeleteButtonP
   });
 
   const handleDelete = () => {
-    deleteMutation.mutate({ workerName });
+    deleteMutation.mutate({ path: { worker_name: workerName } });
   };
 
   return (

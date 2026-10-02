@@ -18,7 +18,7 @@
  */
 import { Box, HStack, Table, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useState, useCallback, useEffect } from "react";
-import { useUiServiceJobs } from "openapi/queries";
+import { useJobs } from "openapi/queries";
 import { Link, useSearchParams } from "react-router-dom";
 import TimeAgo from "react-timeago";
 
@@ -51,14 +51,16 @@ export const JobsPage = () => {
     hasFilteredState ||
     Boolean(dagIdPattern || runIdPattern || taskIdPattern || queuePattern || workerNamePattern);
 
-  const { data, error } = useUiServiceJobs(
+  const { data, error } = useJobs(
     {
-      dagIdPattern: dagIdPattern || undefined,
-      runIdPattern: runIdPattern || undefined,
-      taskIdPattern: taskIdPattern || undefined,
-      queuePattern: queuePattern || undefined,
-      workerNamePattern: workerNamePattern || undefined,
-      state: hasFilteredState ? (filteredState as TaskInstanceState[]) : undefined,
+      query: {
+        dag_id_pattern: dagIdPattern || undefined,
+        queue_pattern: queuePattern || undefined,
+        run_id_pattern: runIdPattern || undefined,
+        state: hasFilteredState ? (filteredState as TaskInstanceState[]) : undefined,
+        task_id_pattern: taskIdPattern || undefined,
+        worker_name_pattern: workerNamePattern || undefined,
+      },
     },
     undefined,
     {
