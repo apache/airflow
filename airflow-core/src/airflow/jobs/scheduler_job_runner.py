@@ -26,7 +26,7 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
@@ -105,6 +105,7 @@ from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.lang_sdk_task_handler import get_task_handler_artifact_refs
 from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
@@ -145,6 +146,7 @@ if TYPE_CHECKING:
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.executors.workloads import TaskHandlerArtifactRef
     from airflow.executors.workloads.types import SchedulerWorkload
     from airflow.models.pool import PoolStats
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -1203,7 +1205,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return executable_tis
 
     def _enqueue_task_instances_with_queued_state(
-        self, task_instances: list[TI], executor: BaseExecutor, session: Session
+        self,
+        task_instances: list[TI],
+        executor: BaseExecutor,
+        session: Session,
+        *,
+        task_handler_artifacts: Mapping[tuple[str, str], TaskHandlerArtifactRef] | None = None,
     ) -> None:
         """
         Enqueue task_instances which should have been set to queued with the executor.
@@ -1211,6 +1218,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param task_instances: TaskInstances to enqueue
         :param executor: The executor to enqueue tasks for
         :param session: The session object
+        :param task_handler_artifacts: The artifact each stub task is bound to, keyed by ``(dag_id, task_id)``
         """
 
         def _get_sentry_integration(executor: BaseExecutor) -> str:
@@ -1255,6 +1263,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti,
                 generator=executor.jwt_generator,
                 sentry_integration=_get_sentry_integration(executor),
+                task_handler_artifact=(task_handler_artifacts or {}).get((ti.dag_id, ti.task_id)),
             )
             executor.queue_workload(workload, session=session)
 
@@ -1298,6 +1307,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if max_tis == 0:
             return 0
         queued_tis = self._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+        task_handler_artifacts = get_task_handler_artifact_refs(queued_tis, session=session)
 
         # Sort queued TIs to their respective executor
         executor_to_queued_tis = self._executor_to_workloads(queued_tis, session)
@@ -1308,7 +1318,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 executor,
             )
 
-            self._enqueue_task_instances_with_queued_state(queued_tis_per_executor, executor, session=session)
+            self._enqueue_task_instances_with_queued_state(
+                queued_tis_per_executor,
+                executor,
+                session=session,
+                task_handler_artifacts=task_handler_artifacts,
+            )
 
         return len(queued_tis)
 

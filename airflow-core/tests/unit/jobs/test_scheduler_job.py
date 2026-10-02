@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import logging
 import os
 import re
@@ -64,7 +65,7 @@ from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads import BundleInfo, ExecuteTask, TaskHandlerArtifactRef, WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
@@ -96,6 +97,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.hitl import HITLDetail
+from airflow.models.lang_sdk_task_handler import LangSDKTaskHandler, LangSDKTaskHandlerArtifact
 from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool, PoolStats
 from airflow.models.serialized_dag import SerializedDagModel
@@ -143,6 +145,7 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -157,7 +160,7 @@ from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, 
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
-from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
@@ -11390,6 +11393,237 @@ class TestSchedulerJob:
         ti = session.merge(ti)
         session.refresh(ti)
         assert ti.state != State.NONE
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+class TestSchedulerJobTaskHandlerArtifacts:
+    GO_TASK_HANDLERS = "go-task-handlers"
+
+    @pytest.fixture(autouse=True)
+    def _clean_db(self):
+        def clean():
+            reset_coordinator_manager()
+            _clean_db()
+            with create_session() as session:
+                session.execute(delete(LangSDKTaskHandler))
+                session.execute(delete(LangSDKTaskHandlerArtifact))
+
+        clean()
+        yield
+        clean()
+
+    @pytest.fixture
+    def routed(self, configure_dag_bundles, tmp_path):
+        with (
+            configure_dag_bundles({self.GO_TASK_HANDLERS: tmp_path}),
+            conf_vars(self.sdk_config()),
+        ):
+            yield
+
+    @classmethod
+    def sdk_config(cls) -> dict[tuple[str, str], str]:
+        coordinator = {
+            "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+            "kwargs": {"task_handler_bundle_name": cls.GO_TASK_HANDLERS},
+        }
+        return {
+            ("sdk", "coordinators"): json.dumps({"go": coordinator}),
+            ("sdk", "queue_to_coordinator"): json.dumps({"golang": "go"}),
+        }
+
+    @staticmethod
+    def _schedule_stub_tasks(
+        dag_maker, session, dag_id: str, queues: dict[str, str], *, executor: str | None = None
+    ) -> None:
+        with dag_maker(dag_id, session=session):
+            for task_id, queue in queues.items():
+
+                @task.stub(task_id=task_id, queue=queue)
+                def handler(): ...
+
+                handler()
+        for ti in dag_maker.create_dagrun(session=session).get_task_instances(session=session):
+            ti.state = TaskInstanceState.SCHEDULED
+            ti.executor = executor
+        session.flush()
+
+    @staticmethod
+    def _bind(session, dag_id: str, task_id: str, *, bundle_name: str, relative_fileloc: str) -> None:
+        artifact = LangSDKTaskHandlerArtifact(
+            bundle_name=bundle_name,
+            relative_fileloc=relative_fileloc,
+            size_bytes=1024,
+            cache_digest=None,
+            task_handlers={},
+        )
+        session.add(artifact)
+        session.flush()
+        session.add(
+            LangSDKTaskHandler(
+                dag_id=dag_id,
+                task_id=task_id,
+                artifact_id=artifact.id,
+                dag_bundle_name="dag_maker",
+                dag_relative_fileloc=f"{dag_id}.py",
+            )
+        )
+        session.flush()
+
+    @staticmethod
+    def _enqueue(session, *executors: MockExecutor) -> dict[tuple[str, str], ExecuteTask]:
+        executors = executors or (MockExecutor(do_update=False),)
+        SchedulerJobRunner(job=Job(), executors=list(executors))._critical_section_enqueue_task_instances(
+            session
+        )
+        return {
+            (workload.ti.dag_id, workload.ti.task_id): workload
+            for executor in executors
+            for workload in executor.executor_queues[WorkloadType.EXECUTE_TASK].values()
+            if isinstance(workload, ExecuteTask)
+        }
+
+    @pytest.mark.usefixtures("routed")
+    def test_queued_workload_carries_the_artifact_the_stub_task_is_bound_to(self, dag_maker, session):
+        self._schedule_stub_tasks(dag_maker, session, "etl", {"named": "golang", "own": "golang"})
+        self._bind(session, "etl", "named", bundle_name=self.GO_TASK_HANDLERS, relative_fileloc="bin/etl")
+        self._bind(session, "etl", "own", bundle_name="dag_maker", relative_fileloc="handlers/etl")
+
+        queued = self._enqueue(session)
+
+        assert queued[("etl", "named")].task_handler_artifact == TaskHandlerArtifactRef(
+            bundle_info=BundleInfo(name=self.GO_TASK_HANDLERS), rel_path="bin/etl"
+        )
+        assert queued[("etl", "own")].task_handler_artifact == TaskHandlerArtifactRef(
+            bundle_info=BundleInfo(name="dag_maker"), rel_path="handlers/etl"
+        )
+        assert queued[("etl", "own")].bundle_info.name == "dag_maker"
+
+    @pytest.mark.usefixtures("routed")
+    def test_routed_task_without_a_binding_is_queued_without_a_reference(self, dag_maker, session):
+        self._schedule_stub_tasks(dag_maker, session, "etl", {"bound": "golang", "unbound": "golang"})
+        self._bind(session, "etl", "bound", bundle_name=self.GO_TASK_HANDLERS, relative_fileloc="bin/etl")
+
+        queued = self._enqueue(session)
+
+        assert queued[("etl", "bound")].task_handler_artifact is not None
+        assert queued[("etl", "unbound")].task_handler_artifact is None
+        states = session.scalars(select(TaskInstance.state).where(TaskInstance.dag_id == "etl")).all()
+        assert states == [TaskInstanceState.QUEUED] * 2
+
+    @pytest.mark.usefixtures("routed")
+    def test_task_on_an_unrouted_queue_is_queued_without_a_reference(self, dag_maker, session):
+        self._schedule_stub_tasks(dag_maker, session, "etl", {"load": "other"})
+        self._bind(session, "etl", "load", bundle_name=self.GO_TASK_HANDLERS, relative_fileloc="bin/etl")
+
+        queued = self._enqueue(session)
+
+        assert queued[("etl", "load")].task_handler_artifact is None
+
+    @pytest.mark.parametrize(
+        "task_counts",
+        [
+            pytest.param({"etl_a": 1}, id="1"),
+            pytest.param({"etl_a": 6, "etl_b": 4}, id="10-across-two-dags"),
+        ],
+    )
+    @pytest.mark.usefixtures("routed")
+    def test_routed_task_instances_cost_one_query(self, dag_maker, session, task_counts):
+        for dag_id, count in task_counts.items():
+            self._schedule_stub_tasks(
+                dag_maker, session, dag_id, {f"load_{n}": "golang" for n in range(count)}
+            )
+            for n in range(count):
+                self._bind(
+                    session,
+                    dag_id,
+                    f"load_{n}",
+                    bundle_name=self.GO_TASK_HANDLERS,
+                    relative_fileloc=f"bin/{dag_id}_{n}",
+                )
+
+        with (
+            capture_orm_selects("lang_sdk_task_handler") as statements,
+            capture_orm_selects("lang_sdk_task_handler_artifact") as artifact_statements,
+        ):
+            queued = self._enqueue(session)
+
+        assert len(queued) == sum(task_counts.values())
+        assert all(workload.task_handler_artifact is not None for workload in queued.values())
+        assert len(statements) == 1
+        assert "FOR UPDATE" not in statements[0]
+        assert artifact_statements == []
+
+    @pytest.mark.usefixtures("routed")
+    def test_routed_task_instances_of_several_executors_cost_one_query(self, dag_maker, session):
+        class SecondExecutor(MockExecutor):
+            mock_module_path = "mock.second.executor.path"
+            mock_alias = "second_executor"
+
+        default_executor, second_executor = MockExecutor(do_update=False), SecondExecutor(do_update=False)
+        for dag_id, executor in (("etl_a", None), ("etl_b", second_executor.name.module_path)):
+            self._schedule_stub_tasks(dag_maker, session, dag_id, {"load": "golang"}, executor=executor)
+            self._bind(session, dag_id, "load", bundle_name=self.GO_TASK_HANDLERS, relative_fileloc=dag_id)
+
+        with (
+            capture_orm_selects("lang_sdk_task_handler") as statements,
+            capture_orm_selects("lang_sdk_task_handler_artifact") as artifact_statements,
+        ):
+            queued = self._enqueue(session, default_executor, second_executor)
+
+        assert len(default_executor.executor_queues[WorkloadType.EXECUTE_TASK]) == 1
+        assert len(second_executor.executor_queues[WorkloadType.EXECUTE_TASK]) == 1
+        assert [workload.task_handler_artifact.rel_path for workload in queued.values()] == ["etl_a", "etl_b"]
+        assert len(statements) == 1
+        assert "FOR UPDATE" not in statements[0]
+        assert artifact_statements == []
+
+    @pytest.mark.usefixtures("routed")
+    def test_unrouted_task_instances_cost_no_query(self, dag_maker, session):
+        self._schedule_stub_tasks(dag_maker, session, "etl", {"load": "other", "load_default": "default"})
+
+        with capture_orm_selects("lang_sdk_task_handler") as statements:
+            queued = self._enqueue(session)
+
+        assert len(queued) == 2
+        assert statements == []
+
+    def test_without_the_sdk_configuration_no_query_is_made(self, dag_maker, session):
+        self._schedule_stub_tasks(dag_maker, session, "etl", {"load": "golang"})
+        self._bind(session, "etl", "load", bundle_name=self.GO_TASK_HANDLERS, relative_fileloc="bin/etl")
+
+        with capture_orm_selects("lang_sdk_task_handler") as statements:
+            queued = self._enqueue(session)
+
+        assert queued[("etl", "load")].task_handler_artifact is None
+        assert statements == []
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            # The coordinator names a task handler Dag bundle that this scheduler's
+            # [dag_processor] dag_bundle_config_list does not list.
+            pytest.param({}, id="task-handler-bundle-not-configured"),
+            pytest.param(
+                {("dag_processor", "dag_bundle_config_list"): json.dumps({"name": GO_TASK_HANDLERS})},
+                id="malformed-bundle-list",
+            ),
+            pytest.param({("sdk", "coordinators"): "[]"}, id="coordinators-as-array"),
+            pytest.param({("sdk", "queue_to_coordinator"): "null"}, id="queue-to-coordinator-as-null"),
+        ],
+    )
+    def test_scheduler_that_cannot_read_the_sdk_configuration_queues_without_a_reference(
+        self, dag_maker, session, caplog, overrides
+    ):
+        self._schedule_stub_tasks(dag_maker, session, "etl", {"load": "golang"})
+        self._bind(session, "etl", "load", bundle_name=self.GO_TASK_HANDLERS, relative_fileloc="bin/etl")
+
+        with conf_vars({**self.sdk_config(), **overrides}):
+            queued = self._enqueue(session)
+
+        assert queued[("etl", "load")].task_handler_artifact is None
+        assert session.scalar(select(TaskInstance.state)) == TaskInstanceState.QUEUED
+        assert any("[sdk] coordinator configuration" in e["event"] for e in caplog.entries)
 
 
 @pytest.mark.need_serialized_dag
