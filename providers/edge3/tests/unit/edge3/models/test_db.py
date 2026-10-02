@@ -42,6 +42,10 @@ def downgrade_to_before_priority_weight(manager: EdgeDBManager) -> None:
     # Alembic version to downgrade from. Stamping changes nothing when the head is already recorded.
     command.stamp(config, "heads")
     command.downgrade(config, "c6b3c3d093fd")
+    # SQLite reflects indexes from a connection's cached schema. The downgrade ran on another pooled
+    # connection, so idle connections can still hold the old schema until the pool is disposed.
+    assert settings.engine is not None
+    settings.engine.dispose()
 
 
 class TestEdgeDBManager:
@@ -403,6 +407,8 @@ class TestEdgeDBManager:
             )
 
         manager.upgradedb()
+        # The upgrade also ran on another connection. See downgrade_to_before_priority_weight().
+        settings.engine.dispose()
 
         with settings.engine.connect() as conn:
             inspector = sa.inspect(conn)

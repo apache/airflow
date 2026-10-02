@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add priority_weight column to edge_job table and to its rj_order index.
+Add priority_weight column to edge_job table.
 
 Revision ID: d5a2f8b41c07
 Revises: c6b3c3d093fd
