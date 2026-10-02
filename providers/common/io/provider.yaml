@@ -122,8 +122,8 @@ config:
         description: |
           Base path on object storage for the task/asset state store backend, in URL format.
           When set, StateStoreObjectStorageBackend will persist task and asset state under this
-          prefix, organized as <dag_id>/<run_id>/<task_id>/<map_index>/<key> for tasks and
-          assets/<asset_identifier>/<key> for assets.
+          prefix, organized as <dag_id>/<run_id>/[region=<region_id>/]<task_id>/<map_index>/<key>
+          for tasks and assets/<asset_identifier>/<key> for assets.
         version_added: 1.8.0
         type: string
         example: "s3://conn_id@bucket/task-state/"

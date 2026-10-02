@@ -233,6 +233,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.dag_id == scope.dag_id,
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
+                TaskStateStoreModel.region_id == scope.region_id,
                 TaskStateStoreModel.map_index == scope.map_index,
                 TaskStateStoreModel.key == key,
             )
@@ -262,6 +263,7 @@ class MetastoreBackend(BaseStoreBackend):
             dag_id=scope.dag_id,
             run_id=scope.run_id,
             task_id=scope.task_id,
+            region_id=scope.region_id,
             map_index=scope.map_index,
             key=key,
             value=value,
@@ -271,7 +273,7 @@ class MetastoreBackend(BaseStoreBackend):
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
             TaskStateStoreModel,
-            ["dag_run_id", "task_id", "map_index", "key"],
+            ["dag_run_id", "task_id", "region_id", "map_index", "key"],
             values,
             dict(value=value, updated_at=now, expires_at=expires_at),
         )
@@ -283,6 +285,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.dag_id == scope.dag_id,
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
+                TaskStateStoreModel.region_id == scope.region_id,
                 TaskStateStoreModel.map_index == scope.map_index,
                 TaskStateStoreModel.key == key,
             )
@@ -295,6 +298,7 @@ class MetastoreBackend(BaseStoreBackend):
             TaskStateStoreModel.dag_id == scope.dag_id,
             TaskStateStoreModel.run_id == scope.run_id,
             TaskStateStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.region_id == scope.region_id,
         ]
         if not all_map_indices:
             conditions.append(TaskStateStoreModel.map_index == scope.map_index)
@@ -434,6 +438,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.dag_id == scope.dag_id,
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
+                TaskStateStoreModel.region_id == scope.region_id,
                 TaskStateStoreModel.map_index == scope.map_index,
                 TaskStateStoreModel.key == key,
             )
@@ -463,6 +468,7 @@ class MetastoreBackend(BaseStoreBackend):
             dag_id=scope.dag_id,
             run_id=scope.run_id,
             task_id=scope.task_id,
+            region_id=scope.region_id,
             map_index=scope.map_index,
             key=key,
             value=value,
@@ -473,7 +479,7 @@ class MetastoreBackend(BaseStoreBackend):
         stmt = _build_upsert_stmt(
             get_dialect_name(session.sync_session),
             TaskStateStoreModel,
-            ["dag_run_id", "task_id", "map_index", "key"],
+            ["dag_run_id", "task_id", "region_id", "map_index", "key"],
             values,
             dict(value=value, updated_at=now, expires_at=expires_at),
         )
@@ -485,6 +491,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.dag_id == scope.dag_id,
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
+                TaskStateStoreModel.region_id == scope.region_id,
                 TaskStateStoreModel.map_index == scope.map_index,
                 TaskStateStoreModel.key == key,
             )
@@ -497,6 +504,7 @@ class MetastoreBackend(BaseStoreBackend):
             TaskStateStoreModel.dag_id == scope.dag_id,
             TaskStateStoreModel.run_id == scope.run_id,
             TaskStateStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.region_id == scope.region_id,
         ]
         if not all_map_indices:
             conditions.append(TaskStateStoreModel.map_index == scope.map_index)

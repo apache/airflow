@@ -30,7 +30,7 @@ Task State Store
 
 .. versionadded:: 3.3
 
-Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
+Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``region_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
 
 Because it outlives a worker crash and stays readable by the next attempt, the task state store is the mechanism behind :ref:`durable execution <concepts-durable-execution>`, where a task continues
 from where it stopped instead of repeating work or submitting a duplicate external job. Provider operators that advertise a ``durable`` parameter are built on the API described here.

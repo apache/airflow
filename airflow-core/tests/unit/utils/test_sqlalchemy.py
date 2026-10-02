@@ -21,10 +21,12 @@ import datetime
 import pickle
 from copy import deepcopy
 from unittest import mock
+from uuid import UUID
 
 import pytest
 from kubernetes.client import Configuration, models as k8s
 from sqlalchemy import text
+from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
@@ -34,8 +36,10 @@ from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
 from airflow.utils.sqlalchemy import (
+    CompactUUID,
     ExecutorConfigType,
     apply_regex_query_timeout,
+    compact_uuid_default,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
     prohibit_commit,
@@ -443,3 +447,47 @@ class TestApplyRegexQueryTimeout:
             with apply_regex_query_timeout(session):
                 pass
         session.execute.assert_not_called()
+
+
+class TestCompactUUID:
+    value = UUID("0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b")
+
+    @pytest.mark.parametrize(
+        ("dialect", "expected"),
+        [
+            pytest.param(mysql.dialect(), "BINARY(16)", id="mysql"),
+            pytest.param(sqlite.dialect(), "CHAR(32)", id="sqlite"),
+            pytest.param(postgresql.dialect(), "UUID", id="postgresql"),
+        ],
+    )
+    def test_column_type_per_dialect(self, dialect, expected):
+        assert CompactUUID().compile(dialect=dialect) == expected
+
+    @pytest.mark.parametrize("given", [value, str(value)], ids=["uuid", "str"])
+    def test_mysql_stores_the_sixteen_raw_bytes(self, given):
+        assert CompactUUID().process_bind_param(given, mysql.dialect()) == self.value.bytes
+
+    def test_mysql_reads_the_bytes_back_as_a_uuid(self):
+        assert CompactUUID().process_result_value(self.value.bytes, mysql.dialect()) == self.value
+
+    @pytest.mark.parametrize(
+        "dialect", [sqlite.dialect(), postgresql.dialect()], ids=["sqlite", "postgresql"]
+    )
+    def test_other_dialects_leave_the_value_to_the_uuid_type(self, dialect):
+        assert CompactUUID().process_bind_param(self.value, dialect) == self.value
+        assert CompactUUID().process_result_value(self.value, dialect) == self.value
+
+    def test_none_passes_through(self):
+        assert CompactUUID().process_bind_param(None, mysql.dialect()) is None
+        assert CompactUUID().process_result_value(None, mysql.dialect()) is None
+
+    @pytest.mark.parametrize(
+        ("dialect", "expected"),
+        [
+            pytest.param(mysql.dialect(), "UNHEX('0190a1b2c3d47e5f8a9b0c1d2e3f4a5b')", id="mysql"),
+            pytest.param(sqlite.dialect(), "'0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'", id="sqlite"),
+            pytest.param(postgresql.dialect(), "'0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'", id="postgresql"),
+        ],
+    )
+    def test_server_default_per_dialect(self, dialect, expected):
+        assert str(compact_uuid_default(self.value).compile(dialect=dialect)) == expected

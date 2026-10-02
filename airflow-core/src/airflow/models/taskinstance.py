@@ -75,6 +75,7 @@ from sqlalchemy.orm import (
     mapped_column,
     reconstructor,
     relationship,
+    synonym,
     with_loader_criteria,
 )
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
@@ -101,6 +102,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.deadline import Deadline, ReferenceModels
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.dynamic_region import SENTINEL_REGION_ID
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
@@ -120,7 +122,14 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import (
+    CompactUUID,
+    ExecutorConfigType,
+    ExtendedJSON,
+    UtcDateTime,
+    compact_uuid_default,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule
@@ -689,6 +698,13 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
+    region_index = synonym("map_index")
+    region_id: Mapped[UUID] = mapped_column(
+        CompactUUID(),
+        nullable=False,
+        default=SENTINEL_REGION_ID,
+        server_default=compact_uuid_default(SENTINEL_REGION_ID),
+    )
 
     start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
@@ -778,10 +794,22 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ),
         PrimaryKeyConstraint("id", name="task_instance_pkey"),
         UniqueConstraint(
-            "dag_id", "task_id", "run_id", "map_index", "working_set", name="task_instance_current_key"
+            "dag_id",
+            "task_id",
+            "run_id",
+            "region_id",
+            "map_index",
+            "working_set",
+            name="task_instance_current_key",
         ),
         UniqueConstraint(
-            "dag_id", "task_id", "run_id", "map_index", "try_number", name="task_instance_try_key"
+            "dag_id",
+            "task_id",
+            "run_id",
+            "region_id",
+            "map_index",
+            "try_number",
+            name="task_instance_try_key",
         ),
         ForeignKeyConstraint(
             [trigger_id],
@@ -847,11 +875,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
+        *,
+        region_id: UUID = SENTINEL_REGION_ID,
     ):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.map_index = map_index
+        self.region_id = region_id
         if run_id is not None:
             self.run_id = run_id
         self.try_number = 0
@@ -887,7 +918,13 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, *, dag_version_id: UUID | None, dag_run: DagRun
+        run_id: str,
+        task: Operator,
+        map_index: int,
+        *,
+        dag_version_id: UUID | None,
+        dag_run: DagRun,
+        region_id: UUID = SENTINEL_REGION_ID,
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -898,7 +935,13 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if not hasattr(weight_rule, "get_weight"):
             weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
         priority_weight = weight_rule.get_weight(
-            TaskInstance(task=task, run_id=run_id, map_index=map_index, dag_version_id=dag_version_id)
+            TaskInstance(
+                task=task,
+                run_id=run_id,
+                map_index=map_index,
+                region_id=region_id,
+                dag_version_id=dag_version_id,
+            )
         )
         context_carrier = new_task_run_carrier(dag_run.context_carrier)
 
@@ -920,6 +963,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "operator_name", None),
             "map_index": map_index,
+            "region_id": region_id,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
             "context_carrier": context_carrier,
@@ -997,6 +1041,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         map_index: int,
         lock_for_update: bool = False,
         *,
+        region_id: UUID = SENTINEL_REGION_ID,
         session: Session = NEW_SESSION,
     ) -> TaskInstance | None:
         query = (
@@ -1007,6 +1052,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 run_id=run_id,
                 task_id=task_id,
                 map_index=map_index,
+                region_id=region_id,
             )
         )
 
@@ -1189,6 +1235,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         task_id: str,
         run_id: str,
         map_indexes: Collection[int] | None = None,
+        region_id: UUID = SENTINEL_REGION_ID,
         session: Session,
     ) -> dict[int, int]:
         """Return the highest try number per map index across current and historical task instances."""
@@ -1196,7 +1243,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             return {}
         statement = (
             select(cls.map_index, func.max(cls.try_number))
-            .where(cls.dag_id == dag_id, cls.task_id == task_id, cls.run_id == run_id)
+            .where(
+                cls.dag_id == dag_id,
+                cls.task_id == task_id,
+                cls.run_id == run_id,
+                cls.region_id == region_id,
+            )
             .group_by(cls.map_index)
             .execution_options(include_all_attempts=True)
         )
@@ -2361,13 +2413,21 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool] | None:
         """Return SQLAlchemy filter to query selected task instances."""
-        # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
-        # Or it might be a generator, but we need to be able to iterate over it more than once
-        tis = list(tis)
-
-        if not tis:
+        by_region: dict[UUID, list[TaskInstance | TaskInstanceKey]] = defaultdict(list)
+        # ``tis`` may be a one-shot iterable (dict keys view, generator); this loop is its only consumer.
+        for ti in tis:
+            by_region[SENTINEL_REGION_ID if isinstance(ti, TaskInstanceKey) else ti.region_id].append(ti)
+        if not by_region:
             return None
+        return or_(
+            *(
+                and_(TaskInstance.region_id == region_id, TaskInstance._filter_for_tis(group))
+                for region_id, group in by_region.items()
+            )
+        )
 
+    @staticmethod
+    def _filter_for_tis(tis: list[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool]:
         first = tis[0]
 
         dag_id = first.dag_id
@@ -2548,12 +2608,17 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 TaskInstance.task_id == task.task_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.map_index == -1,
+                TaskInstance.region_id == self.region_id,
                 or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
             )
         ).one_or_none()
 
         last_tries = TaskInstance.get_last_try_numbers(
-            dag_id=task.dag_id, task_id=task.task_id, run_id=run_id, session=session
+            dag_id=task.dag_id,
+            task_id=task.task_id,
+            run_id=run_id,
+            region_id=self.region_id,
+            session=session,
         )
 
         all_expanded_tis: list[TaskInstance] = []
@@ -2618,6 +2683,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         TaskInstance.dag_id == task.dag_id,
                         TaskInstance.task_id == task.task_id,
                         TaskInstance.run_id == run_id,
+                        TaskInstance.region_id == self.region_id,
                     )
                 )
                 or 0
@@ -2647,6 +2713,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 task,
                 run_id=run_id,
                 map_index=index,
+                region_id=self.region_id,
                 state=state,
                 dag_version_id=dag_version_id,
             )
@@ -2672,6 +2739,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             TaskInstance.task_id == task.task_id,
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
+            TaskInstance.region_id == self.region_id,
         )
         to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
         for ti in to_update:
