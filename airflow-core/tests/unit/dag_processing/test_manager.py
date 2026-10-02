@@ -498,6 +498,18 @@ class TestDagFileProcessorManager:
             DagFileInfo(bundle_name="testing", rel_path=Path("custom.dag"), bundle_path=tmp_path)
         }
 
+    def test_find_files_in_bundle_honours_airflowignore(self, tmp_path):
+        dag_source = "from airflow.sdk import DAG\n"
+        (tmp_path / ".airflowignore").write_text("ignored.py\nignored.zip\n")
+        (tmp_path / "kept.py").write_text(dag_source)
+        (tmp_path / "ignored.py").write_text(dag_source)
+        with zipfile.ZipFile(tmp_path / "ignored.zip", "w") as zf:
+            zf.writestr("dag.py", dag_source)
+
+        found_files = DagFileProcessorManager(max_runs=1)._find_files_in_bundle(_make_bundle(tmp_path))
+
+        assert {file.rel_path for file in found_files} == {Path("kept.py")}
+
     def test_sync_bundles_deactivates_missing_when_owning_all_bundles(self):
         """A processor with no bundle filter owns the full config and may deactivate missing bundles."""
         manager = DagFileProcessorManager(max_runs=1)

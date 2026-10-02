@@ -35,8 +35,6 @@ from airflow.utils.file import (
 from tests_common.test_utils.config import conf_vars
 from unit.models import TEST_DAGS_FOLDER
 
-TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
-
 
 def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None):
     return False
@@ -95,7 +93,7 @@ class TestOpenMaybeZipped:
         assert isinstance(content, str)
 
 
-class TestListPyFilesPath:
+class TestDagFileHelpers:
     def test_find_path_from_directory_regex_ignore(self):
         should_ignore = [
             "test_invalid_cron.py",
