@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import os
 import selectors
 import signal
@@ -42,7 +43,9 @@ from airflow.dag_processing.lang_sdk_processor import (
     _get_import_timeout,
 )
 from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult
-from airflow.sdk import DAG, BaseOperator
+from airflow.exceptions import UnknownExecutorException
+from airflow.executors.executor_loader import ExecutorLoader
+from airflow.sdk import DAG, BaseOperator, task
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import VariableResponse
 from airflow.sdk.exceptions import AirflowRuntimeError
@@ -655,3 +658,66 @@ def test_killing_a_runtime_that_does_not_exit_waits_a_bounded_time(mock_signal):
     assert proc._exit_code is None
     mock_signal.assert_called_once_with(proc, signal.SIGKILL)
     process.wait.assert_called_once_with(_EXIT_GRACE_PERIOD)
+
+
+@patch.object(
+    ExecutorLoader,
+    "lookup_executor_name_by_str",
+    autospec=True,
+    side_effect=UnknownExecutorException("not configured"),
+)
+def test_a_dag_with_an_unavailable_executor_is_an_import_error(mock_lookup):
+    with DAG("remote_dag", schedule=None) as remote_dag:
+        BaseOperator(task_id="extract", executor="no.such.Executor")
+    proc = _make_process()
+
+    proc._handle_request(
+        DagFileParsingResult(
+            fileloc="/b/dag.native",
+            serialized_dags=[
+                LazyDeserializedDAG(data=DagSerialization.to_dict(remote_dag)),
+                _serialize_dag("ok"),
+            ],
+        ),
+        MagicMock(),
+        1,
+    )
+
+    assert [dag.dag_id for dag in proc.parsing_result.serialized_dags] == ["ok"]
+    assert proc.parsing_result.import_errors == {
+        "dag.native": "UnknownExecutorException: Task 'extract' specifies executor 'no.such.Executor', "
+        "which is not available. Make sure it is listed in your [core] executor configuration, or update "
+        "the task's executor to use one of the configured executors."
+    }
+
+
+@conf_vars({("core", "multi_team"): "True"})
+@patch("airflow.dag_processing.bundles.manager.DagBundlesManager", autospec=True)
+def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager):
+    mock_bundles_manager.return_value._bundle_config = {"testing": MagicMock(team_name="team_a")}
+    with DAG("team_dag", schedule=None) as dag:
+        BaseOperator(task_id="extract")
+        BaseOperator(task_id="load", pool="custom")
+
+        @task
+        def fan_out(x): ...
+
+        fan_out.expand(x=[1, 2])
+    proc = _make_process()
+
+    proc._handle_request(
+        DagFileParsingResult(
+            fileloc="/b/dag.native", serialized_dags=[LazyDeserializedDAG(data=DagSerialization.to_dict(dag))]
+        ),
+        MagicMock(),
+        1,
+    )
+
+    [stored] = proc.parsing_result.serialized_dags
+    assert proc.parsing_result.import_errors is None
+    tasks = DagSerialization.from_dict(copy.deepcopy(stored.data)).tasks
+    assert {t.task_id: t.pool for t in tasks} == {
+        "extract": "default_pool_team_a",
+        "load": "custom",
+        "fan_out": "default_pool_team_a",
+    }
