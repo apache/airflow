@@ -23,11 +23,12 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-from airflow.sdk.coordinators._dag_importer import find_claiming_coordinator
+from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter, find_claiming_coordinator
 from airflow.sdk.importers import get_importer_registry
 
 if TYPE_CHECKING:
     from airflow.sdk.coordinators._subprocess import SubprocessCoordinator  # noqa: SDK001
+    from airflow.sdk.importers import AbstractDagImporter  # noqa: SDK001
 
 log = logging.getLogger(__name__)
 
@@ -54,3 +55,8 @@ def get_claiming_coordinator(
     except Exception:
         log.exception("Cannot load the Dag importer for %s in bundle %s", path, bundle_name)
         return None
+
+
+def is_coordinator_importer(importer: AbstractDagImporter) -> bool:
+    """Return whether *importer* is a coordinator's Dag importer, whose files a Lang-SDK runtime parses."""
+    return isinstance(importer, CoordinatorDagImporter)

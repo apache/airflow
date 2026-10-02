@@ -24,7 +24,7 @@ import itertools
 import operator
 import re
 import weakref
-from typing import TYPE_CHECKING, TypeAlias, TypedDict, cast, overload
+from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import attrs
 import structlog
@@ -1419,10 +1419,6 @@ class SerializedDAG:
         if self.edge_info:
             return self.edge_info.get(upstream_task_id, {}).get(downstream_task_id, empty)
         return empty
-
-
-SerializedLangSDKDAG: TypeAlias = SerializedDAG
-"""A Dag that a Lang-SDK runtime parsed and serialized, as a Dag bag holds it."""
 
 
 @provide_session

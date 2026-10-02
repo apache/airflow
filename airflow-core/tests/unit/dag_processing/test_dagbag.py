@@ -1551,6 +1551,30 @@ def clean_import_errors():
     db.clear_db_import_errors()
 
 
+LANG_SDK_FIXTURES = Path(__file__).parent / "lang_sdk_fixtures"
+
+
+def _read_payloads(path: Path) -> list[dict]:
+    recorded = json.loads(path.read_text())
+    if "serialized_dags" in recorded:
+        return [serialized["data"] for serialized in recorded["serialized_dags"]]
+    # What the TS SDK's tests/conformance/serialize_typescript.ts writes: payloads keyed by Dag id.
+    return list(recorded.values())
+
+
+def _recorded_payloads() -> list:
+    return [
+        pytest.param(data, id=f"{path.stem}-{data['dag']['dag_id']}")
+        for path in sorted(LANG_SDK_FIXTURES.glob("*.json"))
+        for data in _read_payloads(path)
+    ]
+
+
+@pytest.mark.parametrize("data", _recorded_payloads())
+def test_recorded_runtime_payloads_are_valid(data):
+    DagSerialization.validate_serialized_dag(data)
+
+
 def _serialize_native_dag(dag_id: str, fileloc: str, relative_fileloc: str) -> dict:
     with DAG(dag_id, schedule=None) as dag:
         BaseOperator(task_id="extract")
@@ -1560,21 +1584,39 @@ def _serialize_native_dag(dag_id: str, fileloc: str, relative_fileloc: str) -> d
 
 
 @contextlib.contextmanager
-def _native_runtime(**dag_ids_by_file: list[str]):
-    """Make the runtime of a ``.native`` file return the Dag ids given for that file's stem."""
+def _native_runtime(**results_by_file: list[str] | DagFileParsingResult):
+    """
+    Make the runtime of a ``.native`` file return what is given for that file's stem.
 
-    def run(*, path, dag_file_rel_path, **kwargs):
-        dag_ids = dag_ids_by_file[Path(path).stem]
+    A list names the Dags to serialize; a ``DagFileParsingResult`` is returned as it is.
+    """
+
+    def run(*, path, bundle_path, bundle_name, dag_file_rel_path, logger):
+        result = results_by_file[Path(path).stem]
+        if isinstance(result, DagFileParsingResult):
+            return result
         return DagFileParsingResult(
             fileloc=os.fspath(path),
             serialized_dags=[
                 LazyDeserializedDAG(data=_serialize_native_dag(dag_id, os.fspath(path), dag_file_rel_path))
-                for dag_id in dag_ids
+                for dag_id in result
             ],
         )
 
-    with fake_coordinator(), patch.object(LangSDKDagFileProcessorProcess, "run", side_effect=run):
-        yield
+    with (
+        fake_coordinator(),
+        patch.object(LangSDKDagFileProcessorProcess, "run", autospec=True, side_effect=run) as mock_run,
+    ):
+        yield mock_run
+
+
+def _native_bag(tmp_path, dag_folder=None) -> DagBag:
+    return DagBag(
+        dag_folder=os.fspath(dag_folder or tmp_path),
+        bundle_path=tmp_path,
+        bundle_name="testing",
+        parse_lang_sdk_files=True,
+    )
 
 
 class TestCoordinatorParsedFiles:
@@ -1601,7 +1643,7 @@ class TestCoordinatorParsedFiles:
         native = write_native_file(tmp_path / "sub" / "dags.native")
 
         with fake_coordinator():
-            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+            dagbag = _native_bag(tmp_path)
 
         assert dagbag.import_errors == {}
         assert sorted(dagbag.dag_ids) == ["native_a", "native_b"]
@@ -1610,19 +1652,46 @@ class TestCoordinatorParsedFiles:
         assert isinstance(dag.task_dict["extract"], SerializedBaseOperator)
         assert (dag.fileloc, dag.relative_fileloc) == (os.fspath(native), "sub/dags.native")
         assert dag.bundle_name == "testing"
+        assert dagbag.dag_source_codes[os.fspath(native)].source_code == "{}"
+
+    def test_native_file_is_an_import_error_by_default(self, tmp_path):
+        write_native_file(tmp_path / "dags.native")
+
+        with _native_runtime(dags=["native_a"]) as mock_run:
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+
+        assert dagbag.dags == {}
+        assert dagbag.import_errors == {
+            "dags.native": "A native Lang-SDK Dag is parsed only by the Dag processor"
+        }
+        mock_run.assert_not_called()
+
+    def test_the_runtime_parses_the_file_in_its_bundle(self, tmp_path):
+        (tmp_path / "sub").mkdir()
+        native = write_native_file(tmp_path / "sub" / "dags.native")
+
+        with _native_runtime(dags=["native_a"]) as mock_run:
+            _native_bag(tmp_path)
+
+        mock_run.assert_called_once_with(
+            path=os.fspath(native),
+            bundle_path=tmp_path,
+            bundle_name="testing",
+            dag_file_rel_path="sub/dags.native",
+            logger=mock.ANY,
+        )
 
     @patch("airflow.settings.task_policy", cluster_policies.task_policy)
     @patch("airflow.settings.dag_policy", cluster_policies.dag_policy)
-    @patch("airflow.dag_processing.dagbag._validate_executor_fields", autospec=True)
-    def test_native_dags_skip_the_python_dag_checks(self, mock_validate_executor_fields, tmp_path):
+    def test_native_dags_skip_the_python_dag_checks(self, tmp_path):
+        # The runtime path validates each Dag and applies the multi-team rules, so the bag does not.
         write_native_file(tmp_path / "dags.native")
 
         with _native_runtime(dags=["native_a"]):
-            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+            dagbag = _native_bag(tmp_path)
 
         assert dagbag.import_errors == {}
         assert dagbag.dag_ids == ["native_a"]
-        mock_validate_executor_fields.assert_not_called()
 
     def test_native_dag_with_the_id_of_a_python_dag_is_an_import_error(self, tmp_path):
         write_native_file(tmp_path / "dags.native")
@@ -1631,17 +1700,58 @@ class TestCoordinatorParsedFiles:
         )
 
         with _native_runtime(dags=["shared_id"]):
-            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+            dagbag = _native_bag(tmp_path)
 
         assert isinstance(dagbag.dags["shared_id"], DAG)
         assert dagbag.import_errors["dags.native"].startswith("AirflowDagDuplicatedIdException: ")
 
+    def test_a_payload_that_cannot_be_deserialized_is_an_import_error(self, tmp_path):
+        write_native_file(tmp_path / "dags.native")
+
+        with (
+            _native_runtime(dags=["native_a"]),
+            patch.object(DagSerialization, "from_dict", side_effect=ValueError("bad payload")),
+        ):
+            dagbag = _native_bag(tmp_path)
+
+        assert dagbag.dags == {}
+        assert dagbag.import_errors == {"dags.native": "ValueError: bad payload"}
+
+    def test_every_dag_of_a_runtime_result_is_bagged(self, tmp_path):
+        write_native_file(tmp_path / "dags.native")
+        result = DagFileParsingResult.model_validate_json(
+            (LANG_SDK_FIXTURES / "java_native.json").read_text()
+        )
+
+        with _native_runtime(dags=result):
+            dagbag = _native_bag(tmp_path)
+
+        assert dagbag.import_errors == {}
+        assert sorted(dagbag.dag_ids) == ["java_native", "java_once"]
+        assert all(isinstance(dag, SerializedDAG) for dag in dagbag.dags.values())
+
+    @pytest.mark.parametrize("data", _recorded_payloads())
+    def test_every_recorded_runtime_payload_is_bagged(self, tmp_path, data):
+        native = write_native_file(tmp_path / "dags.native")
+        result = DagFileParsingResult(
+            fileloc=os.fspath(native), serialized_dags=[LazyDeserializedDAG(data=data)]
+        )
+
+        with _native_runtime(dags=result):
+            dagbag = _native_bag(tmp_path)
+
+        dag = dagbag.dags[data["dag"]["dag_id"]]
+        assert {t.task_id: t.downstream_task_ids for t in dag.tasks} == {
+            t["__var"]["task_id"]: set(t["__var"].get("downstream_task_ids", []))
+            for t in data["dag"]["tasks"]
+        }
+
+    @pytest.mark.usefixtures("clean_import_errors")
     def test_sync_bag_to_db_leaves_native_files_to_the_dag_processor(
         self, tmp_path, session, testing_dag_bundle
     ):
         db.clear_db_dags()
         db.clear_db_serialized_dags()
-        db.clear_db_import_errors()
         write_native_file(tmp_path / "dags.native")
         write_native_file(tmp_path / "broken.native")
         (tmp_path / "a_python.py").write_text(
@@ -1651,7 +1761,7 @@ class TestCoordinatorParsedFiles:
         session.commit()
 
         with _native_runtime(dags=["native_a"], broken=[]):
-            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+            dagbag = _native_bag(tmp_path)
             dagbag.import_errors["broken.native"] = "cannot start the runtime here"
             sync_bag_to_db(dagbag, "testing", None, session=session)
 
@@ -1661,6 +1771,7 @@ class TestCoordinatorParsedFiles:
             ("dags.native", "stored")
         }
 
+    @pytest.mark.usefixtures("clean_import_errors")
     def test_sync_bag_to_db_keeps_a_native_dag_whose_runtime_cannot_start(
         self, tmp_path, session, testing_dag_bundle
     ):
@@ -1678,7 +1789,7 @@ class TestCoordinatorParsedFiles:
         session.commit()
 
         with fake_coordinator():
-            dagbag = DagBag(dag_folder=os.fspath(tmp_path), bundle_path=tmp_path, bundle_name="testing")
+            dagbag = _native_bag(tmp_path)
             sync_bag_to_db(dagbag, "testing", None, session=session)
 
         assert dagbag.import_errors == {
@@ -1702,7 +1813,12 @@ class TestCoordinatorParsedFiles:
                 "ValueError: Version '1999-01-01' not found in supervisor schema bundle",
                 id="cannot-start",
             ),
-            pytest.param({}, _reply(import_errors={"main.ts": "boom"}), "main.ts: boom", id="runtime-error"),
+            pytest.param(
+                {},
+                _reply(import_errors={"dags.native": "one failed", "main.ts": "two failed"}),
+                "one failed\nmain.ts: two failed",
+                id="runtime-errors",
+            ),
         ],
     )
     def test_runtime_failures_are_import_errors(self, tmp_path, spec, reply, message):
@@ -1714,7 +1830,7 @@ class TestCoordinatorParsedFiles:
             if reply
             else contextlib.nullcontext(),
         ):
-            dagbag = DagBag(dag_folder=os.fspath(native), bundle_path=tmp_path, bundle_name="testing")
+            dagbag = _native_bag(tmp_path, dag_folder=native)
 
         assert dagbag.dags == {}
         assert dagbag.import_errors == {"dags.native": message}
