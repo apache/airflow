@@ -23,8 +23,11 @@ import com.google.testing.compile.CompilationSubject.assertThat
 import com.google.testing.compile.Compiler
 import com.google.testing.compile.JavaFileObjectSubject
 import com.google.testing.compile.JavaFileObjects
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
+import javax.tools.JavaFileObject
 
 private fun compile(source: String) =
   Compiler.javac().withProcessors(BuilderProcessor()).compile(
@@ -93,12 +96,13 @@ class BuilderTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("TestExample");
+             var dag = DagSource.declaredBy(new DagDef("TestExample"), TestExample.class);
              return Refs.record(dag, List.of("t1", "t2", "t3"), List.of(), new TestExample.Wiring()::depends);
            }
 
@@ -208,12 +212,13 @@ class BuilderTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("TestExample");
+             var dag = DagSource.declaredBy(new DagDef("TestExample"), TestExample.class);
              return Refs.record(dag, List.of("t"), List.of(), new TestExample.Wiring()::depends);
            }
 
@@ -275,13 +280,14 @@ class BuilderTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
          import org.apache.airflow.sdk.internal.TypeRef;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("TestExample");
+             var dag = DagSource.declaredBy(new DagDef("TestExample"), TestExample.class);
              return Refs.record(dag, List.of("t"), List.of(), new TestExample.Wiring()::depends);
            }
 
@@ -429,11 +435,12 @@ class BuilderTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("cfg");
+             var dag = DagSource.declaredBy(new DagDef("cfg"), TestExample.class);
              dag.config("schedule", "@daily");
              dag.config("tags", List.of("a", "b"));
              dag.config("catchup", true);
@@ -518,12 +525,13 @@ class BuilderTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("TestExample");
+             var dag = DagSource.declaredBy(new DagDef("TestExample"), TestExample.class);
              return Refs.record(dag, List.of("t"), List.of(), new TestExample.Wiring()::depends);
            }
            public static final class T implements Task {
@@ -588,12 +596,13 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("TestExample");
+             var dag = DagSource.declaredBy(new DagDef("TestExample"), TestExample.class);
              return Refs.record(dag, List.of("flat", "named"), List.of(), new TestExample.Wiring()::depends);
            }
 
@@ -811,10 +820,11 @@ class BuilderTest {
          package org.apache.airflow.example;
          import java.util.List;
          import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("foo");
+             var dag = DagSource.declaredBy(new DagDef("foo"), TestExample.class);
              return Refs.record(dag, List.of(), List.of(), new TestExample.Wiring()::depends);
            }
          }
@@ -847,10 +857,11 @@ class BuilderTest {
          package org.apache.airflow.example;
          import java.util.List;
          import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
          public final class Foo {
            public static DagDef build() {
-             var dag = new DagDef("TestExample");
+             var dag = DagSource.declaredBy(new DagDef("TestExample"), TestExample.class);
              return Refs.record(dag, List.of(), List.of(), new TestExample.Wiring()::depends);
            }
          }
@@ -894,11 +905,12 @@ class BuilderTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("TestExample");
+             var dag = DagSource.declaredBy(new DagDef("TestExample"), TestExample.class);
              return Refs.record(dag, List.of("foo"), List.of(), new TestExample.Wiring()::depends);
            }
 
@@ -1965,11 +1977,12 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
-             var dag = new DagDef("TestExample");
+             var dag = DagSource.declaredBy(new DagDef("TestExample"), TestExample.class);
              return Refs.record(dag, List.of("score"), List.of(), new TestExample.Wiring()::depends);
            }
 
@@ -2146,5 +2159,53 @@ class BuilderTest {
     assertThat(compilation).hadErrorContaining(
       "Nested class 'Inner' holding @Builder.TaskHandler methods must be static",
     )
+  }
+
+  @Test
+  @DisplayName("map the Dag to the annotated class, not its generated builder")
+  fun dagDeclaredByAnnotatedClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag(id = "orders")
+        public class TestExample {
+          @Builder.Task
+          public void t1() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              t1();
+            }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).succeeded()
+
+    val classes =
+      compilation
+        .generatedFiles()
+        .filter { it.kind == JavaFileObject.Kind.CLASS }
+        .associate {
+          it.name
+            .removePrefix("/CLASS_OUTPUT/")
+            .removeSuffix(".class")
+            .replace('/', '.') to it.openInputStream().readBytes()
+        }
+    val loader =
+      object : ClassLoader(javaClass.classLoader) {
+        override fun findClass(name: String): Class<*> {
+          val bytes = classes[name] ?: throw ClassNotFoundException(name)
+          return defineClass(name, bytes, 0, bytes.size)
+        }
+      }
+    val bundle = Bundle().register(loader.loadClass("org.apache.airflow.example.TestExample"))
+    val target = Files.createTempFile("sources", ".json").toFile()
+    Server.create(arrayOf("--describe-sources", target.path)).serve(bundle)
+
+    Assertions.assertEquals("""{"orders":"org.apache.airflow.example.TestExample"}""", target.readText())
   }
 }

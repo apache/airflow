@@ -30,6 +30,7 @@ import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeSpec
 import com.squareup.javapoet.WildcardTypeName
 import org.apache.airflow.sdk.internal.ArgValues
+import org.apache.airflow.sdk.internal.DagSource
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.FieldType
 import org.apache.airflow.sdk.internal.GROUP_ID
@@ -249,7 +250,13 @@ class BuilderProcessor : AbstractProcessor() {
         .methodBuilder("build")
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
         .returns(DAG_DEF_TYPE)
-        .addStatement($$"var dag = new $T($S)", DAG_DEF_TYPE, ann.id.ifBlank { el.simpleName })
+        .addStatement(
+          $$"var dag = $T.declaredBy(new $T($S), $T.class)",
+          DAG_SOURCE_TYPE,
+          DAG_DEF_TYPE,
+          ann.id.ifBlank { el.simpleName },
+          ClassName.get(el),
+        )
     explicitConfig(el, DAG_ANNOTATION, DAG_STRUCTURAL_ATTRIBUTES, SchemaFields.DAG).forEach { (key, value) ->
       buildMethod.addStatement($$"dag.config($S, $L)", key, value)
     }
@@ -913,6 +920,7 @@ private val TASK_INPUT_TYPE = ClassName.get(TaskInput::class.java)
 private val TASK_ARGS_TYPE = ClassName.get(TaskArgs::class.java)
 private val TYPE_REF_TYPE = ClassName.get(TypeRef::class.java)
 private val ARG_VALUES_TYPE = ClassName.get(ArgValues::class.java)
+private val DAG_SOURCE_TYPE = ClassName.get(DagSource::class.java)
 private val REFS_TYPE = ClassName.get(Refs::class.java)
 private val ARG_TYPE = ClassName.get(Arg::class.java)
 private val TASK_HANDLE_TYPE = ClassName.get(TaskRef::class.java)
