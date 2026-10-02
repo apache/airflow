@@ -17,6 +17,7 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  ADVANCED_SEARCH = "advanced_search",
   AFTER = "after",
   ASSET_EVENT_DATE_RANGE = "asset_event_date_range",
   BEFORE = "before",
