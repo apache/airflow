@@ -113,6 +113,52 @@ class TestNodeCoordinatorExecuteTaskCommand:
         assert command == ["/opt/node/bin/node", str(bundle)]
         assert schema_version == SCHEMA_VERSION
 
+    def test_runs_the_bundle_named_by_dag_file(self, tmp_path):
+        write_bundle(tmp_path, "sales", name="a/sales.min.mjs")
+        dag_file = write_bundle(tmp_path, "sales", name="b/sales.min.mjs", schema_version="2026-10-30")
+        coordinator = NodeCoordinator()
+
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(
+                what=_make_ti(dag_id="sales"), dag_file=dag_file
+            )
+
+        assert command == ["node", str(dag_file)]
+        assert schema_version == "2026-10-30"
+
+    @pytest.mark.parametrize(
+        "dag_file_name",
+        [
+            pytest.param("dags/sales.py", id="python-stub"),
+            pytest.param("b/other.min.mjs", id="other-dag-id"),
+            pytest.param("b/missing.min.mjs", id="missing"),
+        ],
+    )
+    def test_falls_back_to_the_first_bundle_declaring_the_dag(self, tmp_path, dag_file_name):
+        first = write_bundle(tmp_path, "sales", name="a/sales.min.mjs")
+        write_bundle(tmp_path, "other", name="b/other.min.mjs")
+        coordinator = NodeCoordinator()
+
+        with coordinator._set_scan_roots([tmp_path]):
+            command, _ = coordinator._build_execute_task_command(
+                what=_make_ti(dag_id="sales"), dag_file=tmp_path / dag_file_name
+            )
+
+        assert command == ["node", str(first)]
+
+    def test_ignores_dag_file_outside_the_scan_roots(self, tmp_path):
+        root = tmp_path / "root"
+        inside = write_bundle(root, "sales")
+        outside = write_bundle(tmp_path / "elsewhere", "sales")
+        coordinator = NodeCoordinator()
+
+        with coordinator._set_scan_roots([root]):
+            command, _ = coordinator._build_execute_task_command(
+                what=_make_ti(dag_id="sales"), dag_file=outside
+            )
+
+        assert command == ["node", str(inside)]
+
 
 class TestNodeCoordinatorParseDagCommand:
     def test_returns_node_and_bundle_schema_version(self, tmp_path):

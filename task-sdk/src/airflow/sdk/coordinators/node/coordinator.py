@@ -112,8 +112,9 @@ class NodeCoordinator(SubprocessCoordinator):
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
 
-    The Dag bundle is searched recursively for the first verified ``*.min.mjs`` bundle that
-    declares the task instance's Dag. The coordinator also parses the native Dags of the
+    A task of a native TypeScript Dag runs the ``*.min.mjs`` bundle its Dag was parsed from.
+    Otherwise, the Dag bundle is searched recursively for the first verified ``*.min.mjs`` bundle
+    that declares the task instance's Dag. The coordinator also parses the native Dags of the
     ``*.min.mjs`` bundles in the Dag bundles it serves.
     """
 
@@ -123,8 +124,28 @@ class NodeCoordinator(SubprocessCoordinator):
         self, *, what: TaskInstance, dag_file: pathlib.Path | None = None
     ) -> tuple[list[str], str | None]:
         roots = self._get_scan_roots()
-        bundle = _Bundle.find(roots, what.dag_id)
+        if (bundle := self._find_dag_bundle(roots, dag_file, what.dag_id)) is None:
+            bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
+
+    @staticmethod
+    def _find_dag_bundle(
+        roots: Sequence[pathlib.Path], dag_file: pathlib.Path | None, dag_id: str
+    ) -> _Bundle | None:
+        """Return *dag_file* when it is a bundle under *roots* that declares *dag_id*, or ``None``."""
+        if dag_file is None or not _is_bundle(dag_file):
+            return None
+        resolved = dag_file.resolve()
+        if not any(resolved.is_relative_to(root.resolve()) for root in roots):
+            return None
+        try:
+            metadata = read_bundle(dag_file)
+        except (OSError, TypeError, ValueError) as exc:
+            log.debug("Cannot run the Dag's own TypeScript bundle", path=dag_file, reason=str(exc))
+            return None
+        if dag_id not in metadata.dag_ids:
+            return None
+        return _Bundle(path=dag_file, schema_version=metadata.supervisor_schema_version)
 
     @classmethod
     def get_dag_importer_class(cls) -> type[NodeDagImporter]:
