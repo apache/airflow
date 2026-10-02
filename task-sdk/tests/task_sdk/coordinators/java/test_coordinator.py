@@ -594,8 +594,10 @@ class TestBuildParseDagCommand:
         with pytest.raises(FileNotFoundError, match="gone.jar"):
             self._build(JavaCoordinator(), tmp_path, tmp_path / "gone.jar")
 
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
-    def test_parse_dag_execs_the_jvm(self, mock_execvpe, tmp_path):
+    def test_parse_dag_execs_the_jvm(self, mock_execvpe, mock_signal, mock_close_on_exec, tmp_path):
         jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
         reported: list[str | None] = []
 
