@@ -132,7 +132,9 @@ def task_handler_config(
                 ("core", "multi_team"): str(multi_team),
                 ("dag_processor", "dag_bundle_config_list"): json.dumps(bundles),
                 ("sdk", "coordinators"): json.dumps(coordinators),
-                ("sdk", "queue_to_coordinator"): json.dumps(queue_to_coordinator or {"fake-queue": "fake"}),
+                ("sdk", "queue_to_coordinator"): json.dumps(
+                    {"fake-queue": "fake"} if queue_to_coordinator is None else queue_to_coordinator
+                ),
             }
         ):
             yield
