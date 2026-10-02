@@ -292,8 +292,8 @@ the full range of task states, and alternate XCom backends without implementing 
   queue_to_coordinator = {"golang": "go"}
   ```
 
-  `dag_bundle_name` names the Dag bundle the coordinator scans for executable bundles. Omit it to ship
-  them in the same Dag bundle as the Python stub Dag. `queue_to_coordinator` routes stub tasks with
+  `dag_bundle_name` is optional. Omit it and the coordinator finds executable bundles in the task's own
+  Dag bundle, the one that holds the Python stub Dag. Set it, as here, to keep them in a separate Dag bundle. `queue_to_coordinator` routes stub tasks with
   `queue="golang"` to this Go coordinator.
 
   > [!IMPORTANT]

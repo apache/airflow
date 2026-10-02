@@ -83,6 +83,9 @@ export AIRFLOW__SDK__COORDINATORS='{
 export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'
 ```
 
+With a single `NodeCoordinator`, `dag_bundle_name` is optional. It is set here because the bundle lives in
+`dist/`, outside the Dags folder; omit it if you copy the bundle into the same Dag bundle as the stub Dags.
+
 Copy both files in `dags/` into your Airflow Dags folder.
 
 The example also reads one Variable and one Connection:
