@@ -253,8 +253,9 @@ def ti_run(
         )
         # One sample per queue wait, not per try: the scheduler refreshes queued_dttm on every
         # queueing, so a retry and a resume from deferral each waited for a slot of their own.
-        # task.scheduled_duration counts per try instead, so the two disagree on retries by design.
-        # queued_dttm is None only in rare races and test setups.
+        # task.scheduled_duration skips retries (emit_state_change_metric returns early while
+        # end_date is set), so the two disagree on retries by design.
+        # queued_dttm is unset only for runs that skip the scheduler's queueing, e.g. dag.test().
         emit_queued_duration = ti.queued_dttm is not None
 
     # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
@@ -324,14 +325,6 @@ def ti_run(
             or 0
         )
 
-        if emit_queued_duration:
-            # Tags mirror the sibling task.scheduled_duration, which emit_state_change_metric sends
-            # as {**ti.stats_tags, "queue": ti.queue}; stats_tags reads the team off the transient
-            # _team_name. stats.timing also emits the legacy dotted name from the metrics registry.
-            dr._team_name = dr.team_name
-            tags = {**dr.stats_tags, "task_id": ti.task_id, "queue": ti.queue}
-            stats.timing("task.queued_duration", timezone.utcnow() - ti.queued_dttm, tags=tags)
-
         context = TIRunContext(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
@@ -380,6 +373,17 @@ def ti_run(
     # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
     if token.claims.scope == "workload":
         issue_execution_token(services, response, sub=str(task_instance_id))
+
+    if emit_queued_duration:
+        # Emitted last so a 5xx cannot double-count the wait: the SDK retries those, and the
+        # rollback returns the TI to QUEUED for the retry to sample it again. Only the session
+        # commit can still fail past this point.
+        # Tags mirror the sibling task.scheduled_duration, which emit_state_change_metric sends
+        # as {**ti.stats_tags, "queue": ti.queue}; stats_tags reads the team off the transient
+        # _team_name. stats.timing also emits the legacy dotted name from the metrics registry.
+        dr._team_name = dr.team_name
+        tags = {**dr.stats_tags, "task_id": ti.task_id, "queue": ti.queue}
+        stats.timing("task.queued_duration", timezone.utcnow() - ti.queued_dttm, tags=tags)
 
     return context
 

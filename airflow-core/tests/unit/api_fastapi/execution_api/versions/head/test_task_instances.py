@@ -1288,7 +1288,9 @@ class TestTIRunState:
 
         time_machine.move_to(run_at, tick=False)
 
-        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/run",
                 json={
@@ -1307,11 +1309,54 @@ class TestTIRunState:
             tags=expected_tags,
         )
 
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.task_instances.get_arg_bindings",
+        autospec=True,
+        return_value=[{"name": "country", "kind": "hologram", "value": "uk"}],
+    )
+    def test_ti_run_skips_queued_duration_metric_when_the_response_fails(
+        self, _, client, session, create_task_instance, time_machine
+    ):
+        """The SDK retries a 5xx, and the rollback leaves the TI in QUEUED for that retry to pick
+        up, so a sample sent before the response is settled counts one queue wait twice."""
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(run_at, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_skips_queued_duration_metric_when_the_response_fails",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_at,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_at
+        session.commit()
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 500
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        mock_stats.timing.assert_not_called()
+
     def test_ti_run_skips_queued_duration_metric_without_queued_dttm(
         self, client, session, create_task_instance, time_machine
     ):
-        """queued_dttm is what the wait is measured from, so a row without one (rare race /
-        test setups) has nothing to report."""
+        """queued_dttm is what the wait is measured from, so a row without one (a run that skips
+        the scheduler's queueing, e.g. dag.test()) has nothing to report."""
         queued_at = timezone.parse("2024-09-30T12:00:00Z")
         run_at = queued_at.add(seconds=42)
         time_machine.move_to(run_at, tick=False)
@@ -1327,7 +1372,9 @@ class TestTIRunState:
         ti.queued_dttm = None
         session.commit()
 
-        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/run",
                 json={
@@ -1365,7 +1412,9 @@ class TestTIRunState:
         ti.pid = 100
         session.commit()
 
-        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/run",
                 json={
@@ -1418,7 +1467,9 @@ class TestTIRunState:
         time_machine.move_to(run_at, tick=False)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+            with mock.patch(
+                "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+            ) as mock_stats:
                 response = client.patch(
                     f"/execution/task-instances/{ti.id}/run",
                     json={
@@ -1458,7 +1509,9 @@ class TestTIRunState:
         time_machine.move_to(run_at, tick=False)
 
         with conf_vars({("metrics", "dag_tags_in_metrics"): "True"}):
-            with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+            with mock.patch(
+                "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+            ) as mock_stats:
                 response = client.patch(
                     f"/execution/task-instances/{ti.id}/run",
                     json={
@@ -1529,7 +1582,9 @@ class TestTIRunState:
 
         time_machine.move_to(run_at, tick=False)
 
-        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats") as mock_stats:
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/run",
                 json={
