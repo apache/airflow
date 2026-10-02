@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from subprocess import CompletedProcess
 from unittest.mock import MagicMock, call, patch
 
@@ -27,6 +28,7 @@ from airflow_breeze.commands.workflow_commands import (
     workflow_run_publish,
     workflow_run_sync_staging_to_main,
 )
+from airflow_breeze.utils.confirm import Answer
 
 
 def _make_gh_response(ref: str | None) -> CompletedProcess:
@@ -113,10 +115,12 @@ class TestSyncStagingToMain:
             pytest.param("q", 1, False, id="quit"),
         ],
     )
+    @patch("airflow_breeze.commands.workflow_commands.get_staging_only_commits", autospec=True)
     @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor")
     def test_reset_staging_is_triggered_only_when_confirmed(
-        self, mock_trigger, answer, expected_exit_code, expected_triggered
+        self, mock_trigger, mock_get_commits, answer, expected_exit_code, expected_triggered
     ):
+        mock_get_commits.return_value = []
         result = CliRunner().invoke(
             workflow_run_sync_staging_to_main, ["--answer", answer], catch_exceptions=False
         )
@@ -129,3 +133,48 @@ class TestSyncStagingToMain:
             ]
         else:
             mock_trigger.assert_not_called()
+
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.user_confirm", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.get_staging_only_commits", autospec=True)
+    def test_staging_only_commits_are_listed_and_counted(self, mock_get_commits, mock_confirm, mock_trigger):
+        mock_get_commits.side_effect = [["abc1234 Add staged docs", "def5678 Fix index"], []]
+        mock_confirm.return_value = Answer.YES
+
+        result = CliRunner().invoke(workflow_run_sync_staging_to_main, [], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        assert "abc1234 Add staged docs" in result.output
+        assert "def5678 Fix index" in result.output
+        assert "2 commit(s) only on staging will be dropped" in mock_confirm.call_args.args[0]
+        assert mock_trigger.call_count == 2
+
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.user_confirm", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.get_staging_only_commits", autospec=True)
+    def test_no_deviation_output_when_staging_is_not_ahead(
+        self, mock_get_commits, mock_confirm, mock_trigger
+    ):
+        mock_get_commits.return_value = []
+        mock_confirm.return_value = Answer.YES
+
+        result = CliRunner().invoke(workflow_run_sync_staging_to_main, [], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        assert "will be dropped:" not in result.output
+        assert "commit(s)" not in mock_confirm.call_args.args[0]
+        assert mock_trigger.call_count == 2
+
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.user_confirm", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.get_staging_only_commits", autospec=True)
+    def test_compare_failure_falls_back_to_plain_prompt(self, mock_get_commits, mock_confirm, mock_trigger):
+        mock_get_commits.side_effect = subprocess.CalledProcessError(1, ["gh"])
+        mock_confirm.return_value = Answer.YES
+
+        result = CliRunner().invoke(workflow_run_sync_staging_to_main, [], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        assert "Could not compare staging to main in apache/airflow-site" in result.output
+        assert "commit(s)" not in mock_confirm.call_args.args[0]
+        assert mock_trigger.call_count == 2

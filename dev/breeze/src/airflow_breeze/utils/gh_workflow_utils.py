@@ -274,3 +274,15 @@ def trigger_workflow_and_monitor(
         run_id=str(workflow_run_id),
         repo=repo,
     )
+
+
+def get_staging_only_commits(repo: str) -> list[str]:
+    """Return ``<short sha> <subject>`` for each commit on ``staging`` that is not on ``main``."""
+    result = run_gh_command(
+        ["gh", "api", f"repos/{repo}/compare/main...staging"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    commits = json.loads(result.stdout)["commits"]
+    return [f"{commit['sha'][:7]} {commit['commit']['message'].splitlines()[0]}" for commit in commits]
