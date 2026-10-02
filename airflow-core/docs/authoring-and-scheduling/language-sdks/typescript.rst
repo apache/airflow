@@ -48,8 +48,10 @@ The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in 
 Prerequisites
 -------------
 
-* Node.js 22 or later must be available on the Airflow worker nodes, and on the Dag processor to parse
-  Dags declared in TypeScript.
+* Node.js 22 or later must be available on the Airflow worker nodes, and on the Dag processor whenever a
+  Node coordinator serves a Dag bundle. The Dag processor runs ``node`` on every packed ``*.min.mjs`` bundle
+  in the Dag bundles it serves, including ones that only register ``TaskHandler`` objects, and reports an
+  import error for each when ``node`` is missing.
 * The packed bundle (a single ``bundle.min.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible
   from the worker, under a directory the coordinator scans.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
