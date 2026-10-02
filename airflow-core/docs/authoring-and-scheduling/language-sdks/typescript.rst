@@ -49,6 +49,9 @@ Prerequisites
 -------------
 
 * Node.js 22 or later must be available on the Airflow worker nodes and the Dag processor.
+  Once a ``NodeCoordinator`` is configured, the Dag processor runs ``node`` on every packed ``*.min.mjs`` bundle
+  in every Dag bundle, including ones that only register ``TaskHandler`` objects,
+  and reports an import error for each when ``node`` is missing.
 * The packed bundle (a single ``bundle.min.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible
   from the worker and the Dag processor, in the Dag bundle the coordinator scans.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
