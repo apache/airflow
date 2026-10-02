@@ -199,7 +199,7 @@ registration order because `_ordered_importers` is scanned in reverse.
 
 Three places assume a non-empty suffix today:
 
-- `_normalize_extensions` rewrites `""` to `"."`.
+- `normalize_extensions` rewrites `""` to `"."`.
 - `get_importer` and `can_handle` guard on `if suffix:`, which skips the extension map entirely for an extensionless file.
 - `find_file_dag_definitions` filters on `path.suffix.lower()`.
 
