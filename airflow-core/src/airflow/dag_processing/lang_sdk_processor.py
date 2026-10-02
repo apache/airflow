@@ -69,6 +69,9 @@ if TYPE_CHECKING:
 # How long a runtime may keep running after its parse result, as Node does while a handle stays open.
 _EXIT_GRACE_PERIOD = 5.0
 
+_IMPORT_TIMEOUT_SETTING = "[core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
+_PROCESSOR_TIMEOUT_SETTING = "[dag_processor] dag_file_processor_timeout"
+
 
 # StartLangSDKRuntime and LangSDKRuntimeSchemaVersion pass only between the manager and its forked
 # child before the exec, so they are not part of the supervisor schema the runtimes speak.
@@ -257,11 +260,14 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             )
             try:
                 while not proc.is_ready:
-                    timeout = proc._import_timeout if proc._schema_version_reported else processor_timeout
+                    if proc._schema_version_reported:
+                        timeout, setting = proc._import_timeout, _IMPORT_TIMEOUT_SETTING
+                    else:
+                        timeout, setting = processor_timeout, _PROCESSOR_TIMEOUT_SETTING
                     if timeout is not None and time.monotonic() - proc.start_time > timeout:
                         # Unlike is_ready, this does not wait for an exited runtime's leftover processes,
                         # which can hold its sockets open. close() closes them.
-                        proc._time_out(timeout)
+                        proc._time_out(timeout, setting)
                         break
                     proc._service_subprocess(max_wait_time=0.1)
             except BaseException:
@@ -496,7 +502,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             and self._exit_code is None
             and time.monotonic() - self.start_time > self._import_timeout
         ):
-            self._time_out(self._import_timeout)
+            self._time_out(self._import_timeout, _IMPORT_TIMEOUT_SETTING)
         if self._check_subprocess_exit() is None:
             return False
         self._close_listeners()
@@ -508,10 +514,12 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             )
         return True
 
-    def _time_out(self, timeout: float) -> None:
+    def _time_out(self, timeout: float, setting: str) -> None:
+        """Kill the runtime; unless a parse result was received, the import error names *setting*."""
         if self.parsing_result is None:
             self._set_import_error(
-                f"The Lang-SDK runtime did not parse {self._parse_request.file} within {timeout}s"
+                f"The Lang-SDK runtime did not parse {self._parse_request.file} within {timeout}s, "
+                f"the limit set by {setting}"
             )
         self._kill_runtime()
 
