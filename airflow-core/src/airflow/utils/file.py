@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import ast
-import logging
 import os
 import re
 import zipfile
@@ -32,9 +31,6 @@ from airflow._shared.module_loading import (
     might_contain_dag as might_contain_dag,
     might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
 )
-
-log = logging.getLogger(__name__)
-
 
 ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
 
