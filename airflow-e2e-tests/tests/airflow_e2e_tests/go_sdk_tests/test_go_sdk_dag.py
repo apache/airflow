@@ -25,7 +25,7 @@ What is verified
 ----------------
 ``conftest._setup_go_sdk_integration`` compiles ``go-sdk/example/bundle`` into a
 self-contained executable bundle with the ``airflow-go-pack`` tooling and drops
-it into the directory the ``ExecutableCoordinator`` scans. The ``simple_dag``
+it into the Dag bundle directory the ``ExecutableCoordinator`` reads. The ``simple_dag``
 Dag (``go-sdk/dags/go_examples.py``) sandwiches the Go tasks between two native
 Python tasks::
 
@@ -33,9 +33,9 @@ Python tasks::
 
 * ``extract`` / ``transform`` / ``load`` are ``@task.stub(queue="golang")`` tasks
   whose implementations live in the Go bundle (``main.go``). The ``golang`` queue
-  is routed to ``ExecutableCoordinator``, which locates the bundle by dag_id,
-  launches the binary with ``--comm`` / ``--logs``, and drives it through the
-  msgpack-over-IPC coordinator protocol.
+  is routed to ``ExecutableCoordinator``, which runs the bundle the Dag processor
+  bound each task to, launches the binary with ``--comm`` / ``--logs``, and drives
+  it through the msgpack-over-IPC coordinator protocol.
 * ``python_task_1`` (Python) pushes an XCom; ``extract`` (Go) fetches the
   ``test_http`` connection and returns ``{go_version, timestamp}``; ``transform``
   (Go) reads ``my_variable``; ``load`` (Go) fails on its first attempt and
@@ -46,8 +46,8 @@ The Dag is triggered exactly once by the module-scoped ``completed_run`` fixture
 each test asserts a different facet of that single run. Together they confirm,
 end-to-end:
 
-1. ``ExecutableCoordinator`` discovers the AFBNDL01 bundle by dag_id and runs the
-   binary in coordinator mode for every Go task, reporting ``SucceedTask`` for
+1. ``ExecutableCoordinator`` runs the AFBNDL01 bundle the stub task is bound to
+   in coordinator mode for every Go task, reporting ``SucceedTask`` for
    extract/transform and -- because ``load`` has ``retries=1`` -- a ``RetryTask``
    (UP_FOR_RETRY) for its first failing attempt, after which the retry succeeds.
 2. Connection / Variable reads and XCom writes work through the Task Execution

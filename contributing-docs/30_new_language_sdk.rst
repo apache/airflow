@@ -76,16 +76,21 @@ Use :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator`
 Subclass :class:`~airflow.sdk.coordinators._subprocess.SubprocessCoordinator`
     If a command is needed (e.g. `java` for JRE, `node` for Node), but
     the produced runtime can communicate over TCP, consider subclassing
-    ``SubprocessCoordinator`` and implement ``_build_execute_task_command``.
-    The base class handles all TCP socket lifecycle, process ownership
-    verification, startup draining, and teardown.
+    ``SubprocessCoordinator`` and implement ``_build_task_handler_command`` and
+    ``_read_task_handler_candidate``. The base class handles all TCP socket
+    lifecycle, process ownership verification, startup draining, and teardown.
 
 Subclass ``BaseCoordinator`` directly
     For runtimes that use a completely different transport (gRPC, shared memory,
     a persistent daemon, etc.), subclass ``BaseCoordinator`` and implement
-    ``execute_task`` from scratch.
+    ``execute_task`` from scratch. When the artifact that would run a task
+    cannot be resolved, raise
+    :class:`~airflow.sdk.execution_time.coordinator.TaskHandlerArtifactError`
+    from ``execute_task`` before the runtime starts. The supervisor then fails
+    the task instance with the message in its task log, and the task retries if
+    it has retries left.
 
-SubprocessCoordinator: implementing ``_build_execute_task_command``
+SubprocessCoordinator: implementing ``_build_task_handler_command``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :class:`~airflow.sdk.coordinators._subprocess.SubprocessCoordinator` handles
@@ -105,12 +110,20 @@ The ``--comm`` socket is the bidirectional task execution channel described in
 *infrastructure logs* (messages emitted by the SDK, not user code) to be merged
 into Airflow worker logs.
 
-Subclasses only need to supply the command to run and the wire-schema version
-the subprocess understands:
+Subclasses supply the command that runs one artifact and the wire-schema
+version the subprocess understands:
 
 .. code-block:: python
 
-    def _build_execute_task_command(self, *, what: TaskInstanceDTO) -> tuple[list[str], str]: ...
+    def _build_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]: ...
+
+*path* is the artifact to run, so the method does not search for one. A worker
+runs the command to execute a task: the artifact its stub task was bound to or,
+for a Dag defined in your language, its own Dag file. The Dag processor runs
+the same command to probe an artifact. When a Python Dag file has stub tasks,
+the Dag processor asks the artifacts that implement them which task handlers
+they register, and checks each stub task against its handler. The runtime then
+answers as described in `Answering TaskHandlerParseRequest`_.
 
 The method returns a ``(command, subprocess_schema_version)`` pair:
 
@@ -118,36 +131,24 @@ The method returns a ``(command, subprocess_schema_version)`` pair:
   ``--logs``; the base class appends those flags after binding the sockets.
 * ``subprocess_schema_version`` — the ``YYYY-MM-DD`` wire-schema version the
   subprocess understands, used by the supervisor to negotiate message formats
-  across SDK versions. See `Supervisor Schema`_ below.
+  across SDK versions. See `Supervisor Schema`_ below. ``None`` disables the
+  negotiation.
 
-Call ``self._get_scan_roots()`` to retrieve the artifact directories the base
-class has already resolved: the Dag bundle named by ``task_handler_bundle_name``,
-or the task's own Dag bundle when it is unset, pinned for the whole task.
-Subclasses should scan those directories rather than locating artifacts
-themselves.
+Raise an exception when the artifact cannot run, for example when its integrity
+check fails. The task then fails with the message in its task log, and the Dag
+processor treats the artifact as one that gives no answer. The version is
+checked against the schema versions the supervisor knows before the runtime
+starts, so an unknown version fails the task the same way.
 
-SubprocessCoordinator: implementing ``_build_parse_task_handler_command``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-When a Python Dag file has stub tasks, the Dag processor asks the artifact that
-implements them which task handlers it registers, and checks each stub task
-against its handler. A coordinator opts in by building the command that starts
-its runtime for one artifact:
-
-.. code-block:: python
-
-    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]: ...
-
-*path* is the artifact the Dag processor picked among the candidates of the next
-section, so the method does not search for one. The returned pair follows the
-rules of ``_build_execute_task_command``: no ``--comm`` or ``--logs`` flags, and
-the schema version the runtime understands. The runtime then answers as
-described in `Answering TaskHandlerParseRequest`_.
+Call ``self._get_scan_roots()`` to retrieve the root of the Dag bundle that
+holds *path*, pinned for the whole task or parse, for example to build a
+classpath.
 
 The default raises ``NotImplementedError``, so a coordinator that does not
-implement it cannot be probed. Its artifacts then have no answer, and a stub
-task that no other artifact registers fails to import. ``ExecutableCoordinator``
-implements it for executable bundles.
+implement it cannot run a task or be probed. Each task routed to it fails with
+a message naming the method to implement, and its artifacts have no answer, so
+a stub task that no other artifact registers fails to import.
+``ExecutableCoordinator`` implements it for executable bundles.
 
 SubprocessCoordinator: implementing ``_read_task_handler_candidate``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -155,7 +156,8 @@ SubprocessCoordinator: implementing ``_read_task_handler_candidate``
 The Dag processor finds the artifacts to ask by walking the coordinator's Dag
 bundle in a stable order. It calls this method once for every regular file,
 except one it already listed under another path through a symlink, and keeps
-the candidates it returns:
+the candidates it returns. A worker calls it once for the file a task is about
+to run:
 
 .. code-block:: python
 
@@ -176,12 +178,16 @@ on every parse.
 
 Set ``error`` on an artifact of yours that cannot be asked, for example a file
 that is not executable. The Dag processor logs it and does not run it, and names
-it in the import error of a stub task that finds no task handler.
+it in the import error of a stub task that finds no task handler. A worker runs
+a file only if this method returns a candidate with no ``error``. A file that
+is not one of your artifacts, such as the Python file of a stub task that no
+artifact was bound to, fails the task with a message that says so, and so does
+an artifact with an ``error``.
 
 The default raises ``NotImplementedError``, so a coordinator that does not
-implement it cannot be probed. The Dag processor then reports the stub tasks
-routed to the coordinator as an import error of their Dag file, since they
-cannot be bound to an artifact.
+implement it cannot be probed or run a task. The Dag processor then reports the
+stub tasks routed to the coordinator as an import error of their Dag file,
+since they cannot be bound to an artifact.
 
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~

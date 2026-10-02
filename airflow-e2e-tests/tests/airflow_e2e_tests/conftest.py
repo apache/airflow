@@ -408,8 +408,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     # fetch it.
     #
     # The Gradle `bundle` task is a Copy that never prunes its destination, so
-    # JARs from an earlier build linger. A stale dependency JAR with its own
-    # Main-Class would make JavaCoordinator's Main-Class discovery ambiguous, so
+    # JARs from an earlier build linger. A stale handler JAR would register the
+    # same task handlers as the current one and stay on the classpath, so
     # start each bundle from an empty directory.
     rmtree(JAVA_SDK_EXAMPLE_LIBS_PATH, ignore_errors=True)
     rmtree(SCALA_SPARK_EXAMPLE_LIBS_PATH, ignore_errors=True)
@@ -478,9 +478,9 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
 
     # One JavaCoordinator per queue on the same worker image, each serving its
     # own artifact bundle (one bundle is one classpath). The scala-jdk entry pins
-    # main_class (Spark's large classpath makes Main-Class discovery ambiguous)
-    # and carries Spark's Java 17 module openings, a small driver heap, and a
-    # longer startup timeout for its large dependency classpath.
+    # main_class, which runs for its tasks and for the probe alike, and carries
+    # Spark's Java 17 module openings, a small driver heap, and a longer startup
+    # timeout for its large dependency classpath.
     dag_bundle_config = _build_dag_bundle_config(
         {
             "java-task-handlers": "/opt/airflow/java-jars",
@@ -654,7 +654,8 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
 
     # Coordinator registry: maps the logical name "go-sdk" to ExecutableCoordinator,
-    # which scans the go-task-handlers Dag bundle for the packed bundle by dag_id.
+    # which runs the packed bundle in the go-task-handlers Dag bundle that the Dag
+    # processor bound each stub task to.
     # Queue mapping: routes tasks on the "golang" queue to "go-sdk".
     dag_bundle_config = _build_dag_bundle_config({"go-task-handlers": "/opt/airflow/go-bundles"})
     coordinator_config = json.dumps(
@@ -754,7 +755,7 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     # version from the metadata airflow-ts-pack embedded in the bundle.
     ts_bundles_dir = tmp_dir / "ts-bundles"
     ts_bundles_dir.mkdir()
-    # Deliberately renamed: the coordinator routes on embedded metadata, not on a fixed name.
+    # Deliberately renamed: the coordinator runs the bundle a task is bound to, whatever its name.
     copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
 
     # Both of the example bundle's Dags: one bundle.mjs provides for two dag_ids,

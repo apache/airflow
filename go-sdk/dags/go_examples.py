@@ -33,8 +33,8 @@ run exercises XCom across the language boundary, the same way
 * ``python_task_1`` (Python) pushes an XCom.
 * ``extract`` / ``transform`` / ``load`` are ``@task.stub(queue="golang")`` tasks
   whose implementations live in the compiled Go bundle. The ``golang`` queue is
-  routed to the ``ExecutableCoordinator``, which locates the bundle by dag_id and
-  runs the binary in coordinator mode. ``extract`` returns a map (pushed as its
+  routed to the ``ExecutableCoordinator``, which runs the bundle the Dag processor
+  bound each task to, in coordinator mode. ``extract`` returns a map (pushed as its
   ``return_value`` XCom); ``transform`` reads the ``my_variable`` variable.
 * ``transform`` is called TaskFlow-style -- ``transform("uk", extract())`` -- so
   the stub captures a positional-argument spec (a literal plus an XCom
@@ -47,10 +47,10 @@ run exercises XCom across the language boundary, the same way
 * ``python_task_2`` (Python) pulls the Go ``extract`` task's XCom and re-emits
   it, demonstrating the Go -> Python direction end-to-end.
 
-The dag_id and the Go task ids MUST match the identities the Go bundle exposes
-via ``--airflow-metadata`` so the coordinator's bundle scanner can locate the
-binary by dag_id and look up each task by id. The Python task ids run on the
-default Python executor and are independent of the bundle.
+The dag_id and the Go task ids MUST match the task handlers the Go bundle
+registers: the Dag processor asks the bundle for them and binds each stub task
+to it, and the Go runtime looks up each task by id. The Python task ids run on
+the default Python executor and are independent of the bundle.
 """
 
 from __future__ import annotations

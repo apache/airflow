@@ -20,10 +20,11 @@
 # The Go bundle compiled by airflow-go-pack (conftest._setup_go_sdk_integration)
 # is a self-contained, statically linked executable, so the stock Airflow image
 # can exec it directly -- no extra runtime needs to be installed. We only
-# bind-mount the bundle into the directory the ExecutableCoordinator scans, on
-# the worker and the Dag processor, and point the worker at the "golang" queue
-# where @task.stub tasks are routed. The Dag processor runs the bundle to check
-# the stub tasks of go_examples.py against the task handlers it registers.
+# bind-mount the bundle into the Dag bundle directory the ExecutableCoordinator
+# reads, on the worker and the Dag processor, and point the worker at the
+# "golang" queue where @task.stub tasks are routed. The Dag processor runs the
+# bundle to check the stub tasks of go_examples.py against the task handlers it
+# registers.
 ---
 services:
   airflow-dag-processor:

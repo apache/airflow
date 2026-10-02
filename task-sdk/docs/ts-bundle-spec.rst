@@ -24,8 +24,9 @@ This document specifies the bundle format produced by ``airflow-ts-pack`` and co
 Artifact Name
 -------------
 
-A bundle's name must end in ``.min.mjs``. Nothing else about it is significant: the coordinator searches its Dag
-bundle recursively and routes on embedded metadata, so one Dag bundle may hold several differently named bundles.
+A bundle's name must end in ``.min.mjs``. Nothing else about it is significant: the Dag processor lists the files of
+its Dag bundle recursively by that suffix and the layout line, and a task runs the one bundle it is bound to, so one
+Dag bundle may hold several differently named bundles.
 ``airflow-ts-pack`` writes ``bundle.min.mjs`` by default and accepts ``--outfile`` for any other name ending in
 that suffix.
 
@@ -149,23 +150,25 @@ separators (U+2028 and U+2029), keeping it in one newline-terminated JavaScript 
 layer. The SHA-256 digest detects changes to the exact serialized bytes.
 
 ``task_handlers`` is keyed by Dag ID and lists the task IDs the bundle handles for each. It is named for what a
-TypeScript bundle actually provides: handlers for Dags declared elsewhere, not Dag definitions of its own. The
-coordinator uses its keys to choose a bundle for a task instance.
+TypeScript bundle actually provides: handlers for Dags declared elsewhere, not Dag definitions of its own. No
+coordinator reads it to find a bundle: the Dag processor lists bundles by suffix and layout line, and a task runs the
+bundle it is bound to.
 
 The metadata ``source`` value is the logical authoring name displayed for the Dag, a filename rather than content.
 The source region named in the layout header is what carries the content. The two are separate fields in separate
 documents, and neither is used to execute the bundle.
 
-Reader and Selection Algorithm
-------------------------------
+Reader Algorithm
+----------------
 
-For each candidate in the Dag bundle named by ``task_handler_bundle_name`` (or, when it is unset, the task's own Dag
-bundle), the coordinator:
+The Dag processor lists the candidates in the Dag bundle named by ``task_handler_bundle_name`` (or, when it is unset,
+the task's own Dag bundle): the files whose name ends in ``.min.mjs`` and whose first line is a layout line, found by
+walking the Dag bundle recursively, each directory's entries in sorted order, so the listing does not depend on the
+order a filesystem returns entries in. Directories are deduplicated by ``(st_dev, st_ino)``, so a symlink loop
+terminates the walk instead of exhausting the interpreter stack. A task reads no candidate but the bundle it is bound
+to (or, for a Dag defined in TypeScript, its own Dag file). To run a bundle, the coordinator:
 
-1. Opens it once. Candidates are the files whose name ends in ``.min.mjs``, found by walking the Dag bundle
-   recursively, each directory's entries in sorted order, so selection does not depend on the order a filesystem
-   returns entries in. Directories are deduplicated by ``(st_dev, st_ino)``, so a symlink loop
-   terminates the walk instead of exhausting the interpreter stack.
+1. Opens it once.
 2. Reads a bounded first line and decodes the named metadata and code ranges.
 3. Reads the bounded metadata line and checks that the declared metadata range matches its physical location.
 4. Reads the bounded source region, checks that its prescribed opener and closer frame the declared range, rejects an
@@ -174,19 +177,15 @@ bundle), the coordinator:
 6. Confirms with ``fstat`` that the open file did not change during verification.
 7. Parses metadata and requires a supported bundle contract major version from
    ``airflow_bundle_metadata_version``.
-8. Skips the verified bundle if its ``task_handlers`` mapping does not contain the requested ``dag_id``.
-9. Resolves the supervisor schema version and selects the first usable match.
+8. Resolves the supervisor schema version.
 
-A missing, unrelated, unreadable, malformed, corrupt, or incompatible earlier candidate does not prevent selection
-of a later usable match. When more than one usable bundle declares the same Dag, the first match in walk order wins.
-If none matches, the error identifies the requested Dag, the searched directory, and rejected candidates.
+A bundle that is missing, unreadable, malformed, corrupt, or incompatible fails the task bound to it, and the error
+names the bundle and the reason. The metadata is not searched for a Dag id, and a ``task_handlers`` mapping is not
+read.
 
-Every ``.min.mjs`` file in the Dag bundle is therefore opened, and one that is not a usable bundle is named among
-those rejected candidates. That Dag bundle holds deployed Airflow bundles, so unrelated minified modules do not belong
-there.
-
-The coordinator does not cache Dag-to-path routing. It checks the current deployed files for each task selection. It may reuse section digests from a bounded process-local cache when the open file identity,
-timestamps, size, layout ranges, and declared digests have not changed.
+The coordinator checks the current deployed file for each task. It may reuse section digests from a bounded
+process-local cache when the open file identity, timestamps, size, layout ranges, and declared digests have not
+changed.
 
 Integrity, Authenticity, and Provenance
 ---------------------------------------
