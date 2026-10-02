@@ -524,10 +524,13 @@ Deploying
 ~~~~~~~~~
 
 Copy or mount the bundle into the Dag bundle named by the coordinator's ``task_handler_bundle_name``.
+For a task of a Python stub Dag,
 :class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches that Dag bundle recursively and launches the
 first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task instance's Dag. The artifact's
 name does not matter beyond that suffix, so one Dag bundle can hold several bundles and a Dag is routed to
 whichever declares it. If multiple bundles declare the same Dag, the first in sorted path order wins.
+A task of a native TypeScript Dag runs the bundle its Dag was parsed from, see
+:ref:`typescript-sdk/native-parsing`.
 
 .. _typescript-sdk/native-parsing:
 
@@ -564,6 +567,9 @@ fails to parse with an import error:
 
 A Dag bundle that holds only the bundles that Python stub Dags' tasks run should list ``*`` in its ``.airflowignore``.
 Otherwise, with several Node coordinators, its bundles fail to parse.
+
+A task of a native Dag runs the bundle file its Dag was parsed from.
+A task of a Python stub Dag runs the first bundle, in sorted path order, that declares its Dag.
 
 The Dag processor parses only files that end in ``.min.mjs`` and start with the header ``airflow-ts-pack`` writes.
 A bundle that fails its integrity check, or whose Dags cannot be serialized or fail validation,
