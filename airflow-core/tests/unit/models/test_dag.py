@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 import os
 import pickle
@@ -43,6 +44,8 @@ from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.exceptions import AirflowException, DagNotPartitionedError, InvalidPartitionKeyError
+from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads import BundleInfo, TaskHandlerArtifactRef
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -64,6 +67,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.hitl import HITLDetail
+from airflow.models.lang_sdk_task_handler import LangSDKTaskHandler, LangSDKTaskHandlerArtifact
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -88,6 +92,7 @@ from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.exceptions import TaskAwaitingInput
+from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import coerce_to_core_timetable
@@ -117,6 +122,7 @@ from tests_common.test_utils.db import (
     clear_db_teams,
 )
 from tests_common.test_utils.mapping import expand_mapped_task
+from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from tests_common.test_utils.taskinstance import run_task_instance
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
@@ -1965,6 +1971,72 @@ class TestDag:
         mock_handle_object_2.assert_called_with("dag test_local_testing_conn_file run failed...")
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
+
+    @pytest.fixture
+    def clear_task_handler_rows(self):
+        yield
+        with create_session() as session:
+            session.execute(delete(LangSDKTaskHandler))
+            session.execute(delete(LangSDKTaskHandlerArtifact))
+
+    @pytest.mark.usefixtures("clear_task_handler_rows")
+    @mock.patch.object(ExecutorLoader, "get_default_executor", autospec=True)
+    def test_dag_test_with_executor_sends_the_artifact_a_stub_task_is_bound_to(
+        self, mock_get_default_executor, testing_dag_bundle, configure_dag_bundles, tmp_path, session
+    ):
+        dag = DAG(dag_id="test_dag_test_task_handler_artifact", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+
+            @task_decorator.stub(queue="golang")
+            def load(): ...
+
+            load()
+        sync_dag_to_db(dag)
+        artifact = LangSDKTaskHandlerArtifact(
+            bundle_name="go-task-handlers",
+            relative_fileloc="bin/etl",
+            size_bytes=1024,
+            cache_digest=None,
+            task_handlers={},
+        )
+        session.add(artifact)
+        session.flush()
+        session.add(
+            LangSDKTaskHandler(
+                dag_id=dag.dag_id,
+                task_id="load",
+                artifact_id=artifact.id,
+                dag_bundle_name="testing",
+                dag_relative_fileloc="etl.py",
+            )
+        )
+        session.commit()
+        coordinator = {
+            "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+            "kwargs": {"task_handler_bundle_name": "go-task-handlers"},
+        }
+        sdk_config = {
+            ("sdk", "coordinators"): json.dumps({"go": coordinator}),
+            ("sdk", "queue_to_coordinator"): json.dumps({"golang": "go"}),
+        }
+        executor = MockExecutor()
+        mock_get_default_executor.return_value = executor
+
+        reset_coordinator_manager()
+        try:
+            with (
+                configure_dag_bundles({"testing": tmp_path, "go-task-handlers": tmp_path}),
+                conf_vars(sdk_config),
+            ):
+                dag.test(use_executor=True)
+        finally:
+            reset_coordinator_manager()
+
+        (workload,) = (workload for batch in executor.history for workload in batch)
+        assert workload.task_handler_artifact == TaskHandlerArtifactRef(
+            bundle_info=BundleInfo(name="go-task-handlers"), rel_path="bin/etl"
+        )
+        assert workload.bundle_info == BundleInfo(name="dags-folder")
 
     @staticmethod
     def _make_awaiting_input_dag(dag_id, resume_calls):
