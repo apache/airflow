@@ -237,9 +237,12 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
         Sort children topologically — a task always comes after its upstream dependencies.
 
         See ``TaskGroup.topological_sort`` in task-sdk for the algorithm. Cycles are
-        treated as corrupt input: ``DAG.check_cycle`` rejects cyclic Dags before
-        serialization, so a cycle reaching this code indicates malformed serialized data,
-        and we raise ``ValueError`` rather than silently looping forever.
+        treated as corrupt input: a Python Dag's cycle is rejected by ``DAG.check_cycle``
+        before serialization, and a Lang-SDK Dag's cycle is rejected by
+        ``DagSerialization.validate_serialized_dag`` when the Dag processor receives it
+        (both call the shared ``detect_cycle``). A cycle reaching this code indicates
+        malformed serialized data, and we raise ``ValueError`` rather than silently
+        looping forever.
         """
         children = self.children
         if not children:
