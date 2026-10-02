@@ -39,7 +39,6 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk import DAG
-    from airflow.serialization.definitions.dag import SerializedLangSDKDAG  # noqa: SDK002
 
 log = logging.getLogger(__name__)
 
@@ -189,7 +188,7 @@ class DagImportResult:
     """Result of importing DAGs from a definition."""
 
     definition: DagDefinition | None = None
-    dags: list[DAG | SerializedLangSDKDAG] = field(default_factory=list)
+    dags: list[DAG] = field(default_factory=list)
     errors: list[DagImportError] = field(default_factory=list)
     skipped_definitions: list[DagDefinition] = field(default_factory=list)
     warnings: list[DagImportWarning] = field(default_factory=list)
