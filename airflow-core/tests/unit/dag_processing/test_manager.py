@@ -317,6 +317,18 @@ class LateResolvingBundle(BaseDagBundle):
         pass
 
 
+def _found_files(*rel_paths: str):
+    """Stand in for ``_find_files_in_bundle``, listing *rel_paths* in the bundle."""
+
+    def find(manager, bundle):
+        return {
+            DagFileInfo(rel_path=Path(rel_path), bundle_name=bundle.name, bundle_path=bundle.path)
+            for rel_path in rel_paths
+        }
+
+    return find
+
+
 class TestDagFileProcessorManager:
     @pytest.fixture(autouse=True)
     def _disable_examples(self):
@@ -1754,7 +1766,10 @@ class TestDagFileProcessorManager:
 
     @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
     @mock.patch.object(
-        DagFileProcessorManager, "_find_files_in_bundle", autospec=True, return_value=[Path("good.native")]
+        DagFileProcessorManager,
+        "_find_files_in_bundle",
+        autospec=True,
+        side_effect=_found_files("good.native"),
     )
     def test_coordinator_files_are_persisted(
         self, mock_find_files, mock_parse_dag, tmp_path, configure_testing_dag_bundle
@@ -1788,7 +1803,7 @@ class TestDagFileProcessorManager:
         DagFileProcessorManager,
         "_find_files_in_bundle",
         autospec=True,
-        return_value=[Path("garbage.native"), Path("python_dag.py")],
+        side_effect=_found_files("garbage.native", "python_dag.py"),
     )
     def test_an_invalid_frame_does_not_stop_other_files_parsing(
         self, mock_find_files, mock_parse_dag, tmp_path, configure_testing_dag_bundle
@@ -1821,7 +1836,10 @@ class TestDagFileProcessorManager:
     @mock.patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
     @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
     @mock.patch.object(
-        DagFileProcessorManager, "_find_files_in_bundle", autospec=True, return_value=[Path("slow.native")]
+        DagFileProcessorManager,
+        "_find_files_in_bundle",
+        autospec=True,
+        side_effect=_found_files("slow.native"),
     )
     def test_a_coordinator_file_past_the_import_timeout_is_an_import_error(
         self, mock_find_files, mock_parse_dag, mock_timeout, tmp_path, configure_testing_dag_bundle
@@ -1848,7 +1866,7 @@ class TestDagFileProcessorManager:
         DagFileProcessorManager,
         "_find_files_in_bundle",
         autospec=True,
-        return_value=[Path("broken.native"), Path("python_dag.py")],
+        side_effect=_found_files("broken.native", "python_dag.py"),
     )
     def test_a_failing_import_timeout_policy_fails_only_its_file(
         self, mock_find_files, mock_timeout, tmp_path, configure_testing_dag_bundle
