@@ -585,7 +585,8 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     parse request.
     """
 
-    logger_filehandle: BinaryIO
+    logger_filehandle: BinaryIO | None = None
+    """The file's parse log, which the process closes. A Dag bag parses without one."""
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
@@ -689,6 +690,8 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
 
     def close(self):
         self.cleanup_sockets_after_kill()
+        if self.logger_filehandle is None:
+            return
         try:
             self.logger_filehandle.close()
         except OSError:
@@ -710,6 +713,9 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
     we can use the Task SDK definitions when serializing. This prevents potential conflicts with classes
     in core Airflow.
     """
+
+    logger_filehandle: BinaryIO
+    client: Client
 
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
         **BaseDagFileProcessorProcess._common_request_handlers,
