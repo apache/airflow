@@ -48,6 +48,7 @@ from uuid6 import uuid7
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
@@ -792,6 +793,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _add_callback_to_queue(self, request: CallbackRequest) -> None:
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+        if get_claiming_coordinator(request.filepath, request.bundle_name) is not None:
+            self._log_dropped_lang_sdk_callback(request)
+            return
         bundle = self.prepare_callback_bundle(request)
         if bundle is None:
             return
@@ -806,6 +810,19 @@ class DagFileProcessorManager(LoggingMixin):
         self._add_files_to_queue([file_info], mode="front")
         team_name = self._get_team_name(file_info.bundle_name)
         stats.incr("dag_processing.other_callback_count", tags=prune_dict({"team_name": team_name}))
+
+    def _log_dropped_lang_sdk_callback(self, request: CallbackRequest) -> None:
+        if isinstance(request, DagCallbackRequest):
+            target = f"dag_id={request.dag_id} run_id={request.run_id}"
+        else:
+            ti = request.ti
+            target = f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
+        self.log.warning(
+            "Dropping %s for %s (%s): Lang-SDK runtimes do not run callbacks",
+            type(request).__name__,
+            request.filepath,
+            target,
+        )
 
     @provide_session
     def get_bundle_state(self, bundle_name: str, *, session: Session = NEW_SESSION) -> BundleState | None:
@@ -1469,12 +1486,6 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
         if get_claiming_coordinator(dag_file.absolute_path, dag_file.bundle_name) is not None:
-            if callback_to_execute_for_file:
-                self.log.warning(
-                    "Dropping %d callbacks for %s: Lang-SDK runtimes do not run callbacks",
-                    len(callback_to_execute_for_file),
-                    dag_file.rel_path,
-                )
             return LangSDKDagFileProcessorProcess.start(**kwargs)
 
         return DagFileProcessorProcess.start(callbacks=callback_to_execute_for_file, **kwargs)
