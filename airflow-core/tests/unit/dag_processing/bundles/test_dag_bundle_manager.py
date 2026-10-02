@@ -181,6 +181,24 @@ def test_get_configured_bundle_team_names_without_config():
     assert _get_configured_bundle_team_names() == {}
 
 
+@conf_vars(
+    {
+        ("core", "multi_team"): "True",
+        ("dag_processor", "dag_bundle_config_list"): json.dumps(
+            [*TEAM_BUNDLE_CONFIG, {**TEAM_BUNDLE_CONFIG[1], "name": "empty-team-bundle", "team_name": ""}]
+        ),
+    }
+)
+def test_get_bundle_team_name():
+    bundle_manager = DagBundlesManager()
+
+    assert bundle_manager.get_bundle_team_name("team-bundle") == "team-a"
+    assert bundle_manager.get_bundle_team_name("unscoped-bundle") is None
+    assert bundle_manager.get_bundle_team_name("empty-team-bundle") is None
+    with pytest.raises(ValueError, match="'other-test-bundle' is not configured"):
+        bundle_manager.get_bundle_team_name("other-test-bundle")
+
+
 def test_get_bundle():
     """Test that get_bundle builds and returns a bundle."""
     with patch.dict(
