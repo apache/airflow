@@ -444,8 +444,9 @@ class SubprocessCoordinator(BaseCoordinator):
     :param task_handler_bundle_name: Name of the Dag bundle that holds the compiled
         task handlers. It must be registered in ``[dag_processor] dag_bundle_config_list``.
         If unset, the task's own Dag bundle is used. A named bundle resolves to the
-        version current when the task starts; the task's own bundle uses the run's
-        version. Either way the resolved version is pinned for the whole task.
+        version current when the task starts, unless it is the task's own Dag bundle,
+        which uses the run's version. Either way the resolved version is pinned for
+        the whole task.
     """
 
     task_startup_timeout: float = 10.0
@@ -463,11 +464,9 @@ class SubprocessCoordinator(BaseCoordinator):
         bundle when it is unset. *logger* is the task logger, so materialization
         failures surface in the task log.
         """
-        if self.task_handler_bundle_name is None:
-            target = bundle_info
-        else:
+        target = bundle_info
+        if self.task_handler_bundle_name is not None and self.task_handler_bundle_name != bundle_info.name:
             target = BundleInfo(name=self.task_handler_bundle_name)
-
         bundle = _initialize_pinned_bundle(target, logger)
         path = bundle.path
         if not path.exists():

@@ -933,6 +933,16 @@ class TestResolveArtifactBundle:
         mock_initialize.assert_called_once_with(bundle_info)
 
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    def test_named_task_bundle_uses_the_run_version(self, mock_initialize, tmp_path):
+        resolved = _make_bundle(tmp_path, version="v3")
+        mock_initialize.return_value = resolved
+        coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="dags")
+        bundle_info = BundleInfo(name="dags", version="v3")
+
+        assert coordinator._resolve_artifact_bundle(bundle_info, log) is resolved
+        mock_initialize.assert_called_once_with(bundle_info)
+
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
     def test_version_less_bundle_is_rematerialized_at_its_current_version(self, mock_initialize, tmp_path):
         """A bundle resolved without a version is re-resolved at the version current now.
 
@@ -951,7 +961,7 @@ class TestResolveArtifactBundle:
 
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
 
-        assert coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log) is pinned
+        assert coordinator._resolve_artifact_bundle(BundleInfo(name="dags"), log) is pinned
         assert mock_initialize.call_args_list == [
             call(BundleInfo(name="artifacts")),
             call(BundleInfo(name="artifacts", version="sha-abc", version_data={"k": "v"})),
@@ -965,7 +975,7 @@ class TestResolveArtifactBundle:
 
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
 
-        assert coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log) is resolved
+        assert coordinator._resolve_artifact_bundle(BundleInfo(name="dags"), log) is resolved
         mock_initialize.assert_called_once_with(BundleInfo(name="artifacts"))
 
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
@@ -974,7 +984,7 @@ class TestResolveArtifactBundle:
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
 
         with pytest.raises(FileNotFoundError, match="does not exist"):
-            coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log)
+            coordinator._resolve_artifact_bundle(BundleInfo(name="dags"), log)
 
 
 class TestExecuteTaskBundleWiring:
