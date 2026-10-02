@@ -583,16 +583,18 @@ class TestResourceTracker:
 class _StubSubprocessCoordinator(SubprocessCoordinator):
     """Minimal SubprocessCoordinator subclass used to exercise the base machinery.
 
-    Roots handed to the command builder are recorded in ``recorded_roots`` so
-    wiring can be asserted.
+    Roots and Dag files handed to the command builder are recorded in ``recorded_roots``
+    and ``recorded_dag_files`` so wiring can be asserted.
     """
 
     command: list[str]
     schema_version: str | None = None
     recorded_roots: list[list[pathlib.Path]] = attrs.field(init=False, factory=list)
+    recorded_dag_files: list[pathlib.Path | None] = attrs.field(init=False, factory=list)
 
-    def _build_execute_task_command(self, *, what):
+    def _build_execute_task_command(self, *, what, dag_file=None):
         self.recorded_roots.append(list(self._get_scan_roots()))
+        self.recorded_dag_files.append(dag_file)
         return list(self.command), self.schema_version
 
 
@@ -1012,6 +1014,7 @@ class TestExecuteTaskBundleWiring:
 
         mock_initialize.assert_called_once_with(bundle_info)
         assert coordinator.recorded_roots == [[tmp_path]]
+        assert coordinator.recorded_dag_files == [tmp_path / "dag.py"]
         mock_lock.assert_called_once_with(bundle_name="dags", bundle_version="v9")
         mock_lock.return_value.__enter__.assert_called_once()
         mock_lock.return_value.__exit__.assert_called_once()
@@ -1043,7 +1046,29 @@ class TestExecuteTaskBundleWiring:
         )
 
         assert coordinator.recorded_roots == [[pinned_tree]]
+        assert coordinator.recorded_dag_files == [None]
         mock_lock.assert_called_once_with(bundle_name="artifacts", bundle_version="sha-abc")
+
+    @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
+    def test_named_task_bundle_passes_the_dag_file(
+        self, mock_start, mock_initialize, mock_lock, mock_client, tmp_path
+    ):
+        mock_initialize.return_value = _make_bundle(tmp_path, version="v9")
+        mock_start.return_value.wait.return_value = 0
+
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"], task_handler_bundle_name="dags")
+
+        coordinator.execute_task(
+            what=_make_ti(),
+            dag_rel_path="sub/dag.jar",
+            bundle_info=BundleInfo(name="dags", version="v9"),
+            client=mock_client,
+            subprocess_logs_to_stdout=False,
+        )
+
+        assert coordinator.recorded_dag_files == [tmp_path / "sub" / "dag.jar"]
 
 
 class TestGetScanRoots:
