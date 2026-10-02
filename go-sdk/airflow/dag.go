@@ -281,7 +281,8 @@ func (d *DagRef) addTask(method string, fn any, opts []TaskOption, ifRef *IfRef)
 	d.tasksByID[taskID] = task
 	d.tasks = append(d.tasks, task)
 	// Inputs passes a task once per parameter it fills, so the same task can arrive twice. The
-	// edge is one either way.
+	// edge is one either way. The task is new, so every edge to it is too: it carries no label
+	// to settle, and nothing downstream of it for an edge to close a cycle through.
 	for _, upstream := range upstreams {
 		d.addEdgeLocked(upstream, task, "", "airflow.DagRef.Task")
 	}

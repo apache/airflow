@@ -75,9 +75,9 @@ func (s nodeSet) unlabelled() nodeSet {
 	return plain
 }
 
-func (s nodeSet) Before(nodes ...Node) Node { return declareEdges(s, nodes, "Before") }
+func (s nodeSet) Before(nodes ...Node) Node { return declareEdges(s, nodes, dirBefore) }
 
-func (s nodeSet) After(nodes ...Node) Node { return declareEdges(s, nodes, "After") }
+func (s nodeSet) After(nodes ...Node) Node { return declareEdges(s, nodes, dirAfter) }
 
 func (*TaskRef) node() {}
 
@@ -120,7 +120,7 @@ func endpoints(where string, node Node) []nodeEndpoint {
 // Every check but the cycle runs before the call records any edge, so a fan-out that panics for
 // one of them leaves the Dag as it was. Whether an edge closes a cycle depends on the edges
 // recorded before it, so a cycle panic can leave the earlier edges of the same call behind.
-func (t *TaskRef) Before(nodes ...Node) Node { return declareEdges(t, nodes, "Before") }
+func (t *TaskRef) Before(nodes ...Node) Node { return declareEdges(t, nodes, dirBefore) }
 
 // After makes the task a downstream task of every node, which is Python's cleanup << extracted:
 //
@@ -129,7 +129,7 @@ func (t *TaskRef) Before(nodes ...Node) Node { return declareEdges(t, nodes, "Be
 // It is Before with the direction reversed, and it panics for the same reasons. Like Before, it
 // returns the nodes it was given as one Node, so cleaned.After(extracted).After(started) is
 // cleanup << extract << start.
-func (t *TaskRef) After(nodes ...Node) Node { return declareEdges(t, nodes, "After") }
+func (t *TaskRef) After(nodes ...Node) Node { return declareEdges(t, nodes, dirAfter) }
 
 // Label puts text on the edge that an edge verb declares to node, as Python's
 // loaded >> Label("when empty") >> notify_empty does:
@@ -168,10 +168,42 @@ func Label(node Node, text string) Node {
 // edgeKey identifies an edge of a Dag. The task_ids of a Dag are unique, so they name the ends.
 type edgeKey struct{ upstream, downstream string }
 
+// edgeDir is which way an edge verb points: [TaskRef.Before] from its receiver, and
+// [TaskRef.After] at it.
+type edgeDir int
+
+const (
+	dirBefore edgeDir = iota
+	dirAfter
+)
+
+func (dir edgeDir) String() string {
+	if dir == dirAfter {
+		return "After"
+	}
+	return "Before"
+}
+
+// order returns the two ends of the edge between an endpoint of the receiver and one of the nodes
+// the verb was given.
+func (dir edgeDir) order(recv, arg *TaskRef) (upstream, downstream *TaskRef) {
+	if dir == dirAfter {
+		return arg, recv
+	}
+	return recv, arg
+}
+
+// pendingEdge is an edge that declareEdges has checked and is about to record.
+type pendingEdge struct {
+	upstream, downstream *TaskRef
+	key                  edgeKey
+	label                string
+}
+
 // declareEdges records an edge from every endpoint of receiver to every node it was given, or
 // the other way round for After, and returns those nodes as one Node.
-func declareEdges(receiver Node, nodes []Node, verb string) Node {
-	where := "airflow.Node." + verb
+func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
+	where := "airflow.Node." + dir.String()
 	args := make(nodeSet, 0, len(nodes))
 	for i, node := range nodes {
 		if node == nil {
@@ -180,13 +212,12 @@ func declareEdges(receiver Node, nodes []Node, verb string) Node {
 		args = append(args, endpoints(fmt.Sprintf("%s: nodes[%d]", where, i), node)...)
 	}
 	ends := endpoints(where+": the receiver", receiver)
-	// A verb with no node to point at, which a spread of an empty slice reaches, declares no
-	// edge. So does one on the empty set that such a verb returned.
-	if len(ends) == 0 || len(args) == 0 {
-		return args.unlabelled()
+	all := slices.Concat(ends, args)
+	if len(all) == 0 {
+		return nodeSet(nil)
 	}
 
-	dag := edgeDag(where, ends, args)
+	dag := edgeDag(where, all)
 
 	dag.mu.Lock()
 	defer dag.mu.Unlock()
@@ -197,7 +228,7 @@ func declareEdges(receiver Node, nodes []Node, verb string) Node {
 			where, dag.dagID,
 		))
 	}
-	for _, endpoint := range slices.Concat(ends, args) {
+	for _, endpoint := range all {
 		// A zero TaskRef and a copy of a TaskRef get here.
 		if dag.tasksByID[endpoint.task.taskID] != endpoint.task {
 			panic(fmt.Sprintf(
@@ -206,56 +237,70 @@ func declareEdges(receiver Node, nodes []Node, verb string) Node {
 			))
 		}
 	}
-	// Check every pair the call declares before it records any of them, the way DagRef.Task
-	// settles every check before it writes the task. A cycle is the one exception: whether an
-	// edge closes one depends on the edges recorded before it, so addEdgeLocked raises that.
-	pending := make(map[edgeKey]string, len(ends)*len(args))
+	// A verb with no node to point at, which a spread of an empty slice reaches, declares no
+	// edge. So does one on the empty set that such a verb returned.
+	if len(ends) == 0 || len(args) == 0 {
+		return args.unlabelled()
+	}
+
+	// Check and merge every pair the call declares before it records any of them, the way
+	// DagRef.Task settles every check before it writes the task. A cycle is the one exception:
+	// whether an edge closes one depends on the edges recorded before it, so addEdgeLocked
+	// raises that as it records.
+	pending := make([]pendingEdge, 0, len(ends)*len(args))
+	at := make(map[edgeKey]int, len(ends)*len(args))
 	for _, end := range ends {
 		for _, arg := range args {
-			upstream, downstream := edgeEnds(end.task, arg.task, verb)
+			upstream, downstream := dir.order(end.task, arg.task)
 			if upstream == downstream {
-				panicSelfEdge(where, dag, upstream)
+				panic(fmt.Sprintf(
+					"%s: Dag %q: task %q cannot depend on itself",
+					where, dag.dagID, upstream.taskID,
+				))
 			}
 			key := edgeKey{upstream: upstream.taskID, downstream: downstream.taskID}
-			label, inCall := pending[key]
-			if !inCall {
-				label = dag.edgeLabels[key]
+			i, declared := at[key]
+			if !declared {
+				i = len(pending)
+				at[key] = i
+				pending = append(pending, pendingEdge{
+					upstream: upstream, downstream: downstream, key: key,
+					label: dag.edgeLabels[key],
+				})
 			}
-			switch {
-			case arg.label == "":
-			case label == "" || label == arg.label:
-				label = arg.label
-			default:
-				panicLabelConflict(where, dag, key, label, arg.label)
-			}
-			pending[key] = label
+			// The label belongs to the node the verb was given, in either direction.
+			pending[i].label = mergeLabel(where, dag, key, pending[i].label, arg.label)
 		}
 	}
-	for _, end := range ends {
-		for _, arg := range args {
-			upstream, downstream := edgeEnds(end.task, arg.task, verb)
-			// The label belongs to the node the verb was given, in either direction.
-			dag.addEdgeLocked(upstream, downstream, arg.label, where)
-		}
+	for _, edge := range pending {
+		dag.addEdgeLocked(edge.upstream, edge.downstream, edge.label, where)
 	}
 	return args.unlabelled()
 }
 
-// edgeEnds orders the two tasks an edge verb connects. Before points from its receiver, After
-// points at it.
-func edgeEnds(end, arg *TaskRef, verb string) (upstream, downstream *TaskRef) {
-	if verb == "After" {
-		return arg, end
+// mergeLabel returns the label an edge carries once label is declared on it. A declaration that
+// carries no label leaves the edge's own label alone, which is what makes redeclaring an edge
+// idempotent. Two labels on one edge are a contradiction rather than something to merge.
+func mergeLabel(where string, d *DagRef, edge edgeKey, declared, label string) string {
+	switch {
+	case label == "" || label == declared:
+		return declared
+	case declared == "":
+		return label
 	}
-	return end, arg
+	panic(fmt.Sprintf(
+		"%s: Dag %q: the edge from task %q to task %q cannot carry two labels, %q and %q; "+
+			"label an edge once",
+		where, d.dagID, edge.upstream, edge.downstream, declared, label,
+	))
 }
 
-// edgeDag returns the Dag that every endpoint of an edge belongs to. It panics unless each
-// endpoint is a task of that one Dag.
-func edgeDag(where string, endpoints ...[]nodeEndpoint) *DagRef {
+// edgeDag returns the Dag that every end of an edge belongs to. It panics unless each end is a
+// task of that one Dag.
+func edgeDag(where string, ends []nodeEndpoint) *DagRef {
 	var first *TaskRef
-	for _, endpoint := range slices.Concat(endpoints...) {
-		task := endpoint.task
+	for _, end := range ends {
+		task := end.task
 		switch {
 		case task == nil:
 			panic(fmt.Sprintf("%s: got a nil *airflow.TaskRef", where))
@@ -276,18 +321,16 @@ func edgeDag(where string, endpoints ...[]nodeEndpoint) *DagRef {
 	return first.dag
 }
 
-// addEdgeLocked records one edge of d, which the caller holds d.mu for. Declaring an edge that d
-// already has only applies the label, so an [Inputs] edge can be labelled by declaring it again.
+// addEdgeLocked records one edge of d, which the caller holds d.mu for. An edge d already has is
+// recorded once, and label is what it carries from here on, so a caller that declares an edge
+// again settles the label with [mergeLabel] first. The cycle is the one thing addEdgeLocked
+// checks, because whether an edge closes one depends on the edges already recorded.
 func (d *DagRef) addEdgeLocked(upstream, downstream *TaskRef, label, where string) {
-	if upstream == downstream {
-		panicSelfEdge(where, d, upstream)
-	}
 	if d.edgeLabels == nil {
 		d.edgeLabels = make(map[edgeKey]string)
 	}
 	key := edgeKey{upstream: upstream.taskID, downstream: downstream.taskID}
-	declared, exists := d.edgeLabels[key]
-	if !exists {
+	if _, exists := d.edgeLabels[key]; !exists {
 		if cycle := d.pathLocked(downstream, upstream); cycle != nil {
 			panic(fmt.Sprintf(
 				"%s: Dag %q: an edge from task %q to task %q would close a cycle: %s",
@@ -298,26 +341,7 @@ func (d *DagRef) addEdgeLocked(upstream, downstream *TaskRef, label, where strin
 		upstream.downstreams = append(upstream.downstreams, downstream)
 		downstream.upstreams = append(downstream.upstreams, upstream)
 	}
-	switch {
-	case label == "":
-		// Keep the label an earlier declaration of the edge put on it.
-		label = declared
-	case declared != "" && declared != label:
-		panicLabelConflict(where, d, key, declared, label)
-	}
 	d.edgeLabels[key] = label
-}
-
-func panicSelfEdge(where string, d *DagRef, task *TaskRef) {
-	panic(fmt.Sprintf("%s: Dag %q: task %q cannot depend on itself", where, d.dagID, task.taskID))
-}
-
-func panicLabelConflict(where string, d *DagRef, edge edgeKey, declared, label string) {
-	panic(fmt.Sprintf(
-		"%s: Dag %q: the edge from task %q to task %q is already labelled %q, "+
-			"so it cannot also be labelled %q; label an edge once",
-		where, d.dagID, edge.upstream, edge.downstream, declared, label,
-	))
 }
 
 // pathLocked returns the task_ids on a path from task from to task to, following the edges

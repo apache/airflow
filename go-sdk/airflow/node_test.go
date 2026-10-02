@@ -233,8 +233,8 @@ func TestEdgeRejectsASecondLabel(t *testing.T) {
 	loaded.Before(Label(cleaned, "always"))
 
 	assert.PanicsWithValue(t,
-		`airflow.Node.Before: Dag "etl": the edge from task "load" to task "cleanup" is already `+
-			`labelled "always", so it cannot also be labelled "when empty"; label an edge once`,
+		`airflow.Node.Before: Dag "etl": the edge from task "load" to task "cleanup" cannot `+
+			`carry two labels, "always" and "when empty"; label an edge once`,
 		func() { loaded.Before(Label(cleaned, "when empty")) },
 	)
 	assertEdgeLabel(t, dag, "load", "cleanup", "always")
@@ -359,9 +359,8 @@ func TestEdgeVerbsRecordNoEdgeWhenAPairIsRejected(t *testing.T) {
 		func() { loaded.Before(cleaned, loaded) },
 	)
 	assert.PanicsWithValue(t,
-		`airflow.Node.Before: Dag "etl": the edge from task "load" to task "cleanup" is already `+
-			`labelled "always", so it cannot also be labelled "when empty"`+
-			`; label an edge once`,
+		`airflow.Node.Before: Dag "etl": the edge from task "load" to task "cleanup" cannot `+
+			`carry two labels, "always" and "when empty"; label an edge once`,
 		func() { loaded.Before(Label(cleaned, "always"), Label(cleaned, "when empty")) },
 	)
 	assert.PanicsWithValue(t,
@@ -444,6 +443,31 @@ func TestEdgeVerbsWithNoNodeDeclareNoEdge(t *testing.T) {
 	assert.Empty(t, loaded.upstreams)
 	assert.Empty(t, cleaned.upstreams)
 	assert.Empty(t, dag.edgeLabels)
+}
+
+// TestEdgeVerbsCheckTheTasksEvenWithNoNode pins that a verb with no node to point at still checks
+// the tasks it was called on. It declares no edge, but a Dag that can no longer take one, or a
+// task the Dag never returned, is a mistake either way.
+func TestEdgeVerbsCheckTheTasksEvenWithNoNode(t *testing.T) {
+	dag := Dag("etl")
+	loaded := orderedTask(t, dag, "load")
+	var none []Node
+
+	assert.PanicsWithValue(t,
+		"airflow.Node.Before: got a *airflow.TaskRef that DagRef.Task did not return",
+		func() { (&TaskRef{}).Before(none...) },
+	)
+	assert.PanicsWithValue(t,
+		"airflow.Node.After: got a nil *airflow.TaskRef",
+		func() { (*TaskRef)(nil).After(none...) },
+	)
+
+	Bundle().Register(dag)
+	assert.PanicsWithValue(t,
+		`airflow.Node.Before: Dag "etl" has already been registered; `+
+			`declare every edge before Register`,
+		func() { loaded.Before(none...) },
+	)
 }
 
 func TestEdgeVerbsAreSafeForConcurrentUse(t *testing.T) {
