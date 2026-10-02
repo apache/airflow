@@ -55,13 +55,13 @@ PIP package                                 Version required
 ==========================================  ===================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``adlfs``                                   ``>=2023.10.0``
+``adlfs``                                   ``>=2026.5.0``
 ``aiohttp``                                 ``>=3.14.0``
 ``azure-batch``                             ``>=15.0.0``
 ``azure-ai-projects``                       ``>=2.2.0``
 ``azure-cosmos``                            ``>=4.15.0``
 ``azure-mgmt-cosmosdb``                     ``>=9.9.0``
-``azure-datalake-store``                    ``>=0.0.45``
+``azure-datalake-store``                    ``>=1.0.1``
 ``azure-identity``                          ``>=1.25.3``
 ``azure-keyvault-secrets``                  ``>=4.10.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``

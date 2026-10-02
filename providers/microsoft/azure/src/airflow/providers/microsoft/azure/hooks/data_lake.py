@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import Any, cast
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
-from azure.datalake.store import core, lib, multithread
+from azure.datalake.store import core, multithread
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.storage.filedatalake import (
     DataLakeDirectoryClient,
@@ -34,17 +34,12 @@ from azure.storage.filedatalake import (
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
-    AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
 
-Credentials = ClientSecretCredential | AzureIdentityCredentialAdapter | DefaultAzureCredential
-
-# azure-datalake-store 1.x removed lib.auth and takes an azure-core TokenCredential; 0.0.x needs a
-# credential with signed_session(). Drop the 0.0.x branches once the floor reaches 1.
-_ADL_TAKES_TOKEN_CREDENTIAL = not hasattr(lib, "auth")
+Credentials = ClientSecretCredential | DefaultAzureCredential
 
 
 class AzureDataLakeHook(BaseHook):
@@ -126,27 +121,18 @@ class AzureDataLakeHook(BaseHook):
             credential: Credentials
             tenant = self._get_field(extras, "tenant")
             if tenant:
-                if _ADL_TAKES_TOKEN_CREDENTIAL:
-                    credential = ClientSecretCredential(
-                        tenant_id=tenant,
-                        client_id=cast("str", conn.login),
-                        client_secret=cast("str", conn.password),
-                    )
-                else:
-                    credential = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
+                credential = ClientSecretCredential(
+                    tenant_id=tenant,
+                    client_id=cast("str", conn.login),
+                    client_secret=cast("str", conn.password),
+                )
             else:
                 managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
                 workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
-                if _ADL_TAKES_TOKEN_CREDENTIAL:
-                    credential = get_sync_default_azure_credential(
-                        managed_identity_client_id=managed_identity_client_id,
-                        workload_identity_tenant_id=workload_identity_tenant_id,
-                    )
-                else:
-                    credential = AzureIdentityCredentialAdapter(
-                        managed_identity_client_id=managed_identity_client_id,
-                        workload_identity_tenant_id=workload_identity_tenant_id,
-                    )
+                credential = get_sync_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
             self._conn = core.AzureDLFileSystem(credential, store_name=self.account_name)
             self._conn.connect()
         return self._conn

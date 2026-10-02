@@ -6716,7 +6716,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "adlfs", specifier = ">=2023.10.0" },
+    { name = "adlfs", specifier = ">=2026.5.0" },
     { name = "aiohttp", specifier = ">=3.14.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
@@ -6729,7 +6729,7 @@ requires-dist = [
     { name = "azure-ai-projects", specifier = ">=2.2.0" },
     { name = "azure-batch", specifier = ">=15.0.0" },
     { name = "azure-cosmos", specifier = ">=4.15.0" },
-    { name = "azure-datalake-store", specifier = ">=0.0.45" },
+    { name = "azure-datalake-store", specifier = ">=1.0.1" },
     { name = "azure-identity", specifier = ">=1.25.3" },
     { name = "azure-keyvault-secrets", specifier = ">=4.10.0" },
     { name = "azure-kusto-data", specifier = ">=4.1.0,!=5.0.0" },
