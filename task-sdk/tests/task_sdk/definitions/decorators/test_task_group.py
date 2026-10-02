@@ -17,19 +17,104 @@
 # under the License.
 from __future__ import annotations
 
+import gc
+import warnings
 from datetime import timedelta
 
 import pendulum
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import dag, task, task_group
+from airflow.sdk import DAG, dag, task, task_group
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
     MappedArgument,
 )
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+@pytest.mark.parametrize("conditional", [False, True])
+def test_loop_preserves_group_configuration_and_body_arguments(mapped, conditional):
+    @task
+    def terminal(value, *, loop):
+        return value + loop.index
+
+    @task_group
+    def body(value):
+        """Refine the input."""
+        if mapped:
+            return terminal.expand(value=[value, value + 1])
+        return terminal(value)
+
+    def converged(*, loop):
+        return loop.index == 1
+
+    with DAG("public_loop", schedule=None) as pipeline:
+        start = EmptyOperator(task_id="start")
+        finish = EmptyOperator(task_id="finish")
+        group = (
+            body.override(group_id="refine")
+            .partial(value=2)
+            .loop(max_iterations=3, until=converged if conditional else None)
+        )
+        start >> group >> finish
+
+    gate = pipeline.get_task("refine.converged" if conditional else "refine.__loop_gate")
+    assert group.doc_md == "Refine the input."
+    assert gate.until is (converged if conditional else None)
+    assert gate.upstream_task_ids == {"refine.terminal"}
+    assert gate.downstream_task_ids == {"finish"}
+    result = pipeline.get_task("refine.terminal")
+    assert result.upstream_task_ids == {"start"}
+    if mapped:
+        assert result.op_kwargs_expand_input.value == {"value": [2, 3]}
+    else:
+        assert result.op_args == (2,)
+
+
+@pytest.mark.parametrize("max_iterations", [0, True])
+def test_loop_rejects_invalid_iteration_limit(max_iterations):
+    @task_group
+    def body():
+        EmptyOperator(task_id="terminal")
+
+    with DAG("invalid_public_loop", schedule=None):
+        with pytest.raises(ValueError, match="positive integer"):
+            body.loop(max_iterations=max_iterations)
+
+
+def test_loop_rejects_multiple_terminal_definitions():
+    @task_group
+    def body():
+        EmptyOperator(task_id="first")
+        EmptyOperator(task_id="second")
+
+    with DAG("ambiguous_public_loop", schedule=None):
+        with pytest.raises(ValueError, match="exactly one terminal"):
+            body.loop(max_iterations=2)
+
+
+@pytest.mark.parametrize("partial_first", [False, True])
+def test_loop_after_partial_and_override_in_either_order_does_not_warn(partial_first):
+    @task_group
+    def body(value):
+        EmptyOperator(task_id="terminal")
+
+    with DAG("ordered_public_loop", schedule=None) as pipeline:
+        with warnings.catch_warnings(record=True) as recorded:
+            warnings.simplefilter("always")
+            if partial_first:
+                factory = body.partial(value=2).override(group_id="refine")
+            else:
+                factory = body.override(group_id="refine").partial(value=2)
+            factory.loop(max_iterations=2)
+            del factory
+            gc.collect()
+
+    assert pipeline.get_task("refine.terminal")
+    assert [str(warning.message) for warning in recorded if "never mapped" in str(warning.message)] == []
 
 
 def test_task_group_with_overridden_kwargs():

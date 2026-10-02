@@ -19,6 +19,8 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.routes.xcoms import _build_xcom_read
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.task import ExecuteTask
 from airflow.models.dag_version import DagVersion
@@ -37,7 +39,11 @@ from airflow.sdk import task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.log.task_log_address import prepare_task_log_contexts
 
-from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
+from tests_common.test_utils.asserts import (
+    assert_queries_count,
+    capture_orm_selects,
+    count_loaded_task_instances,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -141,6 +147,113 @@ def test_shared_loop_uses_pinned_graph_and_retained_producer(loop_coordinates, s
     )
 
 
+@pytest.fixture
+def forked_loop_coordinates(loop_coordinates, session):
+    replacement = session.scalars(
+        select(DynamicRegion).where(DynamicRegion.forked_from_region_id.is_not(None))
+    ).one()
+    replacement.resumes_from_index = 2
+    session.flush()
+    return loop_coordinates
+
+
+def test_outside_caller_reads_the_live_iterations_each_region_owns(forked_loop_coordinates, session):
+    dr, producer, consumer, previous, outside = forked_loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    arguments = dict(
+        dag_id=dr.dag_id, run_id=dr.run_id, task_id=producer.task_id, caller=outside, all_iterations=True
+    )
+
+    selected = resolver.resolve(**arguments)
+    selected_ids = set(session.scalars(resolver.select_producer_ids(**arguments)))
+
+    assert selected == (previous,)
+    assert selected_ids == {previous.id}
+
+
+@pytest.mark.parametrize("by", ["resolve", "select_producer_ids"])
+def test_outside_caller_is_refused_a_loop_task_unless_it_reads_every_iteration(loop_coordinates, session, by):
+    dr, producer, consumer, previous, outside = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    with pytest.raises(ValueError, match="explicit scope or a consumer inside the loop"):
+        getattr(resolver, by)(dag_id=dr.dag_id, run_id=dr.run_id, task_id=producer.task_id, caller=outside)
+
+
+def test_reading_every_iteration_cannot_be_combined_with_the_previous_one(loop_coordinates, session):
+    dr, producer, consumer, previous, outside = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    with pytest.raises(ValueError, match="requires a shared loop scope"):
+        resolver.resolve(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            task_id=producer.task_id,
+            caller=outside,
+            all_iterations=True,
+            previous_iteration=True,
+        )
+
+
+def test_all_iterations_does_not_widen_the_read_of_a_caller_inside_the_loop(loop_coordinates, session):
+    dr, producer, consumer, previous, outside = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    selected = resolver.resolve(
+        dag_id=dr.dag_id, run_id=dr.run_id, task_id=producer.task_id, caller=consumer, all_iterations=True
+    )
+
+    assert selected == (producer,)
+
+
+def test_dependency_of_an_outside_task_on_a_loop_task_is_every_live_iteration(loop_coordinates, session):
+    dr, producer, consumer, previous, outside = loop_coordinates
+    replacement = session.scalars(
+        select(DynamicRegion).where(DynamicRegion.forked_from_region_id.is_not(None))
+    ).one()
+    replacement.resumes_from_index = 3
+    first = TaskInstance(
+        task=producer.task,
+        run_id=dr.run_id,
+        dag_version_id=producer.dag_version_id,
+        region_id=producer.region_id,
+    )
+    first.region_index = 0
+    session.add(first)
+    session.flush()
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    assert set(resolver.resolve_dependency(outside, producer.task_id)) == {first, previous, producer}
+
+
+@pytest.mark.parametrize(
+    ("caller", "task_id", "run_id", "expected"),
+    [
+        pytest.param("outside", "body.producer", None, True, id="outside caller of a loop task"),
+        pytest.param("consumer", "body.producer", None, False, id="caller inside the loop"),
+        pytest.param("outside", "outside", None, False, id="task outside any loop"),
+        pytest.param("outside", "removed", None, False, id="task missing from the pinned dag"),
+        pytest.param("outside", "body.producer", "other_run", False, id="caller of another run"),
+        pytest.param(None, "body.producer", None, False, id="no caller"),
+    ],
+)
+def test_loop_task_read_from_outside_needs_a_caller_of_the_same_run_outside_the_loop(
+    loop_coordinates, session, caller, task_id, run_id, expected
+):
+    dr, producer, consumer, previous, outside = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    assert (
+        resolver.is_loop_task_read_from_outside(
+            dag_id=dr.dag_id,
+            run_id=run_id or dr.run_id,
+            task_id=task_id,
+            caller={"consumer": consumer, "outside": outside, None: None}[caller],
+        )
+        is expected
+    )
+
+
 def test_loop_passes_load_the_region_ancestry_once_for_all_task_instances(loop_coordinates, session):
     _, producer, consumer, previous, outside = loop_coordinates
     resolver = TaskCoordinateResolver(DBDagBag(), session)
@@ -150,6 +263,31 @@ def test_loop_passes_load_the_region_ancestry_once_for_all_task_instances(loop_c
 
     assert passes == [2, 2, 1, None]
     assert len(statements) == 1
+
+
+def test_dependency_rejects_duplicate_latest_gate_coordinates(loop_coordinates, session):
+    dr, _, consumer, _, outside = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    gate = next(ti for ti in dr.task_instances if ti.task_id == "body.__loop_gate")
+    duplicate = TaskInstance(
+        task=resolver.get_task(dr.dag_id, dr.run_id, gate.task_id, dag_version_id=gate.dag_version_id),
+        run_id=dr.run_id,
+        dag_version_id=gate.dag_version_id,
+        region_id=consumer.region_id,
+        region_index=gate.region_index,
+    )
+    session.add(duplicate)
+    session.flush()
+
+    with pytest.raises(AmbiguousProducerError, match="Multiple live loop gates"):
+        resolver.resolve_dependency(outside, gate.task_id)
+
+
+def test_dependency_on_task_missing_from_pinned_dag_falls_back_to_plain_resolution(loop_coordinates, session):
+    _, _, consumer, _, _ = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    assert resolver.resolve_dependency(consumer, "removed_upstream") == ()
 
 
 def test_loop_without_context_requires_explicit_scope(loop_coordinates, session):
@@ -274,3 +412,104 @@ def test_unversioned_run_keeps_task_definition_after_latest_graph_changes(
             region_id=mapped.region_id,
             region_index=0,
         ) == (mapped,)
+
+
+@pytest.fixture
+def mapped_run(dag_maker, session):
+    def create(mapped_count: int):
+        with dag_maker(serialized=True):
+            mapped = PythonOperator.partial(task_id="mapped", python_callable=str).expand(
+                op_args=[[i] for i in range(mapped_count)]
+            )
+            mapped >> EmptyOperator(task_id="reduce")
+        dr = dag_maker.create_dagrun()
+        caller = session.scalars(
+            select(TaskInstance).where(TaskInstance.run_id == dr.run_id, TaskInstance.task_id == "reduce")
+        ).one()
+        session.expire_all()
+        return dr, caller
+
+    return create
+
+
+@pytest.mark.parametrize("mapped_count", [3, 60])
+def test_xcom_read_of_one_mapped_slot_loads_no_producer_rows(mapped_run, session, mapped_count):
+    dr, caller = mapped_run(mapped_count)
+    token = TIToken(id=caller.id, claims=TIClaims())
+
+    with count_loaded_task_instances("mapped") as loaded, assert_queries_count(8):
+        read = _build_xcom_read(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            task_id="mapped",
+            key="return_value",
+            session=session,
+            dag_bag=DBDagBag(),
+            token=token,
+            map_index=2,
+        )
+        session.scalars(read.statement).all()
+
+    assert loaded == []
+
+
+def test_loaded_task_instance_collector_keeps_only_the_requested_task(mapped_run, session):
+    dr, _ = mapped_run(3)
+
+    with (
+        count_loaded_task_instances("mapped") as loaded,
+        count_loaded_task_instances("other") as other_loaded,
+    ):
+        rows = session.scalars(
+            select(TaskInstance).where(TaskInstance.run_id == dr.run_id, TaskInstance.task_id == "mapped")
+        ).all()
+
+    assert len(rows) == 3
+    assert sorted(ti.id for ti in loaded) == sorted(ti.id for ti in rows)
+    assert other_loaded == []
+
+
+@pytest.mark.parametrize("mapped_count", [3, 60])
+def test_loop_read_of_one_mapped_slot_loads_no_producer_rows(dag_maker, session, mapped_count):
+    @task_group
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(
+            op_args=[[i] for i in range(mapped_count)]
+        ) >> EmptyOperator(task_id="reduce")
+
+    with dag_maker(serialized=True):
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    caller = session.scalars(
+        select(TaskInstance).where(TaskInstance.run_id == dr.run_id, TaskInstance.task_id == "body.reduce")
+    ).one()
+    session.expire_all()
+    token = TIToken(id=caller.id, claims=TIClaims())
+
+    with count_loaded_task_instances("body.mapped") as loaded:
+        read = _build_xcom_read(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            task_id="body.mapped",
+            key="return_value",
+            session=session,
+            dag_bag=DBDagBag(),
+            token=token,
+            map_index=2,
+        )
+        session.scalars(read.statement).all()
+
+    assert loaded == []
+
+
+def test_selected_mapped_producers_match_resolved_producers(mapped_run, session):
+    dr, caller = mapped_run(6)
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    for map_indexes in (None, 4, range(1, 3), [0, 5]):
+        arguments = dict(
+            dag_id=dr.dag_id, run_id=dr.run_id, task_id="mapped", caller=caller, map_indexes=map_indexes
+        )
+        resolved = {ti.id for ti in resolver.resolve(**arguments)}
+        assert set(session.scalars(resolver.select_producer_ids(**arguments))) == resolved
+        assert resolved

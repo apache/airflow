@@ -169,12 +169,7 @@ class DepContext:
             task_id,
         )
         if key not in self.producer_tis:
-            self.producer_tis[key] = resolver.resolve(
-                dag_id=ti.dag_id,
-                run_id=ti.run_id,
-                task_id=task_id,
-                caller=ti,
-            )
+            self.producer_tis[key] = resolver.resolve_dependency(ti, task_id)
         return self.producer_tis[key]
 
     mapped_group_skip_decisions: dict[

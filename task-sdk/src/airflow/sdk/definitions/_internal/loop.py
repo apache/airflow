@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -25,7 +26,11 @@ from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
+
+LOOP_XCOM_PREFIX = "_airflow_loop_"
+LOOP_DECISION_KEY = f"{LOOP_XCOM_PREFIX}decision"
 
 
 def _validate_max_iterations(instance, attribute, value: int) -> None:
@@ -51,6 +56,55 @@ class LoopTaskGroup(TaskGroup):
                 raise NotImplementedError("A loop cannot be inside a mapped task group")
             parent = parent.parent_group
         super().__attrs_post_init__()
+
+
+def get_enclosing_loop(operator: Any) -> LoopTaskGroup | None:
+    group = operator.task_group
+    while isinstance(group, TaskGroup):
+        if isinstance(group, LoopTaskGroup):
+            return group
+        group = group.parent_group
+    return None
+
+
+def is_loop_task_read_from_outside(producer: Any, consumer: Any) -> bool:
+    """Tell whether ``consumer`` reads ``producer``, a task of a loop, without being in that loop itself."""
+    loop = get_enclosing_loop(producer)
+    if loop is None:
+        return False
+    consumer_loop = get_enclosing_loop(consumer)
+    return consumer_loop is None or consumer_loop.group_id != loop.group_id
+
+
+def get_edge_source(source: Any, target: Any) -> Any:
+    """
+    Return the task that ``target`` depends on when it is made downstream of ``source``.
+
+    A task outside a loop waits for the loop's gate rather than for one of its tasks: the gate is what
+    creates the next iteration, so a member alone finishes before the loop has produced its later
+    iterations and a consumer would see only some of them.
+    """
+    loop = get_enclosing_loop(source)
+    if loop is None or (gate_task_id := getattr(loop, "gate_task_id", None)) is None:
+        return source
+    target_loop = get_enclosing_loop(target)
+    if target_loop is not None and target_loop.group_id == loop.group_id:
+        return source
+    return source.dag.get_task(gate_task_id)
+
+
+def redirect_outside_edges_to_gate(group: LoopTaskGroup, gate: BaseOperator) -> None:
+    """Make tasks outside the loop that the body already pointed at depend on the gate instead."""
+    for task in list(group):
+        for node_id in list(task.downstream_task_ids):
+            downstream = gate.dag.get_task(node_id)
+            inside = get_enclosing_loop(downstream)
+            if inside is not None and inside.group_id == group.group_id:
+                continue
+            task.downstream_task_ids.discard(node_id)
+            downstream.upstream_task_ids.discard(task.node_id)
+            gate.downstream_task_ids.add(node_id)
+            downstream.upstream_task_ids.add(gate.node_id)
 
 
 def check_dag_result_outside_loop(operator: Any) -> None:
@@ -106,6 +160,12 @@ class LoopGateOperator(BaseOperator):
         super().__init__(**kwargs)
         self.until = until
 
+    def execute(self, context: Context) -> None:
+        # execution_time.loop imports LOOP_DECISION_KEY from this module.
+        from airflow.sdk.execution_time.loop import execute_loop_gate
+
+        execute_loop_gate(self, context)
+
 
 def create_loop(
     factory: _TaskGroupFactory,
@@ -119,6 +179,10 @@ def create_loop(
 
     if until is not None and not callable(until):
         raise TypeError("until must be callable")
+    if until is not None and (
+        inspect.iscoroutinefunction(until) or inspect.iscoroutinefunction(type(until).__call__)
+    ):
+        raise TypeError("until must be synchronous")
     group = LoopTaskGroup(
         add_suffix_on_collision=True,
         **factory.tg_kwargs,
@@ -142,5 +206,6 @@ def create_loop(
         terminal >> gate
         group.terminal_task_id = terminal.task_id
         group.gate_task_id = gate.task_id
+        redirect_outside_edges_to_gate(group, gate)
     factory._task_group_created = True
     return group

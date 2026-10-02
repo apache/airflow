@@ -1861,6 +1861,30 @@ class TestStringifiedDAGs:
         assert restored_loop.dag is restored
         assert restored_loop.parent_group is restored.task_group
 
+    def test_task_using_a_loop_task_serializes_with_the_gate_as_its_upstream(self):
+        @task_decorator
+        def report(value):
+            return value
+
+        @task_group(group_id="body")
+        def body():
+            BaseOperator(task_id="first") >> BaseOperator(task_id="terminal")
+
+        with DAG("loop_outside_edge", schedule=None) as dag:
+            loop = create_loop(body, max_iterations=3)
+            report(loop["first"].output)
+
+        encoded = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(encoded)
+        restored = DagSerialization.from_json(DagSerialization.to_json(dag))
+
+        assert restored.get_task("report").upstream_task_ids == {"body.__loop_gate"}
+        assert restored.get_task("body.__loop_gate").downstream_task_ids == {"report"}
+        assert restored.get_task("body.first").downstream_task_ids == {"body.terminal"}
+        assert [arg.operator.task_id for arg in dag.get_task("report").op_args] == ["body.first"]
+        assert "body.first" in str(restored.get_task("report").op_args[0])
+        assert "body.__loop_gate" not in str(restored.get_task("report").op_args[0])
+
     def test_task_group_serialization(self):
         """
         Test TaskGroup serialization/deserialization.
