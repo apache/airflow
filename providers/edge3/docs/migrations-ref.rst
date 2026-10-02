@@ -34,7 +34,8 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-----------------+----------------------------------------------------------+
 | Revision ID             | Revises ID       | Edge3 Version   | Description                                              |
 +=========================+==================+=================+==========================================================+
-| ``d5a2f8b41c07`` (head) | ``c6b3c3d093fd`` | ``4.4.0``       | Add priority_weight column to edge_job table.            |
+| ``d5a2f8b41c07`` (head) | ``c6b3c3d093fd`` | ``5.0.0``       | Add priority_weight column to edge_job table and to its  |
+|                         |                  |                 | rj_order index.                                          |
 +-------------------------+------------------+-----------------+----------------------------------------------------------+
 | ``c6b3c3d093fd``        | ``a09c3ee8e1d3`` | ``3.5.0``       | Replace individual counters with extended JSON based     |
 |                         |                  |                 | sysinfo.                                                 |

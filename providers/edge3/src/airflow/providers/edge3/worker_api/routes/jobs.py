@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Body, Depends, HTTPException, status
-from sqlalchemy import and_, literal, not_, select, update
+from sqlalchemy import select, update
 
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -29,7 +29,7 @@ from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
-from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
+from airflow.providers.edge3.models.types import build_callback_job_filter, is_callback_job
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -45,22 +45,14 @@ if TYPE_CHECKING:
 
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 
-# ``ExecuteCallback`` is also a valid Dag id, so checking ``dag_id`` alone would mistake that Dag's
-# tasks for callbacks. ``EdgeExecutor.queue_workload()`` gives a callback this whole identity.
-_IS_CALLBACK_JOB = and_(
-    EdgeJobModel.dag_id == EXECUTE_CALLBACK_TAG,
-    EdgeJobModel.run_id == literal(f"{EXECUTE_CALLBACK_TAG}-") + EdgeJobModel.task_id,
-    EdgeJobModel.map_index == -1,
-    EdgeJobModel.try_number == 0,
-)
 
-
-def parse_command(command: str, dag_id: str, run_id: str) -> ExecuteTypeBody:
-    if AIRFLOW_V_3_3_PLUS:
+def parse_command(
+    command: str, dag_id: str, task_id: str, run_id: str, try_number: int, map_index: int
+) -> ExecuteTypeBody:
+    if AIRFLOW_V_3_3_PLUS and is_callback_job(dag_id, task_id, run_id, try_number, map_index):
         from airflow.executors.workloads import ExecuteCallback
 
-        if dag_id == EXECUTE_CALLBACK_TAG and run_id.startswith(EXECUTE_CALLBACK_TAG):
-            return ExecuteCallback.model_validate_json(command)  # type: ignore[return-value]
+        return ExecuteCallback.model_validate_json(command)  # type: ignore[return-value]
 
     return ExecuteTask.model_validate_json(command)
 
@@ -103,21 +95,13 @@ def fetch(
     query = query.limit(1)
     query = query.with_for_update(skip_locked=True)
 
-    # Callbacks finish work that is already running, so a worker takes them before any task, and
-    # priority_weight only ranks tasks among themselves. BaseExecutor._get_workloads_to_schedule()
-    # orders its in-process queues the same way. Two queries let each ORDER BY use an existing
-    # index. A single query would have to sort on whether a row is a callback, which no index
-    # stores, so the database would read and sort the whole queued backlog on every fetch
-    # instead of walking the rj_order index to the first hit.
+    # Callbacks go first, as in other executors (WORKLOAD_TYPE_PRIORITY). A single query would sort
+    # the whole backlog. dag_id leads the primary key, so the callback query reads only callbacks.
     job: EdgeJobModel | None = session.scalar(
-        query.where(_IS_CALLBACK_JOB).order_by(EdgeJobModel.queued_dttm)
+        query.where(build_callback_job_filter()).order_by(EdgeJobModel.queued_dttm)
     )
     if job is None:
-        job = session.scalar(
-            query.where(not_(_IS_CALLBACK_JOB)).order_by(
-                EdgeJobModel.priority_weight.desc(), EdgeJobModel.queued_dttm
-            )
-        )
+        job = session.scalar(query.order_by(EdgeJobModel.priority_weight.desc(), EdgeJobModel.queued_dttm))
     if not job:
         return None
     job.state = TaskInstanceState.RESTARTING  # keep this intermediate state until worker sets to running
@@ -135,7 +119,9 @@ def fetch(
         run_id=job.run_id,
         map_index=job.map_index,
         try_number=job.try_number,
-        command=parse_command(job.command, job.dag_id, job.run_id),
+        command=parse_command(
+            job.command, job.dag_id, job.task_id, job.run_id, job.try_number, job.map_index
+        ),
         concurrency_slots=job.concurrency_slots,
     )
 
