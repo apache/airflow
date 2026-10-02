@@ -52,29 +52,34 @@ class _ExplodingCoordinator(BaseCoordinator):
         raise RuntimeError("This coordinator must not be instantiated")
 
 
-class _BundleCoordinator(BaseCoordinator):
-    def __init__(self, *, bundles: list[str]):
-        self.bundles = bundles
-
-    def serves_bundle(self, bundle_name: str) -> bool:
-        return bundle_name in self.bundles
-
-
 class _JarImporter:
     supported_extensions = [".jar"]
+
+
+class _UpperJarImporter:
+    supported_extensions = [".JAR"]
+
+
+class _BareJarImporter:
+    supported_extensions = ["jar"]
 
 
 class _MjsImporter:
     supported_extensions = ["MJS"]
 
 
+class _MethodExtensionsImporter:
+    def supported_extensions(self):
+        return [".jar"]
+
+
 class _ClaimingCoordinator(BaseCoordinator):
-    """Parses ``.jar`` files in the ``bundles`` kwarg, every bundle if unset; never built."""
+    """Parses ``.jar`` files in the ``bundles`` kwarg, every bundle if unset."""
 
     importer_class: type = _JarImporter
 
     def __init__(self, **kwargs):
-        raise RuntimeError("The claim check must not build a coordinator")
+        self.kwargs = kwargs
 
     @classmethod
     def get_dag_importer_class(cls):
@@ -86,8 +91,29 @@ class _ClaimingCoordinator(BaseCoordinator):
         return None if bundles is None else frozenset(bundles)
 
 
+class _UpperJarClaimingCoordinator(_ClaimingCoordinator):
+    importer_class = _UpperJarImporter
+
+
+class _BareJarClaimingCoordinator(_ClaimingCoordinator):
+    importer_class = _BareJarImporter
+
+
 class _MjsClaimingCoordinator(_ClaimingCoordinator):
     importer_class = _MjsImporter
+
+
+class _MethodExtensionsCoordinator(_ClaimingCoordinator):
+    importer_class = _MethodExtensionsImporter
+
+
+class _ExplodingClaimingCoordinator(_ClaimingCoordinator):
+    def __init__(self, **kwargs):
+        raise RuntimeError("This coordinator cannot be built")
+
+
+def _classpath(cls: type) -> str:
+    return f"{cls.__module__}.{cls.__qualname__}"
 
 
 @pytest.fixture
@@ -158,57 +184,6 @@ class TestCoordinatorManager:
         manager = CoordinatorManager.from_config()
         assert manager._coordinator_specs == {}
         assert manager._queue_to_coordinator == {}
-
-    @pytest.mark.parametrize(
-        ("second", "conflict"),
-        [
-            pytest.param({"bundles": ["dags"]}, True, id="same-bundle"),
-            pytest.param({}, True, id="every-bundle"),
-            pytest.param({"bundles": ["other"]}, False, id="other-bundle"),
-            pytest.param({"bundles": []}, False, id="no-bundle"),
-        ],
-    )
-    def test_from_config_checks_dag_file_claims_without_building(self, sdk_config, second, conflict):
-        classpath = f"{_ClaimingCoordinator.__module__}._ClaimingCoordinator"
-        sdk_config(
-            coordinators=json.dumps(
-                {
-                    "jdk11": {"classpath": classpath, "kwargs": {"bundles": ["dags"]}},
-                    "jdk17": {"classpath": classpath, "kwargs": second},
-                }
-            )
-        )
-
-        if conflict:
-            with pytest.raises(
-                InvalidCoordinatorError, match=r"Coordinators 'jdk11' and 'jdk17' both parse \.jar files"
-            ):
-                CoordinatorManager.from_config()
-        else:
-            assert CoordinatorManager.from_config()._created_coordinators == {}
-
-    @pytest.mark.parametrize(
-        "other_spec",
-        [
-            pytest.param(
-                {"classpath": f"{_MjsClaimingCoordinator.__module__}._MjsClaimingCoordinator"},
-                id="other-extension",
-            ),
-            pytest.param({"classpath": f"{_CoordinatorB.__module__}._CoordinatorB"}, id="no-importer"),
-            pytest.param({"classpath": "nonexistent.module.MissingCoordinator"}, id="cannot-import"),
-        ],
-    )
-    def test_from_config_accepts_coordinators_without_shared_claims(self, sdk_config, other_spec):
-        sdk_config(
-            coordinators=json.dumps(
-                {
-                    "java": {"classpath": f"{_ClaimingCoordinator.__module__}._ClaimingCoordinator"},
-                    "other": other_spec,
-                }
-            )
-        )
-
-        assert set(CoordinatorManager.from_config()._coordinator_specs) == {"java", "other"}
 
     def test_from_config_rejects_invalid_queue_mapping(self, sdk_config):
         sdk_config(
@@ -362,14 +337,15 @@ class TestForBundle:
         assert _CoordinatorB.get_parsed_bundles({}) == frozenset()
         assert coordinator.serves_bundle("dags-folder") is False
 
-    def test_returns_serving_coordinators_in_config_order(self, sdk_config):
-        classpath = f"{_BundleCoordinator.__module__}._BundleCoordinator"
+    def test_returns_parsing_coordinators_in_config_order(self, sdk_config):
+        classpath = _classpath(_ClaimingCoordinator)
         sdk_config(
             coordinators=json.dumps(
                 {
                     "second": {"classpath": classpath, "kwargs": {"bundles": ["dags-folder"]}},
                     "other": {"classpath": classpath, "kwargs": {"bundles": ["other-bundle"]}},
-                    "first": {"classpath": classpath, "kwargs": {"bundles": ["dags-folder"]}},
+                    "first": {"classpath": _classpath(_MjsClaimingCoordinator)},
+                    "no-importer": {"classpath": _classpath(_ExplodingCoordinator)},
                 }
             )
         )
@@ -379,16 +355,96 @@ class TestForBundle:
 
         assert list(coordinators) == ["second", "first"]
         assert coordinators["second"] is manager._created_coordinators["second"]
+        assert set(manager._created_coordinators) == {"second", "first"}
+
+    @pytest.mark.parametrize(
+        ("first", "second", "expected"),
+        [
+            pytest.param({"bundles": ["dags"]}, {"bundles": ["dags"]}, None, id="same-bundle"),
+            pytest.param({}, {"bundles": ["dags"]}, None, id="every-then-named"),
+            pytest.param({"bundles": ["dags"]}, {}, None, id="named-then-every"),
+            pytest.param({}, {"bundles": []}, ["jdk11"], id="every-then-none"),
+            pytest.param({"bundles": ["other"]}, {"bundles": ["dags"]}, ["jdk17"], id="other-then-named"),
+        ],
+    )
+    def test_checks_dag_file_claims_in_the_bundle(self, sdk_config, first, second, expected):
+        classpath = _classpath(_ClaimingCoordinator)
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "jdk11": {"classpath": classpath, "kwargs": first},
+                    "jdk17": {"classpath": classpath, "kwargs": second},
+                }
+            )
+        )
+        manager = CoordinatorManager.from_config()
+
+        if expected is None:
+            with pytest.raises(
+                InvalidCoordinatorError,
+                match=r"Coordinators 'jdk11' and 'jdk17' both parse \.jar files in Dag bundle 'dags'",
+            ):
+                manager.for_bundle("dags")
+            assert manager._created_coordinators == {}
+        else:
+            assert list(manager.for_bundle("dags")) == expected
+
+    def test_normalizes_extensions_before_checking_claims(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "upper": {"classpath": _classpath(_UpperJarClaimingCoordinator)},
+                    "bare": {"classpath": _classpath(_BareJarClaimingCoordinator)},
+                }
+            )
+        )
+
+        with pytest.raises(InvalidCoordinatorError, match=r"'upper' and 'bare' both parse \.jar files"):
+            CoordinatorManager.from_config().for_bundle("dags")
+
+    def test_rejects_extensions_not_declared_as_a_class_level_list(self, sdk_config):
+        sdk_config(coordinators=json.dumps({"java": {"classpath": _classpath(_MethodExtensionsCoordinator)}}))
+
+        with pytest.raises(
+            InvalidCoordinatorError,
+            match=r"_MethodExtensionsImporter of coordinator 'java' must declare 'supported_extensions'",
+        ):
+            CoordinatorManager.from_config().for_bundle("dags")
+
+    def test_conflicting_claims_do_not_affect_for_queue(self, sdk_config):
+        classpath = _classpath(_ClaimingCoordinator)
+        sdk_config(
+            coordinators=json.dumps({"jdk11": {"classpath": classpath}, "jdk17": {"classpath": classpath}}),
+            queue_to_coordinator=json.dumps({"java": "jdk17"}),
+        )
+
+        assert isinstance(get_coordinator_manager().for_queue("java"), _ClaimingCoordinator)
+        assert isinstance(get_coordinator_manager().for_queue("default"), _PythonCoordinator)
+
+    def test_skips_a_coordinator_that_cannot_be_imported(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "missing": {"classpath": "nonexistent.module.MissingCoordinator"},
+                    "good": {"classpath": _classpath(_ClaimingCoordinator)},
+                }
+            )
+        )
+
+        with mock.patch("airflow.sdk.execution_time.coordinator.log") as log:
+            coordinators = CoordinatorManager.from_config().for_bundle("dags-folder")
+
+        assert list(coordinators) == ["good"]
+        log.exception.assert_called_once_with(
+            "Cannot import coordinator; skipping it for Dag parsing", coordinator="missing"
+        )
 
     def test_skips_a_coordinator_that_cannot_be_built(self, sdk_config):
         sdk_config(
             coordinators=json.dumps(
                 {
-                    "broken": {"classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator"},
-                    "good": {
-                        "classpath": f"{_BundleCoordinator.__module__}._BundleCoordinator",
-                        "kwargs": {"bundles": ["dags-folder"]},
-                    },
+                    "broken": {"classpath": _classpath(_ExplodingClaimingCoordinator)},
+                    "good": {"classpath": _classpath(_MjsClaimingCoordinator)},
                 }
             )
         )
