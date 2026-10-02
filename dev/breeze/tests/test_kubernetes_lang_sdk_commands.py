@@ -25,6 +25,7 @@ from airflow_breeze.commands import kubernetes_commands
 from airflow_breeze.commands.kubernetes_commands import (
     _lang_sdk_build_go_bundle,
     _lang_sdk_build_java_jar,
+    _lang_sdk_build_ts_bundle,
     _lang_sdk_fetch_upstream_sdk_sources,
     _lang_sdk_resolve_sdk_sources,
     _lang_sdk_upload_artifacts,
@@ -119,6 +120,44 @@ class TestLangSdkBuildGoBundle:
         assert tidy_cmd[0] == "docker"
         assert kubernetes_commands.LANG_SDK_GO_BUILDER_IMAGE in tidy_cmd
         assert tidy_cmd[-3:] == ["go", "mod", "tidy"]
+
+
+@pytest.fixture
+def ts_example(tmp_path, monkeypatch):
+    """Point the repo root at a tmp path with a pre-built TypeScript example bundle."""
+    monkeypatch.setattr(kubernetes_commands, "AIRFLOW_ROOT_PATH", tmp_path)
+    ts_dir = tmp_path / "ts-sdk" / "example"
+    (ts_dir / "dist").mkdir(parents=True)
+    (ts_dir / "dist" / kubernetes_commands.LANG_SDK_TS_BUNDLE_NAME).write_text("bundle")
+    monkeypatch.setattr(kubernetes_commands, "LANG_SDK_TS_EXAMPLE_PATH", ts_dir)
+    return ts_dir
+
+
+class TestLangSdkBuildTsBundle:
+    BUILD = "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install && pnpm run build"
+
+    @mock.patch.object(kubernetes_commands, "run_command")
+    def test_native_builds_sdk_then_example_on_host(self, mock_run, tmp_path, ts_example):
+        _lang_sdk_build_ts_bundle(tmp_path / "staging", None, native=True)
+
+        mock_run.assert_called_once()
+        assert mock_run.call_args.args[0] == ["sh", "-c", self.BUILD]
+        assert mock_run.call_args.kwargs["cwd"] == tmp_path / "ts-sdk"
+        assert (tmp_path / "staging" / "ts-artifacts" / kubernetes_commands.LANG_SDK_TS_BUNDLE_NAME).exists()
+
+    @mock.patch.object(kubernetes_commands, "run_command")
+    def test_container_mode_enables_corepack_as_the_container_user(self, mock_run, tmp_path, ts_example):
+        _lang_sdk_build_ts_bundle(tmp_path / "staging", None, native=False)
+
+        cmd = mock_run.call_args.args[0]
+        assert cmd[0] == "docker"
+        assert kubernetes_commands.LANG_SDK_TS_BUILDER_IMAGE in cmd
+        home = tmp_path / "files" / "pnpm-home"
+        assert f"HOME={home}" in cmd
+        assert home.is_dir()
+        script = cmd[-1]
+        assert 'corepack enable --install-directory "$HOME/bin"' in script
+        assert script.endswith(self.BUILD)
 
 
 class TestLangSdkBuildJavaJar:
