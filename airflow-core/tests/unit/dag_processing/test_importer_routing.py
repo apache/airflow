@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 
-from airflow.dag_processing.importer_routing import get_claiming_coordinator
+from airflow.dag_processing.importer_routing import get_claiming_coordinator, warm_importer_registry
 
 from tests_common.test_utils.config import conf_vars
 from unit.dag_processing.fake_lang_sdk import FakeCoordinator, fake_coordinator
@@ -49,3 +49,16 @@ def test_get_claiming_coordinator_logs_a_broken_configuration(tmp_path, caplog):
         == f"Cannot load the Dag importer for {tmp_path / 'dags.native'} in bundle testing"
     )
     assert "Coordinators 'first' and 'second' both parse .native files" in str(record.exc_info[1])
+
+
+def test_warm_importer_registry_logs_a_broken_configuration(caplog):
+    spec = {"classpath": f"{FakeCoordinator.__module__}.FakeCoordinator", "kwargs": {}}
+    with (
+        conf_vars({("sdk", "coordinators"): json.dumps({"first": spec, "second": spec})}),
+        caplog.at_level(logging.ERROR, logger="airflow.dag_processing.importer_routing"),
+    ):
+        warm_importer_registry("testing")
+
+    assert [r.getMessage() for r in caplog.records] == [
+        "Cannot build the Dag importer registry for bundle testing"
+    ]

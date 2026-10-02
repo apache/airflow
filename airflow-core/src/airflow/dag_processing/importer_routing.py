@@ -24,11 +24,20 @@ import os
 from typing import TYPE_CHECKING
 
 from airflow.sdk.coordinators._dag_importer import find_claiming_coordinator
+from airflow.sdk.importers import get_importer_registry
 
 if TYPE_CHECKING:
     from airflow.sdk.coordinators._subprocess import SubprocessCoordinator  # noqa: SDK001
 
 log = logging.getLogger(__name__)
+
+
+def warm_importer_registry(bundle_name: str) -> None:
+    """Build and cache the bundle's Dag importer registry, or log why it cannot be built."""
+    try:
+        get_importer_registry(bundle_name)
+    except Exception:
+        log.exception("Cannot build the Dag importer registry for bundle %s", bundle_name)
 
 
 def get_claiming_coordinator(

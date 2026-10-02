@@ -56,7 +56,7 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-from airflow.dag_processing.importer_routing import get_claiming_coordinator
+from airflow.dag_processing.importer_routing import get_claiming_coordinator, warm_importer_registry
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
@@ -373,6 +373,9 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
         self.prepare_bundles()
+        # Built before the freeze so the parse children share them, and a broken config is logged once.
+        for bundle in self._dag_bundles:
+            warm_importer_registry(bundle.name)
         self._symlink_latest_log_directory()
         # To prevent COW in forked process parsing dag file
         gc.freeze()
