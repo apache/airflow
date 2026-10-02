@@ -71,6 +71,9 @@ class AirflowSecretsBackendAccessDenied(PermissionError):
 class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition."""
 
+    #: node ids (tasks and/or TaskGroups) identified as part of the cycle, when known.
+    cyclic_node_ids: tuple[str, ...] = ()
+
 
 class AirflowRuntimeError(Exception):
     """Generic Airflow error raised by runtime functions."""

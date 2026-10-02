@@ -657,7 +657,9 @@ class TaskGroup(TaskGroupMixin, DAGNode):
                 emitted[i] = 1
                 order_append(nodes[i])
             if len(next_pending) == len(pending):
-                raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                exc = AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                exc.cyclic_node_ids = tuple(sorted(nodes[i].node_id for i in pending))
+                raise exc
             pending = next_pending
         return order
 
@@ -697,7 +699,9 @@ class TaskGroup(TaskGroupMixin, DAGNode):
                     queue.append(s)
 
         if processed != n:
-            raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+            exc = AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+            exc.cyclic_node_ids = tuple(sorted(nodes[i].node_id for i in range(n) if in_degree[i] != 0))
+            raise exc
 
         sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
         return [nodes[i] for i in sorted_indices]
