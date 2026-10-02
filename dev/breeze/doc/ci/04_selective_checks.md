@@ -475,11 +475,12 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   files (`airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/`,
   `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), the Java
   coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`), or the native
-  Lang-SDK Dag parsing sources change. Those are the Dag processing files `dagbag.py`,
-  `importer_routing.py`, `lang_sdk_processor.py`, `manager.py` and `processor.py`, `models/dagcode.py`,
+  Lang-SDK Dag parsing sources change. Those are the Dag processing files `importer_routing.py` and
+  `lang_sdk_processor.py`, `models/dagcode.py`, `serialization/serialized_objects.py`,
   the Task SDK importers (`task-sdk/src/airflow/sdk/importers/`), the coordinator registry
   (`task-sdk/src/airflow/sdk/execution_time/coordinator.py`), and `coordinators/_dag_importer.py`;
-  they trigger the TypeScript SDK E2E tests too. Like the other
+  they trigger the TypeScript SDK E2E tests too. Shared Dag processing files such as `manager.py`
+  are left to `canary` runs. Like the other
   deployed e2e suites, enabling them forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the

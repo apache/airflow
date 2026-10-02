@@ -197,11 +197,13 @@ class HashableDict(dict[T, list[str]]):
         return hash(frozenset(self))
 
 
-# Core and Task SDK sources on the native Lang-SDK Dag path: discovery, parsing through a
-# coordinator's runtime, importing it into a Dag bag, and reading its source.
+# Core and Task SDK sources specific to the native Lang-SDK Dag path: routing a file to a
+# coordinator, parsing it through the coordinator's runtime, validating the serialized Dag,
+# and reading its source. Shared Dag processing files are left to the canary run.
 LANG_SDK_NATIVE_DAG_PARSING_FILES = (
-    r"^airflow-core/src/airflow/dag_processing/(dagbag|importer_routing|lang_sdk_processor|manager|processor)\.py$",
+    r"^airflow-core/src/airflow/dag_processing/(importer_routing|lang_sdk_processor)\.py$",
     r"^airflow-core/src/airflow/models/dagcode\.py$",
+    r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
     r"^task-sdk/src/airflow/sdk/coordinators/_dag_importer\.py$",
     r"^task-sdk/src/airflow/sdk/execution_time/coordinator\.py$",
     r"^task-sdk/src/airflow/sdk/importers/.*",
