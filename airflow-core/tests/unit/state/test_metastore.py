@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import patch
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -118,6 +119,36 @@ def asset_committed() -> AssetModel:
 
 
 class TestMetastoreBackendTaskScope:
+    @pytest.mark.parametrize("operation", ["update", "delete", "clear_index", "clear_region"])
+    def test_operations_isolate_colliding_regions(self, session, backend, dag_run, operation):
+        regions = [UUID(int=0), uuid4(), uuid4()]
+        expected = {
+            (TaskScope(DAG_ID, RUN_ID, TASK_ID, index, region_id=region), key): f"{region}:{index}:{key}"
+            for region in regions
+            for index in (0, 1)
+            for key in ("value", "other")
+        }
+        for (scope, key), value in expected.items():
+            backend.set(scope, key, value, session=session)
+        target = TaskScope(DAG_ID, RUN_ID, TASK_ID, 0, region_id=regions[1])
+        missing = TaskScope(DAG_ID, RUN_ID, TASK_ID, 0, region_id=uuid4())
+        assert backend.get(missing, "value", session=session) is None
+
+        if operation == "update":
+            backend.set(target, "value", "updated", session=session)
+            expected[target, "value"] = "updated"
+        elif operation == "delete":
+            backend.delete(target, "value", session=session)
+            expected[target, "value"] = None
+        else:
+            all_indices = operation == "clear_region"
+            backend.clear(target, all_map_indices=all_indices, session=session)
+            for scope, key in expected:
+                if scope.region_id == target.region_id and (all_indices or scope.map_index == 0):
+                    expected[scope, key] = None
+        for (scope, key), value in expected.items():
+            assert backend.get(scope, key, session=session) == value
+
     def test_get_returns_none_for_missing_key(
         self, session: Session, backend: MetastoreBackend, dag_run: DagRun
     ):
@@ -586,6 +617,36 @@ async def dispose_async_engine():
 @pytest.mark.usefixtures("dispose_async_engine")
 @pytest.mark.asyncio(loop_scope="class")
 class TestMetastoreBackendAsync:
+    @pytest.mark.parametrize("operation", ["update", "delete", "clear_index", "clear_region"])
+    async def test_operations_isolate_colliding_regions(self, backend, dag_run_committed, operation):
+        regions = [UUID(int=0), uuid4(), uuid4()]
+        expected = {
+            (TaskScope(DAG_ID, RUN_ID, TASK_ID, index, region_id=region), key): f"{region}:{index}:{key}"
+            for region in regions
+            for index in (0, 1)
+            for key in ("value", "other")
+        }
+        for (scope, key), value in expected.items():
+            await backend.aset(scope, key, value)
+        target = TaskScope(DAG_ID, RUN_ID, TASK_ID, 0, region_id=regions[1])
+        missing = TaskScope(DAG_ID, RUN_ID, TASK_ID, 0, region_id=uuid4())
+        assert await backend.aget(missing, "value") is None
+
+        if operation == "update":
+            await backend.aset(target, "value", "updated")
+            expected[target, "value"] = "updated"
+        elif operation == "delete":
+            await backend.adelete(target, "value")
+            expected[target, "value"] = None
+        else:
+            all_indices = operation == "clear_region"
+            await backend.aclear(target, all_map_indices=all_indices)
+            for scope, key in expected:
+                if scope.region_id == target.region_id and (all_indices or scope.map_index == 0):
+                    expected[scope, key] = None
+        for (scope, key), value in expected.items():
+            assert await backend.aget(scope, key) == value
+
     async def test_aset_and_aget_task_roundtrip(self, backend: MetastoreBackend, dag_run_committed: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
         await backend.aset(scope, "job_id", "app_async")

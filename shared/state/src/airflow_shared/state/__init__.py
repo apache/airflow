@@ -21,6 +21,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -37,13 +38,19 @@ class TaskScope:
 
     ``map_index`` defaults to ``-1`` for non-mapped tasks. For mapped tasks,
     set it to the actual mapped index. ``get``/``set``/``delete`` always match
-    on ``(dag_id, run_id, task_id, map_index)`` exactly.
+    on ``(dag_id, run_id, task_id, region_id, map_index)`` exactly. The zero
+    region UUID preserves the namespace of legacy callers.
     """
 
     dag_id: str
     run_id: str
     task_id: str
     map_index: int = -1
+    region_id: UUID = UUID(int=0)
+
+    @property
+    def region_index(self) -> int:
+        return self.map_index
 
 
 @dataclass(frozen=True)
@@ -182,8 +189,8 @@ class BaseStoreBackend(ABC):
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
         scope are cleared. When ``all_map_indices=True``, the ``map_index`` filter is
-        dropped and state is wiped across every mapped instance — for use by external
-        callers (UI, CLI) only, not from within a running task.
+        dropped and state is wiped across every mapped instance in the selected region.
+        This flag is for external callers (UI, CLI), not a running task.
         For ``AssetScope`` the flag has no effect.
         """
 
@@ -231,8 +238,8 @@ class BaseStoreBackend(ABC):
 
         For ``TaskScope``: by default, only keys for the exact ``map_index`` on the
         scope are cleared. When ``all_map_indices=True``, the ``map_index`` filter is
-        dropped and state is wiped across every mapped instance — for use by external
-        callers (UI, CLI) only, not from within a running task.
+        dropped and state is wiped across every mapped instance in the selected region.
+        This flag is for external callers (UI, CLI), not a running task.
         For ``AssetScope`` the flag has no effect.
 
         ``session`` is optional. If provided, implementations should use it directly.

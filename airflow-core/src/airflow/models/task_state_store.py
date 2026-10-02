@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 
-from sqlalchemy import ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, synonym
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, Base, StringID
@@ -31,7 +32,7 @@ class TaskStateStoreModel(Base):
     """
     Persists key/value state for a task within a single DAG run.
 
-    Scoped to (dag_run_id, task_id, map_index). Retries of the same task share
+    Scoped to (dag_run_id, task_id, region_id, map_index). Retries of the same task share
     the same rows — that is the point. Different DAG runs have different dag_run_id
     values so they get independent namespaces automatically.
     """
@@ -43,6 +44,10 @@ class TaskStateStoreModel(Base):
     dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False)
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
+    region_index = synonym("map_index")
+    region_id: Mapped[UUID] = mapped_column(
+        Uuid(), nullable=False, default=UUID(int=0), server_default="00000000000000000000000000000000"
+    )
     key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False)
 
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
@@ -57,7 +62,9 @@ class TaskStateStoreModel(Base):
     expires_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("dag_run_id", "task_id", "map_index", "key", name="task_state_store_uq"),
+        UniqueConstraint(
+            "dag_run_id", "task_id", "region_id", "map_index", "key", name="task_state_store_uq"
+        ),
         ForeignKeyConstraint(
             ["dag_run_id"],
             ["dag_run.id"],

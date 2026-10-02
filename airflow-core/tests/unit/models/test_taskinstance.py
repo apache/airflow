@@ -2615,6 +2615,7 @@ class TestTaskInstance:
             "task_id": "test_refresh_from_db_task",
             "dag_id": "test_refresh_from_db_dag",
             "run_id": "test",
+            "region_id": uuid6.UUID(int=0),
             "map_index": -1,
             "start_date": run_date + datetime.timedelta(days=1),
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
