@@ -40,7 +40,7 @@ import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import DrainingBanner from "src/components/Banner/DrainingBanner";
-import { DAGWarningsModal } from "src/components/DAGWarningsModal";
+import { countDagWarnings, DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
@@ -442,7 +442,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                       <>
                         <IconButton
                           colorPalette={Boolean(error) ? "red" : "orange"}
-                          label={`${translate("common:dagWarnings")} (${formatNumber((warningData?.total_entries ?? 0) + Number(Boolean(error)), i18n.language)})`}
+                          label={`${translate("common:dagWarnings")} (${formatNumber(countDagWarnings(warningData?.total_entries, error), i18n.language)})`}
                           margin="2"
                           marginBottom="-1"
                           onClick={onOpen}
