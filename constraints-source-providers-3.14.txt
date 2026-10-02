@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-01T16:39:33.300476
+# This constraints file was automatically generated on 2026-10-02T14:05:08.160393
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -100,7 +100,7 @@ azure-batch==15.1.0
 azure-common==1.1.28
 azure-core==1.41.0
 azure-cosmos==4.17.1
-azure-datalake-store==0.0.53
+azure-datalake-store==1.0.1
 azure-identity==1.25.3
 azure-keyvault-secrets==4.11.2
 azure-kusto-data==6.0.4
