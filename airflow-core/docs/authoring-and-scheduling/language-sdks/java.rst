@@ -274,8 +274,10 @@ Configure Airflow so the parent JAR directory is a Dag bundle, the coordinator s
     }
     queue_to_coordinator = {"java": "java"}
 
-``dag_bundle_name`` names the Dag bundle that holds the JARs. You can instead omit it and ship the JARs in
-the same Dag bundle as ``sales_pipeline.py``.
+``dag_bundle_name`` is only needed when you configure more than one ``JavaCoordinator``. Each one must then
+name its own Dag bundle, otherwise the Dag importer cannot tell which coordinator should parse a JAR. With a
+single ``JavaCoordinator``, as here, it is optional: omit it and the coordinator finds the JARs in the task's
+own Dag bundle, the one that holds ``sales_pipeline.py``.
 
 ``java`` is a user-chosen coordinator name, not a reserved value. The value assigned to the queue in
 ``queue_to_coordinator`` must match a key in ``coordinators``.
@@ -1063,7 +1065,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - ``dag_bundle_name``
      - *(auto: task's own bundle)*
      - Name of a configured Dag bundle to load JARs from. It must name a bundle in
-       ``[dag_processor] dag_bundle_config_list``.
+       ``[dag_processor] dag_bundle_config_list``. Only needed when more than one
+       ``JavaCoordinator`` is configured.
    * - ``java_executable``
      - ``"java"``
      - Path to the ``java`` binary.  Defaults to ``java`` on ``$PATH``.
@@ -1084,11 +1087,11 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
   **Locating JARs.** JARs always live in a Dag bundle:
 
-  * Set ``dag_bundle_name`` to load JARs from a configured Dag bundle, so they are delivered and
-    versioned through the same bundle machinery as your Dags. The task uses the version that bundle
-    is on when it starts, pinned for the whole task.
-  * Leave it unset (the default) to load JARs from the **task's own** Dag bundle, pinned to
-    the version the run was created with.
+  * Leave ``dag_bundle_name`` unset (the default) to load JARs from the **task's own** Dag bundle, pinned
+    to the version the run was created with. This is all you need with a single ``JavaCoordinator``.
+  * With more than one ``JavaCoordinator``, set ``dag_bundle_name`` on each to a different Dag bundle, so
+    the Dag importer can tell which coordinator parses which JAR. The task uses the version that bundle is
+    on when it starts, pinned for the whole task.
 
 .. note::
 
