@@ -72,7 +72,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG as SdkDAG
-from airflow.sdk.importers import DagImporterRegistry, DagImportError, DagSourceCode
+from airflow.sdk.importers import DagDefinition, DagImporterRegistry, DagImportError, DagSourceCode
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -455,6 +455,28 @@ class TestDagFileProcessorManager:
         assert found_files == {
             DagFileInfo(bundle_name="testing", rel_path=Path("broken.dag"), bundle_path=tmp_path)
         }
+
+    @pytest.mark.parametrize(
+        "item",
+        [
+            DagImportError(source_reference="missing.dag", message="boom"),
+            MagicMock(spec=DagDefinition, **{"get_relative_loc.return_value": "virtual/dag"}),
+        ],
+        ids=["error", "definition"],
+    )
+    @mock.patch("airflow.dag_processing.manager.get_importer_registry", autospec=True)
+    def test_find_files_in_bundle_warns_about_items_no_file_holds(
+        self, mock_get_registry, tmp_path, item, caplog
+    ):
+        mock_get_registry.return_value.list_dag_definitions.return_value = [(mock.sentinel.importer, item)]
+
+        found_files = DagFileProcessorManager(max_runs=1)._find_files_in_bundle(_make_bundle(tmp_path))
+
+        assert found_files == set()
+        assert {
+            "event": f"Ignoring {item!r} listed in bundle testing: no file in the bundle holds it",
+            "log_level": "warning",
+        } in caplog
 
     @conf_vars(
         {
