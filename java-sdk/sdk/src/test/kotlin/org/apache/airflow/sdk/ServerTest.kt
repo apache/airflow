@@ -27,15 +27,24 @@ import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.Frame
 import org.apache.airflow.sdk.execution.IncomingFrame
+import org.apache.airflow.sdk.execution.RawFrame
 import org.apache.airflow.sdk.execution.comm.TaskState
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.msgpack.core.MessagePack
+import org.msgpack.core.buffer.ArrayBufferInput
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
+
+private class ServerHandlerTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
 
 class ServerTest {
   private fun hexToBytes(hex: String): ByteArray =
@@ -110,6 +119,86 @@ class ServerTest {
       }
     }
     comm.close()
+  }
+
+  @Test
+  @DisplayName("Should answer a task handler parse request and wait for its acknowledgement")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun answersTaskHandlerParseRequest() {
+    val toServer = ByteChannel(autoFlush = true)
+    val fromServer = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toServer, fromServer)
+    val server = Server(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
+    val bundle = Bundle().register("etl", "audit", ServerHandlerTask::class.java)
+
+    val reported = ArrayBlockingQueue<RawFrame>(1)
+    val supervisor =
+      Thread {
+        runBlocking {
+          toServer.writeFrame(taskHandlerParseRequestFrame(3, "/bundle/etl.jar"))
+          val prefix = fromServer.readByteArray(4)
+          val raw = Frame.decodeRaw(ArrayBufferInput(fromServer.readByteArray(Frame.parseLengthPrefix(prefix).toInt())))
+          reported.put(raw)
+          toServer.writeFrame(ackFrame(raw.id))
+        }
+      }
+    supervisor.start()
+
+    runBlocking { server.dispatchTask(bundle, comm) }
+    supervisor.join()
+
+    val body = reported.take().rawBody as Map<*, *>
+    Assertions.assertEquals("TaskHandlerParsingResult", body["type"])
+    Assertions.assertEquals("/bundle/etl.jar", body["fileloc"])
+    Assertions.assertEquals(
+      mapOf("etl" to listOf(mapOf("task_id" to "audit", "binding" to "named", "params" to emptyList<Any>()))),
+      body["task_handlers"],
+    )
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("Should fail a task handler parse whose result is never acknowledged")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun failsTaskHandlerParseWithoutAcknowledgement() {
+    val toServer = ByteChannel(autoFlush = true)
+    val fromServer = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toServer, fromServer)
+    val server = Server(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
+
+    val supervisor =
+      Thread {
+        runBlocking {
+          toServer.writeFrame(taskHandlerParseRequestFrame(3, "/bundle/etl.jar"))
+          val prefix = fromServer.readByteArray(4)
+          fromServer.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+          toServer.close()
+        }
+      }
+    supervisor.start()
+
+    Assertions.assertThrows(ApiError::class.java) {
+      runBlocking { server.dispatchTask(Bundle(), comm) }
+    }
+    supervisor.join()
+    comm.close()
+  }
+
+  private fun taskHandlerParseRequestFrame(
+    id: Int,
+    file: String,
+  ): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(2)
+      packer.packInt(id)
+      packer.packMapHeader(4)
+      packer.packString("type").packString("TaskHandlerParseRequest")
+      packer.packString("file").packString(file)
+      packer.packString("bundle_path").packString("/bundle")
+      packer.packString("bundle_name").packString("java-task-handlers")
+    }
+    return out.toByteArray()
   }
 
   private companion object {

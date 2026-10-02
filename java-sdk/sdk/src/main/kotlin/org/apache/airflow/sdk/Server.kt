@@ -35,6 +35,8 @@ import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.Logger
 import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.comm.TaskHandlerParseRequest
+import org.apache.airflow.sdk.execution.parseTaskHandlers
 import org.apache.airflow.sdk.execution.runTask
 import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
@@ -69,6 +71,10 @@ class ApiError(
 /**
  * Connects this JVM process to the Airflow coordinator and dispatches task
  * execution requests to the registered [Bundle].
+ *
+ * The Dag processor starts the same entry point to ask which task handlers
+ * the bundle registers. That process replies with every registered handler
+ * and how each binds its arguments, runs no task, and exits.
  *
  * The typical entry point is:
  *
@@ -181,6 +187,7 @@ class Server(
     val frame = coordinator.readMessage()
     when (val body = frame.body) {
       is StartupDetails -> runTaskAndReport(bundle, body, coordinator)
+      is TaskHandlerParseRequest -> parseTaskHandlersAndReport(bundle, body, coordinator)
       is ErrorResponse -> throw ApiError("[${body.error}] ${body.detail}")
       else -> throw ApiError("Unexpected initial frame (id=${frame.id})")
     }
@@ -193,5 +200,13 @@ class Server(
   ) {
     val result = runTask(bundle, startup, coordinator)
     coordinator.communicate<Unit>(result)
+  }
+
+  private suspend fun parseTaskHandlersAndReport(
+    bundle: Bundle,
+    request: TaskHandlerParseRequest,
+    coordinator: CoordinatorComm,
+  ) {
+    coordinator.communicate<Unit>(parseTaskHandlers(bundle, request))
   }
 }

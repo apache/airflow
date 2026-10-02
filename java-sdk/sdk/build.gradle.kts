@@ -161,6 +161,10 @@ abstract class GenerateDiscriminatorTask : DefaultTask() {
     }
 }
 
+// A version is published only when it is released, so the in-progress one
+// (which gains messages during a release cycle) is taken from the monorepo
+// snapshot whenever that snapshot declares the configured version. Standalone
+// (source-release) builds have no snapshot and download the published file.
 abstract class SyncSupervisorSchemaTask : DefaultTask() {
     @get:Input
     abstract val schemaVersion: Property<String>
@@ -170,6 +174,9 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
 
     @get:Internal
     abstract val schemaFile: RegularFileProperty
+
+    @get:Internal
+    abstract val monorepoFile: RegularFileProperty
 
     private fun apiVersionOf(file: File): String =
         if (file.exists()) {
@@ -186,6 +193,16 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
     fun sync() {
         val file = schemaFile.get().asFile
         val version = schemaVersion.get()
+        val monorepo = monorepoFile.get().asFile
+        if (apiVersionOf(monorepo) == version) {
+            if (file.exists() && file.readBytes().contentEquals(monorepo.readBytes())) {
+                logger.lifecycle("Supervisor Schema matches the monorepo snapshot (api_version=$version).")
+            } else {
+                logger.lifecycle("Refreshing Supervisor Schema from ${monorepo.path}")
+                monorepo.copyTo(file, overwrite = true)
+            }
+            return
+        }
         if (apiVersionOf(file) == version) {
             logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
             return
@@ -640,6 +657,7 @@ val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
     schemaVersion = airflowSupervisorSchemaVersion
     baseUrl = schemaBaseUrl
     schemaFile = schemaInput
+    monorepoFile = layout.projectDirectory.file("../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json")
 }
 
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
