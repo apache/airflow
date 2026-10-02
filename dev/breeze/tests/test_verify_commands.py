@@ -18,13 +18,19 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from subprocess import CompletedProcess
 from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
 
-from airflow_breeze.commands.verify_commands import get_changed_files_against, verify
+from airflow_breeze.commands.verify_commands import (
+    find_default_base_ref,
+    get_changed_files_against,
+    has_merged_commits_missing_from,
+    verify,
+)
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -137,3 +143,135 @@ def test_long_commands_are_folded_not_truncated(mock_files):
     assert "\u2026" not in result.output
     compact = re.sub(r"[\u2502\s]", "", result.output)
     assert "breezetestingcore-tests--use-xdist--skip-db-tests--no-db-cleanup--backendnone" in compact
+
+
+FORK = "https://github.com/someone/airflow.git"
+APACHE_HTTPS = "https://github.com/apache/airflow.git"
+APACHE_SSH = "git@github.com:apache/airflow.git"
+
+
+@pytest.mark.parametrize(
+    ("remotes", "fetched", "expected"),
+    [
+        pytest.param(
+            {"origin": FORK, "upstream": APACHE_HTTPS},
+            {"origin", "upstream"},
+            "upstream/main",
+            id="convention",
+        ),
+        pytest.param(
+            {"origin": FORK, "apache": APACHE_SSH}, {"origin", "apache"}, "apache/main", id="other-name-ssh"
+        ),
+        pytest.param(
+            {"aaa": APACHE_HTTPS, "upstream": APACHE_HTTPS},
+            {"aaa", "upstream"},
+            "upstream/main",
+            id="prefers-upstream",
+        ),
+        pytest.param(
+            {"aaa": APACHE_HTTPS, "upstream": APACHE_HTTPS}, {"aaa"}, "aaa/main", id="upstream-not-fetched"
+        ),
+        pytest.param(
+            {"origin": "https://github.com/apache/airflow-site.git"}, {"origin"}, None, id="other-apache-repo"
+        ),
+        pytest.param({"origin": FORK}, {"origin"}, None, id="fork-only"),
+    ],
+)
+@patch("airflow_breeze.commands.verify_commands.run_command", autospec=True)
+def test_default_base_ref_is_main_on_the_apache_remote(mock_run, remotes, fetched, expected):
+    def fake_git(cmd, **kwargs):
+        if cmd[1] == "config":
+            stdout = "".join(f"remote.{name}.url {url}\n" for name, url in remotes.items())
+            return CompletedProcess(args=cmd, returncode=0, stdout=stdout, stderr="")
+        exists = cmd[-1].removeprefix("refs/remotes/").removesuffix("/main") in fetched
+        return CompletedProcess(args=cmd, returncode=0 if exists else 1, stdout="", stderr="")
+
+    mock_run.side_effect = fake_git
+    assert find_default_base_ref() == expected
+
+
+@pytest.mark.parametrize(
+    ("found", "compared_with", "warned"),
+    [("upstream/main", "upstream/main", False), (None, "main", True)],
+)
+def test_verify_compares_with_the_default_base_ref(found, compared_with: str, warned: bool):
+    with (
+        patch(
+            "airflow_breeze.commands.verify_commands.find_default_base_ref", autospec=True, return_value=found
+        ),
+        patch(
+            "airflow_breeze.commands.verify_commands.has_merged_commits_missing_from",
+            autospec=True,
+            return_value=False,
+        ),
+        patch(
+            "airflow_breeze.commands.verify_commands.get_changed_files_against",
+            autospec=True,
+            return_value=("airflow-core/docs/index.rst",),
+        ) as mock_files,
+    ):
+        result = CliRunner().invoke(verify, [], catch_exceptions=False)
+    assert result.exit_code == 0
+    mock_files.assert_called_once_with(compared_with)
+    output = " ".join(ANSI.sub("", result.output).split())
+    assert ("No git remote points at apache/airflow" in output) is warned
+    assert f"changed file(s) against {compared_with}," in output
+
+
+def _git(repo, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=repo, check=True, capture_output=True
+    )
+
+
+def _commit(repo, name: str) -> None:
+    (repo / name).write_text(name)
+    _git(repo, "add", name)
+    _git(repo, "commit", "-m", name)
+
+
+@pytest.mark.parametrize(
+    ("merge_main", "base", "expected"),
+    [
+        pytest.param(False, "stale-copy", False, id="never-merged"),
+        pytest.param(True, "stale-copy", True, id="merged-newer-than-base"),
+        pytest.param(True, "main", False, id="merged-and-base-fetched"),
+    ],
+)
+def test_detects_merged_commits_the_base_does_not_have(tmp_path, merge_main: bool, base: str, expected: bool):
+    _git(tmp_path, "init", "-b", "main")
+    _commit(tmp_path, "B")
+    _git(tmp_path, "branch", "stale-copy")
+    _git(tmp_path, "switch", "-c", "feature")
+    _commit(tmp_path, "X")
+    _git(tmp_path, "switch", "main")
+    _commit(tmp_path, "C")
+    _git(tmp_path, "switch", "feature")
+    if merge_main:
+        _git(tmp_path, "merge", "--no-edit", "main")
+    with patch("airflow_breeze.commands.verify_commands.AIRFLOW_ROOT_PATH", tmp_path):
+        assert has_merged_commits_missing_from(base) is expected
+
+
+@pytest.mark.parametrize("as_json", [False, True])
+@patch(
+    "airflow_breeze.commands.verify_commands.has_merged_commits_missing_from",
+    autospec=True,
+    return_value=True,
+)
+@patch(
+    "airflow_breeze.commands.verify_commands.get_changed_files_against",
+    autospec=True,
+    return_value=("airflow-core/docs/index.rst",),
+)
+def test_merged_commits_missing_from_the_base_are_warned_about(mock_files, mock_merged, as_json: bool):
+    result = CliRunner().invoke(
+        verify, ["--base-ref", "upstream/main", *(["--json"] if as_json else [])], catch_exceptions=False
+    )
+    assert result.exit_code == 0
+    mock_merged.assert_called_once_with("upstream/main")
+    warning = "Your branch has merged commits that are not in upstream/main"
+    stream = result.stderr if as_json else result.stdout
+    assert warning in " ".join(ANSI.sub("", stream).split())
+    if as_json:
+        assert json.loads(result.stdout)["base_ref"] == "upstream/main"

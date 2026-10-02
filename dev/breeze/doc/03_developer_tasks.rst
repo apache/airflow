@@ -324,12 +324,19 @@ Finding out what CI will run for your change
 and lists the commands to run locally for the change. Nothing is executed. The only non-zero exit
 is a usage error such as a base ref git cannot resolve.
 
+By default ``--base-ref`` is ``main`` on the git remote that points at apache/airflow (``upstream``
+if several do), the same base GitHub compares a PR with. A local ``main`` that is behind the
+``main`` your branch has merged would count every merged-in commit as your change. Without such a
+remote, ``breeze verify`` falls back to the local ``main`` branch and says so. It also warns when
+the branch has merged commits the base does not have, for example after GitHub's "Update branch"
+when the remote was not fetched since. With ``--json`` the warnings go to stderr.
+
 .. code-block:: bash
 
      breeze verify
      breeze verify --json
      breeze verify --full
-     breeze verify --base-ref upstream/main
+     breeze verify --base-ref main
 
 Each row says what kind of check it is, whether it runs on the host or needs Docker and the
 CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
