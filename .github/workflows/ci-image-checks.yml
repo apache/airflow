@@ -197,7 +197,7 @@ jobs:
           # start with ~90 GB free, in which case the 3-minute cleanup is skipped.
           min-free-space-gb: 40
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@ec1b354a0455b41001d77473236d02a0ee0adba4
+        uses: apache/infrastructure-actions/stash/restore@73dfeb8821416f3a31ddcd1e6eec95dc15b14ea7
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
@@ -313,7 +313,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@ec1b354a0455b41001d77473236d02a0ee0adba4
+        uses: apache/infrastructure-actions/stash/save@73dfeb8821416f3a31ddcd1e6eec95dc15b14ea7
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
