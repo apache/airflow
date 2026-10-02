@@ -2192,9 +2192,11 @@ sdk:
         versions).
 
         A coordinator finds its artifacts in the task's own Dag bundle, or in the
-        Dag bundle named by its ``dag_bundle_name`` kwarg. Two coordinators whose
-        Dag importers parse the same file extension need different
-        ``dag_bundle_name`` values.
+        Dag bundle named by its ``dag_bundle_name`` kwarg. ``dag_bundle_name`` is
+        only needed when the same coordinator class is configured more than once
+        (for example, two ``JavaCoordinator`` entries). Each one must then name
+        its own Dag bundle, otherwise the Dag importer cannot tell which
+        coordinator should parse an artifact. With one entry per class, omit it.
 
         An entry may also carry an optional ``extra`` object for additional
         information associated with the coordinator that the coordinator itself
