@@ -136,7 +136,7 @@ PIP package                                 Version required
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
 ``msgraph-core``                            ``>=1.3.3``
 ``msgraphfs``                               ``>=0.3.0``
-``microsoft-kiota-http``                    ``>=1.9.4,<2.0.0``
+``microsoft-kiota-http``                    ``<1.13.0,>=1.9.4``
 ``microsoft-kiota-serialization-json``      ``>=1.9.4``
 ``microsoft-kiota-serialization-text``      ``>=1.9.4``
 ``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``
