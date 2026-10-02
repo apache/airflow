@@ -3996,11 +3996,12 @@ class TestGetCount:
         assert response.status_code == 200
         assert response.json() == 2
 
-    def test_get_count_with_task_group(self, client, session, dag_maker):
+    @pytest.mark.parametrize("task_count", [0, 2])
+    def test_get_count_with_task_group(self, client, session, dag_maker, task_count):
         with dag_maker(dag_id="test_dag", serialized=True):
             with TaskGroup("group1"):
-                EmptyOperator(task_id="task1")
-                EmptyOperator(task_id="task2")
+                for index in range(task_count):
+                    EmptyOperator(task_id=f"task{index}")
 
             with TaskGroup("group2"):
                 EmptyOperator(task_id="task3")
@@ -4014,7 +4015,7 @@ class TestGetCount:
                 params={"dag_id": "test_dag", "task_group_id": "group1"},
             )
         assert response.status_code == 200
-        assert response.json() == 2
+        assert response.json() == task_count
         assert len(task_instance_selects) == 1
 
     def test_get_count_task_group_not_found(self, client, session, dag_maker):
@@ -4450,10 +4451,13 @@ class TestGetTaskStates:
         assert response.status_code == 200
         assert response.json() == {"task_states": {"test": {"test_task": "success"}}}
 
-    def test_get_task_states_group_id_basic(self, client, dag_maker, session):
+    @pytest.mark.parametrize("task_count", [0, 1])
+    def test_get_task_states_group_id_basic(self, client, dag_maker, session, task_count):
         with dag_maker(dag_id="test_dag", serialized=True):
+            EmptyOperator(task_id="outside_group")
             with TaskGroup("group1"):
-                EmptyOperator(task_id="task1")
+                for index in range(task_count):
+                    EmptyOperator(task_id=f"task{index}")
 
         dag_maker.create_dagrun(session=session)
         session.commit()
@@ -4464,13 +4468,8 @@ class TestGetTaskStates:
                 params={"dag_id": "test_dag", "task_group_id": "group1"},
             )
         assert response.status_code == 200
-        assert response.json() == {
-            "task_states": {
-                "test": {
-                    "group1.task1": None,
-                },
-            },
-        }
+        expected_states = {"test": {"group1.task0": None}} if task_count else {}
+        assert response.json() == {"task_states": expected_states}
         assert len(task_instance_selects) == 1
 
     def test_get_task_states_with_task_group_id_and_task_id(self, client, session, dag_maker):

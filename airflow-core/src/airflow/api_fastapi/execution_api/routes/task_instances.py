@@ -1289,7 +1289,7 @@ def get_task_instance_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_task_ids = _get_group_task_ids(dag_id, task_group_id, session, dag_bag)
+        group_task_ids = _get_group_task_ids(dag_id, task_group_id, dag_bag, session=session)
         if group_task_ids:
             query = query.where(TI.task_id.in_(group_task_ids))
         else:
@@ -1381,7 +1381,7 @@ def get_task_instance_states(
     selected_task_ids = list(task_ids or [])
 
     if task_group_id:
-        selected_task_ids.extend(_get_group_task_ids(dag_id, task_group_id, session, dag_bag))
+        selected_task_ids.extend(_get_group_task_ids(dag_id, task_group_id, dag_bag, session=session))
 
     # Keep task_group_id load-bearing when the group resolves to no tasks; an
     # empty IN filter must match nothing instead of returning every TI in the Dag.
@@ -1445,8 +1445,9 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
 def _get_group_task_ids(
     dag_id: str,
     task_group_id: str,
-    session: SessionDep,
     dag_bag: DagBagDep,
+    *,
+    session: SessionDep,
 ) -> list[str]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
