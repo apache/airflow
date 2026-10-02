@@ -581,20 +581,6 @@ class SubprocessCoordinator(BaseCoordinator):
             )
         return self._active_scan_roots
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        """
-        Build the subprocess command and resolve its supervisor wire-schema version for *what*.
-
-        Subclasses can retrieve the directories to scan for artifacts with
-        :meth:`_get_scan_roots`.
-        Returns a ``(command, subprocess_schema_version)`` pair. *command* MUST
-        NOT include the ``--comm`` / ``--logs`` flags — those are appended by
-        :class:`_PopenActivitySubprocess` once the listening sockets have been
-        bound. A ``None`` schema version disables schema migration; messages are
-        then exchanged at the runtime's native wire format.
-        """
-        raise NotImplementedError
-
     def _build_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         """
         Build the command that runs the artifact at *path*, with its supervisor schema version.

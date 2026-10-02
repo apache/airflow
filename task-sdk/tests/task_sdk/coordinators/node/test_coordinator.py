@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import json
 import pathlib
 from unittest import mock
 
@@ -27,7 +26,6 @@ from task_sdk.coordinators._execute_test_utils import execute_task, register_dag
 from task_sdk.coordinators.node._bundle_test_utils import (
     BUNDLE_NAME,
     mutate_byte,
-    read_layout,
     replace_layout_payload,
     write_bundle,
 )
@@ -35,9 +33,8 @@ from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
 from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
-from airflow.sdk.coordinators.node import _bundle_reader as _reader
 from airflow.sdk.coordinators.node._bundle_reader import _digest_cache, read_cache_digest
-from airflow.sdk.coordinators.node.coordinator import NodeCoordinator, _Bundle
+from airflow.sdk.coordinators.node.coordinator import NodeCoordinator
 from airflow.sdk.execution_time.comms import TaskHandlerArtifactRef
 from airflow.sdk.execution_time.coordinator import TaskHandlerArtifactError, TaskHandlerCandidate
 
@@ -79,36 +76,6 @@ class TestNodeCoordinatorAttributes:
         assert coordinator.node_executable == "/opt/node/bin/node"
         assert coordinator.task_handler_bundle_name == "ts-task-handlers"
         assert coordinator.task_startup_timeout == 30.0
-
-    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
-        bundle = write_bundle(tmp_path, "test_dag")
-        coordinator = NodeCoordinator()
-        with coordinator._set_scan_roots([tmp_path]):
-            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
-        assert command == ["node", str(bundle)]
-        assert schema_version == SCHEMA_VERSION
-
-
-class TestNodeCoordinatorExecuteTaskCommand:
-    def test_selects_bundle_by_dag_id(self, tmp_path):
-        selected = write_bundle(tmp_path, "sales")
-        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
-
-        with coordinator._set_scan_roots([tmp_path]):
-            command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
-
-        assert command == ["/opt/node/bin/node", str(selected)]
-        assert schema_version == SCHEMA_VERSION
-
-    def test_build_execute_task_command_returns_node_bundle_and_schema_version(self, tmp_path):
-        bundle = write_bundle(tmp_path, "test_dag")
-        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
-
-        with coordinator._set_scan_roots([tmp_path]):
-            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
-
-        assert command == ["/opt/node/bin/node", str(bundle)]
-        assert schema_version == SCHEMA_VERSION
 
 
 def _write_plain_file(root: pathlib.Path) -> pathlib.Path:
@@ -326,214 +293,3 @@ class TestListTaskHandlerCandidates:
                 error="handlers.min.mjs: embedded airflow bundle layout must contain a mapping",
             )
         ]
-
-
-class TestBundleFind:
-    @pytest.mark.parametrize(
-        "name",
-        ["tasks.mjs", "tasks.js", "tasks.min.js", "bundle.min.mjs.bak", "min.mjs.txt"],
-        ids=["mjs", "js", "min-js", "suffixed", "embedded"],
-    )
-    def test_ignores_files_without_the_bundle_suffix(self, tmp_path, name):
-        # Written as a real bundle, so only the name can exclude it.
-        write_bundle(tmp_path, "sales", name=name)
-
-        with pytest.raises(FileNotFoundError, match="dag_id='sales'") as exc_info:
-            _Bundle.find([tmp_path], "sales")
-
-        # Never opened, so it cannot appear among the rejected candidates.
-        assert "rejected candidates" not in str(exc_info.value)
-
-    def test_reports_unreadable_bundle(self, tmp_path, monkeypatch):
-        write_bundle(tmp_path, "sales")
-        original_open = pathlib.Path.open
-
-        def raise_os_error(self, *args, **kwargs):
-            if self.name == BUNDLE_NAME:
-                raise PermissionError("denied")
-            return original_open(self, *args, **kwargs)
-
-        monkeypatch.setattr(pathlib.Path, "open", raise_os_error)
-
-        with pytest.raises(FileNotFoundError, match="cannot read bundle.min.mjs"):
-            _Bundle.find([tmp_path], "sales")
-
-    def test_skips_root_when_bundle_probe_fails(self, tmp_path, monkeypatch):
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        unstattable = write_bundle(first, "sales")
-        expected = write_bundle(second, "sales")
-        original_stat = pathlib.Path.stat
-
-        def fail_first_probe(self, *args, **kwargs):
-            if self == unstattable:
-                raise PermissionError("denied")
-            return original_stat(self, *args, **kwargs)
-
-        monkeypatch.setattr(pathlib.Path, "stat", fail_first_probe)
-
-        found = _Bundle.find([first, second], "sales")
-
-        assert found.path == expected
-
-    def test_finds_bundle_nested_below_a_root(self, tmp_path):
-        expected = write_bundle(tmp_path / "team" / "sales", "sales")
-
-        found = _Bundle.find([tmp_path], "sales")
-
-        assert found.path == expected
-
-    def test_selects_bundle_by_dag_id_within_one_root(self, tmp_path):
-        write_bundle(tmp_path, "inventory", name="inventory.min.mjs")
-        expected = write_bundle(tmp_path, "sales", name="sales.min.mjs")
-
-        found = _Bundle.find([tmp_path], "sales")
-
-        assert found.path == expected
-
-    def test_orders_candidates_in_one_root_by_path(self, tmp_path):
-        # Directory iteration order is filesystem-dependent, so sorted name decides the winner.
-        expected = write_bundle(tmp_path, "sales", name="a.min.mjs")
-        write_bundle(tmp_path, "sales", name="b.min.mjs")
-        write_bundle(tmp_path / "nested", "sales")
-
-        found = _Bundle.find([tmp_path], "sales")
-
-        assert found.path == expected
-
-    def test_survives_a_directory_symlink_loop(self, tmp_path):
-        expected = write_bundle(tmp_path, "sales")
-        loop = tmp_path / "loop"
-        try:
-            loop.symlink_to(tmp_path, target_is_directory=True)
-        except (OSError, NotImplementedError):
-            pytest.skip("filesystem does not support directory symlinks")
-
-        found = _Bundle.find([tmp_path], "sales")
-
-        assert found.path == expected
-
-    def test_names_unrelated_min_mjs_file_among_rejected_candidates(self, tmp_path):
-        stray = tmp_path / "vendor.min.mjs"
-        stray.write_bytes(b"export {};\n")
-
-        with pytest.raises(FileNotFoundError) as exc_info:
-            _Bundle.find([tmp_path], "sales")
-
-        message = str(exc_info.value)
-        assert str(stray) in message
-        assert "no airflow bundle layout" in message
-
-    def test_selects_later_bundle_containing_requested_dag(self, tmp_path):
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        write_bundle(first, "inventory")
-        expected = write_bundle(second, "sales")
-
-        found = _Bundle.find([first, second], "sales")
-
-        assert found.path == expected
-
-    def test_first_configured_match_wins_for_duplicate_dag(self, tmp_path):
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        expected = write_bundle(first, "sales", code=b'console.log("first");\n')
-        write_bundle(second, "sales", code=b'console.log("second");\n')
-
-        found = _Bundle.find([first, second], "sales")
-
-        assert found.path == expected
-
-    @mock.patch("airflow.sdk.coordinators.node.coordinator.log.debug", autospec=True)
-    def test_skips_corrupt_candidate_and_selects_later_match(self, log_debug, tmp_path):
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        corrupt = write_bundle(first, "sales")
-        layout = read_layout(corrupt)
-        mutate_byte(corrupt, int(layout["code"]["start"], 16))  # type: ignore[index, call-overload]
-        expected = write_bundle(second, "sales")
-
-        found = _Bundle.find([first, second], "sales")
-
-        assert found.path == expected
-        rejected_log = next(
-            call
-            for call in log_debug.call_args_list
-            if call.args == ("TypeScript bundle rejected; skipping",)
-        )
-        assert rejected_log.kwargs["exc_info"] is True
-
-    def test_skips_deeply_nested_metadata_and_selects_later_match(self, tmp_path):
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        deeply_nested_json = b'{"nested":' + (b"[" * 10_000) + b"0" + (b"]" * 10_000) + b"}"
-        write_bundle(first, "sales", metadata_payload=deeply_nested_json)
-        expected = write_bundle(second, "sales")
-
-        found = _Bundle.find([first, second], "sales")
-
-        assert found.path == expected
-
-    def test_skips_layout_decoder_recursion_and_selects_later_match(self, tmp_path, monkeypatch):
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        write_bundle(first, "sales")
-        expected = write_bundle(second, "sales")
-        original_loads = json.loads
-        call_count = 0
-
-        def recurse_once(payload):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise RecursionError("test recursion")
-            return original_loads(payload)
-
-        monkeypatch.setattr(_reader.json, "loads", recurse_once)
-
-        found = _Bundle.find([first, second], "sales")
-
-        assert found.path == expected
-
-    def test_skips_matching_bundle_with_invalid_schema_version(self, tmp_path):
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        write_bundle(first, "sales", schema_version="banana")
-        expected = write_bundle(second, "sales")
-
-        found = _Bundle.find([first, second], "sales")
-
-        assert found.path == expected
-
-    def test_error_names_dag_roots_and_rejected_candidates(self, tmp_path):
-        first = tmp_path / "first"
-        second = tmp_path / "second"
-        first.mkdir()
-        second.mkdir()
-        (first / BUNDLE_NAME).write_bytes(b"export {};\n")
-        write_bundle(second, "inventory")
-
-        with pytest.raises(FileNotFoundError) as exc_info:
-            _Bundle.find([first, second], "sales")
-
-        message = str(exc_info.value)
-        assert "dag_id='sales'" in message
-        assert str(first) in message
-        assert str(second) in message
-        assert "rejected candidates" in message
-        assert "verified bundle declares dag_ids=['inventory']" in message
-        assert "matching bundles were rejected" not in message

@@ -23,7 +23,6 @@ import os
 import stat
 import struct
 from pathlib import Path
-from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -38,8 +37,6 @@ from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_SIZE,
     ExecutableCoordinator,
     _BinaryDigestCache,
-    _Bundle,
-    _digest_cache,
     read_cache_digest,
 )
 from airflow.sdk.execution_time.comms import TaskHandlerArtifactRef
@@ -199,221 +196,6 @@ class TestBinaryDigestCache:
         assert cache.get(key) is None
 
 
-class TestBundleFind:
-    def test_finds_matching_dag_id(self, tmp_path):
-        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag", "other_dag"])
-
-        bundle = _Bundle.find([tmp_path], "tutorial_dag")
-        assert bundle.path == binary.resolve()
-
-    def test_picks_matching_bundle_among_many(self, tmp_path):
-        _build_bundle(tmp_path / "alpha", dag_ids=["alpha_dag"])
-        beta = _build_bundle(tmp_path / "beta", dag_ids=["beta_dag"])
-        _build_bundle(tmp_path / "gamma", dag_ids=["gamma_dag"])
-
-        bundle = _Bundle.find([tmp_path], "beta_dag")
-        assert bundle.path == beta.resolve()
-
-    def test_searches_nested_subdirectories(self, tmp_path):
-        nested = tmp_path / "team-a" / "release-2026.05"
-        nested.mkdir(parents=True)
-        target = _build_bundle(nested / "pipeline", dag_ids=["nested_dag"])
-
-        bundle = _Bundle.find([tmp_path], "nested_dag")
-        assert bundle.path == target.resolve()
-
-    def test_searches_multiple_roots(self, tmp_path):
-        root_a = tmp_path / "a"
-        root_b = tmp_path / "b"
-        root_a.mkdir()
-        root_b.mkdir()
-        _build_bundle(root_a / "alpha", dag_ids=["alpha_dag"])
-        target = _build_bundle(root_b / "beta", dag_ids=["beta_dag"])
-
-        bundle = _Bundle.find([root_a, root_b], "beta_dag")
-        assert bundle.path == target.resolve()
-
-    def test_skips_non_bundle_files(self, tmp_path):
-        (tmp_path / "README.md").write_text("not a bundle")
-        _make_executable(tmp_path / "stray_executable")
-        binary = _build_bundle(tmp_path / "real_bundle", dag_ids=["tutorial_dag"])
-
-        bundle = _Bundle.find([tmp_path], "tutorial_dag")
-        assert bundle.path == binary.resolve()
-
-    def test_skips_non_executable_files(self, tmp_path):
-        non_exec = _build_bundle(tmp_path / "non_exec", dag_ids=["tutorial_dag"])
-        non_exec.chmod(non_exec.stat().st_mode & ~(stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
-
-        with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-            _Bundle.find([tmp_path], "tutorial_dag")
-
-    def test_raises_when_not_found(self, tmp_path):
-        with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-            _Bundle.find([tmp_path], "nonexistent_dag")
-
-    def test_raises_when_directory_missing(self, tmp_path):
-        with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-            _Bundle.find([tmp_path / "does_not_exist"], "tutorial_dag")
-
-    def test_symlink_cycle_does_not_infinite_recurse(self, tmp_path):
-        nested = tmp_path / "inner"
-        nested.mkdir()
-        target = _build_bundle(nested / "pipeline", dag_ids=["loop_dag"])
-        loop = nested / "loop"
-        try:
-            loop.symlink_to(tmp_path)
-        except (OSError, NotImplementedError):
-            pytest.skip("symlinks not supported on this platform")
-
-        bundle = _Bundle.find([tmp_path], "loop_dag")
-        assert bundle.path == target.resolve()
-
-    def test_skips_bundle_with_corrupted_binary_region(self, tmp_path):
-        bundle_path = _build_bundle(tmp_path / "tampered", dag_ids=["tutorial_dag"])
-        # Flip a byte in the binary region; the embedded SHA-256 no longer matches.
-        data = bytearray(bundle_path.read_bytes())
-        data[0] ^= 0xFF
-        bundle_path.write_bytes(bytes(data))
-        bundle_path.chmod(bundle_path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-        _digest_cache.clear()
-
-        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
-            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-                _Bundle.find([tmp_path], "tutorial_dag")
-
-        mock_log.debug.assert_any_call(
-            "Bundle binary_sha256 mismatch; skipping",
-            path=str(bundle_path),
-            expected=mock.ANY,
-            actual=mock.ANY,
-        )
-
-    def test_captures_schema_version_from_metadata(self, tmp_path):
-        _build_bundle(tmp_path / "with_schema", dag_ids=["tutorial_dag"])
-
-        bundle = _Bundle.find([tmp_path], "tutorial_dag")
-        assert bundle.schema_version == "2026-06-16"
-
-    def test_skips_bundle_when_schema_version_missing(self, tmp_path):
-        metadata = _make_metadata(["tutorial_dag"])
-        del metadata["sdk"]["supervisor_schema_version"]
-        bundle_path = _build_bundle(tmp_path / "no_schema", dag_ids=["tutorial_dag"], metadata=metadata)
-
-        # Converter rejects the missing schema_version, so find() treats the bundle as unusable.
-        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
-            with pytest.raises(FileNotFoundError, match="matching bundles were rejected"):
-                _Bundle.find([tmp_path], "tutorial_dag")
-
-        mock_log.debug.assert_any_call(
-            "Bundle metadata rejected; skipping",
-            path=str(bundle_path),
-            error=mock.ANY,
-        )
-
-    def test_skips_bundle_with_unknown_schema_version(self, tmp_path):
-        metadata = _make_metadata(["tutorial_dag"])
-        metadata["sdk"]["supervisor_schema_version"] = "1999-01-01"
-        bundle_path = _build_bundle(tmp_path / "bogus_schema", dag_ids=["tutorial_dag"], metadata=metadata)
-
-        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
-            with pytest.raises(FileNotFoundError, match="matching bundles were rejected") as exc_info:
-                _Bundle.find([tmp_path], "tutorial_dag")
-
-        mock_log.debug.assert_any_call(
-            "Bundle metadata rejected; skipping",
-            path=str(bundle_path),
-            error=mock.ANY,
-        )
-        # The raised error surfaces the rejection so a found-but-unusable bundle
-        # is not reported as missing.
-        msg = str(exc_info.value)
-        assert str(bundle_path.resolve()) in msg
-        assert "1999-01-01" in msg
-
-    def test_logs_when_metadata_yaml_is_malformed(self, tmp_path):
-        bundle_path = _build_bundle(
-            tmp_path / "bad_yaml",
-            dag_ids=["tutorial_dag"],
-            metadata=b"key: : not: valid: yaml: [",
-        )
-
-        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
-            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-                _Bundle.find([tmp_path], "tutorial_dag")
-
-        mock_log.debug.assert_any_call(
-            "Cannot decode bundle metadata; skipping",
-            path=str(bundle_path),
-            error=mock.ANY,
-        )
-
-    def test_logs_when_metadata_is_not_a_mapping(self, tmp_path):
-        bundle_path = _build_bundle(
-            tmp_path / "scalar_meta",
-            dag_ids=["tutorial_dag"],
-            metadata=b"just-a-scalar\n",
-        )
-
-        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
-            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-                _Bundle.find([tmp_path], "tutorial_dag")
-
-        mock_log.debug.assert_any_call(
-            "Cannot decode bundle metadata; skipping",
-            path=str(bundle_path),
-            error=mock.ANY,
-        )
-
-
-class TestExecutableCoordinatorAttributes:
-    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
-        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
-        coordinator = ExecutableCoordinator()
-        with coordinator._set_scan_roots([tmp_path]):
-            command, schema_version = coordinator._build_execute_task_command(
-                what=_make_ti(dag_id="tutorial_dag")
-            )
-        assert command == [str(binary.resolve())]
-        assert schema_version == "2026-06-16"
-
-
-class TestBuildExecuteTaskCommand:
-    def test_returns_resolved_executable_and_schema_version(self, tmp_path):
-        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
-        ti = _make_ti(dag_id="tutorial_dag")
-
-        coordinator = ExecutableCoordinator()
-        with coordinator._set_scan_roots([tmp_path]):
-            command, schema_version = coordinator._build_execute_task_command(what=ti)
-        assert command == [str(binary.resolve())]
-        assert schema_version == "2026-06-16"
-
-    def test_raises_when_bundle_omits_schema_version(self, tmp_path):
-        metadata = _make_metadata(["tutorial_dag"])
-        del metadata["sdk"]["supervisor_schema_version"]
-        _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"], metadata=metadata)
-        ti = _make_ti(dag_id="tutorial_dag")
-
-        coordinator = ExecutableCoordinator()
-        with (
-            coordinator._set_scan_roots([tmp_path]),
-            pytest.raises(FileNotFoundError, match="matching bundles were rejected"),
-        ):
-            coordinator._build_execute_task_command(what=ti)
-
-    def test_raises_when_dag_id_not_found(self, tmp_path):
-        _build_bundle(tmp_path / "my_bundle", dag_ids=["other_dag"])
-        ti = _make_ti(dag_id="tutorial_dag")
-
-        coordinator = ExecutableCoordinator()
-        with (
-            coordinator._set_scan_roots([tmp_path]),
-            pytest.raises(FileNotFoundError, match="cannot find executable bundle"),
-        ):
-            coordinator._build_execute_task_command(what=ti)
-
-
 _CACHE_DIGEST = "c" * 64
 
 
@@ -486,6 +268,10 @@ class TestBuildTaskHandlerCommand:
             pytest.param(
                 lambda path: _build_bundle(path, binary_sha256=b"\x00" * 32), id="binary-digest-mismatch"
             ),
+            pytest.param(
+                lambda path: _build_bundle(path, metadata=b"key: : not: valid: yaml: ["), id="malformed-yaml"
+            ),
+            pytest.param(lambda path: _build_bundle(path, metadata=b"just-a-scalar\n"), id="scalar-metadata"),
         ],
     )
     def test_rejects_a_file_that_is_not_a_valid_bundle(self, tmp_path, build):
@@ -747,6 +533,22 @@ class TestExecutableCoordinatorExecuteTask:
             f"Task handler artifact 'etl.jar' in Dag bundle '{go_task_handlers}' is not an artifact "
             "that ExecutableCoordinator runs. A newer parse may route this task to another coordinator."
         )
+
+    def test_a_bundle_with_an_unknown_schema_version_raises_before_the_runtime_starts(
+        self, bundles_dir, go_task_handlers, mock_client
+    ):
+        metadata = _make_metadata(["tutorial_dag"])
+        metadata["sdk"]["supervisor_schema_version"] = "1999-01-01"
+        _build_bundle(bundles_dir / "bogus", metadata=metadata)
+        reference = TaskHandlerArtifactRef(rel_path="bogus")
+
+        with patch.object(_PopenActivitySubprocess, "start", autospec=True) as mock_start:
+            with pytest.raises(TaskHandlerArtifactError, match="uses supervisor schema version '1999-01-01'"):
+                _execute_task(
+                    mock_client, go_task_handlers, dag_rel_path="dag.py", task_handler_artifact=reference
+                )
+
+        mock_start.assert_not_called()
 
     def test_a_missing_referenced_file_raises(self, go_task_handlers, mock_client):
         reference = TaskHandlerArtifactRef(rel_path="gone")

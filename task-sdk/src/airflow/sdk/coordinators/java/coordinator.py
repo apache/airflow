@@ -24,7 +24,6 @@ import lzma
 import os
 import pathlib
 import re
-import stat
 import zipfile
 import zlib
 from typing import TYPE_CHECKING
@@ -32,63 +31,28 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import validate_schema_version, walk_files
+from airflow.sdk.coordinators._bundle_metadata import walk_files
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Sequence
+    from collections.abc import Sequence
 
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
-    from airflow.sdk.api.datamodels._generated import TaskInstance
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.java")
 
 
-def _find_jars(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
-    """
-    Yield JAR files under *items*, descending into directories.
-
-    A symlink loop or a directory that hardlinks into one of its ancestors
-    would otherwise recurse until the interpreter stack is exhausted, so
-    directories are deduplicated by ``(st_dev, st_ino)`` for the duration
-    of a single scan.
-    """
-    seen_dirs: set[tuple[int, int]] = set()
-    yield from _walk_jars(items, seen_dirs)
-
-
-def _walk_jars(items: Iterable[pathlib.Path], seen_dirs: set[tuple[int, int]]) -> Iterator[pathlib.Path]:
-    for item in items:
-        try:
-            st = item.stat()
-        except OSError:
-            continue
-        if stat.S_ISDIR(st.st_mode):
-            key = (st.st_dev, st.st_ino)
-            if key in seen_dirs:
-                log.debug("Skipping already-visited directory", path=item)
-                continue
-            seen_dirs.add(key)
-            yield from _walk_jars(_iter_dir(item), seen_dirs)
-        elif stat.S_ISREG(st.st_mode) and item.suffix == ".jar":
-            yield item
-
-
-def _iter_dir(directory: pathlib.Path) -> Iterator[pathlib.Path]:
-    # iterdir() is lazy, so an unreadable directory raises only once iteration
-    # starts; swallow it here so a single bad directory does not abort the scan.
-    try:
-        yield from directory.iterdir()
-    except OSError:
-        return
+def _is_jar(path: pathlib.Path) -> bool:
+    return path.suffix == ".jar"
 
 
 def _calculate_classpath(roots: Sequence[pathlib.Path]) -> str:
-    jars = (p.as_posix() for p in _find_jars(roots))
-    return os.pathsep.join(sorted(jars))  # Keep output deterministic.
+    return os.pathsep.join(
+        sorted(p.as_posix() for p in walk_files(roots, match=_is_jar))
+    )  # Keep output deterministic.
 
 
 def _parse_manifest(data: bytes) -> dict[str, str]:
@@ -159,7 +123,7 @@ def _find_schema_version(roots: Sequence[pathlib.Path]) -> str:
 
     JARs are visited in sorted walk order, so the answer does not depend on filesystem ordering.
     """
-    for jar in walk_files(roots, match=lambda path: path.suffix == ".jar"):
+    for jar in walk_files(roots, match=_is_jar):
         if (metadata := _JarMetadata.from_jar(jar)) is not None and metadata.schema_version:
             log.debug(
                 "JAR located with Airflow-Supervisor-Schema-Version metadata",
@@ -171,49 +135,6 @@ def _find_schema_version(roots: Sequence[pathlib.Path]) -> str:
         "cannot find a JAR with Airflow-Supervisor-Schema-Version metadata in "
         f"{os.pathsep.join(os.fspath(p.resolve()) for p in roots)}"
     )
-
-
-@attrs.define
-class _JarInfo:
-    main_class: str
-    schema_version: str = attrs.field(validator=validate_schema_version)
-
-    @attrs.define
-    class _Progress:
-        main_class: str | None = attrs.field(init=False, default=None)
-        schema_version: str | None = attrs.field(init=False, default=None)
-
-        def collect(self) -> _JarInfo | None:
-            if self.main_class is None or self.schema_version is None:
-                return None
-            return _JarInfo(self.main_class, self.schema_version)
-
-    @classmethod
-    def find(cls, roots: Sequence[pathlib.Path], main_class: str) -> _JarInfo:
-        log.debug("Finding JARs recursively", roots=roots)
-        progress = cls._Progress()
-        for p in _find_jars(roots):
-            if (metadata := _JarMetadata.from_jar(p)) is None:
-                continue
-            if metadata.main_class and ((main_class == metadata.main_class) or not main_class):
-                log.debug("JAR located with Main-Class metadata", path=p, main_class=metadata.main_class)
-                progress.main_class = metadata.main_class
-            if metadata.schema_version:
-                log.debug(
-                    "JAR located with Airflow-Supervisor-Schema-Version metadata",
-                    path=p,
-                    schema_version=metadata.schema_version,
-                )
-                progress.schema_version = metadata.schema_version
-            if (result := progress.collect()) is not None:
-                return result
-        if progress.main_class is not None:
-            tp = "cannot find a JAR with Airflow-Supervisor-Schema-Version metadata in {1}"
-        elif main_class:
-            tp = "cannot find a JAR with Main-Class matching {0!r} in {1}"
-        else:
-            tp = "cannot find a JAR with Main-Class metadata in {1}"
-        raise FileNotFoundError(tp.format(main_class, os.pathsep.join(os.fspath(p.resolve()) for p in roots)))
 
 
 @attrs.define(kw_only=True)
@@ -279,13 +200,6 @@ class JavaCoordinator(SubprocessCoordinator):
     java_executable: str = "java"
     jvm_args: list[str] = attrs.field(factory=list)
     main_class: str = ""
-
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        # Without main_class, the first executable JAR in walk order wins; tracked at
-        # https://github.com/apache/airflow/issues/71134
-        roots = self._get_scan_roots()
-        jar = _JarInfo.find(roots, self.main_class)
-        return self._build_java_command(roots, jar.main_class), jar.schema_version
 
     def _build_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         metadata = _JarMetadata.from_jar(path)

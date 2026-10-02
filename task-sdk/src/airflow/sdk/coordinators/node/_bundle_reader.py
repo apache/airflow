@@ -118,10 +118,9 @@ class BundleMetadata:
     Metadata fields needed by the coordinator, extracted after integrity verification.
 
     This is not the full metadata document. Supervisor schema compatibility is
-    checked when the coordinator selects the bundle.
+    checked when the coordinator runs the bundle.
     """
 
-    dag_ids: frozenset[str]
     supervisor_schema_version: str
 
 
@@ -477,14 +476,7 @@ def _parse_bundle_metadata(payload: bytes) -> BundleMetadata:
             f"unsupported airflow bundle metadata version {value!r}; "
             f"this runtime supports major version {_SUPPORTED_BUNDLE_MAJOR_VERSION}"
         )
-    # Keyed by Dag, but named for what the bundle provides: handlers for Dags declared elsewhere.
-    task_handlers = metadata.get("task_handlers")
-    if not isinstance(task_handlers, dict):
-        raise ValueError("embedded airflow metadata must contain a task_handlers mapping")
-    return BundleMetadata(
-        dag_ids=frozenset(task_handlers),
-        supervisor_schema_version=extract_supervisor_schema_version(metadata),
-    )
+    return BundleMetadata(supervisor_schema_version=extract_supervisor_schema_version(metadata))
 
 
 def _resolve_source_path(payload: bytes, dag_id: str) -> str | None:

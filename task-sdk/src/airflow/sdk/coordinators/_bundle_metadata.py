@@ -23,11 +23,8 @@ import pathlib
 import stat
 from typing import TYPE_CHECKING, Any
 
-import attrs
 import structlog
 import yaml
-
-from airflow.sdk.execution_time.schema import get_schema_version_migrator
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
@@ -43,11 +40,8 @@ def walk_files(
     """
     Yield the regular files under *roots* that satisfy *match*, descending into directories.
 
-    Roots are visited in order and each directory's entries sorted, so coordinator selection does
-    not depend on filesystem ordering.
-
-    ``JavaCoordinator`` and ``ExecutableCoordinator`` still carry equivalent walks and should move
-    onto this one.
+    Roots are visited in order and each directory's entries sorted, so what a coordinator lists or
+    reads from a bundle does not depend on filesystem ordering.
     """
     yield from _walk_files(roots, match, set())
 
@@ -82,19 +76,6 @@ def _sorted_children(directory: pathlib.Path) -> list[pathlib.Path]:
         return sorted(directory.iterdir())
     except OSError:
         return []
-
-
-def validate_schema_version(instance, _, value) -> str:
-    """Attrs validator resolving a bundle's supervisor schema version to a known one."""
-    return get_schema_version_migrator().resolve_version(str(value))
-
-
-@attrs.define
-class ResolvedBundle:
-    """A located bundle whose supervisor schema version has been resolved."""
-
-    path: pathlib.Path
-    schema_version: str = attrs.field(validator=validate_schema_version)
 
 
 def parse_metadata_mapping(content: str | bytes, *, source: str) -> dict[str, Any]:

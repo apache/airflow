@@ -653,13 +653,6 @@ class TestSubprocessCoordinatorAttributes:
         coordinator = _StubSubprocessCoordinator(command=["/bin/true"], task_startup_timeout=2.5)
         assert coordinator.task_startup_timeout == 2.5
 
-    def test_build_execute_task_command_default_raises(self):
-        class _Plain(SubprocessCoordinator):
-            pass
-
-        with pytest.raises(NotImplementedError):
-            _Plain()._build_execute_task_command(what=_make_ti())
-
 
 @pytest.mark.usefixtures("artifact_bundle")
 class TestSubprocessCoordinatorExecuteTask:
