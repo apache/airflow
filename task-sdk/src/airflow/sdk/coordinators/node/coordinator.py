@@ -32,6 +32,7 @@ from airflow.sdk.coordinators._bundle_metadata import (
 )
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.coordinators.node._bundle_reader import BUNDLE_SUFFIX, read_bundle
+from airflow.sdk.coordinators.node._dag_importer import NodeDagImporter
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -40,7 +41,6 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
-    from airflow.sdk.coordinators.node._dag_importer import NodeDagImporter
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node")
 
@@ -149,8 +149,6 @@ class NodeCoordinator(SubprocessCoordinator):
 
     @classmethod
     def get_dag_importer_class(cls) -> type[NodeDagImporter]:
-        from airflow.sdk.coordinators.node._dag_importer import NodeDagImporter
-
         return NodeDagImporter
 
     def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
