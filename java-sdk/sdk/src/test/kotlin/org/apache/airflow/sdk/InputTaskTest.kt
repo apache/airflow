@@ -168,7 +168,7 @@ internal class InputTaskTest {
 
     assertEquals("emea", requireNotNull(task.received).region)
     val message = LogSender.messages.single { it.level == Level.WARNING }
-    assertEquals("Dag wired a different number of argument(s) than the task handler declares", message.event)
+    assertEquals("Dag's call passed argument(s) the task handler does not declare", message.event)
     assertEquals(1, message.arguments["declared"])
     assertEquals(2, message.arguments["wired"])
     assertEquals("SummaryInput", message.arguments["input"])

@@ -174,19 +174,19 @@ object ArgValues {
   ): Any? = decode(client.resolveBinding(binding), type)
 
   /**
-   * Reports a Dag that wired more or fewer inputs than a [TaskInput] can take.
-   * A [TaskInput] is a task's only data parameter, so exactly one input feeds
-   * it; a mismatch warns and the first input is used, leaving the task to run
-   * on what it can bind rather than failing the run outright.
+   * Reports a Dag that wired more inputs than a [TaskInput] can take. A
+   * [TaskInput] is a task's only data parameter, so exactly one input feeds
+   * it; the extras are ignored and the first input is used, leaving the task
+   * to run on what it can bind rather than failing the run outright.
    */
   private fun warnWiredArity(
     client: Client,
     type: Class<*>,
     wired: Int,
   ) {
-    if (wired == 1) return
+    if (wired <= 1) return
     logger.warning(
-      "Dag wired a different number of argument(s) than the task handler declares",
+      "Dag's call passed argument(s) the task handler does not declare",
       mapOf(
         "task_id" to client.details.ti.taskId,
         "input" to type.simpleName,
