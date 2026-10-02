@@ -24,6 +24,7 @@ from airflow_breeze.commands import kubernetes_commands
 from airflow_breeze.commands.kubernetes_commands import (
     _lang_sdk_build_go_bundle,
     _lang_sdk_build_java_jar,
+    _lang_sdk_deploy_airflow,
     _lang_sdk_fetch_upstream_sdk_sources,
     _lang_sdk_resolve_sdk_sources,
     _lang_sdk_upload_artifacts,
@@ -375,6 +376,35 @@ class TestSetupLangSdkTestNativeSelection:
             "go_sdk": fake_go_sdk,
             "java_sdk": fake_java_sdk,
         }
+
+
+class TestLangSdkDeployAirflow:
+    @pytest.mark.parametrize(
+        ("java_image", "repository", "tag"),
+        [
+            pytest.param("lang-sdk-java-worker:latest", "lang-sdk-java-worker", "latest", id="tagged"),
+            pytest.param(
+                "localhost:5000/java-worker", "localhost:5000/java-worker", "latest", id="registry-port"
+            ),
+        ],
+    )
+    @mock.patch.object(kubernetes_commands, "BuildProdParams", autospec=True)
+    @mock.patch.object(kubernetes_commands, "run_command_with_k8s_env", autospec=True)
+    def test_deploy_runs_airflow_on_the_java_image_and_task_pods_on_the_plain_image(
+        self, mock_run, mock_params, java_image, repository, tag
+    ):
+        mock_params.return_value.airflow_image_kubernetes = "plain-prod-image"
+
+        # The Dag processor runs the Java jar to check the stub Dag, so it needs the JRE of the Java image.
+        _lang_sdk_deploy_airflow("3.10", "v1.35.0", java_image, None)
+
+        helm_cmd = mock_run.call_args.args[0]
+        sets = [helm_cmd[i + 1] for i, arg in enumerate(helm_cmd) if arg == "--set"]
+        assert f"images.airflow.repository={repository}" in sets
+        assert f"images.airflow.tag={tag}" in sets
+        # The chart takes the task pods' default image from images.airflow, so it is set back.
+        assert "config.kubernetes_executor.worker_container_repository=plain-prod-image" in sets
+        assert "config.kubernetes_executor.worker_container_tag=latest" in sets
 
 
 class TestLangSdkResolveSdkSources:

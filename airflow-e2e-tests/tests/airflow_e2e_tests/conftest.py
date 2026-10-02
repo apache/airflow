@@ -297,8 +297,8 @@ def _build_dag_bundle_config(artifact_bundles: dict[str, str]) -> str:
     """Return a ``dag_bundle_config_list`` of the Dags folder plus a ``LocalDagBundle`` per artifact path.
 
     Registration is what makes a coordinator's ``task_handler_bundle_name`` resolvable on the
-    worker. The artifact directories are mounted only there; the Dag processor finds no files
-    in them.
+    worker and the Dag processor. The artifact directories are mounted on both; the Dag processor
+    runs the artifacts in them to check the stub tasks, and finds no Dag files there.
     """
     local_bundle = "airflow.dag_processing.bundles.local.LocalDagBundle"
     bundles = [{"name": "dags-folder", "classpath": local_bundle, "kwargs": {}}]
@@ -432,7 +432,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     copyfile(JAVA_DOCKERFILE_PATH, tmp_dir / "Dockerfile.java")
 
     # Copy each bundle's JARs into its own directory; the compose bind-mounts
-    # expose them to the worker, where each is registered as its own Dag bundle.
+    # expose them to the worker and the Dag processor, where each is registered
+    # as its own Dag bundle.
     copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "java-jars")
     copytree(SCALA_SPARK_EXAMPLE_LIBS_PATH, tmp_dir / "scala-jars")
     copytree(JAVA_TEST_BUNDLE_LIBS_PATH, tmp_dir / "java-test-jars")
@@ -448,7 +449,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     # Keep the bundle JARs out of the build context: Dockerfile.java only adds a
     # JRE and copies nothing from the context, so without this docker build would
     # tar and stream the bundles (hundreds of MB of Spark JARs) to the daemon for
-    # nothing. The JARs reach the worker via the compose bind-mounts, not the image.
+    # nothing. The JARs reach the worker and the Dag processor via the compose
+    # bind-mounts, not the image.
     (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\njava-test-jars/\n")
 
     # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
@@ -556,8 +558,8 @@ def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
       subsequent runs skip straight to compilation).
     * USER/HOME must be set because the SDK calls user.Current() at init; with
       cgo disabled Go's pure-Go resolver reads those env vars instead of libc,
-      and panics if either is empty (the same vars are set on the worker in
-      go.yml so the packed binary runs the same way at execution time).
+      and panics if either is empty (the same vars are set on the worker and
+      the Dag processor in go.yml so the packed binary runs the same way there).
     """
     if native:
         cwd = GO_SDK_ROOT_PATH
@@ -627,8 +629,9 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     writes the coordinator configuration.
 
     The packed bundle is a statically linked native executable (built with
-    ``CGO_ENABLED=0``), so the stock Airflow worker image can exec it directly
-    without a Go toolchain or any extra runtime installed -- see ``go.yml``.
+    ``CGO_ENABLED=0``), so the stock Airflow image can exec it directly on the
+    worker and the Dag processor without a Go toolchain or any extra runtime
+    installed -- see ``go.yml``.
     """
     _pack_go_sdk_example_bundle(native=LANG_SDK_NATIVE_TOOLCHAIN)
 
@@ -636,8 +639,8 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
 
     # Place the packed bundle where the compose bind-mount (./go-bundles) exposes
-    # it to the worker at /opt/airflow/go-bundles. The bundle scanner requires
-    # the file to be executable, so preserve the exec bit.
+    # it to the worker and the Dag processor at /opt/airflow/go-bundles. The
+    # coordinator runs only an executable file, so preserve the exec bit.
     go_bundles_dir = tmp_dir / "go-bundles"
     go_bundles_dir.mkdir()
     packed_bundle = go_bundles_dir / GO_SDK_BUNDLE_NAME
