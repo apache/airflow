@@ -137,11 +137,9 @@ The ``airflowMetadata`` payload is compact UTF-8 JSON with this logical shape:
         "version": "0.1.0-beta1",
         "supervisor_schema_version": "2026-06-16"
       },
-      "source": "main.ts",
-      "task_handlers": {
-        "example": {
-          "tasks": ["extract", "load"]
-        }
+      "entrypoint_path": "src/main.ts",
+      "dag_source_paths": {
+        "example": "src/main.ts"
       }
     }
 
@@ -149,14 +147,17 @@ The packer serializes this object without insignificant whitespace and escapes t
 separators (U+2028 and U+2029), keeping it in one newline-terminated JavaScript comment without a second encoding
 layer. The SHA-256 digest detects changes to the exact serialized bytes.
 
-``task_handlers`` is keyed by Dag ID and lists the task IDs the bundle handles for each. It is named for what a
-TypeScript bundle actually provides: handlers for Dags declared elsewhere, not Dag definitions of its own. No
-coordinator reads it to find a bundle: the Dag processor lists bundles by suffix and layout line, and a task runs the
-bundle it is bound to.
+``entrypoint_path`` is the path of the entry file the bundle was built from, relative to the directory it was packed
+in. ``dag_source_paths`` maps the Dag ID of each Dag declared in TypeScript to the path of the file that declares it,
+for each Dag the packer could attribute to a file. A Dag declared in Python, for which the bundle only provides task
+handlers, has no entry, and neither has a Dag the packer could not attribute to a file: a reader shows the
+``entrypoint_path`` file for a Dag without an entry. Both fields are for display: neither is used to find or run a
+bundle.
 
-The metadata ``source`` value is the logical authoring name displayed for the Dag, a filename rather than content.
-The source region named in the layout header is what carries the content. The two are separate fields in separate
-documents, and neither is used to execute the bundle.
+The metadata does not list the task handlers a bundle provides, and no coordinator reads Dag IDs or task IDs from it to
+find a bundle: the Dag processor lists bundles by suffix and layout line, and a task runs the bundle it is bound to. A
+bundle packed before the metadata dropped them may carry a ``task_handlers`` mapping of Dag ID to ``tasks``, which
+readers ignore.
 
 Reader Algorithm
 ----------------

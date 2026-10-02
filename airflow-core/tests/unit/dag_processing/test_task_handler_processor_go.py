@@ -25,6 +25,7 @@ import subprocess
 from typing import TYPE_CHECKING
 from unittest import mock
 
+import jsonschema
 import pytest
 import structlog
 import yaml
@@ -120,6 +121,10 @@ def test_a_packed_go_bundle_records_no_dag_inventory(go_bundle):
     assert manifest["sdk"]["language"] == "go"
     assert manifest["sdk"]["supervisor_schema_version"]
     assert "dags" not in manifest
+    schema = json.loads(
+        (AIRFLOW_ROOT_PATH / "task-sdk" / "docs" / "airflow-metadata.schema.json").read_text()
+    )
+    jsonschema.Draft202012Validator(schema).validate(manifest)
 
 
 def test_probes_the_task_handlers_of_a_packed_go_bundle(go_bundle):

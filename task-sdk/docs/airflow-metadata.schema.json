@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://airflow.apache.org/schemas/sdk-executable/airflow-metadata-1.0.schema.json",
   "title": "Airflow Executable SDK Bundle Metadata",
-  "description": "Build-time manifest declaring DAG and task identifiers exposed by an Airflow native-executable SDK bundle. See the Executable Bundle Spec documentation in the Airflow Task SDK.",
+  "description": "Build-time manifest describing an Airflow native-executable SDK bundle: the SDK that produced it, the name of its source file and the digests the packer records. See the Executable Bundle Spec documentation in the Airflow Task SDK.",
   "type": "object",
-  "required": ["airflow_bundle_metadata_version", "sdk", "source", "dags"],
+  "required": ["airflow_bundle_metadata_version", "sdk", "source"],
   "additionalProperties": true,
   "properties": {
     "airflow_bundle_metadata_version": {
@@ -54,32 +54,6 @@
           "type": "string",
           "description": "Stays the same across packs of the same inputs and changes when any region of the bundle changes. It is read, never recomputed, so it does not prove the bundle is intact. The producer defines how it is computed; consumers only compare it for equality.",
           "pattern": "^[0-9a-f]{64}$"
-        }
-      }
-    },
-    "dags": {
-      "type": "object",
-      "description": "Mapping of dag_id to DAG entry. Every dag_id the bundle exposes must appear here.",
-      "minProperties": 1,
-      "additionalProperties": {
-        "$ref": "#/$defs/dagEntry"
-      }
-    }
-  },
-  "$defs": {
-    "dagEntry": {
-      "type": "object",
-      "description": "Static description of a single DAG declared in the bundle.",
-      "required": ["tasks"],
-      "additionalProperties": true,
-      "properties": {
-        "tasks": {
-          "type": "array",
-          "description": "Static list of task_ids declared in the DAG.",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
         }
       }
     }
