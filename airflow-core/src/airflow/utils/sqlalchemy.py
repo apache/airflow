@@ -291,6 +291,73 @@ class UtcDateTime(TypeDecorator):
         return super().load_dialect_impl(dialect)
 
 
+class DagRunConfJSON(TypeDecorator):
+    """Preserve finite floating-point values that use exponent notation when stored in JSONB."""
+
+    impl = Text
+    cache_ok = True
+    should_evaluate_none = True
+
+    _FLOAT_MARKER = "__airflow_dagrun_conf_float__:"
+
+    def load_dialect_impl(self, dialect) -> TypeEngine:
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(JSONB)
+        return dialect.type_descriptor(JSON)
+
+    @classmethod
+    def _encode(cls, value):
+        if isinstance(value, float) and value == value and abs(value) != float("inf"):
+            encoded = json.dumps(value)
+            if "e" in encoded.lower():
+                return f"{cls._FLOAT_MARKER}{encoded}"
+            return value
+
+        if isinstance(value, str) and value.startswith(cls._FLOAT_MARKER):
+            return f"{cls._FLOAT_MARKER}{value}"
+
+        if isinstance(value, dict):
+            return {key: cls._encode(item) for key, item in value.items()}
+
+        if isinstance(value, list):
+            return [cls._encode(item) for item in value]
+
+        if isinstance(value, tuple):
+            return [cls._encode(item) for item in value]
+
+        return value
+
+    @classmethod
+    def _decode(cls, value):
+        if isinstance(value, str):
+            if value.startswith(cls._FLOAT_MARKER):
+                encoded = value[len(cls._FLOAT_MARKER) :]
+
+                if encoded.startswith(cls._FLOAT_MARKER):
+                    return value[len(cls._FLOAT_MARKER) :]
+
+                try:
+                    return float(encoded)
+                except (TypeError, ValueError):
+                    return value
+
+            return value
+
+        if isinstance(value, dict):
+            return {key: cls._decode(item) for key, item in value.items()}
+
+        if isinstance(value, list):
+            return [cls._decode(item) for item in value]
+
+        return value
+
+    def process_bind_param(self, value, dialect):
+        return self._encode(value)
+
+    def process_result_value(self, value, dialect):
+        return self._decode(value)
+
+
 class ExtendedJSON(TypeDecorator):
     """
     A version of the JSON column that uses the Airflow extended JSON serialization.

@@ -33,7 +33,6 @@ from opentelemetry.context import context
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
-    JSON,
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
@@ -52,7 +51,6 @@ from sqlalchemy import (
     text,
     update,
 )
-from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -100,6 +98,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import (
+    DagRunConfJSON,
     ExtendedJSON,
     UtcDateTime,
     get_dialect_name,
@@ -266,9 +265,7 @@ class DagRun(Base, LoggingMixin):
         String(512),
         nullable=True,
     )  # The user that triggered the DagRun, if applicable
-    conf: Mapped[dict[str, Any] | None] = mapped_column(
-        JSON().with_variant(postgresql.JSONB, "postgresql"), nullable=True
-    )
+    conf: Mapped[dict[str, Any] | None] = mapped_column(DagRunConfJSON(), nullable=True)
     # These two must be either both NULL or both datetime.
     data_interval_start: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     data_interval_end: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)

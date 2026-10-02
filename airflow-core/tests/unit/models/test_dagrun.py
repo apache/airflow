@@ -4814,6 +4814,63 @@ class TestDagRunTracing:
             assert trace_id != _EXTERNAL_TRACE_ID
 
 
+def test_conf_preserves_exponent_float_type(dag_maker):
+    """DagRun.conf preserves float/int/string types when persisted."""
+    with dag_maker("test_dagrun_conf_float"):
+        EmptyOperator(task_id="t1")
+
+    submitted_conf = {
+        "large_finite_float": 1.7e308,
+        "standard_float": 3.14,
+        "marker_like_string": "__airflow_dagrun_conf_float__:3.14",
+        "whole_float": 1.0,
+        "standard_int": 123,
+        "legitimate_large_int": 123456789012345678901234567890,
+        "string_with_exponent_lookalike": "1.7e308",
+        "boolean_val": True,
+        "nested": {
+            "inner_float": 1.7e308,
+            "mixed_list": [1.7e308, 42, "hello", {"deep_float": 1.7e308}],
+        },
+    }
+
+    dr = dag_maker.create_dagrun(conf=submitted_conf)
+
+    dag_maker.session.expire(dr)
+    dag_maker.session.refresh(dr)
+
+    assert type(dr.conf["large_finite_float"]) is float
+    assert dr.conf["large_finite_float"] == 1.7e308
+
+    assert type(dr.conf["standard_float"]) is float
+    assert dr.conf["standard_float"] == 3.14
+    assert type(dr.conf["marker_like_string"]) is str
+    assert dr.conf["marker_like_string"] == "__airflow_dagrun_conf_float__:3.14"
+
+    assert type(dr.conf["whole_float"]) is float
+    assert dr.conf["whole_float"] == 1.0
+
+    assert type(dr.conf["standard_int"]) is int
+    assert dr.conf["standard_int"] == 123
+
+    assert type(dr.conf["legitimate_large_int"]) is int
+    assert dr.conf["legitimate_large_int"] == 123456789012345678901234567890
+
+    assert type(dr.conf["string_with_exponent_lookalike"]) is str
+    assert dr.conf["string_with_exponent_lookalike"] == "1.7e308"
+
+    assert type(dr.conf["boolean_val"]) is bool
+    assert dr.conf["boolean_val"] is True
+
+    assert type(dr.conf["nested"]["inner_float"]) is float
+    assert dr.conf["nested"]["inner_float"] == 1.7e308
+
+    assert type(dr.conf["nested"]["mixed_list"][0]) is float
+    assert type(dr.conf["nested"]["mixed_list"][1]) is int
+    assert type(dr.conf["nested"]["mixed_list"][2]) is str
+    assert type(dr.conf["nested"]["mixed_list"][3]["deep_float"]) is float
+
+
 def test_stats_tags_without_team_name(dag_maker):
     """stats_tags omits team_name when _team_name is not set."""
     with dag_maker("test_dag"):
