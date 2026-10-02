@@ -38,6 +38,10 @@ type DagRef struct {
 	registered bool
 	tasks      []*TaskRef
 	tasksByID  map[string]*TaskRef
+	// edgeLabels holds every edge of the Dag, whether Inputs, Before or After declared it, and
+	// the label that Label put on it. An edge with no label maps to the empty string, so a
+	// lookup reports whether the edge has been declared.
+	edgeLabels map[edgeKey]string
 }
 
 // Dag returns an empty Dag with the given dag_id. An optional [DagSpec] holds the rest of the
@@ -74,7 +78,8 @@ func (*DagRef) registerable() {}
 
 // TaskRef is a task that [DagRef.Task] added to a Dag. Pass it to [Inputs] to give its result
 // to a task that DagRef.Task or [DagRef.If] adds later. Pass it to [IfRef.Then] or [IfRef.Else]
-// to run it on one side of a condition.
+// to run it on one side of a condition. A TaskRef is a [Node], so [TaskRef.Before] and
+// [TaskRef.After] order it against another task.
 type TaskRef struct {
 	dag    *DagRef
 	taskID string
@@ -85,7 +90,12 @@ type TaskRef struct {
 	// inputs holds the tasks that Inputs passed, in the order of the parameters they fill. Each
 	// of them is an upstream task of this one.
 	inputs []*TaskRef
-	task   bundle.Task
+	// upstreams and downstreams hold the edges of the task, in the order they were declared and
+	// without a repeat, so that an edge is recorded in both directions. Inputs, Before and After
+	// all record an edge here.
+	upstreams   []*TaskRef
+	downstreams []*TaskRef
+	task        bundle.Task
 	// triggerDagRun is the checked copy of the TriggerDagRunSpec of a task from TriggerDagRun.
 	// It is nil for a task that runs a Go function. A task from TriggerDagRun runs no Go
 	// function, so its resultType, inputs and task are nil.
@@ -270,6 +280,11 @@ func (d *DagRef) addTask(method string, fn any, opts []TaskOption, ifRef *IfRef)
 	}
 	d.tasksByID[taskID] = task
 	d.tasks = append(d.tasks, task)
+	// Inputs passes a task once per parameter it fills, so the same task can arrive twice. The
+	// edge is one either way.
+	for _, upstream := range upstreams {
+		d.addEdgeLocked(upstream, task, "", "airflow.DagRef.Task")
+	}
 	return task
 }
 
