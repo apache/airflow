@@ -22,8 +22,8 @@
 //
 // The channel is the sole reader on the socket. The task sends
 // requests and awaits id-correlated replies. The supervisor's only
-// unprompted frame is the greeting (StartupDetails /
-// DagFileParseRequest), pre-caught into the `greeting` promise that
+// unprompted frame is the greeting (StartupDetails, DagFileParseRequest
+// or TaskHandlerParseRequest), pre-caught into the `greeting` promise that
 // `connect()` awaits — the protocol sends nothing else
 // supervisor-initiated (comms.py: "No messages are sent to task
 // process except in response to a request").
@@ -35,7 +35,8 @@ import { Deferred } from "./deferred.js";
 import type { LogChannel } from "./log-channel.js";
 
 /** What `CommChannel.connect` resolves to: the live channel plus the
- *  supervisor's first frame (StartupDetails / DagFileParseRequest),
+ *  supervisor's first frame (StartupDetails, DagFileParseRequest or
+ *  TaskHandlerParseRequest),
  *  already in hand so the caller never has to manage a "frame arrived
  *  with no consumer" window. */
 export interface CommConnection {
