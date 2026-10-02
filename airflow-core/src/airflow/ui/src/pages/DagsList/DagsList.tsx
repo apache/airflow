@@ -56,6 +56,7 @@ import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
+import { useShowDagsListTaskStateCounts } from "src/hooks/useUserSettings";
 import { useConfig } from "src/queries/useConfig";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
@@ -77,6 +78,7 @@ const getRowKey = (dag: DAGWithLatestDagRunsResponse) => dag.dag_id;
 
 type GetColumnsParams = {
   readonly multiTeam: boolean;
+  readonly showTaskStateCounts: boolean;
   readonly taskStateContext: LatestRunTaskStateCountsContext;
 };
 
@@ -94,7 +96,7 @@ type LatestRunTaskStateCountsContext = {
 const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
   runStateContext: RunStateCountsContext,
-  { multiTeam, taskStateContext }: GetColumnsParams,
+  { multiTeam, showTaskStateCounts, taskStateContext }: GetColumnsParams,
 ): Array<ColumnDef<DAGWithLatestDagRunsResponse>> => [
   {
     accessorKey: "select",
@@ -192,19 +194,23 @@ const createColumns = (
     enableSorting: false,
     header: () => translate("dags:runStateCounts.label"),
   },
-  {
-    accessorKey: "latest_run_task_state_counts",
-    cell: ({ row: { original } }) => (
-      <LatestRunTaskStateCounts
-        compact
-        dagId={original.dag_id}
-        entry={taskStateContext.entriesByDag[original.dag_id]}
-        isLoading={taskStateContext.isLoading}
-      />
-    ),
-    enableSorting: false,
-    header: () => translate("dags:latestRunTaskStateCounts.label"),
-  },
+  ...(showTaskStateCounts
+    ? [
+        {
+          accessorKey: "latest_run_task_state_counts",
+          cell: ({ row: { original } }: { row: { original: DAGWithLatestDagRunsResponse } }) => (
+            <LatestRunTaskStateCounts
+              compact
+              dagId={original.dag_id}
+              entry={taskStateContext.entriesByDag[original.dag_id]}
+              isLoading={taskStateContext.isLoading}
+            />
+          ),
+          enableSorting: false,
+          header: () => translate("dags:latestRunTaskStateCounts.label"),
+        },
+      ]
+    : []),
   {
     accessorKey: "tags",
     cell: ({
@@ -285,6 +291,7 @@ const {
 const createCardDef = (
   runStateContext: RunStateCountsContext,
   taskStateContext: LatestRunTaskStateCountsContext,
+  showTaskStateCounts: boolean,
 ): CardDef<DAGWithLatestDagRunsResponse> => ({
   card: ({ row }) => (
     <DagCard
@@ -293,6 +300,7 @@ const createCardDef = (
       latestRunTaskStateCountsLoading={taskStateContext.isLoading}
       runStateCounts={runStateContext.countsByDag[row.dag_id]}
       runStateCountsLoading={runStateContext.isLoading}
+      showLatestRunTaskStateCounts={showTaskStateCounts}
       stateCountLimit={runStateContext.stateCountLimit}
     />
   ),
@@ -409,8 +417,10 @@ export const DagsList = () => {
     stateCountLimit: runStateCountsData?.state_count_limit,
   };
 
+  const [showTaskStateCounts] = useShowDagsListTaskStateCounts();
   const { data: taskStateCountsData, isLoading: taskStateCountsLoading } = useLatestRunTaskStateCounts({
     dags: data?.dags,
+    enabled: showTaskStateCounts,
   });
   const taskStateContext: LatestRunTaskStateCountsContext = {
     entriesByDag: Object.fromEntries((taskStateCountsData?.dags ?? []).map((entry) => [entry.dag_id, entry])),
@@ -419,9 +429,10 @@ export const DagsList = () => {
 
   const columns = createColumns(translate, runStateContext, {
     multiTeam: multiTeamEnabled,
+    showTaskStateCounts,
     taskStateContext,
   });
-  const cardDef = createCardDef(runStateContext, taskStateContext);
+  const cardDef = createCardDef(runStateContext, taskStateContext, showTaskStateCounts);
 
   const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({

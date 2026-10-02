@@ -48,6 +48,7 @@ type Props = {
   readonly latestRunTaskStateCountsLoading: boolean;
   readonly runStateCounts: Record<string, number> | undefined;
   readonly runStateCountsLoading: boolean;
+  readonly showLatestRunTaskStateCounts: boolean;
   readonly stateCountLimit: number | undefined;
 };
 
@@ -57,6 +58,7 @@ export const DagCard = ({
   latestRunTaskStateCountsLoading,
   runStateCounts,
   runStateCountsLoading,
+  showLatestRunTaskStateCounts,
   stateCountLimit,
 }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
@@ -172,17 +174,19 @@ export const DagCard = ({
             ) : undefined}
           </Box>
         </GridItem>
-        <GridItem alignSelf="end" gridColumn="2 / 4" gridRow={2}>
-          <Box minHeight="22px">
-            {isNearViewport ? (
-              <LatestRunTaskStateCounts
-                dagId={dag.dag_id}
-                entry={latestRunTaskStateCounts}
-                isLoading={latestRunTaskStateCountsLoading}
-              />
-            ) : undefined}
-          </Box>
-        </GridItem>
+        {showLatestRunTaskStateCounts ? (
+          <GridItem alignSelf="end" gridColumn="2 / 4" gridRow={2}>
+            <Box minHeight="22px">
+              {isNearViewport ? (
+                <LatestRunTaskStateCounts
+                  dagId={dag.dag_id}
+                  entry={latestRunTaskStateCounts}
+                  isLoading={latestRunTaskStateCountsLoading}
+                />
+              ) : undefined}
+            </Box>
+          </GridItem>
+        ) : undefined}
       </Grid>
     </Box>
   );

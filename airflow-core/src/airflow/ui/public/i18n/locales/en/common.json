@@ -290,6 +290,13 @@
       },
       "title": "Clearing"
     },
+    "dagsList": {
+      "taskStateCounts": {
+        "helper": "Show task state counts for each Dag on the Dags list. Turn off to skip loading them, which can help on deployments with many Dags.",
+        "label": "Show task state counts"
+      },
+      "title": "Dags List"
+    },
     "description": "These preferences are saved in this browser only and apply across the whole app.",
     "general": {
       "landingPage": {

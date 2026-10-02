@@ -36,6 +36,7 @@ import {
   useDefaultTaskInstanceTab,
   useDefaultTaskGroupsExpanded,
   useMarkTaskInstanceDefaultOptions,
+  useShowDagsListTaskStateCounts,
   type LandingPageOption,
 } from "src/hooks/useUserSettings";
 import { useDocumentTitle } from "src/utils";
@@ -180,6 +181,7 @@ export const Settings = () => {
   const [markTaskOptions, setMarkTaskOptions] = useMarkTaskInstanceDefaultOptions();
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
+  const [showTaskStateCounts, setShowTaskStateCounts] = useShowDagsListTaskStateCounts();
 
   const taskInstanceTabOptions: Array<SelectOption<DefaultTaskInstanceTab>> = [
     { label: translate("dag:tabs.logs"), value: "logs" },
@@ -233,6 +235,20 @@ export const Settings = () => {
             options={landingPageOptions}
             testId="default-landing-page"
             value={defaultLandingPage}
+          />
+        </Section>
+        <Section title={translate("settings.dagsList.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.dagsList.taskStateCounts.label")}
+                checked={showTaskStateCounts}
+                data-testid="dags-list-show-task-state-counts"
+                onCheckedChange={(event) => setShowTaskStateCounts(event.checked)}
+              />
+            }
+            helper={translate("settings.dagsList.taskStateCounts.helper")}
+            label={translate("settings.dagsList.taskStateCounts.label")}
           />
         </Section>
         <Section title={translate("settings.graph.title")}>

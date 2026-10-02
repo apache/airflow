@@ -23,8 +23,10 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useLatestRunTaskStateCounts = ({
   dags,
+  enabled = true,
 }: {
   readonly dags: ReadonlyArray<DAGWithLatestDagRunsResponse> | undefined;
+  readonly enabled?: boolean;
 }) => {
   const refetchInterval = useAutoRefresh({});
   const hasPendingRun =
@@ -39,7 +41,7 @@ export const useLatestRunTaskStateCounts = ({
     .sort((left, right) => left - right);
 
   return useDagServiceGetLatestRunTaskInstanceStateCountsUi({ dagRunIds }, undefined, {
-    enabled: dagRunIds.length > 0,
+    enabled: enabled && dagRunIds.length > 0,
     placeholderData: (prev) => prev,
     refetchInterval: hasPendingRun ? refetchInterval : false,
   });
