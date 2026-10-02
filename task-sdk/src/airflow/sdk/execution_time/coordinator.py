@@ -257,23 +257,22 @@ class CoordinatorManager:
         """
         Load coordinator specs from configuration without initialization.
 
-        Every ``queue_to_coordinator`` key and every ``task_handler_bundle_name``
-        kwarg is validated here, so a typo fails at config load rather than on the
-        first task routed to the coordinator.
+        Every ``queue_to_coordinator`` key and the ``task_handler_bundle_name`` of
+        every routed coordinator are validated here, so a typo fails at config load
+        rather than on the first task routed to the coordinator.
         """
         coordinator_specs = {
             k: _CoordinatorSpec.model_validate(v)
             for k, v in conf.getjson("sdk", "coordinators", fallback={}).items()
         }
         queue_to_coordinator = conf.getjson("sdk", "queue_to_coordinator", fallback={})
-        for key in queue_to_coordinator.values():
-            if key not in coordinator_specs:
+        for key in set(queue_to_coordinator.values()):
+            if (spec := coordinator_specs.get(key)) is None:
                 raise ValueError(f"[sdk] queue_to_coordinator references invalid coordinator key: {key!r}")
-        for key, spec in coordinator_specs.items():
             bundle_name = spec.kwargs.get("task_handler_bundle_name")
-            if bundle_name is None:
-                continue
-            if not isinstance(bundle_name, str) or not DagBundlesManager.is_bundle_configured(bundle_name):
+            if bundle_name is not None and (
+                not isinstance(bundle_name, str) or not DagBundlesManager.is_bundle_configured(bundle_name)
+            ):
                 raise InvalidCoordinatorError(
                     f"[sdk] coordinators {key!r} sets task_handler_bundle_name={bundle_name!r}, "
                     f"which is not a bundle in [dag_processor] dag_bundle_config_list"

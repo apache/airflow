@@ -138,7 +138,7 @@ class TestCoordinatorManager:
 
     @pytest.mark.parametrize("bundle_name", ["ghost", ["ghost"]], ids=["unconfigured", "not-a-string"])
     def test_from_config_rejects_invalid_task_handler_bundle_name(self, sdk_config, bundle_name):
-        """Validated for every spec, routed or not, without importing or constructing the coordinator."""
+        """Validated without importing or constructing the coordinator."""
         sdk_config(
             coordinators=json.dumps(
                 {
@@ -148,9 +148,63 @@ class TestCoordinatorManager:
                     }
                 }
             ),
+            queue_to_coordinator=json.dumps({"queue-boom": "boom"}),
         )
         with pytest.raises(InvalidCoordinatorError, match=r"'boom' sets task_handler_bundle_name="):
             CoordinatorManager.from_config()
+
+    def test_from_config_accepts_configured_task_handler_bundle_name(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "boom": {
+                        "classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator",
+                        "kwargs": {"task_handler_bundle_name": "handlers"},
+                    }
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-boom": "boom"}),
+        )
+        bundles = [
+            {
+                "name": "handlers",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {},
+            }
+        ]
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundles)}):
+            manager = CoordinatorManager.from_config()
+        assert manager._queue_to_coordinator == {"queue-boom": "boom"}
+        assert manager._created_coordinators == {}
+
+    def test_from_config_ignores_task_handler_bundle_name_of_unrouted_coordinator(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "boom": {
+                        "classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator",
+                        "kwargs": {"task_handler_bundle_name": "ghost"},
+                    }
+                }
+            ),
+        )
+        manager = CoordinatorManager.from_config()
+        assert set(manager._coordinator_specs) == {"boom"}
+
+    @mock.patch(
+        "airflow.sdk.execution_time.coordinator.DagBundlesManager.is_bundle_configured", autospec=True
+    )
+    def test_from_config_skips_bundle_lookup_without_task_handler_bundle_name(
+        self, is_bundle_configured, sdk_config
+    ):
+        sdk_config(
+            coordinators=json.dumps(
+                {"alpha": {"classpath": f"{_CoordinatorA.__module__}._CoordinatorA", "kwargs": {}}}
+            ),
+            queue_to_coordinator=json.dumps({"queue-a": "alpha"}),
+        )
+        CoordinatorManager.from_config()
+        is_bundle_configured.assert_not_called()
 
     @pytest.mark.parametrize(
         ("coordinator_spec", "expected_match"),
