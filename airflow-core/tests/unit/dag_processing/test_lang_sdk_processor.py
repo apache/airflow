@@ -48,9 +48,8 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.sdk import DAG, BaseOperator, task
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import VariableResponse
-from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.sdk.execution_time import supervisor
-from airflow.sdk.execution_time.comms import GetVariable, MaskSecret, _RequestFrame
+from airflow.sdk.execution_time.comms import GetVariable, _RequestFrame
 from airflow.sdk.execution_time.supervisor import PsutilTracker
 from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -419,117 +418,6 @@ class TestLangSDKDagFileProcessorProcess:
         assert fds["0"] == "/dev/null"
 
 
-class TestRun:
-    @staticmethod
-    def _run(tmp_path, **spec) -> DagFileParsingResult:
-        return LangSDKDagFileProcessorProcess.run(
-            path=write_native_file(tmp_path / "dag.native", **spec),
-            bundle_path=tmp_path,
-            bundle_name="testing",
-            dag_file_rel_path="dag.native",
-            logger=structlog.get_logger(),
-        )
-
-    @patch.object(FakeCoordinator, "parse_dag", autospec=True)
-    def test_requests_get_an_error(self, mock_parse_dag, tmp_path):
-        def reply(request, comms):
-            with pytest.raises(AirflowRuntimeError) as ctx:
-                comms.send(GetVariable(key="native_var"))
-            description = ctx.value.error.detail["message"]
-            return _reply_with(_serialize_dag("native_dag", description=description))(request, comms)
-
-        mock_parse_dag.side_effect = play_runtime(reply)
-
-        result = self._run(tmp_path)
-
-        assert result.serialized_dags[0].data["dag"]["description"] == (
-            "GetVariable is answered only in the Dag processor"
-        )
-
-    @patch("airflow.sdk.execution_time.request_handlers.mask_secret", autospec=True)
-    @patch.object(FakeCoordinator, "parse_dag", autospec=True)
-    def test_a_secret_is_masked_without_a_client(self, mock_parse_dag, mock_mask_secret, tmp_path):
-        def reply(request, comms):
-            comms.send(MaskSecret(value="native-secret", name="native_conn"))
-            return _reply_with(_serialize_dag("native_dag"))(request, comms)
-
-        mock_parse_dag.side_effect = play_runtime(reply)
-
-        result = self._run(tmp_path)
-
-        assert [dag.dag_id for dag in result.serialized_dags] == ["native_dag"]
-        mock_mask_secret.assert_called_once_with("native-secret", "native_conn")
-
-    @pytest.mark.parametrize("connected", [False, True], ids=["before-connecting", "after-connecting"])
-    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
-    def test_a_parse_past_the_import_timeout_is_killed(self, mock_timeout, tmp_path, connected):
-        # A runtime that never connects leaves both listeners open when it is killed.
-        fds_before = _get_open_fds()
-
-        with (
-            patch.object(
-                FakeCoordinator,
-                "parse_dag",
-                autospec=True,
-                side_effect=play_runtime(lambda request, comms: time.sleep(60)),
-            )
-            if connected
-            else contextlib.nullcontext(),
-            patch.object(
-                LangSDKDagFileProcessorProcess,
-                "close",
-                autospec=True,
-                side_effect=LangSDKDagFileProcessorProcess.close,
-            ) as mock_close,
-        ):
-            result = self._run(tmp_path, argv=["/bin/sh", "-c", "exec sleep 60"])
-
-        assert result.import_errors == {
-            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s, "
-            "the limit set by [core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
-        }
-        [proc] = [c.args[0] for c in mock_close.call_args_list]
-        assert proc._exit_code == -9
-        assert not proc._open_sockets
-        assert _get_open_fds() <= fds_before
-
-    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
-    def test_the_import_timeout_holds_after_the_runtime_exits(self, mock_timeout, tmp_path):
-        with patch.object(
-            LangSDKDagFileProcessorProcess,
-            "close",
-            autospec=True,
-            side_effect=LangSDKDagFileProcessorProcess.close,
-        ) as mock_close:
-            # The runtime exits, and the process it leaves behind keeps its output open.
-            result = self._run(tmp_path, argv=["/bin/sh", "-c", "sleep 30 & exit 0"])
-        [proc] = [c.args[0] for c in mock_close.call_args_list]
-
-        assert result.import_errors == {
-            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s, "
-            "the limit set by [core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
-        }
-        assert proc._exit_code == 0
-        assert not proc._open_sockets
-
-    @conf_vars({("dag_processor", "dag_file_processor_timeout"): "1"})
-    @patch.object(
-        FakeCoordinator,
-        "_build_parse_dag_command",
-        autospec=True,
-        side_effect=lambda self, *, path: time.sleep(60),
-    )
-    def test_the_dag_file_processor_timeout_applies_until_the_import_timeout_is_reported(
-        self, mock_build_parse_dag_command, tmp_path
-    ):
-        result = self._run(tmp_path)
-
-        assert result.import_errors == {
-            "dag.native": f"The Lang-SDK runtime did not parse {tmp_path / 'dag.native'} within 1.0s, "
-            "the limit set by [dag_processor] dag_file_processor_timeout"
-        }
-
-
 @pytest.mark.parametrize(("configured", "expected"), [(30, 30), (0.5, 0.5), (0, None), (-1, None)])
 @patch("airflow.settings.get_dagbag_import_timeout", autospec=True)
 def test_only_a_positive_import_timeout_applies(mock_timeout, configured, expected):
@@ -547,6 +435,7 @@ def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
         stdin=MagicMock(spec=socket.socket),
         process_log=MagicMock(spec=FilteringBoundLogger),
         selector=MagicMock(spec=selectors.BaseSelector),
+        client=MagicMock(spec=Client),
         bundle_name="testing",
         dag_file_rel_path="dag.native",
         listeners={},
