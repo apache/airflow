@@ -135,7 +135,7 @@ type TaskSpec struct {
 
 // TaskOption is sealed: its only method is unexported, so a task takes SDK-defined options and
 // nothing else. TaskSpec and the value Inputs returns both implement it.
-type TaskOption interface{ applyTask(*taskConfig) }
+type TaskOption interface{ applyTask(*taskConfig) error }
 
 func Inputs(refs ...*TaskRef) TaskOption
 

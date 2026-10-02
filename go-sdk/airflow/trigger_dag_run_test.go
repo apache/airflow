@@ -87,6 +87,7 @@ func TestTriggerDagRunNeedsATaskID(t *testing.T) {
 
 	assert.PanicsWithValue(t, want, func() { Dag("etl").Task(trigger) })
 	assert.PanicsWithValue(t, want, func() { Dag("etl").Task(trigger, TaskSpec{}) })
+	assert.PanicsWithValue(t, want, func() { Dag("etl").Task(trigger, Inputs(), Inputs()) })
 }
 
 // buildNestedConf returns a conf in which maps nest depth levels deep. encoding/json decodes at
@@ -249,6 +250,9 @@ func TestTriggerDagRunTakesNoInputs(t *testing.T) {
 	})
 	assert.PanicsWithValue(t, want, func() {
 		dag.Task(trigger, TaskSpec{TaskID: "trigger_downstream"}, Inputs())
+	})
+	assert.PanicsWithValue(t, want, func() {
+		dag.Task(trigger, TaskSpec{TaskID: "trigger_downstream"}, Inputs(extracted), Inputs())
 	})
 	assert.NotPanics(t,
 		func() { dag.Task(trigger, TaskSpec{TaskID: "trigger_downstream"}) },
