@@ -300,7 +300,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     :param deferrable: Run operator in the deferrable mode.
     :param cancel_on_kill: If True (default), cancel the Dataflow job when the task is killed,
         both while the operator is running and, for a deferred task, while it waits in the
-        triggerer.
+        triggerer (Airflow 3.3+).
     """
 
     template_fields: Sequence[str] = (
@@ -536,7 +536,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     :param deferrable: Run operator in the deferrable mode.
     :param cancel_on_kill: If True (default), cancel the Dataflow job when the task is killed,
         both while the operator is running and, for a deferred task, while it waits in the
-        triggerer.
+        triggerer (Airflow 3.3+).
     :param expected_terminal_state: The expected final status of the operator on which the corresponding
         Airflow task succeeds. When not specified, it will be determined by the hook.
     :param append_job_name: True if unique suffix has to be appended to job name.
@@ -714,7 +714,7 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
     :param deferrable: Optional. Run operator in the deferrable mode.
     :param cancel_on_kill: If True (default), cancel the Dataflow job when the task is killed,
         both while the operator is running and, for a deferred task, while it waits in the
-        triggerer.
+        triggerer (Airflow 3.3+).
     :param expected_terminal_state: Optional. The expected terminal state of the Dataflow job at which the
         operator task is set to succeed. Defaults to 'JOB_STATE_DONE' for the batch jobs and 'JOB_STATE_RUNNING'
         for the streaming jobs.
@@ -845,7 +845,7 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
         Cancel the dataflow job if a task instance gets killed.
 
         This method is not called for a task instance killed in a deferred state;
-        in that case the trigger cancels the job instead, honoring cancel_on_kill
+        on Airflow 3.3+, the trigger requests cancellation instead, honoring cancel_on_kill
         and drain_pipeline.
         """
         self.log.info("On kill called.")

@@ -115,7 +115,7 @@ class TemplateJobStartTrigger(BaseTrigger):
 
     async def on_kill(self) -> None:
         """Stop the Dataflow job when the user acts on the deferred task."""
-        if not self.cancel_on_kill or not self.job_id or not self.project_id:
+        if not self.cancel_on_kill or not self.job_id:
             return
         self.log.info(
             "Stopping Dataflow job. Project ID: %s, Location: %s, Job ID: %s, drain: %s",
@@ -128,7 +128,7 @@ class TemplateJobStartTrigger(BaseTrigger):
             # Build the synchronous hook and cancel inside the worker thread: the hook resolves the
             # connection eagerly during construction, which must not run in the triggerer's event loop.
             await sync_to_async(self._stop_job)()
-            self.log.info("Dataflow job %s stopped.", self.job_id)
+            self.log.info("Cancellation or drain requested for Dataflow job %s.", self.job_id)
         except Exception:
             self.log.exception(
                 "Failed to stop Dataflow job %s. The job may still be running.",
@@ -136,12 +136,12 @@ class TemplateJobStartTrigger(BaseTrigger):
             )
 
     def _stop_job(self) -> None:
-        """Cancel or drain the Dataflow job through the synchronous hook (runs off the event loop)."""
+        """Request cancellation or drain without waiting for the job to reach a terminal state."""
         hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             drain_pipeline=self.drain_pipeline,
-            cancel_timeout=self.cancel_timeout,
+            cancel_timeout=None,
             poll_sleep=self.poll_sleep,
         )
         hook.cancel_job(
@@ -403,7 +403,7 @@ class DataflowStartYamlJobTrigger(BaseTrigger):
 
     async def on_kill(self) -> None:
         """Stop the Dataflow job when the user acts on the deferred task."""
-        if not self.cancel_on_kill or not self.job_id or not self.project_id:
+        if not self.cancel_on_kill or not self.job_id:
             return
         self.log.info(
             "Stopping Dataflow job. Project ID: %s, Location: %s, Job ID: %s, drain: %s",
@@ -416,7 +416,7 @@ class DataflowStartYamlJobTrigger(BaseTrigger):
             # Build the synchronous hook and cancel inside the worker thread: the hook resolves the
             # connection eagerly during construction, which must not run in the triggerer's event loop.
             await sync_to_async(self._stop_job)()
-            self.log.info("Dataflow job %s stopped.", self.job_id)
+            self.log.info("Cancellation or drain requested for Dataflow job %s.", self.job_id)
         except Exception:
             self.log.exception(
                 "Failed to stop Dataflow job %s. The job may still be running.",
@@ -424,12 +424,12 @@ class DataflowStartYamlJobTrigger(BaseTrigger):
             )
 
     def _stop_job(self) -> None:
-        """Cancel or drain the Dataflow job through the synchronous hook (runs off the event loop)."""
+        """Request cancellation or drain without waiting for the job to reach a terminal state."""
         hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             drain_pipeline=self.drain_pipeline,
-            cancel_timeout=self.cancel_timeout,
+            cancel_timeout=None,
             poll_sleep=self.poll_sleep,
         )
         hook.cancel_job(
