@@ -21,17 +21,20 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { advancedSearchKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useDefaultMatchAnywhere } from "src/hooks/useUserSettings";
 
 // The "match anywhere" (substring) toggle is mirrored in the URL so a filtered search can be shared
 // and reproduced in both directions. ``advanced_search`` is a repeated param carrying each searchbar's
 // explicit choice by key: ``key`` for on, ``-key`` for off
-// (`?advanced_search=dag_id&advanced_search=-run_id`), keeping each searchbar independent. An explicit URL
-// entry wins — a shared link reproduces the sender's on/off choices whatever the recipient's own
-// preferences — and a key with no entry (e.g. landing through the nav) falls back to the per-searchbar
-// localStorage preference. Toggling writes the explicit on/off entry and localStorage.
+// (`?advanced_search=dag_id&advanced_search=-run_id`), keeping each searchbar independent. Resolution
+// order: an explicit URL entry wins, so a shared link reproduces the sender's on/off choices whatever
+// the recipient's own preferences; otherwise the user's per-searchbar localStorage choice; otherwise
+// the global "match anywhere by default" setting. Toggling writes the explicit on/off entry and
+// localStorage.
 export const useAdvancedSearch = (key: string) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [storedEnabled, setStoredEnabled] = useLocalStorage<boolean>(advancedSearchKey(key), false);
+  const [defaultEnabled] = useDefaultMatchAnywhere();
+  const [storedEnabled, setStoredEnabled] = useLocalStorage<boolean>(advancedSearchKey(key), defaultEnabled);
 
   const urlValues = searchParams.getAll(SearchParamsKeys.ADVANCED_SEARCH);
   const enabled = urlValues.includes(key) ? true : urlValues.includes(`-${key}`) ? false : storedEnabled;
