@@ -256,7 +256,7 @@ def test_in_process_shutdown_closes_connections_after_lifespan(in_process_db_app
 
     app.router.lifespan_context = lifespan
     api = InProcessExecutionAPI(app)
-    with httpx.Client(transport=api.transport) as client:
+    with httpx2.Client(transport=api.transport) as client:
         assert client.get("http://localhost/").json() == 1
     del client, api
     gc.collect()
@@ -270,7 +270,7 @@ def test_session_factory_remains_usable_after_in_process_shutdown(in_process_db_
     app, opened, closed = in_process_db_app
     engine, factory = settings.async_engine, settings.AsyncSession
     api = InProcessExecutionAPI(app)
-    with httpx.Client(transport=api.transport) as client:
+    with httpx2.Client(transport=api.transport) as client:
         assert client.get("http://localhost/").json() == 1
     del client, api
     gc.collect()
