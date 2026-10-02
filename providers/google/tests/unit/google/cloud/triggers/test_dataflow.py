@@ -154,7 +154,7 @@ def test_dataflow_batch_job():
     "airflow.providers.google.cloud.hooks.dataflow._DataflowJobsController._wait_for_states", autospec=True
 )
 @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_conn", autospec=True)
-@mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection", autospec=True)
+@mock.patch("airflow.providers.google.common.hooks.base_google.BaseHook.get_connection", autospec=True)
 @mock.patch(
     "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
     autospec=True,
