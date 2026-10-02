@@ -22,7 +22,10 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from airflow_breeze.utils.kubernetes_utils import get_kubernetes_port_numbers
+from airflow_breeze.utils.kubernetes_utils import FORWARDED_NODE_PORT, get_kubernetes_port_numbers
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+
+KUBERNETES_CI_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes"
 
 SINGLE_NODE_CONFIG = """\
 kind: Cluster
@@ -85,3 +88,22 @@ def test_get_kubernetes_port_numbers_raises_when_forwarded_port_mapping_is_missi
     mock_get_content.return_value = yaml.safe_load(NO_FORWARDED_PORT_CONFIG)
     with pytest.raises(ValueError, match="extraPortMappings"):
         get_kubernetes_port_numbers(python="3.10", kubernetes_version="v1.30.13")
+
+
+def test_forwarded_node_port_matches_kind_config_and_nodeport_service():
+    # The template placeholders are not valid YAML scalars, so render them before parsing.
+    kind_conf = yaml.safe_load(
+        (KUBERNETES_CI_PATH / "kind-cluster-conf.yaml")
+        .read_text()
+        .replace("{{FORWARDED_PORT_NUMBER}}", "18150")
+        .replace("{{API_SERVER_PORT}}", "48366")
+    )
+    container_ports = [
+        port_mapping["containerPort"]
+        for node in kind_conf["nodes"]
+        for port_mapping in node.get("extraPortMappings", [])
+    ]
+    node_port_service = yaml.safe_load((KUBERNETES_CI_PATH / "nodeport.yaml").read_text())
+
+    assert container_ports == [FORWARDED_NODE_PORT]
+    assert [port["nodePort"] for port in node_port_service["spec"]["ports"]] == [FORWARDED_NODE_PORT]
