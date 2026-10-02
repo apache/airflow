@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import AirflowConfigException
+from airflow.sdk.execution_time.coordinator import InvalidCoordinatorError, get_coordinator_manager
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
@@ -207,7 +208,7 @@ class DagSourceCode:
     language: str
 
 
-def _normalize_extensions(extensions: Iterable[str]) -> list[str]:
+def normalize_extensions(extensions: Iterable[str]) -> list[str]:
     """Normalize file extensions to lowercase with leading dot."""
     return [ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in extensions]
 
@@ -216,9 +217,9 @@ def _get_importer_extensions(importer: AbstractDagImporter) -> list[str]:
     """Extract supported extensions from an importer via duck typing."""
     exts = getattr(importer, "supported_extensions", None)
     if callable(exts):
-        return _normalize_extensions(exts())
+        return normalize_extensions(exts())
     if exts is not None:
-        return _normalize_extensions(exts)
+        return normalize_extensions(exts)
     return []
 
 
@@ -306,7 +307,7 @@ def find_file_dag_definitions(
     belongs to :meth:`AbstractDagImporter.import_definition`, so importers whose
     validity can only be determined by attempting the import behave the same way.
     """
-    supported_exts = _normalize_extensions(supported_extensions)
+    supported_exts = normalize_extensions(supported_extensions)
 
     def _is_candidate(path: Path) -> bool:
         return path.is_file() and path.suffix.lower() in supported_exts and "__pycache__" not in path.parts
@@ -379,7 +380,7 @@ def _parse_importer_specs(configs: Any, context: str) -> list[_ImporterSpec]:
                 raise AirflowConfigException(
                     f"Field 'extensions' must be a list of strings in importer configuration for {context}."
                 )
-            extensions = _normalize_extensions(extensions)
+            extensions = normalize_extensions(extensions)
         specs.append(
             _ImporterSpec(
                 classpath=classpath,
@@ -448,8 +449,6 @@ class DagImporterRegistry:
         the bundle's other importers keep working. Two coordinators that claim the same extension
         are a configuration error, which is raised.
         """
-        from airflow.sdk.execution_time.coordinator import InvalidCoordinatorError, get_coordinator_manager
-
         try:
             coordinators = get_coordinator_manager().for_bundle(bundle_name)
         except InvalidCoordinatorError:
@@ -476,7 +475,7 @@ class DagImporterRegistry:
             extensions = _get_importer_extensions(importer)
 
         if extensions:
-            normalized_extensions = _normalize_extensions(extensions)
+            normalized_extensions = normalize_extensions(extensions)
             if hasattr(importer, "supported_extensions"):
                 with contextlib.suppress(AttributeError, TypeError):
                     importer.supported_extensions = normalized_extensions
@@ -649,7 +648,5 @@ def reset_importer_registry() -> None:
 
     The coordinators their Dag importers are bound to are cached too, so they are cleared as well.
     """
-    from airflow.sdk.execution_time.coordinator import get_coordinator_manager
-
     get_importer_registry.cache_clear()
     get_coordinator_manager.cache_clear()
