@@ -94,18 +94,23 @@ class TestMightContainDag:
 
 class TestGetSourceCode:
     def test_returns_the_entrypoint_source_for_every_dag(self, importer, tmp_path):
-        sales = '/* the */ export const sales = new Dag({ dagId: "sales" });\n'
+        sales = 'export const sales = new Dag({ dagId: "sales" });\n'
         inventory = 'export const inventory = new Dag({ dagId: "inventory" });\n'
+        main = '/* the */ import "./sales";\nimport "./inventory";\n'
         path = write_bundle(
             tmp_path,
             "sales",
             "inventory",
-            sources=[("sales.ts", sales.encode()), ("inventory.ts", inventory.encode())],
+            sources=[
+                ("sales.ts", sales.encode()),
+                ("inventory.ts", inventory.encode()),
+                ("main.ts", main.encode()),
+            ],
             dag_source_paths={"sales": "sales.ts", "inventory": "inventory.ts"},
-            entrypoint_path="sales.ts",
+            entrypoint_path="main.ts",
         )
 
-        assert importer.get_source_code(FilesystemDagDefinition(path)) == DagSourceCode(sales, "typescript")
+        assert importer.get_source_code(FilesystemDagDefinition(path)) == DagSourceCode(main, "typescript")
 
     def test_returns_a_notice_without_an_entrypoint_source(self, importer, tmp_path):
         path = write_bundle(tmp_path, "sales", entrypoint_path=None)
