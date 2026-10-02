@@ -207,12 +207,11 @@ then register the coordinator and route the queue to it in ``airflow.cfg`` (or t
     }
     queue_to_coordinator = {"golang": "go"}
 
-``dag_bundle_name`` is optional. Omit it and the coordinator finds executable bundles in the task's own Dag
-bundle, the one that holds the Python stub Dag. Set it, as here, to keep them in a separate Dag bundle, for
-example when you configure more than one ``ExecutableCoordinator`` and each has its own bundles.
-``queue_to_coordinator``
-routes stub tasks with ``queue="golang"`` to this Go coordinator. See :ref:`go-sdk/coordinator-config` for
-the full list of accepted ``kwargs``.
+``dag_bundle_name`` is only needed when you configure more than one ``ExecutableCoordinator``. Each one must
+then name its own Dag bundle, so Dag processing knows which one runs an executable bundle to parse it. With a
+single ``ExecutableCoordinator``, as here, it is optional: omit it and the coordinator finds executable bundles
+in the task's own Dag bundle. ``queue_to_coordinator`` routes stub tasks with ``queue="golang"`` to this Go
+coordinator. See :ref:`go-sdk/coordinator-config` for the full list of accepted ``kwargs``.
 
 There is no separate Go worker to run: the Airflow worker forks the bundle binary once per task instance.
 
@@ -502,7 +501,7 @@ Deploying
 ~~~~~~~~~
 
 Copy or mount the packed bundle into the Dag bundle the coordinator scans: the one named by
-``dag_bundle_name``, or the stub Dag's own bundle. The
+``dag_bundle_name``, or the task's own Dag bundle. The
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` scans that Dag bundle recursively,
 matches the incoming ``dag_id`` against each bundle's manifest, verifies the bundle's integrity hash, and
 launches the matching bundle. Bundles are identified by the trailer magic, not by filename (no extension on
@@ -526,7 +525,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - ``dag_bundle_name``
      - *(auto: task's own bundle)*
      - Name of a configured Dag bundle to load executable bundles from. It must name a bundle in
-       ``[dag_processor] dag_bundle_config_list``.
+       ``[dag_processor] dag_bundle_config_list``. Only needed when more than one
+       ``ExecutableCoordinator`` is configured.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the bundle subprocess to connect after launch. Increase this if your
@@ -537,10 +537,11 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   **Locating bundles.** Executable bundles always live in a Dag bundle:
 
   * Leave ``dag_bundle_name`` unset (the default) to load bundles from the **task's own** Dag bundle,
-    pinned to the version the run was created with.
-  * Set ``dag_bundle_name`` to keep bundles in a separate Dag bundle, for example one per
-    ``ExecutableCoordinator`` when you configure more than one. The task uses the version that Dag
-    bundle is on when it starts, pinned for the whole task.
+    pinned to the version the run was created with. This is all you need with a single
+    ``ExecutableCoordinator``.
+  * With more than one ``ExecutableCoordinator``, set ``dag_bundle_name`` on each to a different Dag
+    bundle, so Dag processing knows which one runs an executable bundle to parse it. The task uses the
+    version that Dag bundle is on when it starts, pinned for the whole task.
 
 .. _go-sdk/limitations:
 

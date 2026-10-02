@@ -274,10 +274,10 @@ Configure Airflow so the parent JAR directory is a Dag bundle, the coordinator s
     }
     queue_to_coordinator = {"java": "java"}
 
-``dag_bundle_name`` is only needed when you configure more than one ``JavaCoordinator``. Each one must then
-name its own Dag bundle, otherwise the Dag importer cannot tell which coordinator should parse a JAR. With a
-single ``JavaCoordinator``, as here, it is optional: omit it and the coordinator finds the JARs in the task's
-own Dag bundle, the one that holds ``sales_pipeline.py``.
+``dag_bundle_name`` is only needed when you configure more than one ``JavaCoordinator``, for example ``jdk-11``
+and ``jdk-17``. Each one must then name its own Dag bundle, so Dag processing knows which one starts the JVM
+that parses a JAR. With a single ``JavaCoordinator``, as here, it is optional: omit it and the coordinator finds
+the JARs in the task's own Dag bundle.
 
 ``java`` is a user-chosen coordinator name, not a reserved value. The value assigned to the queue in
 ``queue_to_coordinator`` must match a key in ``coordinators``.
@@ -1090,7 +1090,7 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   * Leave ``dag_bundle_name`` unset (the default) to load JARs from the **task's own** Dag bundle, pinned
     to the version the run was created with. This is all you need with a single ``JavaCoordinator``.
   * With more than one ``JavaCoordinator``, set ``dag_bundle_name`` on each to a different Dag bundle, so
-    the Dag importer can tell which coordinator parses which JAR. The task uses the version that bundle is
+    Dag processing knows which one starts the JVM that parses a JAR. The task uses the version that bundle is
     on when it starts, pinned for the whole task.
 
 .. note::
