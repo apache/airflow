@@ -29,8 +29,6 @@ describe("formatNumber", () => {
   });
 
   it("falls back to the default locale instead of throwing on a malformed tag", () => {
-    // Plugins can contribute a UI language served via /static/i18n/languages.json without BCP-47
-    // validation (e.g. "pt_BR"), which Intl.NumberFormat rejects with a RangeError.
     expect(formatNumber(1234, "pt_BR")).toBe("1,234");
   });
 });

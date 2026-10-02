@@ -107,7 +107,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
                 <RunTypeIcon runType="backfill" />
               </Box>
               <Text fontSize="xs">
-                {counts.backfill} {translate("dag:calendar.backfill")}
+                {formatNumber(counts.backfill, i18n.language)} {translate("dag:calendar.backfill")}
               </Text>
             </HStack>
           )}

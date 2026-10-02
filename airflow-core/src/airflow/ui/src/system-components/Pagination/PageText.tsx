@@ -22,7 +22,7 @@ import type { TextProps } from "@chakra-ui/react";
 import { Text, usePaginationContext } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { formatNumber } from "src/utils";
+import { formatNumber } from "src/utils/formatNumber";
 
 type PageTextProps = {
   readonly format?: "compact" | "long" | "short";

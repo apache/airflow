@@ -22,7 +22,7 @@ import type { ButtonProps } from "@chakra-ui/react";
 import { Button, Pagination as ChakraPagination, usePaginationContext } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { formatNumber } from "src/utils";
+import { formatNumber } from "src/utils/formatNumber";
 
 import { paginationContext } from "./context";
 

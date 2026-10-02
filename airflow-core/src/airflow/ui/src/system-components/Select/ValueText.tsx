@@ -22,7 +22,7 @@ import type { CollectionItem } from "@chakra-ui/react";
 import { Select as ChakraSelect } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { formatNumber } from "src/utils";
+import { formatNumber } from "src/utils/formatNumber";
 
 type ValueTextProps = {
   readonly children?: (items: Array<CollectionItem>) => ReactNode;
