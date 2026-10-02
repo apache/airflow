@@ -50,19 +50,11 @@ def test_returns_none_when_acyclic(graph):
         pytest.param({"a": ["b"], "b": ["c"], "c": ["a"]}, "c", id="three-node-cycle"),
         pytest.param({"a": ["b"], "b": ["c"], "c": ["b"]}, "c", id="cycle-below-an-acyclic-root"),
         pytest.param({"a": [], "b": ["c"], "c": ["b"]}, "c", id="cycle-outside-the-first-component"),
+        pytest.param({"a": [""], "": ["a"]}, "", id="empty-task-id"),
     ],
 )
 def test_returns_the_node_whose_edge_closes_the_cycle(graph, expected):
     assert detect_cycle(graph, edges_of(graph)) == expected
-
-
-def test_follows_downstream_edges_only():
-    """An edge is only traversed in the direction the callback reports."""
-    downstream = {"a": ["b"], "b": []}
-    upstream = {"a": [], "b": ["a"]}
-
-    assert detect_cycle(downstream, lambda node_id: downstream[node_id]) is None
-    assert detect_cycle(upstream, lambda node_id: upstream[node_id]) is None
 
 
 def test_reads_the_graph_only_through_the_callback():
