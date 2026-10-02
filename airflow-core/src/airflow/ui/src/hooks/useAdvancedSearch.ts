@@ -23,27 +23,29 @@ import { advancedSearchKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 // The "match anywhere" (substring) toggle is mirrored in the URL so a filtered search can be shared
-// and reproduced. ``match_anywhere`` is a repeated param listing the search keys whose toggle is on
-// (`?match_anywhere=dags`, or `?match_anywhere=dag_id&match_anywhere=run_id` on a page with several
-// text filters), keeping each searchbar independent. A key present in the URL wins so a shared link
-// reproduces the sender's results; otherwise the per-searchbar localStorage preference applies, and
-// clicking the toggle writes both.
+// and reproduced in both directions. ``match_anywhere`` is a repeated param carrying each searchbar's
+// explicit choice by key: ``key`` for on, ``-key`` for off
+// (`?match_anywhere=dag_id&match_anywhere=-run_id`), keeping each searchbar independent. An explicit URL
+// entry wins — a shared link reproduces the sender's on/off choices whatever the recipient's own
+// preferences — and a key with no entry (e.g. landing through the nav) falls back to the per-searchbar
+// localStorage preference. Toggling writes the explicit on/off entry and localStorage.
 export const useAdvancedSearch = (key: string) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [storedEnabled, setStoredEnabled] = useLocalStorage<boolean>(advancedSearchKey(key), false);
 
-  const enabled = searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE).includes(key) || storedEnabled;
+  const urlValues = searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE);
+  const enabled = urlValues.includes(key) ? true : urlValues.includes(`-${key}`) ? false : storedEnabled;
 
   const onToggle = (nextEnabled: boolean) => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
-      const retained = next.getAll(SearchParamsKeys.MATCH_ANYWHERE).filter((value) => value !== key);
+      const retained = next
+        .getAll(SearchParamsKeys.MATCH_ANYWHERE)
+        .filter((value) => value !== key && value !== `-${key}`);
 
       next.delete(SearchParamsKeys.MATCH_ANYWHERE);
       retained.forEach((value) => next.append(SearchParamsKeys.MATCH_ANYWHERE, value));
-      if (nextEnabled) {
-        next.append(SearchParamsKeys.MATCH_ANYWHERE, key);
-      }
+      next.append(SearchParamsKeys.MATCH_ANYWHERE, nextEnabled ? key : `-${key}`);
 
       return next;
     });

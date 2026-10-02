@@ -78,6 +78,14 @@ describe("useAdvancedSearch reads", () => {
 
     expect(result.current.advanced.enabled).toBe(true);
   });
+
+  it("honors an explicit off marker over a stored-on preference", () => {
+    localStorage.setItem(advancedSearchKey("dags"), JSON.stringify(true));
+
+    const { result } = renderAdvancedSearch("dags", ["/dags?match_anywhere=-dags"]);
+
+    expect(result.current.advanced.enabled).toBe(false);
+  });
 });
 
 describe("useAdvancedSearch toggle", () => {
@@ -90,14 +98,36 @@ describe("useAdvancedSearch toggle", () => {
     expect(result.current.advanced.enabled).toBe(true);
   });
 
-  it("removes only its own key and keeps the other searchbars", () => {
+  it("records an explicit off marker and keeps the other searchbars when disabled", () => {
     const { result } = renderAdvancedSearch("dag_id", [
       "/events?match_anywhere=dag_id&match_anywhere=run_id",
     ]);
 
     act(() => result.current.advanced.onToggle(false));
 
-    expect(result.current.searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE)).toEqual(["run_id"]);
+    expect(result.current.searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE)).toEqual([
+      "run_id",
+      "-dag_id",
+    ]);
+    expect(result.current.advanced.enabled).toBe(false);
+  });
+
+  it("writes an explicit off marker when disabled from no prior entry", () => {
+    const { result } = renderAdvancedSearch("dags");
+
+    act(() => result.current.advanced.onToggle(false));
+
+    expect(result.current.searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE)).toEqual(["-dags"]);
+    expect(result.current.advanced.enabled).toBe(false);
+  });
+
+  it("flips from off to on without leaving the off marker behind", () => {
+    const { result } = renderAdvancedSearch("dags", ["/dags?match_anywhere=-dags"]);
+
+    act(() => result.current.advanced.onToggle(true));
+
+    expect(result.current.searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE)).toEqual(["dags"]);
+    expect(result.current.advanced.enabled).toBe(true);
   });
 
   it("does not duplicate the key when enabled while already present", () => {
