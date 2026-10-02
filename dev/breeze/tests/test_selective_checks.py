@@ -1624,11 +1624,19 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("airflow-core/src/airflow/dag_processing/manager.py",),
             {
+                "run-java-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Skip java and ts e2e tests when the shared Dag processor manager changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/serialization/serialized_objects.py",),
+            {
                 "run-java-sdk-e2e-tests": "true",
                 "run-ts-sdk-e2e-tests": "true",
                 "prod-image-build": "true",
             },
-            id="Run java and ts e2e tests when the Dag processor manager changes",
+            id="Run java and ts e2e tests when the Dag serialization checks change",
         ),
         pytest.param(
             ("airflow-core/src/airflow/dag_processing/lang_sdk_processor.py",),
