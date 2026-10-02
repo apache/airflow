@@ -121,6 +121,8 @@ type TaskRef struct {
 //   - fn comes from TriggerDagRun and opts holds an Inputs
 //   - an option is nil or is not one that package airflow defines
 //   - opts holds more than one TaskSpec or more than one Inputs
+//   - the TaskSpec sets TriggerRule to a value that is not a TriggerRule constant
+//   - the TaskSpec sets WeightRule to a value that is not a WeightRule constant
 //   - the tasks passed to Inputs do not match the parameters of fn after the Context
 //   - the Dag already has a task with the same task_id
 //   - the Dag is already registered
@@ -208,6 +210,9 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 		panic(fmt.Sprintf(
 			"airflow.DagRef.Task: task %q of Dag %q: %v", taskID, d.dagID, triggerErr,
 		))
+	}
+	if err := checkTaskSpec(cfg.spec); err != nil {
+		panic(fmt.Sprintf("airflow.DagRef.Task: task %q of Dag %q: %v", taskID, d.dagID, err))
 	}
 	if _, exists := d.tasksByID[taskID]; exists {
 		panic(fmt.Sprintf(

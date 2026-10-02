@@ -24,8 +24,6 @@ import (
 	"fmt"
 	"slices"
 	"time"
-
-	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 // TriggerDagRunSpec holds the options of a task that triggers a Dag run. [TriggerDagRun] takes a
@@ -61,16 +59,15 @@ type TriggerDagRunSpec struct {
 	// PokeInterval is how often a task that waits checks the state of the new Dag run. It must be
 	// a whole number of seconds. When PokeInterval is nil, the task checks every 60 seconds.
 	PokeInterval *time.Duration
-	// AllowedStates are the states of the new Dag run in which a task that waits succeeds. Each
-	// state is one of queued, running, success and failed. When AllowedStates is empty, the task
-	// succeeds in the success state.
-	AllowedStates []string
-	// FailedStates are the states of the new Dag run in which a task that waits fails. Each state
-	// is one of queued, running, success and failed. A nil FailedStates fails the task in the
-	// failed state. A FailedStates that is empty but not nil means that no state fails the task.
-	// The task then succeeds once the new Dag run is in a state that AllowedStates lists. In any
-	// other state, including failed, the task keeps waiting.
-	FailedStates []string
+	// AllowedStates are the states of the new Dag run in which a task that waits succeeds. When
+	// AllowedStates is empty, the task succeeds in the success state of the new Dag run.
+	AllowedStates []DagRunState
+	// FailedStates are the states of the new Dag run in which a task that waits fails. When
+	// FailedStates is nil, the task fails in the failed state of the new Dag run. When
+	// FailedStates is empty but not nil, no Dag run state fails the task. The task then succeeds
+	// once the new Dag run is in a state that AllowedStates lists. In any other state, including
+	// failed, the task keeps waiting.
+	FailedStates []DagRunState
 	// SkipWhenAlreadyExists marks the task skipped if the Dag run already exists.
 	SkipWhenAlreadyExists bool
 	// FailWhenDagIsPaused fails the task when the Dag to trigger is paused.
@@ -108,15 +105,6 @@ func TriggerDagRun(spec TriggerDagRunSpec) TriggerDagRunTask {
 	return TriggerDagRunTask{spec: spec}
 }
 
-// validDagRunStates are the values that TriggerDagRunOperator accepts in allowed_states and
-// failed_states.
-var validDagRunStates = []string{
-	string(genmodels.DagRunStateQueued),
-	string(genmodels.DagRunStateRunning),
-	string(genmodels.DagRunStateSuccess),
-	string(genmodels.DagRunStateFailed),
-}
-
 // copyTriggerDagRunSpec checks spec and returns a deep copy of it, so that nothing the caller
 // still holds, such as Conf, a state slice or a pointer field, can change the task that
 // DagRef.Task added.
@@ -133,14 +121,14 @@ func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 	}
 	for _, field := range []struct {
 		name   string
-		states []string
+		states []DagRunState
 	}{{"AllowedStates", spec.AllowedStates}, {"FailedStates", spec.FailedStates}} {
 		for _, state := range field.states {
-			if !slices.Contains(validDagRunStates, state) {
+			if !slices.Contains(dagRunStates, state) {
 				return TriggerDagRunSpec{}, fmt.Errorf(
 					"airflow.TriggerDagRunSpec.%s has %q, which is not a Dag run state; "+
 						"use one of %q",
-					field.name, state, validDagRunStates,
+					field.name, state, dagRunStates,
 				)
 			}
 		}

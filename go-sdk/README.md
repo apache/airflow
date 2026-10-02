@@ -396,6 +396,11 @@ drift, so a missed bump is caught by `go test`. A snapshot can also grow a field
 struct does not declare — so the `check-go-sdk-generated-drift` prek hook regenerates them and fails
 when the committed files differ.
 
+[`airflow/enums.go`](./airflow/enums.go) declares the `genmodels.DagRunState` constants again, so that
+a Dag author does not import `genmodels`. `TestDagRunStateMatchesGenmodels` fails when regenerating
+the models adds, renames or removes a `DagRunState` constant. The test keeps failing until
+`airflow/enums.go` declares the same constants as `genmodels`.
+
 ## Regenerating the Dag and task specs
 
 `airflow.DagSpec` and `airflow.TaskSpec` in [`airflow/spec.gen.go`](./airflow/spec.gen.go) are
@@ -416,9 +421,10 @@ it into the authoring shape, each entry carrying the reason it exists:
   schema rather than hand-writing the field keeps every field in one struct declaration, which is
   what lets `TaskSpec` implement the sealed `TaskOption`.
 
-`trigger_rule` is typed as a plain string with no values named, so `TriggerRule` and its constants
-are hand-written in [`airflow/spec.go`](./airflow/spec.go);
-`TestTriggerRuleConstantsMatchPython` is their tripwire against Airflow's own enum.
+The schema types `trigger_rule` and `weight_rule` as plain strings and does not list their values.
+`TriggerRule`, `WeightRule` and their constants are therefore hand-written in
+[`airflow/enums.go`](./airflow/enums.go). `TestRuleConstantsMatchPython` checks those constants
+against the Python enums in airflow-core.
 
 The `check-go-sdk-generated-drift` prek hook regenerates the file and fails when the committed one
 differs, so a schema change that never reached Go cannot merge.
