@@ -80,6 +80,10 @@ export AIRFLOW__SDK__COORDINATORS='{
 export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'
 ```
 
+The Dag processor parses `typescript_native_example` from `bundle.min.mjs` with `node`, so it needs
+`node` on `PATH`, or set `node_executable` in the coordinator's `kwargs`. See
+[Parsing native Dags](../../airflow-core/docs/authoring-and-scheduling/language-sdks/typescript.rst#parsing-native-dags).
+
 Copy both files in `dags/` into your Airflow Dags folder.
 
 The example also reads one Variable and one Connection:
@@ -101,4 +105,5 @@ Then start Airflow and trigger the Dag:
 ```bash
 airflow dags trigger typescript_example
 airflow dags trigger typescript_taskflow_example
+airflow dags trigger typescript_native_example
 ```
