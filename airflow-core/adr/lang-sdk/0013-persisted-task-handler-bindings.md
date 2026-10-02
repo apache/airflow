@@ -236,22 +236,22 @@ class DagFileParseRequest(BaseModel):
 **Dag-parsing child → coordinator subprocess.** Introduced here. The child spawns the runtime and
 forwards bytes in both directions, decoding nothing; the process that spawned the parse decodes the
 reply. `ToSDKTaskHandlerProcessor` is a new parent-to-child union differing from `ToDagProcessor` in
-one member, and `ToManager` gains `SDKTaskHandlerParsingResult`.
+one member, and `ToManager` gains `TaskHandlerParsingResult`.
 
 ```python
-class SDKTaskHandlerParseRequest(BaseModel):  # parent -> runtime, on ToSDKTaskHandlerProcessor
+class TaskHandlerParseRequest(BaseModel):  # parent -> runtime, on ToSDKTaskHandlerProcessor
     file: str  # the candidate artifact being probed
     bundle_path: Path
     bundle_name: str
-    type: Literal["SDKTaskHandlerParseRequest"]
+    type: Literal["TaskHandlerParseRequest"]
 
 
-class SDKTaskHandlerParsingResult(BaseModel):  # runtime -> parent, on ToManager
+class TaskHandlerParsingResult(BaseModel):  # runtime -> parent, on ToManager
     fileloc: str
     task_handlers: dict[str, list[TaskHandlerDeclaration]]  # dag_id -> declarations
     import_errors: dict[str, str] | None = None
     warnings: list | None = None
-    type: Literal["SDKTaskHandlerParsingResult"]
+    type: Literal["TaskHandlerParsingResult"]
 
 
 class TaskHandlerDeclaration(BaseModel):
@@ -375,10 +375,15 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │      transform →  "java" →  jdk-17        →  "java-task-handlers"
         │      ingest    →  "go"   →  go-sdk        →  "go-task-handlers"
         │
-        │      a queue with no coordinator entry is an import error here,
-        │      not a silent Python fallback at execution time
+        │      a stub task on a queue with no coordinator entry is left to an
+        │      external worker: not checked, not bound; without
+        │      queue_to_coordinator nothing is checked
+        │      each coordinator reads its task_handler_bundle_name, or the Dag's
+        │      own bundle when unset; a bundle of another team is an import
+        │      error, since teams must be equal
         │
-        ├─4─ per coordinator: list candidates in its bundle
+        ├─4─ per coordinator: list candidates in its bundle; a coordinator that
+        │    cannot list its artifacts is an import error for its stub tasks
         │      Go   → files carrying the AFBNDL01 trailer magic, whatever
         │             their executable bit (one without it is rejected)
         │      Java → *.jar whose manifest carries Airflow-Cache-Digest
@@ -391,15 +396,20 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │      size + stored cache_digest equal a known artifact's
         │                          ──▶ skip the launch, use its task_handlers
         │      anything else, or no stored digest  ──▶ probe
-        │      rejected by the listing             ──▶ import error, no probe
+        │      rejected by the listing             ──▶ broken, no probe
         │
-        ├─6─ PROBE, per differing candidate — one subprocess
-        │      LangSDKTaskHandlerProcessorProcess.start(
-        │          target=_start_task_handler_runtime_entrypoint,
-        │          coordinator=JavaCoordinator("jdk-17"),
-        │          path=<candidate>)
-        │        ──SDKTaskHandlerParseRequest(file=…)──▶ runtime
-        │        ◀─SDKTaskHandlerParsingResult(task_handlers={"etl": […]})── runtime
+        ├─6─ PROBE, per differing candidate: one subprocess each, one at a time,
+        │    all within 90% of [dag_processor] dag_file_processor_timeout,
+        │    counted from the creation of the parse child; an answer is shared by
+        │    every coordinator that lists the artifact, and a failed probe is
+        │    retried under the next coordinator that lists it; a candidate
+        │    whose probes all fail, or that is left when time runs out, is broken
+        │      LangSDKTaskHandlerProcessorProcess.run(
+        │          coordinator="jdk-17",
+        │          path=<candidate>, bundle_path=…, bundle_name=…,
+        │          artifact_rel_path=…, deadline=…)
+        │        ──TaskHandlerParseRequest(file=…)──▶ runtime
+        │        ◀─TaskHandlerParsingResult(task_handlers={"etl": […]})── runtime
         │        Get* from the runtime is relayed up ToManager unchanged
         │
         ├─7─ VALIDATE per stub task, against the recorded and the fresh answers
@@ -563,7 +573,13 @@ for each candidate in the coordinator's bundle:
 ### Failure handling
 
 **Validation fails.** Record the import error; leave every binding row untouched. `bindings=None`
-already expresses "do not reconcile", so this needs no additional mechanism. The answers probed for it are still recorded, so the next parse validates against them without probing.
+already expresses "do not reconcile", so this needs no additional mechanism. The answers probed for it are still recorded, so the next parse validates against them without probing. Like any import error, it stops every Dag of the file from being scheduled until it clears.
+
+**A candidate is broken.** It is rejected by the listing, its probe fails or raises, or the parse runs out of time first. It is ignored: a stub task that finds its handler elsewhere is checked and bound as usual, and one left without a handler fails, its import error naming the broken candidate and why.
+
+**A coordinator cannot be evaluated.** It cannot be built or cannot list its artifacts, or its bundle is missing, cannot be read or belongs to another team. Its stub tasks are not checked, and it is an import error naming it. An error the check does not expect is an import error of each Dag file with a routed stub task, and the serialized Dags are still sent.
+
+**A name mismatch under named binding.** A passed argument no param takes, or a param no argument fills, is a warning in the Dag file's parse log; the stub task is still bound.
 
 **A stub task has no binding at all.** The scheduler fails it with the reason rather than queueing a
 workload that would die on the worker at `ValueError("dag_path is required")`, far from the cause.
@@ -586,11 +602,29 @@ definition whose author can act) naming both artifact paths, since the fix is in
 - `DagFileParseRequest` gains a field and `DagFileParsingResult` two, and `ToSDKTaskHandlerProcessor`
   becomes a fifth union the supervisor-schema registry introspects. Both messages already appear in
   the generated schemas of all three SDKs, so the snapshot is regenerated and the two prek hooks guarding it run.
-- Every Lang SDK runtime must answer `SDKTaskHandlerParseRequest`.
-- A misrouted queue becomes an import error at Dag-parsing stage instead of a runtime failure. Today a stub task on a
-  queue absent from `queue_to_coordinator` silently falls back to the Python coordinator
-  ([`for_queue`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/execution_time/coordinator.py#L280-L284)) and dies in
-  `_StubOperator.execute()`.
+- Every Lang SDK runtime must answer `TaskHandlerParseRequest`.
+- A stub task on a queue absent from `queue_to_coordinator` is left to a worker outside Airflow's coordinators:
+  the parse neither checks nor binds it. Without `queue_to_coordinator` nothing is checked, so
+  Python-only deployments are unchanged.
+- A coordinator serving stub tasks must list and probe its artifacts, since a stub task it cannot bind cannot
+  run.
+- An artifact whose probe fails, or that the parse runs out of time for, has no recorded answer, so every Dag
+  file with stub tasks on its coordinator probes it again on each parse until it is fixed or removed. One that
+  several coordinators list is probed under each of them until one answers, so it can be probed once per
+  coordinator on every parse. One the listing rejects is never probed: it is logged on each parse and named when
+  a stub task finds no handler.
+- The parse's team check only reports. The parse runs Dag code, so the manager enforces the scope when it
+  records answers and bindings.
+- Probes count towards `[dag_processor] dag_file_processor_timeout`, counted from the creation of the parse
+  child, and each is also limited by `[core] dagbag_import_timeout`, which `get_dagbag_import_timeout` can set
+  per artifact path. They run one at a time; the answers a parse got before running out of time are still
+  recorded, so a cold start with many artifacts converges over parses, unless an artifact whose probe keeps
+  failing slowly is probed ahead of them and leaves too little time. That artifact has no recorded answer, so
+  it is probed first again on every parse, and the artifacts after it are asked only once it is fixed or removed,
+  or the timeouts are raised. Guaranteed convergence would need the manager to record failed probes so that
+  they are probed last, or a probe order that rotates between parses.
+  If the manager kills the parse anyway, the kernel kills the runtime with it on Linux; processes the runtime
+  started itself are not covered.
 - One artifact bundle is one Java classpath. `_calculate_classpath` joins every JAR under the root
   ([`_calculate_classpath`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/coordinators/java/coordinator.py#L85-L87)), so all handlers in a bundle
   share one dependency graph. Isolating conflicting dependency versions requires a second bundle, a
