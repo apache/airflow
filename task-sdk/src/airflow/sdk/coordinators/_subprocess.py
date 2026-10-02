@@ -466,9 +466,10 @@ class SubprocessCoordinator(BaseCoordinator):
     def get_dag_importer_class(cls) -> type[CoordinatorDagImporter] | None:
         return None
 
-    def get_dag_importer(self) -> CoordinatorDagImporter | None:
-        importer_cls = self.get_dag_importer_class()
-        return None if importer_cls is None else importer_cls(coordinator=self)
+    def get_dag_importer(self) -> CoordinatorDagImporter:
+        if (importer_cls := self.get_dag_importer_class()) is None:
+            raise NotImplementedError(f"{type(self).__name__} parses no native Dags")
+        return importer_cls(coordinator=self)
 
     @classmethod
     def get_parsed_bundles(cls, kwargs: Mapping[str, Any]) -> frozenset[str] | None:

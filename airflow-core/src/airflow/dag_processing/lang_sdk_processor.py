@@ -443,9 +443,9 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         file = self._parse_request.file
         try:
             coordinator = get_claiming_coordinator(file, self.bundle_name)
-            if coordinator is None or (importer := coordinator.get_dag_importer()) is None:
+            if coordinator is None:
                 raise RuntimeError(f"No coordinator's Dag importer claims {file}")
-            source = importer.get_source_code(FilesystemDagDefinition(Path(file)))
+            source = coordinator.get_dag_importer().get_source_code(FilesystemDagDefinition(Path(file)))
         except Exception as e:
             self.process_log.warning("Cannot read the Dag source", fileloc=file, error=str(e))
             source = DagSourceCode(f"Cannot read the source of {self.dag_file_rel_path}: {e}", "text")
