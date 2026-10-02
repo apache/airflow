@@ -23,10 +23,33 @@ from cadwyn import (
     VersionChangeWithSideEffects,
     convert_response_to_previous_version_for,
     endpoint,
+    enum,
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    TerminalStateNonSuccess,
+    TIRunContext,
+    TITerminalStatePayload,
+)
+
+
+class AddStoppedTaskReport(VersionChange):
+    """Allow supervisors to report server-requested termination after the child exits."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        enum(TerminalStateNonSuccess).didnt_have("SERVER_TERMINATED"),
+        schema(TITerminalStatePayload).field("hostname").didnt_exist,
+        schema(TITerminalStatePayload).field("pid").didnt_exist,
+    )
+
+
+class IdentifyRetiredTaskStateUpdates(VersionChangeWithSideEffects):
+    """Return 410 for state reports from archived attempts, preserving 404 for unknown attempts."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = ()
 
 
 class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
@@ -52,3 +75,36 @@ class AddCallbackRunEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/run", ["PATCH"]).didnt_exist,
     )
+
+
+class AddDagRunNoteUpdateEndpoint(VersionChange):
+    """Add endpoint for updating a DagRun note from task runtime code."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/task-instances/{task_instance_id}/dag-run-note", ["PATCH"]).didnt_exist,
+    )
+
+
+class AddTerminalStateRetryReasonField(VersionChange):
+    """Add the `retry_reason` field to TITerminalStatePayload for failed retry-policy decisions."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TITerminalStatePayload).field("retry_reason").didnt_exist,
+    )
+
+
+class AddMultiTeamToTIRunContext(VersionChange):
+    """Add ``multi_team`` so a worker can determine multi-team (e.g. for plugin scoping) without needing to trust its own config."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("multi_team").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_multi_team_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``multi_team`` from the run context for older clients."""
+        response.body.pop("multi_team", None)

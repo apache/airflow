@@ -27,8 +27,10 @@ from fastapi import FastAPI
 from fastapi.routing import Mount
 from starlette.middleware import Middleware
 
+from airflow import settings
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.common.exceptions import init_error_handlers
+from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_flask_plugins,
@@ -99,6 +101,7 @@ def _initialize_api_server_stats() -> None:
 async def lifespan(app: FastAPI):
     _initialize_api_server_stats()
     async with AsyncExitStack() as stack:
+        stack.push_async_callback(settings.dispose_async_engine)
         for route in app.routes:
             if isinstance(route, Mount) and isinstance(route.app, FastAPI):
                 await stack.enter_async_context(
@@ -151,6 +154,8 @@ def create_app(apps: str = "all") -> FastAPI:
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)
+
+    init_access_logging(app)
 
     init_config(app)
 
@@ -217,6 +222,11 @@ def get_auth_manager() -> BaseAuthManager:
             "The `init_auth_manager` method needs to be called first."
         )
     return _AuthManagerState.instance
+
+
+def init_access_logging(app: FastAPI) -> None:
+    """Install the access log middleware, the only producer of access records."""
+    app.add_middleware(HttpAccessLogMiddleware)
 
 
 def init_plugins(app: FastAPI) -> None:

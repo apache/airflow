@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -83,7 +84,8 @@ class TestNextRunAssets:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        with assert_queries_count(4):
+        # 4 queries for the endpoint plus 1 to resolve the assets the caller may read.
+        with assert_queries_count(5):
             response = test_client.get("/next_run_assets/upstream")
 
         assert response.status_code == 200
@@ -96,6 +98,7 @@ class TestNextRunAssets:
                             "name": "asset1",
                             "group": "asset",
                             "id": mock.ANY,
+                            "hidden": False,
                         }
                     }
                 ]
@@ -117,6 +120,47 @@ class TestNextRunAssets:
             ],
             "pending_partition_count": None,
         }
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_asset_expression_hides_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        with dag_maker(
+            dag_id="hidden_upstream",
+            schedule=[
+                Asset(uri="s3://bucket/visible", name="visible_asset"),
+                Asset(uri="s3://bucket/hidden", name="hidden_asset"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        visible_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "visible_asset"))
+        mock_get_authorized_assets.return_value = {visible_id}
+
+        response = test_client.get("/next_run_assets/hidden_upstream")
+
+        assert response.status_code == 200
+        assert response.json()["asset_expression"] == {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible_asset",
+                        "group": "asset",
+                        "id": visible_id,
+                        "hidden": False,
+                    }
+                },
+                {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}},
+            ]
+        }
+        redacted = json.dumps(response.json()["asset_expression"])
+        assert "hidden_asset" not in redacted
+        assert "s3://bucket/hidden" not in redacted
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/next_run_assets/upstream")
@@ -170,6 +214,7 @@ class TestNextRunAssets:
                             "name": "A",
                             "group": "asset",
                             "id": mock.ANY,
+                            "hidden": False,
                         }
                     },
                     {
@@ -178,6 +223,7 @@ class TestNextRunAssets:
                             "name": "B",
                             "group": "asset",
                             "id": mock.ANY,
+                            "hidden": False,
                         }
                     },
                 ]
@@ -531,6 +577,25 @@ class TestGetAssetsUi:
         assert body["total_entries"] == 1
         assert body["assets"][0]["name"] == "ui_asset"
 
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    def test_should_return_only_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(3)]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets)
+        session.commit()
+        mock_get_authorized_assets.return_value = {assets[1].id}
+
+        response = test_client.get("/assets")
+
+        mock_get_authorized_assets.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+        assert [asset["name"] for asset in body["assets"]] == ["asset1"]
+        # The count must be scoped too, so the existence of hidden assets does not leak.
+        assert body["total_entries"] == 1
+
     def test_sort_by_last_asset_event_timestamp(self, test_client, session):
         older = AssetModel(name="older", uri="s3://bucket/older", group="asset")
         newer = AssetModel(name="newer", uri="s3://bucket/newer", group="asset")
@@ -672,6 +737,29 @@ class TestGetAssetsUi:
         )
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["newer"]
+
+    @pytest.mark.parametrize(
+        ("has_events", "expected_names"),
+        [
+            pytest.param(None, ["evented", "never"], id="unset"),
+            pytest.param(True, ["evented"], id="has-events"),
+            pytest.param(False, ["never"], id="no-events"),
+        ],
+    )
+    def test_filter_by_has_events(self, test_client, session, has_events, expected_names):
+        evented = AssetModel(name="evented", uri="s3://bucket/evented", group="asset")
+        never = AssetModel(name="never", uri="s3://bucket/never", group="asset")
+        session.add_all([evented, never])
+        session.add_all([AssetActive.for_asset(evented), AssetActive.for_asset(never)])
+        session.flush()
+        session.add(AssetEvent(asset_id=evented.id, timestamp=pendulum.datetime(2024, 1, 1)))
+        session.commit()
+
+        params = {} if has_events is None else {"has_events": has_events}
+        response = test_client.get("/assets", params=params)
+
+        assert response.status_code == 200
+        assert sorted(asset["name"] for asset in response.json()["assets"]) == expected_names
 
     def test_aliases_present_for_asset_via_alias(self, test_client, session):
         """
@@ -828,7 +916,8 @@ class TestGetAssetsUi:
             assets[i].aliases.append(AssetAliasModel(name=f"alias{i}", group=""))
         session.commit()
 
-        with assert_queries_count(8):
+        # One of these queries resolves the caller's readable assets so the list can be scoped to them.
+        with assert_queries_count(9):
             assert test_client.get("/assets").status_code == 200
 
     @conf_vars({("core", "multi_team"): "True"})
@@ -856,7 +945,7 @@ class TestGetAssetsUi:
             session.add(TaskOutletAssetReference(dag_id=f"producing_dag{i}", task_id="task", asset=asset))
         session.commit()
 
-        with assert_queries_count(12):
+        with assert_queries_count(13):
             response = test_client.get("/assets")
 
         assert response.status_code == 200

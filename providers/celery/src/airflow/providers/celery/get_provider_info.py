@@ -126,11 +126,11 @@ def get_provider_info():
                         "default": "redis://redis:6379/0",
                     },
                     "result_backend": {
-                        "description": "The Celery result_backend. When a job finishes, it needs to update the\nmetadata of the job. Therefore it will post a message on a message bus,\nor insert it into a database (depending of the backend)\nThis status is used by the scheduler to update the state of the task\nThe use of a database is highly recommended\nWhen not specified, sql_alchemy_conn with a db+ scheme prefix will be used\nhttps://docs.celeryq.dev/en/latest/userguide/configuration.html#task-result-backend-settings\n",
+                        "description": "The Celery result_backend. When a job finishes, it needs to update the\nmetadata of the job. Therefore it will post a message on a message bus,\nor insert it into a database (depending of the backend)\nThis status is used by the scheduler to update the state of the task\nThe use of a database is highly recommended\nWhen not specified, sql_alchemy_conn with a db+ scheme prefix will be used\nhttps://docs.celeryq.dev/en/latest/userguide/configuration.html#task-result-backend-settings\nThe psycopg2 driver in the example below works on every supported Airflow version.\nSet db+postgresql+psycopg:// only on Airflow 3.2.0 and later - earlier releases do not\nguarantee SQLAlchemy 2.0, which is where the psycopg (v3) dialect lives\n",
                         "version_added": None,
                         "type": "string",
                         "sensitive": True,
-                        "example": "db+postgresql+psycopg://postgres:airflow@postgres/airflow",
+                        "example": "db+postgresql+psycopg2://postgres:airflow@postgres/airflow",
                         "default": None,
                     },
                     "result_backend_sqlalchemy_engine_options": {

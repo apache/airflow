@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
@@ -30,6 +30,8 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessCancelJobsTrigger,
     EmrServerlessCreateApplicationTrigger,
     EmrServerlessDeleteApplicationTrigger,
+    EmrServerlessJobSensorTrigger,
+    EmrServerlessSessionTrigger,
     EmrServerlessStartApplicationTrigger,
     EmrServerlessStartJobTrigger,
     EmrServerlessStopApplicationTrigger,
@@ -316,6 +318,85 @@ class TestEmrServerlessStopApplicationTrigger:
         }
 
 
+class TestEmrServerlessJobSensorTrigger:
+    @staticmethod
+    def build_trigger(**kwargs):
+        trigger_kwargs = {
+            "application_id": "test_application_id",
+            "job_run_id": "test_job_run_id",
+            "target_states": {"RUNNING"},
+            "waiter_delay": 10,
+            "aws_conn_id": "aws_default",
+            **kwargs,
+        }
+        return EmrServerlessJobSensorTrigger(**trigger_kwargs)
+
+    def test_serialization(self):
+        trigger = self.build_trigger(
+            target_states=frozenset({"SUCCESS", "RUNNING"}),
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessJobSensorTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "job_run_id": "test_job_run_id",
+            "target_states": {"RUNNING", "SUCCESS"},
+            "waiter_delay": 10,
+            "waiter_max_attempts": sys.maxsize,
+            "aws_conn_id": "aws_default",
+            "region_name": "eu-west-1",
+            "verify": False,
+            "botocore_config": {"read_timeout": 42},
+        }
+        recreated_trigger = EmrServerlessJobSensorTrigger(**kwargs)
+        waiter_config_overrides = trigger.waiter_config_overrides
+        recreated_waiter_config_overrides = recreated_trigger.waiter_config_overrides
+        assert waiter_config_overrides is not None
+        assert recreated_waiter_config_overrides is not None
+        assert {
+            (acceptor["expected"], acceptor["state"])
+            for acceptor in recreated_waiter_config_overrides["acceptors"]
+        } == {(acceptor["expected"], acceptor["state"]) for acceptor in waiter_config_overrides["acceptors"]}
+
+        assert trigger.waiter_name == "serverless_job_completed"
+        assert trigger.waiter_args == {
+            "applicationId": "test_application_id",
+            "jobRunId": "test_job_run_id",
+        }
+        assert trigger.attempts == sys.maxsize
+        assert trigger.status_queries == ["jobRun.state", "jobRun.stateDetails"]
+        hook = trigger.hook()
+        assert hook.aws_conn_id == "aws_default"
+        assert hook._region_name == "eu-west-1"
+        assert hook._verify is False
+        assert hook._config.read_timeout == 42
+
+    def test_failure_acceptors_precede_success_acceptors(self):
+        trigger = self.build_trigger(target_states={"FAILED", "RUNNING"})
+
+        waiter_config_overrides = trigger.waiter_config_overrides
+        assert waiter_config_overrides is not None
+        acceptors = waiter_config_overrides["acceptors"]
+        failure_acceptors = [acceptor for acceptor in acceptors if acceptor["state"] == "failure"]
+        success_acceptors = [acceptor for acceptor in acceptors if acceptor["state"] == "success"]
+
+        assert acceptors == [*failure_acceptors, *success_acceptors]
+        assert len(failure_acceptors) == len(EmrServerlessHook.JOB_FAILURE_STATES)
+        assert {acceptor["expected"] for acceptor in failure_acceptors} == (
+            EmrServerlessHook.JOB_FAILURE_STATES
+        )
+        assert len(success_acceptors) == 2
+        assert {acceptor["expected"] for acceptor in success_acceptors} == {"FAILED", "RUNNING"}
+        assert all(
+            acceptor["matcher"] == "path" and acceptor["argument"] == "jobRun.state" for acceptor in acceptors
+        )
+
+
 class TestEmrServerlessStartJobTrigger:
     def test_serialization(self):
         application_id = "test_application_id"
@@ -572,3 +653,62 @@ class TestEmrServerlessCancelJobsTrigger:
             "waiter_max_attempts": 60,
             "aws_conn_id": "aws_default",
         }
+
+
+class TestEmrServerlessSessionTrigger:
+    def test_serialization(self):
+        trigger = EmrServerlessSessionTrigger(
+            application_id="test_application_id",
+            session_id="test_session_id",
+            waiter_delay=10,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+        )
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessSessionTrigger"
+        assert kwargs == {
+            "application_id": "test_application_id",
+            "session_id": "test_session_id",
+            "waiter_delay": 10,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+        }
+
+    def test_serialization_with_hook_configuration(self):
+        trigger = EmrServerlessSessionTrigger(
+            application_id="test_application_id",
+            session_id="test_session_id",
+            region_name="eu-west-1",
+            verify="/path/to/ca.pem",
+            botocore_config={"retries": {"max_attempts": 7}},
+        )
+
+        _, kwargs = trigger.serialize()
+
+        assert kwargs["region_name"] == "eu-west-1"
+        assert kwargs["verify"] == "/path/to/ca.pem"
+        assert kwargs["botocore_config"] == {"retries": {"max_attempts": 7}}
+
+    def test_hook_class(self):
+        assert EmrServerlessSessionTrigger.aws_hook_class is EmrServerlessHook
+
+    def test_hook_receives_configuration(self):
+        trigger = EmrServerlessSessionTrigger(
+            application_id="test_application_id",
+            session_id="test_session_id",
+            aws_conn_id="test_conn",
+            region_name="eu-west-1",
+            verify="/path/to/ca.pem",
+            botocore_config={"retries": {"max_attempts": 7}},
+        )
+
+        with mock.patch.object(EmrServerlessSessionTrigger, "aws_hook_class") as hook_class:
+            hook = trigger.hook()
+
+        assert hook is hook_class.return_value
+        hook_class.assert_called_once_with(
+            aws_conn_id="test_conn",
+            region_name="eu-west-1",
+            verify="/path/to/ca.pem",
+            config={"retries": {"max_attempts": 7}},
+        )

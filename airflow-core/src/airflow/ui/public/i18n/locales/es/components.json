@@ -1,6 +1,5 @@
 {
   "backfill": {
-    "affected_many": "Se activarán {{count}} ejecuciones.",
     "affected_one": "1 ejecución será activada.",
     "affected_other": "Se activarán {{count}} ejecuciones.",
     "affectedNone": "No hay ejecuciones que coincidan con los criterios seleccionados.",
@@ -8,10 +7,20 @@
     "backwards": "Ejecutar Hacia Atrás",
     "dateRange": "Rango de Fechas",
     "errorStartDateBeforeEndDate": "La Fecha Inicial debe ser antes de la Fecha Final",
+    "exceptionReason": {
+      "alreadyExists": "Ya existe",
+      "inFlight": "En curso",
+      "unknown": "Desconocido"
+    },
     "maxRuns": "Máximo de Ejecuciones Activas",
-    "missingAndErroredRuns": "Ejecutaciones Faltantes y con Errores",
-    "missingRuns": "Ejecutaciones Faltantes",
+    "missingAndErroredRuns": "Ejecuciones Faltantes y con Errores",
+    "missingRuns": "Ejecuciones Faltantes",
+    "notCreatedReason": "Motivo de No Creación",
     "overrideExistingParams": "Sobrescribir parámetros en ejecuciones existentes",
+    "partitionRange": "Rango de Particiones",
+    "partitionsAffected_one": "Se aplicará backfill a 1 partición:",
+    "partitionsAffected_other": "Se aplicará backfill a {{count}} particiones:",
+    "partitionsNone": "No hay particiones que coincidan con el rango seleccionado.",
     "permissionDenied": "Ejecución en Seco Fallida: el usuario no tiene permiso para crear backfills.",
     "reprocessBehavior": "Comportamiento de Reprocesamiento",
     "run": "Ejecutar Backfill",
@@ -30,7 +39,8 @@
     "validation": {
       "datesRequired": "Ambos intervalos de Fecha Inicial y Fecha Final deben ser proporcionados.",
       "startBeforeEnd": "El intervalo de Fecha Inicial debe ser menor o igual a la Fecha Final."
-    }
+    },
+    "viewSlots": "Ver slots del Backfill #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Backfill en progreso",
@@ -50,7 +60,6 @@
   "dagWarnings": {
     "error_one": "1 Error",
     "errorAndWarning": "1 Error y {{warningText}}",
-    "warning_many": "{{count}} Advertencias",
     "warning_one": "1 Advertencia",
     "warning_other": "{{count}} Advertencias"
   },
@@ -63,25 +72,23 @@
   },
   "durationChart": {
     "duration": "Duración (segundos)",
-    "lastDagRun_many": "Últimas {{count}} Ejecuciones de Dag",
     "lastDagRun_one": "Última Ejecución de Dag",
     "lastDagRun_other": "Últimas {{count}} Ejecuciones de Dag",
-    "lastTaskInstance_many": "Últimas {{count}} Instancias de Tarea",
     "lastTaskInstance_one": "Última Instancia de Tarea",
     "lastTaskInstance_other": "Últimas {{count}} Instancias de Tarea",
+    "medianTotalDuration": "Total: {{duration}}",
     "queuedDuration": "Duración en Cola",
     "runAfter": "Ejecutar Después",
     "runDuration": "Duración de la Ejecución"
   },
   "fileUpload": {
-    "files_many": "{{count}} archivos",
     "files_one": "{{count}} archivo",
     "files_other": "{{count}} archivos"
   },
   "flexibleForm": {
     "durationPlaceholder": "Ingresa la duración en formato ISO 8601",
     "placeholder": "Seleccionar Valor",
-    "placeholderArray": "Ingrese cada cadena en una nueva línea",
+    "placeholderArray": "Ingresa cada cadena en una nueva línea",
     "placeholderExamples": "Comience a escribir para ver opciones",
     "placeholderMulti": "Seleccionar uno o múltiples valores",
     "validationErrorArrayNotArray": "El valor debe ser un array.",
@@ -91,15 +98,14 @@
     "validationErrorRequired": "Este campo es requerido"
   },
   "graph": {
-    "directionDown": "De arriba a abajo",
-    "directionLeft": "De derecha a izquierda",
-    "directionRight": "De izquierda a derecha",
-    "directionUp": "De abajo a arriba",
+    "directionDown": "De Arriba a Abajo",
+    "directionLeft": "De Derecha a Izquierda",
+    "directionRight": "De Izquierda a Derecha",
+    "directionUp": "De Abajo a Arriba",
     "downloadImage": "Descargar imagen",
     "downloadImageError": "Error al descargar la imagen.",
     "downloadImageErrorTitle": "Descarga Fallida",
     "otherDagRuns": "+Otras Ejecuciones de Dag",
-    "taskCount_many": "{{count}} Tareas",
     "taskCount_one": "{{count}} Tarea",
     "taskCount_other": "{{count}} Tareas",
     "taskGroup": "Grupo de Tareas",
@@ -107,20 +113,26 @@
   },
   "limitedList": "+{{count}} más",
   "limitedList.allItems": "Todos los {{count}} elementos:",
-  "limitedList.allTags_many": "Todas las etiquetas ({{count}})",
-  "limitedList.allTags_one": "Todas las etiquetas (1)",
-  "limitedList.allTags_other": "Todas las etiquetas ({{count}})",
+  "limitedList.allTags_one": "Todas las Etiquetas (1)",
+  "limitedList.allTags_other": "Todas las Etiquetas ({{count}})",
   "limitedList.clickToInteract": "Haz clic en una etiqueta para filtrar Dags",
   "limitedList.clickToOpenFull": "Haz clic en \"+{{count}} más\" para ver la lista completa",
   "limitedList.copyPasteText": "Puedes copiar y pegar el texto de arriba",
-  "limitedList.showingItems_many": "Mostrando {{count}} elementos",
   "limitedList.showingItems_one": "Mostrando 1 elemento",
   "limitedList.showingItems_other": "Mostrando {{count}} elementos",
   "logs": {
     "file": "Archivo",
     "location": "línea {{line}} en {{name}}"
   },
-  "reparseDag": "Reparar Dag",
+  "passwordToggle": {
+    "hide": "Ocultar valor",
+    "show": "Mostrar valor"
+  },
+  "reparseDag": "Reanalizar Dag",
+  "slowestTaskInstances": {
+    "empty": "No hay instancias de tarea completadas en este rango",
+    "title": "Instancias de Tarea Más Lentas"
+  },
   "sortedAscending": "ordenado ascendente",
   "sortedDescending": "ordenado descendente",
   "sortedUnsorted": "sin ordenar",
@@ -143,8 +155,9 @@
     "intervalEnd": "Fin",
     "intervalStart": "Inicio",
     "loading": "Cargando información del Dag...",
-    "loadingFailed": "Error al cargar la información del Dag. Por favor, inténtelo de nuevo.",
+    "loadingFailed": "Error al cargar la información del Dag. Por favor, inténtalo de nuevo.",
     "manualRunDenied": "Las ejecuciones manuales no están permitidas para este Dag",
+    "partitionKeyHelp": "Opcional - solo aplica a Dags particionados",
     "runIdHelp": "Opcional - se generará si no se proporciona",
     "selectDescription": "Activar una ejecución única de este Dag",
     "selectLabel": "Ejecución Única",

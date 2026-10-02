@@ -46,7 +46,7 @@ from airflow.sdk.timezone import utcnow
 
 if AIRFLOW_V_3_3_PLUS:
     # On Airflow 3.3+ the operator parks the task in the first-class AWAITING_INPUT state instead of
-    # deferring to a trigger. On older cores this name is absent and the defer() fallback is used.
+    # deferring to a trigger. On older Airflow versions this name is absent and the defer() fallback is used.
     from airflow.sdk.exceptions import TaskAwaitingInput
 
 if TYPE_CHECKING:
@@ -232,7 +232,7 @@ class HITLOperator(BaseOperator):
             notifier(context)
 
         if AIRFLOW_V_3_3_PLUS:
-            # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The task
+            # Airflow 3.3+: park the task in AWAITING_INPUT -- no trigger, no triggerer. The task
             # is resumed by the Core API response handler or the scheduler timeout sweep, so the
             # triggerer no longer needs to run for Human-in-the-loop tasks to make progress.
             raise TaskAwaitingInput(
@@ -240,7 +240,7 @@ class HITLOperator(BaseOperator):
                 timeout=self.response_timeout,
             )
 
-        # Fallback for cores < 3.3: defer the response check to HITLTrigger on the triggerer.
+        # Fallback for Airflow versions < 3.3: defer the response check to HITLTrigger on the triggerer.
         self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,

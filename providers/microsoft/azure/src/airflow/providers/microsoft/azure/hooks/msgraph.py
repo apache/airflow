@@ -44,6 +44,9 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
 
+# Stays on httpx (not httpx2): the client below is handed to kiota_http, which builds and
+# consumes httpx objects, and the two packages' classes are distinct.
+# Migrate once msgraph-core/kiota_http move to httpx2; tracked at https://github.com/apache/airflow/issues/70522
 import httpx
 from azure.core.credentials_async import AsyncTokenCredential
 from azure.identity.aio import CertificateCredential, ClientSecretCredential
@@ -186,7 +189,9 @@ class DefaultResponseHandler(ResponseHandler):
             status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
-            if status_code == HTTPStatus.UNAUTHORIZED:
+            if status_code in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN}:
+                # Power BI reports an expired access token as 403 Forbidden with error code
+                # ``TokenExpired`` rather than 401, so both must evict the cached request adapter.
                 raise PermissionError(message)
             if status_code == HTTPStatus.NOT_FOUND:
                 raise AirflowNotFoundException(message)

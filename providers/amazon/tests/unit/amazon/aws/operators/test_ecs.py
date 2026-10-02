@@ -428,7 +428,8 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        result = self.ecs.execute(mock_context)
+        with mock.patch("airflow.providers.amazon.aws.operators.ecs.sleep"):
+            result = self.ecs.execute(mock_context)
 
         assert result is None
         assert (
@@ -860,7 +861,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         mock_ti = mock.MagicMock()
         mock_context = {"ti": mock_ti, "task_instance": mock_ti}
 
-        with pytest.raises(TaskDeferred) as deferred:
+        with (
+            pytest.raises(TaskDeferred) as deferred,
+            mock.patch("airflow.providers.amazon.aws.operators.ecs.sleep"),
+        ):
             self.ecs.execute(mock_context)
 
         assert deferred.value.trigger.region_name == "task-region"
@@ -901,7 +905,42 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert result == "Log output"
         check_mock.assert_called_once_with()
-        logs_hook_mock.assert_called_once_with(aws_conn_id=self.ecs.aws_conn_id, region_name="logs-region")
+        logs_hook_mock.assert_called_once_with(
+            aws_conn_id=self.ecs.aws_conn_id,
+            region_name="logs-region",
+            verify=self.ecs.verify,
+            config=self.ecs.botocore_config,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.operators.ecs.AwsLogsHook")
+    @mock.patch.object(EcsRunTaskOperator, "_check_success_task")
+    def test_execute_complete_log_hook_uses_operator_aws_configuration(self, check_mock, logs_hook_mock):
+        botocore_config = {"read_timeout": 10}
+        self.set_up_operator(
+            awslogs_group="awslogs-group",
+            awslogs_region="logs-region",
+            awslogs_stream_prefix="prefix",
+            region_name="task-region",
+            verify="/path/to/ca-bundle.pem",
+            botocore_config=botocore_config,
+        )
+        logs_hook_mock.return_value.conn.get_log_events.return_value = {"events": [{"message": "Log output"}]}
+
+        self.ecs.execute_complete(
+            {},
+            {
+                "status": "success",
+                "task_arn": f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
+                "cluster": "test_cluster",
+            },
+        )
+
+        logs_hook_mock.assert_called_once_with(
+            aws_conn_id=self.ecs.aws_conn_id,
+            region_name="logs-region",
+            verify="/path/to/ca-bundle.pem",
+            config=botocore_config,
+        )
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")

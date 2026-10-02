@@ -24,6 +24,8 @@ import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
+import { Alert } from "src/system-components";
+
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
@@ -35,10 +37,13 @@ import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
-import { getDuration, renderDuration } from "src/utils";
+import { useDurationFormat } from "src/utils";
+
+import { stateReasonDisplay } from "./stateReason";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
+  const { formatElapsed, renderDuration } = useDurationFormat();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
   const showTeam = useShowTeam(taskInstance.team_name);
 
@@ -58,7 +63,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
             label: translate("duration"),
             value: Boolean(taskInstance.duration)
               ? renderDuration(taskInstance.duration)
-              : getDuration(taskInstance.start_date, taskInstance.end_date),
+              : formatElapsed(taskInstance.start_date, taskInstance.end_date),
           },
         ]
       : []),
@@ -79,8 +84,24 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
   // Stable dialog state at header/page level
   const [clearOpen, setClearOpen] = useState(false);
 
+  // On the header, not the details tab, so it shows on every tab without duplicating the row.
+  const stateReasonDisplayed = stateReasonDisplay(taskInstance.state);
+  const stateReason = taskInstance.state_reason;
+
   return (
     <Box display="flex" flexDirection="column" gap={3}>
+      {stateReasonDisplayed === undefined || stateReason === null || stateReason === undefined ? undefined : (
+        <Alert
+          data-testid="state-reason-alert"
+          status={stateReasonDisplayed.status}
+          title={translate(`taskInstance.stateReasonSummary.${stateReasonDisplayed.titleKey}`, {
+            totalTries: taskInstance.max_tries + 1,
+            tryNumber: taskInstance.try_number,
+          })}
+        >
+          {stateReason}
+        </Alert>
+      )}
       <HeaderCard
         actions={
           <>

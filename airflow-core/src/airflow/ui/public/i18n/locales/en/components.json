@@ -110,6 +110,10 @@
     "taskGroup": "Task Group",
     "zoomToTask": "Zoom to selected task"
   },
+  "jsonPreview": {
+    "items_one": "1 item",
+    "items_other": "{{count}} items"
+  },
   "limitedList": "+{{count}} more",
   "limitedList.allItems": "All {{count}} items:",
   "limitedList.allTags_one": "All Tags (1)",
@@ -132,6 +136,7 @@
     "empty": "No completed task instances in this range",
     "title": "Slowest task instances"
   },
+  "sortMultiColumnHint": "Shift-click to sort by multiple columns",
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",

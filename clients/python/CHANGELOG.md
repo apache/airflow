@@ -17,6 +17,19 @@
  under the License.
  -->
 
+# v3.3.2
+
+## Improvements:
+
+- Document HTTP statuses that API routes raise but never declared (#71622)
+
+## Bug Fixes:
+
+- Revoke every credential presented to the logout endpoint, not just the session cookie (#72933)
+- Restore counts on the Dag Run and Task Instance lists (#72739)
+- Return HTTP 404 from task state store endpoints for unknown task instances (#71860)
+- Mark only a run's most recent asset event as triggering it (#71547)
+
 # v3.3.1
 
 ## Bug Fixes:
