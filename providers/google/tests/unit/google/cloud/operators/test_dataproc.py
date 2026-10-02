@@ -998,6 +998,25 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
         assert op.project_id == GCP_PROJECT
         assert op.cluster_name == "cluster_name"
+        assert op.cluster_config is None
+        assert op._legacy_cluster_kwargs["num_workers"] == 2
+        assert op._legacy_cluster_kwargs["zone"] == "zone"
+
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_deprecated_kwargs_cluster_config_built_in_execute(self, mock_hook, to_dict_mock):
+        mock_hook.return_value.create_cluster.result.return_value = None
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = DataprocCreateClusterOperator(
+                task_id=TASK_ID,
+                region=GCP_REGION,
+                project_id=GCP_PROJECT,
+                cluster_name="cluster_name",
+                num_workers=2,
+                zone="zone",
+            )
+        assert op.cluster_config is None
+        op.execute(context=self.mock_context)
         assert op.cluster_config["worker_config"]["num_instances"] == 2
         assert "zones/zone" in op.cluster_config["master_config"]["machine_type_uri"]
 
@@ -1562,6 +1581,38 @@ def test_create_cluster_operator_extra_links(
     assert (
         task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_CLUSTER_LINK_EXPECTED
     )
+
+
+@pytest.mark.need_serialized_dag
+def test_deprecated_kwargs_template_fields_render(
+    dag_maker, create_task_instance_of_operator, mock_supervisor_comms
+):
+    """Legacy kwargs stashed in _legacy_cluster_kwargs must render after templating."""
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        ti = create_task_instance_of_operator(
+            DataprocCreateClusterOperator,
+            dag_id=TEST_DAG_ID,
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id="{{ params.project_id }}",
+            cluster_name="{{ params.cluster_name }}",
+            num_workers=2,
+            zone="{{ params.zone }}",
+            params={
+                "project_id": GCP_PROJECT,
+                "cluster_name": CLUSTER_NAME,
+                "zone": "custom-zone",
+            },
+        )
+    ti.render_templates()
+    task = ti.task
+    # project_id is its own template field, resolved from self.project_id at build time
+    assert task.project_id == GCP_PROJECT
+    # loose ClusterGenerator kwargs render because _legacy_cluster_kwargs is a template field
+    assert task._legacy_cluster_kwargs["zone"] == "custom-zone"
+    cluster_config = task._build_cluster_config_from_legacy_kwargs()
+    assert "zones/custom-zone" in cluster_config["master_config"]["machine_type_uri"]
+    assert GCP_PROJECT in cluster_config["master_config"]["machine_type_uri"]
 
 
 class TestDataprocClusterDeleteOperator:
