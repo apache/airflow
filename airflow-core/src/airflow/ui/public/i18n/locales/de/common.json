@@ -459,7 +459,7 @@
     "queuedWhen": "Wartend seit",
     "renderedMapIndex": "Planungs-Index Anzeige",
     "scheduledWhen": "Geplant ab",
-    "stateReason": "Grund für den Status  ",
+    "stateReason": "Grund für den Status",
     "stateReasonSummary": {
       "failed": "Gestoppt bei Versuch {{tryNumber}} von {{totalTries}}",
       "upForRetry": "Wiederversuch nach Versuch {{tryNumber}} von {{totalTries}}"
