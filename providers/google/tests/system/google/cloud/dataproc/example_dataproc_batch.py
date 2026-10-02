@@ -52,6 +52,7 @@ BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 BATCH_ID_2 = f"batch-{ENV_ID}-{DAG_ID}-2".replace("_", "-")
 BATCH_ID_3 = f"batch-{ENV_ID}-{DAG_ID}-3".replace("_", "-")
 BATCH_ID_4 = f"batch-{ENV_ID}-{DAG_ID}-4".replace("_", "-")
+BATCH_ID_PREFIX = f"batch-{ENV_ID}-{DAG_ID}-prefix".replace("_", "-")
 
 BATCH_CONFIG = {
     "spark_batch": {
@@ -100,6 +101,17 @@ with DAG(
         num_retries_if_resource_is_not_ready=3,
     )
     # [END how_to_cloud_dataproc_create_batch_operator]
+
+    # [START how_to_cloud_dataproc_create_batch_operator_with_prefix]
+    create_batch_with_prefix = DataprocCreateBatchOperator(
+        task_id="create_batch_with_prefix",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch=BATCH_CONFIG,
+        batch_id_prefix=BATCH_ID_PREFIX,
+        result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+    )
+    # [END how_to_cloud_dataproc_create_batch_operator_with_prefix]
 
     # [START how_to_cloud_dataproc_batch_async_sensor]
     batch_async_sensor = DataprocBatchSensor(
@@ -158,10 +170,18 @@ with DAG(
         task_id="delete_batch_4", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID_4
     )
     # [END how_to_cloud_dataproc_delete_batch_operator]
+    # The prefixed batch gets a generated suffix, so its ID is only known at runtime.
+    delete_batch_with_prefix = DataprocDeleteBatchOperator(
+        task_id="delete_batch_with_prefix",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch_id="{{ task_instance.xcom_pull('create_batch_with_prefix')['name'].split('/') | last }}",
+    )
     delete_batch.trigger_rule = TriggerRule.ALL_DONE
     delete_batch_2.trigger_rule = TriggerRule.ALL_DONE
     delete_batch_3.trigger_rule = TriggerRule.ALL_DONE
     delete_batch_4.trigger_rule = TriggerRule.ALL_FAILED
+    delete_batch_with_prefix.trigger_rule = TriggerRule.ALL_DONE
 
     (
         # TEST SETUP
@@ -172,6 +192,7 @@ with DAG(
         >> batch_async_sensor
         >> get_batch
         >> list_batches
+        >> create_batch_with_prefix
         >> create_batch_4
         >> cancel_operation
         # TEST TEARDOWN
@@ -179,6 +200,7 @@ with DAG(
         >> delete_batch_2
         >> delete_batch_3
         >> delete_batch_4
+        >> delete_batch_with_prefix
     )
 
     from tests_common.test_utils.watcher import watcher
