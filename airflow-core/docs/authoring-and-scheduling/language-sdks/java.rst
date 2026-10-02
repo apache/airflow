@@ -643,6 +643,10 @@ Otherwise, with several Java coordinators, its JARs fail to parse.
   declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Builder.Dag`` class, is stored with
   that JAR as its file. Task handlers for a Python Dag are not Dags, and a JAR without ``Main-Class``,
   such as a dependency of a thin bundle, is skipped.
+* Parsing needs a JAR built with a Java SDK whose supervisor schema version (the
+  ``Airflow-Supervisor-Schema-Version`` manifest attribute) is ``2026-10-30`` or later. An older JAR
+  fails to parse, so list it in ``.airflowignore``; its tasks still find it, because tasks do not read
+  ``.airflowignore``.
 * Do not declare a Dag in Java that a Python file in the same bundle also defines.
 * Keep one executable JAR per bundle, or set ``main_class``, so that only JARs with that
   ``Main-Class`` are parsed. List JARs that should not be parsed in ``.airflowignore``.

@@ -489,27 +489,27 @@ class TestBuildParseDagCommand:
             return coordinator._build_parse_dag_command(path=jar)
 
     def test_fat_jar(self, tmp_path):
-        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16")
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
         coordinator = JavaCoordinator(java_executable="/opt/java/bin/java", jvm_args=["-Xmx256m"])
 
         command, schema_version = self._build(coordinator, tmp_path, jar)
 
         assert command == ["/opt/java/bin/java", "-classpath", jar.as_posix(), "-Xmx256m", "com.example.Dags"]
-        assert schema_version == "2026-06-16"
+        assert schema_version == "2026-10-30"
 
     def test_thin_jar_takes_the_schema_version_from_a_sibling(self, tmp_path):
         jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags")
         (tmp_path / "libs").mkdir()
-        sdk = _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-06-16")
+        sdk = _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
 
         command, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
 
         assert command[2].split(os.pathsep) == [jar.as_posix(), sdk.as_posix()]
         assert command[-1] == "com.example.Dags"
-        assert schema_version == "2026-06-16"
+        assert schema_version == "2026-10-30"
 
     def test_matches_the_execute_command(self, tmp_path):
-        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16")
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
         _make_jar(tmp_path / "dep.jar", main_class=None)
         coordinator = JavaCoordinator(jvm_args=["-Xmx256m"])
 
@@ -521,8 +521,8 @@ class TestBuildParseDagCommand:
 
     @pytest.mark.parametrize("parsed", ["a.jar", "b.jar"])
     def test_runs_the_main_class_of_the_parsed_jar(self, tmp_path, parsed):
-        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
-        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-06-16")
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-10-30")
+        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
         coordinator = JavaCoordinator()
 
         parse = self._build(coordinator, tmp_path, tmp_path / parsed)
@@ -541,9 +541,26 @@ class TestBuildParseDagCommand:
 
         assert schema_version == "2026-10-30"
 
+    @pytest.mark.parametrize("own", [True, False], ids=["own", "sibling"])
+    def test_rejects_a_schema_version_that_cannot_parse(self, tmp_path, own):
+        jar = _make_jar(
+            tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16" if own else None
+        )
+        if not own:
+            _make_jar(tmp_path / "sdk.jar", main_class=None, schema_version="2026-06-16")
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                f"{jar} uses supervisor schema 2026-06-16, which cannot parse Dags; "
+                "rebuild it with a newer Java SDK or list it in .airflowignore"
+            ),
+        ):
+            self._build(JavaCoordinator(), tmp_path, jar)
+
     def test_rejects_a_main_class_another_jar_sets(self, tmp_path):
-        new = _make_jar(tmp_path / "etl-new.jar", main_class="com.example.A", schema_version="2026-06-16")
-        old = _make_jar(tmp_path / "etl-old.jar", main_class="com.example.A", schema_version="2026-06-16")
+        new = _make_jar(tmp_path / "etl-new.jar", main_class="com.example.A", schema_version="2026-10-30")
+        old = _make_jar(tmp_path / "etl-old.jar", main_class="com.example.A", schema_version="2026-10-30")
 
         with pytest.raises(ValueError, match="all set Main-Class 'com.example.A'") as excinfo:
             self._build(JavaCoordinator(), tmp_path, new)
@@ -579,7 +596,7 @@ class TestBuildParseDagCommand:
 
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
     def test_parse_dag_execs_the_jvm(self, mock_execvpe, tmp_path):
-        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16")
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
         reported: list[str | None] = []
 
         with pytest.raises(OSError, match="exec"):
@@ -591,7 +608,7 @@ class TestBuildParseDagCommand:
                 report_schema_version=reported.append,
             )
 
-        assert reported == ["2026-06-16"]
+        assert reported == ["2026-10-30"]
         argv = mock_execvpe.call_args.args[1]
         assert argv == [
             "java",
