@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import sys
 import warnings
 from contextlib import suppress
 from json import JSONDecodeError
@@ -50,7 +49,7 @@ except ImportError:
         """Compat stub — never raised by task-sdk <1.2.2."""
 
 
-from airflow.utils.helpers import prune_dict
+from airflow.utils.helpers import in_task_execution_context, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -504,7 +503,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if in_task_execution_context():
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
@@ -595,7 +594,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if in_task_execution_context():
             from airflow.sdk import Connection as TaskSDKConnection
 
             warnings.warn(

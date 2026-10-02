@@ -20,7 +20,6 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-import sys
 import warnings
 from typing import TYPE_CHECKING, Any
 
@@ -48,6 +47,7 @@ except ImportError:
 
 
 from airflow.secrets.metastore import MetastoreBackend
+from airflow.utils.helpers import in_task_execution_context
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name
@@ -188,7 +188,7 @@ class Variable(Base, LoggingMixin):
 
         # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if in_task_execution_context():
             if session is not None:
                 raise ValueError(
                     "Variable.get() cannot use a metadata database session from an execution context; "
@@ -255,7 +255,7 @@ class Variable(Base, LoggingMixin):
 
         # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if in_task_execution_context():
             warnings.warn(
                 "Using Variable.set from `airflow.models` is deprecated."
                 "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead",
@@ -342,7 +342,7 @@ class Variable(Base, LoggingMixin):
 
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if in_task_execution_context():
             warnings.warn(
                 "Using Variable.update from `airflow.models` is deprecated."
                 "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead as it is an upsert.",
@@ -408,7 +408,7 @@ class Variable(Base, LoggingMixin):
 
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if in_task_execution_context():
             warnings.warn(
                 "Using Variable.delete from `airflow.models` is deprecated."
                 "Please use `delete` on Variable from sdk(`airflow.sdk.Variable`) instead",
