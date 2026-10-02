@@ -23,9 +23,9 @@ import { advancedSearchKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 // The "match anywhere" (substring) toggle is mirrored in the URL so a filtered search can be shared
-// and reproduced in both directions. ``match_anywhere`` is a repeated param carrying each searchbar's
+// and reproduced in both directions. ``advanced_search`` is a repeated param carrying each searchbar's
 // explicit choice by key: ``key`` for on, ``-key`` for off
-// (`?match_anywhere=dag_id&match_anywhere=-run_id`), keeping each searchbar independent. An explicit URL
+// (`?advanced_search=dag_id&advanced_search=-run_id`), keeping each searchbar independent. An explicit URL
 // entry wins — a shared link reproduces the sender's on/off choices whatever the recipient's own
 // preferences — and a key with no entry (e.g. landing through the nav) falls back to the per-searchbar
 // localStorage preference. Toggling writes the explicit on/off entry and localStorage.
@@ -33,19 +33,19 @@ export const useAdvancedSearch = (key: string) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [storedEnabled, setStoredEnabled] = useLocalStorage<boolean>(advancedSearchKey(key), false);
 
-  const urlValues = searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE);
+  const urlValues = searchParams.getAll(SearchParamsKeys.ADVANCED_SEARCH);
   const enabled = urlValues.includes(key) ? true : urlValues.includes(`-${key}`) ? false : storedEnabled;
 
   const onToggle = (nextEnabled: boolean) => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
       const retained = next
-        .getAll(SearchParamsKeys.MATCH_ANYWHERE)
+        .getAll(SearchParamsKeys.ADVANCED_SEARCH)
         .filter((value) => value !== key && value !== `-${key}`);
 
-      next.delete(SearchParamsKeys.MATCH_ANYWHERE);
-      retained.forEach((value) => next.append(SearchParamsKeys.MATCH_ANYWHERE, value));
-      next.append(SearchParamsKeys.MATCH_ANYWHERE, nextEnabled ? key : `-${key}`);
+      next.delete(SearchParamsKeys.ADVANCED_SEARCH);
+      retained.forEach((value) => next.append(SearchParamsKeys.ADVANCED_SEARCH, value));
+      next.append(SearchParamsKeys.ADVANCED_SEARCH, nextEnabled ? key : `-${key}`);
 
       return next;
     });

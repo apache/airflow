@@ -57,14 +57,14 @@ describe("useAdvancedSearch reads", () => {
     expect(result.current.advanced.enabled).toBe(false);
   });
 
-  it("is enabled when the key is listed in match_anywhere", () => {
-    const { result } = renderAdvancedSearch("dags", ["/dags?match_anywhere=dags"]);
+  it("is enabled when the key is listed in advanced_search", () => {
+    const { result } = renderAdvancedSearch("dags", ["/dags?advanced_search=dags"]);
 
     expect(result.current.advanced.enabled).toBe(true);
   });
 
   it("keeps searchbars independent via per-key values", () => {
-    const entries = ["/events?match_anywhere=dag_id&match_anywhere=run_id"];
+    const entries = ["/events?advanced_search=dag_id&advanced_search=run_id"];
 
     expect(renderAdvancedSearch("dag_id", entries).result.current.advanced.enabled).toBe(true);
     expect(renderAdvancedSearch("run_id", entries).result.current.advanced.enabled).toBe(true);
@@ -82,30 +82,30 @@ describe("useAdvancedSearch reads", () => {
   it("honors an explicit off marker over a stored-on preference", () => {
     localStorage.setItem(advancedSearchKey("dags"), JSON.stringify(true));
 
-    const { result } = renderAdvancedSearch("dags", ["/dags?match_anywhere=-dags"]);
+    const { result } = renderAdvancedSearch("dags", ["/dags?advanced_search=-dags"]);
 
     expect(result.current.advanced.enabled).toBe(false);
   });
 });
 
 describe("useAdvancedSearch toggle", () => {
-  it("adds the key to match_anywhere when enabled", () => {
+  it("adds the key to advanced_search when enabled", () => {
     const { result } = renderAdvancedSearch("dags");
 
     act(() => result.current.advanced.onToggle(true));
 
-    expect(result.current.searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE)).toEqual(["dags"]);
+    expect(result.current.searchParams.getAll(SearchParamsKeys.ADVANCED_SEARCH)).toEqual(["dags"]);
     expect(result.current.advanced.enabled).toBe(true);
   });
 
   it("records an explicit off marker and keeps the other searchbars when disabled", () => {
     const { result } = renderAdvancedSearch("dag_id", [
-      "/events?match_anywhere=dag_id&match_anywhere=run_id",
+      "/events?advanced_search=dag_id&advanced_search=run_id",
     ]);
 
     act(() => result.current.advanced.onToggle(false));
 
-    expect(result.current.searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE)).toEqual([
+    expect(result.current.searchParams.getAll(SearchParamsKeys.ADVANCED_SEARCH)).toEqual([
       "run_id",
       "-dag_id",
     ]);
@@ -117,25 +117,25 @@ describe("useAdvancedSearch toggle", () => {
 
     act(() => result.current.advanced.onToggle(false));
 
-    expect(result.current.searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE)).toEqual(["-dags"]);
+    expect(result.current.searchParams.getAll(SearchParamsKeys.ADVANCED_SEARCH)).toEqual(["-dags"]);
     expect(result.current.advanced.enabled).toBe(false);
   });
 
   it("flips from off to on without leaving the off marker behind", () => {
-    const { result } = renderAdvancedSearch("dags", ["/dags?match_anywhere=-dags"]);
+    const { result } = renderAdvancedSearch("dags", ["/dags?advanced_search=-dags"]);
 
     act(() => result.current.advanced.onToggle(true));
 
-    expect(result.current.searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE)).toEqual(["dags"]);
+    expect(result.current.searchParams.getAll(SearchParamsKeys.ADVANCED_SEARCH)).toEqual(["dags"]);
     expect(result.current.advanced.enabled).toBe(true);
   });
 
   it("does not duplicate the key when enabled while already present", () => {
-    const { result } = renderAdvancedSearch("dags", ["/dags?match_anywhere=dags"]);
+    const { result } = renderAdvancedSearch("dags", ["/dags?advanced_search=dags"]);
 
     act(() => result.current.advanced.onToggle(true));
 
-    expect(result.current.searchParams.getAll(SearchParamsKeys.MATCH_ANYWHERE)).toEqual(["dags"]);
+    expect(result.current.searchParams.getAll(SearchParamsKeys.ADVANCED_SEARCH)).toEqual(["dags"]);
   });
 
   it("persists the toggle to localStorage as well", () => {
