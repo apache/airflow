@@ -296,6 +296,20 @@ class TestDagImporterRegistry:
         assert repr(definition) == str(archive / "member_dag.py")
         assert registry.get_importer("dags.zipx") is importer
 
+    def test_warm_importers_instantiates_pending_specs(self):
+        LazyTestImporter.instances = 0
+        reg = DagImporterRegistry(register_defaults=False)
+        reg.register_specs(
+            [{"classpath": f"{__name__}.LazyTestImporter", "extensions": [".lazy", ".lazy2"]}],
+            context="test",
+        )
+
+        reg.warm_importers()
+
+        assert LazyTestImporter.instances == 1
+        assert reg.get_importer("file.lazy") is reg.get_importer("file.lazy2")
+        assert LazyTestImporter.instances == 1
+
     def test_lazy_importer_instantiation(self):
         """Importer classes are not imported or instantiated until get_importer is called."""
         LazyTestImporter.instances = 0

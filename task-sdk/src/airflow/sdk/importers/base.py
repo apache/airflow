@@ -501,10 +501,7 @@ class DagImporterRegistry:
         it, such as the members of an archive. A :class:`DagImportError` item is a
         discovery-time failure rather than a source to import.
         """
-        # A spec registered for several extensions appears once per extension, and
-        # materialising it drops all of them, so take one pending spec at a time.
-        while self._extension_specs:
-            self._materialise_spec(next(iter(self._extension_specs.values())))
+        self.warm_importers()
 
         for importer in self._ordered_importers:
             for item in importer.list_dag_definitions(bundle, safe_mode=safe_mode):
@@ -516,6 +513,18 @@ class DagImporterRegistry:
                 ):
                     continue
                 yield importer, item
+
+    def warm_importers(self) -> None:
+        """
+        Instantiate every configured importer that has not been instantiated yet.
+
+        The Dag processor calls this before freezing its heap, so forked parse processes
+        share the importers instead of building them.
+        """
+        # A spec registered for several extensions appears once per extension, and
+        # materialising it drops all of them, so take one pending spec at a time.
+        while self._extension_specs:
+            self._materialise_spec(next(iter(self._extension_specs.values())))
 
     def _materialise_spec(self, spec: _ImporterSpec) -> AbstractDagImporter[Any]:
         """Instantiate a configured spec and take over every extension it was registered for."""

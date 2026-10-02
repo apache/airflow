@@ -368,11 +368,21 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
         self.prepare_bundles()
         self._symlink_latest_log_directory()
+        self.warm_importers()
         # To prevent COW in forked process parsing dag file
         gc.freeze()
 
     def after_run(self) -> None:
         """Tear down state after the parsing loop exits. Default no-op; override to customize."""
+
+    def warm_importers(self) -> None:
+        """Build each bundle's Dag importers, so parse processes forked later share them."""
+        for bundle in self._dag_bundles:
+            try:
+                get_importer_registry(bundle.name).warm_importers()
+            except Exception:
+                # The importer fails again when the bundle is listed, which reports it per refresh.
+                self.log.exception("Error loading Dag importers for bundle %s", bundle.name)
 
     def prepare_server_process_context(self) -> None:
         """

@@ -72,7 +72,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG as SdkDAG
-from airflow.sdk.importers import DagImportError, DagSourceCode
+from airflow.sdk.importers import DagImporterRegistry, DagImportError, DagSourceCode
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -4022,6 +4022,39 @@ class TestDagFileProcessorManager:
         assert mock_find.call_count == 2
         assert known_files == {"mock_bundle": found}
         assert manager._bundle_versions["mock_bundle"] == "v2"
+
+    @mock.patch("airflow.dag_processing.manager.gc", autospec=True)
+    def test_before_run_warms_importers_before_freezing_heap(self, mock_gc):
+        manager = DagFileProcessorManager(max_runs=1)
+        calls = MagicMock()
+        calls.attach_mock(mock_gc.freeze, "freeze")
+        with (
+            mock.patch.object(manager, "prepare_server_process_context"),
+            mock.patch.object(manager, "prepare_process_context"),
+            mock.patch.object(manager, "register_exit_signals"),
+            mock.patch.object(manager, "prepare_bundles"),
+            mock.patch.object(manager, "_symlink_latest_log_directory"),
+            mock.patch.object(manager, "warm_importers") as mock_warm,
+        ):
+            calls.attach_mock(mock_warm, "warm_importers")
+            manager.before_run()
+
+        assert calls.mock_calls == [mock.call.warm_importers(), mock.call.freeze()]
+
+    @mock.patch("airflow.dag_processing.manager.get_importer_registry", autospec=True)
+    def test_warm_importers_failure_does_not_stop_other_bundles(self, mock_get_registry, caplog):
+        manager = DagFileProcessorManager(max_runs=1)
+        broken, healthy = MagicMock(spec=BaseDagBundle), MagicMock(spec=BaseDagBundle)
+        broken.name, healthy.name = "broken", "healthy"
+        manager._dag_bundles = [broken, healthy]
+        registries = {name: MagicMock(spec=DagImporterRegistry) for name in ("broken", "healthy")}
+        registries["broken"].warm_importers.side_effect = ImportError("no module")
+        mock_get_registry.side_effect = registries.__getitem__
+
+        manager.warm_importers()
+
+        registries["healthy"].warm_importers.assert_called_once_with()
+        assert {"event": "Error loading Dag importers for bundle broken", "log_level": "error"} in caplog
 
     def test_unpack_bundle_version_with_bundle_version_dataclass(self):
         from airflow.dag_processing.bundles.base import BundleVersion, unpack_bundle_version
