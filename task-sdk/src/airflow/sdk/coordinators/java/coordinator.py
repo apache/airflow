@@ -264,9 +264,8 @@ class JavaCoordinator(SubprocessCoordinator):
     jvm_args: list[str] = attrs.field(factory=list)
     main_class: str = ""
 
-    @classmethod
-    def get_dag_importer_class(cls) -> type[JavaDagImporter]:
-        return JavaDagImporter
+    def get_dag_importer(self) -> JavaDagImporter:
+        return JavaDagImporter(coordinator=self)
 
     def _build_command(self, roots: Sequence[pathlib.Path], main_class: str) -> list[str]:
         return [self.java_executable, "-classpath", _calculate_classpath(roots), *self.jvm_args, main_class]
