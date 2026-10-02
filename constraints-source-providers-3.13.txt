@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-02T14:05:24.894387
+# This constraints file was automatically generated on 2026-10-02T16:25:07.049266
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -423,7 +423,7 @@ mergedeep==1.3.4
 methodtools==0.4.7
 microsoft-kiota-abstractions==1.14.0
 microsoft-kiota-authentication-azure==1.14.0
-microsoft-kiota-http==1.14.0
+microsoft-kiota-http==1.12.3
 microsoft-kiota-serialization-json==1.14.0
 microsoft-kiota-serialization-text==1.14.0
 mistune==3.3.4
