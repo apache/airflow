@@ -616,7 +616,8 @@ class TestDagRun:
             "test_state_succeeded2": TaskInstanceState.SUCCESS,
         }
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+        dag_maker.dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_maker.dag), bundle_name="dag_maker")
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -663,7 +664,8 @@ class TestDagRun:
             "test_state_failed2": TaskInstanceState.FAILED,
         }
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+        dag_maker.dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_maker.dag), bundle_name="dag_maker")
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
