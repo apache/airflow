@@ -35,7 +35,7 @@ import "reflect"
 // the zero value. Serializing a Dag converts the fields; a tag would invite
 // json.Marshal(spec) to skip that step and produce a shape core misreads.
 
-//go:generate go run ../internal/genspec -schema ../../airflow-core/src/airflow/serialization/schema.json -out ../../.build/go-sdk/spec.schema.json
+//go:generate go run ../internal/genspec -schema ../schema/dag-schema.json -out ../../.build/go-sdk/spec.schema.json
 //go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags "" --capitalization ID --capitalization JSON --capitalization MD --capitalization XCom -p airflow -o spec.gen.go ../../.build/go-sdk/spec.schema.json
 //go:generate go run ../internal/genspec -license spec.gen.go
 
