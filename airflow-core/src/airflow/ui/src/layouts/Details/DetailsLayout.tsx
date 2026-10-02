@@ -442,7 +442,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                       <>
                         <IconButton
                           colorPalette={Boolean(error) ? "red" : "orange"}
-                          label={`${translate("common:dagWarnings")} (${formatNumber((warningData?.total_entries ?? 0) + Number(error), i18n.language)})`}
+                          label={`${translate("common:dagWarnings")} (${formatNumber((warningData?.total_entries ?? 0) + Number(Boolean(error)), i18n.language)})`}
                           margin="2"
                           marginBottom="-1"
                           onClick={onOpen}

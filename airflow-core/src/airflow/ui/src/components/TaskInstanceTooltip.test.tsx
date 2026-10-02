@@ -18,13 +18,21 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { Wrapper } from "src/utils/Wrapper";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    i18n: { language: "en" },
+    // eslint-disable-next-line id-length
+    t: (key: string) => key,
+  }),
+}));
 
 describe("TaskInstanceTooltip", () => {
   it("renders children directly when both taskInstance and tooltip are undefined", () => {
