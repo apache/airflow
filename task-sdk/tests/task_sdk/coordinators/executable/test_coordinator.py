@@ -17,21 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import hashlib
-import json
-import socket
+import os
 import stat
 import struct
-import subprocess
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
+from task_sdk.coordinators._execute_test_utils import execute_task, register_dag_bundle
 from uuid6 import uuid7
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
 from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_MAGIC,
     FOOTER_SIZE,
@@ -41,10 +42,13 @@ from airflow.sdk.coordinators.executable.coordinator import (
     _digest_cache,
     read_cache_digest,
 )
-from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskHandlerCandidate
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess
+from airflow.sdk.execution_time.comms import TaskHandlerArtifactRef
+from airflow.sdk.execution_time.coordinator import (
+    BaseCoordinator,
+    TaskHandlerArtifactError,
+    TaskHandlerCandidate,
+)
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_3_PLUS:
@@ -563,20 +567,16 @@ class TestListTaskHandlerCandidates:
 
 @pytest.fixture
 def bundles_dir(tmp_path):
-    _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
+    """A directory with one bundle that declares no Dag id, so a task cannot find it by its Dag id."""
+    _build_bundle(tmp_path / "my_bundle", dag_ids=[])
     return tmp_path
 
 
 @pytest.fixture
 def go_task_handlers(bundles_dir):
     """Register *bundles_dir* as the ``go-task-handlers`` Dag bundle and return that name."""
-    bundle = {
-        "name": "go-task-handlers",
-        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-        "kwargs": {"path": str(bundles_dir)},
-    }
-    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps([bundle])}):
-        yield bundle["name"]
+    with register_dag_bundle("go-task-handlers", bundles_dir) as name:
+        yield name
 
 
 @pytest.fixture
@@ -586,85 +586,175 @@ def mock_client(make_ti_context):
     return client
 
 
+def _execute_task(
+    mock_client,
+    bundle_name: str,
+    *,
+    dag_rel_path: str = "my_bundle",
+    task_handler_artifact: TaskHandlerArtifactRef | None = None,
+    coordinator: ExecutableCoordinator | None = None,
+) -> tuple[BaseCoordinator.ExecutionResult, list[list[str]]]:
+    """Run a task of the Dag bundle *bundle_name* and return the commands the runtime was started with."""
+    return execute_task(
+        coordinator or ExecutableCoordinator(),
+        mock_client,
+        what=_make_ti(dag_id="tutorial_dag"),
+        dag_rel_path=dag_rel_path,
+        bundle_info=BundleInfo(name=bundle_name),
+        task_handler_artifact=task_handler_artifact,
+    )
+
+
+@contextlib.contextmanager
+def _forbid_listing(directory: Path):
+    """Fail when *directory*, or a directory in it, is listed: a task runs its file without searching."""
+    real_iterdir = Path.iterdir
+
+    def iterdir(path: Path):
+        resolved = path.resolve()
+        assert directory.resolve() not in (resolved, *resolved.parents), f"{path} was listed"
+        return real_iterdir(path)
+
+    with patch.object(Path, "iterdir", autospec=True, side_effect=iterdir):
+        yield
+
+
 class TestExecutableCoordinatorExecuteTask:
-    def _captured_popen_cmd(self, bundle_name: str, mock_client) -> list[str]:
-        """Run execute_task with mocked subprocess and return the command list."""
-        ti = _make_ti(dag_id="tutorial_dag")
-        coordinator = ExecutableCoordinator(task_handler_bundle_name=bundle_name)
+    def test_a_task_without_a_reference_runs_its_dag_file(self, bundles_dir, go_task_handlers, mock_client):
+        result, popen_calls = _execute_task(mock_client, go_task_handlers)
 
-        mock_proc = MagicMock(spec=subprocess.Popen)
-        mock_proc.pid = 12345
-        comm_sock = MagicMock(spec=socket.socket)
-        logs_sock = MagicMock(spec=socket.socket)
-        popen_calls: list = []
-
-        def capture_popen(cmd, **kwargs):
-            popen_calls.append(cmd)
-            return mock_proc
-
-        with (
-            patch(
-                "airflow.sdk.coordinators._subprocess.subprocess.Popen",
-                side_effect=capture_popen,
-            ),
-            patch(
-                "airflow.sdk.coordinators._subprocess._accept_connections",
-                side_effect=lambda servers, drains, proc, **kw: (
-                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
-                    {soc: b"" for soc in drains.values()},
-                ),
-            ),
-            patch.object(ActivitySubprocess, "_register_pipe_readers"),
-            patch.object(ActivitySubprocess, "_on_child_started"),
-            patch.object(ActivitySubprocess, "wait", return_value=0),
-            patch("psutil.Process"),
-        ):
-            coordinator.execute_task(
-                what=ti,
-                dag_rel_path="my_bundle",
-                bundle_info=MagicMock(),
-                client=mock_client,
-                subprocess_logs_to_stdout=False,
-            )
-
-        assert popen_calls, "subprocess.Popen was not called"
-        return popen_calls[0]
-
-    def test_executable_path_is_first_arg(self, bundles_dir, go_task_handlers, mock_client):
-        cmd = self._captured_popen_cmd(go_task_handlers, mock_client)
-        expected = str((bundles_dir / "my_bundle").resolve())
-        assert cmd[0] == expected
-
-    def test_returns_execution_result(self, go_task_handlers, mock_client):
-        ti = _make_ti(dag_id="tutorial_dag")
-        coordinator = ExecutableCoordinator(task_handler_bundle_name=go_task_handlers)
-
-        mock_proc = MagicMock(spec=subprocess.Popen)
-        mock_proc.pid = 99999
-        comm_sock = MagicMock(spec=socket.socket)
-        logs_sock = MagicMock(spec=socket.socket)
-
-        with (
-            patch("subprocess.Popen", return_value=mock_proc),
-            patch(
-                "airflow.sdk.coordinators._subprocess._accept_connections",
-                side_effect=lambda servers, drains, proc, **kw: (
-                    {servers["comm"]: comm_sock, servers["logs"]: logs_sock},
-                    {soc: b"" for soc in drains.values()},
-                ),
-            ),
-            patch.object(ActivitySubprocess, "_register_pipe_readers"),
-            patch.object(ActivitySubprocess, "_on_child_started"),
-            patch.object(ActivitySubprocess, "wait", return_value=0),
-            patch("psutil.Process"),
-        ):
-            result = coordinator.execute_task(
-                what=ti,
-                dag_rel_path="my_bundle",
-                bundle_info=MagicMock(),
-                client=mock_client,
-                subprocess_logs_to_stdout=False,
-            )
-
+        assert popen_calls[0][0] == str((bundles_dir / "my_bundle").resolve())
         assert isinstance(result, BaseCoordinator.ExecutionResult)
         assert result.exit_code == 0
+
+    def test_a_referenced_bundle_runs_even_when_another_registers_the_same_dag_id(
+        self, bundles_dir, go_task_handlers, mock_client
+    ):
+        _build_bundle(bundles_dir / "a_bundle", dag_ids=["tutorial_dag"])
+        _build_bundle(bundles_dir / "z_bundle", dag_ids=["tutorial_dag"])
+        reference = TaskHandlerArtifactRef(bundle_info=BundleInfo(name=go_task_handlers), rel_path="z_bundle")
+
+        with _forbid_listing(bundles_dir):
+            _, popen_calls = _execute_task(
+                mock_client, "other-dags", dag_rel_path="dag.py", task_handler_artifact=reference
+            )
+
+        assert popen_calls[0][0] == str((bundles_dir / "z_bundle").resolve())
+
+    def test_a_referenced_bundle_runs_whatever_dag_ids_it_declares(
+        self, bundles_dir, go_task_handlers, mock_client
+    ):
+        _build_bundle(bundles_dir / "etl", dag_ids=[])
+        reference = TaskHandlerArtifactRef(rel_path="etl")
+
+        _, popen_calls = _execute_task(
+            mock_client, go_task_handlers, dag_rel_path="dag.py", task_handler_artifact=reference
+        )
+
+        assert popen_calls[0][0] == str((bundles_dir / "etl").resolve())
+
+    def test_task_handler_bundle_name_is_not_read(self, bundles_dir, go_task_handlers, mock_client):
+        coordinator = ExecutableCoordinator(task_handler_bundle_name="not-a-configured-bundle")
+
+        _, popen_calls = _execute_task(mock_client, go_task_handlers, coordinator=coordinator)
+
+        assert popen_calls[0][0] == str((bundles_dir / "my_bundle").resolve())
+
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
+    def test_the_schema_version_of_the_bundle_is_forwarded(self, mock_start, go_task_handlers, mock_client):
+        mock_start.return_value.wait.return_value = 0
+
+        ExecutableCoordinator().execute_task(
+            what=_make_ti(dag_id="tutorial_dag"),
+            dag_rel_path="my_bundle",
+            bundle_info=BundleInfo(name=go_task_handlers),
+            client=mock_client,
+            subprocess_logs_to_stdout=False,
+        )
+
+        assert mock_start.call_args.kwargs["subprocess_schema_version"] == "2026-06-16"
+
+    def test_a_python_dag_file_raises_the_unbound_message(self, bundles_dir, go_task_handlers, mock_client):
+        (bundles_dir / "dags").mkdir()
+        (bundles_dir / "dags" / "etl.py").write_text("print('hello')\n")
+
+        with pytest.raises(TaskHandlerArtifactError) as raised:
+            _execute_task(mock_client, go_task_handlers, dag_rel_path="dags/etl.py")
+
+        assert str(raised.value) == (
+            "Task 'task_1' of Dag 'tutorial_dag' has no task handler artifact, and its Dag file "
+            "'dags/etl.py' is not an artifact that ExecutableCoordinator runs. Queue 'executable' routes it "
+            "to a Lang-SDK coordinator, so it must be a @task.stub task the Dag processor bound to an "
+            "artifact, or a task of a Dag defined in a Lang SDK. Check the import errors of 'dags/etl.py', "
+            "and that the scheduler has the same [sdk] configuration as the Dag processor."
+        )
+
+    def test_a_bundle_without_the_executable_bit_raises_with_the_reason(
+        self, bundles_dir, go_task_handlers, mock_client
+    ):
+        (bundles_dir / "my_bundle").chmod(0o644)
+        reference = TaskHandlerArtifactRef(rel_path="my_bundle")
+
+        with pytest.raises(TaskHandlerArtifactError) as raised:
+            _execute_task(
+                mock_client, go_task_handlers, dag_rel_path="dag.py", task_handler_artifact=reference
+            )
+
+        assert str(raised.value) == (
+            f"Task handler artifact 'my_bundle' in Dag bundle '{go_task_handlers}' cannot run: "
+            "my_bundle is not executable. Use a Dag bundle that keeps the executable bit; "
+            "object-store Dag bundles such as S3DagBundle drop it."
+        )
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason="root opens every file")
+    def test_a_bundle_the_worker_cannot_open_raises_with_the_reason(
+        self, bundles_dir, go_task_handlers, mock_client
+    ):
+        (bundles_dir / "my_bundle").chmod(0)
+        reference = TaskHandlerArtifactRef(rel_path="my_bundle")
+
+        with pytest.raises(TaskHandlerArtifactError) as raised:
+            _execute_task(
+                mock_client, go_task_handlers, dag_rel_path="dag.py", task_handler_artifact=reference
+            )
+
+        assert str(raised.value) == (
+            f"Task handler artifact 'my_bundle' in Dag bundle '{go_task_handlers}' cannot run: "
+            f"[Errno 13] Permission denied: {os.fspath(bundles_dir / 'my_bundle')!r}"
+        )
+
+    def test_a_bundle_whose_binary_does_not_match_its_digest_raises(
+        self, bundles_dir, go_task_handlers, mock_client
+    ):
+        _build_bundle(bundles_dir / "tampered", binary_sha256=b"\x00" * 32)
+        reference = TaskHandlerArtifactRef(rel_path="tampered")
+
+        with pytest.raises(TaskHandlerArtifactError, match="is not a valid executable bundle"):
+            _execute_task(
+                mock_client, go_task_handlers, dag_rel_path="dag.py", task_handler_artifact=reference
+            )
+
+    def test_a_jar_is_not_an_artifact_of_this_coordinator(self, bundles_dir, go_task_handlers, mock_client):
+        (bundles_dir / "etl.jar").write_bytes(b"PK\x03\x04")
+        reference = TaskHandlerArtifactRef(rel_path="etl.jar")
+
+        with pytest.raises(TaskHandlerArtifactError) as raised:
+            _execute_task(
+                mock_client, go_task_handlers, dag_rel_path="dag.py", task_handler_artifact=reference
+            )
+
+        assert str(raised.value) == (
+            f"Task handler artifact 'etl.jar' in Dag bundle '{go_task_handlers}' is not an artifact "
+            "that ExecutableCoordinator runs. A newer parse may route this task to another coordinator."
+        )
+
+    def test_a_missing_referenced_file_raises(self, go_task_handlers, mock_client):
+        reference = TaskHandlerArtifactRef(rel_path="gone")
+
+        with pytest.raises(
+            TaskHandlerArtifactError,
+            match=rf"^Task handler artifact 'gone' is not a file in Dag bundle '{go_task_handlers}'",
+        ):
+            _execute_task(
+                mock_client, go_task_handlers, dag_rel_path="dag.py", task_handler_artifact=reference
+            )

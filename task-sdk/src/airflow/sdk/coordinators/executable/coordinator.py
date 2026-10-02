@@ -378,12 +378,13 @@ class ExecutableCoordinator(SubprocessCoordinator):
             }
         }
 
-    :param task_handler_bundle_name: Name of the Dag bundle holding the
-        executable bundles a Python stub Dag delegates task execution to. It must
-        be registered in ``[dag_processor] dag_bundle_config_list``. If unset,
-        the task's own Dag bundle is used. A task only runs files with the
-        executable bit set; the Dag processor reports a bundle without it instead
-        of running it.
+    :param task_handler_bundle_name: Name of the Dag bundle the Dag processor lists
+        for the executable bundles a Python stub Dag delegates task execution to. It
+        must be registered in ``[dag_processor] dag_bundle_config_list``. If unset,
+        the task's own Dag bundle is listed. A task runs the executable bundle its
+        stub task was bound to or, for a Dag defined in Go, its own Dag file, and only
+        if the file has the executable bit set; the Dag processor reports a bundle
+        without it instead of running it.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """

@@ -236,9 +236,10 @@ class JavaCoordinator(SubprocessCoordinator):
     :param java_executable: Path to the ``java`` command (defaults to
         ``"java"``, which relies on ``$PATH``).
     :param jvm_args: Extra arguments passed to the JVM (e.g. ``["-Xmx512m"]``).
-    :param task_handler_bundle_name: Name of the Dag bundle holding the JARs. It
-        must be registered in ``[dag_processor] dag_bundle_config_list``. If
-        unset, the task's own Dag bundle is used.
+    :param task_handler_bundle_name: Name of the Dag bundle the Dag processor lists
+        for handler JARs. It must be registered in ``[dag_processor] dag_bundle_config_list``.
+        If unset, the task's own Dag bundle is listed. A task runs the JAR its stub task was
+        bound to or, for a Dag defined in Java, its own Dag file.
     :param main_class: Explicit entry point to run with *java_executable*, for a task and for the
         probe that reports task handlers, instead of the Main-Class of a JAR's manifest. Changing it
         makes the Dag processor probe the handler JARs again.
@@ -249,20 +250,17 @@ class JavaCoordinator(SubprocessCoordinator):
     classpath. Handlers that need conflicting dependency versions belong in
     separate bundles, each served by its own coordinator and queue.
 
-    If *main_class* is not explicitly set, JavaCoordinator scans the bundle to
-    find an executable JAR (one with Main-Class set in its metadata). If more
-    than one executable JAR is found, it may be nondeterministic which one ends
-    up being executed, so set *main_class* when more than one JAR in the bundle
-    declares Main-Class.
+    A task runs the JAR it was bound to, so no search picks the JAR. Without
+    *main_class*, the Main-Class of that JAR's manifest decides. With it,
+    *main_class* runs instead, both for a task and for the probe that reports the
+    task handlers a JAR registers, with the whole bundle on the classpath. Every
+    handler JAR in the bundle is then probed through that class and reports the
+    same handlers, so they collide: keep one handler JAR per bundle.
 
-    To report the task handlers a JAR registers, the coordinator runs *main_class*
-    if it is set, else that JAR's own Main-Class, with the whole bundle on the
-    classpath. With *main_class* set, every handler JAR in the bundle is probed
-    through that class and reports the same handlers, so they collide: keep one
-    handler JAR per bundle. The Dag processor only asks JARs whose manifest
-    carries *Airflow-Cache-Digest*, which the Gradle plugin writes, and asks one
-    again only when its size, its digest or *main_class* changes. A dependency
-    JAR replaced without rebuilding the bundle therefore goes unnoticed.
+    The Dag processor only asks JARs whose manifest carries
+    *Airflow-Cache-Digest*, which the Gradle plugin writes, and asks one again
+    only when its size, its digest or *main_class* changes. A dependency JAR
+    replaced without rebuilding the bundle therefore goes unnoticed.
 
     A JAR containing metadata *Airflow-Supervisor-Schema-Version* should also be
     available to specify the wire schema version. The JAR containing the Java

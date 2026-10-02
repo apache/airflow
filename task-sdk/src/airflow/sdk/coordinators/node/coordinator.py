@@ -117,9 +117,10 @@ class NodeCoordinator(SubprocessCoordinator):
 
     :param node_executable: Path to the ``node`` binary (defaults to
         ``"node"``, which relies on ``$PATH``).
-    :param task_handler_bundle_name: Name of the Dag bundle searched recursively for the first
-        verified ``*.min.mjs`` bundle declaring the task instance's Dag. It must be registered in
-        ``[dag_processor] dag_bundle_config_list``. If unset, the task's own Dag bundle is used.
+    :param task_handler_bundle_name: Name of the Dag bundle the Dag processor lists for
+        ``*.min.mjs`` bundles. It must be registered in ``[dag_processor] dag_bundle_config_list``.
+        If unset, the task's own Dag bundle is listed. A task runs the bundle its stub task was
+        bound to or, for a Dag defined in TypeScript, its own Dag file, after verifying it.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
