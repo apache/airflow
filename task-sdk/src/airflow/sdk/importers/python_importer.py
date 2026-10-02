@@ -46,9 +46,9 @@ from airflow.sdk.importers.base import (
     DagImportWarning,
     DagSourceCode,
     FileDagDefinition,
+    _normalize_extensions,
     find_file_dag_definitions,
     get_file_suffix,
-    normalize_extensions,
 )
 
 if TYPE_CHECKING:
@@ -133,7 +133,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
 
     def __init__(self, extensions: list[str] | None = None) -> None:
         if extensions is not None:
-            self.supported_extensions = normalize_extensions(extensions)
+            self.supported_extensions = _normalize_extensions(extensions)
 
     def can_handle(self, definition: DagDefinition | str | Path) -> bool:
         """Check if this importer can handle the given definition based on file extension."""

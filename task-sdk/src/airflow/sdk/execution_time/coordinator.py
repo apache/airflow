@@ -24,11 +24,9 @@ supervisor, and :class:`CoordinatorManager`, the registry that loads coordinator
 instances from the ``[sdk] coordinators`` configuration.
 
 A coordinator executes a task through :meth:`~BaseCoordinator.execute_task`. A
-coordinator that also parses native Dags names its Dag importer class through
-:meth:`~BaseCoordinator.get_dag_importer_class` and the bundles it parses through
-:meth:`~BaseCoordinator.get_parsed_bundles`. :meth:`CoordinatorManager.for_bundle`
-selects the coordinators that parse a Dag bundle, and each hands out its importer
-through :meth:`~BaseCoordinator.get_dag_importer`.
+coordinator that also parses native Dags hands out its Dag importer through
+:meth:`~BaseCoordinator.get_dag_importer`. :meth:`CoordinatorManager.for_bundle`
+returns the Dag importers of the coordinators that parse a Dag bundle.
 """
 
 from __future__ import annotations
@@ -103,31 +101,13 @@ class BaseCoordinator:
         """
         raise NotImplementedError
 
-    @classmethod
-    def get_dag_importer_class(cls) -> type[AbstractDagImporter] | None:
+    def get_dag_importer(self) -> AbstractDagImporter | None:
         """
-        Return the class of the Dag importer that parses this coordinator's native Dag files.
+        Return the Dag importer that parses this coordinator's native Dag files.
 
         ``None``, the default, means the coordinator parses no native Dags.
         """
         return None
-
-    def get_dag_importer(self) -> AbstractDagImporter:
-        """
-        Return the Dag importer that parses this coordinator's native Dag files.
-
-        It is called only when :meth:`get_dag_importer_class` returns a class.
-        """
-        raise NotImplementedError
-
-    @classmethod
-    def get_parsed_bundles(cls, kwargs: Mapping[str, Any]) -> frozenset[str] | None:
-        """
-        Return the Dag bundles whose files a coordinator built with *kwargs* parses.
-
-        ``None`` means every bundle. It reads only *kwargs*, so the coordinator need not be built.
-        """
-        return frozenset()
 
 
 class _CoordinatorSpec(pydantic.BaseModel):
@@ -245,7 +225,7 @@ class CoordinatorManager:
     The ``classpath`` is resolved via
     :func:`~airflow.sdk._shared.module_loading.import_string` and constructed
     with ``kwargs`` on first use. A coordinator is built only when a task routed
-    to its queue, or a Dag bundle it parses, needs it.
+    to its queue, or a Dag bundle it may parse, needs it.
 
     The ``[sdk] queue_to_coordinator`` config maps queue names to a key in the
     object, which lets users reuse existing queue assignments to route tasks to
@@ -315,64 +295,43 @@ class CoordinatorManager:
         log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
         return coordinator
 
-    def _select_bundle_parsers(self, bundle_name: str) -> list[str]:
+    def for_bundle(self, bundle_name: str) -> dict[str, AbstractDagImporter]:
         """
-        Return the keys of the coordinators whose Dag importers parse Dag files in *bundle_name*.
+        Return the Dag importers of the coordinators that parse Dag files in *bundle_name*.
 
-        Only the coordinator classes and their specs are read; no coordinator is built. A class that
-        cannot be imported is logged and skipped.
+        A coordinator parses the bundle named by its ``dag_bundle_name`` kwarg, or every bundle when
+        that is unset, and only those coordinators are built. One that cannot be built is logged and
+        skipped. One whose :meth:`~BaseCoordinator.get_dag_importer` returns ``None`` is skipped.
+        The importers are keyed by coordinator config key, in config order.
 
-        :raises InvalidCoordinatorError: if an importer declares its extensions other than as a
-            class-level list, or two selected coordinators parse the same extension.
+        :raises InvalidCoordinatorError: if two importers claim the same extension in *bundle_name*.
         """
         # circular: importers.base imports this module at load time
-        from airflow.sdk.importers.base import normalize_extensions
+        from airflow.sdk.importers.base import _get_importer_extensions
 
-        selected: dict[str, frozenset[str]] = {}
+        importers: dict[str, AbstractDagImporter] = {}
+        claims: dict[str, frozenset[str]] = {}
         for key, spec in self._coordinator_specs.items():
+            if spec.kwargs.get("dag_bundle_name") not in (None, bundle_name):
+                continue
             try:
-                coordinator_cls: type[BaseCoordinator] = import_string(spec.classpath)
+                importer = self._find_queue(key).get_dag_importer()
             except Exception:
-                log.exception("Cannot import coordinator; skipping it for Dag parsing", coordinator=key)
+                log.exception("Cannot load coordinator; skipping it for Dag parsing", coordinator=key)
                 continue
-            if (importer_cls := coordinator_cls.get_dag_importer_class()) is None:
+            if importer is None:
                 continue
-            bundles = coordinator_cls.get_parsed_bundles(spec.kwargs)
-            if bundles is not None and bundle_name not in bundles:
-                continue
-            raw_extensions = getattr(importer_cls, "supported_extensions", ())
-            if not isinstance(raw_extensions, (list, tuple, set, frozenset)):
-                raise InvalidCoordinatorError(
-                    f"Dag importer {importer_cls.__qualname__} of coordinator {key!r} must declare "
-                    "'supported_extensions' as a class-level list."
-                )
-            extensions = frozenset(normalize_extensions(raw_extensions))
-            for other_key, other_extensions in selected.items():
+            extensions = frozenset(_get_importer_extensions(importer))
+            for other_key, other_extensions in claims.items():
                 if shared := extensions & other_extensions:
                     raise InvalidCoordinatorError(
                         f"Coordinators {other_key!r} and {key!r} both parse {', '.join(sorted(shared))} "
                         f"files in Dag bundle {bundle_name!r}. Give each coordinator its own "
                         "'dag_bundle_name'."
                     )
-            selected[key] = extensions
-        return list(selected)
-
-    def for_bundle(self, bundle_name: str) -> dict[str, BaseCoordinator]:
-        """
-        Return the coordinators that parse Dag files in *bundle_name*, keyed by their config key.
-
-        Only those coordinators are built, in config order. One that cannot be built is logged and
-        skipped.
-
-        :raises InvalidCoordinatorError: if two coordinators parse the same extension in *bundle_name*.
-        """
-        coordinators: dict[str, BaseCoordinator] = {}
-        for key in self._select_bundle_parsers(bundle_name):
-            try:
-                coordinators[key] = self._find_queue(key)
-            except Exception:
-                log.exception("Cannot load coordinator; skipping it for Dag parsing", coordinator=key)
-        return coordinators
+            claims[key] = extensions
+            importers[key] = importer
+        return importers
 
     def extra_for_queue(self, queue: str) -> dict[str, Any] | None:
         """

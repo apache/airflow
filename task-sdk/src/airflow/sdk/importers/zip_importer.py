@@ -39,10 +39,10 @@ from airflow.sdk.importers.base import (
     DagSourceCode,
     FileDagDefinition,
     _get_importer_extensions,
+    _normalize_extensions,
     _parse_importer_specs,
     find_file_dag_definitions,
     get_file_suffix,
-    normalize_extensions,
 )
 
 if TYPE_CHECKING:
@@ -126,7 +126,7 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
         extensions: list[str] | None = None,
     ) -> None:
         if extensions is not None:
-            self.supported_extensions = normalize_extensions(extensions)
+            self.supported_extensions = _normalize_extensions(extensions)
         self._internal_extension_importers: dict[str, AbstractDagImporter[Any]] = {}
         self._ordered_internal_importers: list[AbstractDagImporter[Any]] = []
 
@@ -290,7 +290,7 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
             self._ordered_internal_importers.append(importer)
         exts = extensions if extensions is not None else _get_importer_extensions(importer)
         if exts:
-            normalized = normalize_extensions(exts)
+            normalized = _normalize_extensions(exts)
             if hasattr(importer, "supported_extensions"):
                 with contextlib.suppress(AttributeError, TypeError):
                     importer.supported_extensions = normalized

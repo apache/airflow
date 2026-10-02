@@ -925,18 +925,6 @@ class TestDagBundleName:
         mock_manager.is_bundle_configured.assert_called_once_with("artifacts")
 
 
-class TestGetParsedBundles:
-    @pytest.mark.parametrize(
-        ("kwargs", "expected"),
-        [
-            pytest.param({}, None, id="task-bundle"),
-            pytest.param({"dag_bundle_name": "artifacts"}, {"artifacts"}, id="named"),
-        ],
-    )
-    def test_get_parsed_bundles_reads_the_kwargs(self, kwargs, expected):
-        assert _StubSubprocessCoordinator.get_parsed_bundles(kwargs) == expected
-
-
 class TestInitRootSource:
     """Execute-time resolution of the Dag bundle to scan."""
 
