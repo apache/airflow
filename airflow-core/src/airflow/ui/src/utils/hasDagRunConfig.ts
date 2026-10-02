@@ -17,15 +17,8 @@
  * under the License.
  */
 
-export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { getMetaKey } from "./getMetaKey";
-export { hasDagRunConfig } from "./hasDagRunConfig";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+// A Dag run that was triggered without a config comes back from the API as an empty object `{}`,
+// not null/undefined, so a presence check has to treat `{}` as "no config supplied" too.
+export const hasDagRunConfig = (
+  conf: Record<string, unknown> | null | undefined,
+): conf is Record<string, unknown> => conf !== null && conf !== undefined && Object.keys(conf).length > 0;
