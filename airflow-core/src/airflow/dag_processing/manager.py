@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 
 import attrs
 import structlog
+from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
@@ -55,7 +56,11 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
+from airflow.dag_processing.processor import (
+    DagFileParsingResult,
+    DagFileProcessorProcess,
+    TaskHandlerArtifact,
+)
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -63,8 +68,10 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.models.lang_sdk_task_handler import LangSDKTaskHandlerArtifact
 from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
+from airflow.sdk.execution_time.coordinator import get_coordinator_manager  # noqa: SDK001
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
 from airflow.utils.file import list_py_file_paths, might_contain_dag
@@ -149,6 +156,16 @@ class DagFileInfo:
     def normalized_file_path_for_stats(self) -> str:
         """Return the relative file path normalized for use in stats tags."""
         return normalize_name_for_stats(str(self.rel_path), log_warning=False)
+
+
+class _TaskHandlerBundles(NamedTuple):
+    """Where the coordinators that queues route to read task-handler artifacts from."""
+
+    named: frozenset[str]
+    """Bundles named by a coordinator's ``task_handler_bundle_name``."""
+
+    include_dag_bundles: bool
+    """Whether a coordinator without ``task_handler_bundle_name`` reads the task's own Dag bundle."""
 
 
 def _config_int_factory(section: str, key: str):
@@ -1444,7 +1461,97 @@ class DagFileProcessorManager(LoggingMixin):
         client.base_url = "http://in-process.invalid./"
         return client
 
-    def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
+    @functools.cached_property
+    def _task_handler_bundles(self) -> _TaskHandlerBundles:
+        try:
+            bundle_names = get_coordinator_manager().get_task_handler_bundle_names().values()
+        except Exception:
+            # A Lang-SDK configuration error must not stop Python-only parsing.
+            self.log.exception(
+                "Cannot read [sdk] coordinators; Dag files are parsed without known task-handler artifacts"
+            )
+            return _TaskHandlerBundles(named=frozenset(), include_dag_bundles=False)
+        return _TaskHandlerBundles(
+            named=frozenset(name for name in bundle_names if name is not None),
+            include_dag_bundles=None in bundle_names,
+        )
+
+    def get_known_task_handler_artifacts(
+        self, bundle_names: Collection[str]
+    ) -> dict[str, list[TaskHandlerArtifact]]:
+        """
+        Return the recorded task-handler artifacts in *bundle_names*, keyed by bundle name.
+
+        Default implementation reads from the metadata DB; override to source them from an API.
+        """
+        return self._get_known_task_handler_artifacts_from_db(bundle_names)
+
+    @provide_session
+    def _get_known_task_handler_artifacts_from_db(
+        self, bundle_names: Collection[str], *, session: Session = NEW_SESSION
+    ) -> dict[str, list[TaskHandlerArtifact]]:
+        rows = session.execute(
+            select(
+                LangSDKTaskHandlerArtifact.bundle_name,
+                LangSDKTaskHandlerArtifact.relative_fileloc,
+                LangSDKTaskHandlerArtifact.size_bytes,
+                LangSDKTaskHandlerArtifact.cache_digest,
+                LangSDKTaskHandlerArtifact.task_handlers,
+            )
+            .where(LangSDKTaskHandlerArtifact.bundle_name.in_(bundle_names))
+            .order_by(LangSDKTaskHandlerArtifact.bundle_name, LangSDKTaskHandlerArtifact.relative_fileloc)
+        )
+        known: dict[str, list[TaskHandlerArtifact]] = defaultdict(list)
+        for row in rows:
+            try:
+                artifact = TaskHandlerArtifact.model_validate(row._asdict())
+            except ValidationError as exc:
+                # Left out, the artifact is probed again and its new answer replaces the row.
+                self.log.warning(
+                    "Ignoring a recorded task-handler artifact that fails validation",
+                    bundle_name=row.bundle_name,
+                    relative_fileloc=row.relative_fileloc,
+                    error=str(exc),
+                )
+                continue
+            known[row.bundle_name].append(artifact)
+        return dict(known)
+
+    def _query_known_task_handler_artifacts(self) -> dict[str, list[TaskHandlerArtifact]]:
+        """Return the recorded artifacts of every bundle that can hold task handlers for this manager's Dag files."""
+        bundle_names = set(self._task_handler_bundles.named)
+        if self._task_handler_bundles.include_dag_bundles:
+            bundle_names.update(bundle.name for bundle in self._dag_bundles)
+        if not bundle_names:
+            return {}
+        try:
+            return self.get_known_task_handler_artifacts(bundle_names)
+        except Exception:
+            # Without known artifacts the children probe their candidates, so parsing keeps running.
+            self.log.exception(
+                "Cannot read the recorded task-handler artifacts; Dag files are parsed without them"
+            )
+            return {}
+
+    def _get_task_handler_artifact_bundle_names(self, dag_bundle_name: str) -> frozenset[str]:
+        """Return the bundles whose task-handler artifacts a Dag file in *dag_bundle_name* may read and record."""
+        bundles = self._task_handler_bundles
+        teams = self._get_team_names(bundles.named | {dag_bundle_name})
+        scope = {name for name in bundles.named if teams.get(name) == teams.get(dag_bundle_name)}
+        if bundles.include_dag_bundles:
+            scope.add(dag_bundle_name)
+        return frozenset(scope)
+
+    def _select_known_task_handler_artifacts(
+        self, known_artifacts: dict[str, list[TaskHandlerArtifact]], dag_bundle_name: str
+    ) -> list[TaskHandlerArtifact]:
+        """Return the artifacts a Dag file in *dag_bundle_name* may resolve its stub tasks against."""
+        bundle_names = self._get_task_handler_artifact_bundle_names(dag_bundle_name)
+        return [artifact for name in sorted(bundle_names) for artifact in known_artifacts.get(name, ())]
+
+    def _create_process(
+        self, dag_file: DagFileInfo, *, known_artifacts: Sequence[TaskHandlerArtifact] = ()
+    ) -> DagFileProcessorProcess:
         id = uuid7()
 
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
@@ -1457,6 +1564,7 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_name=dag_file.bundle_name,
             dag_file_rel_path=str(dag_file.rel_path),
             callbacks=callback_to_execute_for_file,
+            known_artifacts=known_artifacts,
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -1467,6 +1575,9 @@ class DagFileProcessorManager(LoggingMixin):
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._file_queue})
+        # Read once per loop, and only when a child starts: rows persisted by earlier children are
+        # then visible to later ones, which a cache held across a whole pass would hide.
+        known_artifacts: dict[str, list[TaskHandlerArtifact]] | None = None
 
         while self._parallelism > len(self._processors) and self._file_queue:
             file, _ = self._file_queue.popitem(last=False)
@@ -1474,7 +1585,12 @@ class DagFileProcessorManager(LoggingMixin):
             if file in self._processors:
                 continue
 
-            processor = self._create_process(file)
+            if known_artifacts is None:
+                known_artifacts = self._query_known_task_handler_artifacts()
+            processor = self._create_process(
+                file,
+                known_artifacts=self._select_known_task_handler_artifacts(known_artifacts, file.bundle_name),
+            )
             stats.incr(
                 "dag_processing.processes",
                 tags=prune_dict(

@@ -210,15 +210,16 @@ fingerprint beside it. A binding row is then only a mapping from a stub task to 
 already knows about. The parse child processor subprocesses run in the client context without a
 database connection ([`_parse_file_entrypoint`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/processor.py#L208-L232)),
 so the prior cache state must be pushed down from the manager. The alternative is a dedicated
-Execution API for the child processor process to retrieve `KnownSDKTaskHandlerArtifact` itself, which
+Execution API for the child processor process to retrieve `TaskHandlerArtifact` itself, which
 was rejected on blast radius.
 
 ```python
-class KnownSDKTaskHandlerArtifact(BaseModel):
+class TaskHandlerArtifact(BaseModel):
     bundle_name: str
     relative_fileloc: str
     size_bytes: int
-    cache_digest: str
+    cache_digest: str | None  # None: the artifact stores no fingerprint, so it is always probed
+    task_handlers: dict[str, list[TaskHandlerDeclaration]]  # the probe answer: dag_id -> declarations
 
 
 class DagFileParseRequest(BaseModel):
@@ -226,14 +227,11 @@ class DagFileParseRequest(BaseModel):
     bundle_path: Path
     bundle_name: str
     callback_requests: list[CallbackRequest]
-    known_artifacts: list[KnownSDKTaskHandlerArtifact] = []  # new
+    known_artifacts: list[TaskHandlerArtifact] = []  # new
     type: Literal["DagFileParseRequest"]
 ```
 
-`known_artifacts` is scoped by *artifact* bundle, not by Dag file, so the manager reads it **once per
-parsing loop** for every configured `task_handler_bundle_name` and pushes the same list to every
-child. Ten Dag files resolving against one twenty-jar bundle therefore probe that bundle once in
-total, not once each.
+`known_artifacts` is scoped by *artifact* bundle, not by Dag file, so the manager reads it **once per parsing loop** for every bundle that can hold task handlers: the `task_handler_bundle_name` of each coordinator a queue routes to, plus the Dag bundles it parses when one of them sets none and so reads the task's own Dag bundle. A coordinator no queue routes to runs no stub task, so its bundle is not read. Each child gets the rows of the named bundles whose team matches its Dag bundle's team, and of its own Dag bundle when a coordinator falls back to it, never those of another Dag bundle, which no coordinator reads for it. The team rule exists because an answer one file's parse records is trusted by every file that reads it. Teams match only when equal: without `[core] multi_team` every named bundle is in scope, and with it a team-less Dag bundle sees only team-less named bundles. One recorded answer serves every file, so ten Dag files resolving against one bundle probe a changed artifact once in total, apart from the children already started when it changed.
 
 **Dag-parsing child → coordinator subprocess.** Introduced here. The child spawns the runtime and
 forwards bytes in both directions, decoding nothing; the process that spawned the parse decodes the
@@ -243,7 +241,6 @@ one member, and `ToManager` gains `SDKTaskHandlerParsingResult`.
 ```python
 class SDKTaskHandlerParseRequest(BaseModel):  # parent -> runtime, on ToSDKTaskHandlerProcessor
     file: str  # the candidate artifact being probed
-    dag_ids: list[str]  # every Dag in this file with stub tasks routed here
     bundle_path: Path
     bundle_name: str
     type: Literal["SDKTaskHandlerParseRequest"]
@@ -269,9 +266,9 @@ class TaskHandlerParam(BaseModel):
     exact_name: bool = False  # match as spelled, not case-insensitively with underscores ignored
 ```
 
-A `dag_id` the artifact registers nothing for is **omitted** from `task_handlers` rather than returned
-empty, so a probe that matches nothing is distinguishable from a probe that matched a Dag with zero
-tasks.
+`task_handlers` maps every `dag_id` the artifact registers a handler for, and is `{}` when it registers
+none. The answer must not depend on the request, because the manager records it once and serves it to
+every Dag file that resolves against the artifact.
 
 **Dag-parsing child → manager.** [`DagFileParsingResult`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/processor.py#L133-L145) gains the resolved
 bindings.
@@ -350,12 +347,17 @@ stub Dag is validated against bindings that have not been written yet.
 ```
 DagProcessorManager                                        [reads DB]
   │
-  │  once per parsing loop, per configured task_handler_bundle_name:
-  │    SELECT bundle_name, relative_fileloc, size_bytes, cache_digest
+  │  once per parsing loop, for every bundle that can hold task handlers
+  │  (each routed coordinator's task_handler_bundle_name, plus the Dag
+  │  bundles when one sets none and reads the task's own Dag bundle):
+  │    SELECT bundle_name, relative_fileloc, size_bytes, cache_digest,
+  │           task_handlers
   │      FROM lang_sdk_task_handler_artifact
-  │     WHERE bundle_name IN (:configured bundles)          ──▶ known_artifacts
+  │     WHERE bundle_name IN (:those bundles)               ──▶ known_artifacts
   │
-  │  per file about to be dispatched:
+  │  per file about to be dispatched: the rows of the bundles in its scope
+  │    (named bundles of its team, plus its own Dag bundle when a routed
+  │    coordinator sets none)
   │    (the child re-reads nothing; it has no DB)
   │
   ├── DagFileParseRequest(file=etl.py, bundle_*, known_artifacts=[...])
@@ -394,7 +396,7 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │          target=_start_task_handler_runtime_entrypoint,
         │          coordinator=JavaCoordinator("jdk-17"),
         │          path=<candidate>)
-        │        ──SDKTaskHandlerParseRequest(file=…, dag_ids=["etl"])──▶ runtime
+        │        ──SDKTaskHandlerParseRequest(file=…)──▶ runtime
         │        ◀─SDKTaskHandlerParsingResult(task_handlers={"etl": […]})── runtime
         │        Get* from the runtime is relayed up ToManager unchanged
         │

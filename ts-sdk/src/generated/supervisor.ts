@@ -269,6 +269,16 @@ export type Msg2 = string | null;
 export type EmailType = "failure" | "retry";
 export type Type14 = "EmailRequest";
 export type CallbackRequests = (DagCallbackRequest | TaskCallbackRequest | EmailRequest)[];
+export type BundleName4 = string;
+export type RelativeFileloc = string;
+export type SizeBytes = number;
+export type CacheDigest = string | null;
+export type TaskId2 = string;
+export type Binding = "positional" | "named";
+export type TaskHandlerParams = TaskHandlerParam[] | null;
+export type Name10 = string | null;
+export type ExactName = boolean;
+export type KnownArtifacts = TaskHandlerArtifact[];
 export type Type15 = "DagFileParseRequest";
 export type Fileloc = string;
 export type LastLoaded = string | null;
@@ -283,9 +293,9 @@ export type Language = string;
 export type Type16 = "DagFileParsingResult";
 export type DagId4 = string;
 export type IsPaused = boolean;
-export type BundleName4 = string | null;
+export type BundleName5 = string | null;
 export type BundleVersion3 = string | null;
-export type RelativeFileloc = string | null;
+export type RelativeFileloc1 = string | null;
 export type Owners = string | null;
 export type Tags = string[];
 export type NextDagrun = string | null;
@@ -326,7 +336,7 @@ export type NextKwargs2 = {
 } | null;
 export type RenderedMapIndex1 = string | null;
 export type Type20 = "DeferTask";
-export type Name10 = string;
+export type Name11 = string;
 export type Key1 = string;
 export type Type21 = "DeleteAssetStateStoreByName";
 export type Uri5 = string;
@@ -340,7 +350,7 @@ export type Type24 = "DeleteVariable";
 export type Key5 = string;
 export type DagId6 = string;
 export type RunId5 = string;
-export type TaskId2 = string;
+export type TaskId3 = string;
 export type MapIndex1 = number | null;
 export type Type25 = "DeleteXCom";
 /**
@@ -378,11 +388,11 @@ export type ErrorType1 =
   | "PERMISSION_DENIED"
   | "GENERIC_ERROR"
   | "API_SERVER_ERROR";
-export type Name11 = string;
+export type Name12 = string;
 export type Type27 = "GetAssetByName";
 export type Uri6 = string;
 export type Type28 = "GetAssetByUri";
-export type Name12 = string | null;
+export type Name13 = string | null;
 export type Uri7 = string | null;
 export type After = string | null;
 export type Before = string | null;
@@ -405,7 +415,7 @@ export type Extra8 = {
   [k: string]: string;
 } | null;
 export type Type30 = "GetAssetEventByAssetAlias";
-export type Name13 = string;
+export type Name14 = string;
 export type Key6 = string;
 export type Type31 = "GetAssetStateStoreByName";
 export type Uri8 = string;
@@ -437,7 +447,7 @@ export type LogicalDate3 = string;
 export type State3 = string | null;
 export type Type41 = "GetPreviousDagRun";
 export type DagId12 = string;
-export type TaskId3 = string;
+export type TaskId4 = string;
 export type LogicalDate4 = string | null;
 export type MapIndex2 = number;
 export type Type42 = "GetPreviousTI";
@@ -474,25 +484,25 @@ export type Type49 = "GetVariableKeys";
 export type Key10 = string;
 export type DagId16 = string;
 export type RunId9 = string;
-export type TaskId4 = string;
+export type TaskId5 = string;
 export type MapIndex5 = number | null;
 export type IncludePriorDates = boolean;
 export type Type50 = "GetXCom";
 export type Key11 = string;
 export type DagId17 = string;
 export type RunId10 = string;
-export type TaskId5 = string;
+export type TaskId6 = string;
 export type Type51 = "GetXComCount";
 export type Key12 = string;
 export type DagId18 = string;
 export type RunId11 = string;
-export type TaskId6 = string;
+export type TaskId7 = string;
 export type Offset1 = number;
 export type Type52 = "GetXComSequenceItem";
 export type Key13 = string;
 export type DagId19 = string;
 export type RunId12 = string;
-export type TaskId7 = string;
+export type TaskId8 = string;
 export type Start = number | null;
 export type Stop = number | null;
 export type Step = number | null;
@@ -514,7 +524,7 @@ export type AssignedUsers1 = HITLUser[] | null;
 export type Type54 = "HITLDetailRequestResult";
 export type InactiveAssets = AssetProfile[] | null;
 export type Type55 = "InactiveAssetsResult";
-export type Name14 = string | null;
+export type Name15 = string | null;
 export type Type56 = "MaskSecret";
 export type Ok = boolean;
 export type Type57 = "OKResponse";
@@ -524,7 +534,7 @@ export type StartDate4 = string | null;
 export type EndDate3 = string | null;
 export type Type58 = "PrevSuccessfulDagRunResult";
 export type Type59 = "PreviousDagRunResult";
-export type TaskId8 = string;
+export type TaskId9 = string;
 export type DagId20 = string;
 export type RunId13 = string;
 export type LogicalDate5 = string | null;
@@ -552,7 +562,7 @@ export type RetryReason = string | null;
 export type Type64 = "RetryTask";
 export type Type65 = "SentFDs";
 export type Fds = number[];
-export type Name15 = string;
+export type Name16 = string;
 export type Key15 = string;
 export type Type66 = "SetAssetStateStoreByName";
 export type Uri9 = string;
@@ -568,7 +578,7 @@ export type Type70 = "SetTaskStateStore";
 export type Key18 = string;
 export type DagId21 = string;
 export type RunId14 = string;
-export type TaskId9 = string;
+export type TaskId10 = string;
 export type MapIndex7 = number | null;
 export type DagResult1 = boolean;
 export type MappedLength = number | null;
@@ -595,14 +605,9 @@ export type Breadcrumbs = {
   [k: string]: unknown;
 }[];
 export type Type76 = "TaskBreadcrumbsResult";
-export type TaskId10 = string;
-export type Binding = "positional" | "named";
-export type TaskHandlerParams = TaskHandlerParam[] | null;
-export type Name16 = string | null;
-export type ExactName = boolean;
 export type File1 = string;
 export type BundlePath1 = string;
-export type BundleName5 = string;
+export type BundleName6 = string;
 export type Type77 = "TaskHandlerParseRequest";
 export type Fileloc1 = string;
 export type ImportErrors1 = {
@@ -1015,6 +1020,7 @@ export interface DagFileParseRequest {
   bundle_path: BundlePath;
   bundle_name: BundleName1;
   callback_requests?: CallbackRequests;
+  known_artifacts?: KnownArtifacts;
   type?: Type15;
 }
 /**
@@ -1117,6 +1123,44 @@ export interface EmailRequest {
   type?: Type14;
 }
 /**
+ * A Lang-SDK artifact and every task handler it registers.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TaskHandlerArtifact".
+ */
+export interface TaskHandlerArtifact {
+  bundle_name: BundleName4;
+  relative_fileloc: RelativeFileloc;
+  size_bytes: SizeBytes;
+  cache_digest: CacheDigest;
+  task_handlers: TaskHandlers;
+}
+export interface TaskHandlers {
+  [k: string]: TaskHandlerDeclaration[];
+}
+/**
+ * A task handler that a Lang-SDK artifact registers for one task.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TaskHandlerDeclaration".
+ */
+export interface TaskHandlerDeclaration {
+  task_id: TaskId2;
+  binding: Binding;
+  params: TaskHandlerParams;
+}
+/**
+ * One parameter of a task handler.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TaskHandlerParam".
+ */
+export interface TaskHandlerParam {
+  name: Name10;
+  value_schema?: ArgValueSchema | null;
+  exact_name?: ExactName;
+}
+/**
  * Result of DAG File Parsing.
  *
  * This is the result of a successful DAG parse, in this class, we gather all serialized DAGs,
@@ -1170,9 +1214,9 @@ export interface DagSourceCode {
 export interface DagResult {
   dag_id: DagId4;
   is_paused: IsPaused;
-  bundle_name: BundleName4;
+  bundle_name: BundleName5;
   bundle_version: BundleVersion3;
-  relative_fileloc: RelativeFileloc;
+  relative_fileloc: RelativeFileloc1;
   owners: Owners;
   tags: Tags;
   next_dagrun: NextDagrun;
@@ -1233,7 +1277,7 @@ export interface DeferTask {
  * via the `definition` "DeleteAssetStateStoreByName".
  */
 export interface DeleteAssetStateStoreByName {
-  name: Name10;
+  name: Name11;
   key: Key1;
   type?: Type21;
 }
@@ -1271,7 +1315,7 @@ export interface DeleteXCom {
   key: Key5;
   dag_id: DagId6;
   run_id: RunId5;
-  task_id: TaskId2;
+  task_id: TaskId3;
   map_index?: MapIndex1;
   type?: Type25;
 }
@@ -1289,7 +1333,7 @@ export interface ErrorResponse {
  * via the `definition` "GetAssetByName".
  */
 export interface GetAssetByName {
-  name: Name11;
+  name: Name12;
   type?: Type27;
 }
 /**
@@ -1305,7 +1349,7 @@ export interface GetAssetByUri {
  * via the `definition` "GetAssetEventByAsset".
  */
 export interface GetAssetEventByAsset {
-  name: Name12;
+  name: Name13;
   uri: Uri7;
   after?: After;
   before?: Before;
@@ -1336,7 +1380,7 @@ export interface GetAssetEventByAssetAlias {
  * via the `definition` "GetAssetStateStoreByName".
  */
 export interface GetAssetStateStoreByName {
-  name: Name13;
+  name: Name14;
   key: Key6;
   type?: Type31;
 }
@@ -1438,7 +1482,7 @@ export interface GetPreviousDagRun {
  */
 export interface GetPreviousTI {
   dag_id: DagId12;
-  task_id: TaskId3;
+  task_id: TaskId4;
   logical_date?: LogicalDate4;
   map_index?: MapIndex2;
   state?: TaskInstanceState | null;
@@ -1524,7 +1568,7 @@ export interface GetXCom {
   key: Key10;
   dag_id: DagId16;
   run_id: RunId9;
-  task_id: TaskId4;
+  task_id: TaskId5;
   map_index?: MapIndex5;
   include_prior_dates?: IncludePriorDates;
   type?: Type50;
@@ -1539,7 +1583,7 @@ export interface GetXComCount {
   key: Key11;
   dag_id: DagId17;
   run_id: RunId10;
-  task_id: TaskId5;
+  task_id: TaskId6;
   type?: Type51;
 }
 /**
@@ -1550,7 +1594,7 @@ export interface GetXComSequenceItem {
   key: Key12;
   dag_id: DagId18;
   run_id: RunId11;
-  task_id: TaskId6;
+  task_id: TaskId7;
   offset: Offset1;
   type?: Type52;
 }
@@ -1562,7 +1606,7 @@ export interface GetXComSequenceSlice {
   key: Key13;
   dag_id: DagId19;
   run_id: RunId12;
-  task_id: TaskId7;
+  task_id: TaskId8;
   start: Start;
   stop: Stop;
   step: Step;
@@ -1604,7 +1648,7 @@ export interface InactiveAssetsResult {
  */
 export interface MaskSecret {
   value: JsonValue;
-  name?: Name14;
+  name?: Name15;
   type?: Type56;
 }
 /**
@@ -1643,7 +1687,7 @@ export interface PreviousDagRunResult {
  * via the `definition` "PreviousTIResponse".
  */
 export interface PreviousTIResponse {
-  task_id: TaskId8;
+  task_id: TaskId9;
   dag_id: DagId20;
   run_id: RunId13;
   logical_date?: LogicalDate5;
@@ -1720,7 +1764,7 @@ export interface SentFDs {
  * via the `definition` "SetAssetStateStoreByName".
  */
 export interface SetAssetStateStoreByName {
-  name: Name15;
+  name: Name16;
   key: Key15;
   value: JsonValue;
   type?: Type66;
@@ -1778,7 +1822,7 @@ export interface SetXCom {
   value: JsonValue;
   dag_id: DagId21;
   run_id: RunId14;
-  task_id: TaskId9;
+  task_id: TaskId10;
   map_index?: MapIndex7;
   dag_result?: DagResult1;
   mapped_length?: MappedLength;
@@ -1840,28 +1884,6 @@ export interface TaskBreadcrumbsResult {
   type?: Type76;
 }
 /**
- * A task handler that a Lang-SDK artifact registers for one task.
- *
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "TaskHandlerDeclaration".
- */
-export interface TaskHandlerDeclaration {
-  task_id: TaskId10;
-  binding: Binding;
-  params: TaskHandlerParams;
-}
-/**
- * One parameter of a task handler.
- *
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "TaskHandlerParam".
- */
-export interface TaskHandlerParam {
-  name: Name16;
-  value_schema?: ArgValueSchema | null;
-  exact_name?: ExactName;
-}
-/**
  * Request for Task Handler Parsing.
  *
  * Asks a Lang-SDK runtime for every task handler an artifact registers.
@@ -1872,7 +1894,7 @@ export interface TaskHandlerParam {
 export interface TaskHandlerParseRequest {
   file: File1;
   bundle_path: BundlePath1;
-  bundle_name: BundleName5;
+  bundle_name: BundleName6;
   type?: Type77;
 }
 /**
@@ -1887,12 +1909,12 @@ export interface TaskHandlerParseRequest {
  */
 export interface TaskHandlerParsingResult {
   fileloc: Fileloc1;
-  task_handlers: TaskHandlers;
+  task_handlers: TaskHandlers1;
   import_errors?: ImportErrors1;
   warnings?: Warnings1;
   type?: Type78;
 }
-export interface TaskHandlers {
+export interface TaskHandlers1 {
   [k: string]: TaskHandlerDeclaration[];
 }
 /**

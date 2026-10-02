@@ -376,6 +376,56 @@ class TestCoordinatorManager:
         }
         assert manager._created_coordinators == {}
 
+    def test_get_task_handler_bundle_names_does_not_instantiate_coordinator(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "named": {
+                        "classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator",
+                        "kwargs": {"task_handler_bundle_name": "java-task-handlers"},
+                    },
+                    "own-bundle": {"classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator"},
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-named": "named", "queue-own-bundle": "own-bundle"}),
+        )
+        bundles = [
+            {
+                "name": "java-task-handlers",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {},
+            }
+        ]
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundles)}):
+            manager = CoordinatorManager.from_config()
+
+        assert manager.get_task_handler_bundle_names() == {
+            "named": "java-task-handlers",
+            "own-bundle": None,
+        }
+        assert manager._created_coordinators == {}
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [{"task_handler_bundle_name": "ghost"}, {"task_handler_bundle_name": ["ghost"]}, {}],
+        ids=["unconfigured", "not-a-string", "own-bundle"],
+    )
+    def test_get_task_handler_bundle_names_leaves_out_unrouted_coordinator(self, sdk_config, kwargs):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "routed": {"classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator"},
+                    "unrouted": {
+                        "classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator",
+                        "kwargs": kwargs,
+                    },
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-routed": "routed"}),
+        )
+
+        assert CoordinatorManager.from_config().get_task_handler_bundle_names() == {"routed": None}
+
 
 class TestConfigYamlCoordinatorsExample:
     """Guard the ``[sdk] coordinators`` example in ``config.yml`` against drift.

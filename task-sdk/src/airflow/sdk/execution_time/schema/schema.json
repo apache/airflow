@@ -958,6 +958,13 @@
           "title": "Callback Requests",
           "type": "array"
         },
+        "known_artifacts": {
+          "items": {
+            "$ref": "#/$defs/TaskHandlerArtifact"
+          },
+          "title": "Known Artifacts",
+          "type": "array"
+        },
         "type": {
           "const": "DagFileParseRequest",
           "default": "DagFileParseRequest",
@@ -4154,6 +4161,55 @@
         "ti"
       ],
       "title": "TaskCallbackRequest",
+      "type": "object"
+    },
+    "TaskHandlerArtifact": {
+      "description": "A Lang-SDK artifact and every task handler it registers.",
+      "properties": {
+        "bundle_name": {
+          "title": "Bundle Name",
+          "type": "string"
+        },
+        "relative_fileloc": {
+          "maxLength": 2000,
+          "title": "Relative Fileloc",
+          "type": "string"
+        },
+        "size_bytes": {
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "cache_digest": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cache Digest"
+        },
+        "task_handlers": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/TaskHandlerDeclaration"
+            },
+            "type": "array"
+          },
+          "title": "Task Handlers",
+          "type": "object"
+        }
+      },
+      "required": [
+        "bundle_name",
+        "relative_fileloc",
+        "size_bytes",
+        "cache_digest",
+        "task_handlers"
+      ],
+      "title": "TaskHandlerArtifact",
       "type": "object"
     },
     "TaskHandlerDeclaration": {

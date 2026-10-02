@@ -58,6 +58,7 @@ from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    TaskHandlerArtifact,
     TaskHandlerDeclaration,
     TaskHandlerParam,
     TaskHandlerParseRequest,
@@ -619,6 +620,82 @@ def test_parse_file_entrypoint_parses_dag_callbacks(mocker):
             bundle_version=None,
         )
     ]
+
+
+def _make_known_artifact_body(**overrides) -> dict:
+    return {
+        "bundle_name": "java-task-handlers",
+        "relative_fileloc": "etl.jar",
+        "size_bytes": 1024,
+        "cache_digest": "ab12",
+        "task_handlers": {
+            "etl": [{"task_id": "extract", "binding": "positional", "params": [{"name": None}]}]
+        },
+        **overrides,
+    }
+
+
+def test_parse_file_entrypoint_decodes_known_artifacts():
+    r, w = socketpair()
+    frame = comms._ResponseFrame(
+        id=0,
+        body={
+            "file": "/files/dags/etl.py",
+            "bundle_path": "/files/dags",
+            "bundle_name": "testing",
+            "known_artifacts": [
+                _make_known_artifact_body(),
+                _make_known_artifact_body(relative_fileloc="empty.jar", cache_digest=None, task_handlers={}),
+            ],
+            "type": "DagFileParseRequest",
+        },
+    )
+    w.sendall(frame.as_bytes())
+
+    # The same decoder _parse_file_entrypoint builds.
+    decoder = comms.CommsDecoder[ToDagProcessor, ToManager](
+        socket=r,
+        body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
+    )
+
+    msg = decoder._get_response()
+    assert isinstance(msg, DagFileParseRequest)
+    assert msg.known_artifacts == [
+        TaskHandlerArtifact(
+            bundle_name="java-task-handlers",
+            relative_fileloc="etl.jar",
+            size_bytes=1024,
+            cache_digest="ab12",
+            task_handlers={
+                "etl": [
+                    TaskHandlerDeclaration(
+                        task_id="extract",
+                        binding="positional",
+                        params=[TaskHandlerParam(name=None)],
+                    )
+                ]
+            },
+        ),
+        TaskHandlerArtifact(
+            bundle_name="java-task-handlers",
+            relative_fileloc="empty.jar",
+            size_bytes=1024,
+            cache_digest=None,
+            task_handlers={},
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        pytest.param("cache_digest", "a" * 129, id="cache-digest"),
+        pytest.param("relative_fileloc", "a" * 2001, id="rel-path"),
+    ],
+)
+def test_known_artifact_rejects_values_wider_than_their_column(field, value):
+    with pytest.raises(ValidationError, match=field):
+        TaskHandlerArtifact.model_validate(_make_known_artifact_body(**{field: value}))
 
 
 def test_parse_file_with_dag_callbacks(spy_agency):
