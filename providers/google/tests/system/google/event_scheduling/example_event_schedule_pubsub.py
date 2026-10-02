@@ -74,6 +74,7 @@ trigger = MessageQueueTrigger(
     max_messages=1,
     gcp_conn_id="google_cloud_default",
     poke_interval=60.0,
+    return_immediately=False,
 )
 
 # Define an asset that watches for messages on the Pub/Sub subscription

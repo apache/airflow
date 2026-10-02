@@ -21,9 +21,11 @@ from __future__ import annotations
 import json
 import pathlib
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from task_sdk.coordinators.node._bundle_test_utils import (
+    BUNDLE_NAME,
     mutate_byte,
     read_layout,
     write_bundle,
@@ -78,9 +80,37 @@ class TestNodeCoordinatorAttributes:
         ]
         assert coordinator.task_startup_timeout == 30.0
 
-    def test_bundles_root_is_required(self):
-        with pytest.raises(ValueError, match="Length of 'bundles_root' must be >= 1"):
-            NodeCoordinator(bundles_root=None)
+    def test_bundles_root_optional_defaults_to_empty(self):
+        coordinator = NodeCoordinator()
+        assert coordinator.bundles_root == []
+        assert coordinator.dag_bundle_name is None
+
+    @pytest.mark.parametrize(
+        "bundles_root",
+        [None, [], "", "  ", [""]],
+        ids=["none", "empty-list", "empty-str", "blank-str", "list-of-empty-str"],
+    )
+    def test_explicit_empty_bundles_root_raises(self, bundles_root):
+        with pytest.raises(ValueError, match="and each path must be non-empty"):
+            NodeCoordinator(bundles_root=bundles_root)
+
+    def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
+        with pytest.raises(ValueError, match="at most one of 'bundles_root' or 'dag_bundle_name'"):
+            NodeCoordinator(bundles_root="/airflow/ts-bundles", dag_bundle_name="artifacts")
+
+    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
+    def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
+        mock_manager.is_bundle_configured.return_value = False
+        with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
+            NodeCoordinator(dag_bundle_name="ghost")
+
+    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
+        bundle = write_bundle(tmp_path, "test_dag")
+        coordinator = NodeCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
+        assert command == ["node", str(bundle)]
+        assert schema_version == SCHEMA_VERSION
 
 
 class TestNodeCoordinatorExecuteTaskCommand:
@@ -91,31 +121,54 @@ class TestNodeCoordinatorExecuteTaskCommand:
             bundles_root=tmp_path,
         )
 
-        command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
 
         assert command == ["/opt/node/bin/node", str(selected)]
         assert schema_version == SCHEMA_VERSION
 
+    def test_build_execute_task_command_returns_node_bundle_and_schema_version(self, tmp_path):
+        bundle = write_bundle(tmp_path, "test_dag")
+        coordinator = NodeCoordinator(
+            node_executable="/opt/node/bin/node",
+            bundles_root=tmp_path,
+        )
+
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
+
+        assert command == ["/opt/node/bin/node", str(bundle)]
+        assert schema_version == SCHEMA_VERSION
+
 
 class TestBundleFind:
-    def test_ignores_roots_without_bundle_mjs(self, tmp_path):
-        (tmp_path / "tasks.mjs").write_bytes(b"export {};\n")
+    @pytest.mark.parametrize(
+        "name",
+        ["tasks.mjs", "tasks.js", "tasks.min.js", "bundle.min.mjs.bak", "min.mjs.txt"],
+        ids=["mjs", "js", "min-js", "suffixed", "embedded"],
+    )
+    def test_ignores_files_without_the_bundle_suffix(self, tmp_path, name):
+        # Written as a real bundle, so only the name can exclude it.
+        write_bundle(tmp_path, "sales", name=name)
 
-        with pytest.raises(FileNotFoundError, match="dag_id='sales'"):
+        with pytest.raises(FileNotFoundError, match="dag_id='sales'") as exc_info:
             _Bundle.find([tmp_path], "sales")
+
+        # Never opened, so it cannot appear among the rejected candidates.
+        assert "rejected candidates" not in str(exc_info.value)
 
     def test_reports_unreadable_bundle(self, tmp_path, monkeypatch):
         write_bundle(tmp_path, "sales")
         original_open = pathlib.Path.open
 
         def raise_os_error(self, *args, **kwargs):
-            if self.name == "bundle.mjs":
+            if self.name == BUNDLE_NAME:
                 raise PermissionError("denied")
             return original_open(self, *args, **kwargs)
 
         monkeypatch.setattr(pathlib.Path, "open", raise_os_error)
 
-        with pytest.raises(FileNotFoundError, match="cannot read bundle.mjs"):
+        with pytest.raises(FileNotFoundError, match="cannot read bundle.min.mjs"):
             _Bundle.find([tmp_path], "sales")
 
     def test_skips_root_when_bundle_probe_fails(self, tmp_path, monkeypatch):
@@ -123,20 +176,68 @@ class TestBundleFind:
         second = tmp_path / "second"
         first.mkdir()
         second.mkdir()
-        write_bundle(first, "sales")
+        unstattable = write_bundle(first, "sales")
         expected = write_bundle(second, "sales")
-        original_is_file = pathlib.Path.is_file
+        original_stat = pathlib.Path.stat
 
-        def fail_first_probe(self):
-            if self.parent == first:
+        def fail_first_probe(self, *args, **kwargs):
+            if self == unstattable:
                 raise PermissionError("denied")
-            return original_is_file(self)
+            return original_stat(self, *args, **kwargs)
 
-        monkeypatch.setattr(pathlib.Path, "is_file", fail_first_probe)
+        monkeypatch.setattr(pathlib.Path, "stat", fail_first_probe)
 
         found = _Bundle.find([first, second], "sales")
 
         assert found.path == expected
+
+    def test_finds_bundle_nested_below_a_root(self, tmp_path):
+        expected = write_bundle(tmp_path / "team" / "sales", "sales")
+
+        found = _Bundle.find([tmp_path], "sales")
+
+        assert found.path == expected
+
+    def test_selects_bundle_by_dag_id_within_one_root(self, tmp_path):
+        write_bundle(tmp_path, "inventory", name="inventory.min.mjs")
+        expected = write_bundle(tmp_path, "sales", name="sales.min.mjs")
+
+        found = _Bundle.find([tmp_path], "sales")
+
+        assert found.path == expected
+
+    def test_orders_candidates_in_one_root_by_path(self, tmp_path):
+        # Directory iteration order is filesystem-dependent, so sorted name decides the winner.
+        expected = write_bundle(tmp_path, "sales", name="a.min.mjs")
+        write_bundle(tmp_path, "sales", name="b.min.mjs")
+        write_bundle(tmp_path / "nested", "sales")
+
+        found = _Bundle.find([tmp_path], "sales")
+
+        assert found.path == expected
+
+    def test_survives_a_directory_symlink_loop(self, tmp_path):
+        expected = write_bundle(tmp_path, "sales")
+        loop = tmp_path / "loop"
+        try:
+            loop.symlink_to(tmp_path, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("filesystem does not support directory symlinks")
+
+        found = _Bundle.find([tmp_path], "sales")
+
+        assert found.path == expected
+
+    def test_names_unrelated_min_mjs_file_among_rejected_candidates(self, tmp_path):
+        stray = tmp_path / "vendor.min.mjs"
+        stray.write_bytes(b"export {};\n")
+
+        with pytest.raises(FileNotFoundError) as exc_info:
+            _Bundle.find([tmp_path], "sales")
+
+        message = str(exc_info.value)
+        assert str(stray) in message
+        assert "no airflow bundle layout" in message
 
     def test_selects_later_bundle_containing_requested_dag(self, tmp_path):
         first = tmp_path / "first"
@@ -236,7 +337,7 @@ class TestBundleFind:
         second = tmp_path / "second"
         first.mkdir()
         second.mkdir()
-        (first / "bundle.mjs").write_bytes(b"export {};\n")
+        (first / BUNDLE_NAME).write_bytes(b"export {};\n")
         write_bundle(second, "inventory")
 
         with pytest.raises(FileNotFoundError) as exc_info:

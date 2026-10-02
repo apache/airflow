@@ -32,7 +32,8 @@ Before you start
 ------------------
 
 This guide assumes a working :doc:`apache-airflow:installation/index`
-(Airflow 3.0+) already exists. Its job stops at wiring Airflow to a server
+(Airflow 2.11+; on Airflow 2 see :ref:`howto/installation` for
+what differs) already exists. Its job stops at wiring Airflow to a server
 that's already running -- it doesn't cover installing or operating the
 model-serving stack itself.
 
@@ -294,8 +295,7 @@ Model identifier format
 
 The ``extra`` JSON's ``model`` value keeps the ``provider:model`` format the
 hook always expects, but which ``provider`` prefix to use depends on the
-endpoint (verified against ``pydantic-ai-slim`` 2.23.0, the minimum this
-provider requires, and 2.31.1):
+endpoint:
 
 - **vLLM** has no dedicated provider class in pydantic-ai -- ``openai:<model>``
   is the only option. pydantic-ai's ``openai`` provider class talks to

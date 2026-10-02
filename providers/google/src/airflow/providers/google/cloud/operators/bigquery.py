@@ -278,6 +278,7 @@ class BigQueryCheckOperator(
         "impersonation_chain",
         "labels",
         "query_params",
+        "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
@@ -434,6 +435,7 @@ class BigQueryValueCheckOperator(
         "pass_value",
         "impersonation_chain",
         "labels",
+        "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
@@ -602,6 +604,7 @@ class BigQueryIntervalCheckOperator(
         "sql2",
         "impersonation_chain",
         "labels",
+        "conn_id",
     )
     ui_color = BigQueryUIColors.CHECK.value
     conn_id_field = "gcp_conn_id"
@@ -1331,6 +1334,7 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         "gcs_schema_object",
         "gcp_conn_id",
         "impersonation_chain",
+        "google_cloud_storage_conn_id",
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value

@@ -57,10 +57,9 @@ PYDANTIC_MODEL_QUALNAME = "pydantic.main.BaseModel"
 
 DEFAULT_VERSION = 0
 
-# Signals that this Airflow registers operator-declared deserialization classes
-# from a worker-side walk over the loaded DAG (see the task runner), so operators
-# do not need to register them as an ``__init__`` side effect. Providers probe
-# this to drop their back-compat ``__init__`` registration on new enough cores.
+# Signals that ``apache-airflow-task-sdk`` registers operator-declared deserialization
+# classes during a worker-side walk over the loaded DAG (see the task runner). Providers
+# probe this to drop their back-compat ``__init__`` registration when the SDK supports the walk.
 SUPPORTS_OPERATOR_DESERIALIZATION_WALKER = True
 
 T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)

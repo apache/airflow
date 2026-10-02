@@ -20,6 +20,8 @@ services:
     container_name: drill
     image: "apache/drill:1.21.1-openjdk-17"
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for drill operator and hook."
     volumes:
       - drill-db-volume:/data
@@ -35,3 +37,6 @@ services:
       - INTEGRATION_DRILL=true
 volumes:
   drill-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

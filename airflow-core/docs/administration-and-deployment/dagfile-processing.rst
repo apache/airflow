@@ -24,7 +24,7 @@ Dag File Processing refers to the process of reading the python files that defin
 There are two primary components involved in Dag file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
 to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more Dag objects.
 
-The ``DagFileProcessorManager`` coordinates this work but never runs user code itself; it runs as a standalone process by running the ``airflow dag-processor`` CLI command.
+The ``DagFileProcessorManager`` coordinates this work but never runs user code itself; it is started as a standalone process via the ``airflow dag-processor`` CLI command.
 
 .. image:: /img/dag_file_processing_diagram.png
 
@@ -51,7 +51,7 @@ Fine-tuning your Dag processor performance
 What impacts Dag processor's performance
 """"""""""""""""""""""""""""""""""""""""
 
-The Dag processor is responsible for continuously parsing Dag files and synchronizing with the Dag in the database
+The Dag processor is responsible for continuously parsing Dag files and synchronizing with the Dag in the database.
 In order to fine-tune your Dag processor, you need to include a number of factors:
 
 * The kind of deployment you have
@@ -103,8 +103,8 @@ to observe and monitor your systems):
 * based on your expectations and observations - decide what is your next improvement and go back to
   the observation of your performance, bottlenecks. Performance improvement is an iterative process.
 
-What resources might limit Dag processors's performance
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+What resources might limit Dag processor's performance
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 There are several areas of resource usage that you should pay attention to:
 
@@ -134,7 +134,7 @@ There are several areas of resource usage that you should pay attention to:
   `PGBouncer <https://www.pgbouncer.org/>`_ as a proxy to your database. The :doc:`helm-chart:index`
   supports PGBouncer out-of-the-box.
 * CPU usage is most important for FileProcessors - those are the processes that parse and execute
-  Python Dag files. Since Dag processors typically triggers such parsing continuously, when you have a lot of Dags,
+  Python Dag files. Since Dag processors typically trigger such parsing continuously, when you have a lot of Dags,
   the processing might take a lot of CPU. You can mitigate it by increasing the
   :ref:`config:dag_processor__min_file_process_interval`, but this is one of the mentioned trade-offs,
   result of this is that changes to such files will be picked up slower and you will see delays between

@@ -126,12 +126,17 @@ export type AssetExpressionAsset = {
  * persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
  * optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
  * degrades gracefully instead of failing response validation.
+ *
+ * A leaf the caller is not authorized to read is served with ``hidden`` set and ``uri``, ``name``
+ * and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``), so the shape of the
+ * schedule stays visible without revealing which asset it waits on.
  */
 export type AssetExpressionAssetInfo = {
-    uri: string;
-    name: string;
+    uri: string | null;
+    name: string | null;
     group: string;
     id?: number | null;
+    hidden?: boolean;
 };
 
 /**
@@ -303,7 +308,7 @@ export type BackfillResponse = {
  * Base info serializer for responses.
  */
 export type BaseInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
 };
 
 /**
@@ -336,6 +341,10 @@ export type BulkActionResponse = {
     }>;
 };
 
+export type BulkBody_BulkDAGBody_ = {
+    actions: Array<(BulkCreateAction_BulkDAGBody_ | BulkUpdateAction_BulkDAGBody_ | BulkDeleteAction_BulkDAGBody_)>;
+};
+
 export type BulkBody_BulkDAGRunBody_ = {
     actions: Array<(BulkCreateAction_BulkDAGRunBody_ | BulkUpdateAction_BulkDAGRunBody_ | BulkDeleteAction_BulkDAGRunBody_)>;
 };
@@ -354,6 +363,18 @@ export type BulkBody_PoolBody_ = {
 
 export type BulkBody_VariableBody_ = {
     actions: Array<(BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_)>;
+};
+
+export type BulkCreateAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "create";
+    /**
+     * A list of entities to be created.
+     */
+    entities: Array<BulkDAGBody>;
+    action_on_existence?: BulkActionOnExistence;
 };
 
 export type BulkCreateAction_BulkDAGRunBody_ = {
@@ -417,6 +438,15 @@ export type BulkCreateAction_VariableBody_ = {
 };
 
 /**
+ * Request body for bulk update of Dags.
+ */
+export type BulkDAGBody = {
+    is_paused?: boolean | null;
+    scheduling_state?: DagSchedulingState | null;
+    dag_id: string;
+};
+
+/**
  * Request body for bulk operations on Dag Runs.
  */
 export type BulkDAGRunBody = {
@@ -454,6 +484,18 @@ export type BulkDAGRunClearBody = {
     run_on_latest_version?: boolean | null;
     note?: string | null;
     dag_runs?: Array<BulkDAGRunBody>;
+};
+
+export type BulkDeleteAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete";
+    /**
+     * A list of entity id/key or entity objects to be deleted.
+     */
+    entities: Array<(string | BulkDAGBody)>;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkDeleteAction_BulkDAGRunBody_ = {
@@ -552,6 +594,22 @@ export type BulkTaskInstanceBody = {
     map_index?: number | null;
     dag_id?: string | null;
     dag_run_id?: string | null;
+};
+
+export type BulkUpdateAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "update";
+    /**
+     * A list of entities to be updated.
+     */
+    entities: Array<BulkDAGBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkUpdateAction_BulkDAGRunBody_ = {
@@ -698,6 +756,10 @@ export type ClearTaskInstancesBody = {
     string,
     number
 ])> | null;
+    /**
+     * Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are.
+     */
+    task_group_id?: string | null;
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -708,6 +770,10 @@ export type ClearTaskInstancesBody = {
      */
     run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
 };
 
@@ -1101,6 +1167,7 @@ export type DAGSourceResponse = {
     dag_id: string;
     version_number: number | null;
     dag_display_name: string;
+    language?: string | null;
 };
 
 /**
@@ -1132,19 +1199,124 @@ export type DAGWarningCollectionResponse = {
  */
 export type DAGWarningResponse = {
     dag_id: string;
-    warning_type: DagWarningType;
+    warning_type: DagWarningType | string;
     message: string;
     timestamp: string;
     dag_display_name: string;
 };
 
 /**
+ * Dag bundle collection response.
+ */
+export type DagBundleCollectionResponse = {
+    dag_bundles: Array<DagBundleResponse>;
+    total_entries: number;
+};
+
+/**
+ * Dag bundle serializer for the single-bundle response.
+ */
+export type DagBundleDetailResponse = {
+    name: string;
+    /**
+     * Whether the bundle is still present in this deployment's configuration.
+     */
+    active: boolean | null;
+    /**
+     * The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.
+     */
+    version: string | null;
+    /**
+     * When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.
+     */
+    last_refreshed: string | null;
+    /**
+     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     */
+    bundle_url: string | null;
+    /**
+     * The team owning the bundle, in a multi-team deployment.
+     */
+    team_name: string | null;
+    /**
+     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     */
+    import_error_count: number | null;
+    /**
+     * Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.
+     */
+    dag_count: number;
+};
+
+/**
+ * Dag bundle file collection response.
+ */
+export type DagBundleFileCollectionResponse = {
+    dag_bundle_files: Array<DagBundleFileResponse>;
+    total_entries: number;
+};
+
+/**
+ * A file in a Dag bundle, as the Dag processor last saw it.
+ */
+export type DagBundleFileResponse = {
+    relative_fileloc: string;
+    /**
+     * Number of live Dags the file defines that the caller may read.
+     */
+    dag_count: number;
+    /**
+     * When the file was last parsed, or null if it has never parsed successfully.
+     */
+    last_parsed_time: string | null;
+    /**
+     * How long the last successful parse of the file took, in seconds.
+     */
+    last_parse_duration: number | null;
+    /**
+     * Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.
+     */
+    import_error_count: number | null;
+};
+
+/**
+ * Dag bundle serializer for responses.
+ */
+export type DagBundleResponse = {
+    name: string;
+    /**
+     * Whether the bundle is still present in this deployment's configuration.
+     */
+    active: boolean | null;
+    /**
+     * The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.
+     */
+    version: string | null;
+    /**
+     * When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.
+     */
+    last_refreshed: string | null;
+    /**
+     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     */
+    bundle_url: string | null;
+    /**
+     * The team owning the bundle, in a multi-team deployment.
+     */
+    team_name: string | null;
+    /**
+     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     */
+    import_error_count: number | null;
+};
+
+/**
  * DagProcessor info serializer for responses.
  */
 export type DagProcessorInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_dag_processor_heartbeat: string | null;
-    detailed_status: string | null;
+    detailed_status: DetailedHealthStatus | null;
     instances?: Array<DagProcessorInstanceInfoResponse> | null;
 };
 
@@ -1152,7 +1324,6 @@ export type DagProcessorInfoResponse = {
  * Dag processor instance info serializer for responses.
  */
 export type DagProcessorInstanceInfoResponse = {
-    status: string | null;
     hostname: string | null;
     latest_dag_processor_heartbeat: string | null;
     bundle_names: Array<(string)> | null;
@@ -1271,6 +1442,11 @@ export type DagVersionResponse = {
  * in the DagWarning model.
  */
 export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
+
+/**
+ * How much of a component's work has a live instance covering it.
+ */
+export type DetailedHealthStatus = 'healthy' | 'degraded' | 'down';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1472,6 +1648,11 @@ export type HealthInfoResponse = {
 };
 
 /**
+ * Aggregate health of a component: whether it has at least one live instance.
+ */
+export type HealthStatus = 'healthy' | 'unhealthy';
+
+/**
  * Import Error Collection Response.
  */
 export type ImportErrorCollectionResponse = {
@@ -1486,8 +1667,13 @@ export type ImportErrorResponse = {
     import_error_id: number;
     timestamp: string;
     filename: string;
+    source_reference: string | null;
     bundle_name: string | null;
     stack_trace: string;
+    /**
+     * Return a signed token identifying the file, used to request its reparse.
+     */
+    readonly file_token: string;
 };
 
 /**
@@ -1512,7 +1698,7 @@ export type JobResponse = {
     executor_class: string | null;
     hostname: string | null;
     unixname: string | null;
-    team_name?: string | null;
+    team_names?: Array<(string)>;
     bundle_names?: Array<(string)> | null;
     dag_display_name?: string | null;
 };
@@ -1744,9 +1930,9 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
  * Scheduler info serializer for responses.
  */
 export type SchedulerInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_scheduler_heartbeat: string | null;
-    detailed_status: string | null;
+    detailed_status: DetailedHealthStatus | null;
     instances?: Array<SchedulerInstanceInfoResponse> | null;
 };
 
@@ -1754,7 +1940,6 @@ export type SchedulerInfoResponse = {
  * Scheduler instance info serializer for responses.
  */
 export type SchedulerInstanceInfoResponse = {
-    status: string | null;
     hostname: string | null;
     latest_scheduler_heartbeat: string | null;
 };
@@ -1869,6 +2054,10 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    /**
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     */
+    state_reason?: string | null;
 };
 
 /**
@@ -1912,6 +2101,10 @@ export type TaskInstanceResponse = {
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
+    /**
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     */
+    state_reason?: string | null;
 };
 
 /**
@@ -2101,9 +2294,9 @@ export type TriggerResponse = {
  * Triggerer info serializer for responses.
  */
 export type TriggererInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_triggerer_heartbeat: string | null;
-    detailed_status: string | null;
+    detailed_status: DetailedHealthStatus | null;
     instances?: Array<TriggererInstanceInfoResponse> | null;
 };
 
@@ -2111,10 +2304,9 @@ export type TriggererInfoResponse = {
  * Triggerer instance info serializer for responses.
  */
 export type TriggererInstanceInfoResponse = {
-    status: string | null;
     hostname: string | null;
     latest_triggerer_heartbeat: string | null;
-    team_name: string | null;
+    team_names: Array<(string)>;
 };
 
 /**
@@ -2325,6 +2517,7 @@ export type CalendarTimeRangeResponse = {
     date: string;
     state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
     count: number;
+    is_backfill?: boolean;
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
@@ -2693,7 +2886,7 @@ export type LightGridTaskInstanceSummary = {
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Dag Bundles' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -3018,7 +3211,7 @@ export type CreateAssetEventResponse = AssetEventResponse;
 
 export type MaterializeAssetData = {
     assetId: number;
-    requestBody?: MaterializeAssetBody | null;
+    requestBody: MaterializeAssetBody;
 };
 
 export type MaterializeAssetResponse = DAGRunResponse;
@@ -3083,6 +3276,10 @@ export type GetAssetsUiData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     groupPrefixPattern?: string | null;
+    /**
+     * Filter assets that have events
+     */
+    hasEvents?: boolean | null;
     lastAssetEventTimestampGt?: string | null;
     lastAssetEventTimestampGte?: string | null;
     lastAssetEventTimestampLt?: string | null;
@@ -3394,6 +3591,8 @@ export type GetDagRunsData = {
     startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    tags?: Array<(string)>;
+    tagsMatchMode?: 'any' | 'all' | null;
     teams?: Array<(string)>;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -3484,6 +3683,31 @@ export type GetDagSourceData = {
 
 export type GetDagSourceResponse = DAGSourceResponse;
 
+export type GetDagBundlesData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name, version, last_refreshed, active`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type GetDagBundlesResponse = DagBundleCollectionResponse;
+
+export type GetDagBundleData = {
+    bundleName: string;
+};
+
+export type GetDagBundleResponse = DagBundleDetailResponse;
+
+export type GetDagBundleFilesData = {
+    bundleName: string;
+    limit?: number;
+    offset?: number;
+};
+
+export type GetDagBundleFilesResponse = DagBundleFileCollectionResponse;
+
 export type GetDagStatsData = {
     dagIds?: Array<(string)>;
 };
@@ -3515,7 +3739,7 @@ export type ListDagWarningsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      */
     orderBy?: Array<(string)>;
-    warningType?: DagWarningType | null;
+    warningType?: DagWarningType | string | null;
 };
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
@@ -3630,6 +3854,12 @@ export type GetDagDetailsData = {
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
 
+export type BulkDagsData = {
+    requestBody: BulkBody_BulkDAGBody_;
+};
+
+export type BulkDagsResponse = BulkResponse;
+
 export type FavoriteDagData = {
     dagId: string;
 };
@@ -3690,6 +3920,10 @@ export type GetDagsUiData = {
      * Filter Dags that have any DagRun in the given state.
      */
     dagRunState?: DagRunState | null;
+    /**
+     * Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
+     */
+    dagRunStateWithinHours?: number | null;
     excludeStale?: boolean;
     /**
      * Filter Dags with asset-based scheduling
@@ -4281,6 +4515,7 @@ export type GetHitlDetailsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
 };
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
@@ -4311,7 +4546,7 @@ export type GetImportErrorsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
      */
     orderBy?: Array<(string)>;
 };
@@ -4339,6 +4574,7 @@ export type GetJobsData = {
     startDateGte?: string | null;
     startDateLt?: string | null;
     startDateLte?: string | null;
+    teams?: Array<(string)>;
 };
 
 export type GetJobsResponse = JobCollectionResponse;
@@ -5301,6 +5537,10 @@ export type $OpenApiTs = {
                  */
                 200: NextRunAssetsResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -5787,6 +6027,10 @@ export type $OpenApiTs = {
                  */
                 200: ConnectionTestResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6227,6 +6471,83 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dagBundles': {
+        get: {
+            req: GetDagBundlesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles/{bundle_name}': {
+        get: {
+            req: GetDagBundleData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles/{bundle_name}/files': {
+        get: {
+            req: GetDagBundleFilesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleFileCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dagStats': {
         get: {
             req: GetDagStatsData;
@@ -6533,6 +6854,29 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/bulk': {
+        patch: {
+            req: BulkDagsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BulkResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dags/{dag_id}/favorite': {
         post: {
             req: FavoriteDagData;
@@ -6553,6 +6897,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7343,6 +7691,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstancesLogResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -8411,6 +8763,10 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
@@ -8642,6 +8998,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: PartitionedDagRunDetailResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8888,6 +9248,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TeamCollectionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

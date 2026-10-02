@@ -33,13 +33,13 @@ from airflow.providers.common.ai.utils.validation import (
     validate_prompt,
 )
 from airflow.providers.common.compat.sdk import (
+    SET_DURING_EXECUTION,
     DecoratedOperator,
     TaskDecorator,
     context_merge,
     determine_kwargs,
     task_decorator_factory,
 )
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -109,6 +109,11 @@ def llm_schema_compare_task(
 ) -> TaskDecorator:
     """
     Wrap a function that returns a prompt into an LLM schema comparison task.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     The function body constructs the prompt (can use Airflow context, XCom, etc.).
     The decorator handles: schema introspection from multiple data sources,

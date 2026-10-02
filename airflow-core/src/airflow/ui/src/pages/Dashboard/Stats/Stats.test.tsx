@@ -16,11 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren } from "react";
+
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-import { Wrapper } from "src/utils/Wrapper";
+import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Stats } from "./Stats";
 
@@ -28,9 +31,9 @@ vi.mock("openapi/queries", () => ({
   useDashboardServiceDagStats: () => ({
     data: {
       active_dag_count: 1,
-      failed_dag_count: 0,
-      queued_dag_count: 0,
-      running_dag_count: 0,
+      failed_dag_count: 2,
+      queued_dag_count: 3,
+      running_dag_count: 4,
     },
     isLoading: false,
   }),
@@ -49,13 +52,27 @@ vi.mock("src/utils", () => ({ useAutoRefresh: () => false }));
 vi.mock("./DagImportErrors", () => ({ DagImportErrors: () => null }));
 vi.mock("./PluginImportErrors", () => ({ PluginImportErrors: () => null }));
 
-describe("Dashboard stats", () => {
-  it("links the active Dag count to the exact active scheduling state", () => {
-    render(<Stats />, { wrapper: Wrapper });
+// Dashboard renders under the /home route. Mount Stats as that route's element so relative links
+// would resolve against /home (producing /home/dags -> 404) unless the links are absolute.
+const wrapperAtHome = ({ children }: PropsWithChildren) => (
+  <BaseWrapper>
+    <MemoryRouter initialEntries={["/home"]}>
+      <Routes>
+        <Route element={children} path="home" />
+      </Routes>
+    </MemoryRouter>
+  </BaseWrapper>
+);
 
-    expect(screen.getByText("stats.activeDags").closest("a")).toHaveAttribute(
-      "href",
-      "/dags?scheduling_state=active",
-    );
+describe("Dashboard stats", () => {
+  it.each([
+    { href: "/dags?last_dag_run_state=failed", label: "stats.failedDags" },
+    { href: "/dags?dag_run_state=queued", label: "stats.queuedDags" },
+    { href: "/dags?dag_run_state=running", label: "stats.runningDags" },
+    { href: "/dags?scheduling_state=active", label: "stats.activeDags" },
+  ])("links $label to the absolute $href from the /home route", ({ href, label }) => {
+    render(<Stats />, { wrapper: wrapperAtHome });
+
+    expect(screen.getByText(label).closest("a")).toHaveAttribute("href", href);
   });
 });

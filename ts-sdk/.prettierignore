@@ -18,3 +18,6 @@
 dist/
 coverage/
 node_modules/
+
+# Byte-exact bundle artifacts: reformatting one invalidates its embedded digests.
+tests/cli/fixtures/*.min.mjs

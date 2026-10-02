@@ -148,6 +148,33 @@ describe("DateRangeFilter", () => {
     cleanup();
   });
 
+  it("includes the whole end date when its time is empty", async () => {
+    const onChange = vi.fn();
+
+    renderFilter({ ...defaultProps, onChange });
+    const { endDateInput } = getInputs();
+
+    changeDateInput(endDateInput, "2024/01/15");
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenLastCalledWith({
+        endDate: "2024-01-15T23:59:59.999Z",
+        startDate: undefined,
+      });
+    });
+  });
+
+  it("accepts a start time on the end date when the end time is empty", async () => {
+    renderFilter();
+    const { endDateInput, startDateInput, startTimeInput } = getInputs();
+
+    changeDateInput(startDateInput, "2024/01/15");
+    changeTimeInput(startTimeInput, "10:00");
+    changeDateInput(endDateInput, "2024/01/15");
+
+    await waitForNoError("Start date/time must be before end date/time");
+  });
+
   describe("Input Validation", () => {
     it("validates date and time formats", async () => {
       renderFilter();

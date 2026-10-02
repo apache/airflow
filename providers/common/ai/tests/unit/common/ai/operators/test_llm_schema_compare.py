@@ -280,7 +280,9 @@ class TestLLMSchemaCompareOperator:
             instructions="system_prompt",
             param="value",
         )
-        mock_agent.run_sync.assert_called_once_with("user_prompt", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "user_prompt", usage_limits=None, cancellation_token=mock.ANY
+        )
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
 
     @mock.patch(
@@ -395,6 +397,7 @@ class TestLLMSchemaCompareOperator:
         mock_agent.run_sync.assert_called_once_with(
             "Compare S3 Parquet schema against the Postgres table and flag breaking changes",
             usage_limits=None,
+            cancellation_token=mock.ANY,
         )
         assert result["compatible"] is True
         assert result["summary"] == "S3 and Postgres schemas are compatible"
@@ -668,7 +671,7 @@ class TestLLMSchemaCompareOperatorApproval:
     def test_execute_complete_approved_returns_dict(self):
         result = SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS)
-        event = {"chosen_options": ["Approve"], "responded_by_user": "admin"}
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
 
         resumed = op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
@@ -684,7 +687,7 @@ class TestLLMSchemaCompareOperatorApproval:
         op = LLMSchemaCompareOperator(**_BASE_KWARGS, **self._APPROVAL_KWARGS, allow_modifications=True)
         event = {
             "chosen_options": ["Approve"],
-            "responded_by_user": "admin",
+            "responded_by_user": {"id": "u1", "name": "admin"},
             "params_input": {"output": modified},
         }
 

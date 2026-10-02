@@ -16,16 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-# ``AccessView.IMPORT_ERRORS_ALL`` and ``AccessView.AUDIT_LOGS_ALL`` were added in
-# Airflow 3.4.0, and providers are released independently of core. ``None`` signals the
-# view is unavailable on the running core and callers should skip mapping it.
+# ``AccessView.IMPORT_ERRORS_ALL`` and ``AccessView.AUDIT_LOGS_ALL`` were added in Airflow
+# 3.4.0 and ``AccessView.REPARSE_ALL`` after it, and providers are released independently of
+# core. ``None`` signals the view is unavailable on the running core and callers should skip
+# mapping it.
 try:
     from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 
     IMPORT_ERRORS_ALL_ACCESS_VIEW: AccessView | None = getattr(AccessView, "IMPORT_ERRORS_ALL", None)
     AUDIT_LOGS_ALL_ACCESS_VIEW: AccessView | None = getattr(AccessView, "AUDIT_LOGS_ALL", None)
+    REPARSE_ALL_ACCESS_VIEW: AccessView | None = getattr(AccessView, "REPARSE_ALL", None)
 except ImportError:
     IMPORT_ERRORS_ALL_ACCESS_VIEW = None
     AUDIT_LOGS_ALL_ACCESS_VIEW = None
+    REPARSE_ALL_ACCESS_VIEW = None
 
-__all__ = ["AUDIT_LOGS_ALL_ACCESS_VIEW", "IMPORT_ERRORS_ALL_ACCESS_VIEW"]
+__all__ = ["AUDIT_LOGS_ALL_ACCESS_VIEW", "IMPORT_ERRORS_ALL_ACCESS_VIEW", "REPARSE_ALL_ACCESS_VIEW"]

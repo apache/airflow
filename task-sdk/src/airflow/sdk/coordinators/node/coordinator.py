@@ -26,7 +26,12 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, convert_roots
+from airflow.sdk.coordinators._bundle_metadata import (
+    ARTIFACT_ROOTS_NOT_CONFIGURED,
+    ResolvedBundle,
+    convert_configured_roots,
+    walk_files,
+)
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.coordinators.node._bundle_reader import read_bundle
 
@@ -40,7 +45,11 @@ if TYPE_CHECKING:
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node")
 
-BUNDLE_FILENAME = "bundle.mjs"
+BUNDLE_SUFFIX = ".min.mjs"
+
+
+def _is_bundle(path: pathlib.Path) -> bool:
+    return path.name.endswith(BUNDLE_SUFFIX)
 
 
 @attrs.define
@@ -48,18 +57,15 @@ class _Bundle(ResolvedBundle):
     @classmethod
     def find(cls, bundles_root: Sequence[pathlib.Path], dag_id: str) -> Self:
         """Return the first verified configured bundle that declares *dag_id*."""
+        log.debug("Finding TypeScript bundles recursively", roots=bundles_root, dag_id=dag_id)
         rejected: list[tuple[pathlib.Path, str]] = []
-        for root in bundles_root:
-            candidate = root / BUNDLE_FILENAME
+        for candidate in walk_files(bundles_root, match=_is_bundle):
             try:
-                if not candidate.is_file():
-                    continue
                 metadata = read_bundle(candidate)
                 if dag_id not in metadata.dag_ids:
                     log.debug(
                         "TypeScript bundle does not contain requested Dag; skipping",
                         path=candidate,
-                        root=root,
                         dag_id=dag_id,
                     )
                     rejected.append(
@@ -71,13 +77,12 @@ class _Bundle(ResolvedBundle):
                 log.debug(
                     "TypeScript bundle rejected; skipping",
                     path=candidate,
-                    root=root,
                     reason=str(exc),
                     exc_info=True,
                 )
                 rejected.append((candidate, str(exc)))
                 continue
-            log.debug("Selected TypeScript bundle", path=candidate, root=root, dag_id=dag_id)
+            log.debug("Selected TypeScript bundle", path=candidate, dag_id=dag_id)
             return bundle
 
         searched = os.pathsep.join(os.fspath(root) for root in bundles_root)
@@ -110,18 +115,24 @@ class NodeCoordinator(SubprocessCoordinator):
 
     :param node_executable: Path to the ``node`` binary (defaults to
         ``"node"``, which relies on ``$PATH``).
-    :param bundles_root: Ordered list of directories scanned for the first
-        verified ``bundle.mjs`` that declares the task instance's Dag.
+    :param bundles_root: Directories searched recursively, in order, for the first verified
+        ``*.min.mjs`` bundle declaring the task instance's Dag. See :class:`SubprocessCoordinator`
+        for its interaction with ``dag_bundle_name``.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
 
     node_executable: str = "node"
     bundles_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        validator=attrs.validators.min_len(1),
+        default=ARTIFACT_ROOTS_NOT_CONFIGURED,
+        converter=convert_configured_roots,
     )
 
+    @property
+    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
+        return "bundles_root", self.bundles_root
+
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        bundle = _Bundle.find(self.bundles_root, what.dag_id)
+        roots = self._get_scan_roots()
+        bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version

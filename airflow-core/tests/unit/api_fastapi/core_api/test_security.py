@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException, Request
+from itsdangerous import URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -55,6 +56,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_connection,
     requires_access_connection_bulk,
     requires_access_dag,
+    requires_access_dag_from_file_token,
     requires_access_event_log,
     requires_access_pool,
     requires_access_pool_bulk,
@@ -364,6 +366,66 @@ class TestFastApiSecurity:
             details=DagDetails(id=expected_dag_id, team_name=mock_get_team_name.return_value),
             user=user,
         )
+
+    @patch.object(DagBundleModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_dag_from_file_token_no_dag_reparse_scoped_to_files_team(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        # Reparsing a file with no registered Dag is authorized on the dedicated REPARSE_ALL
+        # permission, scoped to the file's own team (from its bundle), so a caller cannot reparse
+        # another team's file.
+        auth_manager = Mock()
+        auth_manager.authorize_view.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team_b"
+
+        secret_key = "secret"
+        request = Mock()
+        request.app.state.secret_key = secret_key
+        token = URLSafeSerializer(secret_key).dumps(
+            {"bundle_name": "team_b_bundle", "relative_fileloc": "dags/broken.py"}
+        )
+        session = Mock()
+        session.scalars.return_value = []  # no registered Dags
+        session.scalar.return_value = 1  # an import error row exists
+        user = Mock()
+
+        requires_access_dag_from_file_token("PUT")(token, request, user, session)
+
+        mock_get_team_name.assert_called_once_with("team_b_bundle", session=session)
+        auth_manager.authorize_view.assert_called_once_with(
+            access_view=AccessView.REPARSE_ALL, user=user, team_name="team_b"
+        )
+
+    @patch.object(DagBundleModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_dag_from_file_token_no_dag_reparse_forbidden(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        # Without REPARSE_ALL on the file's team, reparse of a no-Dag file is denied with a
+        # message that names the no-registered-Dag case.
+        auth_manager = Mock()
+        auth_manager.authorize_view.return_value = False
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+
+        secret_key = "secret"
+        request = Mock()
+        request.app.state.secret_key = secret_key
+        token = URLSafeSerializer(secret_key).dumps(
+            {"bundle_name": "some_bundle", "relative_fileloc": "dags/broken.py"}
+        )
+        session = Mock()
+        session.scalars.return_value = []
+        session.scalar.return_value = 1
+        user = Mock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            requires_access_dag_from_file_token("PUT")(token, request, user, session)
+
+        assert exc_info.value.status_code == 403
+        assert exc_info.value.detail == "You do not have permission to reparse files with no registered Dag"
 
     @pytest.mark.db_test
     @pytest.mark.asyncio

@@ -468,6 +468,8 @@ class TestAssetsOperations:
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}/materialize"
+            # The endpoint requires a request body, so the client must send one.
+            assert json.loads(request.content) == {}
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -680,6 +682,7 @@ class TestBackfillOperations:
 
     def test_pause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/pause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -689,6 +692,7 @@ class TestBackfillOperations:
 
     def test_unpause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/unpause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -698,6 +702,7 @@ class TestBackfillOperations:
 
     def test_cancel(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/cancel"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -1146,8 +1151,10 @@ class TestDagOperations:
         import_error_id=0,
         timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
         filename="filename",
+        source_reference=None,
         bundle_name="bundle_name",
         stack_trace="stack_trace",
+        file_token="file_token",
     )
 
     import_error_collection_response = ImportErrorCollectionResponse(
@@ -1994,7 +2001,7 @@ class TestTasksOperations:
     )
 
     def test_clear(self):
-        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_none=True)
+        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_defaults=True)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
@@ -2007,6 +2014,23 @@ class TestTasksOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.tasks.clear(self.dag_id, self.clear_task_instances)
         assert response == self.task_instance_collection_response
+
+    def test_clear_omits_default_valued_fields(self):
+        """A payload built entirely from field defaults must not send keep_task_state.
+
+        This covers cases like a server with 3.3.2 and earlier doesn't have this field and rejects unknown keys,
+        so sending it unconditionally would break every clear against those servers.
+        """
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content.decode())
+            assert "keep_task_state" not in body
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        client.tasks.clear(self.dag_id, ClearTaskInstancesBody())
 
 
 class TestVariablesOperations:

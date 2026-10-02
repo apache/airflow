@@ -29,6 +29,7 @@ import msgspec
 import pendulum
 import pytest
 import time_machine
+import yaml
 from sqlalchemy import func, select
 
 from airflow import settings
@@ -540,6 +541,44 @@ class TestCliDags:
         )
         dag_command.dag_list_dag_runs(args)
 
+    @pytest.mark.parametrize(
+        ("limit", "expected_count"),
+        [
+            (None, 3),
+            (1, 1),
+            (2, 2),
+            (5, 3),
+        ],
+    )
+    @mock.patch("airflow.cli.commands.dag_command.AirflowConsole")
+    def test_cli_list_dag_runs_limit(self, mock_console, limit, expected_count):
+        """`--limit N` caps output to the N most recent runs; without it, all runs are returned."""
+        for i in range(3):
+            dag_command.dag_trigger(
+                self.parser.parse_args(
+                    ["dags", "trigger", "example_bash_operator", "--run-id", f"cli_limit_test_{i}"]
+                )
+            )
+
+        argv = ["dags", "list-runs", "example_bash_operator"]
+        if limit is not None:
+            argv += ["--limit", str(limit)]
+        args = self.parser.parse_args(argv)
+        dag_command.dag_list_dag_runs(args)
+
+        printed = mock_console.return_value.print_as.call_args.kwargs["data"]
+        assert len(printed) == expected_count
+        # Slicing happens after the run_after DESC sort, so the returned rows must
+        # remain monotonically non-increasing on run_after.
+        run_afters = [dr.run_after for dr in printed]
+        assert run_afters == sorted(run_afters, reverse=True)
+
+    @pytest.mark.parametrize("bad_value", ["0", "-1", "abc"])
+    def test_cli_list_dag_runs_limit_rejects_invalid(self, bad_value):
+        """`--limit` must be a positive int; argparse rejects invalid inputs before the command runs."""
+        with pytest.raises(SystemExit):
+            self.parser.parse_args(["dags", "list-runs", "example_bash_operator", "--limit", bad_value])
+
     def test_cli_list_jobs_with_args(self):
         args = self.parser.parse_args(
             [
@@ -669,6 +708,19 @@ class TestCliDags:
             dag_command.dag_pause(args)
         out = temp_stdout.splitlines()[-1]
         assert out == "No unpaused DAGs were found"
+
+    @pytest.mark.parametrize(("output", "loader"), [("json", json.loads), ("yaml", yaml.safe_load)])
+    @pytest.mark.parametrize(
+        ("command", "subcommand"),
+        [(dag_command.dag_pause, "pause"), (dag_command.dag_unpause, "unpause")],
+    )
+    def test_pause_unpause_non_existing_dag_structured_output(
+        self, command, subcommand, output, loader, stdout_capture
+    ):
+        args = self.parser.parse_args(["dags", subcommand, "non_existing_dag", f"--output={output}"])
+        with stdout_capture as temp_stdout:
+            command(args)
+        assert loader(temp_stdout.getvalue()) == []
 
     def test_trigger_dag(self):
         dag_command.dag_trigger(
@@ -961,9 +1013,10 @@ class TestCliDags:
         )
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
-    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag")
+    @mock.patch("airflow.cli.commands.dag_command.get_bagged_dag", autospec=True)
     def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag, stdout_capture):
         mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
+        mock_get_dag.return_value.dag_id = "example_bash_operator"
 
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat(), "--show-dagrun"]
@@ -987,6 +1040,24 @@ class TestCliDags:
         )
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
+
+    @mock.patch("airflow.cli.commands.dag_command.render_dag", autospec=True)
+    @mock.patch.object(DAG, "test", autospec=True)
+    def test_dag_test_show_dag_from_dag_cli(self, mock_test, mock_render_dag, dag_maker, stdout_capture):
+        """``DAG.cli()`` passes the Dag positionally and its parser drops ``dag_id``."""
+        with dag_maker("dag_cli_show_dagrun", schedule=None) as dag:
+            EmptyOperator(task_id="only_task")
+        mock_test.return_value = dag_maker.create_dagrun(run_id="dag_cli_run")
+
+        parser = cli_parser.get_parser(dag_parser=True)
+        with stdout_capture:
+            dag_command.dag_test(parser.parse_args(["dags", "test", "--show-dagrun"]), dag)
+
+        mock_render_dag.assert_called_once()
+        assert mock_render_dag.call_args.args[0] is dag
+        assert [(ti.dag_id, ti.task_id, ti.run_id) for ti in mock_render_dag.call_args.kwargs["tis"]] == [
+            ("dag_cli_show_dagrun", "only_task", "dag_cli_run")
+        ]
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):

@@ -111,6 +111,10 @@
     "taskGroup": "Task Gruppe",
     "zoomToTask": "Zum ausgewählten Task zoomen"
   },
+  "jsonPreview": {
+    "items_one": "{{count}} Element",
+    "items_other": "{{count}} Elemente"
+  },
   "limitedList": "+{{count}} mehr",
   "limitedList.allItems": "Alle {{count}} Einträge:",
   "limitedList.allTags_one": "Alle Markierungen ({{count}})",
@@ -133,6 +137,7 @@
     "empty": "Keine abgeschlossenen Task Instanzen in diesem Bereich",
     "title": "Langsamste Task Instanzen"
   },
+  "sortMultiColumnHint": "Mit Großschreibtaste Klicken für Sortieren nach mehreren Spalten",
   "sortedAscending": "aufsteigend sortiert",
   "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",

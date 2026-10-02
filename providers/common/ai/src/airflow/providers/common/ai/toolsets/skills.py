@@ -51,6 +51,11 @@ class AgentSkillsToolset(AbstractToolset):
     """
     A pydantic-ai toolset that loads Agent Skills, with Git credentials from Airflow connections.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Sources are local directory paths and/or
     :class:`~airflow.providers.common.ai.skills.GitSkills`.
 

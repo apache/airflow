@@ -110,6 +110,10 @@
     "taskGroup": "任務群組",
     "zoomToTask": "縮放至選定任務"
   },
+  "jsonPreview": {
+    "items_one": "{{count}} 個項目",
+    "items_other": "{{count}} 個項目"
+  },
   "limitedList": "+ 其他 {{count}} 項",
   "limitedList.allItems": "所有 {{count}} 個項目：",
   "limitedList.allTags_one": " 所有標籤 (1)",

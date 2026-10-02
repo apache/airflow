@@ -974,8 +974,17 @@ class PodManager(LoggingMixin):
                 )
             time.sleep(1)
 
-    def extract_xcom(self, pod: V1Pod) -> str:
-        """Retrieve XCom value and kill xcom sidecar container."""
+    def extract_xcom(self, pod: V1Pod, *, ignore_kill_failure: bool = True) -> str:
+        """
+        Retrieve XCom value and kill xcom sidecar container.
+
+        :param pod: the pod to read the XCom result from.
+        :param ignore_kill_failure: when True (the default), a failure to kill the sidecar
+            container is logged as a warning and the successfully read XCom value is still
+            returned. Set it to False when the caller cannot tolerate a sidecar that keeps
+            running, for example ``KubernetesJobOperator``, whose Job can never reach a
+            terminal state while the sidecar is alive.
+        """
         # make sure that xcom sidecar container is still running
         if not self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
             raise XComRetrievalError(
@@ -986,7 +995,16 @@ class PodManager(LoggingMixin):
             result = self.extract_xcom_json(pod)
             return result
         finally:
-            self.extract_xcom_kill(pod)
+            try:
+                self.extract_xcom_kill(pod)
+            except (PodCommandException, ApiException) as e:
+                if not ignore_kill_failure:
+                    raise
+                self.log.warning(
+                    "Failed to kill xcom sidecar container in pod %s, leaving it running: %s",
+                    pod.metadata.name,
+                    e,
+                )
 
     @generic_api_retry
     def extract_xcom_json(self, pod: V1Pod) -> str:

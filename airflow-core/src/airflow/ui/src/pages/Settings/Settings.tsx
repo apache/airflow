@@ -27,12 +27,14 @@ import type { Direction } from "src/components/Graph/DirectionDropdown";
 
 import type { DefaultTaskInstanceTab } from "src/constants/tab";
 import {
+  useClearKeepTaskStateDefault,
   useClearPreventRunningTaskDefault,
   useClearRunDefaultOptions,
   useClearTaskInstanceDefaultOptions,
   useDefaultGraphDirection,
   useDefaultLandingPage,
   useDefaultTaskInstanceTab,
+  useDefaultTaskGroupsExpanded,
   useMarkTaskInstanceDefaultOptions,
   type LandingPageOption,
 } from "src/hooks/useUserSettings";
@@ -170,9 +172,11 @@ export const Settings = () => {
   useDocumentTitle(translate("settings.title"));
 
   const [graphDirection, setGraphDirection] = useDefaultGraphDirection();
+  const [taskGroupsExpanded, setTaskGroupsExpanded] = useDefaultTaskGroupsExpanded();
   const [clearRunOptions, setClearRunOptions] = useClearRunDefaultOptions();
   const [clearTaskOptions, setClearTaskOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTask, setPreventRunningTask] = useClearPreventRunningTaskDefault();
+  const [keepTaskState, setKeepTaskState] = useClearKeepTaskStateDefault();
   const [markTaskOptions, setMarkTaskOptions] = useMarkTaskInstanceDefaultOptions();
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
@@ -232,6 +236,18 @@ export const Settings = () => {
           />
         </Section>
         <Section title={translate("settings.graph.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.graph.taskGroupsExpanded.label")}
+                checked={taskGroupsExpanded}
+                data-testid="default-task-groups-expanded"
+                onCheckedChange={(event) => setTaskGroupsExpanded(event.checked)}
+              />
+            }
+            helper={translate("settings.graph.taskGroupsExpanded.helper")}
+            label={translate("settings.graph.taskGroupsExpanded.label")}
+          />
           <SelectSetting
             helper={translate("settings.graph.defaultDirection.helper")}
             label={translate("settings.graph.defaultDirection.label")}
@@ -270,6 +286,17 @@ export const Settings = () => {
             }
             helper={translate("settings.clearing.preventRunningTask.helper")}
             label={translate("settings.clearing.preventRunningTask.label")}
+          />
+          <SettingRow
+            control={
+              <Switch
+                checked={keepTaskState}
+                data-testid="clear-keep-task-state"
+                onCheckedChange={(event) => setKeepTaskState(event.checked)}
+              />
+            }
+            helper={translate("settings.clearing.keepTaskState.helper")}
+            label={translate("settings.clearing.keepTaskState.label")}
           />
         </Section>
         <Section title={translate("settings.marking.title")}>
