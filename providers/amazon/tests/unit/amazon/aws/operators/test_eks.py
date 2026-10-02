@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import runpy
 from types import SimpleNamespace
 from typing import Any, TypedDict
 from unittest import mock
@@ -27,6 +28,7 @@ from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
+from airflow.providers.amazon.aws.operators import eks
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
     EksCreateFargateProfileOperator,
@@ -44,7 +46,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksPodTrigger,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, TaskDeferred
 
 from unit.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
@@ -1302,6 +1304,21 @@ class TestEksPodOperator:
 
         with pytest.raises(RuntimeError, match="Pod must be created with metadata before deferring"):
             op.invoke_defer_method()
+
+
+@mock.patch.dict("sys.modules", {"airflow.providers.cncf.kubernetes.operators.pod_exec": None})
+def test_eks_operators_remain_available_without_pod_exec():
+    operators = runpy.run_path(eks.__file__)
+
+    operator = operators["EksPodOperator"](task_id="existing_operator", cluster_name=CLUSTER_NAME)
+    assert operator.cluster_name == CLUSTER_NAME
+    with pytest.raises(
+        AirflowOptionalProviderFeatureException,
+        match=r"EksPodExecOperator requires apache-airflow-providers-cncf-kubernetes>=10\.22\.0",
+    ):
+        operators["EksPodExecOperator"](
+            task_id="exec_operator", cluster_name=CLUSTER_NAME, pod_name="existing-pod", command=["true"]
+        )
 
 
 class TestEksPodExecOperator:
