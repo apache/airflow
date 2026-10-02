@@ -53,7 +53,16 @@ from airflow.sdk.coordinators.node._bundle_reader import (
 
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
-TYPESCRIPT_V1_FIXTURE = AIRFLOW_ROOT_PATH / "ts-sdk" / "tests" / "cli" / "fixtures" / "bundle-v1.min.mjs"
+TYPESCRIPT_FIXTURES = AIRFLOW_ROOT_PATH / "ts-sdk" / "tests" / "cli" / "fixtures"
+TYPESCRIPT_V1_FIXTURE = TYPESCRIPT_FIXTURES / "bundle-v1.min.mjs"
+# The same bundle as packed before airflow-ts-pack stopped embedding task_handlers in the metadata.
+TYPESCRIPT_V1_WITH_TASK_HANDLERS_FIXTURE = TYPESCRIPT_FIXTURES / "bundle-v1-with-task-handlers.min.mjs"
+
+
+def _embedded_metadata(bundle: pathlib.Path) -> dict:
+    metadata_line = bundle.read_bytes().split(b"\n")[1]
+    assert metadata_line.startswith(METADATA_PREFIX)
+    return json.loads(metadata_line[len(METADATA_PREFIX) :])
 
 
 @pytest.fixture(autouse=True)
@@ -67,6 +76,21 @@ class TestBundleReader:
         metadata = read_bundle(TYPESCRIPT_V1_FIXTURE)
 
         assert metadata.supervisor_schema_version == SCHEMA_VERSION
+
+    def test_a_bundle_packed_today_embeds_no_task_handlers(self):
+        assert "task_handlers" not in _embedded_metadata(TYPESCRIPT_V1_FIXTURE)
+
+    def test_reads_a_bundle_packed_with_task_handlers_in_its_metadata(self):
+        assert _embedded_metadata(TYPESCRIPT_V1_WITH_TASK_HANDLERS_FIXTURE)["task_handlers"] == {
+            "test_dag": {"tasks": ["test_task"]}
+        }
+
+        metadata = read_bundle(TYPESCRIPT_V1_WITH_TASK_HANDLERS_FIXTURE)
+
+        assert metadata.supervisor_schema_version == SCHEMA_VERSION
+        assert read_bundle_source(TYPESCRIPT_V1_WITH_TASK_HANDLERS_FIXTURE, "test_dag") == read_bundle_source(
+            TYPESCRIPT_V1_FIXTURE, "test_dag"
+        )
 
     def test_reads_source_embedded_by_typescript_encoder(self):
         # Real encoder output, whose source region needs both escape branches. Recovering it
@@ -470,9 +494,8 @@ class TestBundleReader:
     )
     def test_reads_metadata_whether_or_not_it_lists_task_handlers(self, tmp_path, task_handlers):
         metadata = json.loads(_metadata_json("sales"))
-        if task_handlers is None:
-            del metadata["task_handlers"]
-        else:
+        assert "task_handlers" not in metadata
+        if task_handlers is not None:
             metadata["task_handlers"] = task_handlers
         write_bundle(tmp_path, metadata_payload=json.dumps(metadata).encode())
 

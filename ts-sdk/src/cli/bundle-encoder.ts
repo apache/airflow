@@ -30,9 +30,9 @@
  *   -> executable JavaScript
  *
  * The header records each region's byte range and digest, and each source
- * region also carries the path it was compiled from. Metadata describes what
- * the bundle serves, source regions carry the author's original files, and
- * the executable JavaScript runs the task handlers.
+ * region also carries the path it was compiled from. Metadata names the SDK and
+ * the source file of each Dag declared in TypeScript, source regions carry the
+ * author's original files, and the executable JavaScript runs the task handlers.
  *
  * This module owns the on-disk encoding. Readers must use the header's named
  * byte ranges and paths rather than incidental line positions.
@@ -54,6 +54,8 @@ export const EMBEDDED_SOURCE_MARKER = "/*# airflowSource:";
 export const EMBEDDED_SOURCE_CLOSE = "\n#*/\n";
 
 export interface BundleEncoderInput {
+  /** What the built bundle reported. The encoder embeds its schema version and `dag_source_paths`;
+   *  the task handlers it lists are not embedded. */
   bundleManifest: BundleManifest;
   sdkVersion: string;
   /** Project-relative path of the entry file `airflow-ts-pack` bundled. Always present among
@@ -71,7 +73,6 @@ interface BundleMetadata {
   sdk: { language: string; version: string; supervisor_schema_version: string };
   entrypoint_path: string;
   dag_source_paths: BundleManifest["dag_source_paths"];
-  task_handlers: BundleManifest["task_handlers"];
 }
 
 interface VerifiedByteRange {
@@ -245,7 +246,7 @@ function encodeMetadata(input: BundleEncoderInput): Buffer {
   if (metadata.length > EMBEDDED_METADATA_MAX_BYTES) {
     throw new Error(
       `Embedded airflow metadata is ${metadata.length} bytes, ` +
-        `over the ${EMBEDDED_METADATA_MAX_BYTES} byte limit; reduce the number of registered tasks`,
+        `over the ${EMBEDDED_METADATA_MAX_BYTES} byte limit; reduce the number of Dags declared in TypeScript`,
     );
   }
   return metadata;
@@ -268,7 +269,6 @@ function buildBundleMetadata(input: BundleEncoderInput): BundleMetadata {
     },
     entrypoint_path: input.entrypointPath,
     dag_source_paths: input.bundleManifest.dag_source_paths,
-    task_handlers: input.bundleManifest.task_handlers,
   };
 }
 

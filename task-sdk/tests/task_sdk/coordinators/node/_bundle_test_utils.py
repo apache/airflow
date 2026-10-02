@@ -41,6 +41,7 @@ def metadata_json(
     metadata_version: str | None = "1.0",
     dag_source_paths: dict[str, str] | None = None,
     entrypoint_path: str | None = DEFAULT_SOURCE_PATH,
+    task_handlers: bool = False,
 ) -> bytes:
     if dag_source_paths is None:
         dag_source_paths = {dag_id: DEFAULT_SOURCE_PATH for dag_id in dag_ids}
@@ -54,7 +55,9 @@ def metadata_json(
     if entrypoint_path is not None:
         metadata["entrypoint_path"] = entrypoint_path
     metadata["dag_source_paths"] = dag_source_paths
-    metadata["task_handlers"] = {dag_id: {"tasks": ["test_task"]} for dag_id in dag_ids}
+    if task_handlers:
+        # Bundles packed before airflow-ts-pack stopped embedding the handlers it checks.
+        metadata["task_handlers"] = {dag_id: {"tasks": ["test_task"]} for dag_id in dag_ids}
     if metadata_version is not None:
         metadata = {"airflow_bundle_metadata_version": metadata_version, **metadata}
     return json.dumps(metadata, separators=(",", ":"), ensure_ascii=False).encode()

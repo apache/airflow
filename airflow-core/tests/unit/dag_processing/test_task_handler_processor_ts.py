@@ -114,6 +114,18 @@ def _declare(task_id: str) -> TaskHandlerDeclaration:
     return TaskHandlerDeclaration(task_id=task_id, binding="named", params=None)
 
 
+def test_a_packed_bundle_embeds_no_task_handlers(example_bundle):
+    metadata_line = example_bundle.read_bytes().split(b"\n")[1]
+    prefix = b"//# airflowMetadata="
+    assert metadata_line.startswith(prefix)
+
+    metadata = json.loads(metadata_line[len(prefix) :])
+
+    assert metadata["sdk"]["language"] == "typescript"
+    assert "dag_source_paths" in metadata
+    assert "task_handlers" not in metadata
+
+
 @pytest.mark.usefixtures("fresh_coordinator_manager")
 @conf_vars({("sdk", "coordinators"): json.dumps(COORDINATORS)})
 @mock.patch.object(supervisor, "_should_use_exec", autospec=True, return_value=False)

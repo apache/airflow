@@ -25,7 +25,7 @@ const ID_REGEX = /^[\p{L}\p{N}_.-]+$/u;
 type WarnFn = (message: string) => void;
 
 /**
- * Check every dag and task id in the manifest against the rules the Airflow
+ * Check every dag and task id the bundle reports against the rules the Airflow
  * server enforces (`airflow.utils.helpers.validate_key`). Best-effort and
  * warn-only: the server validates authoritatively, and checks like the `..`
  * one depend on server configuration the packer cannot see.

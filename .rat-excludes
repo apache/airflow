@@ -328,8 +328,9 @@ www-hash.txt
 # Vendored-in code
 /src/airflow/providers/google/_vendor/*
 
-# TypeScript bundle golden fixture: its bytes are digest-pinned, so no license header can be added
+# TypeScript bundle golden fixtures: their bytes are digest-pinned, so no license header can be added
 /ts-sdk/tests/cli/fixtures/bundle-v1.min.mjs
+/ts-sdk/tests/cli/fixtures/bundle-v1-with-task-handlers.min.mjs
 
 # Java SDK build outputs
 /java-sdk/bin/*
