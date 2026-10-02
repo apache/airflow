@@ -25,7 +25,7 @@ import pytest
 from google.api_core.exceptions import ServiceUnavailable
 from google.cloud.dataflow_v1beta3 import Job, JobState, JobType
 
-from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus, DataflowJobType
 from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowJobAutoScalingEventTrigger,
     DataflowJobMessagesTrigger,
@@ -143,6 +143,60 @@ def test_dataflow_batch_job():
     return Job(id=JOB_ID, current_state=JobState.JOB_STATE_DONE, type_=JobType.JOB_TYPE_BATCH)
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("trigger_class", [TemplateJobStartTrigger, DataflowStartYamlJobTrigger])
+@pytest.mark.parametrize(
+    ("drain_pipeline", "requested_state"),
+    [(False, DataflowJobStatus.JOB_STATE_CANCELLED), (True, DataflowJobStatus.JOB_STATE_DRAINED)],
+)
+@mock.patch(
+    "airflow.providers.google.cloud.hooks.dataflow._DataflowJobsController._wait_for_states", autospec=True
+)
+@mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_conn", autospec=True)
+@mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection", autospec=True)
+@mock.patch(
+    "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
+    autospec=True,
+    return_value=(None, PROJECT_ID),
+)
+async def test_on_kill_requests_stop_using_connection_project_without_waiting(
+    mock_credentials,
+    mock_connection,
+    mock_get_conn,
+    mock_wait_for_states,
+    trigger_class,
+    drain_pipeline,
+    requested_state,
+):
+    mock_connection.return_value.extra_dejson = {}
+    jobs = mock_get_conn.return_value.projects.return_value.locations.return_value.jobs.return_value
+    jobs.get.return_value.execute.return_value = {
+        "id": JOB_ID,
+        "name": "test-job",
+        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
+        "type": DataflowJobType.JOB_TYPE_STREAMING,
+    }
+    trigger = trigger_class(
+        project_id=None,
+        job_id=JOB_ID,
+        location=LOCATION,
+        gcp_conn_id=GCP_CONN_ID,
+        cancel_timeout=CANCEL_TIMEOUT,
+        drain_pipeline=drain_pipeline,
+    )
+
+    await trigger.on_kill()
+
+    jobs.update.assert_called_once_with(
+        projectId=PROJECT_ID,
+        location=LOCATION,
+        jobId=JOB_ID,
+        body={"requestedState": requested_state},
+    )
+    jobs.update.return_value.execute.assert_called_once()
+    mock_wait_for_states.assert_not_called()
+
+
 class TestTemplateJobStartTrigger:
     def test_serialize(self, template_job_start_trigger):
         actual_data = template_job_start_trigger.serialize()
@@ -177,25 +231,29 @@ class TestTemplateJobStartTrigger:
         assert actual is not None
         assert actual == expected
 
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_stops_the_job(self, mock_hook_class, template_job_start_trigger):
-        asyncio.run(template_job_start_trigger.on_kill())
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("project_id", [PROJECT_ID, None], ids=["explicit-project", "connection-project"])
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_stops_the_job(self, mock_hook_class, template_job_start_trigger, project_id):
+        template_job_start_trigger.project_id = project_id
+        await template_job_start_trigger.on_kill()
 
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
             drain_pipeline=False,
-            cancel_timeout=CANCEL_TIMEOUT,
+            cancel_timeout=None,
             poll_sleep=POLL_SLEEP,
         )
         mock_hook_class.return_value.cancel_job.assert_called_once_with(
             job_id=JOB_ID,
-            project_id=PROJECT_ID,
+            project_id=project_id,
             location=LOCATION,
         )
 
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_passes_drain_pipeline_to_the_hook(self, mock_hook_class):
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_passes_drain_pipeline_to_the_hook(self, mock_hook_class):
         trigger = TemplateJobStartTrigger(
             project_id=PROJECT_ID,
             job_id=JOB_ID,
@@ -207,7 +265,7 @@ class TestTemplateJobStartTrigger:
             drain_pipeline=True,
         )
 
-        asyncio.run(trigger.on_kill())
+        await trigger.on_kill()
 
         assert mock_hook_class.call_args.kwargs["drain_pipeline"] is True
 
@@ -216,11 +274,11 @@ class TestTemplateJobStartTrigger:
         [
             pytest.param(False, JOB_ID, PROJECT_ID, id="cancel-on-kill-disabled"),
             pytest.param(True, None, PROJECT_ID, id="no-job-id"),
-            pytest.param(True, JOB_ID, None, id="no-project-id"),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_does_not_stop_the_job(self, mock_hook_class, cancel_on_kill, job_id, project_id):
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_does_not_stop_the_job(self, mock_hook_class, cancel_on_kill, job_id, project_id):
         trigger = TemplateJobStartTrigger(
             project_id=project_id,
             job_id=job_id,
@@ -229,24 +287,28 @@ class TestTemplateJobStartTrigger:
             cancel_on_kill=cancel_on_kill,
         )
 
-        asyncio.run(trigger.on_kill())
+        await trigger.on_kill()
 
         mock_hook_class.assert_not_called()
 
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_swallows_hook_errors(self, mock_hook_class, template_job_start_trigger):
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_swallows_hook_errors(self, mock_hook_class, template_job_start_trigger):
         mock_hook_class.return_value.cancel_job.side_effect = RuntimeError("api down")
 
-        asyncio.run(template_job_start_trigger.on_kill())
+        await template_job_start_trigger.on_kill()
 
         mock_hook_class.return_value.cancel_job.assert_called_once()
 
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_swallows_hook_construction_errors(self, mock_hook_class, template_job_start_trigger):
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_swallows_hook_construction_errors(
+        self, mock_hook_class, template_job_start_trigger
+    ):
         # The hook resolves its connection during construction; that must not escape on_kill.
         mock_hook_class.side_effect = RuntimeError("no connection")
 
-        asyncio.run(template_job_start_trigger.on_kill())
+        await template_job_start_trigger.on_kill()
 
         mock_hook_class.assert_called_once()
 
@@ -900,25 +962,29 @@ class TestDataflowStartYamlJobTrigger:
         )
         assert actual_data == expected_data
 
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_stops_the_job(self, mock_hook_class, dataflow_start_yaml_job_trigger):
-        asyncio.run(dataflow_start_yaml_job_trigger.on_kill())
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("project_id", [PROJECT_ID, None], ids=["explicit-project", "connection-project"])
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_stops_the_job(self, mock_hook_class, dataflow_start_yaml_job_trigger, project_id):
+        dataflow_start_yaml_job_trigger.project_id = project_id
+        await dataflow_start_yaml_job_trigger.on_kill()
 
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
             drain_pipeline=False,
-            cancel_timeout=CANCEL_TIMEOUT,
+            cancel_timeout=None,
             poll_sleep=POLL_SLEEP,
         )
         mock_hook_class.return_value.cancel_job.assert_called_once_with(
             job_id=JOB_ID,
-            project_id=PROJECT_ID,
+            project_id=project_id,
             location=LOCATION,
         )
 
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_passes_drain_pipeline_to_the_hook(self, mock_hook_class):
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_passes_drain_pipeline_to_the_hook(self, mock_hook_class):
         trigger = DataflowStartYamlJobTrigger(
             project_id=PROJECT_ID,
             job_id=JOB_ID,
@@ -930,7 +996,7 @@ class TestDataflowStartYamlJobTrigger:
             drain_pipeline=True,
         )
 
-        asyncio.run(trigger.on_kill())
+        await trigger.on_kill()
 
         assert mock_hook_class.call_args.kwargs["drain_pipeline"] is True
 
@@ -939,11 +1005,11 @@ class TestDataflowStartYamlJobTrigger:
         [
             pytest.param(False, JOB_ID, PROJECT_ID, id="cancel-on-kill-disabled"),
             pytest.param(True, None, PROJECT_ID, id="no-job-id"),
-            pytest.param(True, JOB_ID, None, id="no-project-id"),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_does_not_stop_the_job(self, mock_hook_class, cancel_on_kill, job_id, project_id):
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_does_not_stop_the_job(self, mock_hook_class, cancel_on_kill, job_id, project_id):
         trigger = DataflowStartYamlJobTrigger(
             project_id=project_id,
             job_id=job_id,
@@ -952,26 +1018,28 @@ class TestDataflowStartYamlJobTrigger:
             cancel_on_kill=cancel_on_kill,
         )
 
-        asyncio.run(trigger.on_kill())
+        await trigger.on_kill()
 
         mock_hook_class.assert_not_called()
 
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_swallows_hook_errors(self, mock_hook_class, dataflow_start_yaml_job_trigger):
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_swallows_hook_errors(self, mock_hook_class, dataflow_start_yaml_job_trigger):
         mock_hook_class.return_value.cancel_job.side_effect = RuntimeError("api down")
 
-        asyncio.run(dataflow_start_yaml_job_trigger.on_kill())
+        await dataflow_start_yaml_job_trigger.on_kill()
 
         mock_hook_class.return_value.cancel_job.assert_called_once()
 
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook")
-    def test_on_kill_swallows_hook_construction_errors(
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowHook", autospec=True)
+    async def test_on_kill_swallows_hook_construction_errors(
         self, mock_hook_class, dataflow_start_yaml_job_trigger
     ):
         # The hook resolves its connection during construction; that must not escape on_kill.
         mock_hook_class.side_effect = RuntimeError("no connection")
 
-        asyncio.run(dataflow_start_yaml_job_trigger.on_kill())
+        await dataflow_start_yaml_job_trigger.on_kill()
 
         mock_hook_class.assert_called_once()
 
