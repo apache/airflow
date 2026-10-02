@@ -1837,7 +1837,10 @@ class TestDagFileProcessorManager:
             [import_error] = session.scalars(select(ParseImportError)).all()
 
         assert import_error.filename == "slow.native"
-        assert import_error.stacktrace == f"The Lang-SDK runtime did not parse {slow} within 1.0s"
+        assert import_error.stacktrace == (
+            f"The Lang-SDK runtime did not parse {slow} within 1.0s, "
+            "the limit set by [core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
+        )
         assert manager.selector.get_map() == {}
 
     @mock.patch("airflow.settings.get_dagbag_import_timeout", autospec=True)
