@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Skeleton, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Box, Flex, Skeleton, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
+import { FiSidebar } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -28,7 +29,7 @@ import type {
   DAGWithLatestDagRunsResponse,
 } from "openapi/requests/types.gen";
 
-import { ActionBar, RouterLink } from "src/system-components";
+import { ActionBar, IconButton, RouterLink, Tooltip } from "src/system-components";
 
 import { DagsLayout } from "src/layouts/DagsLayout";
 
@@ -52,10 +53,11 @@ import { TeamName } from "src/components/TeamName";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
-import { DAGS_LIST_DISPLAY_KEY } from "src/constants/localStorage";
+import { DAGS_LIST_DISPLAY_KEY, DAGS_LIST_SHOW_FOLDERS_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
+import { useDagFolders } from "src/queries/useDagFolders";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
 import { useDocumentTitle } from "src/utils";
@@ -64,6 +66,7 @@ import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import BulkPauseDrainDagsButton from "./BulkPauseDrainDagsButton";
 import BulkUnpauseDagsButton from "./BulkUnpauseDagsButton";
 import { DagCard } from "./DagCard";
+import { DagFolderTree, type FolderSelection } from "./DagFolderTree";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
@@ -244,6 +247,8 @@ const createColumns = (
 ];
 
 const {
+  DAG_BUNDLE,
+  DAG_FOLDER,
   DAG_RUN_STATE,
   DAG_RUN_STATE_WITHIN_HOURS,
   FAVORITE,
@@ -300,6 +305,16 @@ export const DagsList = () => {
   const owners = searchParams.getAll(OWNERS).filter((value) => value !== "");
   const teams = searchParams.getAll(TEAMS);
   const timetableType = searchParams.getAll(TIMETABLE_TYPE).filter((value) => value !== "");
+  const selectedFolder = searchParams.get(DAG_FOLDER) ?? undefined;
+  const selectedBundle = searchParams.get(DAG_BUNDLE) ?? undefined;
+
+  const { folders, isLoading: foldersLoading } = useDagFolders();
+  const [showFolders, setShowFolders] = useLocalStorage<boolean>(DAGS_LIST_SHOW_FOLDERS_KEY, true);
+  // Keep the panel out of the way for flat deployments (all Dags at the bundle root). Still offer it
+  // while loading, or when a folder/bundle is selected so the user can always navigate back to "All Dags".
+  const hasFolderTree =
+    foldersLoading || folders.length > 0 || Boolean(selectedFolder) || Boolean(selectedBundle);
+  const showFolderTree = hasFolderTree && showFolders;
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -320,6 +335,25 @@ export const DagsList = () => {
       searchParams.set(NAME_PATTERN, value);
     } else {
       searchParams.delete(NAME_PATTERN);
+    }
+    searchParams.delete(OFFSET);
+    setSearchParams(searchParams);
+  };
+
+  const handleFolderChange = ({ bundleName, folder }: FolderSelection) => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    if (folder === undefined || folder === "") {
+      searchParams.delete(DAG_FOLDER);
+    } else {
+      searchParams.set(DAG_FOLDER, folder);
+    }
+    if (bundleName === undefined || bundleName === "") {
+      searchParams.delete(DAG_BUNDLE);
+    } else {
+      searchParams.set(DAG_BUNDLE, bundleName);
     }
     searchParams.delete(OFFSET);
     setSearchParams(searchParams);
@@ -351,6 +385,7 @@ export const DagsList = () => {
 
   const { data, error, isFetching, isLoading } = useDags({
     advancedSearch: advancedSearch.enabled,
+    bundleName: selectedBundle,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
     dagRunState,
@@ -363,6 +398,7 @@ export const DagsList = () => {
     owners,
     paused,
     pendingHitl,
+    relativeFilelocPrefix: selectedFolder,
     schedulingState: schedulingState ?? undefined,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
@@ -414,60 +450,98 @@ export const DagsList = () => {
 
   return (
     <DagsLayout>
-      <Box pb={8}>
-        <SelectionProvider
-          allRowsSelected={allRowsSelected}
-          onRowSelect={handleRowSelect}
-          onSelectAll={handleSelectAll}
-          selectedRows={selectedRows}
-        >
-          <DataTable
-            cardDef={cardDef}
-            columns={columns}
-            data={data?.dags ?? []}
-            displayMode={display}
-            enableMultiSort
-            errorMessage={<ErrorAlert error={error} />}
-            filterActions={
-              <VStack alignItems="flex-start" gap={2} w="100%">
-                <SearchBar
-                  advancedSearch={advancedSearch}
-                  defaultValue={dagDisplayNamePattern}
-                  onChange={handleSearchChange}
-                  placeholder={translate("dags:search.dags")}
-                />
-                <DagsFilters />
-              </VStack>
-            }
-            headingExtra={<DagImportErrors iconOnly />}
-            initialState={tableURLState}
-            isFetching={isFetching}
-            isLoading={isLoading}
-            modelName="common:dag"
-            onDisplayToggleChange={handleDisplayToggleChange}
-            onStateChange={setTableURLState}
-            presentationActions={
-              display === "card" ? (
-                <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
-              ) : undefined
-            }
-            showDisplayToggle
-            skeletonCount={display === "card" ? 5 : undefined}
-            total={totalEntries}
-          />
-          <ActionBar.Root closeOnInteractOutside={false} open={display === "table" && selectedRows.size > 0}>
-            <ActionBar.Content>
-              <ActionBar.SelectionTrigger>
-                {selectedRows.size} {translate("selected")}
-              </ActionBar.SelectionTrigger>
-              <ActionBar.Separator />
-              <BulkPauseDrainDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
-              <BulkUnpauseDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
-              <ActionBar.CloseTrigger onClick={clearSelections} />
-            </ActionBar.Content>
-          </ActionBar.Root>
-        </SelectionProvider>
-      </Box>
+      <Flex align="flex-start" gap={4} pb={8}>
+        {/* Only show the folder sidebar when there is something to navigate; deployments with all
+            Dags at the bundle root would otherwise get an empty panel. */}
+        {showFolderTree ? (
+          <Box flexShrink={0} overflowY="auto" position="sticky" top={0} width="280px">
+            <DagFolderTree
+              folders={folders}
+              isLoading={foldersLoading}
+              onSelectFolder={handleFolderChange}
+              selectedBundle={selectedBundle}
+              selectedFolder={selectedFolder}
+            />
+          </Box>
+        ) : undefined}
+        <Box flex={1} minWidth={0}>
+          <SelectionProvider
+            allRowsSelected={allRowsSelected}
+            onRowSelect={handleRowSelect}
+            onSelectAll={handleSelectAll}
+            selectedRows={selectedRows}
+          >
+            <DataTable
+              cardDef={cardDef}
+              columns={columns}
+              data={data?.dags ?? []}
+              displayMode={display}
+              enableMultiSort
+              errorMessage={<ErrorAlert error={error} />}
+              filterActions={
+                <VStack alignItems="flex-start" gap={2} w="100%">
+                  <SearchBar
+                    advancedSearch={advancedSearch}
+                    defaultValue={dagDisplayNamePattern}
+                    onChange={handleSearchChange}
+                    placeholder={translate("dags:search.dags")}
+                  />
+                  <DagsFilters />
+                </VStack>
+              }
+              headingExtra={<DagImportErrors iconOnly />}
+              initialState={tableURLState}
+              isFetching={isFetching}
+              isLoading={isLoading}
+              modelName="common:dag"
+              onDisplayToggleChange={handleDisplayToggleChange}
+              onStateChange={setTableURLState}
+              presentationActions={
+                hasFolderTree || display === "card" ? (
+                  <>
+                    {hasFolderTree ? (
+                      <Tooltip
+                        content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                        openDelay={200}
+                        portalled
+                      >
+                        <IconButton
+                          aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                          onClick={() => setShowFolders(!showFolders)}
+                          size="sm"
+                          variant={showFolders ? "solid" : "outline"}
+                        >
+                          <FiSidebar />
+                        </IconButton>
+                      </Tooltip>
+                    ) : undefined}
+                    {display === "card" ? (
+                      <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
+                    ) : undefined}
+                  </>
+                ) : undefined
+              }
+              showDisplayToggle
+              skeletonCount={display === "card" ? 5 : undefined}
+              total={totalEntries}
+            />
+            <ActionBar.Root
+              closeOnInteractOutside={false}
+              open={display === "table" && selectedRows.size > 0}
+            >
+              <ActionBar.Content>
+                <ActionBar.SelectionTrigger>
+                  {selectedRows.size} {translate("selected")}
+                </ActionBar.SelectionTrigger>
+                <ActionBar.Separator />
+                <BulkPauseDrainDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
+                <BulkUnpauseDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
+                <ActionBar.CloseTrigger onClick={clearSelections} />
+              </ActionBar.Content>
+            </ActionBar.Root>
+          </SelectionProvider>
+        </Box>
+      </Flex>
     </DagsLayout>
   );
 };

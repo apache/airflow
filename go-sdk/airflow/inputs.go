@@ -18,6 +18,7 @@
 package airflow
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -27,7 +28,15 @@ import (
 
 type inputs []*TaskRef
 
-func (in inputs) applyTask(c *taskConfig) { c.inputs = append(c.inputs, in) }
+func (in inputs) applyTask(c *taskConfig) error {
+	if c.hasInputs {
+		return errors.New(
+			"got more than one airflow.Inputs; pass all of the task's inputs to one airflow.Inputs",
+		)
+	}
+	c.inputs, c.hasInputs = in, true
+	return nil
+}
 
 // Inputs passes the results of tasks to the task that [DagRef.Task] adds, and makes each of
 // those tasks an upstream task of the new one. It is the Go form of a Python TaskFlow call such
@@ -54,22 +63,10 @@ func (in inputs) applyTask(c *taskConfig) { c.inputs = append(c.inputs, in) }
 // parameter type, as in a Go function call. Pass at most one Inputs to a task.
 func Inputs(refs ...*TaskRef) TaskOption { return inputs(refs) }
 
-// checkInputs returns the tasks that task taskID got through Inputs. given has one entry for
-// each Inputs passed to the task. checkInputs panics if there is more than one entry, or if the
-// tasks do not match the parameters that a function of type fnType takes after the Context.
-func (d *DagRef) checkInputs(taskID string, fnType reflect.Type, given [][]*TaskRef) []*TaskRef {
-	if len(given) > 1 {
-		panic(fmt.Sprintf(
-			"airflow.DagRef.Task: task %q of Dag %q got %d airflow.Inputs values; "+
-				"pass all of the task's inputs to one airflow.Inputs",
-			taskID, d.dagID, len(given),
-		))
-	}
-	var tasks []*TaskRef
-	if len(given) == 1 {
-		tasks = given[0]
-	}
-
+// checkInputs returns the tasks that task taskID got through Inputs, in a new slice. It panics if
+// any of those tasks was not added to d by DagRef.Task, or if the tasks do not match the
+// parameters that a function of type fnType takes after the Context.
+func (d *DagRef) checkInputs(taskID string, fnType reflect.Type, tasks []*TaskRef) []*TaskRef {
 	for i, upstream := range tasks {
 		switch {
 		case upstream == nil:

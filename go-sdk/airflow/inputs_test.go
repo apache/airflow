@@ -383,10 +383,55 @@ func TestTaskPanicsOnAnInputFromOutsideTheDag(t *testing.T) {
 func TestTaskRejectsASecondInputs(t *testing.T) {
 	dag := Dag("etl")
 	read := dag.Task(readRows)
+	literal := func(Context, rowSet) (int, error) { return 0, nil }
 
-	assert.PanicsWithValue(t,
-		`airflow.DagRef.Task: task "countRows" of Dag "etl" got 2 airflow.Inputs values; `+
-			`pass all of the task's inputs to one airflow.Inputs`,
-		func() { dag.Task(countRows, Inputs(read), Inputs()) },
-	)
+	tests := []struct {
+		name string
+		fn   any
+		opts []TaskOption
+		// task is a regexp for how the panic message names the task.
+		task string
+	}{
+		{
+			name: "second Inputs is empty",
+			fn:   countRows,
+			opts: []TaskOption{Inputs(read), Inputs()},
+			task: `countRows`,
+		},
+		{
+			name: "first Inputs is empty",
+			fn:   countRows,
+			opts: []TaskOption{Inputs(), Inputs(read)},
+			task: `countRows`,
+		},
+		{
+			name: "TaskID in a TaskSpec after the Inputs",
+			fn:   countRows,
+			opts: []TaskOption{Inputs(read), Inputs(read), TaskSpec{TaskID: "count_rows"}},
+			task: `count_rows`,
+		},
+		{
+			name: "nil option after the second Inputs",
+			fn:   countRows,
+			opts: []TaskOption{Inputs(read), Inputs(read), nil},
+			task: `countRows`,
+		},
+		{
+			name: "no TaskID and no function name",
+			fn:   literal,
+			opts: []TaskOption{Inputs(read), Inputs(read)},
+			task: `github\.com/apache/airflow/go-sdk/airflow\.` +
+				`TestTaskRejectsASecondInputs\.func\d+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := panicMessage(t, func() { dag.Task(tt.fn, tt.opts...) })
+			assert.Regexp(t,
+				`^airflow\.DagRef\.Task: task "`+tt.task+`" of Dag "etl": got more than one `+
+					`airflow\.Inputs; pass all of the task's inputs to one airflow\.Inputs$`,
+				msg,
+			)
+		})
+	}
 }

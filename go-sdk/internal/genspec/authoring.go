@@ -81,7 +81,7 @@ var dagShape = authoringShape{
 		"dag_dependencies":          "derived from the edges and the assets a Dag declares",
 		"timezone":                  "carried by the time.Time an author sets on StartDate",
 		"timetable":                 "the serialized form of Schedule, which is injected instead",
-		"allowed_run_types":         "a union the author expresses by setting Schedule",
+		"allowed_run_types":         "no Go authoring type yet: a list of DagRunType values",
 		"_concurrency":              "the pre-2.2 spelling of MaxActiveTasks",
 		"has_on_success_callback":   "derived from whether a callback is registered",
 		"has_on_failure_callback":   "derived from whether a callback is registered",
@@ -171,8 +171,8 @@ var taskShape = authoringShape{
 		"max_active_tis_per_dag":    {goType: "int"},
 		"max_active_tis_per_dagrun": {goType: "int"},
 		// TriggerRule, WeightRule and their constants are hand-written in the airflow
-		// package: the schema types both fields as a plain string and names none of
-		// the values either one takes.
+		// package, because the schema types trigger_rule and weight_rule as plain
+		// strings and does not list their values.
 		"trigger_rule": {goType: "TriggerRule"},
 		"weight_rule":  {goType: "WeightRule"},
 		// A multiplier, not a switch: 0 keeps the delay constant, 2.0 doubles it each

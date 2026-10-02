@@ -121,6 +121,8 @@ type TaskRef struct {
 //   - fn comes from TriggerDagRun and opts holds an Inputs
 //   - an option is nil or is not one that package airflow defines
 //   - opts holds more than one TaskSpec or more than one Inputs
+//   - the TaskSpec sets TriggerRule to a value that is not a TriggerRule constant
+//   - the TaskSpec sets WeightRule to a value that is not a WeightRule constant
 //   - the tasks passed to Inputs do not match the parameters of fn after the Context
 //   - the Dag already has a task with the same task_id
 //   - the Dag is already registered
@@ -173,21 +175,20 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 				d.dagID, i, opt,
 			))
 		}
-		opt.applyTask(&cfg)
-	}
-	if len(cfg.specs) > 1 {
-		panic(fmt.Sprintf(
-			"airflow.DagRef.Task: task %q of Dag %q got %d airflow.TaskSpec values; "+
-				"set all of the task's attributes in one TaskSpec",
-			findTaskName(fn, cfg.specs), d.dagID, len(cfg.specs),
-		))
+		if err := opt.applyTask(&cfg); err != nil {
+			// A task from TriggerDagRun takes no Inputs at all, and the check after this loop
+			// reports that. err says to merge the Inputs into one, which would not fix a task from
+			// TriggerDagRun.
+			if _, ok := opt.(inputs); ok && isTrigger {
+				continue
+			}
+			panic(fmt.Sprintf(
+				"airflow.DagRef.Task: task %q of Dag %q: %v", findTaskName(fn, opts), d.dagID, err,
+			))
+		}
 	}
 
-	var spec TaskSpec
-	if len(cfg.specs) == 1 {
-		spec = cfg.specs[0]
-	}
-	taskID := spec.TaskID
+	taskID := cfg.spec.TaskID
 	if taskID == "" && isTrigger {
 		panic(fmt.Sprintf(
 			"airflow.DagRef.Task: Dag %q: a task from airflow.TriggerDagRun with DagID %q has no "+
@@ -210,6 +211,9 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 			"airflow.DagRef.Task: task %q of Dag %q: %v", taskID, d.dagID, triggerErr,
 		))
 	}
+	if err := checkTaskSpec(cfg.spec); err != nil {
+		panic(fmt.Sprintf("airflow.DagRef.Task: task %q of Dag %q: %v", taskID, d.dagID, err))
+	}
 	if _, exists := d.tasksByID[taskID]; exists {
 		panic(fmt.Sprintf(
 			"airflow.DagRef.Task: Dag %q already has a task %q; "+
@@ -220,7 +224,7 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	var upstreams []*TaskRef
 	var resultType reflect.Type
 	if isTrigger {
-		if len(cfg.inputs) > 0 {
+		if cfg.hasInputs {
 			panic(fmt.Sprintf(
 				"airflow.DagRef.Task: task %q of Dag %q comes from airflow.TriggerDagRun and "+
 					"takes no airflow.Inputs, because it has no Go function to pass the results to",
@@ -239,7 +243,7 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	task := &TaskRef{
 		dag:           d,
 		taskID:        taskID,
-		spec:          copySpec(spec),
+		spec:          copySpec(cfg.spec),
 		resultType:    resultType,
 		inputs:        upstreams,
 		task:          wrapped,
@@ -263,8 +267,17 @@ func (d *DagRef) markRegistered() {
 func funcName(fn any) string { return runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name() }
 
 // findTaskName names a task in an error that Task raises before it settles the task_id.
-func findTaskName(fn any, specs []TaskSpec) string {
-	for _, spec := range specs {
+func findTaskName(fn any, opts []TaskOption) string {
+	for _, opt := range opts {
+		var spec TaskSpec
+		switch opt := opt.(type) {
+		case TaskSpec:
+			spec = opt
+		case *TaskSpec:
+			if opt != nil {
+				spec = *opt
+			}
+		}
 		if spec.TaskID != "" {
 			return spec.TaskID
 		}
