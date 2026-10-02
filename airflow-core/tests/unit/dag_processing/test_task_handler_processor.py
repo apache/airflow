@@ -636,6 +636,24 @@ class TestRun:
         assert not proc._open_sockets
         assert _get_open_fds() <= fds_before
 
+    @pytest.mark.execution_timeout(30)
+    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
+    @patch.object(FakeCoordinator, "parse_task_handler", autospec=True)
+    def test_a_runtime_that_stops_mid_frame_is_timed_out(
+        self, mock_parse_task_handler, mock_timeout, tmp_path
+    ):
+        def reply(request, comms):
+            comms.socket.sendall((100).to_bytes(4, byteorder="big"))
+            _block_until_killed(comms)
+
+        mock_parse_task_handler.side_effect = play_runtime(reply)
+
+        result = _run(tmp_path)
+
+        assert result.import_errors == {
+            "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} within 1.0s"
+        }
+
     @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
     @patch.object(
         LangSDKTaskHandlerProcessorProcess,
