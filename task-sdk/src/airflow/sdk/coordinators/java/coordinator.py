@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import lzma
 import os
 import pathlib
@@ -31,7 +32,7 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import validate_schema_version
+from airflow.sdk.coordinators._bundle_metadata import validate_schema_version, walk_files
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate
 
@@ -147,6 +148,31 @@ class _JarMetadata:
         )
 
 
+def _fold_main_class(cache_digest: str, main_class: str) -> str:
+    """Return a 64-character digest of *cache_digest* and *main_class*, which changes with *main_class*."""
+    return hashlib.sha256(f"{cache_digest}\n{main_class}".encode()).hexdigest()
+
+
+def _find_schema_version(roots: Sequence[pathlib.Path]) -> str:
+    """
+    Return the first ``Airflow-Supervisor-Schema-Version`` found in the JARs under *roots*.
+
+    JARs are visited in sorted walk order, so the answer does not depend on filesystem ordering.
+    """
+    for jar in walk_files(roots, match=lambda path: path.suffix == ".jar"):
+        if (metadata := _JarMetadata.from_jar(jar)) is not None and metadata.schema_version:
+            log.debug(
+                "JAR located with Airflow-Supervisor-Schema-Version metadata",
+                path=jar,
+                schema_version=metadata.schema_version,
+            )
+            return metadata.schema_version
+    raise FileNotFoundError(
+        "cannot find a JAR with Airflow-Supervisor-Schema-Version metadata in "
+        f"{os.pathsep.join(os.fspath(p.resolve()) for p in roots)}"
+    )
+
+
 @attrs.define
 class _JarInfo:
     main_class: str
@@ -213,7 +239,9 @@ class JavaCoordinator(SubprocessCoordinator):
     :param task_handler_bundle_name: Name of the Dag bundle holding the JARs. It
         must be registered in ``[dag_processor] dag_bundle_config_list``. If
         unset, the task's own Dag bundle is used.
-    :param main_class: Explicit entry point to execute with *java_executable*.
+    :param main_class: Explicit entry point to run with *java_executable*, for a task and for the
+        probe that reports task handlers, instead of the Main-Class of a JAR's manifest. Changing it
+        makes the Dag processor probe the handler JARs again.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
 
@@ -227,12 +255,14 @@ class JavaCoordinator(SubprocessCoordinator):
     up being executed, so set *main_class* when more than one JAR in the bundle
     declares Main-Class.
 
-    To report the task handlers a JAR registers, the coordinator runs that JAR's
-    own Main-Class with the whole bundle on the classpath. *main_class* applies
-    to task execution only. The Dag processor only asks JARs whose manifest
+    To report the task handlers a JAR registers, the coordinator runs *main_class*
+    if it is set, else that JAR's own Main-Class, with the whole bundle on the
+    classpath. With *main_class* set, every handler JAR in the bundle is probed
+    through that class and reports the same handlers, so they collide: keep one
+    handler JAR per bundle. The Dag processor only asks JARs whose manifest
     carries *Airflow-Cache-Digest*, which the Gradle plugin writes, and asks one
-    again only when its size or digest changes. A dependency JAR replaced
-    without rebuilding the bundle therefore goes unnoticed.
+    again only when its size, its digest or *main_class* changes. A dependency
+    JAR replaced without rebuilding the bundle therefore goes unnoticed.
 
     A JAR containing metadata *Airflow-Supervisor-Schema-Version* should also be
     available to specify the wire schema version. The JAR containing the Java
@@ -263,12 +293,13 @@ class JavaCoordinator(SubprocessCoordinator):
         metadata = _JarMetadata.from_jar(path)
         if metadata is None:
             raise ValueError(f"{path} is not an executable JAR: it has no readable manifest")
-        if not metadata.main_class:
+        main_class = self.main_class or metadata.main_class
+        if not main_class:
             raise ValueError(f"{path} is not an executable JAR: its manifest sets no Main-Class")
         roots = self._get_scan_roots()
-        # A thin JAR leaves the version to the airflow-sdk JAR beside it, where execution finds it too.
-        schema_version = metadata.schema_version or _JarInfo.find(roots, metadata.main_class).schema_version
-        return self._build_java_command(roots, metadata.main_class), schema_version
+        # A thin JAR leaves the version to the airflow-sdk JAR beside it.
+        schema_version = metadata.schema_version or _find_schema_version(roots)
+        return self._build_java_command(roots, main_class), schema_version
 
     def _build_java_command(self, roots: Sequence[pathlib.Path], main_class: str) -> list[str]:
         return [self.java_executable, "-classpath", _calculate_classpath(roots), *self.jvm_args, main_class]
@@ -298,8 +329,14 @@ class JavaCoordinator(SubprocessCoordinator):
         if metadata is None or metadata.cache_digest is None:
             return None
         error = None
-        if not metadata.main_class:
+        if not metadata.main_class and not self.main_class:
             error = f"{rel_path} has an Airflow-Cache-Digest manifest attribute but no Main-Class"
+        # The probe runs main_class, so the answer recorded for a JAR holds only for the main_class it ran.
+        cache_digest = (
+            _fold_main_class(metadata.cache_digest, self.main_class)
+            if self.main_class
+            else metadata.cache_digest
+        )
         return TaskHandlerCandidate(
-            rel_path=rel_path, size_bytes=size_bytes, cache_digest=metadata.cache_digest, error=error
+            rel_path=rel_path, size_bytes=size_bytes, cache_digest=cache_digest, error=error
         )

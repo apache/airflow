@@ -36,6 +36,7 @@ from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _calculate_classpath,
+    _find_schema_version,
     _JarInfo,
     _parse_manifest,
     _walk_jars,
@@ -185,6 +186,32 @@ class TestMainJar:
         assert result == _JarInfo("com.example.Loop", "2026-06-16")
 
 
+class TestFindSchemaVersion:
+    def test_returns_the_first_version_in_sorted_walk_order(self, tmp_path):
+        _make_jar(tmp_path / "b.jar", main_class=None, schema_version="2026-10-30")
+        (tmp_path / "lib").mkdir()
+        _make_jar(tmp_path / "lib" / "a.jar", main_class=None, schema_version="2026-06-16")
+        _make_jar(tmp_path / "a.jar", main_class="com.example.Main")
+
+        assert _find_schema_version([tmp_path]) == "2026-10-30"
+
+    def test_skips_jars_that_cannot_be_read_or_carry_no_version(self, tmp_path):
+        (tmp_path / "a.jar").write_text("not a zip")
+        _make_jar(tmp_path / "b.jar", main_class="com.example.Main")
+        _make_jar(tmp_path / "c.jar", main_class=None, schema_version="2026-06-16")
+
+        assert _find_schema_version([tmp_path]) == "2026-06-16"
+
+    def test_no_version_raises_naming_the_roots(self, tmp_path):
+        _make_jar(tmp_path / "app.jar", main_class="com.example.Main")
+
+        with pytest.raises(
+            FileNotFoundError,
+            match=rf"Airflow-Supervisor-Schema-Version metadata in {re.escape(str(tmp_path))}",
+        ):
+            _find_schema_version([tmp_path])
+
+
 class TestWalkJars:
     def test_skips_directory_whose_key_is_already_in_seen_dirs(self, tmp_path):
         """A directory whose (st_dev, st_ino) is already in seen_dirs is skipped."""
@@ -296,7 +323,7 @@ class TestJavaCoordinatorBuildTaskHandlerCommand:
     def test_runs_the_probed_jars_own_main_class_with_the_bundle_on_the_classpath(
         self, bundle, jar, main_class
     ):
-        coordinator = JavaCoordinator(jvm_args=["-Xmx1g"], main_class="com.example.Configured")
+        coordinator = JavaCoordinator(jvm_args=["-Xmx1g"])
         with coordinator._set_scan_roots([bundle]):
             command, schema_version = coordinator._build_task_handler_command(path=bundle / jar)
 
@@ -305,6 +332,34 @@ class TestJavaCoordinatorBuildTaskHandlerCommand:
         )
         assert command == ["java", "-classpath", classpath, "-Xmx1g", main_class]
         assert schema_version == "2026-06-16"
+
+    @pytest.mark.parametrize("jar", ["app.jar", "other.jar"])
+    def test_main_class_overrides_the_jars_own_main_class(self, bundle, jar):
+        coordinator = JavaCoordinator(main_class="com.example.Configured")
+        with coordinator._set_scan_roots([bundle]):
+            command, schema_version = coordinator._build_task_handler_command(path=bundle / jar)
+
+        assert command[-1] == "com.example.Configured"
+        assert schema_version == "2026-06-16"
+
+    def test_main_class_lets_a_jar_without_a_main_class_run(self, tmp_path):
+        _make_jar(tmp_path / "handlers.jar", main_class=None, schema_version="2026-06-16")
+        coordinator = JavaCoordinator(main_class="com.example.Configured")
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_task_handler_command(path=tmp_path / "handlers.jar")
+
+        assert command[-1] == "com.example.Configured"
+        assert schema_version == "2026-06-16"
+
+    def test_a_thin_jar_without_a_main_class_takes_its_version_from_the_sdk_jar(self, tmp_path):
+        _make_jar(tmp_path / "handlers.jar", main_class=None)
+        _make_jar(tmp_path / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
+        coordinator = JavaCoordinator(main_class="com.example.Configured")
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_task_handler_command(path=tmp_path / "handlers.jar")
+
+        assert command[-1] == "com.example.Configured"
+        assert schema_version == "2026-10-30"
 
     def test_a_thin_jar_takes_the_schema_version_from_the_sdk_jar(self, tmp_path):
         _make_jar(tmp_path / "app.jar", main_class="com.example.App")
@@ -400,6 +455,31 @@ class TestListTaskHandlerCandidates:
                 error="handlers.jar has an Airflow-Cache-Digest manifest attribute but no Main-Class",
             )
         ]
+
+    def test_lists_a_jar_with_a_cache_digest_but_no_main_class_when_main_class_is_set(self, tmp_path):
+        jar = _make_jar(tmp_path / "handlers.jar", main_class=None, cache_digest=_CACHE_DIGEST)
+
+        [candidate] = JavaCoordinator(main_class="com.example.Main").list_task_handler_candidates(tmp_path)
+
+        assert (candidate.rel_path, candidate.size_bytes, candidate.error) == (
+            "handlers.jar",
+            jar.stat().st_size,
+            None,
+        )
+
+    def test_main_class_is_part_of_the_cache_digest(self, tmp_path):
+        _make_jar(tmp_path / "handlers.jar", cache_digest=_CACHE_DIGEST)
+
+        def digest(main_class: str) -> str | None:
+            [candidate] = JavaCoordinator(main_class=main_class).list_task_handler_candidates(tmp_path)
+            return candidate.cache_digest
+
+        unset, first, second = digest(""), digest("com.example.First"), digest("com.example.Second")
+
+        assert unset == _CACHE_DIGEST
+        assert len({unset, first, second}) == 3
+        assert digest("com.example.First") == first
+        assert len(first or "") in range(1, 129)
 
     @pytest.mark.parametrize(
         ("compression", "damage"),
