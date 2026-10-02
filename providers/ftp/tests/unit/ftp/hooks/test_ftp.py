@@ -278,10 +278,11 @@ class TestIntegrationFTPHook:
         assert ftplib.FTP_TLS.port == ftplib.FTP_PORT
 
         mock_connect.reset_mock()
+        mock_login.reset_mock()
         FTPSHook("ftp_passive").get_conn()
 
-        mock_connect.assert_called_once_with("localhost", 0)
-        mock_login.assert_called_once()
+        mock_connect.assert_called_once_with("localhost", ftplib.FTP_PORT)
+        mock_login.assert_not_called()
 
     @mock.patch("ftplib.FTP_TLS")
     def test_ftps_passive_mode(self, mock_ftp):

@@ -327,7 +327,11 @@ class FTPSHook(FTPHook):
             if params.host:
                 # Pass the port to connect() rather than setting FTP_TLS.port, which would
                 # change the default port of every FTP_TLS connection in the process.
-                self.conn.connect(params.host, params.port or 0)
+                port: int = int(ftplib.FTP_PORT)
+                if params.port is not None:
+                    port = params.port
+                logger.info("Connecting via FTPS to %s:%d", params.host, port)
+                self.conn.connect(params.host, port)
                 if params.login:
                     self.conn.login(params.login, cast("str", params.password))
             self.conn.set_pasv(pasv)
