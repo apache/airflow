@@ -418,20 +418,35 @@ export type TaskOptions = TaskSpec;
 export interface Condition extends Node {
   /** Airflow task ID of the deciding task. */
   readonly taskId: string;
-  then(taskRef: TaskRef | Condition): ConditionElse;
+  then(taskRef: TaskRef | Condition | Branch): ConditionElse;
   before(...downstream: readonly Node[]): Condition;
   after(...upstream: readonly Node[]): Condition;
 }
 
 /** What `.then(...)` returns: the other side, which a one-sided condition omits. */
 export interface ConditionElse {
-  else(taskRef: TaskRef | Condition): void;
+  else(taskRef: TaskRef | Condition | Branch): void;
 }
 
 /** The arguments after a decider's handler: an optional task id, then its inputs. */
 export type DeciderArgs<TArgs extends object | void> = [TArgs] extends [void]
   ? [] | [taskId: string]
   : [inputs: TaskInputs<TArgs>] | [taskId: string, inputs: TaskInputs<TArgs>];
+
+/**
+ * A placed multi-way branch: name each task the decider chooses between.
+ *
+ * ```ts
+ * dag.switch(pickPath, { rows: extracted }).case(handleLong).case(handleShort);
+ * ```
+ */
+export interface Branch extends Node {
+  /** Airflow task ID of the deciding task. */
+  readonly taskId: string;
+  case(taskRef: TaskRef): Branch;
+  before(...downstream: readonly Node[]): Branch;
+  after(...upstream: readonly Node[]): Branch;
+}
 
 /** Per-task record a Dag retains: the reference, the handler, and its spec. */
 export interface TaskRecord {
@@ -512,6 +527,7 @@ export class Dag {
   readonly #orderEdges = new Map<string, OrderEdge>();
   readonly #definedIn: string | undefined;
   readonly #conditions = new Map<string, ConditionRecord>();
+  readonly #branches = new Map<string, readonly TaskRef[]>();
   // Keyed by full group ID; a group's own record holds what it declares, so
   // the tree is reconstructed by walking from the roots.
   readonly #groups = new Map<string, MutableTaskGroupRecord>();
@@ -626,7 +642,7 @@ export class Dag {
     });
 
     const named = new Set<"then" | "else">();
-    const name = (side: "then" | "else", target: TaskRef | Condition): void => {
+    const name = (side: "then" | "else", target: TaskRef | Condition | Branch): void => {
       // `await` calls `then(resolve, reject)`, so a function here means the condition was awaited.
       if (typeof target === "function") {
         throw new Error(
@@ -700,6 +716,70 @@ export class Dag {
       return result;
     };
     this.#tasks.set(taskId, { ...record, canSkipDownstream: true, fn: wrapped });
+  }
+
+  /**
+   * Declare a task that returns one of its cases; every other case is skipped.
+   *
+   * ```ts
+   * dag.switch(pickPath, { rows: extracted }).case(handleLong).case(handleShort);
+   * ```
+   */
+  switch<TArgs extends object | void = void>(
+    handler: (args: TArgs) => TaskRef | Promise<TaskRef>,
+    ...args: DeciderArgs<NoInfer<TArgs>>
+  ): Branch {
+    return this.#placeBranch(this.#placeDecider(handler, args) as TaskRef<TaskRef>);
+  }
+
+  #placeBranch(decider: TaskRef<TaskRef>): Branch {
+    const taskId = decider.taskId;
+    const candidates: TaskRef[] = [];
+    this.#branches.set(taskId, candidates);
+    this.#wrapDecider(taskId, async (chosen: unknown) => {
+      const known = candidates.map((ref) => ref.taskId);
+      if (!candidates.includes(chosen as TaskRef)) {
+        throw new Error(
+          `Task "${taskId}" of Dag "${this.dagId}" chose ` +
+            `${isTaskRef(chosen) ? `"${chosen.taskId}"` : describeValue(chosen)}, ` +
+            `which is not one of its cases: ${known.join(", ")}`,
+        );
+      }
+      const picked = (chosen as TaskRef).taskId;
+      return { skip: known.filter((id) => id !== picked), result: picked };
+    });
+
+    const branch: Branch = {
+      dagId: this.dagId,
+      taskId,
+      case: (taskRef) => {
+        this.#validateOwnNode(taskRef, `a case of "${taskId}"`);
+        if (!isTaskRef(taskRef)) {
+          throw new Error(
+            `A case of Dag "${this.dagId}" branch "${taskId}" has to be a task, not a task group`,
+          );
+        }
+        if (candidates.some((candidate) => candidate.taskId === taskRef.taskId)) {
+          throw new Error(
+            `Dag "${this.dagId}" branch "${taskId}" lists "${taskRef.taskId}" twice; ` +
+              "each case names a different task",
+          );
+        }
+        candidates.push(taskRef);
+        decider.before(taskRef);
+        return branch;
+      },
+      before: (...downstream) => {
+        decider.before(...downstream);
+        return branch;
+      },
+      after: (...upstream) => {
+        decider.after(...upstream);
+        return branch;
+      },
+    };
+    conditionTasks.set(branch, decider);
+    return Object.freeze(branch);
   }
 
   /**
@@ -1107,6 +1187,14 @@ export class Dag {
         throw new Error(
           `Condition "${taskId}" of Dag "${this.dagId}" names no branch, so it decides nothing; ` +
             "give it one with dag.if(handler, inputs).then(task)",
+        );
+      }
+    }
+    for (const [taskId, cases] of this.#branches) {
+      if (cases.length === 0) {
+        throw new Error(
+          `Branch "${taskId}" of Dag "${this.dagId}" has no cases, so it decides nothing; ` +
+            "give it the tasks to choose between with dag.switch(handler, inputs).case(task)",
         );
       }
     }
