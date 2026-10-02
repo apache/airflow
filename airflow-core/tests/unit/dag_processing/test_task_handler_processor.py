@@ -52,6 +52,7 @@ from airflow.dag_processing.processor import (
 from airflow.dag_processing.task_handler_processor import (
     LangSDKRuntimeSchemaVersion,
     LangSDKTaskHandlerProcessorProcess,
+    TaskHandlerProbeStopped,
     _get_import_timeout,
 )
 from airflow.sdk.api.client import Client, VariableOperations
@@ -197,7 +198,9 @@ def _send_a_start_message(request, comms) -> None:
     _send_a_frame(comms, LangSDKRuntimeSchemaVersion(schema_version=None).model_dump())
 
 
-def _run(tmp_path, *, coordinator: str = "fake", **spec) -> TaskHandlerParsingResult:
+def _run(
+    tmp_path, *, coordinator: str = "fake", deadline: float | None = None, **spec
+) -> TaskHandlerParsingResult:
     return LangSDKTaskHandlerProcessorProcess.run(
         coordinator=coordinator,
         path=write_artifact(tmp_path / "etl.artifact", **spec),
@@ -205,6 +208,7 @@ def _run(tmp_path, *, coordinator: str = "fake", **spec) -> TaskHandlerParsingRe
         bundle_name="task-handlers",
         artifact_rel_path="etl.artifact",
         logger=structlog.get_logger(),
+        deadline=deadline,
     )
 
 
@@ -710,6 +714,7 @@ class TestRun:
         assert result.import_errors == {
             "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} within 1.0s"
         }
+        assert not isinstance(result, TaskHandlerProbeStopped)
         [proc] = [c.args[0] for c in mock_close.call_args_list]
         assert proc._exit_code == -9
         assert not proc._open_sockets
@@ -749,6 +754,50 @@ class TestRun:
         assert result.import_errors == {
             "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} within 1.0s"
         }
+
+    @pytest.mark.execution_timeout(30)
+    @pytest.mark.parametrize("reported", [False, True], ids=["before-the-import-timeout", "after-it"])
+    @patch.object(
+        LangSDKTaskHandlerProcessorProcess,
+        "close",
+        autospec=True,
+        side_effect=LangSDKTaskHandlerProcessorProcess.close,
+    )
+    @patch.object(FakeCoordinator, "parse_task_handler", autospec=True)
+    def test_a_probe_past_its_deadline_is_killed(
+        self, mock_parse_task_handler, mock_close, tmp_path, reported
+    ):
+        if reported:
+            mock_parse_task_handler.side_effect = play_runtime(
+                lambda request, comms: _block_until_killed(comms)
+            )
+        else:
+            mock_parse_task_handler.side_effect = lambda self, **kwargs: threading.Event().wait()
+
+        result = _run(tmp_path, deadline=time.monotonic() + 1)
+
+        assert isinstance(result, TaskHandlerProbeStopped)
+        assert result.import_errors == {
+            "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} by its deadline"
+        }
+        [proc] = [c.args[0] for c in mock_close.call_args_list]
+        assert proc._exit_code == -signal.SIGKILL
+
+    @pytest.mark.execution_timeout(30)
+    @patch.object(FakeCoordinator, "parse_task_handler", autospec=True)
+    def test_an_error_the_runtime_reported_is_kept_when_the_deadline_stops_it(
+        self, mock_parse_task_handler, tmp_path
+    ):
+        def reply(request, comms):
+            comms.send(_reply_with(import_errors={"etl.artifact": "handler registry failed"})(request, comms))
+            _block_until_killed(comms)
+
+        mock_parse_task_handler.side_effect = play_runtime(reply)
+
+        result = _run(tmp_path, deadline=time.monotonic() + 1)
+
+        assert not isinstance(result, TaskHandlerProbeStopped)
+        assert result.import_errors == {"etl.artifact": "handler registry failed"}
 
 
 @pytest.mark.parametrize(("configured", "expected"), [(30, 30), (0.5, 0.5), (0, None), (-1, None)])
