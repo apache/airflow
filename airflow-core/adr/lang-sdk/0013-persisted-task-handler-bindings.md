@@ -390,8 +390,8 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │      anything differs   ──▶ probe
         │
         ├─6─ PROBE, per differing candidate — one subprocess
-        │      SDKTaskHandlerProcessorProcess.start(
-        │          target=_parse_task_handler_entrypoint,
+        │      LangSDKTaskHandlerProcessorProcess.start(
+        │          target=_start_task_handler_runtime_entrypoint,
         │          coordinator=JavaCoordinator("jdk-17"),
         │          path=<candidate>)
         │        ──SDKTaskHandlerParseRequest(file=…, dag_ids=["etl"])──▶ runtime
