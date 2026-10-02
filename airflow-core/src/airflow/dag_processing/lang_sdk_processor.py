@@ -23,12 +23,14 @@ import os
 import selectors
 import signal
 import time
+from contextlib import suppress
 from pathlib import Path
 from socket import socket
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, cast, get_args
 
 import attrs
 import msgspec
+import psutil
 from pydantic import BaseModel, Field, TypeAdapter
 from uuid6 import uuid7
 
@@ -172,6 +174,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
     _schema_version_reported: bool = attrs.field(default=False, init=False)
     _parsing_result_monotonic: float | None = attrs.field(default=None, init=False)
     _unverified_connections: list[tuple[socket, _Channel]] = attrs.field(factory=list, init=False)
+    _group_killed: bool = attrs.field(default=False, init=False)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -475,10 +478,17 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         self._verify_connections()
         if (
             self._parsing_result_monotonic is not None
-            and self._exit_code is None
             and time.monotonic() - self._parsing_result_monotonic > _EXIT_GRACE_PERIOD
         ):
-            self.process_log.warning("The Lang-SDK runtime did not exit after its parse result; killing it")
+            if self._exit_code is None:
+                self.process_log.warning(
+                    "The Lang-SDK runtime did not exit after its parse result; killing it"
+                )
+            elif not self._group_killed:
+                self.process_log.warning(
+                    "The Lang-SDK runtime left processes holding its output after its parse result; "
+                    "killing them"
+                )
             self._kill_runtime()
         if (
             self._import_timeout is not None
@@ -506,16 +516,41 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         self._kill_runtime()
 
     def _kill_runtime(self) -> None:
-        """Kill the runtime and wait for it, without servicing its sockets, whose handler may have failed."""
+        """
+        Kill the runtime's process group and wait for the runtime, without servicing its sockets.
+
+        Their handler may have failed. The wait is bounded so that a runtime stuck in the kernel does not
+        stall the caller's loop; ``is_ready`` sees it exit later.
+        """
         if self._exit_code is not None:
+            self._kill_leftovers()
             return
         try:
             self._signal_subprocess(signal.SIGKILL)
-            self._exit_code = self._process.wait(timeout=None)
+            self._group_killed = True
+            self._exit_code = self._process.wait(timeout=_EXIT_GRACE_PERIOD)
         except (self._process.ProcessNotFound, ProcessLookupError):
             self._exit_code = -1
+        except self._process.TimeoutExpired:
+            self.process_log.warning("The Lang-SDK runtime did not exit after SIGKILL", pid=self.pid)
+
+    def _kill_leftovers(self) -> None:
+        """
+        Kill the processes an exited runtime left in its process group, which can keep its sockets open.
+
+        The group is killed once, and not when another process has reused the runtime's pid, since the
+        group could then be that process's.
+        """
+        if self._exit_code is None or self._group_killed or not self._new_process_group:
+            return
+        self._group_killed = True
+        if psutil.pid_exists(self.pid):
+            return
+        with suppress(ProcessLookupError, PermissionError):
+            os.killpg(self.pid, signal.SIGKILL)
 
     def close(self) -> None:
         # A listener has nothing to drain, and cleanup would call its accept handler forever.
         self._close_listeners()
+        self._kill_leftovers()
         super().close()
