@@ -25,10 +25,11 @@ End-to-end test that one Dag mixing **Python + Go + Java** tasks runs to success
 `kubernetes-tests/tests/kubernetes_tests/test_lang_sdk_coordinator_executor.py`.
 
 The same file also holds `TestNativeTypeScriptDagOnKubernetes`, which runs a Dag with **no Python
-file at all**: the Dag processor asks the packed TypeScript bundle to parse itself. It is gated on
-`RUN_TS_SDK_NATIVE_DAG_K8S_TESTS` as well as `RUN_LANG_SDK_K8S_TESTS`, because dispatching a parse
-request to a language coordinator is not in Airflow yet — the provisioning below is in place, so the
-test becomes real as soon as it is.
+file at all**: the Dag processor asks the packed TypeScript bundle to parse itself. It is skipped
+unless `RUN_TS_SDK_NATIVE_DAG_K8S_TESTS` is set, because this setup does not let the Dag processor
+parse the bundle yet: `bundle.min.mjs` is uploaded only to the `ts-artifacts` bucket, which only
+worker pods stage, the `ts-sdk` coordinator's `dag_bundle_name` limits it to that bundle, and the
+Dag processor image has no Node.
 
 ## How it fits together
 
