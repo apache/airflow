@@ -221,8 +221,8 @@ def test_the_decisions_are_recorded(completed_run: _CompletedRun):
     assert completed_run.xcom("pick_cadence") == "publish_weekly"
 
 
-def test_a_cleared_skipped_branch_stays_skipped(completed_run: _CompletedRun):
-    """What `_can_skip_downstream` plus the skipmixin XCom are for."""
+def test_the_skipped_branches_are_recorded_in_xcom(completed_run: _CompletedRun):
+    """The skipmixin XCom a later clear reads to keep these branches skipped."""
     assert completed_run.xcom("has_rows", key="skipmixin_key") == {"skipped": ["report_empty"]}
     assert completed_run.xcom("pick_cadence", key="skipmixin_key") == {"skipped": ["publish_daily"]}
 
