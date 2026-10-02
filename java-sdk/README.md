@@ -120,6 +120,9 @@ Now `cd example` into the example project, and
   export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"java": "java"}'
   ```
 
+  With a single `JavaCoordinator`, `dag_bundle_name` is optional. It is set here because the JARs live in
+  `build/bundle`, outside the Dags folder; omit it if you ship the JARs in the same Dag bundle as the stub Dag.
+
 * Ensure the Connection and Variable needed by the example DAG are available:
 
   ```bash

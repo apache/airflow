@@ -207,8 +207,10 @@ then register the coordinator and route the queue to it in ``airflow.cfg`` (or t
     }
     queue_to_coordinator = {"golang": "go"}
 
-``dag_bundle_name`` names the Dag bundle the coordinator scans for executable bundles. Omit it to ship the
-executable bundles in the same Dag bundle as the Python stub Dag. ``queue_to_coordinator``
+``dag_bundle_name`` is optional. Omit it and the coordinator finds executable bundles in the task's own Dag
+bundle, the one that holds the Python stub Dag. Set it, as here, to keep them in a separate Dag bundle, for
+example when you configure more than one ``ExecutableCoordinator`` and each has its own bundles.
+``queue_to_coordinator``
 routes stub tasks with ``queue="golang"`` to this Go coordinator. See :ref:`go-sdk/coordinator-config` for
 the full list of accepted ``kwargs``.
 
@@ -534,11 +536,11 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
   **Locating bundles.** Executable bundles always live in a Dag bundle:
 
-  * Set ``dag_bundle_name`` to load bundles from a configured Dag bundle, so they are delivered
-    and versioned through the same bundle machinery as your Dags. The task uses the version that
+  * Leave ``dag_bundle_name`` unset (the default) to load bundles from the **task's own** Dag bundle,
+    pinned to the version the run was created with.
+  * Set ``dag_bundle_name`` to keep bundles in a separate Dag bundle, for example one per
+    ``ExecutableCoordinator`` when you configure more than one. The task uses the version that Dag
     bundle is on when it starts, pinned for the whole task.
-  * Leave it unset (the default) to load bundles from the **task's own** Dag bundle, pinned
-    to the version the run was created with.
 
 .. _go-sdk/limitations:
 
