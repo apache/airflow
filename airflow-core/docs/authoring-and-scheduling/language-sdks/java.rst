@@ -646,6 +646,8 @@ Otherwise, with several Java coordinators, its JARs fail to parse.
 * Do not declare a Dag in Java that a Python file in the same bundle also defines.
 * Keep one executable JAR per bundle, or set ``main_class``, so that only JARs with that
   ``Main-Class`` are parsed. List JARs that should not be parsed in ``.airflowignore``.
+* Two JARs in the bundle that set the same ``Main-Class`` fail to parse, because the JVM would load
+  the classes of only one of them. Keep one in the bundle.
 * Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
   ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
   Dag-level queue yet.
@@ -1160,8 +1162,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - ``main_class``
      - *(auto-detect)*
      - Explicit entry-point class. If omitted, the coordinator scans the Dag bundle for a JAR
-       whose manifest sets ``Main-Class``. If more than one JAR in that Dag bundle sets it, which
-       one runs is non-deterministic, so set ``main_class`` explicitly in that case.
+       whose manifest sets ``Main-Class``. If more than one JAR in that Dag bundle sets it, the first
+       by path is used, so set ``main_class`` explicitly in that case.
+       A task of a native Java Dag runs the JAR the Dag was parsed from.
        When the coordinator parses native Java Dags, only JARs with this ``Main-Class`` are parsed.
    * - ``task_startup_timeout``
      - ``10.0``
