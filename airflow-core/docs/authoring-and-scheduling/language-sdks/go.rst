@@ -541,7 +541,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
     ``ExecutableCoordinator``.
   * With more than one ``ExecutableCoordinator``, set ``dag_bundle_name`` on each to a different Dag
     bundle, so Dag processing knows which one runs an executable bundle to parse it. The task uses the
-    version that Dag bundle is on when it starts, pinned for the whole task.
+    version that Dag bundle is on when it starts, pinned for the whole task. If it names the task's own
+    Dag bundle, the task uses the version the run was created with.
 
 .. _go-sdk/limitations:
 

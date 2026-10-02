@@ -942,6 +942,17 @@ class TestInitRootSource:
         mock_initialize.assert_called_once_with(bundle_info)
 
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
+    def test_named_task_bundle_uses_the_run_version(self, mock_initialize, tmp_path):
+        mock_initialize.return_value = MagicMock(path=tmp_path, version="v3")
+        coordinator = _StubSubprocessCoordinator(command=["x"], artifact_root=None)
+        coordinator.dag_bundle_name = "dags"
+        bundle_info = BundleInfo(name="dags", version="v3")
+
+        coordinator._init_root_source(bundle_info, log)
+
+        mock_initialize.assert_called_once_with(bundle_info)
+
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle")
     def test_version_less_bundle_is_rematerialized_at_its_current_version(self, mock_initialize, tmp_path):
         """A bundle resolved without a version is re-resolved at the version current now.
 

@@ -1166,7 +1166,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
     to the version the run was created with. This is all you need with a single ``JavaCoordinator``.
   * With more than one ``JavaCoordinator``, set ``dag_bundle_name`` on each to a different Dag bundle, so
     Dag processing knows which one starts the JVM that parses a JAR. The task uses the version that bundle is
-    on when it starts, pinned for the whole task.
+    on when it starts, pinned for the whole task. If it names the task's own Dag bundle, the task uses the
+    version the run was created with.
 
 .. note::
 
