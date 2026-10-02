@@ -128,12 +128,9 @@ class TestGetSourceCode:
         ],
         ids=["tampered", "oversize", "missing"],
     )
-    def test_returns_a_notice_when_the_source_cannot_be_read(self, importer, tmp_path, break_bundle, reason):
+    def test_raises_when_the_source_cannot_be_read(self, importer, tmp_path, break_bundle, reason):
         path = write_bundle(tmp_path, "sales")
         break_bundle(path)
 
-        source_code = importer.get_source_code(FilesystemDagDefinition(path))
-
-        assert source_code.language == "typescript"
-        assert source_code.source_code.startswith("// Source code is not available: ")
-        assert reason in source_code.source_code
+        with pytest.raises((OSError, ValueError), match=reason):
+            importer.get_source_code(FilesystemDagDefinition(path))

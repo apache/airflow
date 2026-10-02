@@ -21,8 +21,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Final
 
-import structlog
-
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators.node._bundle_reader import (
     BUNDLE_SUFFIX,
@@ -32,12 +30,8 @@ from airflow.sdk.coordinators.node._bundle_reader import (
 from airflow.sdk.importers.base import DagSourceCode
 
 if TYPE_CHECKING:
-    from structlog.typing import FilteringBoundLogger
-
     from airflow.sdk.coordinators.node.coordinator import NodeCoordinator
     from airflow.sdk.importers.base import DagDefinition
-
-log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node")
 
 _NO_SOURCE: Final = "// Source code is not available: the bundle embeds no entrypoint source.\n"
 
@@ -59,13 +53,7 @@ class NodeDagImporter(CoordinatorDagImporter):
                 return True
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
-        """Return the embedded entrypoint source of the bundle, or a notice when there is none."""
+        """Return the embedded entrypoint source of the bundle, or a notice when it embeds none."""
         with definition.as_file() as path:
-            try:
-                source = read_bundle_entrypoint_source(path)
-            except (OSError, ValueError) as e:
-                log.warning(
-                    "Cannot read the Dag source embedded in a TypeScript bundle", path=path, reason=str(e)
-                )
-                source = f"// Source code is not available: {e}\n"
+            source = read_bundle_entrypoint_source(path)
         return DagSourceCode(source_code=source or _NO_SOURCE, language="typescript")
