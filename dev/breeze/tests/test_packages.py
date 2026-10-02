@@ -18,12 +18,14 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
 from airflow_breeze.global_constants import REGULAR_DOC_PACKAGES
 from airflow_breeze.utils.packages import (
     PipRequirements,
+    _process_line_with_next_version_comment,
     apply_version_suffix_to_non_provider_pyproject_tomls,
     apply_version_suffix_to_provider_pyproject_toml,
     convert_cross_package_dependencies_to_table,
@@ -506,3 +508,37 @@ def test_apply_version_suffix_to_non_provider_pyproject_tomls(
         _check_dependencies_modified_properly(
             original_toml, modified_toml, version_suffix, floored_version_suffix
         )
+
+
+@pytest.mark.parametrize(
+    ("existing_tags", "expected_line", "expected_modified"),
+    [
+        pytest.param("", '    "apache-airflow-providers-common-compat>=1.20.0",', True, id="unreleased"),
+        pytest.param(
+            "providers-common-compat/1.20.0\n",
+            '    "apache-airflow-providers-common-compat>=1.19.0",  # use next version',
+            False,
+            id="released",
+        ),
+        pytest.param(
+            "providers-common-compat/1.20.0rc1\nproviders-common-compat/1.20.0rc2\n",
+            '    "apache-airflow-providers-common-compat>=1.20.0",',
+            True,
+            id="rc-only",
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.packages._get_provider_version_from_package_name", autospec=True)
+@mock.patch("airflow_breeze.utils.packages.run_command", autospec=True)
+def test_process_line_with_next_version_comment(
+    mock_run_command, mock_get_version, existing_tags, expected_line, expected_modified
+):
+    mock_get_version.return_value = "1.20.0"
+    mock_run_command.return_value.stdout = existing_tags
+    line = '    "apache-airflow-providers-common-compat>=1.19.0",  # use next version'
+    pyproject_file = AIRFLOW_ROOT_PATH / "providers" / "anthropic" / "pyproject.toml"
+
+    result = _process_line_with_next_version_comment(line, pyproject_file, {})
+
+    assert result == (expected_line, expected_modified)
+    assert mock_run_command.call_args.args[0] == ["git", "tag", "--list", "providers-common-compat/1.20.0*"]
