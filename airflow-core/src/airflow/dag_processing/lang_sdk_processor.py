@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import copy
 import functools
 import os
 import selectors
@@ -36,6 +37,7 @@ from uuid6 import uuid7
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.dag_processing.dagbag import _get_bundle_team_name, _validate_executor_fields
 from airflow.dag_processing.importer_routing import get_claiming_coordinator
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
@@ -44,6 +46,7 @@ from airflow.dag_processing.processor import (
     ToManager,
 )
 from airflow.exceptions import DeserializationError
+from airflow.models.pool import Pool
 from airflow.sdk.coordinators._subprocess import _is_connection_from_pid, _start_server
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import CommsDecoder, ErrorResponse, MaskSecret, _RequestFrame
@@ -55,6 +58,7 @@ from airflow.sdk.execution_time.supervisor import (
     register_request_method,
 )
 from airflow.sdk.importers import DagSourceCode, FilesystemDagDefinition
+from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
 if TYPE_CHECKING:
@@ -424,13 +428,17 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             DagSerialization.fill_config_defaults(dag.data)
             try:
                 DagSerialization.validate_serialized_dag(dag.data)
+                self._apply_team_rules(dag.data)
             except DeserializationError as e:
                 message = f"Cannot load the serialized Dag: {e}"
-                self.process_log.warning(message)
-                previous = import_errors.get(self.dag_file_rel_path)
-                import_errors[self.dag_file_rel_path] = f"{previous}\n{message}" if previous else message
+            except Exception as e:
+                message = f"{type(e).__name__}: {e}"
+            else:
+                serialized_dags.append(dag)
                 continue
-            serialized_dags.append(dag)
+            self.process_log.warning(message)
+            previous = import_errors.get(self.dag_file_rel_path)
+            import_errors[self.dag_file_rel_path] = f"{previous}\n{message}" if previous else message
         self.parsing_result = msg.model_copy(
             update={
                 "serialized_dags": serialized_dags,
@@ -440,6 +448,28 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         )
         self._parsing_result_monotonic = time.monotonic()
         return None, {}
+
+    def _apply_team_rules(self, data: dict) -> None:
+        """
+        Check each task's executor and move tasks in the default pool to the team's, as the Dag bag does.
+
+        The bundle's team owns the Dag. *data* is a serialized Dag that validates, and its pools are changed
+        in place.
+
+        :raises UnknownExecutorException: if a task's executor is not available to the team or globally.
+        """
+        dag = DagSerialization.from_dict(copy.deepcopy(data))
+        _validate_executor_fields(dag, self.bundle_name)
+        if not (team_name := _get_bundle_team_name(self.bundle_name)):
+            return
+        tasks = {task.task_id: task for task in dag.tasks}
+        for encoded in data["dag"]["tasks"]:
+            task_data = encoded[Encoding.VAR]
+            if tasks[task_data["task_id"]].pool != Pool.DEFAULT_POOL_NAME:
+                continue
+            # A mapped task reads its pool from its partial kwargs first.
+            target = task_data.setdefault("partial_kwargs", {}) if task_data.get("_is_mapped") else task_data
+            target["pool"] = Pool.get_default_team_pool_name(team_name)
 
     def _read_dag_source_codes(self, serialized_dags: list[LazyDeserializedDAG]) -> dict[str, DagSourceCode]:
         """
