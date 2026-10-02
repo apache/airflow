@@ -42,8 +42,8 @@ class JavaDagImporter(CoordinatorDagImporter):
     """
     Parse the native Dags of Java bundle JARs with the coordinator's JVM.
 
-    Only a JAR whose manifest sets ``Main-Class`` is parsed, so the dependency JARs of a thin bundle
-    are skipped.
+    Only a JAR whose manifest sets ``Main-Class`` (matching the coordinator's ``main_class`` if set) is
+    parsed.
     """
 
     artifact_suffix: ClassVar[str] = ".jar"
