@@ -49,7 +49,11 @@ from airflow.sdk.coordinators._subprocess import (
     log,
 )
 from airflow.sdk.execution_time.comms import TaskHandlerArtifactRef
-from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskHandlerCandidate
+from airflow.sdk.execution_time.coordinator import (
+    BaseCoordinator,
+    TaskHandlerArtifactError,
+    TaskHandlerCandidate,
+)
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
 from tests_common.test_utils.config import conf_vars
@@ -944,8 +948,22 @@ class TestResolveArtifactBundle:
         mock_initialize.return_value = _make_bundle(tmp_path / "nope", version="v1")
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
 
-        with pytest.raises(FileNotFoundError, match="does not exist"):
+        with pytest.raises(
+            TaskHandlerArtifactError, match=r"^Dag bundle 'artifacts' cannot be read: .*does not exist\.$"
+        ):
             coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log)
+
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    def test_a_bundle_that_cannot_be_initialized_raises_naming_the_bundle(self, mock_initialize):
+        cause = ValueError("git clone failed")
+        mock_initialize.side_effect = cause
+        coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
+
+        with pytest.raises(TaskHandlerArtifactError) as raised:
+            coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log)
+
+        assert str(raised.value) == "Dag bundle 'artifacts' cannot be read: git clone failed"
+        assert raised.value.__cause__ is cause
 
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
     def test_reference_bundle_is_pinned_instead_of_the_configured_one(self, mock_initialize, tmp_path):
@@ -1031,7 +1049,7 @@ class TestResolveArtifactBundle:
         )
 
         with pytest.raises(
-            FileNotFoundError,
+            TaskHandlerArtifactError,
             match=rf"^Task handler artifact '{re.escape(rel_path)}' is not a file in Dag bundle "
             r"'java-task-handlers' at version 'sha-abc'\.$",
         ):
@@ -1127,6 +1145,56 @@ class TestExecuteTaskBundleWiring:
         mock_lock.assert_called_once_with(bundle_name="java-task-handlers", bundle_version="sha-abc")
         assert mock_start.call_args.kwargs["task_handler_artifact"] is reference
         assert mock_start.call_args.kwargs["bundle_info"] == BundleInfo(name="dags", version="v9")
+
+
+@attrs.define(kw_only=True)
+class _UnresolvableCommandCoordinator(_StubSubprocessCoordinator):
+    def _build_execute_task_command(self, *, what):
+        raise FileNotFoundError("cannot find executable bundle containing dag_id='tutorial_dag'")
+
+
+@pytest.mark.usefixtures("artifact_bundle")
+class TestExecuteTaskFailsBeforeTheRuntimeStarts:
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
+    def test_a_command_that_cannot_be_built_raises_without_starting_the_runtime(
+        self, mock_start, mock_client
+    ):
+        coordinator = _UnresolvableCommandCoordinator(command=["/runtime"])
+
+        with pytest.raises(TaskHandlerArtifactError) as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert str(raised.value) == (
+            "Cannot find the artifact that runs task 'task_1' of Dag 'tutorial_dag' in Dag bundle 'dags': "
+            "cannot find executable bundle containing dag_id='tutorial_dag'"
+        )
+        assert isinstance(raised.value.__cause__, FileNotFoundError)
+        mock_start.assert_not_called()
+        mock_client.task_instances.start.assert_not_called()
+
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
+    def test_a_bundle_error_raises_without_starting_the_runtime(
+        self, mock_start, mock_client, artifact_bundle
+    ):
+        artifact_bundle.side_effect = TaskHandlerArtifactError("Dag bundle 'dags' cannot be read: boom")
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"])
+
+        with pytest.raises(TaskHandlerArtifactError, match="cannot be read: boom"):
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        mock_start.assert_not_called()
 
 
 class TestGetScanRoots:

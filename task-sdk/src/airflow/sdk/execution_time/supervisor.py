@@ -147,7 +147,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+from airflow.sdk.execution_time.coordinator import TaskHandlerArtifactError, get_coordinator_manager
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
@@ -1596,6 +1596,22 @@ def _remote_logging_conn(client: Client):
         del client
 
 
+_START_REJECTED_AS_CLEARED_MESSAGE = (
+    "Server rejected task start because the task was cleared. Task process stopped."
+)
+
+
+def _is_start_rejected_as_cleared(error: Exception) -> bool:
+    """Return whether *error* is the server refusing to start a task that was cleared while it was queued."""
+    return (
+        isinstance(error, ServerResponseError)
+        and error.response.status_code == HTTPStatus.CONFLICT
+        and isinstance(error.detail, dict)
+        and error.detail.get("reason") == "invalid_state"
+        and error.detail.get("previous_state") == "restarting"
+    )
+
+
 @attrs.define(kw_only=True)
 class ActivitySubprocess(WatchedSubprocess):
     client: Client
@@ -1683,16 +1699,8 @@ class ActivitySubprocess(WatchedSubprocess):
         except Exception as e:
             # On any error kill that subprocess!
             self.kill(signal.SIGKILL)
-            if (
-                isinstance(e, ServerResponseError)
-                and e.response.status_code == HTTPStatus.CONFLICT
-                and isinstance(e.detail, dict)
-                and e.detail.get("reason") == "invalid_state"
-                and e.detail.get("previous_state") == "restarting"
-            ):
-                self.process_log.info(
-                    "Server rejected task start because the task was cleared. Task process stopped."
-                )
+            if _is_start_rejected_as_cleared(e):
+                self.process_log.info(_START_REJECTED_AS_CLEARED_MESSAGE)
                 self._terminal_state = SERVER_TERMINATED
                 return
             raise
@@ -2902,6 +2910,62 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     return logger, log_file_descriptor
 
 
+def _fail_task_before_runtime(
+    *, ti: TaskInstance, client: Client, logger: FilteringBoundLogger, error: TaskHandlerArtifactError
+) -> int:
+    """
+    Fail *ti* with *error*'s message, for a task whose runtime could not be started.
+
+    Starts the task instance, writes the message to the task log and the supervisor log, reports the
+    task as up for retry or failed with the message as its reason, and uploads the task log. Returns the
+    process exit code, 1.
+    """
+    from airflow.sdk._shared.secrets_masker import redact
+    from airflow.sdk.log import upload_to_remote
+
+    try:
+        ti_context = client.task_instances.start(ti.id, os.getpid(), datetime.now(tz=timezone.utc))
+    except Exception as e:
+        if _is_start_rejected_as_cleared(e):
+            logger.info(_START_REJECTED_AS_CLEARED_MESSAGE)
+            return 1
+        raise
+
+    reason = str(redact(str(error)))
+    log.warning("Cannot run the task's Lang-SDK artifact", ti_id=str(ti.id), reason=reason)
+    logger.error(
+        "Cannot run the task's Lang-SDK artifact",
+        reason=reason,
+        exc_info=error if error.__cause__ is not None else None,
+    )
+    try:
+        end_date = datetime.now(tz=timezone.utc)
+        try:
+            if ti_context.should_retry:
+                client.task_instances.retry(
+                    ti.id, end_date=end_date, rendered_map_index=None, retry_reason=reason[:500]
+                )
+            else:
+                client.task_instances.finish(
+                    id=ti.id,
+                    state=TerminalStateNonSuccess.FAILED,
+                    when=end_date,
+                    rendered_map_index=None,
+                    retry_reason=reason[:500],
+                )
+        except ServerResponseError as e:
+            if e.response.status_code != HTTPStatus.CONFLICT:
+                raise
+            logger.info("Server rejected task outcome with a conflict. Discarding task outcome.")
+    finally:
+        try:
+            with _remote_logging_conn(client):
+                upload_to_remote(logger, ti)  # type: ignore[arg-type]
+        except Exception:
+            logger.exception("Failed to upload remote logs", ti_id=ti.id)
+    return 1
+
+
 def supervise_task(
     *,
     ti: TaskInstance,
@@ -3031,6 +3095,13 @@ def supervise_task(
                 final_state=result.final_state,
             )
             return result.exit_code
+        except TaskHandlerArtifactError as e:
+            return _fail_task_before_runtime(
+                ti=ti,
+                client=client,
+                logger=logger or structlog.get_logger(logger_name="task").bind(),
+                error=e,
+            )
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()

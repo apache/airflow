@@ -50,7 +50,7 @@ from airflow.sdk.api.datamodels._generated import BundleInfo
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._bundle_metadata import walk_files
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
-from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskHandlerArtifactError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
@@ -455,7 +455,7 @@ def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) 
 
 def _check_artifact_in_bundle(bundle: BaseDagBundle, rel_path: str) -> None:
     """
-    Raise :class:`FileNotFoundError` unless *rel_path* names a file inside *bundle*.
+    Raise :class:`TaskHandlerArtifactError` unless *rel_path* names a file inside *bundle*.
 
     *rel_path* must be a relative path inside the bundle, with no ``..`` part. A symlink in the
     bundle is followed, as the Dag processor follows it when it lists the bundle's artifacts.
@@ -463,7 +463,7 @@ def _check_artifact_in_bundle(bundle: BaseDagBundle, rel_path: str) -> None:
     path = PurePosixPath(rel_path)
     if path.is_absolute() or ".." in path.parts or not (bundle.path / path).is_file():
         version = f" at version {bundle.version!r}" if bundle.version is not None else ""
-        raise FileNotFoundError(
+        raise TaskHandlerArtifactError(
             f"Task handler artifact {rel_path!r} is not a file in Dag bundle {bundle.name!r}{version}."
         )
 
@@ -516,7 +516,7 @@ class SubprocessCoordinator(BaseCoordinator):
         task's own bundle when it is unset. *logger* is the task logger, so materialization failures
         surface in the task log.
 
-        :raises FileNotFoundError: when the bundle path, or the referenced file, does not exist.
+        :raises TaskHandlerArtifactError: when the bundle cannot be read, or the referenced file does not exist.
         """
         if task_handler_artifact is not None:
             ref_bundle = task_handler_artifact.bundle_info
@@ -529,10 +529,15 @@ class SubprocessCoordinator(BaseCoordinator):
         else:
             target = BundleInfo(name=self.task_handler_bundle_name)
 
-        bundle = _initialize_pinned_bundle(target, logger)
+        try:
+            bundle = _initialize_pinned_bundle(target, logger)
+        except Exception as e:
+            raise TaskHandlerArtifactError(f"Dag bundle {target.name!r} cannot be read: {e}") from e
         path = bundle.path
         if not path.exists():
-            raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
+            raise TaskHandlerArtifactError(
+                f"Dag bundle {target.name!r} cannot be read: it resolved to {path}, which does not exist."
+            )
         if task_handler_artifact is not None:
             _check_artifact_in_bundle(bundle, task_handler_artifact.rel_path)
         return bundle
@@ -685,7 +690,13 @@ class SubprocessCoordinator(BaseCoordinator):
             BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version),
             self._set_scan_roots([bundle.path]),
         ):
-            command, subprocess_schema_version = self._build_execute_task_command(what=what)
+            try:
+                command, subprocess_schema_version = self._build_execute_task_command(what=what)
+            except Exception as e:
+                raise TaskHandlerArtifactError(
+                    f"Cannot find the artifact that runs task {what.task_id!r} of Dag {what.dag_id!r} "
+                    f"in Dag bundle {bundle.name!r}: {e}"
+                ) from e
             process = _PopenActivitySubprocess.start(
                 what=what,
                 dag_rel_path=dag_rel_path,
