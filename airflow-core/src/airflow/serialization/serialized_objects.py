@@ -40,6 +40,7 @@ import attrs
 import lazy_object_proxy
 import pydantic
 from dateutil import relativedelta
+from jsonschema import ValidationError
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow._shared.dagnode.cycle import detect_cycle
@@ -2168,21 +2169,26 @@ class DagSerialization(BaseSerialization):
         """
         Check that a serialized Dag, such as one a Lang-SDK runtime produced, can be stored and loaded.
 
-        It must match the JSON schema, deserialize, and have no cycle in its task graph.
+        It must match the JSON schema, have unique task ids, deserialize, and have no cycle in its task graph.
         *serialized_obj* is not changed.
 
         :raises DeserializationError: if it does not.
         """
-        from jsonschema import ValidationError
-
         dag = serialized_obj.get("dag")
         dag_id = dag.get("dag_id") if isinstance(dag, dict) else None
         try:
             cls.validate_schema(serialized_obj)
         except ValidationError as e:
             raise DeserializationError(
-                dag_id, f"Dag {dag_id!r} does not match the schema: {e.message}"
+                dag_id, f"Dag {dag_id!r} does not match the schema at {e.json_path}: {e.message}"
             ) from e
+        task_ids = collections.Counter(
+            task[Encoding.VAR]["task_id"] for task in serialized_obj["dag"]["tasks"]
+        )
+        if duplicates := sorted(task_id for task_id, count in task_ids.items() if count > 1):
+            raise DeserializationError(
+                dag_id, f"Dag {dag_id!r} has more than one task with id {', '.join(map(repr, duplicates))}"
+            )
         try:
             cls.from_dict(copy.deepcopy(serialized_obj))
         except Exception as e:
@@ -2193,7 +2199,6 @@ class DagSerialization(BaseSerialization):
         downstream = {
             task[Encoding.VAR]["task_id"]: task[Encoding.VAR].get("downstream_task_ids") or ()
             for task in serialized_obj["dag"]["tasks"]
-            if task.get(Encoding.TYPE) == DAT.OP
         }
         if (task_id := detect_cycle(downstream, downstream.__getitem__)) is not None:
             raise DeserializationError(dag_id, f"Dag {dag_id!r} has a cycle through task {task_id!r}")
