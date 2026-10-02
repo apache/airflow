@@ -637,6 +637,8 @@ each a different ``dag_bundle_name``, otherwise Airflow fails to load ``[sdk] co
 * Do not declare a Dag in Java that a Python file in the same bundle also defines.
 * Keep one executable JAR per bundle, or set ``main_class``, so that only JARs with that
   ``Main-Class`` are parsed. List JARs that should not be parsed in ``.airflowignore``.
+* Two JARs in the bundle that set the same ``Main-Class`` fail to parse, because the JVM would load
+  the classes of only one of them. Keep one in the bundle.
 * Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
   ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
   Dag-level queue yet.
@@ -1148,8 +1150,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - *(auto-detect)*
      - Explicit entry-point class. If omitted, the coordinator scans for a JAR whose
        manifest sets ``Main-Class`` across the resolved Dag bundle. If multiple executable JARs
-       match the result is non-deterministic; set ``main_class`` explicitly in that case. When
-       the coordinator parses native Java Dags, only JARs with this ``Main-Class`` are parsed.
+       match, the first by path is used; set ``main_class`` explicitly in that case. A task of a
+       native Java Dag runs the JAR the Dag was parsed from. When the coordinator parses native
+       Java Dags, only JARs with this ``Main-Class`` are parsed.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your

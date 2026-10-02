@@ -83,10 +83,12 @@ def _walk_jars(items: Iterable[pathlib.Path], seen_dirs: set[tuple[int, int]]) -
 def _iter_dir(directory: pathlib.Path) -> Iterator[pathlib.Path]:
     # iterdir() is lazy, so an unreadable directory raises only once iteration
     # starts; swallow it here so a single bad directory does not abort the scan.
+    # Sorted, so the JAR a scan picks does not depend on filesystem order.
     try:
-        yield from directory.iterdir()
+        children = sorted(directory.iterdir())
     except OSError:
         return
+    yield from children
 
 
 def _calculate_classpath(roots: Sequence[pathlib.Path]) -> str:
@@ -143,6 +145,37 @@ class _JarInfo:
             return _JarInfo(self.main_class, self.schema_version)
 
     @classmethod
+    def for_jar(
+        cls, roots: Sequence[pathlib.Path], jar: pathlib.Path, main_class: str, schema_version: str | None
+    ) -> _JarInfo:
+        """
+        Return how to run *jar*, whose manifest sets *main_class* and *schema_version*.
+
+        Another JAR under *roots* that sets the same Main-Class is rejected, because the JVM would
+        load the classes of whichever comes first on the classpath. Without its own schema version,
+        *jar* takes the first one another JAR sets.
+        """
+        target = jar.resolve()
+        same_main_class = [jar]
+        for p in _find_jars(roots):
+            if p.resolve() == target or (metadata := _JarMetadata.from_jar(p)) is None:
+                continue
+            if metadata.main_class == main_class:
+                same_main_class.append(p)
+            schema_version = schema_version or metadata.schema_version
+        if len(same_main_class) > 1:
+            paths = ", ".join(os.fspath(p) for p in same_main_class)
+            raise ValueError(
+                f"These JARs all set Main-Class {main_class!r}: {paths}. Keep one in the bundle."
+            )
+        if schema_version is None:
+            raise FileNotFoundError(
+                "cannot find a JAR with Airflow-Supervisor-Schema-Version metadata in "
+                + os.pathsep.join(os.fspath(p.resolve()) for p in roots)
+            )
+        return cls(main_class, schema_version)
+
+    @classmethod
     def find(cls, roots: Sequence[pathlib.Path], main_class: str) -> _JarInfo:
         log.debug("Finding JARs recursively", roots=roots)
         progress = cls._Progress()
@@ -195,8 +228,8 @@ class JavaCoordinator(SubprocessCoordinator):
 
     If *main_class* is not explicitly set, JavaCoordinator scans the Dag bundle to
     find an executable JAR (one with Main-Class set in its metadata). If more
-    than one executable JAR is found, it may be nondeterministic which one ends
-    up being executed.
+    than one executable JAR is found, the first by path is executed. A task of a
+    native Java Dag runs the JAR the Dag was parsed from.
 
     A JAR containing metadata *Airflow-Supervisor-Schema-Version* should also be
     available to specify the wire schema version. The JAR containing the Java
@@ -206,7 +239,8 @@ class JavaCoordinator(SubprocessCoordinator):
 
     The coordinator also parses native Java Dags: every JAR in the Dag bundles it
     reads whose manifest sets Main-Class (matching *main_class* when that is set)
-    is run to list the Dags its main class declares.
+    is run to list the Dags its main class declares. A JAR whose Main-Class
+    another JAR in the bundle also sets is rejected.
 
     The default *task_startup_timeout* should plenty long enough since a task-
     containing JAR is not supposed to consume significant time to perform setup
@@ -230,20 +264,31 @@ class JavaCoordinator(SubprocessCoordinator):
     def _build_execute_task_command(
         self, *, what: TaskInstance, dag_file: pathlib.Path | None = None
     ) -> tuple[list[str], str | None]:
-        # Without main_class, the first executable JAR in walk order wins; tracked at
-        # https://github.com/apache/airflow/issues/71134
         roots = self._get_scan_roots()
-        jar = _JarInfo.find(roots, self.main_class)
+        if (jar := self._find_dag_jar(roots, dag_file)) is None:
+            # Without main_class, the first executable JAR in walk order wins; tracked at
+            # https://github.com/apache/airflow/issues/71134
+            jar = _JarInfo.find(roots, self.main_class)
         return self._build_command(roots, jar.main_class), jar.schema_version
+
+    def _find_dag_jar(self, roots: Sequence[pathlib.Path], dag_file: pathlib.Path | None) -> _JarInfo | None:
+        """Return how to run *dag_file* when it is a JAR this coordinator runs, or ``None``."""
+        if dag_file is None or dag_file.suffix != ".jar":
+            return None
+        if (metadata := _JarMetadata.from_jar(dag_file)) is None or not metadata.main_class:
+            return None
+        if self.main_class and metadata.main_class != self.main_class:
+            return None
+        return _JarInfo.for_jar(roots, dag_file, metadata.main_class, metadata.schema_version)
 
     def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         # Same command shape as execution. With one executable JAR per bundle, or main_class set,
         # a parse runs the class a task runs.
-        main_class, _ = _read_executable_jar(path)
+        main_class, schema_version = _read_executable_jar(path)
         if self.main_class and main_class != self.main_class:
             raise ValueError(
                 f"{path} runs {main_class!r}, but this coordinator's main_class is {self.main_class!r}"
             )
         roots = self._get_scan_roots()
-        jar = _JarInfo.find(roots, main_class)
+        jar = _JarInfo.for_jar(roots, path, main_class, schema_version)
         return self._build_command(roots, jar.main_class), jar.schema_version
