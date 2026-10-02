@@ -478,6 +478,26 @@ class TestDagFileProcessorManager:
             "log_level": "warning",
         } in caplog
 
+    @pytest.mark.parametrize("absolute", [False, True], ids=["relative", "absolute"])
+    @mock.patch("airflow.dag_processing.manager.get_importer_registry", autospec=True)
+    def test_find_files_in_bundle_warns_about_items_outside_the_bundle(
+        self, mock_get_registry, tmp_path, absolute, caplog
+    ):
+        (tmp_path / "outside.dag").write_text("")
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+        loc = os.fspath(tmp_path / "outside.dag") if absolute else "../outside.dag"
+        item = MagicMock(spec=DagDefinition, **{"get_relative_loc.return_value": loc})
+        mock_get_registry.return_value.list_dag_definitions.return_value = [(mock.sentinel.importer, item)]
+
+        found_files = DagFileProcessorManager(max_runs=1)._find_files_in_bundle(_make_bundle(bundle_path))
+
+        assert found_files == set()
+        assert {
+            "event": f"Ignoring {item!r} listed in bundle testing: it resolves outside the bundle",
+            "log_level": "warning",
+        } in caplog
+
     @conf_vars(
         {
             (

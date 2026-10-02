@@ -1005,7 +1005,13 @@ class DagFileProcessorManager(LoggingMixin):
                 rel_fileloc = os.path.relpath(bundle.path / item.source_reference, bundle.path)
             else:
                 rel_fileloc = item.get_relative_loc(bundle.path)
-            if (path := find_enclosing_file(bundle.path / rel_fileloc)) is None:
+            loc = Path(os.path.normpath(bundle.path / rel_fileloc))
+            if not loc.is_relative_to(bundle.path):
+                self.log.warning(
+                    "Ignoring %r listed in bundle %s: it resolves outside the bundle", item, bundle.name
+                )
+                continue
+            if (path := find_enclosing_file(loc)) is None:
                 self.log.warning(
                     "Ignoring %r listed in bundle %s: no file in the bundle holds it", item, bundle.name
                 )
