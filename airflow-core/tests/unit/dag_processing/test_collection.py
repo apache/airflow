@@ -96,6 +96,7 @@ from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -169,8 +170,6 @@ def test_statement_latest_runs_loads_timetable_fields(dag_maker, session):
 @pytest.mark.db_test
 def test_run_info_calculate_many_matches_calculate_per_dag(dag_maker, session):
     """Batched run-info resolution returns the same result per Dag as per-dag resolution."""
-    from airflow.serialization.serialized_objects import LazyDeserializedDAG
-
     lazy_dags = {}
     for i in range(2):
         with dag_maker(f"cm-plain-{i}", schedule="@daily", session=session) as dag:
@@ -220,8 +219,6 @@ def test_run_info_calculate_many_matches_calculate_per_dag(dag_maker, session):
 @pytest.mark.db_test
 def test_update_dags_resolves_run_info_with_constant_queries(dag_maker, session, testing_dag_bundle):
     """Run-info resolution must not scale with the number of Dags in a parse batch."""
-    from tests_common.test_utils.asserts import count_queries
-
     dags = []
     for i in range(3):
         with dag_maker(f"factory-dag-{i}", schedule="@daily", session=session) as dag:
@@ -256,6 +253,14 @@ def test_statement_latest_runs_batch_matches_single_per_dag(dag_maker, session):
     with dag_maker("batch-dag-no-logical-date", schedule="@daily", session=session):
         pass
     dag_maker.sync_dagbag_to_db()
+    dag_maker.create_dagrun(
+        run_id="run-no-logical-date",
+        logical_date=None,
+        data_interval=None,
+        run_type=DagRunType.SCHEDULED,
+        run_after=tz.datetime(2025, 1, 1),
+        session=session,
+    )
     session.flush()
     session.expunge_all()
 

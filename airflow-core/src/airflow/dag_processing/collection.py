@@ -168,17 +168,6 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
     return select(DagRun).where(DagRun.id == latest_run_id).options(_build_latest_run_load_options())
 
 
-_LATEST_RUN_LOAD_ONLY = (
-    DagRun.dag_id,
-    DagRun.logical_date,
-    DagRun.run_after,
-    DagRun.data_interval_start,
-    DagRun.data_interval_end,
-    DagRun.partition_key,
-    DagRun.partition_date,
-)
-
-
 def _get_latest_runs_stmt_batch(dag_ids: Collection[str]) -> Select:
     """
     Batch equivalent of :func:`_get_latest_runs_stmt` for several Dags in one query.
@@ -203,7 +192,7 @@ def _get_latest_runs_stmt_batch(dag_ids: Collection[str]) -> Select:
             (DagRun.dag_id == max_logical_dates.c.dag_id)
             & (DagRun.logical_date == max_logical_dates.c.max_logical_date),
         )
-        .options(load_only(*_LATEST_RUN_LOAD_ONLY))
+        .options(_build_latest_run_load_options())
     )
 
 
@@ -239,7 +228,7 @@ def _get_latest_runs_stmt_partitioned_batch(dag_ids: Collection[str]) -> Select:
     return (
         select(DagRun)
         .where(DagRun.id.in_(select(ranked.c.id).where(ranked.c.rank == 1)))
-        .options(load_only(*_LATEST_RUN_LOAD_ONLY))
+        .options(_build_latest_run_load_options())
     )
 
 
