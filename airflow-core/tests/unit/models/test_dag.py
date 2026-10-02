@@ -57,6 +57,7 @@ from airflow.models.dag import (
     clear_team_name_cache,
     get_next_data_interval,
     get_run_data_interval,
+    infer_automated_data_interval,
 )
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -99,7 +100,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -121,6 +121,7 @@ from tests_common.test_utils.taskinstance import run_task_instance
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 from unit.models import DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import (
+    DecreasingPriorityStrategy,
     FactorPriorityWeightStrategy,
     StaticTestPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
@@ -166,6 +167,17 @@ TEST_DAGS_FOLDER = Path(__file__).parents[1] / "dags"
 def test_dags_bundle(configure_testing_dag_bundle):
     with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
         yield
+
+
+def test_infer_automated_data_interval_uses_asset_triggered_behavior():
+    class CustomAssetTriggeredTimetable(Timetable):
+        asset_triggered = True
+
+    logical_date = timezone.datetime(2026, 6, 21)
+
+    assert infer_automated_data_interval(CustomAssetTriggeredTimetable(), logical_date) == DataInterval.exact(
+        logical_date
+    )
 
 
 def _create_dagrun(
@@ -361,6 +373,25 @@ class TestDag:
         assert "testing" in instantiated
         assert "unrelated" not in instantiated
 
+    def test_dag_test_runtime_start_date_decoupled_from_logical_date(self, dag_maker, time_machine):
+        """
+        Ensure DAG.test() decouples its execution start_date from historical logical_dates.
+        """
+        past_logical_date = pendulum.datetime(2024, 1, 1, tz="UTC")
+        frozen_now = pendulum.datetime(2026, 6, 22, 12, 0, 0, tz="UTC")
+
+        time_machine.move_to(frozen_now, tick=False)
+
+        with dag_maker(dag_id="test_runtime_duration_isolation", start_date=past_logical_date) as dag:
+            EmptyOperator(task_id="task1")
+
+        # Run dag.test against the DB
+        dr = dag.test(logical_date=past_logical_date)
+
+        # Assert directly on the created DagRun object returned from the DB
+        assert dr.logical_date == past_logical_date
+        assert dr.start_date == frozen_now
+
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
@@ -399,6 +430,7 @@ class TestDag:
         [
             (StaticTestPriorityWeightStrategy, 99),
             (FactorPriorityWeightStrategy, 3),
+            (DecreasingPriorityStrategy, 4),
         ],
     )
     def test_dag_task_custom_weight_strategy(self, cls, expected):
@@ -1147,7 +1179,7 @@ class TestDag:
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
-            rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
+            rel_filelocs=[],
         )
 
         orm_dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))

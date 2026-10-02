@@ -2517,6 +2517,7 @@ export type CalendarTimeRangeResponse = {
     date: string;
     state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
     count: number;
+    is_backfill?: boolean;
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
@@ -2674,6 +2675,22 @@ export type DAGWithLatestDagRunsResponse = {
 export type DAGsRunStateCountsCollectionResponse = {
     dags: Array<DAGRunStateCountsResponse>;
     state_count_limit: number;
+};
+
+/**
+ * Collection of distinct Dag folders, each scoped to the bundle it belongs to.
+ */
+export type DagFolderCollectionResponse = {
+    folders: Array<DagFolderResponse>;
+    total_entries: number;
+};
+
+/**
+ * A distinct Dag folder (directory of ``relative_fileloc``) within a bundle.
+ */
+export type DagFolderResponse = {
+    bundle_name: string;
+    folder: string;
 };
 
 /**
@@ -3275,6 +3292,10 @@ export type GetAssetsUiData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     groupPrefixPattern?: string | null;
+    /**
+     * Filter assets that have events
+     */
+    hasEvents?: boolean | null;
     lastAssetEventTimestampGt?: string | null;
     lastAssetEventTimestampGte?: string | null;
     lastAssetEventTimestampLt?: string | null;
@@ -3586,6 +3607,8 @@ export type GetDagRunsData = {
     startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    tags?: Array<(string)>;
+    tagsMatchMode?: 'any' | 'all' | null;
     teams?: Array<(string)>;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -3913,6 +3936,10 @@ export type GetDagsUiData = {
      * Filter Dags that have any DagRun in the given state.
      */
     dagRunState?: DagRunState | null;
+    /**
+     * Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
+     */
+    dagRunStateWithinHours?: number | null;
     excludeStale?: boolean;
     /**
      * Filter Dags with asset-based scheduling
@@ -3933,6 +3960,10 @@ export type GetDagsUiData = {
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
+    /**
+     * Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
+     */
+    relativeFilelocPrefix?: string | null;
     schedulingState?: DagSchedulingState | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
@@ -3952,6 +3983,8 @@ export type GetDagTimetableTypesUiData = {
 };
 
 export type GetDagTimetableTypesUiResponse = DagTimetableTypeCollectionResponse;
+
+export type GetDagFoldersResponse = DagFolderCollectionResponse;
 
 export type GetLatestRunInfoData = {
     dagId: string;
@@ -5526,6 +5559,10 @@ export type $OpenApiTs = {
                  */
                 200: NextRunAssetsResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -6011,6 +6048,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: ConnectionTestResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -6973,6 +7014,16 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/dags/folders': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagFolderCollectionResponse;
+            };
+        };
+    };
     '/ui/dags/{dag_id}/latest_run': {
         get: {
             req: GetLatestRunInfoData;
@@ -7672,6 +7723,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstancesLogResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -8740,6 +8795,10 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
@@ -8971,6 +9030,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: PartitionedDagRunDetailResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -9217,6 +9280,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TeamCollectionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

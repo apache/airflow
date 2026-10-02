@@ -23,20 +23,21 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // DagRef is a Dag authored in Go. [Dag] returns a new one.
 type DagRef struct {
 	dagID string
-	// Dag and Task copy the specs they are given, so a caller cannot change a registered Dag
-	// through a spec it still holds. A slice or map field in DagSpec or TaskSpec would share its
-	// contents with the caller, so Dag and Task would have to copy that field too.
+	// Dag and Task copy the specs they are given with copySpec, so a caller cannot change a
+	// registered Dag through a spec it still holds.
 	spec DagSpec
 
 	mu         sync.Mutex
 	registered bool
 	tasks      []*TaskRef
-	taskIDs    map[string]struct{}
+	tasksByID  map[string]*TaskRef
 }
 
 // Dag returns an empty Dag with the given dag_id. An optional [DagSpec] holds the rest of the
@@ -63,23 +64,38 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 	}
 	d := &DagRef{dagID: dagID}
 	if len(spec) == 1 {
-		d.spec = spec[0]
+		d.spec = copySpec(spec[0])
 	}
 	return d
 }
 
 func (*DagRef) registerable() {}
 
-// TaskRef is a task that [DagRef.Task] added to a Dag.
+// TaskRef is a task that [DagRef.Task] added to a Dag. Pass it to [Inputs] to give its result
+// to a task that DagRef.Task adds later.
 type TaskRef struct {
+	dag    *DagRef
 	taskID string
 	spec   TaskSpec
+	// resultType is the type of the result that the task function returns with its error. It is
+	// nil when the function returns only an error.
+	resultType reflect.Type
+	// inputs holds the tasks that Inputs passed, in the order of the parameters they fill. Each
+	// of them is an upstream task of this one.
+	inputs []*TaskRef
+	task   bundle.Task
+	// triggerDagRun is the checked copy of the TriggerDagRunSpec of a task from TriggerDagRun.
+	// It is nil for a task that runs a Go function. A task from TriggerDagRun runs no Go
+	// function, so its resultType, inputs and task are nil.
+	triggerDagRun *TriggerDagRunSpec
 }
 
 // Task adds a task that runs fn to the Dag and returns the new task.
 //
 // fn takes a [Context] first and returns either error or (result, error), like a function
-// passed to [TaskHandler].
+// passed to [TaskHandler]. The parameters after the Context take the results of the tasks
+// passed to [Inputs], in order. fn can also be the value that [TriggerDagRun] returns. The task
+// then runs no Go code and takes no Inputs.
 //
 // The task_id is the name of fn, spelled exactly as it is in Go. dag.Task(extractRows) adds the
 // task extractRows, and dag.Task(svc.Extract), which passes a method value, adds the task
@@ -100,11 +116,28 @@ type TaskRef struct {
 // Task panics if:
 //   - fn is not a valid task function
 //   - fn has no name that Task can read and no TaskSpec sets a TaskID
+//   - fn comes from TriggerDagRun and no TaskSpec sets a TaskID
+//   - fn comes from TriggerDagRun and its TriggerDagRunSpec is not valid
+//   - fn comes from TriggerDagRun and opts holds an Inputs
 //   - an option is nil or is not one that package airflow defines
-//   - opts holds more than one TaskSpec
+//   - opts holds more than one TaskSpec or more than one Inputs
+//   - the TaskSpec sets TriggerRule to a value that is not a TriggerRule constant
+//   - the TaskSpec sets WeightRule to a value that is not a WeightRule constant
+//   - the tasks passed to Inputs do not match the parameters of fn after the Context
 //   - the Dag already has a task with the same task_id
 //   - the Dag is already registered
 func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
+	trigger, isTrigger := fn.(TriggerDagRunTask)
+	var triggerSpec *TriggerDagRunSpec
+	var triggerErr error
+	if isTrigger {
+		// Copying the spec marshals Conf and so runs the MarshalJSON methods of the caller's
+		// values. Task copies before it locks d.mu. Otherwise such a method would deadlock if it
+		// added a task to this Dag, and a slow one would hold up Register.
+		copied, err := copyTriggerDagRunSpec(trigger.spec)
+		triggerSpec, triggerErr = &copied, err
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -115,8 +148,12 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 			d.dagID,
 		))
 	}
-	if _, err := newTaskFunction(fn); err != nil {
-		panic(fmt.Sprintf("airflow.DagRef.Task: Dag %q: %v", d.dagID, err))
+	var wrapped bundle.Task
+	if !isTrigger {
+		var err error
+		if wrapped, err = newTaskFunction(fn, bundle.NewPositionalTaskFunction); err != nil {
+			panic(fmt.Sprintf("airflow.DagRef.Task: Dag %q: %v", d.dagID, err))
+		}
 	}
 	var cfg taskConfig
 	for i, opt := range opts {
@@ -129,7 +166,7 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 					"airflow.DagRef.Task: Dag %q: opts[%d] is a nil *airflow.TaskSpec", d.dagID, i,
 				))
 			}
-		case TaskSpec:
+		case TaskSpec, inputs:
 		default:
 			// Only a struct that embeds a TaskSpec or a TaskOption gets here.
 			panic(fmt.Sprintf(
@@ -138,21 +175,27 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 				d.dagID, i, opt,
 			))
 		}
-		opt.applyTask(&cfg)
-	}
-	if len(cfg.specs) > 1 {
-		panic(fmt.Sprintf(
-			"airflow.DagRef.Task: task %q of Dag %q got %d airflow.TaskSpec values; "+
-				"set all of the task's attributes in one TaskSpec",
-			findTaskName(fn, cfg.specs), d.dagID, len(cfg.specs),
-		))
+		if err := opt.applyTask(&cfg); err != nil {
+			// A task from TriggerDagRun takes no Inputs at all, and the check after this loop
+			// reports that. err says to merge the Inputs into one, which would not fix a task from
+			// TriggerDagRun.
+			if _, ok := opt.(inputs); ok && isTrigger {
+				continue
+			}
+			panic(fmt.Sprintf(
+				"airflow.DagRef.Task: task %q of Dag %q: %v", findTaskName(fn, opts), d.dagID, err,
+			))
+		}
 	}
 
-	var spec TaskSpec
-	if len(cfg.specs) == 1 {
-		spec = cfg.specs[0]
+	taskID := cfg.spec.TaskID
+	if taskID == "" && isTrigger {
+		panic(fmt.Sprintf(
+			"airflow.DagRef.Task: Dag %q: a task from airflow.TriggerDagRun with DagID %q has no "+
+				"Go function to take a task_id from; set one with airflow.TaskSpec{TaskID: ...}",
+			d.dagID, trigger.spec.DagID,
+		))
 	}
-	taskID := spec.TaskID
 	if taskID == "" {
 		var ok bool
 		if taskID, ok = taskIDFromFuncName(funcName(fn)); !ok {
@@ -163,19 +206,53 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 			))
 		}
 	}
-	if _, exists := d.taskIDs[taskID]; exists {
+	if triggerErr != nil {
+		panic(fmt.Sprintf(
+			"airflow.DagRef.Task: task %q of Dag %q: %v", taskID, d.dagID, triggerErr,
+		))
+	}
+	if err := checkTaskSpec(cfg.spec); err != nil {
+		panic(fmt.Sprintf("airflow.DagRef.Task: task %q of Dag %q: %v", taskID, d.dagID, err))
+	}
+	if _, exists := d.tasksByID[taskID]; exists {
 		panic(fmt.Sprintf(
 			"airflow.DagRef.Task: Dag %q already has a task %q; "+
 				"set another task_id with airflow.TaskSpec{TaskID: ...}",
 			d.dagID, taskID,
 		))
 	}
-	if d.taskIDs == nil {
-		d.taskIDs = make(map[string]struct{})
+	var upstreams []*TaskRef
+	var resultType reflect.Type
+	if isTrigger {
+		if cfg.hasInputs {
+			panic(fmt.Sprintf(
+				"airflow.DagRef.Task: task %q of Dag %q comes from airflow.TriggerDagRun and "+
+					"takes no airflow.Inputs, because it has no Go function to pass the results to",
+				taskID, d.dagID,
+			))
+		}
+	} else {
+		fnType := reflect.TypeOf(fn)
+		upstreams = d.checkInputs(taskID, fnType, cfg.inputs)
+		// newTaskFunction has checked that fn returns either error or (result, error).
+		if fnType.NumOut() == 2 {
+			resultType = fnType.Out(0)
+		}
 	}
-	d.taskIDs[taskID] = struct{}{}
 
-	task := &TaskRef{taskID: taskID, spec: spec}
+	task := &TaskRef{
+		dag:           d,
+		taskID:        taskID,
+		spec:          copySpec(cfg.spec),
+		resultType:    resultType,
+		inputs:        upstreams,
+		task:          wrapped,
+		triggerDagRun: triggerSpec,
+	}
+	if d.tasksByID == nil {
+		d.tasksByID = make(map[string]*TaskRef)
+	}
+	d.tasksByID[taskID] = task
 	d.tasks = append(d.tasks, task)
 	return task
 }
@@ -190,11 +267,23 @@ func (d *DagRef) markRegistered() {
 func funcName(fn any) string { return runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name() }
 
 // findTaskName names a task in an error that Task raises before it settles the task_id.
-func findTaskName(fn any, specs []TaskSpec) string {
-	for _, spec := range specs {
+func findTaskName(fn any, opts []TaskOption) string {
+	for _, opt := range opts {
+		var spec TaskSpec
+		switch opt := opt.(type) {
+		case TaskSpec:
+			spec = opt
+		case *TaskSpec:
+			if opt != nil {
+				spec = *opt
+			}
+		}
 		if spec.TaskID != "" {
 			return spec.TaskID
 		}
+	}
+	if _, ok := fn.(TriggerDagRunTask); ok {
+		return "airflow.TriggerDagRun"
 	}
 	if taskID, ok := taskIDFromFuncName(funcName(fn)); ok {
 		return taskID

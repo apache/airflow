@@ -124,6 +124,7 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     ToTask,
     TriggerDagRun,
+    UpdateDagRunNote,
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
@@ -176,6 +177,18 @@ def _make_task_span(msg: StartupDetails):
     parent_context = (
         TraceContextTextMapPropagator().extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
     )
+    if (
+        parent_context is not None
+        and not trace.get_current_span(parent_context).get_span_context().trace_flags.sampled
+        and isinstance(trace.get_tracer_provider(), (trace.ProxyTracerProvider, trace.NoOpTracerProvider))
+    ):
+        # With no tracer provider installed, the no-op tracer of opentelemetry-api 1.40 and later
+        # still makes the propagated context current. When that context is unsampled, every span
+        # the task's own code starts under a tracer provider it installs (an agent framework's,
+        # for example) inherits the "not sampled" flag and a parent-based sampler, the
+        # OpenTelemetry default, drops it. Leave such spans as roots. A provider installed before
+        # the task started, by core tracing or by auto-instrumentation, samples as it was set up.
+        parent_context = None
     ti = msg.ti
     span_name = f"worker.{ti.task_id}"
     if ti.map_index is not None and ti.map_index >= 0:
@@ -700,6 +713,17 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, PreviousDagRunResult)
 
         return response.dag_run
+
+    def update_dagrun_note(self, note: str | None) -> None:
+        """
+        Update the note for this task instance's DagRun.
+
+        A string sets or replaces the note and an empty string removes it. ``None`` is a
+        no-op, so an existing user-authored note is left untouched.
+        """
+        if note is None:
+            return
+        SUPERVISOR_COMMS.send(msg=UpdateDagRunNote(ti_id=self.id, note=note))
 
     def get_previous_ti(
         self,

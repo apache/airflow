@@ -1455,7 +1455,7 @@ OPENLINEAGE_E2E_COMPAT_PROVIDERS = ["openlineage", "standard", "common.compat", 
 def _build_openlineage_e2e_compat_image(airflow_version: str, python: str) -> str:
     """Build a lightweight image: released ``apache/airflow:<version>`` + current OL providers from main.
 
-    Replicates the provider-compatibility approach (current provider code on an older Airflow core)
+    Replicates the provider-compatibility approach (current provider code on an older Airflow version)
     without a full PROD image build — the released image is pulled and the providers are reinstalled
     from wheels built from main.
     """

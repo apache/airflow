@@ -60,8 +60,10 @@ class NotPreviouslySkippedDep(BaseTIDep):
 
                 # Use the parent's map context to look up the XCom. An unmapped parent
                 # (e.g. LatestOnlyOperator) writes XCom with map_index=-1, so we must
-                # query with -1 instead of the child's map_index.
-                xcom_map_index = ti.map_index if parent.is_mapped else -1
+                # query with -1 instead of the child's map_index. A parent inside a
+                # mapped task group is expanded like a mapped task, so it writes XCom
+                # per map index even though ``is_mapped`` is False.
+                xcom_map_index = ti.map_index if parent.get_needs_expansion() else -1
                 prev_result = ti.xcom_pull(
                     task_ids=parent.task_id,
                     key=XCOM_SKIPMIXIN_KEY,
