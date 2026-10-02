@@ -27,6 +27,7 @@ from unittest import mock
 
 import pytest
 import structlog
+import yaml
 
 from airflow.dag_processing.processor import TaskHandlerDeclaration, TaskHandlerParam
 from airflow.dag_processing.task_handler_processor import LangSDKTaskHandlerProcessorProcess
@@ -101,6 +102,24 @@ def _go_coordinator(monkeypatch, tmp_path):
             yield
     finally:
         reset_coordinator_manager()
+
+
+def test_a_packed_go_bundle_records_no_dag_inventory(go_bundle):
+    completed = subprocess.run(
+        ["go", "tool", "airflow-go-pack", "inspect", os.fspath(go_bundle)],
+        cwd=GO_SDK_PATH,
+        env={**os.environ, "CGO_ENABLED": "0"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+    manifest = yaml.safe_load(completed.stdout)
+
+    assert manifest["sdk"]["language"] == "go"
+    assert manifest["sdk"]["supervisor_schema_version"]
+    assert "dags" not in manifest
 
 
 def test_probes_the_task_handlers_of_a_packed_go_bundle(go_bundle):
