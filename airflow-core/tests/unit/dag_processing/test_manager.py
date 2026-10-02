@@ -3195,12 +3195,12 @@ class TestDagFileProcessorManager:
 
         bundleone = MagicMock()
         bundleone.name = "bundleone"
-        bundleone.path = "/dev/null"
+        bundleone.path = Path("/dev/null")
         bundleone.refresh_interval = 0
         bundleone.get_current_version.return_value = None
         bundletwo = MagicMock()
         bundletwo.name = "bundletwo"
-        bundletwo.path = "/dev/null"
+        bundletwo.path = Path("/dev/null")
         bundletwo.refresh_interval = 300
         bundletwo.get_current_version.return_value = None
 
@@ -3252,7 +3252,7 @@ class TestDagFileProcessorManager:
 
         bundleone = MagicMock()
         bundleone.name = "bundleone"
-        bundleone.path = "/dev/null"
+        bundleone.path = Path("/dev/null")
         bundleone.refresh_interval = 0
         bundleone.get_current_version.return_value = None
 
@@ -3323,7 +3323,7 @@ class TestDagFileProcessorManager:
 
         bundleone = MagicMock()
         bundleone.name = "bundleone"
-        bundleone.path = "/dev/null"
+        bundleone.path = Path("/dev/null")
         bundleone.refresh_interval = 0
         bundleone.get_current_version.return_value = None
 
@@ -3353,7 +3353,7 @@ class TestDagFileProcessorManager:
 
         mybundle = MagicMock()
         mybundle.name = "bundleone"
-        mybundle.path = "/dev/null"
+        mybundle.path = Path("/dev/null")
         mybundle.refresh_interval = 0
         mybundle.supports_versioning = True
         mybundle.get_current_version.return_value = "123"
@@ -3989,6 +3989,39 @@ class TestDagFileProcessorManager:
         mock_deactivate.assert_not_called()
         mock_clear.assert_not_called()
         assert known_files == {"mock_bundle": known}
+
+    def test_refresh_dag_bundles_discovery_failure_lists_again_on_next_refresh(self):
+        """A failed listing must not advance the bundle version, or the next refresh skips the bundle."""
+        manager = DagFileProcessorManager(max_runs=1, bundle_refresh_check_interval=0)
+        bundle = self._make_refresh_bundle(supports_versioning=True, current_version="v2")
+        manager._dag_bundles = [bundle]
+        manager._bundle_versions["mock_bundle"] = "v1"
+        found = {DagFileInfo(bundle_name="mock_bundle", rel_path=Path("dag.py"), bundle_path=bundle.path)}
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version="v1")
+            ),
+            mock.patch.object(manager, "update_bundle_state") as mock_update,
+            mock.patch.object(
+                manager, "_find_files_in_bundle", side_effect=[OSError("listing failed"), found]
+            ) as mock_find,
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+            mock_update.assert_not_called()
+            assert manager._bundle_versions["mock_bundle"] == "v1"
+
+            known_files: dict[str, set[DagFileInfo]] = {}
+            manager._refresh_dag_bundles(known_files)
+
+        assert mock_find.call_count == 2
+        assert known_files == {"mock_bundle": found}
+        assert manager._bundle_versions["mock_bundle"] == "v2"
 
     def test_unpack_bundle_version_with_bundle_version_dataclass(self):
         from airflow.dag_processing.bundles.base import BundleVersion, unpack_bundle_version

@@ -947,6 +947,13 @@ class DagFileProcessorManager(LoggingMixin):
                 version_after_refresh = None
                 version_data_after_refresh = None
 
+            try:
+                found_files = self._find_files_in_bundle(bundle)
+            except Exception:
+                # Treating a failed listing as an empty bundle would deactivate all of its Dags.
+                self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
+                continue
+
             # Persistence failure must not skip file scanning (bundle is already refreshed locally).
             # _bundle_versions is only advanced on success to stay consistent with the DB.
             try:
@@ -956,13 +963,6 @@ class DagFileProcessorManager(LoggingMixin):
             else:
                 self._bundle_versions[bundle.name] = version_after_refresh
                 self._bundle_version_data[bundle.name] = version_data_after_refresh
-
-            try:
-                found_files = self._find_files_in_bundle(bundle)
-            except Exception:
-                # Treating a failed listing as an empty bundle would deactivate all of its Dags.
-                self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
-                continue
 
             known_files[bundle.name] = found_files
 
