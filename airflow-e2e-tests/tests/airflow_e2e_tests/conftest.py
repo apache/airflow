@@ -78,6 +78,9 @@ from tests_common.test_utils.fernet import generate_fernet_key_string
 
 console = Console(width=400, color_system="standard")
 
+# A reserialize writes stub Dags without the bindings the Dag processor's parse records.
+_LANG_SDK_E2E_MODES = ("go_sdk", "ts_sdk", "java_sdk")
+
 
 class _E2ETestState:
     compose_instance: DockerCompose | None = None
@@ -864,9 +867,10 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _E2ETestState.compose_instance.start()
 
         _E2ETestState.compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
-        _E2ETestState.compose_instance.exec_in_container(
-            command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
-        )
+        if E2E_TEST_MODE not in _LANG_SDK_E2E_MODES:
+            _E2ETestState.compose_instance.exec_in_container(
+                command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
+            )
 
         if E2E_TEST_MODE == "event_driven":
             console.print("[yellow]Creating Kafka topics...")
