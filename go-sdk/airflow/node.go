@@ -142,7 +142,12 @@ func (t *TaskRef) After(nodes ...Node) Node { return declareEdges(t, nodes, dirA
 //	checked.Before(Label(processed, "rows found"), Label(emptyNotice, "no rows"))
 //
 // A label is the Node's only in the verb it is passed to. The Node that Label returns stands for
-// node itself, and the Node a verb returns carries no label on either side of the next verb.
+// node itself, and the Node a verb returns carries no label on either side of the next verb. So a
+// label on the receiver of a verb has no edge to land on and is dropped, the way Python's
+// Label("x") >> b alone sets no label.
+//
+// A label declared on an edge that already carries one replaces it, as Python's DAG.set_edge_info
+// does.
 //
 // An [Inputs] edge is labelled by declaring it again, which is idempotent:
 //
@@ -269,7 +274,7 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 				})
 			}
 			// The label belongs to the node the verb was given, in either direction.
-			pending[i].label = mergeLabel(where, dag, key, pending[i].label, arg.label)
+			pending[i].label = mergeLabel(pending[i].label, arg.label)
 		}
 	}
 	for _, edge := range pending {
@@ -280,19 +285,12 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 
 // mergeLabel returns the label an edge carries once label is declared on it. A declaration that
 // carries no label leaves the edge's own label alone, which is what makes redeclaring an edge
-// idempotent. Two labels on one edge are a contradiction rather than something to merge.
-func mergeLabel(where string, d *DagRef, edge edgeKey, declared, label string) string {
-	switch {
-	case label == "" || label == declared:
+// idempotent, and one that carries a label overwrites it, as Python's DAG.set_edge_info does.
+func mergeLabel(declared, label string) string {
+	if label == "" {
 		return declared
-	case declared == "":
-		return label
 	}
-	panic(fmt.Sprintf(
-		"%s: Dag %q: the edge from task %q to task %q cannot carry two labels, %q and %q; "+
-			"label an edge once",
-		where, d.dagID, edge.upstream, edge.downstream, declared, label,
-	))
+	return label
 }
 
 // edgeDag returns the Dag that every end of an edge belongs to. It panics unless each end is a

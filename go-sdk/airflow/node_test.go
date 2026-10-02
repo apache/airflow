@@ -226,18 +226,57 @@ func TestRedeclaringALabelledEdgeKeepsTheLabel(t *testing.T) {
 	assertEdgeLabel(t, dag, "load", "cleanup", "always")
 }
 
-func TestEdgeRejectsASecondLabel(t *testing.T) {
+// TestASecondLabelOnAnEdgeReplacesTheFirst follows Python, where DAG.set_edge_info overwrites
+// rather than merges, so the last label declared on an edge is the one it carries.
+func TestASecondLabelOnAnEdgeReplacesTheFirst(t *testing.T) {
 	dag := Dag("etl")
 	loaded := orderedTask(t, dag, "load")
 	cleaned := orderedTask(t, dag, "cleanup")
-	loaded.Before(Label(cleaned, "always"))
 
-	assert.PanicsWithValue(t,
-		`airflow.Node.Before: Dag "etl": the edge from task "load" to task "cleanup" cannot `+
-			`carry two labels, "always" and "when empty"; label an edge once`,
-		func() { loaded.Before(Label(cleaned, "when empty")) },
-	)
-	assertEdgeLabel(t, dag, "load", "cleanup", "always")
+	loaded.Before(Label(cleaned, "always"))
+	loaded.Before(Label(cleaned, "when empty"))
+
+	assertEdgeLabel(t, dag, "load", "cleanup", "when empty")
+	assertTasks(t, loaded.downstreams, cleaned)
+}
+
+// TestTheLastLabelOfOneCallWins covers the same rule within a single fan-out, where both labels
+// reach the edge through one call.
+func TestTheLastLabelOfOneCallWins(t *testing.T) {
+	dag := Dag("etl")
+	loaded := orderedTask(t, dag, "load")
+	cleaned := orderedTask(t, dag, "cleanup")
+
+	loaded.Before(Label(cleaned, "always"), Label(cleaned, "when empty"))
+
+	assertEdgeLabel(t, dag, "load", "cleanup", "when empty")
+	assertTasks(t, loaded.downstreams, cleaned)
+}
+
+// TestALabelOnTheReceiverOfAVerbIsDropped pins the silence Python has too: Label marks the edge
+// that reaches a node, so a label on the node an edge leaves from has no edge to land on.
+// Python's Label("x") >> b, with nothing upstream of the label, sets no label either.
+func TestALabelOnTheReceiverOfAVerbIsDropped(t *testing.T) {
+	dag := Dag("etl")
+	loaded := orderedTask(t, dag, "load")
+	cleaned := orderedTask(t, dag, "cleanup")
+
+	Label(loaded, "always").Before(cleaned)
+
+	assertTasks(t, loaded.downstreams, cleaned)
+	assertEdgeLabel(t, dag, "load", "cleanup", "")
+}
+
+// TestTheOuterLabelOfANestedLabelWins pins what nesting means: the outer Label relabels the
+// endpoints the inner one marked, rather than the two combining.
+func TestTheOuterLabelOfANestedLabelWins(t *testing.T) {
+	dag := Dag("etl")
+	loaded := orderedTask(t, dag, "load")
+	cleaned := orderedTask(t, dag, "cleanup")
+
+	loaded.Before(Label(Label(cleaned, "inner"), "outer"))
+
+	assertEdgeLabel(t, dag, "load", "cleanup", "outer")
 }
 
 // TestLabelBelongsToTheVerbItIsPassedTo pins that a label is on the edge of the call it appears
@@ -357,11 +396,6 @@ func TestEdgeVerbsRecordNoEdgeWhenAPairIsRejected(t *testing.T) {
 	assert.PanicsWithValue(t,
 		`airflow.Node.Before: Dag "etl": task "load" cannot depend on itself`,
 		func() { loaded.Before(cleaned, loaded) },
-	)
-	assert.PanicsWithValue(t,
-		`airflow.Node.Before: Dag "etl": the edge from task "load" to task "cleanup" cannot `+
-			`carry two labels, "always" and "when empty"; label an edge once`,
-		func() { loaded.Before(Label(cleaned, "always"), Label(cleaned, "when empty")) },
 	)
 	assert.PanicsWithValue(t,
 		`airflow.Node.After: Dag "etl": task "load" cannot depend on itself`,
