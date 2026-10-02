@@ -85,13 +85,9 @@ describe("TagsFilter advanced search", () => {
     typeIntoSelect("alp");
 
     await waitFor(() =>
-      expect(getDagTagsMock).toHaveBeenCalledWith(
-        expect.objectContaining({ tagNamePrefixPattern: "alp" }),
-      ),
+      expect(getDagTagsMock).toHaveBeenCalledWith(expect.objectContaining({ tagNamePrefixPattern: "alp" })),
     );
-    expect(getDagTagsMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ tagNamePattern: "alp" }),
-    );
+    expect(getDagTagsMock).not.toHaveBeenCalledWith(expect.objectContaining({ tagNamePattern: "alp" }));
   });
 
   it("switches to substring matching when the match-anywhere toggle is enabled", async () => {
@@ -113,9 +109,7 @@ describe("TagsFilter advanced search", () => {
     await waitFor(() =>
       expect(getDagTagsMock).toHaveBeenCalledWith(expect.objectContaining({ tagNamePattern: "pha" })),
     );
-    expect(getDagTagsMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ tagNamePrefixPattern: "pha" }),
-    );
+    expect(getDagTagsMock).not.toHaveBeenCalledWith(expect.objectContaining({ tagNamePrefixPattern: "pha" }));
   });
 
   it("shows a regex indicator on the collapsed pill while substring matching is enabled", () => {
