@@ -1345,7 +1345,7 @@ class TestEksPodExecOperator:
 
         def execute_with_generated_config(operator, context):
             assert operator.config_file == "/tmp/eks-kubeconfig"
-            assert operator.kubernetes_conn_id is None
+            assert operator.kubernetes_conn_id == "kubernetes_default"
             assert operator.in_cluster is False
             assert operator.do_xcom_push is True
             assert operator.max_xcom_output_size == 1024
@@ -1447,9 +1447,24 @@ class TestEksPodExecOperator:
         assert operator.execute({}) == "command output"
 
         assert kubernetes_hook_mock.call_args_list == [
-            mock.call(conn_id=None, in_cluster=False, config_file=config_file, cluster_context=None)
+            mock.call(
+                conn_id="kubernetes_default", in_cluster=False, config_file=config_file, cluster_context=None
+            )
             for config_file in ("/tmp/first-kubeconfig", "/tmp/second-kubeconfig")
         ]
+
+    @pytest.mark.parametrize("kubernetes_conn_id", ["eks_kubernetes", None])
+    def test_kubernetes_connection_can_be_configured(self, kubernetes_conn_id):
+        operator = EksPodExecOperator(
+            task_id="run_command",
+            cluster_name=CLUSTER_NAME,
+            pod_name="existing-pod",
+            command=["true"],
+            kubernetes_conn_id=kubernetes_conn_id,
+        )
+
+        assert operator.kubernetes_conn_id == kubernetes_conn_id
+        assert operator.hook.conn_id == (kubernetes_conn_id or "kubernetes_default")
 
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator.execute",
@@ -1488,4 +1503,4 @@ class TestEksPodExecOperator:
 
         assert "cluster_context" not in operator.template_fields
         assert "config_file" not in operator.template_fields
-        assert "kubernetes_conn_id" not in operator.template_fields
+        assert "kubernetes_conn_id" in operator.template_fields

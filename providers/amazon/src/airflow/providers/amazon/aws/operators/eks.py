@@ -1417,6 +1417,8 @@ class EksPodExecOperator(KubernetesPodExecOperator):
         ``None``, which uses the value from the AWS connection when available. (templated)
     :param botocore_config: Configuration dictionary for the botocore client. Defaults to ``None``,
         which uses ``config_kwargs`` from the AWS connection when available.
+    :param kubernetes_conn_id: Kubernetes connection used for additional client configuration.
+        Defaults to ``kubernetes_default``, as with ``EksPodOperator``. (templated)
     :param do_xcom_push: Return standard output through XCom when ``True``. Defaults to ``False``.
     :param max_xcom_output_size: Maximum UTF-8 byte size retained for XCom. Defaults to 49,344 bytes.
     """
@@ -1426,7 +1428,7 @@ class EksPodExecOperator(KubernetesPodExecOperator):
         *(
             field
             for field in KubernetesPodExecOperator.template_fields
-            if field not in {"cluster_context", "config_file", "kubernetes_conn_id"}
+            if field not in {"cluster_context", "config_file"}
         ),
     )
 
@@ -1452,7 +1454,6 @@ class EksPodExecOperator(KubernetesPodExecOperator):
             command=command,
             namespace=namespace,
             container_name=container_name,
-            kubernetes_conn_id=None,
             in_cluster=False,
             cluster_context=None,
             config_file=None,
