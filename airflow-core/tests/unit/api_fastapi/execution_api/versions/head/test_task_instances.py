@@ -4018,6 +4018,46 @@ class TestGetCount:
         assert response.json() == task_count
         assert len(task_instance_selects) == 1
 
+    @pytest.mark.parametrize(
+        ("filters", "expected_count"),
+        [
+            pytest.param({"run_ids": ["historical"]}, 1, id="historical-run"),
+            pytest.param({"logical_dates": ["2025-01-01T00:00:00Z"]}, 1, id="historical-logical-date"),
+            pytest.param({"run_ids": ["historical"], "task_ids": ["group1"]}, 1, id="historical-task-id"),
+            pytest.param({"task_ids": ["group1"]}, 0, id="task-id-does-not-trigger-fallback"),
+            pytest.param({"states": [State.FAILED]}, 0, id="state-does-not-trigger-fallback"),
+            pytest.param({"run_ids": ["historical"], "map_index": 0}, 0, id="fallback-map-index"),
+        ],
+    )
+    def test_get_count_task_group_with_historical_task(
+        self, client, session, dag_maker, filters, expected_count
+    ):
+        with dag_maker("task_group_history", serialized=True):
+            EmptyOperator(task_id="group1")
+        historical_run = dag_maker.create_dagrun(
+            run_id="historical", logical_date=timezone.datetime(2025, 1, 1), session=session
+        )
+        historical_run.get_task_instance("group1", session=session).state = State.FAILED
+
+        with dag_maker("task_group_history", serialized=True):
+            with TaskGroup("group1"):
+                EmptyOperator(task_id="member")
+        current_run = dag_maker.create_dagrun(
+            run_id="current", logical_date=timezone.datetime(2025, 1, 2), session=session
+        )
+        current_run.get_task_instance("group1.member", session=session).state = State.SUCCESS
+        session.commit()
+
+        with _capture_task_instance_selects(session) as task_instance_selects:
+            response = client.get(
+                "/execution/task-instances/count",
+                params={"dag_id": "task_group_history", "task_group_id": "group1", **filters},
+            )
+
+        assert response.status_code == 200
+        assert response.json() == expected_count
+        assert len(task_instance_selects) == 1
+
     def test_get_count_task_group_not_found(self, client, session, dag_maker):
         with dag_maker(dag_id="test_get_count_task_group_not_found", serialized=True):
             with TaskGroup("group1"):
