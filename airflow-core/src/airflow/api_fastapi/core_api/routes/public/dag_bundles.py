@@ -445,7 +445,7 @@ def get_dag_bundle_files(
     "/{bundle_name}/refresh",
     status_code=status.HTTP_202_ACCEPTED,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag_bundle(method="PUT")), Depends(action_logging())],
+    dependencies=[Depends(action_logging()), Depends(requires_access_dag_bundle(method="PUT"))],
 )
 def refresh_dag_bundle(bundle_name: str, session: SessionDep) -> DagBundleRefreshResponse:
     """Request an asynchronous Dag bundle refresh."""
