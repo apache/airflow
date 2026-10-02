@@ -641,8 +641,9 @@ Otherwise, with several Java coordinators, its JARs fail to parse.
 
 * Every JAR in the bundle whose manifest sets ``Main-Class`` is parsed. Each Dag its main class
   declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Builder.Dag`` class, is stored with
-  that JAR as its file. Task handlers for a Python Dag are not Dags, and a JAR without ``Main-Class``,
-  such as a dependency of a thin bundle, is skipped.
+  that JAR as its file. Task handlers for a Python Dag are not Dags. A JAR without ``Main-Class`` is
+  skipped, but many dependency JARs set one (the PostgreSQL JDBC driver and H2 do, for example), so a
+  thin bundle should set ``main_class`` or list its dependency JARs in ``.airflowignore``.
 * Parsing needs a JAR built with a Java SDK whose supervisor schema version (the
   ``Airflow-Supervisor-Schema-Version`` manifest attribute) is ``2026-10-30`` or later. An older JAR
   fails to parse, so list it in ``.airflowignore``; its tasks still find it, because tasks do not read
