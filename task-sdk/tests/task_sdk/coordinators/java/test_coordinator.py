@@ -439,6 +439,38 @@ class TestJavaCoordinatorExecuteTask:
         assert result.exit_code == 0
 
 
+class TestBuildExecuteTaskCommandDagFile:
+    def _build(self, coordinator: JavaCoordinator, root: pathlib.Path, dag_file: pathlib.Path | None):
+        with coordinator._set_scan_roots([root]):
+            return coordinator._build_execute_task_command(what=_make_ti(), dag_file=dag_file)
+
+    @pytest.mark.parametrize(
+        "dag_file",
+        [
+            pytest.param(None, id="none"),
+            pytest.param("dag.py", id="python-stub"),
+            pytest.param("lib.jar", id="no-main-class"),
+            pytest.param("gone.jar", id="missing"),
+        ],
+    )
+    def test_falls_back_to_the_scan(self, tmp_path, dag_file):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
+        _make_jar(tmp_path / "lib.jar", main_class=None)
+        (tmp_path / "dag.py").write_text("")
+
+        command, _ = self._build(JavaCoordinator(), tmp_path, dag_file and tmp_path / dag_file)
+
+        assert command[-1] == "com.example.A"
+
+    def test_falls_back_when_main_class_does_not_match(self, tmp_path):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
+        b = _make_jar(tmp_path / "b.jar", main_class="com.example.B")
+
+        command, _ = self._build(JavaCoordinator(main_class="com.example.A"), tmp_path, b)
+
+        assert command[-1] == "com.example.A"
+
+
 class TestBuildParseDagCommand:
     def _build(self, coordinator: JavaCoordinator, root: pathlib.Path, jar: pathlib.Path):
         with coordinator._set_scan_roots([root]):
@@ -474,6 +506,39 @@ class TestBuildParseDagCommand:
             execute = coordinator._build_execute_task_command(what=_make_ti())
 
         assert parse == execute
+
+    @pytest.mark.parametrize("parsed", ["a.jar", "b.jar"])
+    def test_runs_the_main_class_of_the_parsed_jar(self, tmp_path, parsed):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
+        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-06-16")
+        coordinator = JavaCoordinator()
+
+        parse = self._build(coordinator, tmp_path, tmp_path / parsed)
+        with coordinator._set_scan_roots([tmp_path]):
+            execute = coordinator._build_execute_task_command(what=_make_ti(), dag_file=tmp_path / parsed)
+
+        expected = {"a.jar": "com.example.A", "b.jar": "com.example.B"}[parsed]
+        assert parse[0][-1] == expected
+        assert execute == parse
+
+    def test_takes_the_schema_version_of_the_parsed_jar(self, tmp_path):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
+        jar = _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
+
+        _, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
+
+        assert schema_version == "2026-10-30"
+
+    def test_rejects_a_main_class_another_jar_sets(self, tmp_path):
+        new = _make_jar(tmp_path / "etl-new.jar", main_class="com.example.A", schema_version="2026-06-16")
+        old = _make_jar(tmp_path / "etl-old.jar", main_class="com.example.A", schema_version="2026-06-16")
+
+        with pytest.raises(ValueError, match="all set Main-Class 'com.example.A'") as excinfo:
+            self._build(JavaCoordinator(), tmp_path, new)
+
+        assert os.fspath(new) in str(excinfo.value)
+        assert os.fspath(old) in str(excinfo.value)
+        assert "Keep one in the bundle" in str(excinfo.value)
 
     @pytest.mark.parametrize(
         ("attributes", "match"),
