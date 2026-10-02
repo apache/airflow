@@ -48,7 +48,7 @@ class ExasolToS3Operator(BaseOperator):
         by S3 and will be stored in an encrypted form while at rest in S3.
     :param gzip: If True, the file will be compressed locally
     :param acl_policy: String specifying the canned ACL policy for the file being
-        uploaded to S3 bucket.
+        uploaded to the S3 bucket.
     :param query_params: Query parameters passed to underlying ``export_to_file``
         method of :class:`~pyexasol.connection.ExaConnection`.
     :param export_params: Extra parameters passed to underlying ``export_to_file``
