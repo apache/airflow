@@ -444,8 +444,9 @@ class SubprocessCoordinator(BaseCoordinator):
         seconds.
     :param dag_bundle_name: Locate artifacts through a configured Dag bundle. If it
         is not set, the task's own bundle is used. A named bundle resolves to the
-        version current when the task starts; the task's own bundle uses the run's
-        version. Either way the resolved version is pinned for the whole task.
+        version current when the task starts, unless it is the task's own bundle,
+        which uses the run's version. Either way the resolved version is pinned for
+        the whole task.
     """
 
     task_startup_timeout: float = 10.0
@@ -471,7 +472,9 @@ class SubprocessCoordinator(BaseCoordinator):
         can hold a version lock over it. *logger* is the task logger, so
         materialization failures surface in the task log.
         """
-        target = BundleInfo(name=self.dag_bundle_name) if self.dag_bundle_name is not None else bundle_info
+        target = bundle_info
+        if self.dag_bundle_name is not None and self.dag_bundle_name != bundle_info.name:
+            target = BundleInfo(name=self.dag_bundle_name)
         bundle = _initialize_pinned_bundle(target, logger)
         path = bundle.path
         if not path.exists():
