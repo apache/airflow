@@ -253,23 +253,28 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
             for listener in listeners.values():
                 listener.close()
             raise
-        for channel, listener in listeners.items():
-            proc._open_sockets[listener] = f"{channel}-listener"
-            proc.selector.register(
-                listener,
-                selectors.EVENT_READ,
-                (functools.partial(proc._accept_connection, channel=channel), proc._on_socket_closed),
+        try:
+            for channel, listener in listeners.items():
+                proc._open_sockets[listener] = f"{channel}-listener"
+                proc.selector.register(
+                    listener,
+                    selectors.EVENT_READ,
+                    (functools.partial(proc._accept_connection, channel=channel), proc._on_socket_closed),
+                )
+            proc.send_msg(
+                StartTaskHandlerRuntime(
+                    file=parse_request.file,
+                    bundle_path=bundle_path,
+                    coordinator=coordinator,
+                    comm_address=listeners["comm"].getsockname()[:2],
+                    logs_address=listeners["logs"].getsockname()[:2],
+                ),
+                request_id=0,
             )
-        proc.send_msg(
-            StartTaskHandlerRuntime(
-                file=parse_request.file,
-                bundle_path=bundle_path,
-                coordinator=coordinator,
-                comm_address=listeners["comm"].getsockname()[:2],
-                logs_address=listeners["logs"].getsockname()[:2],
-            ),
-            request_id=0,
-        )
+        except BaseException:
+            proc._kill_runtime()
+            proc.close()
+            raise
         return proc
 
     @classmethod

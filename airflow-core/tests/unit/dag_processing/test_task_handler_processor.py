@@ -250,6 +250,24 @@ class TestLangSDKTaskHandlerProcessorProcess:
 
         assert _get_task_ids(proc.parsing_result) == ["extract"]
 
+    @patch.object(
+        LangSDKTaskHandlerProcessorProcess,
+        "send_msg",
+        autospec=True,
+        side_effect=OSError("cannot send the start request"),
+    )
+    def test_a_start_that_fails_after_the_fork_leaves_nothing_behind(self, mock_send_msg, tmp_path):
+        fds_before = _get_open_fds()
+        children_before = {child.pid for child in psutil.Process().children()}
+
+        with selectors.DefaultSelector() as selector:
+            with pytest.raises(OSError, match="cannot send the start request"):
+                _start(tmp_path, selector)
+            assert selector.get_map() == {}
+
+        assert {child.pid for child in psutil.Process().children()} == children_before
+        assert _get_open_fds() <= fds_before
+
     @patch.object(BaseDagFileProcessorProcess, "start", autospec=True, side_effect=OSError("fork failed"))
     def test_a_start_that_fails_before_the_fork_closes_its_listeners(self, mock_start, tmp_path):
         fds_before = _get_open_fds()
