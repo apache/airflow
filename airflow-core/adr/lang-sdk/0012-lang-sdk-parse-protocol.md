@@ -26,8 +26,8 @@ Proposed
 ## Context
 
 The Dag processor asks a Lang-SDK runtime two different questions. "Which Dags does this artifact define?" is answered over the messages [ADR-0004](0004-dag-parsing.md) already
-defines. "Which task handlers does this artifact register for a `dag_id` Python already owns?" has no answer in those messages, because a `TaskHandler` registration carries no Dag
-([ADR-0011](0011-mixed-language-dag-processing.md)).
+defines. "Which task handlers does this artifact register, each for a `dag_id` Python already owns?" has no answer in those messages, because a `TaskHandler` registration carries
+no Dag ([ADR-0011](0011-mixed-language-dag-processing.md)).
 
 This ADR defines the request that carries the second question, the subprocess classes that carry both, and the two parse-side entry points on the coordinator.
 
@@ -82,7 +82,6 @@ relay is only type-safe because both hops speak the same pair, which is the reas
 ```
 class TaskHandlerParseRequest:
     file: str                          # the artifact resolved for this coordinator
-    dag_ids: list[str]                 # every Dag in the parsed file with stub tasks that resolved here
     bundle_path: Path
     bundle_name: str
     type: Literal["TaskHandlerParseRequest"]
@@ -96,20 +95,22 @@ class TaskHandlerParsingResult:
 
 class TaskHandlerDeclaration:
     task_id: str
-    params: list[TaskHandlerParam]     # ordered — arg_bindings are positional
+    binding: Literal["positional", "named"]   # how stub-task arguments bind to params
+    params: list[TaskHandlerParam] | None     # ordered; the order matters only for "positional". None: the runtime cannot list them
 
 class TaskHandlerParam:
-    name: str
+    name: str | None                   # None: the runtime has no name for this positional parameter
     value_schema: ArgValueSchema | None = None
-    required: bool                     # the handler declares no default
+    exact_name: bool = False           # match as spelled, not case-insensitively with underscores ignored
 ```
 
-One request carries every `dag_id` that resolved to the same artifact under the same coordinator, so a file whose stubs all target one runtime costs one process. A `dag_id` the
-artifact registers nothing for is **omitted** from `task_handlers` rather than returned empty: the key set is not required to match `dag_ids`, because it is the union across
-coordinators that has to cover the stubs ([ADR-0011](0011-mixed-language-dag-processing.md)).
+The request names no Dags. The runtime answers with every task handler the artifact registers, keyed by `dag_id`, and with `{}` when it registers none. The answer must depend only
+on the artifact, never on the request, so the Dag processor can cache it per artifact ([ADR-0013](0013-persisted-task-handler-bindings.md)). One request per (coordinator, artifact)
+pair serves every Dag in the parsed file whose stubs resolved there, so a file whose stubs all target one runtime costs one process. The key set is not required to match the file's
+Dags: it can hold other files' Dags, and it is the union across coordinators that has to cover the stubs ([ADR-0011](0011-mixed-language-dag-processing.md)).
 
 `value_schema` reuses the `ArgValueSchema` definition `arg_bindings` already carries ([ADR-0007](0007-taskflow-across-language-boundary.md)), so both sides of a comparison are the
-same type. Two properties matter to validation: the field is nullable on both sides, and `params` is ordered. Appendix B says what that forces.
+same type. Two properties matter to validation: the field is nullable on both sides, and each declaration names its binding mode. Appendix B says what that forces.
 
 `task_handlers` is the counterpart to `DagFileParsingResult.serialized_dags`, but fully typed. `serialized_dags` is `list[LazyDeserializedDAG]`, which is an opaque object in the
 schema snapshot. A handler declaration carries no Dag, so it code-generates and schema-validates in every SDK, and nothing on this path needs a DagSerialization implementation.
@@ -208,13 +209,23 @@ bodies that never differ. Reusing `ToManager` leaves one reply union with one ne
 A boolean on `DagFileParseRequest` was the other alternative. It cannot work: a `DagRef` and a `TaskHandlerRef` are different payloads, not two subsets of one, so the flag would
 select between shapes the result type cannot both hold.
 
-### Appendix B — What the nullable, ordered parameter list forces
+### Appendix B — What the nullable schema and the binding mode force
 
 `value_schema` is nullable on both sides. An unannotated `@task.stub` parameter produces `value_schema: null` today, so validation compares schemas only where neither side is null,
 and falls back to name-and-arity otherwise. A strict comparison would turn every untyped stub argument into a parse error.
 
-`params` is ordered because `LiteralArgBinding` and `XComArgBinding` are each documented as "one positional stub-task argument". Position is part of the contract, not incidental,
-and both sides bind positionally.
+The stub side always has names and positions: `LiteralArgBinding` and `XComArgBinding` are each documented as "one positional stub-task argument". The handler side binds the way
+its runtime does, so each declaration names its `binding` and the check follows it:
+
+- `positional`: by position. Names are informative only, and absent where the runtime has none (Go flat params). Java's `TaskArgs` binds this way although it has names. An
+  argument count that matches `params` neither with every argument nor after dropping the defaulted ones, or a value type a parameter does not accept, is an import error.
+- `named`: by name in any order, case-insensitively with underscores ignored unless `exact_name` is set (Go `arg:` tags, explicit Java names). A Go struct, tagged or untagged,
+  and Java's `TaskInput` bind this way. An argument no parameter takes, or a parameter no argument fills, is logged as a warning, and the task still runs: the runtimes allow
+  both, and an unfilled field keeps its default. When no parameter matches and exactly one argument was passed, it may be the whole value and is not warned about, unless no
+  parameter is declared, a parameter sets `exact_name` (a Go `arg:` tag), or the argument cannot be an object. A value type a parameter does not accept is an import error.
+
+`params` is `None` when the runtime cannot list a handler's parameters, and then only the handler's presence is checked. TypeScript declares `named` with `params: None`: its
+types are erased, so a handler cannot list what it takes.
 
 A declaration carries no class, method, or source location. [ADR-0006](0006-no-lang-sdk-source-display.md) rules out Lang-SDK source display, and putting it on the wire would
 invite a consumer to render it. It carries no `dag_id` either — the `task_handlers` key supplies it, so a declaration cannot disagree with the bucket it arrived in.

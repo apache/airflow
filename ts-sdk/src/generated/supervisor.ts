@@ -595,15 +595,30 @@ export type Breadcrumbs = {
   [k: string]: unknown;
 }[];
 export type Type76 = "TaskBreadcrumbsResult";
+export type TaskId10 = string;
+export type Binding = "positional" | "named";
+export type TaskHandlerParams = TaskHandlerParam[] | null;
+export type Name16 = string | null;
+export type ExactName = boolean;
+export type File1 = string;
+export type BundlePath1 = string;
+export type BundleName5 = string;
+export type Type77 = "TaskHandlerParseRequest";
+export type Fileloc1 = string;
+export type ImportErrors1 = {
+  [k: string]: string;
+} | null;
+export type Warnings1 = unknown[] | null;
+export type Type78 = "TaskHandlerParsingResult";
 export type StartDate7 = string | null;
-export type Type77 = "TaskRescheduleStartDate";
+export type Type79 = "TaskRescheduleStartDate";
 export type State8 = "failed" | "skipped" | "removed";
 export type EndDate8 = string | null;
-export type Type78 = "TaskState";
+export type Type80 = "TaskState";
 export type RenderedMapIndex5 = string | null;
 export type RetryReason1 = string | null;
-export type Type79 = "TaskStateStoreResult";
-export type Type80 = "TaskStatesResult";
+export type Type81 = "TaskStateStoreResult";
+export type Type82 = "TaskStatesResult";
 export type LogicalDate6 = string | null;
 export type RunAfter2 = string | null;
 export type Conf2 = {
@@ -614,10 +629,10 @@ export type PartitionKey7 = string | null;
 export type Note2 = string | null;
 export type DagId22 = string;
 export type DagRunId = string;
-export type Type81 = "TriggerDagRun";
+export type Type83 = "TriggerDagRun";
 export type TiId9 = string;
 export type Note3 = string | null;
-export type Type82 = "UpdateDagRunNote";
+export type Type84 = "UpdateDagRunNote";
 export type TiId10 = string;
 /**
  * @minItems 1
@@ -626,22 +641,22 @@ export type ChosenOptions = [string, ...string[]];
 export type ParamsInput = {
   [k: string]: unknown;
 } | null;
-export type Type83 = "UpdateHITLDetail";
+export type Type85 = "UpdateHITLDetail";
 export type TiId11 = string;
-export type Type84 = "ValidateInletsAndOutlets";
+export type Type86 = "ValidateInletsAndOutlets";
 export type Keys = string[];
 export type TotalEntries = number;
-export type Type85 = "VariableKeysResult";
+export type Type87 = "VariableKeysResult";
 export type Key19 = string;
 export type Value2 = string | null;
-export type Type86 = "VariableResult";
+export type Type88 = "VariableResult";
 export type Len = number;
-export type Type87 = "XComCountResponse";
+export type Type89 = "XComCountResponse";
 export type Key20 = string;
-export type Type88 = "XComResult";
-export type Type89 = "XComSequenceIndexResult";
+export type Type90 = "XComResult";
+export type Type91 = "XComSequenceIndexResult";
 export type Root = JsonValue[];
-export type Type90 = "XComSequenceSliceResult";
+export type Type92 = "XComSequenceSliceResult";
 
 export interface SupervisorWireSchema {}
 /**
@@ -1825,6 +1840,62 @@ export interface TaskBreadcrumbsResult {
   type?: Type76;
 }
 /**
+ * A task handler that a Lang-SDK artifact registers for one task.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TaskHandlerDeclaration".
+ */
+export interface TaskHandlerDeclaration {
+  task_id: TaskId10;
+  binding: Binding;
+  params: TaskHandlerParams;
+}
+/**
+ * One parameter of a task handler.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TaskHandlerParam".
+ */
+export interface TaskHandlerParam {
+  name: Name16;
+  value_schema?: ArgValueSchema | null;
+  exact_name?: ExactName;
+}
+/**
+ * Request for Task Handler Parsing.
+ *
+ * Asks a Lang-SDK runtime for every task handler an artifact registers.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TaskHandlerParseRequest".
+ */
+export interface TaskHandlerParseRequest {
+  file: File1;
+  bundle_path: BundlePath1;
+  bundle_name: BundleName5;
+  type?: Type77;
+}
+/**
+ * Result of Task Handler Parsing.
+ *
+ * Every task handler a Lang-SDK artifact registers, keyed by Dag id.
+ *
+ * The answer depends only on the artifact, never on the request.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "TaskHandlerParsingResult".
+ */
+export interface TaskHandlerParsingResult {
+  fileloc: Fileloc1;
+  task_handlers: TaskHandlers;
+  import_errors?: ImportErrors1;
+  warnings?: Warnings1;
+  type?: Type78;
+}
+export interface TaskHandlers {
+  [k: string]: TaskHandlerDeclaration[];
+}
+/**
  * Response containing the first reschedule date for a task instance.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1832,7 +1903,7 @@ export interface TaskBreadcrumbsResult {
  */
 export interface TaskRescheduleStartDate {
   start_date: StartDate7;
-  type?: Type77;
+  type?: Type79;
 }
 /**
  * Update a task's state.
@@ -1847,7 +1918,7 @@ export interface TaskRescheduleStartDate {
 export interface TaskState {
   state: State8;
   end_date?: EndDate8;
-  type?: Type78;
+  type?: Type80;
   rendered_map_index?: RenderedMapIndex5;
   retry_reason?: RetryReason1;
 }
@@ -1859,7 +1930,7 @@ export interface TaskState {
  */
 export interface TaskStateStoreResult {
   value: JsonValue | null;
-  type?: Type79;
+  type?: Type81;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1867,7 +1938,7 @@ export interface TaskStateStoreResult {
  */
 export interface TaskStatesResult {
   task_states: TaskStates;
-  type?: Type80;
+  type?: Type82;
 }
 export interface TaskStates {
   [k: string]: unknown;
@@ -1885,7 +1956,7 @@ export interface TriggerDagRun {
   note?: Note2;
   dag_id: DagId22;
   run_id: DagRunId;
-  type?: Type81;
+  type?: Type83;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1894,7 +1965,7 @@ export interface TriggerDagRun {
 export interface UpdateDagRunNote {
   ti_id: TiId9;
   note: Note3;
-  type?: Type82;
+  type?: Type84;
 }
 /**
  * Update the response content part of an existing Human-in-the-loop response.
@@ -1906,7 +1977,7 @@ export interface UpdateHITLDetail {
   ti_id: TiId10;
   chosen_options: ChosenOptions;
   params_input?: ParamsInput;
-  type?: Type83;
+  type?: Type85;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1914,7 +1985,7 @@ export interface UpdateHITLDetail {
  */
 export interface ValidateInletsAndOutlets {
   ti_id: TiId11;
-  type?: Type84;
+  type?: Type86;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1923,7 +1994,7 @@ export interface ValidateInletsAndOutlets {
 export interface VariableKeysResult {
   keys: Keys;
   total_entries: TotalEntries;
-  type?: Type85;
+  type?: Type87;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1932,7 +2003,7 @@ export interface VariableKeysResult {
 export interface VariableResult {
   key: Key19;
   value: Value2;
-  type?: Type86;
+  type?: Type88;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1940,7 +2011,7 @@ export interface VariableResult {
  */
 export interface XComCountResponse {
   len: Len;
-  type?: Type87;
+  type?: Type89;
 }
 /**
  * Response to ReadXCom request.
@@ -1951,7 +2022,7 @@ export interface XComCountResponse {
 export interface XComResult {
   key: Key20;
   value: JsonValue | null;
-  type?: Type88;
+  type?: Type90;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1959,7 +2030,7 @@ export interface XComResult {
  */
 export interface XComSequenceIndexResult {
   root: JsonValue;
-  type?: Type89;
+  type?: Type91;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1967,7 +2038,7 @@ export interface XComSequenceIndexResult {
  */
 export interface XComSequenceSliceResult {
   root: Root;
-  type?: Type90;
+  type?: Type92;
 }
 
 /** Cadwyn schema version this SDK was generated against.

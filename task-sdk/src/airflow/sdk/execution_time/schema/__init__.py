@@ -32,11 +32,12 @@ Two distinct Cadwyn ``VersionBundle`` instances coexist in the codebase:
 
 :func:`registered_models_by_name` resolves a wire-shape ``type``
 discriminator to the head Pydantic class. It is computed dynamically
-from the four discriminated unions ``ToTask``, ``ToSupervisor``
-(task-execution channel) and ``ToManager``, ``ToDagProcessor``
-(dag-processing channel) so the registry is always in sync with the
-actual unions ``CommsDecoder`` decodes against -- no hand-maintained
-list to drift. Triggerer unions are intentionally excluded (the
+from the five discriminated unions ``ToTask``, ``ToSupervisor``
+(task-execution channel) and ``ToManager``, ``ToDagProcessor``,
+``ToSDKTaskHandlerProcessor`` (dag-processing channel) so the registry
+is always in sync with the actual unions ``CommsDecoder`` decodes
+against -- no hand-maintained list to drift. Triggerer unions are
+intentionally excluded (the
 Triggerer channel is not handled by lang-SDK coordinators today).
 """
 
@@ -75,7 +76,7 @@ def registered_models_by_name() -> dict[str, type[BaseModel]]:
     Map every supervisor schema body's class name to the head Pydantic class.
 
     Single source of truth for the registry. Built once by walking the
-    four discriminated unions the supervisor decodes against; cached
+    five discriminated unions the supervisor decodes against; cached
     per-process because the registry only changes when a union member
     is added in ``comms.py`` or ``processor.py`` (which needs a
     restart anyway). :func:`resolve_body_class` looks up the wire-shape
@@ -91,11 +92,11 @@ def registered_models_by_name() -> dict[str, type[BaseModel]]:
     single head class, so a name clash is a programmer error that must
     surface immediately rather than silently picking a winner.
     """
-    from airflow.dag_processing.processor import ToDagProcessor, ToManager
+    from airflow.dag_processing.processor import ToDagProcessor, ToManager, ToSDKTaskHandlerProcessor
     from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
 
     by_name: dict[str, type[BaseModel]] = {}
-    for source in (ToTask, ToSupervisor, ToManager, ToDagProcessor):
+    for source in (ToTask, ToSupervisor, ToManager, ToDagProcessor, ToSDKTaskHandlerProcessor):
         for model in _iter_model_types(source):
             existing = by_name.get(model.__name__)
             if existing is None:

@@ -259,13 +259,14 @@ class SDKTaskHandlerParsingResult(BaseModel):  # runtime -> parent, on ToManager
 
 class TaskHandlerDeclaration(BaseModel):
     task_id: str
-    params: list[TaskHandlerParam]  # ordered; arg bindings are positional
+    binding: Literal["positional", "named"]  # how arguments bind to params
+    params: list[TaskHandlerParam] | None  # ordered; None: the runtime cannot list them
 
 
 class TaskHandlerParam(BaseModel):
-    name: str
+    name: str | None  # None: the runtime has no name for this positional parameter
     value_schema: JSONSchema | None = None
-    required: bool  # the handler declares no default
+    exact_name: bool = False  # match as spelled, not case-insensitively with underscores ignored
 ```
 
 A `dag_id` the artifact registers nothing for is **omitted** from `task_handlers` rather than returned
@@ -399,7 +400,8 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │
         ├─7─ VALIDATE per dag_id, unioned across coordinators
         │      task_id sets must match exactly
-        │      arg_bindings[*].name    ↔ handler_params[*].name, in order
+        │      arg_bindings[*]         ↔ handler_params[*], per the declaration's binding:
+        │                                 by position, or by folded or exact name
         │      arg_bindings[*].schema  ↔ handler_params[*].value_schema,
         │                                 compared only where neither is null
         │      two candidates claiming one (dag_id, task_id) → import error
