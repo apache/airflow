@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.sdk.importers.base import (
@@ -27,11 +29,11 @@ from airflow.sdk.importers.base import (
     DagImportResult,
     FilesystemDagDefinition,
     find_file_dag_definitions,
+    get_importer_registry,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
@@ -88,3 +90,16 @@ class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
                 )
             ],
         )
+
+
+def find_claiming_coordinator(
+    path: str | os.PathLike[str], bundle_name: str | None
+) -> SubprocessCoordinator | None:
+    """
+    Return the coordinator whose runtime parses *path*, or ``None`` when a Python Dag importer parses it.
+
+    A runtime parses the file when its Dag importer in the bundle's registry is a coordinator's. An error
+    building the registry, such as two coordinators claiming one extension, is raised.
+    """
+    importer = get_importer_registry(bundle_name).get_importer(Path(path))
+    return importer.coordinator if isinstance(importer, CoordinatorDagImporter) else None
