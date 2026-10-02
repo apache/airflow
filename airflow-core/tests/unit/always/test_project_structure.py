@@ -498,6 +498,8 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
 
     BASE_CLASSES = {
         "airflow.providers.amazon.aws.operators.base_aws.AwsBaseOperator",
+        # Compatibility fallback for EksPodExecOperator, not a standalone Amazon operator.
+        "airflow.providers.amazon.aws.operators.eks.KubernetesPodExecOperator",
         "airflow.providers.amazon.aws.operators.glue_crawler._GlueCrawlerBaseOperator",
         "airflow.providers.amazon.aws.operators.rds.RdsBaseOperator",
         "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",
