@@ -92,7 +92,9 @@ import javax.tools.Diagnostic
  */
 @SupportedAnnotationTypes(
   "org.apache.airflow.sdk.Builder.Dag",
+  "org.apache.airflow.sdk.Builder.Task",
   "org.apache.airflow.sdk.Builder.TaskHandler",
+  "org.apache.airflow.sdk.Builder.Deps",
 )
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 class BuilderProcessor : AbstractProcessor() {
@@ -101,6 +103,16 @@ class BuilderProcessor : AbstractProcessor() {
     roundEnv: RoundEnvironment,
   ): Boolean {
     if (annotations.isEmpty()) return false
+    roundEnv.getElementsAnnotatedWith(Builder.Deps::class.java).forEach { el ->
+      val owner = el.enclosingElement
+      if (owner !is TypeElement || owner.getAnnotation(Builder.Dag::class.java) == null) {
+        processingEnv.messager.printMessage(
+          Diagnostic.Kind.ERROR,
+          "@Builder.Deps class '${el.simpleName}' must be nested directly in a @Builder.Dag class",
+          el,
+        )
+      }
+    }
     roundEnv
       .getElementsAnnotatedWith(Builder.TaskHandler::class.java)
       .mapNotNull { it.enclosingElement as? TypeElement }
@@ -120,9 +132,9 @@ class BuilderProcessor : AbstractProcessor() {
         runCatching {
           val packageName = elementUtils.getPackageOf(el).qualifiedName.toString()
           val declarations = collectTasks(el)
-          val deps = findDeps(el)
           val builderName = ClassName.get(packageName, dagAnnotation(el).to.ifBlank { "${el.simpleName}Builder" })
           val depsName = ClassName.get(packageName, "${el.simpleName}Deps")
+          val deps = findDeps(el, depsName)
           JavaFile
             .builder(packageName, buildBuilder(el, declarations, deps, builderName))
             .build()
@@ -339,8 +351,14 @@ class BuilderProcessor : AbstractProcessor() {
   /**
    * Finds and validates the class's `@Builder.Deps` wiring class. It is
    * optional: without one, every task registers with no Java-side edges.
+   *
+   * The generated builder runs `new Wiring()::depends`, so everything that
+   * expression needs is checked here, where the error can name the class.
    */
-  private fun findDeps(el: TypeElement): TypeElement? {
+  private fun findDeps(
+    el: TypeElement,
+    view: ClassName,
+  ): TypeElement? {
     val classes =
       el.enclosedElements
         .filterIsInstance<TypeElement>()
@@ -352,14 +370,50 @@ class BuilderProcessor : AbstractProcessor() {
           "Dag class ${el.simpleName} declares more than one @Builder.Deps class: " +
             classes.joinToString { it.simpleName.toString() },
         )
-    require(Modifier.STATIC in deps.modifiers && Modifier.PRIVATE !in deps.modifiers) {
-      "@Builder.Deps class '${deps.simpleName}' must be static and non-private"
+    val name = deps.simpleName
+    require(deps.kind == ElementKind.CLASS && Modifier.ABSTRACT !in deps.modifiers) {
+      "@Builder.Deps '$name' must be a concrete class"
     }
-    require(deps.enclosedElements.filterIsInstance<ExecutableElement>().any { it.isNoArgDepends() }) {
-      "@Builder.Deps class '${deps.simpleName}' must declare a non-private, no-argument depends() method"
+    require(Modifier.STATIC in deps.modifiers && Modifier.PRIVATE !in deps.modifiers) {
+      "@Builder.Deps class '$name' must be static and non-private"
+    }
+    require(deps.interfaces.any { it.isView(view) }) {
+      "@Builder.Deps class '$name' must implement ${view.simpleName()}, the wiring view of ${el.simpleName}"
+    }
+    require(
+      deps.enclosedElements
+        .filterIsInstance<ExecutableElement>()
+        .any { it.kind == ElementKind.CONSTRUCTOR && it.parameters.isEmpty() && Modifier.PRIVATE !in it.modifiers },
+    ) {
+      "@Builder.Deps class '$name' needs a non-private no-argument constructor"
+    }
+    val depends =
+      processingEnv.elementUtils
+        .getAllMembers(deps)
+        .filterIsInstance<ExecutableElement>()
+        .firstOrNull { it.isNoArgDepends() }
+        ?: throw IllegalArgumentException(
+          "@Builder.Deps class '$name' must have a non-private, no-argument depends() method",
+        )
+    val checked = depends.thrownTypes.filterNot { isUnchecked(it) }
+    require(checked.isEmpty()) {
+      "depends() of @Builder.Deps class '$name' must not throw checked exceptions: ${checked.joinToString()}"
     }
     return deps
   }
+
+  /**
+   * Matches the view by the name the class wrote: the view is generated in
+   * this same round, so javac may not have resolved it yet.
+   */
+  private fun TypeMirror.isView(view: ClassName): Boolean = toString().let { it == view.canonicalName() || it == view.simpleName() }
+
+  private fun isUnchecked(type: TypeMirror): Boolean =
+    with(processingEnv) {
+      listOf(RuntimeException::class.java, Error::class.java).any {
+        typeUtils.isAssignable(type, elementUtils.getTypeElement(it.canonicalName).asType())
+      }
+    }
 
   private fun ExecutableElement.isNoArgDepends(): Boolean =
     simpleName.contentEquals("depends") &&

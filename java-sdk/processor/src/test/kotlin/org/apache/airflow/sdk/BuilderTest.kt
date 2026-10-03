@@ -1003,7 +1003,162 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Deps class 'Wiring' must declare a non-private, no-argument depends() method",
+      "@Builder.Deps class 'Wiring' must have a non-private, no-argument depends() method",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a wiring class that implements another Dag's wiring view")
+  fun rejectWiringClassOfAnotherDag() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void t1() {}
+
+          @Builder.Deps
+          static class Wiring implements OtherDeps {
+            void depends() { t1(); }
+          }
+        }
+
+        @Builder.Dag
+        class Other {
+          @Builder.Task public void t1() {}
+
+          @Builder.Deps
+          static class Wiring implements OtherDeps {
+            void depends() { t1(); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Deps class 'Wiring' must implement TestExampleDeps, the wiring view of TestExample",
+    )
+  }
+
+  @Test
+  @DisplayName("reject an abstract wiring class")
+  fun rejectAbstractWiringClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void t1() {}
+
+          @Builder.Deps
+          abstract static class Wiring implements TestExampleDeps {
+            void depends() { t1(); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("@Builder.Deps 'Wiring' must be a concrete class")
+  }
+
+  @Test
+  @DisplayName("reject a wiring class with no no-argument constructor")
+  fun rejectWiringClassWithoutNoArgConstructor() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void t1() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            Wiring(int unused) {}
+            void depends() { t1(); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Deps class 'Wiring' needs a non-private no-argument constructor",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a depends() that throws a checked exception")
+  fun rejectDependsThrowingCheckedException() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void t1() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() throws java.io.IOException { t1(); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "depends() of @Builder.Deps class 'Wiring' must not throw checked exceptions: java.io.IOException",
+    )
+  }
+
+  @Test
+  @DisplayName("accept a depends() the wiring class inherits")
+  fun acceptInheritedDepends() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void t1() {}
+
+          static class Base implements TestExampleDeps {
+            void depends() { t1(); }
+          }
+
+          @Builder.Deps
+          static class Wiring extends Base implements TestExampleDeps {}
+        }
+      """,
+      )
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
+  @DisplayName("reject a wiring class outside a Dag class")
+  fun rejectMisplacedWiringClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          @Builder.Deps
+          static class Wiring {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Deps class 'Wiring' must be nested directly in a @Builder.Dag class",
     )
   }
 
