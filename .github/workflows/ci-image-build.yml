@@ -349,8 +349,8 @@ jobs:
       # unpacking and checksumming each layer again; a copy of the image store restores with one
       # extraction. Taken while the freshly built layers are still in the page cache, and after the
       # mount cache export, as it drops the build cache that the export reads.
-      # Only PR-scoped snapshots: arbitrary checkout refs in privileged dispatch/scheduled
-      # workflows must never publish a snapshot into the default branch's cache scope.
+      # Snapshots are handoffs within this run, not branch caches. An arbitrary checkout ref
+      # must not publish raw daemon state for a later run on the default branch.
       - name: "Snapshot CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         id: snapshot-export
         continue-on-error: true
@@ -364,11 +364,13 @@ jobs:
           github.event_name == 'pull_request' &&
           inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
           steps.stashed-image.outputs.reusable != 'true'
-      - name: "Stash CI image snapshot ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+      - name: "Upload CI image snapshot ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         continue-on-error: true
-        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          key: ci-image-snapshot-v1-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          name: >-
+            ci-image-snapshot-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{
+            inputs.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
           path: "/mnt/ci-image-snapshot-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst*"
           if-no-files-found: 'error'
           compression-level: '0'
