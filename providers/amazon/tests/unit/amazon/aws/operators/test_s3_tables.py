@@ -242,6 +242,17 @@ class TestS3TablesCreateTableBucketOperator:
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
+    def test_template_fields_include_encryption_configuration(self):
+        # The docstring marks encryption_configuration as "(templated)", so it
+        # must be listed in template_fields to actually render before execute.
+        op = S3TablesCreateTableBucketOperator(
+            task_id="create_table_bucket_templated_encryption",
+            table_bucket_name=BUCKET_NAME,
+            encryption_configuration={"sseAlgorithm": "aws:kms"},
+        )
+        assert "encryption_configuration" in op.template_fields
+        validate_template_fields(op)
+
 
 class TestS3TablesDeleteTableBucketOperator:
     def setup_method(self):

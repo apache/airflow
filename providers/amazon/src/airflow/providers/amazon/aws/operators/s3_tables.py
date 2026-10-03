@@ -214,7 +214,9 @@ class S3TablesCreateTableBucketOperator(AwsBaseOperator[S3TablesHook]):
         ``"fail"`` raises an error, ``"skip"`` returns the existing bucket ARN.
     """
 
-    template_fields: Sequence[str] = aws_template_fields("table_bucket_name")
+    template_fields: Sequence[str] = aws_template_fields(
+        "table_bucket_name", "encryption_configuration"
+    )
     template_fields_renderers = {"encryption_configuration": "json"}
     aws_hook_class = S3TablesHook
 
