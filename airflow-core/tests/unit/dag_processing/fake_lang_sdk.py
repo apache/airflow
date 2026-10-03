@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""A coordinator that claims ``.native`` Dag files, and a runtime a test can play in the parse child."""
+"""A coordinator and Dag importer for ``.native`` Dag files, and a runtime to play in the parse child."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 @attrs.define(kw_only=True)
 class FakeCoordinator(SubprocessCoordinator):
     """
-    Claim ``.native`` files; the file's JSON names the command that parses it.
+    Parse ``.native`` files; the file's JSON names the command that parses it.
 
     ``argv`` is the command, ``schema_version`` its schema version, and ``command_error`` an error to
     raise instead.
@@ -62,11 +62,9 @@ class FakeCoordinator(SubprocessCoordinator):
             raise FileNotFoundError(error)
         return spec.get("argv", ["/bin/false"]), spec.get("schema_version")
 
-    def get_dag_importer(self) -> FakeCoordinatorDagImporter:
-        return FakeCoordinatorDagImporter(coordinator=self)
-
 
 class FakeCoordinatorDagImporter(CoordinatorDagImporter):
+    coordinator_classpath = f"{__name__}.FakeCoordinator"
     artifact_suffix = ".native"
     supported_extensions = [".native"]
 
@@ -77,15 +75,20 @@ class FakeCoordinatorDagImporter(CoordinatorDagImporter):
 @contextlib.contextmanager
 def fake_coordinator(**kwargs: Any) -> Iterator[None]:
     """
-    Configure a ``FakeCoordinator``, with fresh coordinators and registries inside and after the block.
+    Configure a ``FakeCoordinator`` and register its Dag importer.
 
-    The parse child is a bare fork even on macOS, so it sees the test's ``parse_dag`` patch and config.
+    The coordinators and the Dag importer registries are fresh inside and after the block. The parse child
+    is a bare fork even on macOS, so it sees the test's ``parse_dag`` patch and config.
     """
     spec = {"fake": {"classpath": f"{__name__}.FakeCoordinator", "kwargs": kwargs}}
     reset_importer_registry()
     try:
         with (
             conf_vars({("sdk", "coordinators"): json.dumps(spec)}),
+            mock.patch(
+                "airflow.sdk.coordinators._dag_importer.COORDINATOR_DAG_IMPORTERS",
+                (f"{__name__}.FakeCoordinatorDagImporter",),
+            ),
             mock.patch.object(supervisor, "_should_use_exec", return_value=False),
         ):
             yield
