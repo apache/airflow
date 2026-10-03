@@ -1,0 +1,1 @@
+Fix ``airflow scheduler`` exiting immediately when the ``[scheduler] only_idle`` config option is enabled. The option is now resolved when the command runs instead of when the CLI parser is built, so a config-supplied value is no longer mistaken for an explicitly passed ``--only-idle``; ``--no-only-idle`` can now override a config-enabled default.
