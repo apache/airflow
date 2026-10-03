@@ -40,11 +40,23 @@ from airflow_e2e_tests.constants import (
     ELASTICSEARCH_PATH,
     GO_BUILDER_IMAGE,
     GO_COMPOSE_PATH,
+    GO_DYNAMIC_DAG_IDS_ENV,
     GO_SDK_BIN_PATH,
     GO_SDK_BUNDLE_NAME,
+    GO_SDK_COORDINATOR,
     GO_SDK_DAGS_PATH,
     GO_SDK_EXAMPLE_BUNDLE_PKG,
+    GO_SDK_QUEUE,
     GO_SDK_ROOT_PATH,
+    GO_SDK_TASK_HANDLER_BUNDLE,
+    GO_TEST_BUNDLE_ARTIFACTS,
+    GO_TEST_BUNDLE_BUILD_PATH,
+    GO_TEST_BUNDLE_DAGS_PATH,
+    GO_TEST_BUNDLE_ROOT_PATH,
+    GO_TEST_COORDINATOR,
+    GO_TEST_QUEUE,
+    GO_TEST_TASK_HANDLER_BUNDLE,
+    GO_UNBOUND_QUEUE,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
     JAVA_SDK_EXAMPLE_DAGS_PATH,
@@ -55,6 +67,7 @@ from airflow_e2e_tests.constants import (
     JAVA_TEST_BUNDLE_LIBS_PATH,
     JAVA_TEST_BUNDLE_ROOT_PATH,
     KAFKA_DIR_PATH,
+    LANG_SDK_E2E_MODES,
     LANG_SDK_NATIVE_TOOLCHAIN,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
@@ -79,14 +92,13 @@ from tests_common.test_utils.fernet import generate_fernet_key_string
 
 console = Console(width=400, color_system="standard")
 
-# A reserialize writes stub Dags without the bindings the Dag processor's parse records.
-_LANG_SDK_E2E_MODES = ("go_sdk", "ts_sdk", "java_sdk")
-
 
 class _E2ETestState:
     compose_instance: DockerCompose | None = None
+    compose_project_path: Path | None = None
     airflow_logs_path: Path | None = None
     airflow_dags_path: Path | None = None
+    go_dynamic_dag_ids: list[str] = []
 
 
 def _copy_localstack_files(tmp_dir):
@@ -566,52 +578,86 @@ def _pack_go_bundle(module: Path, package: str, output: Path, *, native: bool):
 def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     """Set up the go_sdk E2E test mode.
 
-    Compiles the Go SDK example bundle into a self-contained executable bundle
-    via the ``airflow-go-pack`` tooling, drops it into the directory registered
-    as the ``go-task-handlers`` Dag bundle, copies the Python stub Dag, and
-    writes the coordinator configuration.
+    Compiles the Go SDK example bundle and the two Go test bundles into self-contained
+    executable bundles with the ``airflow-go-pack`` tooling, drops each into the directory
+    registered as its Dag bundle, copies the Python stub Dags, and writes the coordinator
+    configuration.
 
-    The packed bundle is a statically linked native executable (built with
-    ``CGO_ENABLED=0``), so the stock Airflow image can exec it directly on the
+    The packed bundles are statically linked native executables (built with
+    ``CGO_ENABLED=0``), so the stock Airflow image can exec them directly on the
     worker and the Dag processor without a Go toolchain or any extra runtime
     installed -- see ``go.yml``.
+
+    The example has its own coordinator, Dag bundle and queue, and the test bundles have
+    theirs, so the failure fixtures of the test bundles cannot change what the example
+    registers. The Dag processor routes the queues of both but ``golang-unbound``, which the
+    scheduler and the worker route: a stub task on it reaches the worker with no artifact.
     """
-    _pack_go_bundle(
-        GO_SDK_ROOT_PATH,
-        GO_SDK_EXAMPLE_BUNDLE_PKG,
-        GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME,
-        native=LANG_SDK_NATIVE_TOOLCHAIN,
+    native = LANG_SDK_NATIVE_TOOLCHAIN
+    packs = [(GO_SDK_ROOT_PATH, GO_SDK_EXAMPLE_BUNDLE_PKG, GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME)]
+    packs.extend(
+        (GO_TEST_BUNDLE_ROOT_PATH, f"./cmd/{name}", GO_TEST_BUNDLE_BUILD_PATH / name)
+        for name in GO_TEST_BUNDLE_ARTIFACTS
     )
+    # The packs share the Go module and build caches, which are safe to share between processes.
+    with ThreadPoolExecutor(max_workers=len(packs)) as pool:
+        for pack in [pool.submit(_pack_go_bundle, *args, native=native) for args in packs]:
+            pack.result()
 
     # Copy the compose override into the temp directory.
     copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
 
-    # Place the packed bundle where the compose bind-mount (./go-bundles) exposes
-    # it to the worker and the Dag processor at /opt/airflow/go-bundles. The
-    # coordinator runs only an executable file, so preserve the exec bit.
+    # Place each packed bundle where the compose bind-mount (./go-bundles and
+    # ./go-test-bundles) exposes it to the worker and the Dag processor at
+    # /opt/airflow/go-bundles and /opt/airflow/go-test-bundles. The coordinator runs
+    # only an executable file, so preserve the exec bit.
     go_bundles_dir = tmp_dir / "go-bundles"
     go_bundles_dir.mkdir()
     packed_bundle = go_bundles_dir / GO_SDK_BUNDLE_NAME
     copyfile(GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME, packed_bundle)
     os.chmod(packed_bundle, 0o755)
+    go_test_bundles_dir = tmp_dir / "go-test-bundles"
+    go_test_bundles_dir.mkdir()
+    for name in GO_TEST_BUNDLE_ARTIFACTS:
+        copyfile(GO_TEST_BUNDLE_BUILD_PATH / name, go_test_bundles_dir / name)
+        os.chmod(go_test_bundles_dir / name, 0o755)
 
-    # Copy the Go SDK example stub Dag so Airflow can discover and serialize it.
+    # Copy the Go SDK example stub Dag so Airflow can discover and serialize it, and the stub
+    # Dags of the test bundles.
     copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
+    for dag_file in sorted(GO_TEST_BUNDLE_DAGS_PATH.glob("*.py")):
+        copyfile(dag_file, tmp_dir / "dags" / dag_file.name)
 
-    # Coordinator registry: maps the logical name "go-sdk" to ExecutableCoordinator,
-    # which runs the packed bundle in the go-task-handlers Dag bundle that the Dag
-    # processor bound each stub task to.
-    # Queue mapping: routes tasks on the "golang" queue to "go-sdk".
-    dag_bundle_config = _build_dag_bundle_config({"go-task-handlers": "/opt/airflow/go-bundles"})
-    coordinator_config = json.dumps(
+    # go_test_dags.py generates these Dag ids when it is parsed, and handlers_a registers handlers for them,
+    # both from E2E_GO_DYNAMIC_DAG_IDS. They are the same in every run: a database kept from an earlier run
+    # (SKIP_DOCKER_COMPOSE_DELETION) reuses the recorded answer of an unchanged handlers_a, which names them.
+    _E2ETestState.go_dynamic_dag_ids = ["go_dynamic_eu", "go_dynamic_us"]
+
+    # Coordinator registry: maps each logical name to an ExecutableCoordinator, which runs the
+    # packed bundle in the Dag bundle that the Dag processor bound each stub task to.
+    # Queue mapping: routes tasks on the "golang" queue to "go-sdk" and on the "golang-test" and
+    # "golang-unbound" queues to "go-test-sdk".
+    dag_bundle_config = _build_dag_bundle_config(
         {
-            "go-sdk": {
-                "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
-                "kwargs": {"task_handler_bundle_name": "go-task-handlers"},
-            }
+            GO_SDK_TASK_HANDLER_BUNDLE: "/opt/airflow/go-bundles",
+            GO_TEST_TASK_HANDLER_BUNDLE: "/opt/airflow/go-test-bundles",
         }
     )
-    queue_to_coordinator = json.dumps({"golang": "go-sdk"})
+    executable_coordinator = "airflow.sdk.coordinators.executable.ExecutableCoordinator"
+    coordinator_config = json.dumps(
+        {
+            GO_SDK_COORDINATOR: {
+                "classpath": executable_coordinator,
+                "kwargs": {"task_handler_bundle_name": GO_SDK_TASK_HANDLER_BUNDLE},
+            },
+            GO_TEST_COORDINATOR: {
+                "classpath": executable_coordinator,
+                "kwargs": {"task_handler_bundle_name": GO_TEST_TASK_HANDLER_BUNDLE},
+            },
+        }
+    )
+    dag_processor_queues = {GO_SDK_QUEUE: GO_SDK_COORDINATOR, GO_TEST_QUEUE: GO_TEST_COORDINATOR}
+    queue_to_coordinator = json.dumps({**dag_processor_queues, GO_UNBOUND_QUEUE: GO_TEST_COORDINATOR})
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
@@ -619,6 +665,9 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
         f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        # go.yml gives the Dag processor this mapping in place of the one above.
+        f"E2E_DAG_PROCESSOR_QUEUE_TO_COORDINATOR='{json.dumps(dag_processor_queues)}'\n"
+        f"{GO_DYNAMIC_DAG_IDS_ENV}={','.join(_E2ETestState.go_dynamic_dag_ids)}\n"
         # Connection and variable read by the Go example bundle tasks.
         "AIRFLOW_CONN_TEST_HTTP=http://test:test@example.com/\n"
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
@@ -748,6 +797,7 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     for subdir in subfolders:
         (tmp_dir / subdir).mkdir()
 
+    _E2ETestState.compose_project_path = tmp_dir
     _E2ETestState.airflow_logs_path = tmp_dir / "logs"
     _E2ETestState.airflow_dags_path = tmp_dir / "dags"
 
@@ -813,7 +863,8 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _E2ETestState.compose_instance.start()
 
         _E2ETestState.compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
-        if E2E_TEST_MODE not in _LANG_SDK_E2E_MODES:
+        # A reserialize writes stub Dags without the bindings the Dag processor's parse records.
+        if E2E_TEST_MODE not in LANG_SDK_E2E_MODES:
             _E2ETestState.compose_instance.exec_in_container(
                 command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
             )
@@ -890,6 +941,12 @@ def compose_instance():
 
 
 @pytest.fixture(scope="session")
+def compose_project_path():
+    """Host path of the compose project, where the deployed artifacts and the ``.env`` file are."""
+    return _E2ETestState.compose_project_path
+
+
+@pytest.fixture(scope="session")
 def airflow_logs_path():
     """Live host path of the stack's task logs (bind-mounted), readable while tests run."""
     return _E2ETestState.airflow_logs_path
@@ -899,6 +956,12 @@ def airflow_logs_path():
 def airflow_dags_path():
     """Host path of the dags served to the stack."""
     return _E2ETestState.airflow_dags_path
+
+
+@pytest.fixture(scope="session")
+def go_dynamic_dag_ids():
+    """The Dag ids that ``go_test_dags.py`` generates from ``E2E_GO_DYNAMIC_DAG_IDS``, in the go_sdk mode."""
+    return list(_E2ETestState.go_dynamic_dag_ids)
 
 
 def generate_test_report(results):

@@ -17,32 +17,32 @@
 
 # Docker Compose override for go_sdk E2E test mode.
 #
-# The Go bundle compiled by airflow-go-pack (conftest._setup_go_sdk_integration)
-# is a self-contained, statically linked executable, so the stock Airflow image
-# can exec it directly -- no extra runtime needs to be installed. We only
-# bind-mount the bundle into the Dag bundle directory the ExecutableCoordinator
-# reads, on the worker and the Dag processor, and point the worker at the
-# "golang" queue where @task.stub tasks are routed. The Dag processor runs the
-# bundle to check the stub tasks of go_examples.py against the task handlers it
-# registers.
+# The Go bundles compiled by airflow-go-pack (conftest._setup_go_sdk_integration)
+# are self-contained, statically linked executables, so the stock Airflow image
+# can exec them directly -- no extra runtime needs to be installed. We only
+# bind-mount them into the Dag bundle directories the ExecutableCoordinators
+# read (the example under /opt/airflow/go-bundles, the test bundles of the stub
+# task checks under /opt/airflow/go-test-bundles), on the worker and the Dag
+# processor, and point the worker at the queues where @task.stub tasks are
+# routed. The Dag processor runs the bundles to check the stub tasks of the Dag
+# files against the task handlers they register.
+#
+# The scheduler and the worker route one queue more than the Dag processor
+# ("golang-unbound", from AIRFLOW__SDK__QUEUE_TO_COORDINATOR in .env), so the
+# Dag processor never binds the stub task of go_unbound_stub.py and the
+# scheduler queues it without an artifact. The Dag processor's own mapping is
+# written to .env by conftest, and Compose interpolates it from there.
 ---
 services:
   airflow-dag-processor:
-    # As on the worker, below.
     environment:
-      USER: airflow
-      HOME: /home/airflow
+      AIRFLOW__SDK__QUEUE_TO_COORDINATOR: ${E2E_DAG_PROCESSOR_QUEUE_TO_COORDINATOR:?written by conftest}
     volumes:
       - ./go-bundles:/opt/airflow/go-bundles:ro
+      - ./go-test-bundles:/opt/airflow/go-test-bundles:ro
 
   airflow-worker:
-    # The bundle is built with CGO_ENABLED=0, so the SDK's user.Current() call at
-    # init falls back to Go's pure-Go resolver, which reads $USER / $HOME and
-    # panics if either is empty. The supervisor launches the bundle with the
-    # worker's environment, so set both here.
-    environment:
-      USER: airflow
-      HOME: /home/airflow
     volumes:
       - ./go-bundles:/opt/airflow/go-bundles:ro
-    command: celery worker -q golang,default
+      - ./go-test-bundles:/opt/airflow/go-test-bundles:ro
+    command: celery worker -q golang,golang-test,golang-unbound,default
