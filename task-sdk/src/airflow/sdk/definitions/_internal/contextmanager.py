@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 from collections import deque
+from contextvars import ContextVar
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
@@ -38,8 +39,17 @@ __all__ = ["DagContext", "TaskGroupContext"]
 # the `get_current_context` function.
 _CURRENT_CONTEXT: list[Context] = []
 
+# The contexts of the iterations of an iterated task, pushed on top of the task's own context.
+# Iterations run concurrently in one process, in worker threads and asyncio tasks, so each one's
+# context lives in a ContextVar and is seen by its own execution only. The task's context stays in
+# the module-level list above, where any thread of the process finds it, including one the task
+# started itself, whose ContextVars start out empty.
+_INDEXED_CONTEXT: ContextVar[tuple[Context, ...]] = ContextVar("_indexed_context", default=())
+
 
 def _get_current_context() -> Context:
+    if indexed := _INDEXED_CONTEXT.get():
+        return indexed[-1]
     if not _CURRENT_CONTEXT:
         raise RuntimeError(
             "Current context was requested but no context was found! Are you running within an Airflow task?"

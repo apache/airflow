@@ -33,7 +33,7 @@ import structlog
 
 from airflow.sdk._shared.state import AssetScope
 from airflow.sdk.configuration import conf
-from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
+from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT, _INDEXED_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -145,7 +145,6 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
         "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}TEAM_NAME",
     },
 }
-
 
 log = structlog.get_logger(logger_name="task")
 
@@ -729,6 +728,73 @@ class TaskStateStoreAccessor:
             backend.clear(self._scope)
 
 
+class IndexedTaskStateStoreAccessor(TaskStateStoreAccessor):
+    """
+    The parent task instance's state store as seen from one iteration of an iterated task.
+
+    Every iteration runs under the same task instance, so a key written from inside one would be
+    overwritten by its siblings. This view suffixes each key with the iteration's index, exactly as
+    ``IndexedTaskInstance.xcom_push`` does for XComs, so ``task_state_store.set("last_offset", 3)``
+    in iteration 2 lands under ``last_offset_2``. Clearing is refused: it would wipe the siblings'
+    state and the operator's own checkpoints; an iteration deletes its own keys instead. Keys
+    starting with ``_iterable`` are refused as well: the operator keeps its checkpoints in this
+    store under ``_iterable_<index>``, which is what ``_iterable`` would become once suffixed.
+    """
+
+    # The namespace of IndexedTaskState.build_key and Checkpoints.COMPLETION_KEY.
+    RESERVED_PREFIX = "_iterable"
+
+    def __init__(self, store: TaskStateStoreAccessor, index: int) -> None:
+        self._store = store
+        self._index = index
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, IndexedTaskStateStoreAccessor):
+            return False
+        return self._store == other._store and self._index == other._index
+
+    def __hash__(self) -> int:
+        return hash((self._store, self._index))
+
+    def __repr__(self) -> str:
+        return f"<IndexedTaskStateStoreAccessor index={self._index} store={self._store!r}>"
+
+    def _indexed(self, key: str) -> str:
+        if key.startswith(self.RESERVED_PREFIX):
+            raise ValueError(
+                f"task_state_store keys starting with {self.RESERVED_PREFIX!r} are reserved for the "
+                f"checkpoints of the iterated task, got {key!r}"
+            )
+        return f"{key}_{self._index}"
+
+    def get(self, key: str, default: JsonValue = None) -> JsonValue:
+        return self._store.get(self._indexed(key), default)
+
+    async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
+        return await self._store.aget(self._indexed(key), default)
+
+    def set(self, key: str, value: JsonValue, *, retention: timedelta | None = None) -> None:
+        self._store.set(self._indexed(key), value, retention=retention)
+
+    async def aset(self, key: str, value: JsonValue, *, retention: timedelta | None = None) -> None:
+        await self._store.aset(self._indexed(key), value, retention=retention)
+
+    def delete(self, key: str) -> None:
+        self._store.delete(self._indexed(key))
+
+    async def adelete(self, key: str) -> None:
+        await self._store.adelete(self._indexed(key))
+
+    def clear(self) -> None:
+        raise RuntimeError(
+            "task_state_store.clear() is not available inside an iterated task: the store is shared "
+            "with the other iterations and the operator's checkpoints; delete your own keys instead"
+        )
+
+    async def aclear(self) -> None:
+        self.clear()
+
+
 class AssetStateStoreAccessor:
     """
     Accessor for asset store scoped to a single asset.
@@ -1200,9 +1266,10 @@ class OutletEventAccessors(
         else:
             raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
 
-        if hashable_key not in self._dict:
-            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
-        return self._dict[hashable_key]
+        # setdefault is atomic under the GIL: if two threads race on the same
+        # key the first writer wins and both threads get back the same accessor,
+        # so neither thread's accumulated events are silently discarded.
+        return self._dict.setdefault(hashable_key, OutletEventAccessor(extra={}, key=hashable_key))
 
 
 @attrs.define(init=False)
@@ -1461,6 +1528,22 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
                 expected=context,
                 got=expected_state,
             )
+
+
+@contextlib.contextmanager
+def set_indexed_context(context: Context) -> Generator[Context, None, None]:
+    """
+    Make ``context`` the current context of one iteration of an iterated task, for this block.
+
+    Seen only by the thread or asyncio task that entered the block, so iterations running
+    concurrently never see each other's context. Anything else, a thread the iteration starts
+    included, sees the task's own context set by :func:`set_current_context`.
+    """
+    token = _INDEXED_CONTEXT.set((*_INDEXED_CONTEXT.get(), context))
+    try:
+        yield context
+    finally:
+        _INDEXED_CONTEXT.reset(token)
 
 
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
