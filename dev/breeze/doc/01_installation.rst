@@ -399,7 +399,7 @@ that Breeze works on
 
         .. code-block:: bash
 
-            UV_PYTHON=3.10 breeze ...
+            UV_PYTHON=3.11 breeze ...
 
       or set it permanently in your shell rc. ``uvx`` will rebuild its cached environment with
       that interpreter on the next call.
