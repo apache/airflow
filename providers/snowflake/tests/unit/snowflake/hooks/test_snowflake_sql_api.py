@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import base64
 import uuid
 from collections.abc import Mapping
@@ -1726,7 +1725,7 @@ class TestSnowflakeSqlApiHook:
         )
 
         mock_async_request.__aenter__.side_effect = [
-            asyncio.TimeoutError(),
+            TimeoutError(),
             create_async_request_client_response_success(json=GET_RESPONSE, status_code=200),
         ]
 

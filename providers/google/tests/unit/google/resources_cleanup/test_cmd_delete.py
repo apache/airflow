@@ -191,7 +191,7 @@ def test_asset_type_patterns_are_unique():
 
 
 def test_check_min_age():
-    now = datetime.datetime(2026, 5, 20, tzinfo=datetime.timezone.utc)
+    now = datetime.datetime(2026, 5, 20, tzinfo=datetime.UTC)
 
     assert check_min_age({"name": "res1"}, None, now=now)
     assert not check_min_age({"name": "res1"}, 3, now=now)
@@ -201,7 +201,7 @@ def test_check_min_age():
 
 async def test_handle_asset_type_filters_by_min_age():
     asset_type = "ai"
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     resources = [
         {"name": "old", "createTime": (now - datetime.timedelta(days=4)).isoformat()},
         {"name": "new", "createTime": now.isoformat()},

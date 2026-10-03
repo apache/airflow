@@ -49,8 +49,8 @@ def make_messages(system: str = "You are a bot.", user: str = "hello", **part_kw
 class TestModelRequestFingerprint:
     def test_stable_across_part_timestamps(self):
         """Part timestamps regenerate on every attempt and must not affect the fingerprint."""
-        t1 = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
-        t2 = datetime.datetime(2026, 1, 2, tzinfo=datetime.timezone.utc)
+        t1 = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
+        t2 = datetime.datetime(2026, 1, 2, tzinfo=datetime.UTC)
         fp1 = fingerprint_model_request("m", make_messages(timestamp=t1), None, ModelRequestParameters())
         fp2 = fingerprint_model_request("m", make_messages(timestamp=t2), None, ModelRequestParameters())
 

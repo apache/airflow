@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from airflow.providers.common.compat.sdk import dag as airflow_dag, task
 
@@ -51,7 +51,7 @@ ABSOLUTE_STATE_PATH = "/workspace/state.txt"
 @airflow_dag(
     dag_id=DAG_ID,
     schedule="@once",
-    start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+    start_date=datetime(2024, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["common.ai", "sandbox", "modal", "system_test"],
 )
