@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import copy
 import functools
 import os
 import selectors
@@ -65,6 +64,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.sdk.execution_time.supervisor import RequestHandler, RequestResult
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.typing_compat import Self
 
 # How long a runtime may keep running after its parse result, as Node does while a handle stays open.
@@ -372,8 +372,8 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         for dag in msg.serialized_dags:
             DagSerialization.fill_config_defaults(dag.data)
             try:
-                DagSerialization.validate_serialized_dag(dag.data)
-                self._apply_team_rules(dag.data)
+                deserialized = DagSerialization.validate_serialized_dag(dag.data)
+                self._apply_team_rules(dag.data, deserialized)
             except DeserializationError as e:
                 message = f"Cannot load the serialized Dag: {e}"
             except Exception as e:
@@ -394,16 +394,15 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         self._parsing_result_monotonic = time.monotonic()
         return None, {}
 
-    def _apply_team_rules(self, data: dict) -> None:
+    def _apply_team_rules(self, data: dict, dag: SerializedDAG) -> None:
         """
         Check each task's executor and move tasks in the default pool to the team's, as the Dag bag does.
 
-        The bundle's team owns the Dag. *data* is a serialized Dag that validates, and its pools are changed
-        in place.
+        The bundle's team owns the Dag. *data* is a serialized Dag that validates, *dag* is that Dag
+        deserialized, and *data*'s pools are changed in place.
 
         :raises UnknownExecutorException: if a task's executor is not available to the team or globally.
         """
-        dag = DagSerialization.from_dict(copy.deepcopy(data))
         _validate_executor_fields(dag, self.bundle_name)
         if not (team_name := _get_bundle_team_name(self.bundle_name)):
             return
