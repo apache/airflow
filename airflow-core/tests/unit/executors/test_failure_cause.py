@@ -86,6 +86,7 @@ def test_executor_cause_reaches_scheduler_and_consumers(
     executor = MockExecutor(do_update=False)
     runner = SchedulerJobRunner(job=Job(), executors=[executor])
     failure_kind, reason = failure_info or (None, None)
+    executor._register_task(ti=ti)
     executor.fail(
         key=ti.key,
         failure_kind=failure_kind,

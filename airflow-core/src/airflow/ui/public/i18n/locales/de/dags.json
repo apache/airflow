@@ -27,6 +27,8 @@
     "pausedState": "Pausierter Zustand",
     "requiresHitlAction": "Erfordert HITL-Aktion",
     "runIdPatternFilter": "Dag Läufe suchen",
+    "runState": "Lauf status",
+    "runStatePlaceholder": "Lauf status wählen…",
     "timetableType": "Zeitplantyp"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
@@ -101,11 +103,11 @@
     "message": "Dieses Dag läuft aus. Es wird pausieren sobald aktive Läufe komplett sind."
   },
   "schedulingState": {
-    "active": "Akttiv",
+    "active": "Aktiv",
     "draining": "Auslaufend",
     "drainingBadgeTooltip": "Dieses Dag pausiert sobald alle Läufe komplett sind.",
     "drainingTooltip": "Auslaufen {{dagDisplayName}} — pausiert wenn Dag Läufe komplett sind. Klicken zum Forstsetzen.",
-    "label": "Planunggstatus",
+    "label": "Planungsstatus",
     "paused": "Pausiert",
     "placeholder": "Auswahl des Planungszustands…"
   },

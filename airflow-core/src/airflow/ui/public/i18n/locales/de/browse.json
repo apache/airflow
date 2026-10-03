@@ -25,7 +25,7 @@
     "files": {
       "columns": {
         "file": "Datei",
-        "lastParsed": "Zuletzt Geparst",
+        "lastParsed": "Zuletzt geparst",
         "parseDuration": "Parsezeit"
       },
       "file_one": "Datei",

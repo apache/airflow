@@ -29,6 +29,8 @@ import time_machine
 from sqlalchemy import delete, select
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import Stats, TaskInstanceKey, conf, timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
@@ -38,6 +40,7 @@ from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -406,6 +409,74 @@ class TestEdgeExecutor:
         # Verify nothing breaks
         assert key not in executor.running
         assert key not in executor.queued_tasks
+
+    def test_try_adopt_task_instances_keeps_caller_session_open(self):
+        key = TaskInstanceKey(
+            dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
+        )
+        with create_session() as session:
+            session.add(
+                EdgeJobModel(
+                    dag_id="test_dag",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                    try_number=1,
+                    state=TaskInstanceState.QUEUED,
+                    queue="default",
+                    command="mock",
+                    concurrency_slots=1,
+                )
+            )
+            session.commit()
+        executor = EdgeExecutor()
+
+        # The scheduler calls try_adopt_task_instances() without a session and keeps using the objects
+        # it loaded into its own scoped session.
+        with create_session() as session:
+            job = session.scalar(select(EdgeJobModel))
+            executor.try_adopt_task_instances([mock.Mock(spec=TaskInstance, key=key)])
+
+            assert job in session
+        assert executor.running == {key}
+
+    @mock.patch("airflow.executors.executor_loader.ExecutorLoader.init_executors", autospec=True)
+    def test_scheduler_restart_adopts_queued_edge_task(self, mock_init_executors, dag_maker, session):
+        with dag_maker("test_dag", session=session):
+            EmptyOperator(task_id="test_task")
+        dag_run = dag_maker.create_dagrun()
+        previous_scheduler_job = Job()
+        restarted_scheduler_job = Job()
+        session.add_all([previous_scheduler_job, restarted_scheduler_job])
+        session.flush()
+        ti = dag_run.get_task_instance("test_task", session=session)
+        ti.state = TaskInstanceState.QUEUED
+        ti.queued_by_job_id = previous_scheduler_job.id
+        session.add(
+            EdgeJobModel(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                try_number=ti.try_number,
+                state=TaskInstanceState.QUEUED,
+                queue="default",
+                command="mock",
+                concurrency_slots=1,
+            )
+        )
+        session.commit()
+        # A restarted scheduler loads the task instance from the database, not from this session.
+        session.expunge_all()
+        executor = EdgeExecutor()
+        mock_init_executors.return_value = [executor]
+
+        SchedulerJobRunner(job=restarted_scheduler_job, num_runs=0).adopt_or_reset_orphaned_tasks()
+
+        ti.refresh_from_db(session=session)
+        assert ti.state == TaskInstanceState.QUEUED
+        assert ti.queued_by_job_id == restarted_scheduler_job.id
+        assert executor.running == {ti.key}
 
 
 class TestEdgeExecutorMultiTeam:

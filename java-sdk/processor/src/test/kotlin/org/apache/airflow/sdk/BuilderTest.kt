@@ -427,7 +427,7 @@ class BuilderTest {
            public static final class Named implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               TestExample.ScoreInput context_ = ArgValues.bindInput(client, TestExample.ScoreInput.class);
+               TestExample.ScoreInput context_ = ArgValues.bindInput(context, client, TestExample.ScoreInput.class);
                new TestExample().named(context_);
              }
            }
@@ -814,7 +814,7 @@ class BuilderTest {
            public static final class Score implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
-               TestExample.ScoreInput input = ArgValues.bindInput(client, TestExample.ScoreInput.class);
+               TestExample.ScoreInput input = ArgValues.bindInput(context, client, TestExample.ScoreInput.class);
                client.setXCom(new TestExample().score(client, input));
              }
            }

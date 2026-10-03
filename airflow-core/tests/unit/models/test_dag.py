@@ -100,7 +100,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -122,6 +121,7 @@ from tests_common.test_utils.taskinstance import run_task_instance
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 from unit.models import DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import (
+    DecreasingPriorityStrategy,
     FactorPriorityWeightStrategy,
     StaticTestPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
@@ -430,6 +430,7 @@ class TestDag:
         [
             (StaticTestPriorityWeightStrategy, 99),
             (FactorPriorityWeightStrategy, 3),
+            (DecreasingPriorityStrategy, 4),
         ],
     )
     def test_dag_task_custom_weight_strategy(self, cls, expected):
@@ -1178,7 +1179,7 @@ class TestDag:
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
-            rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
+            rel_filelocs=[],
         )
 
         orm_dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))

@@ -437,6 +437,8 @@ class TestCeleryExecutor:
             app.control.revoke = mock.MagicMock()
             executor = celery_executor.CeleryExecutor()
             executor.job_id = 1
+            if hasattr(executor, "_register_task"):
+                executor._register_task(ti)
             executor.running = {ti.key}
             executor.workloads = {ti.key: AsyncResult("231")}
             assert executor.has_task(ti)
@@ -471,6 +473,8 @@ class TestCeleryExecutor:
             app.control.revoke = mock.MagicMock()
             executor = celery_executor.CeleryExecutor()
             executor.job_id = 1
+            if hasattr(executor, "_register_task"):
+                executor._register_task(ti)
             executor.running = {ti.key}
             executor.workloads = {ti.key: AsyncResult("231")}
             assert executor.has_task(ti)

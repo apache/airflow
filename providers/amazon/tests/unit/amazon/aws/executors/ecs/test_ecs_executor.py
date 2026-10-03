@@ -2400,6 +2400,7 @@ class TestEcsFailureClassification:
         session.flush()
 
         mock_executor.max_run_task_attempts = "1"
+        mock_executor._register_task(ti=ti)
         self._add_mock_task(executor=mock_executor, arn=ARN1, task_key=ti.key)
         response: dict[str, Any] = self._stopped_task_json(
             stop_code=stop_code, stopped_reason="ECS task stopped"
