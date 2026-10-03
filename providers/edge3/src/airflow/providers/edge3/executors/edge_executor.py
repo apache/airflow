@@ -173,6 +173,7 @@ class EdgeExecutor(BaseExecutor):
                 existing_job.state = TaskInstanceState.QUEUED
                 existing_job.queue = task_instance.queue
                 existing_job.concurrency_slots = task_instance.pool_slots
+                existing_job.priority_weight = task_instance.priority_weight
                 existing_job.command = workload.model_dump_json()
                 existing_job.team_name = self.team_name
             else:
@@ -186,6 +187,7 @@ class EdgeExecutor(BaseExecutor):
                         state=TaskInstanceState.QUEUED,
                         queue=task_instance.queue,
                         concurrency_slots=task_instance.pool_slots,
+                        priority_weight=task_instance.priority_weight,
                         command=workload.model_dump_json(),
                         team_name=self.team_name,
                     )

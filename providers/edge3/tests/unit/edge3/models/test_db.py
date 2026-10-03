@@ -21,12 +21,31 @@ from unittest import mock
 
 import pytest
 import sqlalchemy as sa
+from alembic import command
 
+from airflow import settings
+from airflow.providers.edge3.models.db import EdgeDBManager
 from airflow.utils.db_manager import RunDBManager
 
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test]
+
+
+def downgrade_to_before_priority_weight(manager: EdgeDBManager) -> None:
+    """
+    Call this before replaying the migrations on existing tables. The ``priority_weight`` migration
+    adds the column without checking whether it exists. Pre-Alembic tables never had the column.
+    """
+    config = manager.get_alembic_config()
+    # Before Airflow 3.2, the edge3 tables come from the conftest's create_all(), which leaves no
+    # Alembic version to downgrade from. Stamping changes nothing when the head is already recorded.
+    command.stamp(config, "heads")
+    command.downgrade(config, "c6b3c3d093fd")
+    # SQLite reflects indexes from a connection's cached schema. The downgrade ran on another pooled
+    # connection, so idle connections can still hold the old schema until the pool is disposed.
+    assert settings.engine is not None
+    settings.engine.dispose()
 
 
 class TestEdgeDBManager:
@@ -220,14 +239,12 @@ class TestEdgeDBManager:
         assert "3.4.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.4.0"] == "a09c3ee8e1d3"
 
-    def test_initdb_stamps_and_upgrades_when_tables_exist_without_version(self, session):
+    def test_initdb_stamps_and_upgrades_when_tables_exist_without_version(self, session, restore_edge_tables):
         """Test that initdb runs incremental migrations when tables exist but alembic version table does not."""
         from sqlalchemy import inspect, text
 
-        from airflow import settings
-        from airflow.providers.edge3.models.db import EdgeDBManager
-
         manager = EdgeDBManager(session)
+        downgrade_to_before_priority_weight(manager)
 
         # Simulate pre-alembic state: tables exist but no version table and no concurrency column
         with settings.engine.begin() as conn:
@@ -261,18 +278,18 @@ class TestEdgeDBManager:
             version = conn.execute(text("SELECT version_num FROM alembic_version_edge3")).scalar()
             columns = {col["name"] for col in inspect(conn).get_columns("edge_worker")}
 
-        assert version == "c6b3c3d093fd"
+        assert version in manager.get_script_object().get_heads()
         assert "concurrency" in columns
         assert "team_name" in columns
 
-    def test_upgradedb_stamps_and_upgrades_when_tables_exist_without_version(self, session):
+    def test_upgradedb_stamps_and_upgrades_when_tables_exist_without_version(
+        self, session, restore_edge_tables
+    ):
         """Test upgradedb runs incremental migrations when tables exist but alembic version table does not."""
         from sqlalchemy import inspect, text
 
-        from airflow import settings
-        from airflow.providers.edge3.models.db import EdgeDBManager
-
         manager = EdgeDBManager(session)
+        downgrade_to_before_priority_weight(manager)
 
         # Simulate pre-alembic state: tables exist but no version table and no concurrency column
         with settings.engine.begin() as conn:
@@ -310,18 +327,15 @@ class TestEdgeDBManager:
         assert "concurrency" in columns
         assert "team_name" in columns
 
-    def test_migration_adds_concurrency_column(self, session):
+    def test_migration_adds_concurrency_column(self, session, restore_edge_tables):
         """Test that upgrading from 3.0.0 actually adds the concurrency column."""
-        from alembic import command
         from alembic.migration import MigrationContext
         from alembic.operations import Operations
         from sqlalchemy import inspect
 
-        from airflow import settings
-        from airflow.providers.edge3.models.db import EdgeDBManager
-
         manager = EdgeDBManager(session)
         config = manager.get_alembic_config()
+        downgrade_to_before_priority_weight(manager)
 
         # DDL must be committed before alembic opens its own connection — use engine.begin()
         # so the DROP is visible to the fresh connection that upgradedb() creates internally.
@@ -357,6 +371,57 @@ class TestEdgeDBManager:
 
         assert "concurrency" in columns, "Migration 0002 should have added the concurrency column"
         assert "team_name" in columns, "Migration 0003 should have added the team_name column"
+
+    @pytest.fixture
+    def restore_edge_tables(self, session):
+        """
+        Rebuild the edge3 tables at head with the migrations, whatever state the test left behind.
+
+        From Airflow 3.2 on, the test database also builds these tables with the migrations.
+        ``create_all()`` would give the columns different collations on MySQL.
+        """
+        yield
+        # The test's session is still in a transaction that read the Alembic version table. On
+        # PostgreSQL, that read holds a lock, so the DROP on another connection would wait forever.
+        session.rollback()
+        manager = EdgeDBManager(session)
+        with settings.engine.begin() as conn:
+            manager.drop_tables(conn)
+        manager.upgradedb(use_migration_files=True)
+
+    def test_priority_weight_migration_upgrade_and_downgrade(self, session, restore_edge_tables):
+        manager = EdgeDBManager(session)
+        downgrade_to_before_priority_weight(manager)
+
+        with settings.engine.begin() as conn:
+            inspector = sa.inspect(conn)
+            rj_order = next(idx for idx in inspector.get_indexes("edge_job") if idx["name"] == "rj_order")
+            assert "priority_weight" not in {col["name"] for col in inspector.get_columns("edge_job")}
+            assert rj_order["column_names"] == ["state", "queued_dttm", "queue"]
+            conn.execute(
+                sa.text(
+                    "INSERT INTO edge_job (dag_id, task_id, run_id, map_index, try_number, state, queue, "
+                    "concurrency_slots, command) "
+                    "VALUES ('dag', 'task', 'run', -1, 1, 'queued', 'default', 1, '{}')"
+                )
+            )
+
+        manager.upgradedb()
+        # The upgrade also ran on another connection. See downgrade_to_before_priority_weight().
+        settings.engine.dispose()
+
+        with settings.engine.connect() as conn:
+            inspector = sa.inspect(conn)
+            rj_order = next(idx for idx in inspector.get_indexes("edge_job") if idx["name"] == "rj_order")
+            priority_weight = conn.execute(
+                sa.text("SELECT priority_weight FROM edge_job WHERE dag_id = 'dag'")
+            ).scalar_one()
+
+        assert rj_order["column_names"] == ["state", "priority_weight", "queued_dttm", "queue"]
+        # Of the supported backends, only PostgreSQL reflects the sort order of index columns.
+        if settings.engine.dialect.name == "postgresql":
+            assert rj_order["column_sorting"] == {"priority_weight": ("desc",)}
+        assert priority_weight == 1
 
     def test_drop_tables_handles_missing_tables(self, session):
         """Test that drop_tables handles missing tables gracefully."""
