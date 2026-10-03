@@ -127,9 +127,12 @@ def test_order_and_checkout_location_do_not_affect_key(checkout, tmp_path_factor
 
 
 @mock.patch("airflow_breeze.commands.ci_image_commands.calculate_ci_environment_fingerprint", autospec=True)
-def test_command_prints_key_without_building(mock_calculate, checkout):
+@pytest.mark.parametrize("github_actions", ["false", "true"])
+def test_command_prints_key_without_building(mock_calculate, monkeypatch, github_actions):
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("GITHUB_ACTIONS", github_actions)
     mock_calculate.return_value = {"key": "observed", "reuse_eligible": False}
     result = CliRunner().invoke(environment_key, ["--python", "3.12", "--platform", "linux/amd64"])
     assert result.exit_code == 0, result.output
-    assert json.loads(result.output) == mock_calculate.return_value
+    assert json.loads(result.output.splitlines()[0]) == mock_calculate.return_value
     assert mock_calculate.call_args.args[1:] == ("3.12", "linux/amd64")

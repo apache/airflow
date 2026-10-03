@@ -38,7 +38,7 @@
 # Airflow Docker images
 
 `breeze ci-image environment-key --python 3.12 --platform linux/amd64` prints
-a provisional SHA-256 environment fingerprint and its input manifest as JSON.
+a provisional SHA-256 environment fingerprint and its input manifest as a JSON record.
 CI logs it without changing image builds, constraints generation, or tests.
 An instrumentation failure does not prevent the existing build path from running.
 
