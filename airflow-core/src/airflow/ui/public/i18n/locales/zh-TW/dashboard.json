@@ -28,14 +28,29 @@
   "group": "群組",
   "health": {
     "dagProcessor": "Dag 處理器",
+    "degraded": "部分異常",
+    "degradedHint": {
+      "dagProcessor": "部分已設定的 Dag 套件包沒有 Dag 處理器負責解析。",
+      "triggerer": "部分團隊沒有觸發者為其執行延後任務。"
+    },
+    "down": "離線",
     "health": "健康狀態",
     "healthy": "健康",
+    "instances": {
+      "bundles": "套件包",
+      "hostname": "主機",
+      "team": "團隊",
+      "title_one": "{{title}} — {{status}} ({{count}} 個實例)",
+      "title_other": "{{title}} — {{status}} ({{count}} 個實例)",
+      "unknownHostname": "未知主機"
+    },
     "lastHeartbeat": "最後心跳",
     "metaDatabase": "系統資料庫",
     "scheduler": "排程器",
     "status": "狀態",
     "triggerer": "觸發者",
-    "unhealthy": "健康狀態異常"
+    "unhealthy": "健康狀態異常",
+    "unknownStatus": "未知"
   },
   "history": "歷史記錄",
   "importErrors": {
