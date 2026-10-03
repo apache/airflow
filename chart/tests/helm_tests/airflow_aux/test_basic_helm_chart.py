@@ -28,7 +28,6 @@ from chart_utils.helm_template_generator import render_chart
 
 OBJECTS_STD_NAMING = {
     ("ServiceAccount", "test-basic-airflow-api-server"),
-    ("ServiceAccount", "test-basic-airflow-create-user-job"),
     ("ServiceAccount", "test-basic-airflow-dag-processor"),
     ("ServiceAccount", "test-basic-airflow-migrate-database-job"),
     ("ServiceAccount", "test-basic-airflow-redis"),
@@ -64,7 +63,6 @@ OBJECTS_STD_NAMING = {
     ("StatefulSet", "test-basic-airflow-worker"),
     ("StatefulSet", "test-basic-airflow-triggerer"),
     ("StatefulSet", "test-basic-postgresql"),
-    ("Job", "test-basic-airflow-create-user"),
     ("Job", "test-basic-airflow-run-airflow-migrations"),
 }
 
@@ -88,7 +86,6 @@ class TestBaseChartTest:
         }
         expected = {
             ("ServiceAccount", "test-basic-api-server"),
-            ("ServiceAccount", "test-basic-create-user-job"),
             ("ServiceAccount", "test-basic-dag-processor"),
             ("ServiceAccount", "test-basic-migrate-database-job"),
             ("ServiceAccount", "test-basic-redis"),
@@ -124,7 +121,6 @@ class TestBaseChartTest:
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
             ("StatefulSet", "test-basic-worker"),
-            ("Job", "test-basic-create-user"),
             ("Job", "test-basic-run-airflow-migrations"),
         }
         assert list_of_kind_names_tuples == expected
@@ -265,6 +261,7 @@ class TestBaseChartTest:
             "priorityClasses": [
                 {"name": "class1", "value": 10000},
             ],
+            "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}},
         }
         values.update(flower_routing_values)
 
@@ -395,6 +392,7 @@ class TestBaseChartTest:
                 "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}},
             },
         )
         dict_of_labels_in_job_templates = {
@@ -441,6 +439,7 @@ class TestBaseChartTest:
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
                 "flower": {"enabled": True},
+                "createUserJob": {"enabled": True, "defaultUser": {"username": "admin", "password": "admin"}},
             },
             show_only=show_only,
         )
