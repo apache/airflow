@@ -6,6 +6,7 @@
     "title": "태스크 스케줄링을 막는 종속성"
   },
   "calendar": {
+    "backfill": "백필",
     "daily": "일간",
     "hourly": "시간별",
     "legend": {
@@ -100,7 +101,11 @@
       "placeholder": "로그 검색"
     },
     "settings": "로그 설정",
+    "tryNotStarted": "이 시도는 아직 시작되지 않았습니다.",
+    "viewFailedTry": "실패한 {{tryNumber}}번째 시도의 로그 보기",
     "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
+    "viewPreviousTry": "이전 {{tryNumber}}번째 시도의 로그 보기",
+    "waitingToRetry": "{{tryNumber}}번째 시도는 재시도 대기 중입니다.",
     "warning": "경고"
   },
   "notFound": {
