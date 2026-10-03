@@ -34,7 +34,6 @@ from rich.syntax import Syntax
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
-    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     PROVIDER_RUNTIME_DATA_SCHEMA_PATH,
     REGULAR_DOC_PACKAGES,
 )
@@ -56,6 +55,8 @@ from airflow_breeze.utils.version_utils import remove_local_version_suffix
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
 MIN_AIRFLOW_VERSION = "2.11.0"
+# Provider distributions keep declaring Python 3.10 until their requires-python bump later in the stack.
+PROVIDER_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", *ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS]
 HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
@@ -615,7 +616,7 @@ def get_min_airflow_version(provider_id: str) -> str:
 
 
 def get_python_requires(provider_id: str) -> str:
-    python_requires = "~=3.10"
+    python_requires = f"~={PROVIDER_PYTHON_MAJOR_MINOR_VERSIONS[0]}"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}.*"
@@ -726,11 +727,11 @@ def get_provider_jinja_context(
     release_version_no_leading_zeros = strip_leading_zeros_from_version(current_release_version)
     changelog = provider_details.changelog_path.read_text()
     supported_python_versions = [
-        p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
+        p for p in PROVIDER_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
     cross_providers_dependencies = get_cross_provider_dependencies_for_extras(provider_id)
 
-    requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+    requires_python_version: str = f">={PROVIDER_PYTHON_MAJOR_MINOR_VERSIONS[0]}"
     # Most providers require the same python versions, but some may have exclusions
     for excluded_python_version in provider_details.excluded_python_versions:
         requires_python_version += f",!={excluded_python_version}.*"
