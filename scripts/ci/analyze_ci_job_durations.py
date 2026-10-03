@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # ///
 """
 Watch CI job durations on ``main`` and warn when they creep above the recent trend.

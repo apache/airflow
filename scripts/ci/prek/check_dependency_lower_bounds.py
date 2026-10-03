@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "packaging>=25",
 #   "rich>=13.6.0",
-#   "tomli>=2.0.1",
 # ]
 # ///
 """
