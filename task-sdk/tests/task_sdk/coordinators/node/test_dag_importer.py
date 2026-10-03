@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import pathlib
 from types import SimpleNamespace
 
@@ -30,10 +31,35 @@ from task_sdk.coordinators.node._bundle_test_utils import (
     write_bundle,
 )
 
+from airflow.sdk.coordinators._dag_importer import find_claiming_importer
+from airflow.sdk.coordinators.java._dag_importer import JavaDagImporter
+from airflow.sdk.coordinators.node import NodeCoordinator
 from airflow.sdk.coordinators.node._bundle_reader import _digest_cache
 from airflow.sdk.coordinators.node._dag_importer import NodeDagImporter
-from airflow.sdk.coordinators.node.coordinator import NodeCoordinator
-from airflow.sdk.importers import DagSourceCode, FilesystemDagDefinition
+from airflow.sdk.execution_time.coordinator import InvalidCoordinatorError
+from airflow.sdk.importers import (
+    DagSourceCode,
+    FilesystemDagDefinition,
+    get_importer_registry,
+    reset_importer_registry,
+)
+
+from tests_common.test_utils.config import conf_vars
+
+NODE_COORDINATOR = "airflow.sdk.coordinators.node.NodeCoordinator"
+
+
+class _NodeCoordinatorSubclass(NodeCoordinator):
+    pass
+
+
+def _coordinators(*kwargs: dict, mapping: dict[str, str] | None = None) -> dict[tuple[str, str], str]:
+    """Config with one NodeCoordinator per *kwargs*, keyed "ts-0", "ts-1" and so on."""
+    specs = {f"ts-{i}": {"classpath": NODE_COORDINATOR, "kwargs": kw} for i, kw in enumerate(kwargs)}
+    config = {("sdk", "coordinators"): json.dumps(specs)}
+    if mapping is not None:
+        config[("sdk", "dag_bundle_to_coordinator")] = json.dumps(mapping)
+    return config
 
 
 @pytest.fixture(autouse=True)
@@ -41,9 +67,22 @@ def clear_digest_cache():
     _digest_cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _clean_registry():
+    reset_importer_registry()
+    yield
+    reset_importer_registry()
+
+
 @pytest.fixture
 def importer() -> NodeDagImporter:
-    return NodeDagImporter(coordinator=NodeCoordinator())
+    return NodeDagImporter(bundle_name="dags-folder")
+
+
+def test_claims_packed_bundles_only(importer):
+    assert importer.supported_extensions == [".mjs"]
+    assert importer.can_handle("dags/bundle.min.mjs") is True
+    assert importer.can_handle("dags/helper.mjs") is False
 
 
 def test_lists_only_packed_bundles(importer, tmp_path):
@@ -139,3 +178,66 @@ class TestGetSourceCode:
 
         with pytest.raises((OSError, ValueError), match=reason):
             importer.get_source_code(FilesystemDagDefinition(path))
+
+
+class TestRegistry:
+    def test_a_node_coordinator_registers_the_importer_in_every_bundle(self):
+        bundles = [
+            {"name": name, "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}}
+            for name in ("dags-folder", "ts-bundles")
+        ]
+        coordinators = _coordinators({"dag_bundle_name": "ts-bundles"})
+        with conf_vars({**coordinators, ("dag_processor", "dag_bundle_config_list"): json.dumps(bundles)}):
+            in_named = get_importer_registry("ts-bundles").get_importer("ts-bundles/bundle.min.mjs")
+            in_other = get_importer_registry("dags-folder").get_importer("dags/bundle.min.mjs")
+
+        assert isinstance(in_named, NodeDagImporter)
+        assert isinstance(in_other, NodeDagImporter)
+        assert in_other.bundle_name == "dags-folder"
+
+    def test_a_subclass_of_the_node_coordinator_registers_the_importer(self):
+        subclass = {"ts": {"classpath": f"{__name__}._NodeCoordinatorSubclass"}}
+        with conf_vars({("sdk", "coordinators"): json.dumps(subclass)}):
+            claiming = find_claiming_importer("dags/bundle.min.mjs", "dags-folder")
+
+        assert isinstance(claiming, NodeDagImporter)
+
+    def test_a_bundle_with_java_and_node_coordinators_sends_each_file_to_its_runtime(self):
+        coordinators = {
+            "java": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator"},
+            "ts": {"classpath": NODE_COORDINATOR},
+        }
+        with conf_vars({("sdk", "coordinators"): json.dumps(coordinators)}):
+            jar = find_claiming_importer("dags/app.jar", "dags-folder")
+            bundle = find_claiming_importer("dags/bundle.min.mjs", "dags-folder")
+
+        assert isinstance(jar, JavaDagImporter)
+        assert isinstance(bundle, NodeDagImporter)
+
+
+class TestGetParsingCoordinator:
+    def test_is_the_only_node_coordinator(self, importer):
+        with conf_vars(_coordinators({"node_executable": "/opt/node/bin/node"})):
+            coordinator = importer.get_parsing_coordinator()
+
+        assert isinstance(coordinator, NodeCoordinator)
+        assert coordinator.node_executable == "/opt/node/bin/node"
+
+    @pytest.mark.parametrize(("mapped", "executable"), [("ts-0", "/node/18"), ("ts-1", "/node/22")])
+    def test_is_the_node_coordinator_mapped_to_its_bundle_among_several(self, importer, mapped, executable):
+        coordinators = _coordinators(
+            {"node_executable": "/node/18"},
+            {"node_executable": "/node/22"},
+            mapping={"dags-folder": mapped},
+        )
+        with conf_vars(coordinators):
+            coordinator = importer.get_parsing_coordinator()
+
+        assert coordinator.node_executable == executable
+
+    def test_fails_among_several_without_an_entry_for_its_bundle(self, importer):
+        with conf_vars(_coordinators({}, {})):
+            with pytest.raises(
+                InvalidCoordinatorError, match="Dag bundle 'dags-folder' has 2 NodeCoordinator"
+            ):
+                importer.get_parsing_coordinator()

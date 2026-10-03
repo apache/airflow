@@ -36,11 +36,7 @@ from uuid6 import uuid7
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators.node import _bundle_reader as _reader
 from airflow.sdk.coordinators.node._bundle_reader import _digest_cache
-from airflow.sdk.coordinators.node._dag_importer import NodeDagImporter
 from airflow.sdk.coordinators.node.coordinator import NodeCoordinator, _Bundle
-from airflow.sdk.importers import DagImporterRegistry, reset_importer_registry
-
-from tests_common.test_utils.config import conf_vars
 
 SCHEMA_VERSION = "2026-06-16"
 
@@ -113,52 +109,6 @@ class TestNodeCoordinatorExecuteTaskCommand:
         assert command == ["/opt/node/bin/node", str(bundle)]
         assert schema_version == SCHEMA_VERSION
 
-    def test_runs_the_bundle_named_by_dag_file(self, tmp_path):
-        write_bundle(tmp_path, "sales", name="a/sales.min.mjs")
-        dag_file = write_bundle(tmp_path, "sales", name="b/sales.min.mjs", schema_version="2026-10-30")
-        coordinator = NodeCoordinator()
-
-        with coordinator._set_scan_roots([tmp_path]):
-            command, schema_version = coordinator._build_execute_task_command(
-                what=_make_ti(dag_id="sales"), dag_file=dag_file
-            )
-
-        assert command == ["node", str(dag_file)]
-        assert schema_version == "2026-10-30"
-
-    @pytest.mark.parametrize(
-        "dag_file_name",
-        [
-            pytest.param("dags/sales.py", id="python-stub"),
-            pytest.param("b/other.min.mjs", id="other-dag-id"),
-            pytest.param("b/missing.min.mjs", id="missing"),
-        ],
-    )
-    def test_falls_back_to_the_first_bundle_declaring_the_dag(self, tmp_path, dag_file_name):
-        first = write_bundle(tmp_path, "sales", name="a/sales.min.mjs")
-        write_bundle(tmp_path, "other", name="b/other.min.mjs")
-        coordinator = NodeCoordinator()
-
-        with coordinator._set_scan_roots([tmp_path]):
-            command, _ = coordinator._build_execute_task_command(
-                what=_make_ti(dag_id="sales"), dag_file=tmp_path / dag_file_name
-            )
-
-        assert command == ["node", str(first)]
-
-    def test_ignores_dag_file_outside_the_scan_roots(self, tmp_path):
-        root = tmp_path / "root"
-        inside = write_bundle(root, "sales")
-        outside = write_bundle(tmp_path / "elsewhere", "sales")
-        coordinator = NodeCoordinator()
-
-        with coordinator._set_scan_roots([root]):
-            command, _ = coordinator._build_execute_task_command(
-                what=_make_ti(dag_id="sales"), dag_file=outside
-            )
-
-        assert command == ["node", str(inside)]
-
 
 class TestNodeCoordinatorParseDagCommand:
     def test_returns_node_and_bundle_schema_version(self, tmp_path):
@@ -176,48 +126,6 @@ class TestNodeCoordinatorParseDagCommand:
 
         with pytest.raises(ValueError, match="code SHA-256 mismatch"):
             NodeCoordinator()._build_parse_dag_command(path=bundle)
-
-
-class TestNodeCoordinatorDagImporter:
-    @pytest.fixture(autouse=True)
-    def _reset_registry(self):
-        reset_importer_registry()
-        yield
-        reset_importer_registry()
-
-    def test_hands_out_an_importer_bound_to_itself(self):
-        coordinator = NodeCoordinator()
-
-        importer = coordinator.get_dag_importer()
-
-        assert isinstance(importer, NodeDagImporter)
-        assert importer.coordinator is coordinator
-        assert importer.supported_extensions == [".mjs"]
-        assert importer.can_handle("dags/bundle.min.mjs") is True
-        assert importer.can_handle("dags/helper.mjs") is False
-
-    @pytest.mark.parametrize(
-        ("kwargs", "parses"),
-        [({}, True), ({"dag_bundle_name": "ts-bundles"}, False)],
-        ids=["task-bundle", "other-named-bundle"],
-    )
-    def test_registry_routes_bundles_only_to_a_serving_coordinator(self, kwargs, parses):
-        coordinators = {
-            "ts": {"classpath": "airflow.sdk.coordinators.node.NodeCoordinator", "kwargs": kwargs}
-        }
-        bundles = [
-            {"name": name, "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}}
-            for name in ("dags-folder", "ts-bundles")
-        ]
-        with conf_vars(
-            {
-                ("sdk", "coordinators"): json.dumps(coordinators),
-                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundles),
-            }
-        ):
-            importer = DagImporterRegistry.from_config("dags-folder").get_importer("dags/bundle.min.mjs")
-
-        assert isinstance(importer, NodeDagImporter) is parses
 
 
 class TestBundleFind:
