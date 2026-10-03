@@ -73,18 +73,33 @@ class FakeCoordinatorDagImporter(CoordinatorDagImporter):
 
 
 @contextlib.contextmanager
-def fake_coordinator(**kwargs: Any) -> Iterator[None]:
+def fake_coordinator(
+    *keys: str,
+    dag_bundle_to_coordinator: dict[str, str] | str | None = None,
+    other_coordinators: dict[str, str] | None = None,
+    **kwargs: Any,
+) -> Iterator[None]:
     """
-    Configure a ``FakeCoordinator`` and register its Dag importer.
+    Configure a ``FakeCoordinator`` for each of *keys* (``fake`` by default), and register its Dag importer.
 
-    The coordinators and the Dag importer registries are fresh inside and after the block. The parse child
-    is a bare fork even on macOS, so it sees the test's ``parse_dag`` patch and config.
+    *dag_bundle_to_coordinator* is the ``[sdk] dag_bundle_to_coordinator`` option, as a dict or as the raw
+    text. *other_coordinators* maps keys to the classpaths of coordinators of another class. The
+    coordinators and the Dag importer registries are fresh inside and after the block. The parse child is
+    a bare fork even on macOS, so it sees the test's ``parse_dag`` patch and config.
     """
-    spec = {"fake": {"classpath": f"{__name__}.FakeCoordinator", "kwargs": kwargs}}
+    spec = {key: {"classpath": f"{__name__}.FakeCoordinator", "kwargs": kwargs} for key in keys or ("fake",)}
+    spec.update({key: {"classpath": classpath} for key, classpath in (other_coordinators or {}).items()})
+    config = {("sdk", "coordinators"): json.dumps(spec)}
+    if dag_bundle_to_coordinator is not None:
+        config[("sdk", "dag_bundle_to_coordinator")] = (
+            dag_bundle_to_coordinator
+            if isinstance(dag_bundle_to_coordinator, str)
+            else json.dumps(dag_bundle_to_coordinator)
+        )
     reset_importer_registry()
     try:
         with (
-            conf_vars({("sdk", "coordinators"): json.dumps(spec)}),
+            conf_vars(config),
             mock.patch(
                 "airflow.sdk.coordinators._dag_importer.COORDINATOR_DAG_IMPORTERS",
                 (f"{__name__}.FakeCoordinatorDagImporter",),

@@ -321,6 +321,67 @@ class TestLangSDKDagFileProcessorProcess:
         assert proc.parsing_result.serialized_dags == []
         assert proc.parsing_result.import_errors == {"dag.native": error}
 
+    @pytest.mark.parametrize(
+        ("mapping", "error"),
+        [
+            pytest.param(
+                None,
+                "Dag bundle 'testing' has 2 FakeCoordinator coordinators (first, second). "
+                "Map the bundle to one of them in [sdk] dag_bundle_to_coordinator.",
+                id="no-entry",
+            ),
+            pytest.param(
+                {"other-bundle": "first"},
+                "Dag bundle 'testing' has 2 FakeCoordinator coordinators (first, second). "
+                "Map the bundle to one of them in [sdk] dag_bundle_to_coordinator.",
+                id="entry-for-another-bundle",
+            ),
+            pytest.param(
+                {"testing": "other"},
+                "Dag bundle 'testing' has 2 FakeCoordinator coordinators (first, second). "
+                "[sdk] dag_bundle_to_coordinator maps it to 'other', a coordinator of another class. "
+                "Move these files to another Dag bundle, or keep one FakeCoordinator.",
+                id="entry-of-another-class",
+            ),
+            pytest.param(
+                {"testing": "missing"},
+                "Dag bundle 'testing' has 2 FakeCoordinator coordinators (first, second). "
+                "[sdk] dag_bundle_to_coordinator maps it to 'missing', which cannot be loaded.",
+                id="entry-that-cannot-be-loaded",
+            ),
+            pytest.param(
+                "{not json",
+                "Unable to parse [sdk] 'dag_bundle_to_coordinator' as valid json",
+                id="not-json",
+            ),
+            pytest.param(
+                '["first"]',
+                "[sdk] dag_bundle_to_coordinator must be a JSON object that maps Dag bundle names to "
+                "coordinator keys",
+                id="not-an-object",
+            ),
+            pytest.param(
+                '{"testing": 1}',
+                "[sdk] dag_bundle_to_coordinator must be a JSON object that maps Dag bundle names to "
+                "coordinator keys",
+                id="not-keys",
+            ),
+        ],
+    )
+    def test_a_file_that_several_coordinators_could_parse_is_an_import_error(self, parse, mapping, error):
+        with fake_coordinator(
+            "first",
+            "second",
+            dag_bundle_to_coordinator=mapping,
+            other_coordinators={"other": "airflow.sdk.execution_time.coordinator.BaseCoordinator"},
+        ):
+            proc = parse()
+
+        assert proc.parsing_result.serialized_dags == []
+        assert proc.parsing_result.import_errors == {
+            "dag.native": f"Cannot start the Lang-SDK runtime: InvalidCoordinatorError: {error}"
+        }
+
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)
     def test_a_message_that_does_not_validate_is_an_import_error(self, mock_parse_dag, parse):
         def reply(request, comms):
