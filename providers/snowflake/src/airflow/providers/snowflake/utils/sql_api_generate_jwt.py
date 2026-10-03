@@ -19,7 +19,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 # This class relies on the PyJWT module (https://pypi.org/project/PyJWT/).
@@ -87,7 +87,7 @@ class JWTGenerator:
         self.lifetime = lifetime
         self.renewal_delay = renewal_delay
         self.private_key = private_key
-        self.renew_time = datetime.now(timezone.utc)
+        self.renew_time = datetime.now(UTC)
         self.token: str | None = None
 
     def prepare_account_name_for_jwt(self, raw_account: str) -> str:
@@ -116,7 +116,7 @@ class JWTGenerator:
         If a JWT has been already been generated earlier, return the previously
         generated token unless the specified renewal time has passed.
         """
-        now = datetime.now(timezone.utc)  # Fetch the current time
+        now = datetime.now(UTC)  # Fetch the current time
 
         # If the token has expired or doesn't exist, regenerate the token.
         if self.token is None or self.renew_time <= now:

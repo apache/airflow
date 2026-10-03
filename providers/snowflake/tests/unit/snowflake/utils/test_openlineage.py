@@ -159,15 +159,15 @@ def test_process_data_from_api():
         {
             "QUERY_ID": "ABC",
             "EXECUTION_STATUS": "SUCCESS",
-            "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.timezone.utc),
-            "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.timezone.utc),
+            "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.UTC),
+            "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.UTC),
             "QUERY_TEXT": "SELECT * FROM test_table;",
             "ERROR_CODE": None,
             "ERROR_MESSAGE": None,
         },
         {
-            "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.timezone.utc),
-            "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.timezone.utc),
+            "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.UTC),
+            "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.UTC),
         },
     ]
     result = _process_data_from_api(data=data)
@@ -309,8 +309,8 @@ def test_get_queries_details_from_snowflake_single_query_api_hook(mock_run_singl
     expected_details = {
         "QUERY_ID": "ABC",
         "EXECUTION_STATUS": "SUCCESS",
-        "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.timezone.utc),
-        "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.timezone.utc),
+        "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.UTC),
+        "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.UTC),
         "QUERY_TEXT": "SELECT * FROM test_table;",
         "ERROR_CODE": None,
         "ERROR_MESSAGE": None,
@@ -395,8 +395,8 @@ def test_get_queries_details_from_snowflake_multiple_queries_api_hook(mock_run_s
         {
             "QUERY_ID": "ABC",
             "EXECUTION_STATUS": "SUCCESS",
-            "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.timezone.utc),
-            "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.timezone.utc),
+            "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.UTC),
+            "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.UTC),
             "QUERY_TEXT": "SELECT * FROM table1;",
             "ERROR_CODE": None,
             "ERROR_MESSAGE": None,
@@ -404,8 +404,8 @@ def test_get_queries_details_from_snowflake_multiple_queries_api_hook(mock_run_s
         {
             "QUERY_ID": "DEF",
             "EXECUTION_STATUS": "FAILED",
-            "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.timezone.utc),
-            "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.timezone.utc),
+            "START_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.UTC),
+            "END_TIME": datetime.datetime(2025, 6, 18, 11, 12, 51, 387000, tzinfo=datetime.UTC),
             "QUERY_TEXT": "SELECT * FROM table2;",
             "ERROR_CODE": "123",
             "ERROR_MESSAGE": "Some error",
