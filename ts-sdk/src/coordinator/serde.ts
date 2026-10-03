@@ -50,6 +50,7 @@ import {
   type Dag,
   type RecordedInputs,
   type TaskGroupRecord,
+  type TaskRecord,
 } from "../sdk/dag.js";
 
 /** A serialized Dag: JSON, by the time it reaches the supervisor as msgpack. */
@@ -82,6 +83,31 @@ const TASK_MODULE = "airflow.sdk.coordinators.node";
  * wants to tell language-native tasks apart without parsing `_task_module`.
  */
 const TASK_LANGUAGE = "typescript";
+
+/**
+/** The Dags this one triggers, for the UI dependency graph. */
+function serializeDagDependencies(dag: Dag): SerializedValue {
+  const dependencies: SerializedValue[] = [];
+  for (const [taskId, record] of getDagTaskRecords(dag)) {
+    if (!record.trigger) continue;
+    dependencies.push({
+      source: dag.dagId,
+      target: record.trigger.dagId,
+      label: taskId,
+      dependency_type: "trigger",
+      dependency_id: taskId,
+    });
+  }
+  return dependencies;
+}
+
+/**
+/** Makes the UI draw a trigger task as `TriggerDagRunOperator` with its link. */
+const TRIGGER_DAG_RUN_FIELDS: Readonly<Record<string, SerializedValue>> = {
+  _operator_name: "TriggerDagRunOperator",
+  ui_color: "#ffefeb",
+  _operator_extra_links: { "Triggered DAG": "_link_TriggerDagRunLink" },
+};
 
 /** How one set of authoring fields is written into a serialized object. */
 interface FieldRules {
@@ -140,12 +166,13 @@ export function serializeDag(
       serializeTask(
         dag.dagId,
         taskId,
-        withDagQueue(record.spec, dag.spec.queue),
+        record,
         graph.downstreamTaskIds.get(taskId),
         inputs.get(taskId),
+        dag.spec.queue,
       ),
     ),
-    dag_dependencies: [],
+    dag_dependencies: serializeDagDependencies(dag),
     task_group: serializeTaskGroups(dag, graph),
     edge_info: {},
     params: [],
@@ -177,9 +204,10 @@ function withDagQueue(spec: object, dagQueue: string | undefined): object {
 function serializeTask(
   dagId: string,
   taskId: string,
-  spec: object,
+  record: TaskRecord,
   downstream: ReadonlySet<string> | undefined,
   inputs: RecordedInputs | undefined,
+  dagQueue: string | undefined,
 ): SerializedValue {
   const data: Record<string, SerializedValue> = {
     task_id: taskId,
@@ -196,9 +224,15 @@ function serializeTask(
     is_stub: true,
   };
   const label = `task "${taskId}" of Dag "${dagId}"`;
+  if (record.trigger) {
+    if (record.trigger.conf !== undefined) {
+      toPlainJson(record.trigger.conf, `conf of ${label}`);
+    }
+    Object.assign(data, structuredClone(TRIGGER_DAG_RUN_FIELDS));
+  }
   const bindings = serializeArgBindings(inputs, label);
   if (bindings) data["_arg_bindings"] = bindings;
-  applySchemaFields(data, spec, TASK_FIELD_RULES, label);
+  applySchemaFields(data, withDagQueue(record.spec, dagQueue), TASK_FIELD_RULES, label);
   if (downstream?.size) {
     data["downstream_task_ids"] = [...downstream].sort();
   }

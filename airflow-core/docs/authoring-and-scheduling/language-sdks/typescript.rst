@@ -359,6 +359,50 @@ there. Set it once on the Dag and each task inherits it:
 ``queue`` on a task wins over the Dag's. See :ref:`typescript-sdk/coordinator-config` for the
 ``queue_to_coordinator`` entry that sends that queue to the coordinator.
 
+Triggering another Dag
+~~~~~~~~~~~~~~~~~~~~~~
+
+``triggerDagRun`` starts another Dag's run. Pass it to ``dag.task`` in place of a handler:
+
+.. code-block:: typescript
+
+    import { triggerDagRun } from "apache-airflow-ts-sdk";
+
+    const trigger = dag.task(triggerDagRun({ dagId: "downstream_etl", waitForCompletion: true }), {
+      taskId: "trigger_downstream",
+    })();
+
+    trigger.after(loaded);
+
+The task has no handler to take an id from, so ``taskId`` is required, and the factory takes no
+inputs. The trailing spec carries the task's other options, as for any task.
+
+The task runs in the TypeScript runtime, like the Dag's other tasks, and inherits the Dag's queue. It
+behaves as ``TriggerDagRunOperator`` does. ``waitForCompletion`` polls the run every ``pokeInterval``
+seconds until it reaches one of ``allowedStates`` or ``failedStates``. With ``deferrable`` as well, the
+task defers to ``DagStateTrigger`` instead of holding a worker slot, and resumes in this runtime when
+the run finishes. ``DagStateTrigger`` runs in the Python triggerer, so the triggerer needs the standard
+provider installed.
+
+The task pushes the ``trigger_run_id`` XCom, and the task's "Triggered DAG" link opens the run it
+started.
+
+The task follows these config options, with Python's fallback when one is unset:
+
+- ``[api] base_url`` is the base of the "Triggered DAG" link. It falls back to ``/``.
+- ``[operators] default_deferrable`` is the default of ``deferrable``. It falls back to ``false``.
+- ``[triggerer] queues_enabled`` decides whether the deferred trigger gets the task's queue. It falls
+  back to ``false``, so the trigger gets none.
+
+Some of what ``TriggerDagRunOperator`` does is not offered:
+
+- ``logical_date`` and ``run_after``. The triggered run's logical date is the time the task triggers
+  it, as in Python when neither is set.
+- Jinja. Values are sent as written, so ``{{ ds }}`` in ``conf`` reaches the triggered run as that
+  literal string.
+- OpenLineage parent injection (``openlineage_inject_parent_info``). The runtime does not add the
+  parent task's OpenLineage details to ``conf``.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
