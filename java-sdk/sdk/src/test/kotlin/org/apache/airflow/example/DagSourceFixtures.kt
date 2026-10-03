@@ -17,23 +17,35 @@
  * under the License.
  */
 
-package org.apache.airflow.example;
+package org.apache.airflow.example
 
-import org.apache.airflow.sdk.*;
+import org.apache.airflow.sdk.DagDef
 
-// One bundle serves every surface: Dags built in Java, and the handler classes
-// whose Dags the Python file owns.
-public class ExampleBundleBuilder {
-  public static Bundle build() {
-    return new Bundle()
-        .register(InterfaceExampleBuilder.build())
-        .register(AnnotationExample.class)
-        .register(XComCastingExample.class)
-        .register(org.apache.airflow.example.nativedag.AnnotationExample.class)
-        .register(org.apache.airflow.example.nativedag.InterfaceExample.build());
+// Lives outside org.apache.airflow.sdk, as user code does, so the SDK does not skip its frames.
+class DagSourceFixtures {
+  fun plain() = DagDef("plain")
+
+  fun fromLambda(): DagDef {
+    lateinit var dag: DagDef
+    Runnable { dag = DagDef("lambda") }.run()
+    return dag
   }
 
-  public static void main(String[] args) {
-    Server.create(args).serve(build());
+  fun fromAnonymous(): DagDef {
+    lateinit var dag: DagDef
+    object : Runnable {
+      override fun run() {
+        dag = DagDef("anonymous")
+      }
+    }.run()
+    return dag
+  }
+
+  class Nested {
+    fun make() = DagDef("nested")
+
+    class Deeper {
+      fun make() = DagDef("deeper")
+    }
   }
 }

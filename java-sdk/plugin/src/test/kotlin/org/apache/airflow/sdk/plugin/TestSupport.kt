@@ -17,23 +17,29 @@
  * under the License.
  */
 
-package org.apache.airflow.example;
+package org.apache.airflow.sdk.plugin
 
-import org.apache.airflow.sdk.*;
+import java.io.File
+import javax.tools.ToolProvider
 
-// One bundle serves every surface: Dags built in Java, and the handler classes
-// whose Dags the Python file owns.
-public class ExampleBundleBuilder {
-  public static Bundle build() {
-    return new Bundle()
-        .register(InterfaceExampleBuilder.build())
-        .register(AnnotationExample.class)
-        .register(XComCastingExample.class)
-        .register(org.apache.airflow.example.nativedag.AnnotationExample.class)
-        .register(org.apache.airflow.example.nativedag.InterfaceExample.build());
-  }
-
-  public static void main(String[] args) {
-    Server.create(args).serve(build());
-  }
+/** Compiles [sources] (paths under [srcDir]) into [classesDir] with the JDK's own compiler. */
+internal fun compileJava(
+  srcDir: File,
+  classesDir: File,
+  vararg sources: String,
+  options: List<String> = emptyList(),
+) {
+  classesDir.mkdirs()
+  val compiler = checkNotNull(ToolProvider.getSystemJavaCompiler()) { "Tests need a JDK" }
+  val args = options + listOf("-d", classesDir.path) + sources.map { File(srcDir, it).path }
+  check(compiler.run(null, null, null, *args.toTypedArray()) == 0) { "javac failed for ${sources.toList()}" }
 }
+
+internal fun File.write(
+  relativePath: String,
+  text: String,
+): File =
+  File(this, relativePath).apply {
+    parentFile.mkdirs()
+    writeText(text)
+  }

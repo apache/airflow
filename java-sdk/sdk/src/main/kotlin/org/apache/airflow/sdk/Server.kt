@@ -19,7 +19,10 @@
 
 package org.apache.airflow.sdk
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.xenomachina.argparser.ArgParser
+import com.xenomachina.argparser.MissingValueException
+import com.xenomachina.argparser.default
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.InetSocketAddress
 import io.ktor.network.sockets.aSocket
@@ -33,9 +36,12 @@ import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.Logger
+import org.apache.airflow.sdk.execution.comm.DagFileParseRequest
 import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.execution.parseDags
 import org.apache.airflow.sdk.execution.runTask
+import java.io.File
 import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
 
@@ -48,12 +54,16 @@ private class Args(
       address.substringAfterLast(':').toInt(),
     )
 
-  val comm by parser.storing("--comm", help = "Address (host:port) to communicate with parent") {
-    parseAddress(this)
-  }
-  val logs by parser.storing("--logs", help = "Address (host:port) to send Airflow logs to") {
-    parseAddress(this)
-  }
+  val comm by parser
+    .storing("--comm", help = "Address (host:port) to communicate with parent") { parseAddress(this) }
+    .default(null)
+  val logs by parser
+    .storing("--logs", help = "Address (host:port) to send Airflow logs to") { parseAddress(this) }
+    .default(null)
+  val describeSources by parser
+    .storing("--describe-sources", help = "File to write each Dag's declaring class to, instead of serving") {
+      File(this)
+    }.default(null)
 }
 
 /**
@@ -81,10 +91,13 @@ class ApiError(
  * The process exits when the coordinator closes the connection (normally after
  * one task-instance execution).
  */
-class Server(
-  private val comm: InetSocketAddress,
-  private val logs: InetSocketAddress,
+class Server private constructor(
+  private val comm: InetSocketAddress?,
+  private val logs: InetSocketAddress?,
+  private val describeSources: File?,
 ) {
+  constructor(comm: InetSocketAddress, logs: InetSocketAddress) : this(comm, logs, null)
+
   companion object {
     /**
      * Parses coordinator addresses from command-line arguments and returns a
@@ -95,6 +108,10 @@ class Server(
      *
      * * `--comm host:port` address for task-execution messages.
      * * `--logs host:port` address for log forwarding.
+     * * `--describe-sources file` makes [serve] write a JSON object mapping each
+     *   Java-declared Dag ID to the binary name of its declaring class into `file`
+     *   and return without connecting anywhere; `--comm` and `--logs` are not
+     *   required then. It is for the Gradle plugin, not for users.
      *
      * @param args Command-line arguments as received by `main`.
      * @return A configured [Server] ready to call [serve].
@@ -102,7 +119,12 @@ class Server(
     @JvmStatic
     fun create(args: Array<String>): Server {
       val args = ArgParser(args).parseInto(::Args)
-      return Server(args.comm, args.logs)
+      args.describeSources?.let { return Server(args.comm, args.logs, it) }
+      return Server(
+        args.comm ?: throw MissingValueException("--comm"),
+        args.logs ?: throw MissingValueException("--logs"),
+        null,
+      )
     }
   }
 
@@ -144,12 +166,16 @@ class Server(
   suspend fun serveAsync(bundle: Bundle) =
     coroutineScope {
       bundle.finalizeRegistration()
+      if (describeSources != null) {
+        writeSources(bundle, describeSources)
+        return@coroutineScope
+      }
       val deferral = CompletableDeferred<Unit>()
 
       launch {
         try {
           SelectorManager(Dispatchers.IO).use { selector ->
-            aSocket(selector).tcp().connect(comm).use { socket ->
+            aSocket(selector).tcp().connect(comm!!).use { socket ->
               logger.debug("Connected comm", mapOf("addr" to comm))
               CoordinatorComm(
                 socket.openReadChannel(),
@@ -165,7 +191,7 @@ class Server(
       }
       launch {
         SelectorManager(Dispatchers.IO).use { selector ->
-          aSocket(selector).tcp().connect(logs).use { socket ->
+          aSocket(selector).tcp().connect(logs!!).use { socket ->
             logger.debug("Connected logs", mapOf("addr" to logs))
             LogSender.configure(socket.openWriteChannel(autoFlush = true))
             deferral.await()
@@ -174,6 +200,16 @@ class Server(
       }
     }
 
+  private fun writeSources(
+    bundle: Bundle,
+    target: File,
+  ) {
+    val sources = linkedMapOf<String, String>()
+    bundle.dags.values.forEach { dag -> dag.declaringClass?.let { sources[dag.id] = it.name } }
+    target.absoluteFile.parentFile?.mkdirs()
+    ObjectMapper().writeValue(target, sources)
+  }
+
   internal suspend fun dispatchTask(
     bundle: Bundle,
     coordinator: CoordinatorComm,
@@ -181,6 +217,7 @@ class Server(
     val frame = coordinator.readMessage()
     when (val body = frame.body) {
       is StartupDetails -> runTaskAndReport(bundle, body, coordinator)
+      is DagFileParseRequest -> parseDagsAndReport(bundle, body, coordinator)
       is ErrorResponse -> throw ApiError("[${body.error}] ${body.detail}")
       else -> throw ApiError("Unexpected initial frame (id=${frame.id})")
     }
@@ -193,5 +230,13 @@ class Server(
   ) {
     val result = runTask(bundle, startup, coordinator)
     coordinator.communicate<Unit>(result)
+  }
+
+  private suspend fun parseDagsAndReport(
+    bundle: Bundle,
+    request: DagFileParseRequest,
+    coordinator: CoordinatorComm,
+  ) {
+    coordinator.communicate<Unit>(parseDags(bundle, request))
   }
 }
