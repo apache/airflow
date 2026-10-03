@@ -171,7 +171,7 @@ class AwsLambdaExecutor(BaseExecutor):
             # Check Lambda health.
             lambda_get_response = self.lambda_client.get_function(FunctionName=self.lambda_function_name)
             if self.lambda_function_name not in lambda_get_response["Configuration"]["FunctionName"]:
-                raise AirflowException("Lambda function %s not found.", self.lambda_function_name)
+                raise AirflowException(f"Lambda function {self.lambda_function_name} not found.")
             self.log.info(
                 "Lambda connection is healthy and function %s is present.", self.lambda_function_name
             )

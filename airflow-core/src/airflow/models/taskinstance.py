@@ -1584,7 +1584,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 return
             timing = timezone.utcnow() - self.scheduled_dttm
         else:
-            raise NotImplementedError("no metric emission setup for state %s", new_state)
+            raise NotImplementedError(f"no metric emission setup for state {new_state}")
 
         stats.timing(
             f"task.{metric_name}",
