@@ -995,8 +995,10 @@ logging:
       example: ~
       default: "%%(asctime)s %%(levelname)s - %%(message)s"
     dag_processor_log_target:
-      description: Where to send dag parser logs. If "file",
-        logs are sent to log files defined by child_process_log_directory.
+      description: |
+        Where to send Dag parser logs. If "file", logs are sent to log files in
+        ``dag_processor_child_process_log_directory``. If "stdout", logs are sent to the Dag
+        processor's stdout, tagged with the Dag file and bundle name, and no log files are written.
       version_added: 2.4.0
       type: string
       example: ~

@@ -1443,6 +1443,12 @@ class DagFileProcessorManager(LoggingMixin):
         return os.path.join(self._get_log_dir(), dag_file.bundle_name, f"{relative_path}.log")
 
     def _get_logger_for_dag_file(self, dag_file: DagFileInfo):
+        if conf.get("logging", "dag_processor_log_target") == "stdout":
+            # Every parsing process shares stdout, so tag each line with the file it came from.
+            logger = structlog.get_logger(logger_name="processor").bind(
+                dag_file=str(dag_file.rel_path), bundle_name=dag_file.bundle_name
+            )
+            return logger, None
         log_filename = self._render_log_filename(dag_file)
         log_file = init_log_file(log_filename)
         logger_filehandle = log_file.open("ab")
@@ -1477,7 +1483,6 @@ class DagFileProcessorManager(LoggingMixin):
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,
-            subprocess_logs_to_stdout=conf.get("logging", "dag_processor_log_target") == "stdout",
             client=self.client,
         )
 

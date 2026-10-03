@@ -2437,23 +2437,10 @@ class TestDagFileProcessorProcess:
         w.close()
         return instance
 
-    def test_get_target_loggers_file_mode_no_context_added(self, proc):
-        proc.subprocess_logs_to_stdout = False
-        loggers = proc._get_target_loggers()
-        assert len(loggers) == 1
-        with structlog.testing.capture_logs() as cap:
-            loggers[0].info("test")
-        assert "dag_file" not in cap[0]
-        assert "bundle_name" not in cap[0]
+    def test_close_without_log_file(self, proc):
+        proc.logger_filehandle = None
 
-    def test_get_target_loggers_stdout_mode_binds_dag_file_context(self, proc):
-        proc.subprocess_logs_to_stdout = True
-        loggers = proc._get_target_loggers()
-        with structlog.testing.capture_logs() as cap:
-            for bound_logger in loggers:
-                bound_logger.info("test")
-        assert all(e.get("dag_file") == "dags/my_dag.py" for e in cap)
-        assert all(e.get("bundle_name") == "mybundle" for e in cap)
+        proc.close()
 
     def test_create_log_forwarder_rewrites_task_prefix_to_dag_processor(self, proc):
         from airflow.sdk.execution_time.supervisor import WatchedSubprocess
