@@ -1012,6 +1012,12 @@ def airflow_dags_path():
 
 
 @pytest.fixture(scope="session")
+def lang_sdk_dag_files():
+    """The ``dags-folder`` files of the Lang SDK that the stack was given, in the Lang-SDK modes."""
+    return _E2ETestState.lang_sdk_dag_files
+
+
+@pytest.fixture(scope="session")
 def go_dynamic_dag_ids():
     """The Dag ids that ``go_test_dags.py`` generates from ``E2E_GO_DYNAMIC_DAG_IDS``, in the go_sdk mode."""
     return list(_E2ETestState.go_dynamic_dag_ids)

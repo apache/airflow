@@ -74,6 +74,6 @@ def test_a_later_parse_probes_nothing(client: AirflowClient, compose_instance, a
     )
 
 
-def test_no_dag_file_has_an_import_error(client: AirflowClient):
-    """Every Dag file of the Dags folder imports: each stub task has exactly one handler that fits it."""
-    assert get_import_errors(client) == {}
+def test_no_dag_file_has_an_import_error(client: AirflowClient, lang_sdk_dag_files):
+    """Every Lang-SDK Dag file imports: each stub task has exactly one handler that fits it."""
+    assert get_import_errors(client, lang_sdk_dag_files) == {}

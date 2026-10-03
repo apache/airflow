@@ -106,11 +106,12 @@ def get_task_handler_artifacts(compose: DockerCompose) -> dict[ArtifactRef, str]
     return {ArtifactRef(bundle_name, rel_path): probed_at for bundle_name, rel_path, probed_at in rows}
 
 
-def get_import_errors(client: AirflowClient) -> dict[str, str]:
-    """Return the text of the import error of each ``dags-folder`` file that has one, by file."""
+def get_import_errors(client: AirflowClient, files: Collection[str]) -> dict[str, str]:
+    """Return the text of the import error of each of the ``dags-folder`` *files* that has one, by file."""
     return {
         error["filename"]: error["stack_trace"]
         for error in client.list_import_errors(bundle_name=DAGS_BUNDLE_NAME)
+        if error["filename"] in files
     }
 
 
@@ -148,7 +149,8 @@ def wait_until_stub_tasks_are_bound(
 
     :param queues: The queues that the Dag processor routes to a Lang-SDK coordinator.
     :param dag_files: The ``dags-folder`` files of the Lang SDK that the stack was given. Until the Dag
-        processor has parsed them, no stub task is there to be unbound.
+        processor has parsed them, no stub task is there to be unbound. Only their import errors are checked:
+        another file of the Dags folder, such as a stock example Dag, may fail to import for other reasons.
     :param expected_import_errors: The ``dags-folder`` files that fail to import by design.
     :raises TimeoutError: when a Dag file is still not parsed, a stub task is still unbound or an import error
         is still missing or unexpected after *timeout* seconds, with what is missing and the text of the
@@ -159,7 +161,7 @@ def wait_until_stub_tasks_are_bound(
     while True:
         bindings = get_task_handler_bindings(compose)
         unbound = sorted(task for task in get_routed_stub_tasks(client, queues) if task not in bindings)
-        import_errors = get_import_errors(client)
+        import_errors = get_import_errors(client, dag_files)
         missing = sorted(set(expected_import_errors) - set(import_errors))
         unexpected = {
             name: text for name, text in import_errors.items() if name not in expected_import_errors

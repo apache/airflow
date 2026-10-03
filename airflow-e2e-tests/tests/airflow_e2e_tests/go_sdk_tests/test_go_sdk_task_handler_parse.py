@@ -146,7 +146,7 @@ def test_problems_are_one_import_error_of_their_dag_file(client: AirflowClient, 
     The error is the one of the file, and lists each problem on a line of its own. Its Dag is serialized but
     marked as having import errors, and none of its stub tasks is bound.
     """
-    assert get_import_errors(client).get(_FAILURE_FILE) == _FAILURE_IMPORT_ERROR
+    assert get_import_errors(client, [_FAILURE_FILE]).get(_FAILURE_FILE) == _FAILURE_IMPORT_ERROR
 
     failing_dags = client.list_dags(bundle_name=DAGS_BUNDLE_NAME, exclude_stale=False, has_import_errors=True)
     assert [dag["dag_id"] for dag in failing_dags] == ["go_task_handler_failures"]
@@ -191,6 +191,6 @@ def test_named_mismatches_are_warnings_in_the_parse_log(airflow_logs_path):
         )
 
 
-def test_only_the_failing_dag_file_has_an_import_error(client: AirflowClient):
-    """No other Dag file of the Dags folder fails to import, so no fixture hides behind the expected error."""
-    assert set(get_import_errors(client)) == {_FAILURE_FILE}
+def test_only_the_failing_dag_file_has_an_import_error(client: AirflowClient, lang_sdk_dag_files):
+    """No other Lang-SDK Dag file fails to import, so no fixture hides behind the expected error."""
+    assert set(get_import_errors(client, lang_sdk_dag_files)) == {_FAILURE_FILE}

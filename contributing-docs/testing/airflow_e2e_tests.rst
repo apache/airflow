@@ -64,8 +64,9 @@ SDK. Run one with ``breeze testing airflow-e2e-tests --e2e-test-mode go_sdk``. E
 toolchain container, or with the host toolchain when ``LANG_SDK_NATIVE_TOOLCHAIN=true`` is set, as CI does.
 
 Before the first test, the tests wait until the Dag processor has bound each stub task on a queue it routes to the
-artifact that registers its task handler, and until the Dag files that fail to import are exactly the ones that are
-meant to. A Dag file with an import error is left out of the binding check. If that does not happen in time, the run
+artifact that registers its task handler, and until the mode's Language SDK Dag files that fail to import are exactly
+the ones that are meant to. Import errors in other files of the Dags folder, such as the stock example Dags, are not
+checked. A Dag file with an import error is left out of the binding check. If that does not happen in time, the run
 fails with the stub tasks that have no binding and the text of any import error nobody expected.
 
 A Dag file that must fail goes in a test bundle, not in a user-facing example, which the tests pin. The Go test
