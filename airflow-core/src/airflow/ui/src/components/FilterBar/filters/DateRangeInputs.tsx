@@ -99,7 +99,7 @@ export const DateRangeInputs = ({
         ...prev,
         inputs: {
           ...prev.inputs,
-          [field]: dateValue.format(DATE_INPUT_FORMAT),
+          [field]: dateValue.tz(selectedTimezone).format(DATE_INPUT_FORMAT),
         },
       }));
     }

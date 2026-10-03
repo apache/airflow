@@ -17,6 +17,7 @@
  * under the License.
  */
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
@@ -28,7 +29,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { TimezoneContext } from "src/context/timezone";
 import { ChakraWrapper } from "src/utils/ChakraWrapper";
 
-import type { FilterPluginProps } from "../types";
+import type { DateRangeValue, FilterPluginProps } from "../types";
 import { DateRangeFilter } from "./DateRangeFilter";
 
 dayjs.extend(timezone);
@@ -57,10 +58,29 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-const TestWrapper = ({ children }: { readonly children: ReactNode }) => {
+// A UI timezone whose offset differs from the runner's local offset at the
+// instant used below, so tests exercise a real browser/UI timezone mismatch no
+// matter which timezone CI runs in (CI runners are usually UTC).
+const mismatchedTimezone = (instant: string): string => {
+  const runnerOffset = dayjs(instant).utcOffset();
+  const candidates = ["UTC", "Asia/Kolkata", "America/New_York", "Asia/Seoul"];
+
+  return candidates.find((tz) => dayjs.tz(instant, tz).utcOffset() !== runnerOffset) ?? "UTC";
+};
+
+const FILTERED_INSTANT = "2024-01-15T01:00:00.000Z";
+const uiTimezone = mismatchedTimezone(FILTERED_INSTANT);
+
+const TestWrapper = ({
+  children,
+  selectedTimezone = "UTC",
+}: {
+  readonly children: ReactNode;
+  readonly selectedTimezone?: string;
+}) => {
   const timezoneContextValue = {
     availableTimezones: ["UTC", "America/New_York"],
-    selectedTimezone: "UTC",
+    selectedTimezone,
     setSelectedTimezone: vi.fn(),
   };
 
@@ -118,6 +138,12 @@ const pressEnter = (input: HTMLElement | undefined) => {
   }
 };
 
+const focusInput = (input: HTMLElement | undefined) => {
+  if (input) {
+    fireEvent.focus(input);
+  }
+};
+
 const waitForError = async (errorText: string) => {
   await waitFor(() => {
     expect(screen.getByText(errorText)).toBeInTheDocument();
@@ -138,12 +164,30 @@ const waitForNoErrors = async (errorTexts: Array<string>) => {
   });
 };
 
-const renderFilter = (props: FilterPluginProps = defaultProps) =>
+const renderFilter = (props: FilterPluginProps = defaultProps, selectedTimezone = "UTC") =>
   render(
-    <TestWrapper>
+    <TestWrapper selectedTimezone={selectedTimezone}>
       <DateRangeFilter {...props} />
     </TestWrapper>,
   );
+
+// The popover content mounts asynchronously after the trigger is clicked.
+const openPicker = async () => {
+  fireEvent.click(screen.getByTestId("dateRange-pill"));
+  fireEvent.click(screen.getByText("Date Range:"));
+  await waitFor(() => {
+    expect(screen.getAllByPlaceholderText("YYYY/MM/DD").length).toBe(2);
+  });
+};
+
+const closePicker = async () => {
+  fireEvent.click(screen.getByText("Date Range:"));
+  // Wait for the dismissal to fully settle (commit + collapse back to the pill)
+  // so any commit triggered by closing has landed before asserting on it.
+  await waitFor(() => {
+    expect(screen.getByTestId("dateRange-pill")).toBeInTheDocument();
+  });
+};
 
 describe("DateRangeFilter", () => {
   beforeEach(() => {
@@ -189,6 +233,87 @@ describe("DateRangeFilter", () => {
 
     expect(onChange).not.toHaveBeenCalled();
     expect(startDateInput).toHaveValue("2024/01/15");
+  });
+
+  it("does not shift the value when opening and closing the picker without edits", async () => {
+    const onChange = vi.fn();
+    const props = {
+      ...defaultProps,
+      filter: { ...mockFilter, value: { endDate: undefined, startDate: FILTERED_INSTANT } },
+      onChange,
+    };
+
+    renderFilter(props, uiTimezone);
+    await openPicker();
+
+    const { startDateInput, startTimeInput } = getInputs();
+    const expected = dayjs(FILTERED_INSTANT).tz(uiTimezone);
+
+    // The inputs are labeled with and committed in the selected timezone, so
+    // they must be filled in that timezone too. Filling them in the browser
+    // timezone made closing the picker re-commit the displayed wall time as if
+    // it were in the selected timezone, shifting the value.
+    expect(startDateInput).toHaveValue(expected.format("YYYY/MM/DD"));
+    expect(startTimeInput).toHaveValue(expected.format("HH:mm"));
+
+    await closePicker();
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("commits a clicked calendar date in the selected timezone", async () => {
+    const onChange = vi.fn();
+    const props = {
+      ...defaultProps,
+      filter: { ...mockFilter, value: { endDate: undefined, startDate: FILTERED_INSTANT } },
+      onChange,
+    };
+
+    renderFilter(props, uiTimezone);
+    await openPicker();
+
+    // Opening the picker focuses the start input, so aim the next pick at the
+    // range's end explicitly.
+    focusInput(getInputs().endDateInput);
+    fireEvent.click(screen.getByText("16"));
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenLastCalledWith({
+      endDate: dayjs.tz("2024-01-16", uiTimezone).endOf("day").toISOString(),
+      startDate: FILTERED_INSTANT,
+    });
+  });
+
+  it("does not re-commit a parent-synced range when the picker closes", async () => {
+    const onChange = vi.fn();
+    const StatefulFilter = () => {
+      const [value, setValue] = useState<DateRangeValue>({ endDate: undefined, startDate: FILTERED_INSTANT });
+
+      return (
+        <DateRangeFilter
+          {...defaultProps}
+          filter={{ ...mockFilter, value }}
+          onChange={(next) => {
+            onChange(next);
+            setValue(next as DateRangeValue);
+          }}
+        />
+      );
+    };
+
+    render(
+      <TestWrapper selectedTimezone={uiTimezone}>
+        <StatefulFilter />
+      </TestWrapper>,
+    );
+
+    await openPicker();
+    fireEvent.click(screen.getByText("16"));
+    await closePicker();
+
+    // The parent-synced end-of-day 23:59:59.999 marker is displayed as 23:59 in
+    // the minute-granular inputs; re-deriving it on close must be a no-op.
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 
   it("accepts a start time on the end date when the end time is empty", async () => {

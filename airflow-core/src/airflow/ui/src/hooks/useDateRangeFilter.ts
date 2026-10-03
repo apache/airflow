@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
@@ -101,6 +101,23 @@ const validateDateRange = (startDate?: string, endDate?: string): boolean => {
   return start.isBefore(end) || start.isSame(end);
 };
 
+// The inputs are minute-granular ("HH:mm"), so the commit comparison ignores
+// sub-minute differences: re-deriving an unchanged value (e.g. a calendar-picked
+// "end of day" 23:59:59.999 from a displayed 23:59) must not fire onChange.
+const isSameMinuteValue = (next?: string, current?: string): boolean => {
+  const nextIsAbsent = next === undefined || next === "";
+  const currentIsAbsent = current === undefined || current === "";
+
+  if (nextIsAbsent || currentIsAbsent) {
+    return nextIsAbsent && currentIsAbsent;
+  }
+
+  const nextDate = dayjs(next);
+  const currentDate = dayjs(current);
+
+  return nextDate.isValid() && currentDate.isValid() && nextDate.isSame(currentDate, "minute");
+};
+
 export const combineDateAndTime = (
   dateStr: string,
   timeStr: string,
@@ -137,13 +154,25 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
   const startDateValue = isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined;
   const endDateValue = isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined;
 
+  // The inputs are labeled with and committed in the selected timezone, so they
+  // must be filled in that timezone too — filling in the browser timezone would
+  // make opening and closing the picker shift the value.
+  const formatInputDate = useCallback(
+    (date: dayjs.Dayjs | undefined) => date?.tz(selectedTimezone).format(DATE_INPUT_FORMAT) ?? "",
+    [selectedTimezone],
+  );
+  const formatInputTime = useCallback(
+    (date: dayjs.Dayjs | undefined) => date?.tz(selectedTimezone).format(TIME_INPUT_FORMAT) ?? "",
+    [selectedTimezone],
+  );
+
   const [editingState, setEditingState] = useState<DateRangeEditingState>(() => ({
     currentMonth: startDateValue ?? endDateValue ?? dayjs(),
     inputs: {
-      end: endDateValue?.format(DATE_INPUT_FORMAT) ?? "",
-      endTime: endDateValue?.format(TIME_INPUT_FORMAT) ?? "",
-      start: startDateValue?.format(DATE_INPUT_FORMAT) ?? "",
-      startTime: startDateValue?.format(TIME_INPUT_FORMAT) ?? "",
+      end: formatInputDate(endDateValue),
+      endTime: formatInputTime(endDateValue),
+      start: formatInputDate(startDateValue),
+      startTime: formatInputTime(startDateValue),
     },
     selectionTarget: undefined,
     validationErrors: [],
@@ -213,13 +242,13 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
     setEditingState((prev) => ({
       ...prev,
       inputs: {
-        end: endVal?.format(DATE_INPUT_FORMAT) ?? "",
-        endTime: endVal?.format(TIME_INPUT_FORMAT) ?? "",
-        start: startVal?.format(DATE_INPUT_FORMAT) ?? "",
-        startTime: startVal?.format(TIME_INPUT_FORMAT) ?? "",
+        end: formatInputDate(endVal),
+        endTime: formatInputTime(endVal),
+        start: formatInputDate(startVal),
+        startTime: formatInputTime(startVal),
       },
     }));
-  }, [value.startDate, value.endDate]);
+  }, [formatInputDate, formatInputTime, value.endDate, value.startDate]);
 
   const handleDateClick = (clickedDate: dayjs.Dayjs) => {
     const currentTarget = editingState.selectionTarget;
@@ -227,20 +256,25 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
     let newStartDate: string | undefined = value.startDate;
     let newEndDate: string | undefined = value.endDate;
 
+    // Interpret the clicked grid day as a calendar date in the selected timezone,
+    // matching how typed inputs are committed, so closing the picker afterwards
+    // re-derives the same value instead of shifting it.
+    const clickedDay = dayjs.tz(clickedDate.format("YYYY-MM-DD"), selectedTimezone);
+
     if (currentTarget === "start" || (!startDateValue && !endDateValue)) {
       // Set start date with start of day time
-      newStartDate = clickedDate.startOf("day").toISOString();
+      newStartDate = clickedDay.startOf("day").toISOString();
 
       if (endDateValue && clickedDate.isAfter(endDateValue, "day")) {
         newEndDate = undefined;
       }
     } else {
       // Set end date with end of day time
-      newEndDate = clickedDate.endOf("day").toISOString();
+      newEndDate = clickedDay.endOf("day").toISOString();
 
       if (startDateValue && clickedDate.isBefore(startDateValue, "day")) {
-        newStartDate = clickedDate.startOf("day").toISOString();
-        newEndDate = clickedDate.endOf("day").toISOString();
+        newStartDate = clickedDay.startOf("day").toISOString();
+        newEndDate = clickedDay.endOf("day").toISOString();
       }
       nextTarget = undefined;
     }
@@ -250,8 +284,11 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
       // Update inputs to reflect the new date values
       const newInputs = {
         ...prev.inputs,
-        end: newEndDate === undefined ? "" : dayjs(newEndDate).format(DATE_INPUT_FORMAT),
-        start: newStartDate === undefined ? "" : dayjs(newStartDate).format(DATE_INPUT_FORMAT),
+        end: newEndDate === undefined ? "" : dayjs(newEndDate).tz(selectedTimezone).format(DATE_INPUT_FORMAT),
+        start:
+          newStartDate === undefined
+            ? ""
+            : dayjs(newStartDate).tz(selectedTimezone).format(DATE_INPUT_FORMAT),
       };
       // Revalidate with the new inputs
       const validationErrors = validateInputs(newInputs);
@@ -305,7 +342,10 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
       startDate: nextStartDate || undefined,
     };
 
-    if (nextValue.startDate !== value.startDate || nextValue.endDate !== value.endDate) {
+    if (
+      !isSameMinuteValue(nextValue.startDate, value.startDate) ||
+      !isSameMinuteValue(nextValue.endDate, value.endDate)
+    ) {
       onChange(nextValue);
     }
   };
