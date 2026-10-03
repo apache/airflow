@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, PropertyMock
 import boto3
 import pytest
 from botocore.exceptions import ClientError, WaiterError
+from botocore.stub import Stubber
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
@@ -181,6 +182,45 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.cluster == "c"
         assert self.ecs.overrides == {}
         assert self.ecs.awslogs_region is None
+
+    @pytest.mark.parametrize(
+        ("options", "stop_task", "fetch_logs"),
+        [
+            pytest.param({}, True, True, id="default-stops-task"),
+            pytest.param({"stop_task_on_kill": True}, True, True, id="explicit-stop"),
+            pytest.param({"stop_task_on_kill": False}, False, True, id="preserve-task"),
+            pytest.param({"stop_task_on_kill": False}, False, False, id="preserve-task-without-logs"),
+        ],
+    )
+    def test_on_kill_stops_log_fetcher_and_respects_task_policy(self, options, stop_task, fetch_logs):
+        self.set_up_operator(stop_task_on_failure=False, **options)
+        self.ecs.arn = f"arn:aws:ecs:eu-west-3:012345678910:task/{TASK_ID}"
+        self.ecs.task_log_fetcher = mock.Mock(spec=AwsTaskLogFetcher) if fetch_logs else None
+
+        with Stubber(self.client) as stubber:
+            if stop_task:
+                stubber.add_response(
+                    "stop_task",
+                    {},
+                    {"cluster": "c", "task": self.ecs.arn, "reason": "Task killed by the user"},
+                )
+            self.ecs.on_kill()
+            stubber.assert_no_pending_responses()
+
+        if fetch_logs:
+            self.ecs.task_log_fetcher.stop.assert_called_once_with()
+
+    @mock.patch.object(EcsBaseOperator, "client", new_callable=PropertyMock)
+    def test_on_kill_preserve_task_does_not_create_client(self, client_mock):
+        self.set_up_operator(stop_task_on_kill=False)
+        self.ecs.arn = f"arn:aws:ecs:eu-west-3:012345678910:task/{TASK_ID}"
+        self.ecs.task_log_fetcher = mock.Mock(spec=AwsTaskLogFetcher)
+        client_mock.side_effect = AssertionError("Preserving an ECS task must not require an AWS client")
+
+        self.ecs.on_kill()
+
+        self.ecs.task_log_fetcher.stop.assert_called_once_with()
+        client_mock.assert_not_called()
 
     def test_get_task_log_fetcher_uses_region_name_when_awslogs_region_not_set(self):
         self.set_up_operator(
@@ -1003,7 +1043,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
-    def test_cleanup_on_post_start_failure(self, wait_mock, client_mock):
+    @pytest.mark.parametrize(
+        "stop_task_on_failure", [True, False], ids=["cleanup-on-failure", "preserve-on-failure"]
+    )
+    def test_cleanup_on_post_start_failure(self, wait_mock, client_mock, stop_task_on_failure):
         """
         Ensure that if an ECS task is started successfully but a subsequent
         post-start step fails (e.g. DescribeTasks permission denied),
@@ -1015,7 +1058,8 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             platform_version=None,
             tags=None,
             volume_configurations=None,
-            stop_task_on_failure=True,
+            stop_task_on_failure=stop_task_on_failure,
+            stop_task_on_kill=False,
         )
 
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
@@ -1037,12 +1081,14 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         # Original exception must propagate unchanged.
         assert exc.value is waiter_error
 
-        # Cleanup must be attempted.
-        client_mock.stop_task.assert_called_once_with(
-            cluster="c",
-            task=f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
-            reason=mock.ANY,
-        )
+        if stop_task_on_failure:
+            client_mock.stop_task.assert_called_once_with(
+                cluster="c",
+                task=f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
+                reason=mock.ANY,
+            )
+        else:
+            client_mock.stop_task.assert_not_called()
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
