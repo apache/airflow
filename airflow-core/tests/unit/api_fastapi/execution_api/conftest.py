@@ -87,6 +87,7 @@ def client(request: pytest.FixtureRequest, async_db_engine):
         try:
             yield client
         finally:
+            assert client.portal is not None
             client.portal.call(async_db_engine.dispose)
 
     exec_app.dependency_overrides.pop(require_auth, None)

@@ -43,7 +43,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
-from airflow.utils.session import create_session_async
+from airflow.models.variable import Variable
 
 from tests_common.test_utils.config import conf_vars
 
@@ -198,8 +198,9 @@ def test_in_process_execution_api_transport_lifecycle():
 
 
 @pytest.fixture
-def in_process_db_app():
-    engine = settings.async_engine
+def in_process_db_app(monkeypatch):
+    engine, factory = settings.create_async_session_factory()
+    monkeypatch.setattr(settings, "create_async_session_factory", lambda: (engine, factory))
     opened, closed = [], []
     app = FastAPI()
 
@@ -211,7 +212,7 @@ def in_process_db_app():
 
     @app.get("/")
     async def query():
-        async with create_session_async() as session:
+        async with app.state.async_session_factory() as session:
             return (await session.execute(text("SELECT 1"))).scalar_one()
 
     event.listen(engine.sync_engine, "connect", record_connect)
@@ -231,7 +232,7 @@ def test_in_process_shutdown_closes_connections_after_lifespan(in_process_db_app
     @asynccontextmanager
     async def lifespan(app):
         yield
-        async with create_session_async() as session:
+        async with app.state.async_session_factory() as session:
             assert (await session.execute(text("SELECT 1"))).scalar_one() == 1
         assert closed == []
         shutdown_loops.append(asyncio.get_running_loop())
@@ -256,23 +257,41 @@ def test_session_factory_remains_usable_after_in_process_shutdown(in_process_db_
     api = InProcessExecutionAPI(app)
     with httpx.Client(transport=api.transport) as client:
         assert client.get("http://localhost/").json() == 1
+    private_factory = app.state.async_session_factory
     del client, api
     gc.collect()
 
     assert settings.async_engine is engine
     assert settings.AsyncSession is factory
+    assert private_factory is not factory
 
     async def query_after_shutdown():
         try:
-            async with create_session_async() as session:
+            async with private_factory() as session:
                 assert (await session.execute(text("SELECT 1"))).scalar_one() == 1
         finally:
-            await settings.dispose_async_engine()
+            await private_factory.kw["bind"].dispose()
 
     asyncio.run(query_after_shutdown())
     assert len(opened) == 2
     assert opened[0][1] is not opened[1][1]
     assert closed == opened
+
+
+def test_in_process_execution_api_uses_its_own_async_session_factory(session, monkeypatch):
+    Variable.set("in-process-loop", "value", session=session)
+    session.commit()
+
+    global_session_factory = mock.Mock(side_effect=AssertionError("In-process API used the global session"))
+    monkeypatch.setattr(settings, "AsyncSession", global_session_factory)
+
+    with conf_vars({("core", "multi_team"): "True"}):
+        api = InProcessExecutionAPI()
+        with httpx.Client(transport=api.transport) as client:
+            response = client.get("http://localhost/variables/in-process-loop")
+
+    assert response.json() == {"key": "in-process-loop", "value": "value"}
+    global_session_factory.assert_not_called()
 
 
 class TestCorrelationIdMiddleware:
@@ -355,16 +374,23 @@ class TestTraceContextPropagation:
         [
             pytest.param("unsafe-always", "/health", False, True, 200, id="always-unauthenticated"),
             pytest.param("unsafe-always", "/variables/k", False, True, 401, id="always-auth-failure"),
-            pytest.param("unsafe-always", "/variables/k", True, True, None, id="always-authenticated"),
+            pytest.param("unsafe-always", "/variables/k", True, True, 200, id="always-authenticated"),
             pytest.param("only-authenticated", "/health", False, False, 200, id="onlyauth-unauthenticated"),
             pytest.param("only-authenticated", "/variables/k", False, False, 401, id="onlyauth-auth-failure"),
-            pytest.param("only-authenticated", "/variables/k", True, True, None, id="onlyauth-authenticated"),
+            pytest.param("only-authenticated", "/variables/k", True, True, 200, id="onlyauth-authenticated"),
             pytest.param("never", "/health", False, False, 200, id="never-unauthenticated"),
             pytest.param("never", "/variables/k", False, False, 401, id="never-auth-failure"),
-            pytest.param("never", "/variables/k", True, False, None, id="never-authenticated"),
+            pytest.param("never", "/variables/k", True, False, 200, id="never-authenticated"),
         ],
     )
-    def test_trace_context_extraction(self, mode, path, valid_auth, expect_extract, expect_status):
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
+        autospec=True,
+        return_value="value",
+    )
+    def test_trace_context_extraction(
+        self, resolve_variable, mode, path, valid_auth, expect_extract, expect_status
+    ):
         app = self._build_app(mode)
 
         if valid_auth:
@@ -386,8 +412,9 @@ class TestTraceContextPropagation:
             response = test_client.get(path, headers=headers)
 
         assert spy.called is expect_extract
-        if expect_status is not None:
-            assert response.status_code == expect_status
+        assert response.status_code == expect_status
+        if path == "/variables/k" and valid_auth:
+            resolve_variable.assert_awaited_once()
 
     def test_trace_context_dep_cleans_up_on_route_exception(self):
         """Verify extract and cleanup run correctly when a route handler raises."""
@@ -405,7 +432,11 @@ class TestTraceContextPropagation:
         # where AsyncExitStack unwinds the generator in the correct asyncio context.
         with (
             mock.patch.object(otel_propagate, "extract", wraps=real_extract) as extract_spy,
-            mock.patch("airflow.models.variable.Variable.get", side_effect=RuntimeError("boom")),
+            mock.patch(
+                "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
+                autospec=True,
+                side_effect=RuntimeError("boom"),
+            ),
             TestClient(app, raise_server_exceptions=False) as test_client,
         ):
             response = test_client.get("/variables/k", headers={"Authorization": "Bearer fake"})

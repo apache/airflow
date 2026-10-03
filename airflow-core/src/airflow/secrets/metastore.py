@@ -22,14 +22,40 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
+from starlette.concurrency import run_in_threadpool
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow.secrets import BaseSecretsBackend
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import RowMapping
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
     from airflow.models import Connection
+
+
+def _build_connection(values: RowMapping) -> Connection:
+    from airflow.models import Connection
+
+    connection = Connection()
+    for attribute in Connection.__mapper__.column_attrs:
+        setattr(connection, attribute.key, values[attribute.columns[0].key])
+    connection.on_db_load()
+    return connection
+
+
+def _get_variable_value(key: str, value: str, is_encrypted: bool) -> str | None:
+    from airflow.models import Variable
+
+    variable = Variable(key=key)
+    variable._val = value
+    variable.is_encrypted = is_encrypted
+    result = variable.val
+    if value:
+        mask_secret(result, key)
+    return result
 
 
 class MetastoreBackend(BaseSecretsBackend):
@@ -61,6 +87,33 @@ class MetastoreBackend(BaseSecretsBackend):
             session.expunge(conn)
         return conn
 
+    async def aget_connection(
+        self, conn_id: str, team_name: str | None = None, *, session: AsyncSession | None = None
+    ) -> Connection | None:
+        """Get an Airflow Connection from the metadata DB using native async I/O."""
+        if session is None:
+            async with create_session_async() as owned_session:
+                return await self.aget_connection(conn_id, team_name=team_name, session=owned_session)
+
+        from airflow.models import Connection
+
+        # ORM load hooks decrypt and mask secrets, so materialize the raw row in a worker.
+        row = (
+            (
+                await session.execute(
+                    select(Connection.__table__)
+                    .where(
+                        Connection.conn_id == conn_id,
+                        or_(Connection.team_name == team_name, Connection.team_name.is_(None)),
+                    )
+                    .limit(1)
+                )
+            )
+            .mappings()
+            .first()
+        )
+        return await run_in_threadpool(_build_connection, row) if row is not None else None
+
     @provide_session
     def get_variable(
         self, key: str, team_name: str | None = None, *, session: Session = NEW_SESSION
@@ -84,3 +137,28 @@ class MetastoreBackend(BaseSecretsBackend):
             session.expunge(var_value)
             return var_value.val
         return None
+
+    async def aget_variable(
+        self, key: str, team_name: str | None = None, *, session: AsyncSession | None = None
+    ) -> str | None:
+        """Get an Airflow Variable from the metadata DB using native async I/O."""
+        if session is None:
+            async with create_session_async() as owned_session:
+                return await self.aget_variable(key, team_name=team_name, session=owned_session)
+
+        from airflow.models import Variable
+
+        row = (
+            await session.execute(
+                select(Variable.key, Variable._val.label("val"), Variable.is_encrypted)
+                .where(
+                    Variable.key == key, or_(Variable.team_name == team_name, Variable.team_name.is_(None))
+                )
+                .limit(1)
+            )
+        ).first()
+        return (
+            await run_in_threadpool(_get_variable_value, row.key, row.val, row.is_encrypted)
+            if row is not None
+            else None
+        )
