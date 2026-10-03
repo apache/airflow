@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Button, Box, Spacer, HStack, Field, Stack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
@@ -34,6 +34,7 @@ import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
+import RecentConfigSelect from "./RecentConfigSelect";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
 import { dataIntervalModeOptions, type DagRunTriggerParams } from "./types";
 
@@ -92,8 +93,38 @@ const TriggerDAGForm = ({
     },
   });
 
-  // Pre-fill form when prefillConfig is provided (priority over conf)
-  // Only restore 'conf' (parameters), not logicalDate, runId, or partitionKey to avoid 409 conflicts
+  // Push a conf into the param store. Seed the initial params only once they are available,
+  // but always push the conf so a run's configuration propagates even
+  // for Dags with no declared params or before params load.
+  const syncConfToStore = useCallback(
+    (confString: string) => {
+      if (
+        Object.keys(initialParamsDict.paramsDict).length > 0 &&
+        Object.keys(initialParamDict).length === 0
+      ) {
+        setInitialParamDict(initialParamsDict.paramsDict);
+      }
+      setConf(confString);
+    },
+    [initialParamDict, initialParamsDict.paramsDict, setConf, setInitialParamDict],
+  );
+
+  // Selecting a recent configuration mid-edit only swaps the conf; whatever the user already
+  // typed into logical date, run id, note or data interval is kept.
+  const applyRecentConf = useCallback(
+    (confObj: Record<string, unknown>) => {
+      const confString = JSON.stringify(confObj, undefined, 2);
+
+      reset((prevValues) => ({ ...prevValues, conf: confString }));
+      syncConfToStore(confString);
+    },
+    [reset, syncConfToStore],
+  );
+
+  // Pre-fill form when prefillConfig is provided. This runs on open, before any user input, so
+  // the whole form is reset. Only 'conf' is copied from the prior run; its runId and logicalDate
+  // are deliberately dropped, because POST /dagRuns rejects a run whose id or logical date
+  // already exists with 409 Conflict.
   useEffect(() => {
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
@@ -108,32 +139,14 @@ const TriggerDAGForm = ({
         note: "",
         partitionKey: undefined,
       });
-      // Also update the param store to keep it in sync. Seed the initial params (for stable
-      // section ordering) only once they are available, but always push the conf so a run's
-      // configuration propagates even for Dags with no declared params or before params load.
       if (confString) {
-        if (
-          Object.keys(initialParamsDict.paramsDict).length > 0 &&
-          Object.keys(initialParamDict).length === 0
-        ) {
-          setInitialParamDict(initialParamsDict.paramsDict);
-        }
-        setConf(confString);
+        syncConfToStore(confString);
       }
       setHasAppliedPrefill(true);
     } else if (!open) {
       setHasAppliedPrefill(false);
     }
-  }, [
-    prefillConfig,
-    open,
-    reset,
-    setConf,
-    initialParamsDict.paramsDict,
-    initialParamDict,
-    setInitialParamDict,
-    isPartitioned,
-  ]);
+  }, [prefillConfig, open, isPartitioned, reset, syncConfToStore]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
@@ -242,6 +255,9 @@ const TriggerDAGForm = ({
             <Spacer />
           </>
         ) : undefined}
+        {prefillConfig ? undefined : (
+          <RecentConfigSelect dagId={dagId} onSelectConf={applyRecentConf} open={open} />
+        )}
         <ConfigForm
           control={control}
           errors={errors}
