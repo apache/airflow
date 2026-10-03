@@ -1,0 +1,482 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""
+Drift tripwires between ``provider.yaml``'s declared ``external-services`` and what
+pydantic-ai actually installs.
+
+How ``LABELS``, ``NON_MODULE_SERVICES``, ``UNREACHABLE_MODULES``,
+``DEPRECATED_UPSTREAM_MODULES`` and ``HOOK_INCOMPATIBLE_AUTH_MODULES`` below were derived,
+including the empirical checks that back each exclusion, is documented in the comment directly
+above each constant.
+"""
+
+from __future__ import annotations
+
+import importlib
+import inspect
+import pkgutil
+import re
+from importlib.metadata import version
+from pathlib import Path
+
+import pydantic_ai.providers as pydantic_ai_providers
+import pytest
+import yaml
+from packaging.version import Version
+from pydantic_ai.exceptions import UserError
+from pydantic_ai.models import infer_model, known_model_names
+
+from airflow.providers.common.ai.get_provider_info import get_provider_info
+
+# `toolsets` never flowed through the runtime `provider_info.schema.json`
+# (memory `reference_two_provider_schemas_only_authoring_may_tighten`), so
+# `get_provider_info()` doesn't carry it -- read `provider.yaml` directly instead.
+PROVIDER_YAML_PATH = Path(__file__).resolve().parents[4] / "provider.yaml"
+
+
+def _extract_toolset_block() -> dict:
+    provider_yaml = yaml.safe_load(PROVIDER_YAML_PATH.read_text())
+    (toolset_block,) = provider_yaml["toolsets"]
+    return toolset_block
+
+
+# Module basename -> display label used in `provider.yaml`'s `pydanticai.external-services`.
+# Sourced from each module's own `name` property / class docstring; kept here (not in
+# `src/`) because it is test data, not runtime behaviour.
+LABELS = {
+    "alibaba": "Alibaba Cloud Model Studio",
+    "anthropic": "Anthropic",
+    "azure": "Azure OpenAI",
+    "bedrock": "AWS Bedrock",
+    "bedrock_mantle": "AWS Bedrock Mantle",
+    "cerebras": "Cerebras",
+    "cohere": "Cohere",
+    "crusoe": "Crusoe",
+    "deepseek": "DeepSeek",
+    "fireworks": "Fireworks AI",
+    "gateway": "Pydantic AI Gateway",
+    "github_copilot": "GitHub Copilot",
+    "google": "Google Gemini",
+    "google_cloud": "Google Vertex AI",
+    "groq": "Groq",
+    "heroku": "Heroku",
+    "huggingface": "Hugging Face",
+    "litellm": "LiteLLM",
+    "mistral": "Mistral AI",
+    "moonshotai": "Moonshot AI",
+    "nebius": "Nebius",
+    "ollama": "Ollama",
+    "openai": "OpenAI",
+    "openrouter": "OpenRouter",
+    "ovhcloud": "OVHcloud",
+    "sambanova": "SambaNova",
+    "snowflake": "Snowflake Cortex",
+    "together": "Together AI",
+    "typesafe": "TypeSafe",
+    "vercel": "Vercel AI Gateway",
+    "vllm": "vLLM",
+    "xai": "xAI",
+    "zai": "Z.AI",
+}
+
+# Declared in `pydanticai.external-services` but not backed by a `pydantic_ai.providers` module of
+# its own -- reached instead through some other provider's constructor kwargs. Currently empty:
+# `vLLM` was the sole member here (reached by pointing the `openai` provider's `base_url` at a
+# vLLM endpoint, `hooks/pydantic_ai.py`) until pydantic-ai 2.44.0 added a dedicated
+# `pydantic_ai.providers.vllm` module with its own `name` property (`'vllm'`) -- see
+# `LABELS["vllm"]` above. Kept, rather than deleted, as where a future vendor without its own
+# module would go.
+NON_MODULE_SERVICES: set[str] = set()
+
+# Modules `pkgutil` discovers under `pydantic_ai.providers` that `infer_model` never
+# routes to -- `infer_model("voyageai:...")` / `infer_model("sentence-transformers:...")`
+# raise `UserError: Unknown model`, confirmed by `test_unreachable_modules_stay_unreachable`
+# below. Not listed in `LABELS`/`provider.yaml` because there is no `common.ai` code path
+# (chat or embedding) that reaches them.
+UNREACHABLE_MODULES = {"voyageai", "sentence_transformers"}
+
+# Modules that ARE reachable through `infer_model` (unlike UNREACHABLE_MODULES) but are
+# excluded by decision because pydantic-ai itself marks the upstream backend dead:
+# `pydantic_ai.providers.github.GitHubProvider` is decorated `@deprecated` with the message
+# "GitHub Models was retired on 2026-07-30 ... this provider is deprecated and will be
+# removed in v3." There is no GitHub Copilot provider anywhere in pydantic-ai; the only
+# "github" support that ever existed is this now-retired integration. Advertising a vendor
+# whose backend the vendor itself shut down is worse than not listing it (Wei's call,
+# 2026-09-11 review round). `test_deprecated_upstream_modules_stay_deprecated` below
+# guards the reversal: if pydantic-ai un-deprecates this module, or a real GitHub Copilot
+# provider appears under a different module name, the corresponding test goes red instead
+# of silently staying excluded.
+DEPRECATED_UPSTREAM_MODULES = {"github"}
+
+# Modules that ARE reachable through `infer_model` (unlike UNREACHABLE_MODULES) but are excluded
+# by decision because `PydanticAIHook` has no way to supply the credentials they require.
+# `PydanticAIHook._get_provider_kwargs()` -- the generic connection type's only credential path
+# (`hooks/pydantic_ai.py`) -- always sends `api_key` (from `conn.password`) and/or `base_url`
+# (from `conn.host`). `pydantic_ai.providers.openai_codex.OpenAICodexProvider.__init__` accepts
+# only `credentials`, `credential_source`, `openai_client`, and `http_client` -- no parameter
+# exists to receive what the hook sends; confirmed empirically (as of pydantic-ai-slim 2.44.0):
+# `OpenAICodexProvider(api_key=..., base_url=...)` raises
+# ``TypeError: unexpected keyword argument 'api_key'``. `PydanticAIHook.get_conn()`'s
+# `_provider_factory` catches that `TypeError` and retries via `infer_provider(pname)`, i.e.
+# `OpenAICodexProvider()` with no arguments, which falls through to its
+# `_read_codex_cli_credentials()` helper: a read-only load of the Codex CLI's on-disk
+# `~/.codex/auth.json`, populated by the OAuth authorization-code + PKCE login flow the Codex CLI
+# itself performs (see `pydantic_ai.providers.openai_codex`'s module docstring and
+# `OpenAICodexOAuthFlow`) -- not by anything `hooks/pydantic_ai.py` can express. No `pydanticai`
+# connection field maps to an OAuth credential or a `credential_source`, so a `pydanticai`
+# connection can never drive this provider regardless of what's configured on it. Advertising a
+# vendor no configuration on this connection type can ever reach is worse than not listing it
+# (mirrors `DEPRECATED_UPSTREAM_MODULES`'s reasoning, for a different cause: hook-incompatible
+# auth rather than a retired backend). `test_hook_incompatible_auth_modules_stay_incompatible`
+# below guards the reversal: if pydantic-ai gives one of these providers an `api_key`/`base_url`
+# constructor parameter, this must fail so a human re-evaluates whether the module belongs back
+# in `LABELS` and `provider.yaml`, instead of it staying excluded forever on a stale rationale.
+HOOK_INCOMPATIBLE_AUTH_MODULES = {"openai_codex"}
+
+# `pydantic_ai.providers.openai_codex` (the sole `HOOK_INCOMPATIBLE_AUTH_MODULES` member) was
+# added in pydantic-ai-slim 2.41.0 -- absent on 2.40.0 and below (bisected empirically; the
+# provider's floor is 2.33.0, `pyproject.toml`). The guard test below imports it unconditionally,
+# so on the floor it would raise `ModuleNotFoundError` instead of testing anything.
+OPENAI_CODEX_AVAILABLE_FROM = Version("2.41.0")
+
+requires_openai_codex_module = pytest.mark.skipif(
+    Version(Version(version("pydantic-ai-slim")).base_version) < OPENAI_CODEX_AVAILABLE_FROM,
+    reason=(
+        f"pydantic-ai-slim is older than {OPENAI_CODEX_AVAILABLE_FROM}, the first release "
+        f"carrying pydantic_ai.providers.openai_codex"
+    ),
+)
+
+# `provider.yaml`'s vendor list is derived from a current pydantic-ai, but the provider
+# supports `pydantic-ai-slim>=2.33.0` (`pyproject.toml`) and CI's "Low dep tests" job installs
+# exactly that floor. Vendors upstream added after the floor are legitimately absent there --
+# bisected empirically: `vllm` landed in 2.38.0, `github_copilot` in 2.42.0, and `typesafe` in
+# 2.45.0 (`openai_codex` also landed after the floor, in 2.41.0, but is excluded from this
+# reasoning -- see `OPENAI_CODEX_AVAILABLE_FROM` above) -- so only the "installed but not
+# declared" direction holds on every supported version. The opposite direction ("declared but
+# not installed") is a real drift signal solely from the release that carries every vendor
+# currently declared, i.e. the latest of the three, `typesafe`'s 2.45.0: raise this when a
+# newly declared vendor lands in a later release.
+ALL_DECLARED_VENDORS_AVAILABLE_FROM = Version("2.45.0")
+
+requires_all_declared_vendors = pytest.mark.skipif(
+    Version(Version(version("pydantic-ai-slim")).base_version) < ALL_DECLARED_VENDORS_AVAILABLE_FROM,
+    reason=(
+        f"pydantic-ai-slim is older than {ALL_DECLARED_VENDORS_AVAILABLE_FROM}, the first release "
+        f"carrying every vendor provider.yaml declares"
+    ),
+)
+
+# `known_model_names()` prefixes that don't match a `pydantic_ai.providers` module basename
+# directly (hyphen normalized to underscore) but still resolve through `infer_model`.
+PREFIX_ALIASES = {
+    "openai-chat": "openai",
+    "openai-responses": "openai",
+    "azure-responses": "azure",
+}
+
+# The vendors `supported_services.rst`'s Notes section names, in hand-written prose, as the
+# ones `gateway/<vendor>:<model>` currently routes to. Deliberately kept as a human-readable
+# sentence there rather than a generated list (2026-09-11 review round: this is a customer-
+# facing page, not a place to trade readability for testability) -- this constant is the
+# reference value the two tests below check it against, in both directions:
+# `test_gateway_note_vendors_match_known_model_names` guards against pydantic-ai adding/dropping
+# a gateway vendor, and `test_gateway_note_sentence_names_the_expected_vendors` guards against
+# the prose and this constant drifting apart from each other.
+GATEWAY_NOTE_VENDOR_LABELS = {
+    "Anthropic",
+    "AWS Bedrock",
+    "Google Gemini",
+    "Google Vertex AI",
+    "Groq",
+    "OpenAI",
+}
+
+
+def _find_discovered_provider_modules() -> set[str]:
+    """All non-private modules under `pydantic_ai.providers`, including `gateway`.
+
+    `gateway` is a real, reachable upstream service (`PydanticAIHook.get_conn()` forwards
+    a `gateway/<vendor>:<model>` model string straight to `infer_model`, which resolves it
+    to a working `Model` instance), so it is not excluded here.
+    """
+    return {
+        m.name for m in pkgutil.iter_modules(pydantic_ai_providers.__path__) if not m.name.startswith("_")
+    }
+
+
+def _find_reachable_provider_modules() -> set[str]:
+    """The discovered modules `common.ai` actually reaches, i.e. minus the documented exclusions."""
+    return (
+        _find_discovered_provider_modules()
+        - UNREACHABLE_MODULES
+        - DEPRECATED_UPSTREAM_MODULES
+        - HOOK_INCOMPATIBLE_AUTH_MODULES
+    )
+
+
+def _find_derived_vendor_labels() -> set[str]:
+    """The vendor labels the *installed* pydantic-ai implies `provider.yaml` should declare."""
+    return {
+        LABELS.get(m, f"<unlabelled:{m}>") for m in _find_reachable_provider_modules()
+    } | NON_MODULE_SERVICES
+
+
+def _find_pydanticai_external_services() -> list[str]:
+    connection_types = get_provider_info()["connection-types"]
+    (pydanticai,) = (c for c in connection_types if c["connection-type"] == "pydanticai")
+    return pydanticai["external-services"]
+
+
+class TestConnectionTypeExternalServices:
+    def test_every_connection_type_declares_external_services(self):
+        for conn in get_provider_info()["connection-types"]:
+            assert conn.get("external-services"), (
+                f"connection-type {conn['connection-type']!r} has no external-services"
+            )
+
+
+class TestPydanticAIExternalServicesDrift:
+    def test_every_installed_vendor_is_declared(self):
+        """
+        The direction that holds on every supported pydantic-ai: a vendor the installed release
+        can reach must be declared, or the page silently under-advertises what the provider does.
+        """
+        missing = _find_derived_vendor_labels() - set(_find_pydanticai_external_services())
+        assert not missing, f"pydantic-ai vendors not declared in provider.yaml: {sorted(missing)}"
+
+    @requires_all_declared_vendors
+    def test_no_declared_vendor_is_absent_upstream(self):
+        """
+        The opposite direction, gated on ``ALL_DECLARED_VENDORS_AVAILABLE_FROM``: once every
+        declared vendor exists upstream, one that pydantic-ai does not have is either a typo or a
+        vendor whose module was dropped, and the page would overclaim what the provider reaches.
+        """
+        extra = set(_find_pydanticai_external_services()) - _find_derived_vendor_labels()
+        assert not extra, f"provider.yaml declares vendors pydantic-ai doesn't have: {sorted(extra)}"
+
+    def test_every_installed_module_has_a_label(self):
+        """As `test_every_installed_vendor_is_declared`, for `LABELS` rather than `provider.yaml`."""
+        unlabelled = _find_reachable_provider_modules() - set(LABELS)
+        assert not unlabelled, f"no label for pydantic-ai module(s): {sorted(unlabelled)}"
+
+    @requires_all_declared_vendors
+    def test_no_label_is_stale(self):
+        """As `test_no_declared_vendor_is_absent_upstream`, for `LABELS`."""
+        stale = set(LABELS) - _find_reachable_provider_modules()
+        assert not stale, f"label(s) for module(s) pydantic-ai no longer has: {sorted(stale)}"
+
+    def test_unreachable_modules_stay_unreachable(self):
+        """
+        Guard the other direction: if a future pydantic-ai release makes one of
+        ``UNREACHABLE_MODULES`` reachable through ``infer_model``, this must fail so a human
+        adds it to ``LABELS`` and ``provider.yaml`` instead of it silently staying missing.
+        """
+        for module in UNREACHABLE_MODULES:
+            prefix = module.replace("_", "-")
+            with pytest.raises(UserError, match="Unknown model"):
+                infer_model(f"{prefix}:placeholder", provider_factory=lambda _p: object())
+
+    def test_deprecated_upstream_modules_stay_deprecated(self):
+        """
+        Guard the other direction, for every member of ``DEPRECATED_UPSTREAM_MODULES`` (not just
+        ``github`` -- this set is the one escape hatch in this file that isn't validated against
+        pydantic-ai by name elsewhere, so adding a module here that isn't genuinely
+        upstream-deprecated must not pass silently). If pydantic-ai un-deprecates a member
+        (reactivating its backend, or repurposing the module), this must fail so a human
+        re-evaluates whether it belongs back in ``LABELS`` and ``provider.yaml``, instead of it
+        staying excluded forever on a stale rationale.
+        """
+        for module in DEPRECATED_UPSTREAM_MODULES:
+            try:
+                mod = importlib.import_module(f"pydantic_ai.providers.{module}")
+            except ImportError as exc:
+                # Deliberately not `pytest.importorskip`: an unmet optional dependency here
+                # would silently turn off this guard, not just this one test run.
+                pytest.fail(
+                    f"pydantic_ai.providers.{module} (in DEPRECATED_UPSTREAM_MODULES) failed to "
+                    f"import: {exc}. Install the missing dependency rather than skipping this "
+                    f"test."
+                )
+            provider_classes = [
+                obj
+                for obj in vars(mod).values()
+                if isinstance(obj, type)
+                and obj.__module__ == mod.__name__
+                and obj.__name__.endswith("Provider")
+            ]
+            assert provider_classes, f"no Provider class found in pydantic_ai.providers.{module}"
+            assert all(hasattr(cls, "__deprecated__") for cls in provider_classes), (
+                f"pydantic_ai.providers.{module} is no longer marked @deprecated -- re-evaluate "
+                f"whether '{module}' should be re-added to LABELS and provider.yaml"
+            )
+
+    @requires_openai_codex_module
+    def test_hook_incompatible_auth_modules_stay_incompatible(self):
+        """
+        Guard the other direction, for every member of ``HOOK_INCOMPATIBLE_AUTH_MODULES``: if
+        pydantic-ai gives one of these providers an ``api_key``/``base_url`` constructor path (the
+        shape ``PydanticAIHook._get_provider_kwargs`` sends), this must fail so a human
+        re-evaluates whether the module belongs back in ``LABELS`` and ``provider.yaml``, instead
+        of it staying excluded forever on a stale rationale.
+        """
+        for module in HOOK_INCOMPATIBLE_AUTH_MODULES:
+            mod = importlib.import_module(f"pydantic_ai.providers.{module}")
+            provider_classes = [
+                obj
+                for obj in vars(mod).values()
+                if isinstance(obj, type)
+                and obj.__module__ == mod.__name__
+                and obj.__name__.endswith("Provider")
+            ]
+            assert provider_classes, f"no Provider class found in pydantic_ai.providers.{module}"
+            for cls in provider_classes:
+                params = inspect.signature(cls.__init__).parameters
+                assert "api_key" not in params, (
+                    f"{cls.__name__} now accepts api_key -- re-evaluate whether '{module}' "
+                    f"should be re-added to LABELS and provider.yaml"
+                )
+                assert "base_url" not in params, (
+                    f"{cls.__name__} now accepts base_url -- re-evaluate whether '{module}' "
+                    f"should be re-added to LABELS and provider.yaml"
+                )
+
+    def test_known_model_name_prefixes_are_all_labelled(self):
+        labelled = set(LABELS)
+        for name in known_model_names():
+            if ":" not in name:
+                continue  # the bare "test" entry, pydantic-ai's built-in keyless TestModel
+            prefix = name.removeprefix("gateway/").split(":", 1)[0]
+            module = PREFIX_ALIASES.get(prefix, prefix.replace("-", "_"))
+            assert module in labelled, f"model prefix {prefix!r} (from {name!r}) has no label"
+
+    def test_gateway_note_vendors_match_known_model_names(self):
+        """
+        Guard `supported_services.rst`'s Notes sentence naming which vendors
+        ``gateway/<vendor>:<model>`` currently routes to. If pydantic-ai's gateway adds or drops
+        a vendor, this must fail so a human updates that sentence (and
+        ``GATEWAY_NOTE_VENDOR_LABELS``) instead of it silently going stale.
+        """
+        gateway_prefixes = {
+            name.split("/", 1)[1].split(":", 1)[0]
+            for name in known_model_names()
+            if name.startswith("gateway/")
+        }
+        modules = {PREFIX_ALIASES.get(p, p.replace("-", "_")) for p in gateway_prefixes}
+        derived = {LABELS.get(m, f"<unlabelled:{m}>") for m in modules}
+
+        assert derived == GATEWAY_NOTE_VENDOR_LABELS, (
+            f"gateway now routes to {sorted(derived)} -- update the Notes sentence in "
+            f"supported_services.rst and GATEWAY_NOTE_VENDOR_LABELS to match"
+        )
+
+    def test_gateway_note_sentence_names_the_expected_vendors(self):
+        """
+        Guard the prose itself, in both directions: every vendor in
+        ``GATEWAY_NOTE_VENDOR_LABELS`` must be named in `supported_services.rst`'s gateway Notes
+        bullet specifically -- not just somewhere in the file, where several of these vendor
+        names already appear in other sentences -- and no *other* labelled vendor may be named
+        in that bullet either. Editing the bullet without updating the constant above (or vice
+        versa) must be caught either way: underclaiming a vendor is a stale doc, overclaiming one
+        is a false statement about what this service reaches.
+        """
+        rst_text = (PROVIDER_YAML_PATH.parent / "docs" / "supported_services.rst").read_text()
+        marker = '* "Pydantic AI Gateway" in the'
+        start = rst_text.index(marker)
+        end = rst_text.find("\n* ", start)
+        gateway_bullet = rst_text[start:] if end == -1 else rst_text[start:end]
+        gateway_bullet = " ".join(gateway_bullet.split())
+
+        for vendor in GATEWAY_NOTE_VENDOR_LABELS:
+            assert vendor in gateway_bullet, (
+                f"{vendor!r} missing from supported_services.rst's gateway Notes bullet"
+            )
+
+        # `LABELS["gateway"]` ("Pydantic AI Gateway") is excluded: it is itself a value of
+        # `LABELS` and rightfully appears in this bullet (it's the row's own name), so it must
+        # not be flagged as an "other" vendor the bullet shouldn't mention.
+        other_labels = set(LABELS.values()) - GATEWAY_NOTE_VENDOR_LABELS - {LABELS["gateway"]}
+        unexpected = sorted(vendor for vendor in other_labels if vendor in gateway_bullet)
+        assert not unexpected, (
+            f"gateway Notes bullet names {unexpected}, which are not in GATEWAY_NOTE_VENDOR_LABELS"
+        )
+
+
+# Module basename -> (display name, `:doc:` target) expected in `supported_services.rst`'s
+# hand-written Toolsets table. Kept here (not in `src/`) because it is test data, not
+# runtime behaviour, the same way `LABELS` above is.
+TOOLSET_TABLE_ENTRIES: dict[str, tuple[str, str]] = {
+    "hook": ("HookToolset", "toolsets/hook"),
+    "sql": ("SQLToolset", "toolsets/sql"),
+    "datafusion": ("DataFusionToolset", "toolsets/datafusion"),
+    "logging": ("LoggingToolset", "toolsets/logging"),
+    "mcp": ("MCPToolset", "toolsets/mcp"),
+    "object_storage": ("ObjectStorageToolset", "toolsets/object_storage"),
+    "sandbox": ("SandboxToolset", "sandbox/index"),
+    "skills": ("AgentSkillsToolset", "toolsets/skills"),
+    "langchain_bridge": ("LangChain Bridge", "toolsets/langchain"),
+    "managed_agent": ("Managed Agent Toolsets", "toolsets/managed_agent"),
+}
+
+
+class TestToolsetExternalServices:
+    def test_every_toolset_module_has_a_table_entry(self):
+        """
+        `TOOLSET_TABLE_ENTRIES` is test data, not runtime behaviour (see `LABELS` above): every
+        module in `provider.yaml`'s `toolsets[].python-modules` must have an entry here, or the
+        hand-written table in `supported_services.rst` silently omits a toolset.
+        """
+        toolset_block = _extract_toolset_block()
+        for module in toolset_block["python-modules"]:
+            basename = module.rsplit(".", 1)[-1]
+            assert basename in TOOLSET_TABLE_ENTRIES, (
+                f"No table entry for toolset module {module!r}. Add an entry for {basename!r} "
+                f"to TOOLSET_TABLE_ENTRIES."
+            )
+
+    def test_no_table_entry_is_stale(self):
+        """The opposite direction: catches a removed toolset module whose row nobody deleted."""
+        toolset_block = _extract_toolset_block()
+        basenames = {module.rsplit(".", 1)[-1] for module in toolset_block["python-modules"]}
+        stale = set(TOOLSET_TABLE_ENTRIES) - basenames
+        assert not stale, (
+            f"TOOLSET_TABLE_ENTRIES has entry(ies) for removed toolset module(s): {sorted(stale)}"
+        )
+
+    def test_toolset_table_entries_match_supported_services_rst(self):
+        """
+        Guard `supported_services.rst`'s hand-written Toolsets table against drifting from
+        `TOOLSET_TABLE_ENTRIES`, in both directions: every entry's `:doc:` target must appear in
+        the Toolsets section, and no *other* `:doc:` target may appear there either.
+        """
+        rst_text = (PROVIDER_YAML_PATH.parent / "docs" / "supported_services.rst").read_text()
+        start = rst_text.index("Toolsets\n--------")
+        end = rst_text.index("Notes\n-----", start)
+        toolsets_section = rst_text[start:end]
+
+        rendered_targets = set(re.findall(r":doc:`[^<]*<([^>]+)>`", toolsets_section))
+        expected_targets = {doc_target for _, doc_target in TOOLSET_TABLE_ENTRIES.values()}
+
+        assert rendered_targets == expected_targets, (
+            f"supported_services.rst's Toolsets section links to {sorted(rendered_targets)}, "
+            f"expected {sorted(expected_targets)}"
+        )
+
+    def test_toolset_table_entry_targets_exist(self):
+        for basename, (_, doc_target) in TOOLSET_TABLE_ENTRIES.items():
+            target_path = PROVIDER_YAML_PATH.parent / "docs" / f"{doc_target}.rst"
+            assert target_path.exists(), f"{doc_target}.rst (for module {basename!r}) does not exist"
