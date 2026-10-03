@@ -2732,8 +2732,8 @@ def mocked_parse(spy_agency):
             task = dag.task_dict[task.task_id]  # type: ignore[assignment]
         else:
             dag = task.dag
-        if what.ti_context.dag_run.conf:
-            dag.params = what.ti_context.dag_run.conf  # type: ignore[assignment]
+        if dag_run_conf := what.ti_context.dag_run.conf:
+            dag.params = json.loads(dag_run_conf) if isinstance(dag_run_conf, str) else dag_run_conf
         ti = RuntimeTaskInstance.model_construct(
             **what.ti.model_dump(exclude_unset=True),
             task=task,
@@ -2858,7 +2858,7 @@ def create_runtime_ti(mocked_parse):
         map_index: int | None = -1,
         task_reschedule_count: int = 0,
         ti_id: UUID | None = None,
-        conf: dict[str, Any] | None = None,
+        conf: dict[str, Any] | str | None = None,
         should_retry: bool | None = None,
         max_tries: int | None = None,
     ) -> RuntimeTaskInstance:

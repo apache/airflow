@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from contextlib import nullcontext
 from datetime import datetime
@@ -4952,6 +4953,39 @@ class TestInvactiveInletsAndOutlets:
         assert response.status_code == 200, f"Response: {response.text}"
         context = response.json()
         assert context["dag_run"]["conf"] is None
+
+    def test_ti_run_transports_conf_as_opaque_json(self, client, session, create_task_instance):
+        """Task startup does not materialize DagRun.conf in the API server or supervisor."""
+        ti = create_task_instance(
+            task_id="test_ti_run_with_opaque_conf",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+        )
+        ti.dag_run.conf = {
+            "large_finite_float": 1.7e308,
+            "large_positive_integer": 18446744073709551616,
+        }
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "pid": 100,
+                "hostname": "test-hostname",
+                "unixname": "test-user",
+                "start_date": timezone.utcnow().isoformat(),
+            },
+        )
+
+        assert response.status_code == 200, f"Response: {response.text}"
+        serialized_conf = response.json()["dag_run"]["conf"]
+        assert isinstance(serialized_conf, str)
+        assert json.loads(serialized_conf) == {
+            "large_finite_float": 1.7e308,
+            "large_positive_integer": 18446744073709551616,
+        }
 
 
 class TestTIPatchRenderedMapIndex:

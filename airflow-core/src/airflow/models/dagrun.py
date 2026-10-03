@@ -52,7 +52,6 @@ from sqlalchemy import (
     text,
     update,
 )
-from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -266,9 +265,7 @@ class DagRun(Base, LoggingMixin):
         String(512),
         nullable=True,
     )  # The user that triggered the DagRun, if applicable
-    conf: Mapped[dict[str, Any] | None] = mapped_column(
-        JSON().with_variant(postgresql.JSONB, "postgresql"), nullable=True
-    )
+    _conf: Mapped[dict[str, Any] | None] = mapped_column("conf", JSON(), nullable=True)
     # These two must be either both NULL or both datetime.
     data_interval_start: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     data_interval_end: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
@@ -405,6 +402,20 @@ class DagRun(Base, LoggingMixin):
         return self.dag_model.team_name if self.dag_model else None
 
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
+
+    @hybrid_property
+    def conf(self) -> dict[str, Any] | None:
+        """Return DagRun configuration as a dictionary."""
+        return self._conf
+
+    @conf.inplace.setter
+    def _set_conf(self, value: dict[str, Any] | None) -> None:
+        self._conf = value
+
+    @conf.inplace.expression
+    @classmethod
+    def _conf_as_text(cls):
+        return cls._conf.cast(Text)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         "scheduler",

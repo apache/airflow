@@ -586,6 +586,24 @@ def test_run_swallows_supervisor_terminal_send_failure(create_runtime_ti, mock_s
     assert error is None
 
 
+def test_template_context_materializes_opaque_dag_run_conf_in_task(create_runtime_ti):
+    """Serialized DagRun.conf is decoded once, in the task process."""
+    task = BaseOperator(task_id="opaque-conf")
+    runtime_ti = create_runtime_ti(
+        task=task,
+        conf='{"large_finite_float":1.7e+308,"large_positive_integer":18446744073709551616}',
+    )
+
+    context = runtime_ti.get_template_context()
+
+    assert context["dag_run"].conf == {
+        "large_finite_float": 1.7e308,
+        "large_positive_integer": 18446744073709551616,
+    }
+    assert isinstance(context["dag_run"].conf["large_finite_float"], float)
+    assert isinstance(context["dag_run"].conf["large_positive_integer"], int)
+
+
 def test_run_signals_fail_closed_when_failure_terminal_send_fails(create_runtime_ti, mock_supervisor_comms):
     """
     When the task FAILS and the terminal-state send to the supervisor fails too

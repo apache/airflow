@@ -423,6 +423,7 @@ class TestRealBundleArgBindingsDowngrade:
                     run_after=now,
                     consumed_asset_events=[],
                     partition_key=None,
+                    conf='{"large_finite_float":1.7e+308,"large_positive_integer":18446744073709551616}',
                 ),
                 max_tries=1,
                 arg_bindings=[
@@ -453,6 +454,10 @@ class TestRealBundleArgBindingsDowngrade:
     def test_downgrade_strips_arg_bindings_for_previous_version(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
         assert "arg_bindings" not in out["ti_context"]
+        assert out["ti_context"]["dag_run"]["conf"] == {
+            "large_finite_float": 1.7e308,
+            "large_positive_integer": 18446744073709551616,
+        }
 
     def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
         from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding

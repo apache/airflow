@@ -22,6 +22,7 @@ from __future__ import annotations
 import contextvars
 import functools
 import inspect
+import json
 import os
 import sys
 import time
@@ -287,7 +288,12 @@ class RuntimeTaskInstance(TaskInstance):
         dag_run_conf: dict[str, Any] | None = None
         macros_accessor = MacrosAccessor()
         if from_server := self._ti_context_from_server:
-            dag_run_conf = from_server.dag_run.conf or dag_run_conf
+            serialized_conf = from_server.dag_run.conf
+            if isinstance(serialized_conf, str):
+                dag_run_conf = json.loads(serialized_conf)
+                from_server.dag_run.conf = dag_run_conf
+            else:
+                dag_run_conf = serialized_conf or dag_run_conf
             macros_accessor = MacrosAccessor(
                 team_name=from_server.dag_run.team_name, multi_team=bool(from_server.multi_team)
             )

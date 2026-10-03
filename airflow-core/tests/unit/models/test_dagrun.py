@@ -35,6 +35,8 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
+    Text,
+    cast,
     func,
     inspect as sa_inspect,
     select,
@@ -4885,6 +4887,29 @@ def test_stats_tags_without_team_name(dag_maker):
         EmptyOperator(task_id="t1")
     dr = dag_maker.create_dagrun()
     assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type}
+
+
+def test_conf_preserves_json_number_types(dag_maker, session):
+    """DagRun.conf preserves JSON numbers when persisted."""
+    submitted_conf = {
+        "large_finite_float": 1.7e308,
+        "large_positive_integer": 18446744073709551616,
+        "large_negative_integer": -9223372036854775809,
+        "nested": [{"value": 3.14}],
+    }
+    with dag_maker("test_opaque_dagrun_conf"):
+        EmptyOperator(task_id="t1")
+
+    dr = dag_maker.create_dagrun(conf=submitted_conf, session=session)
+    session.expire(dr, ["_conf"])
+
+    serialized_conf = session.scalar(select(cast(DagRun.conf, Text)).where(DagRun.id == dr.id))
+    assert serialized_conf is not None
+    assert "1.7e+308" in serialized_conf
+    assert dr.conf == submitted_conf
+    assert isinstance(dr.conf["large_finite_float"], float)
+    assert isinstance(dr.conf["large_positive_integer"], int)
+    assert isinstance(dr.conf["large_negative_integer"], int)
 
 
 def test_stats_tags_with_team_name(dag_maker):

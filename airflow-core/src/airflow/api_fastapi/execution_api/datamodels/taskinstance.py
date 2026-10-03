@@ -349,7 +349,7 @@ class DagRun(StrictBaseModel):
     clear_number: int = 0
     run_type: DagRunType
     state: DagRunState
-    conf: dict[str, Any] | None = None
+    conf: dict[str, Any] | str | None = None
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
@@ -393,6 +393,8 @@ class DagRun(StrictBaseModel):
 
         if "consumed_asset_events" not in values:
             values["consumed_asset_events"] = []
+
+        values["conf"] = getattr(data, "_serialized_conf", None)
 
         # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
         if "note" not in values:

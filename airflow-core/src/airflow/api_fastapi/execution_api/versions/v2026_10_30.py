@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import json
+
 from cadwyn import (
     ResponseInfo,
     VersionChange,
@@ -28,10 +30,29 @@ from cadwyn import (
 )
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun,
     TerminalStateNonSuccess,
     TIRunContext,
     TITerminalStatePayload,
 )
+
+
+class SerializeDagRunConfInTaskContext(VersionChange):
+    """Transport DagRun.conf as compact JSON for current task SDK clients."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(DagRun).field("conf").had(type=dict[str, object] | None),
+    )
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def deserialize_conf_for_previous_versions(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Preserve the dictionary contract for older task SDK clients."""
+        if "dag_run" not in response.body or not isinstance(response.body["dag_run"], dict):
+            return
+        dag_run_conf = response.body["dag_run"].get("conf")
+        if isinstance(dag_run_conf, str):
+            response.body["dag_run"]["conf"] = json.loads(dag_run_conf)
 
 
 class AddStoppedTaskReport(VersionChange):

@@ -95,7 +95,11 @@ class TestCommsDecoder:
                     "end_date": None,
                     "run_type": "manual",
                     "state": "success",
-                    "conf": None,
+                    "conf": (
+                        '{"large_finite_float":1.7e+308,'
+                        '"large_positive_integer":18446744073709551616,'
+                        '"large_negative_integer":-9223372036854775809}'
+                    ),
                     "consumed_asset_events": [],
                     "partition_key": None,
                 },
@@ -123,6 +127,8 @@ class TestCommsDecoder:
         assert msg.dag_rel_path == "/dev/null"
         assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")
         assert msg.start_date == timezone.datetime(2024, 12, 1, 1)
+        assert isinstance(msg.ti_context.dag_run.conf, str)
+        assert "18446744073709551616" in msg.ti_context.dag_run.conf
 
     def test_huge_payload(self, socket_pair):
         r, w = socket_pair

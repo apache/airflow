@@ -1368,6 +1368,9 @@
               "type": "object"
             },
             {
+              "type": "string"
+            },
+            {
               "type": "null"
             }
           ],
@@ -5009,6 +5012,9 @@
             {
               "additionalProperties": true,
               "type": "object"
+            },
+            {
+              "type": "string"
             },
             {
               "type": "null"

@@ -281,7 +281,7 @@ def make_ti_context() -> MakeTIContextCallable:
         run_after: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         task_reschedule_count: int = 0,
-        conf: dict[str, Any] | None = None,
+        conf: dict[str, Any] | str | None = None,
         should_retry: bool = False,
         max_tries: int = 0,
         consumed_asset_events: Sequence[AssetEventDagRunReference] = (),
