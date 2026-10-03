@@ -87,6 +87,7 @@ class TestFailedDeps:
             trigger=None,
             triggerer_job=None,
             dag_version=None,
+            ignore_upstream_deps=False,
         )
 
     def _make_api_client(
@@ -436,6 +437,7 @@ class TestStatesForDagRun:
             trigger=None,
             triggerer_job=None,
             dag_version=None,
+            ignore_upstream_deps=False,
         )
 
     def _make_api_client(self, task_instances: list[TaskInstanceResponse]) -> mock.MagicMock:
