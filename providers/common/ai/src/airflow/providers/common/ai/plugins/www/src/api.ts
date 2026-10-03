@@ -29,13 +29,18 @@ function getBase(): string {
 
 const BASE = getBase();
 
-function buildQs(dagId: string, runId: string, taskId: string, mapIndex: number): string {
-  return (
+export type TaskRegion = { region_id: string; region_index: number };
+
+function buildQs(dagId: string, runId: string, taskId: string, mapIndex: number, region?: TaskRegion): string {
+  const query = (
     `dag_id=${encodeURIComponent(dagId)}` +
     `&run_id=${encodeURIComponent(runId)}` +
     `&task_id=${encodeURIComponent(taskId)}` +
     `&map_index=${mapIndex}`
   );
+  return region === undefined
+    ? query
+    : `${query}&region_id=${encodeURIComponent(region.region_id)}&region_index=${region.region_index}`;
 }
 
 export class ApiError extends Error {
@@ -70,8 +75,8 @@ async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
-export function createApi(dagId: string, runId: string, taskId: string, mapIndex: number) {
-  const qs = buildQs(dagId, runId, taskId, mapIndex);
+export function createApi(dagId: string, runId: string, taskId: string, mapIndex: number, region?: TaskRegion) {
+  const qs = buildQs(dagId, runId, taskId, mapIndex, region);
 
   return {
     fetchSession: () =>

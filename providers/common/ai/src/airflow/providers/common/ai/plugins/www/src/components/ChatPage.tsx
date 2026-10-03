@@ -38,10 +38,11 @@ import {
   useState,
 } from "react";
 
+import type { TaskRegion } from "src/api";
 import { MessageBubble } from "src/components/MessageBubble";
 import { NoSession } from "src/components/NoSession";
 import { useSession } from "src/hooks/useSession";
-import { isTerminalStatus } from "src/types/feedback";
+import { isTerminalStatus, type SessionStatus } from "src/types/feedback";
 import { toaster } from "src/toaster";
 
 interface ChatPageProps {
@@ -49,12 +50,13 @@ interface ChatPageProps {
   runId: string;
   taskId: string;
   mapIndex: number;
+  region?: TaskRegion;
 }
 
 type ConfirmAction = "approve" | "reject" | null;
 
 const STATUS_BADGE: Record<
-  string,
+  SessionStatus,
   { colorPalette: "green" | "red" | "yellow" | "blue"; label: string }
 > = {
   pending_review: { colorPalette: "yellow", label: "Pending Review" },
@@ -65,12 +67,13 @@ const STATUS_BADGE: Record<
   timeout_exceeded: { colorPalette: "red", label: "Timeout exceeded" },
 };
 
-export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex }) => {
+export const ChatPage: FC<ChatPageProps> = ({ dagId, runId, taskId, mapIndex, region }) => {
   const { session, loading, error, sendFeedback, approve, reject } = useSession(
     dagId,
     runId,
     taskId,
     mapIndex,
+    region,
   );
 
   const [feedbackText, setFeedbackText] = useState("");
