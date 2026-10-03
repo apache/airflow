@@ -16,21 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import textwrap
+import io
 
 import pytest
 from ci.prek import check_exception_format_args as hook
-from ci.prek.check_exception_format_args import (
-    ExceptionFormatArgsAllowlistManager,
-    count_positional_placeholders,
-    find_format_arg_raises,
-)
-
-
-@pytest.fixture
-def manager(tmp_path, monkeypatch):
-    monkeypatch.setattr(hook, "REPO_ROOT", tmp_path)
-    return ExceptionFormatArgsAllowlistManager(tmp_path / "allowlist.txt")
+from ci.prek.check_exception_format_args import count_positional_placeholders, find_format_arg_raises
+from rich.console import Console
 
 
 class TestCountPositionalPlaceholders:
@@ -127,77 +118,39 @@ class TestFindFormatArgRaises:
         assert find_format_arg_raises(tmp_path / "nonexistent.py") == []
 
 
-class TestManager:
-    def _write(self, tmp_path, rel: str, code: str):
-        path = tmp_path / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(textwrap.dedent(code))
-        return path
-
-    def test_exceeding_the_recorded_count_is_a_violation(self, manager, tmp_path):
-        path = self._write(
-            tmp_path,
-            "mod.py",
-            """\
-            raise ValueError("boom %s", value)
-            raise ValueError("bang %s", value)
-            """,
-        )
-        assert manager.check([path], {"mod.py": 1}) == 1
-        assert manager.check([path], {"mod.py": 2}) == 0
-
-    def test_violation_details_report_line_numbers(self, manager, tmp_path):
-        path = self._write(
-            tmp_path,
-            "mod.py",
-            """\
-            x = 1
-            raise ValueError("boom %s", value)
-            """,
-        )
-        assert manager.format_violation_details(path) == [
-            "      line 2: [yellow]ValueError[/yellow]",
-        ]
-
-    def test_generate_records_only_files_with_occurrences(self, manager, tmp_path):
-        (tmp_path / "bad.py").write_text('raise ValueError("boom %s", value)\n')
-        (tmp_path / "good.py").write_text('raise ValueError("boom")\n')
-
-        assert manager.generate() == 0
-        assert manager.load() == {"bad.py": 1}
-
-    def test_generate_skips_vendored_directories(self, manager, tmp_path):
-        vendored = tmp_path / "dev" / "breeze" / ".venv" / "lib" / "dep.py"
-        vendored.parent.mkdir(parents=True)
-        vendored.write_text('raise ValueError("boom %s", value)\n')
-
-        assert manager.generate() == 0
-        assert manager.load() == {}
-
-
 class TestMain:
     @pytest.fixture(autouse=True)
     def _repo(self, tmp_path, monkeypatch):
         monkeypatch.setattr(hook, "REPO_ROOT", tmp_path)
-        self.allowlist = tmp_path / "generated" / "known_exception_format_args.txt"
-        self.allowlist.parent.mkdir()
-        (tmp_path / "mod.py").write_text('raise ValueError("boom %s", value)\n')
+        self.output = io.StringIO()
+        monkeypatch.setattr(hook, "console", Console(file=self.output, width=200))
+        self.bad = tmp_path / "bad.py"
+        self.bad.write_text('x = 1\nraise ValueError("boom %s", value)\n')
+        self.good = tmp_path / "good.py"
+        self.good.write_text('raise ValueError("boom")\n')
 
-    def test_generate_writes_the_allowlist(self, tmp_path):
-        assert hook.main(["--generate"]) == 0
-        assert self.allowlist.read_text() == "mod.py::1\n"
+    def test_named_file_with_an_occurrence_fails(self):
+        assert hook.main([str(self.bad)]) == 1
 
-    def test_all_files_reports_an_unrecorded_occurrence(self, tmp_path):
+    def test_named_clean_file_passes(self):
+        assert hook.main([str(self.good)]) == 0
+
+    def test_violation_reports_file_and_line(self):
+        hook.main([str(self.bad)])
+        output = self.output.getvalue()
+        assert "bad.py" in output
+        assert "line 2: ValueError" in output
+
+    def test_all_files_finds_an_occurrence(self):
         assert hook.main(["--all-files"]) == 1
 
-    def test_named_file_is_checked_against_the_allowlist(self, tmp_path):
-        self.allowlist.write_text("mod.py::1\n")
-        assert hook.main([str(tmp_path / "mod.py")]) == 0
+    def test_all_files_skips_vendored_directories(self, tmp_path):
+        self.bad.unlink()
+        vendored = tmp_path / "dev" / "breeze" / ".venv" / "lib" / "dep.py"
+        vendored.parent.mkdir(parents=True)
+        vendored.write_text('raise ValueError("boom %s", value)\n')
 
-    def test_cleanup_drops_entries_for_deleted_files(self, tmp_path):
-        self.allowlist.write_text("mod.py::1\ngone.py::1\n")
-        assert hook.main(["--cleanup"]) == 0
-        assert self.allowlist.read_text() == "mod.py::1\n"
+        assert hook.main(["--all-files"]) == 0
 
     def test_no_arguments_is_a_no_op(self):
         assert hook.main([]) == 0

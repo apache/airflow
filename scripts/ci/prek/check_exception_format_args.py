@@ -21,7 +21,7 @@
 #   "rich>=13.0.0",
 # ]
 # ///
-"""Check that no new ``raise SomeError("... %s ...", value)`` usages are introduced.
+"""Check that no ``raise SomeError("... %s ...", value)`` usages are introduced.
 
 Exception constructors do not interpolate their arguments the way ``logger``
 calls do -- ``Exception.__init__`` just stores everything in ``args``. So::
@@ -34,7 +34,7 @@ intended sentence, and ``AirflowException.serialize()`` carries that same
 forwards only the message to ``super()`` -- ``google.api_core``'s
 ``GoogleAPICallError`` family, for instance -- drop the trailing arguments
 outright, so the identifier the message exists to carry never reaches the user.
-Bind an f-string to a variable and raise that instead.
+Interpolate the message with an f-string instead.
 
 Detection is AST-based because the pattern routinely spans several lines, and a
 call is only flagged when the number of ``%`` placeholders in the leading string
@@ -57,36 +57,6 @@ a message writing a percentage in English and passing one context object beside
 it would be flagged with nothing to fix. No message in the tree uses ``% d`` or
 ``% i`` for its intended purpose, so the flag is dropped from the grammar and
 the English reading wins.
-
-What the hook blocks is a net increase per file, not every new occurrence: the
-allowlist stores a count, so fixing one message and adding another in the same
-file goes unnoticed. That is the same trade-off every ``AllowlistManager`` hook
-in this directory makes, and it keeps the record stable when lines move.
-
-All *existing* usages are recorded in ``generated/known_exception_format_args.txt``
-as ``relative/path::N`` entries (one per file), where ``N`` is the maximum number
-of occurrences allowed in that file. A file whose current count exceeds the
-recorded limit is treated as a violation.
-
-Modes
------
-Default (files passed by prek/pre-commit):
-    Check only the supplied files; fail if any file's count exceeds the limit.
-    When a file's count has *decreased*, the allowlist entry is tightened
-    automatically and the hook exits with a non-zero code so that pre-commit
-    reports the modified allowlist -- just stage
-    ``generated/known_exception_format_args.txt`` and re-run.
-
-``--all-files``:
-    Walk the whole repository and check every ``.py`` file.
-
-``--cleanup``:
-    Remove entries for files that no longer exist. Safe to run at any time;
-    does not add new entries or raise limits.
-
-``--generate``:
-    Scan the whole repository and *rebuild* the allowlist from scratch.
-    Intended for the initial setup or after a large-scale clean-up sprint.
 """
 
 from __future__ import annotations
@@ -94,11 +64,11 @@ from __future__ import annotations
 import argparse
 import ast
 import re
-from collections.abc import Iterable
 from pathlib import Path
 
-from common_prek_utils import AIRFLOW_ROOT_PATH, AllowlistManager
+from common_prek_utils import AIRFLOW_ROOT_PATH
 from rich.console import Console
+from rich.panel import Panel
 
 console = Console(color_system="standard", width=200)
 
@@ -122,37 +92,16 @@ _FORMAT_TOKEN_RE = re.compile(
 
 _SKIPPED_DIR_NAMES = frozenset({".git", ".tox", ".venv", "__pycache__", "node_modules", "site-packages"})
 
-
-class ExceptionFormatArgsAllowlistManager(AllowlistManager):
-    def __init__(self, allowlist_file: Path) -> None:
-        super().__init__(allowlist_file, repo_root=REPO_ROOT)
-
-    def iter_files(self) -> Iterable[Path]:
-        return _iter_python_files()
-
-    def count_occurrences(self, path: Path) -> int:
-        return len(find_format_arg_raises(path))
-
-    def format_violation_details(self, path: Path) -> list[str]:
-        return [
-            f"      line {lineno}: [yellow]{name}[/yellow]" for lineno, name in find_format_arg_raises(path)
-        ]
-
-    def violation_panel_text(self) -> str:
-        return (
-            'New [bold]raise SomeError("... %s ...", value)[/bold] usage detected.\n'
-            "Exception constructors do not interpolate: the arguments are stored in\n"
-            "[bold]args[/bold] and the message keeps its literal [bold]%s[/bold]. Some exceptions\n"
-            "([bold]google.api_core[/bold]'s, for instance) drop them entirely.\n\n"
-            "Fix it by binding an f-string and raising that:\n\n"
-            '  [cyan]msg = f"TaskInstance {ti.task_id} is not found"[/cyan]\n'
-            "  [cyan]raise AirflowException(msg)[/cyan]\n\n"
-            "If the message writes a percentage in English that was never meant as a\n"
-            "conversion, reword it: [bold]50%off[/bold] reads as one, [bold]50% off[/bold] does not.\n\n"
-            "[yellow]--generate is not the fix.[/yellow] It records the line as allowed and leaves\n"
-            "the broken message in place. Reach for it only when a file carrying\n"
-            "existing occurrences is moved or renamed."
-        )
+_VIOLATION_PANEL_TEXT = (
+    '[bold]raise SomeError("... %s ...", value)[/bold] usage detected.\n'
+    "Exception constructors do not interpolate: the arguments are stored in\n"
+    "[bold]args[/bold] and the message keeps its literal [bold]%s[/bold]. Some exceptions\n"
+    "([bold]google.api_core[/bold]'s, for instance) drop them entirely.\n\n"
+    "Fix it by interpolating the message with an f-string:\n\n"
+    '  [cyan]raise AirflowException(f"TaskInstance {ti.task_id} is not found")[/cyan]\n\n'
+    "If the message writes a percentage in English that was never meant as a\n"
+    "conversion, reword it: [bold]50%off[/bold] reads as one, [bold]50% off[/bold] does not."
+)
 
 
 def count_positional_placeholders(message: str) -> int | None:
@@ -191,7 +140,23 @@ def find_format_arg_raises(path: Path) -> list[tuple[int, str]]:
         func = node.exc.func
         name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "<expr>")
         found.append((node.lineno, name))
-    return found
+    return sorted(found)
+
+
+def check_files(files: list[Path]) -> int:
+    violations: dict[Path, list[tuple[int, str]]] = {}
+    for path in files:
+        if path.suffix == ".py" and (found := find_format_arg_raises(path)):
+            violations[path] = found
+    if not violations:
+        return 0
+
+    console.print(Panel.fit(_VIOLATION_PANEL_TEXT, title="[red]Check failed[/red]", border_style="red"))
+    for path, found in violations.items():
+        console.print(f"  [cyan]{path.relative_to(REPO_ROOT)}[/cyan]")
+        for lineno, name in found:
+            console.print(f"      line {lineno}: [yellow]{name}[/yellow]")
+    return 1
 
 
 def _iter_python_files() -> list[Path]:
@@ -200,7 +165,7 @@ def _iter_python_files() -> list[Path]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Prevent new format-string arguments passed to exception constructors.",
+        description="Prevent format-string arguments passed to exception constructors.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -210,38 +175,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Check every Python file in the repository",
     )
-    parser.add_argument(
-        "--cleanup",
-        action="store_true",
-        help="Remove stale entries from the allowlist and exit",
-    )
-    parser.add_argument(
-        "--generate",
-        action="store_true",
-        help="Regenerate the allowlist from the current codebase and exit",
-    )
     args = parser.parse_args(argv)
 
-    manager = ExceptionFormatArgsAllowlistManager(REPO_ROOT / "generated" / "known_exception_format_args.txt")
-
-    if args.generate:
-        return manager.generate()
-
-    if args.cleanup:
-        return manager.cleanup()
-
-    allowlist = manager.load()
-
     if args.all_files:
-        return manager.check(_iter_python_files(), allowlist)
+        return check_files(_iter_python_files())
 
-    if not args.files:
-        console.print(
-            "[yellow]No files provided. Pass filenames or use --all-files to scan the whole repo.[/yellow]"
-        )
-        return 0
-
-    return manager.check([Path(f).resolve() for f in args.files], allowlist)
+    return check_files([Path(f).resolve() for f in args.files])
 
 
 if __name__ == "__main__":
