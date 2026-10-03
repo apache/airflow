@@ -79,10 +79,17 @@ is Airflow's and which part stays yours.
        :doc:`../rag_pipelines`.
      - No agent
      - ``[llamaindex]`` extra
+   * - Claude Agent SDK, through ``HarnessOperator``
+     - :class:`~airflow.providers.common.ai.operators.harness.HarnessOperator` runs the
+       vendor's own agent loop in the task, with Airflow giving it tools, credentials and
+       collecting the result. Guide: :doc:`../operators/harness`.
+     - The vendor's loop, inside the operator
+     - ``[claude-agent-sdk]`` extra
 
-The Strands and ADK integrations, the framework-neutral tool interface under them, and
-the tracing helper are experimental: they can change or be removed in a minor release of
-this provider. See :ref:`howto/stability`.
+The Strands and ADK integrations, the framework-neutral tool interface under them, the
+tracing helper, and the native harness interface under ``HarnessOperator``, are
+experimental: they can change or be removed in a minor release of this provider. See
+:ref:`howto/stability`.
 
 Tested versions
 ---------------

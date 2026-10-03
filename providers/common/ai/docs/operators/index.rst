@@ -52,6 +52,9 @@ to pick the one that fits your use case:
    * - Multi-turn reasoning with tools (DB queries, API calls, etc.)
      - :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - ``@task.agent``
+   * - Run a vendor's own agent loop (Claude Agent SDK) with Airflow tools
+     - :class:`~airflow.providers.common.ai.operators.harness.HarnessOperator`
+     - *(no decorator)*
    * - Parse files (PDF, DOCX, CSV, etc.) into document dicts for embedding
      - :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
      - *(no decorator)*
@@ -83,6 +86,12 @@ read files) to produce its answer. You configure available tools through ``tools
 
 AgentOperator *works* without toolsets, since pydantic-ai supports tool-less agents for multi-turn
 reasoning, but if you don't need tools, ``LLMOperator`` is simpler and more explicit.
+
+**HarnessOperator**: runs a vendor's own agent loop ("harness") in the task instead of a
+Pydantic AI agent -- the vendor decides how many turns to take and when to stop. Airflow
+gives it tools, credentials and collects the result. The first backend is the Claude
+Agent SDK. Use this to run Claude Code's own loop instead of rebuilding it with
+``AgentOperator``; see :doc:`harness`.
 
 **DocumentLoaderOperator**: framework-agnostic file parsing. Use this to convert files
 (text, CSV, JSON, PDF, DOCX) into ``list[dict(text, metadata)]`` for downstream embedding.
@@ -135,3 +144,4 @@ Operator guides
     Detect schema drift <llm_schema_compare>
     Batch processing <llm_batch>
     Agents with tools <agent>
+    Native agent harnesses <harness>
