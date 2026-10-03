@@ -27,7 +27,7 @@ import typing
 import uuid
 import zipfile
 from collections.abc import Callable, Iterable
-from socket import socketpair
+from socket import socket, socketpair
 from typing import TYPE_CHECKING, Any, BinaryIO
 from unittest.mock import MagicMock, PropertyMock, patch
 
@@ -54,6 +54,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import DagFileProcessorManager, process_parse_results
 from airflow.dag_processing.processor import (
+    BaseDagFileProcessorProcess,
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
@@ -2589,6 +2590,27 @@ class TestDagFileProcessorProcess:
             "value": "super-secret-value",
             "type": "VariableResult",
         }
+
+
+class TestBaseDagFileProcessorProcess:
+    @patch.object(BaseDagFileProcessorProcess, "cleanup_sockets_after_kill", autospec=True)
+    def test_without_a_parse_log_the_output_goes_to_devnull_and_close_closes_it(self, mock_cleanup):
+        proc = BaseDagFileProcessorProcess(
+            process_log=structlog.get_logger(),
+            id=uuid.uuid4(),
+            pid=1234,
+            process=MagicMock(spec=supervisor.ProcessTracker),
+            stdin=MagicMock(spec=socket),
+            bundle_name="mybundle",
+            dag_file_rel_path="dags/my_dag.py",
+        )
+        logger_filehandle = proc.logger_filehandle
+
+        proc.close()
+
+        assert logger_filehandle.name == os.devnull
+        assert logger_filehandle.closed
+        mock_cleanup.assert_called_once_with(proc)
 
 
 class TestMultiTeamCallbackMetrics:
