@@ -29,9 +29,9 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
 
     if AIRFLOW_V_3_3_PLUS:
-        from airflow.executors.workloads.types import WorkloadKey as _WorkloadKey
+        from airflow.executors.workloads.types import WorkloadKey as _BatchWorkloadKey
 
-        BatchJobWorkloadKey: TypeAlias = _WorkloadKey
+        BatchJobWorkloadKey: TypeAlias = _BatchWorkloadKey
     else:
         BatchJobWorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
 
