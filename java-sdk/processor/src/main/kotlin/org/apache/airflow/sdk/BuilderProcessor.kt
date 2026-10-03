@@ -135,6 +135,7 @@ class BuilderProcessor : AbstractProcessor() {
           val builderName = ClassName.get(packageName, dagAnnotation(el).to.ifBlank { "${el.simpleName}Builder" })
           val depsName = ClassName.get(packageName, "${el.simpleName}Deps")
           val deps = findDeps(el, depsName)
+          if (deps != null) declarations.forEach { checkViewName(it) }
           JavaFile
             .builder(packageName, buildBuilder(el, declarations, deps, builderName))
             .build()
@@ -400,6 +401,19 @@ class BuilderProcessor : AbstractProcessor() {
       "depends() of @Builder.Deps class '$name' must not throw checked exceptions: ${checked.joinToString()}"
     }
     return deps
+  }
+
+  /**
+   * Rejects a task method whose wiring-view twin would clash with a member
+   * the view or the wiring class already has: `depends`, `lit`, or a method
+   * of `Object`.
+   */
+  private fun checkViewName(decl: TaskDeclaration) {
+    val name = decl.method.simpleName.toString()
+    require(name !in RESERVED_VIEW_NAMES) {
+      "Task method '$name' clashes with a member of the wiring view; rename the method and keep " +
+        "the task id with @Builder.Task(id = \"${decl.id}\")"
+    }
   }
 
   /**
@@ -707,6 +721,21 @@ private val DEPS_TYPE = ClassName.get(Deps::class.java)
 
 private const val DAG_ANNOTATION = "org.apache.airflow.sdk.Builder.Dag"
 private const val TASK_ANNOTATION = "org.apache.airflow.sdk.Builder.Task"
+
+private val RESERVED_VIEW_NAMES =
+  setOf(
+    "depends",
+    "lit",
+    "clone",
+    "equals",
+    "finalize",
+    "getClass",
+    "hashCode",
+    "notify",
+    "notifyAll",
+    "toString",
+    "wait",
+  )
 
 private val DAG_STRUCTURAL_ATTRIBUTES = setOf("id", "to")
 private val TASK_STRUCTURAL_ATTRIBUTES = setOf("id")

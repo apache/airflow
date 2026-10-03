@@ -1163,6 +1163,32 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("reject a task method whose name clashes with a wiring-view member")
+  fun rejectTaskNameClashingWithViewMember() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task(id = "wire") public void depends() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task method 'depends' clashes with a member of the wiring view; rename the method and keep " +
+        "the task id with @Builder.Task(id = \"wire\")",
+    )
+  }
+
+  @Test
   @DisplayName("generate builder for dag class with varargs task parameter")
   fun generateBuilderForDagClassWithVarArgsTaskParameter() {
     val compilation =
