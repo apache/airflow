@@ -19,6 +19,7 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.DagSource
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.checkConfigValue
 import org.apache.airflow.sdk.internal.validateTaskInput
@@ -49,6 +50,9 @@ class DagDef(
 ) {
   internal val tasks = linkedMapOf<String, TaskDef>()
   internal val dagConfig = linkedMapOf<String, Any>()
+
+  /** Outermost class that declared this Dag, or `null` if it could not be told. */
+  internal var declaringClass: Class<*>? = DagSource.capture()
 
   /**
    * Sets one Dag-level configuration value.
