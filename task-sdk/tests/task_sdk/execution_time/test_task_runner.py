@@ -179,7 +179,7 @@ from airflow.sdk.execution_time.task_runner import (
     TaskRunnerMarker,
     _defer_task,
     _execute_task,
-    _get_claiming_coordinator_key,
+    _find_native_dag_importer,
     _make_task_span,
     _push_xcom_if_needed,
     _register_deserialization_allowed_classes,
@@ -908,6 +908,7 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
 
 
 class NativeDagImporter(CoordinatorDagImporter):
+    coordinator_classpath = f"{__name__}.NativeCoordinator"
     artifact_suffix = ".native"
     supported_extensions = [".native"]
 
@@ -917,10 +918,7 @@ class NativeDagImporter(CoordinatorDagImporter):
 
 @attrs.define(kw_only=True)
 class NativeCoordinator(SubprocessCoordinator):
-    """A coordinator whose Dag importer claims ``.native`` files in every bundle."""
-
-    def get_dag_importer(self):
-        return NativeDagImporter(coordinator=self)
+    """A coordinator of the runtime whose Dag importer claims ``.native`` files in every bundle."""
 
 
 NATIVE_COORDINATOR_SPEC = {"classpath": f"{__name__}.NativeCoordinator", "kwargs": {}}
@@ -936,11 +934,17 @@ def native_dag_startup(tmp_path: Path, make_ti_context):
             "kwargs": {"path": str(tmp_path), "refresh_interval": 1},
         }
     ]
-    with conf_vars(
-        {
-            ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
-            ("sdk", "coordinators"): json.dumps({"native": NATIVE_COORDINATOR_SPEC}),
-        }
+    with (
+        mock.patch(
+            "airflow.sdk.coordinators._dag_importer.COORDINATOR_DAG_IMPORTERS",
+            (f"{__name__}.NativeDagImporter",),
+        ),
+        conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+                ("sdk", "coordinators"): json.dumps({"native": NATIVE_COORDINATOR_SPEC}),
+            }
+        ),
     ):
         yield StartupDetails(
             ti=TaskInstance(
@@ -978,8 +982,8 @@ def test_parse_fails_a_task_of_a_native_dag_without_retries(
     )
     log.error.assert_called_once_with(
         "This task belongs to a native Lang-SDK Dag and cannot run in Python. Give the Dag's tasks "
-        "their own queue and map it to coordinator %r in [sdk] queue_to_coordinator",
-        "native",
+        "their own queue and route it to a %s in [sdk] queue_to_coordinator",
+        "NativeCoordinator",
         dag_id="native_dag",
         task_id="a",
         queue="default",
@@ -997,19 +1001,35 @@ def test_parse_exits_non_zero_when_the_failure_cannot_be_reported(
         parse(native_dag_startup, mock.Mock())
 
 
+@patch("airflow.dag_processing.dagbag.BundleDagBag", autospec=True)
+def test_parse_fails_a_task_of_a_native_dag_when_several_coordinators_could_parse_it(
+    mock_bag, native_dag_startup, mock_supervisor_comms
+):
+    coordinators = {"first": NATIVE_COORDINATOR_SPEC, "second": NATIVE_COORDINATOR_SPEC}
+    log = mock.Mock()
+
+    with conf_vars({("sdk", "coordinators"): json.dumps(coordinators)}), pytest.raises(SystemExit):
+        parse(native_dag_startup, log)
+
+    mock_bag.assert_not_called()
+    assert log.error.call_args.args[1] == "NativeCoordinator"
+
+
+@pytest.mark.usefixtures("native_dag_startup")
 @pytest.mark.parametrize(
     ("file_name", "expected"),
-    [("dag.native", "native"), ("dag.py", None), ("dag.pyc", None), ("dags.zip", None)],
+    [("dag.native", True), ("dag.py", False), ("dag.pyc", False), ("dags.zip", False)],
 )
-def test_get_claiming_coordinator_key(file_name, expected):
-    with conf_vars({("sdk", "coordinators"): json.dumps({"native": NATIVE_COORDINATOR_SPEC})}):
-        assert _get_claiming_coordinator_key(f"/bundle/{file_name}", "my-bundle") == expected
+def test_find_native_dag_importer(file_name, expected):
+    importer = _find_native_dag_importer(f"/bundle/{file_name}", "my-bundle")
+
+    assert isinstance(importer, NativeDagImporter) is expected
 
 
-def test_get_claiming_coordinator_key_with_a_clashing_config():
-    coordinators = {"first": NATIVE_COORDINATOR_SPEC, "second": NATIVE_COORDINATOR_SPEC}
-    with conf_vars({("sdk", "coordinators"): json.dumps(coordinators)}):
-        assert _get_claiming_coordinator_key("/bundle/dag.native", "my-bundle") is None
+@pytest.mark.usefixtures("native_dag_startup")
+@patch("airflow.sdk.coordinators._dag_importer.COORDINATOR_DAG_IMPORTERS", ("nonexistent.module.Importer",))
+def test_find_native_dag_importer_when_the_importers_cannot_be_built():
+    assert _find_native_dag_importer("/bundle/dag.native", "my-bundle") is None
 
 
 @pytest.mark.parametrize("use_queues", [False, True])
