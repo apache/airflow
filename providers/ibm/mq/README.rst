@@ -58,7 +58,7 @@ Note that the `ibmmq <https://github.com/ibm-messaging/mq-mqi-python/>`_ Python 
 
 Refer to the IBM MQ documentation for installation instructions for your platform.
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.11,3.12,3.13
 
 Requirements
 ------------
