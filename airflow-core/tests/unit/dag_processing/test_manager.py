@@ -1661,6 +1661,28 @@ class TestDagFileProcessorManager:
         _, kwargs = mock_start.call_args
         assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
 
+    @pytest.mark.parametrize(
+        ("log_target", "expected_log_files"),
+        [
+            ("file", 1),
+            ("stdout", 0),
+        ],
+    )
+    def test_create_process_writes_parse_log_file_only_for_file_target(
+        self, tmp_path, log_target, expected_log_files
+    ):
+        with conf_vars({("logging", "dag_processor_log_target"): log_target}):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60, base_log_dir=str(tmp_path))
+            dag_file = DagFileInfo(
+                bundle_name="testing", rel_path=Path("my_dag.py"), bundle_path=Path("/tmp")
+            )
+            with mock.patch.object(DagFileProcessorProcess, "start") as mock_start:
+                manager._create_process(dag_file)
+
+        if (filehandle := mock_start.call_args.kwargs["logger_filehandle"]) is not None:
+            filehandle.close()
+        assert len(list(tmp_path.rglob("*.log"))) == expected_log_files
+
     def test_terminate_orphan_processes_kills_then_closes_processor(self):
         manager = DagFileProcessorManager(max_runs=1)
         processor, _ = self.mock_processor()
