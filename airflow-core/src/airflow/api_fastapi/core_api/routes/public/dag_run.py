@@ -833,6 +833,7 @@ def trigger_dag_run(
             partition_date=params["partition_date"],
             session=session,
         )
+        dag_run.log_if_new_run_blocked_by_max_active_runs(session=session)
 
         dag_run_note = body.note
         if dag_run_note:

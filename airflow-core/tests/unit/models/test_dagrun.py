@@ -51,6 +51,7 @@ from airflow._shared.observability.traces import (
 )
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
+from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs
@@ -1647,6 +1648,73 @@ class TestDagRun:
                     task_states={"task_1": TaskInstanceState.SUCCESS},
                     session=session,
                 )
+
+    @pytest.mark.parametrize(
+        ("max_active_runs", "running_run_type", "expect_log"),
+        [
+            pytest.param(1, "manual", True, id="at_max"),
+            pytest.param(1, None, False, id="below_max"),
+            pytest.param(0, "manual", True, id="max_active_runs_zero_never_promoted"),
+            pytest.param(1, "backfill", False, id="running_backfill_run_does_not_count"),
+        ],
+    )
+    def test_log_if_new_run_blocked_by_max_active_runs(
+        self, session, caplog, max_active_runs, running_run_type, expect_log
+    ):
+        dag = DAG(
+            dag_id="test_log_if_new_run_blocked_by_max_active_runs",
+            schedule=None,
+            max_active_runs=max_active_runs,
+        )
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        if running_run_type is not None:
+            backfill_id = None
+            if running_run_type == "backfill":
+                backfill = Backfill(
+                    dag_id=dag.dag_id, from_date=DEFAULT_DATE, to_date=DEFAULT_DATE, dag_run_conf=None
+                )
+                session.add(backfill)
+                session.flush()
+                backfill_id = backfill.id
+            scheduler_dag.create_dagrun(
+                run_id="running_run",
+                logical_date=DEFAULT_DATE,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                run_after=DEFAULT_DATE,
+                run_type=DagRunType.BACKFILL_JOB if running_run_type == "backfill" else DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                backfill_id=backfill_id,
+                triggered_by=DagRunTriggeredByType.TEST,
+                session=session,
+            )
+
+        queued_logical_date = DEFAULT_DATE + datetime.timedelta(hours=1)
+        queued_run = scheduler_dag.create_dagrun(
+            run_id="queued_run",
+            logical_date=queued_logical_date,
+            data_interval=(queued_logical_date, queued_logical_date),
+            run_after=queued_logical_date,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.QUEUED,
+            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
+        )
+
+        with caplog.at_level("INFO", logger="airflow.models.dagrun"):
+            queued_run.log_if_new_run_blocked_by_max_active_runs(session=session)
+
+        if expect_log:
+            assert {
+                "event": "created DagRun will not be scheduled yet, dag is at max_active_runs",
+                "dag_id": "test_log_if_new_run_blocked_by_max_active_runs",
+                "run_id": "queued_run",
+                "active_runs": 1,
+                "max_active_runs": max_active_runs,
+                "log_level": "info",
+            } in caplog
+        else:
+            assert "created DagRun will not be scheduled yet, dag is at max_active_runs" not in caplog
 
 
 @pytest.mark.parametrize(

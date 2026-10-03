@@ -744,6 +744,51 @@ class DagRun(Base, LoggingMixin):
             query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
         return {dag_id: count for dag_id, count in session.execute(query)}
 
+    @provide_session
+    def log_if_new_run_blocked_by_max_active_runs(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Log if a just-created DagRun will not be scheduled yet because the Dag is at max_active_runs.
+
+        Meant to be called by request-driven trigger surfaces -- manual UI/REST-API triggers and
+        TriggerDagRunOperator/CLI (via :func:`airflow.api.common.trigger_dag.trigger_dag`) -- right
+        after :meth:`SerializedDAG.create_dagrun`. Deliberately not called from the scheduler's own
+        run-creation call sites: those run every scheduling loop, so calling this from there too
+        would turn a one-shot, per-trigger log into a per-loop one instead.
+
+        Counts running non-backfill runs only, to match the promotion queries
+        (:meth:`get_queued_dag_runs_to_set_running` and the scheduler's ``_start_queued_dagruns``),
+        which both count running runs per ``(dag_id, backfill_id)`` -- a running backfill run
+        doesn't hold back a manual trigger's own max_active_runs slot.
+
+        Reads ``self.max_active_runs`` (proxied from :class:`~airflow.models.dag.DagModel`) rather
+        than a serialized Dag's value, to match what the scheduler's ``_start_queued_dagruns``
+        checks against -- the serialized Dag can lag ``DagModel`` by up to
+        ``min_serialized_dag_update_interval`` after ``max_active_runs`` is edited.
+
+        :meta private:
+        """
+        max_active_runs = self.max_active_runs or 0
+        num_running = (
+            session.scalar(
+                select(func.count())
+                .select_from(DagRun)
+                .where(
+                    DagRun.dag_id == self.dag_id,
+                    DagRun.state == DagRunState.RUNNING,
+                    DagRun.backfill_id.is_(None),
+                )
+            )
+            or 0
+        )
+        if num_running >= max_active_runs:
+            log.info(
+                "created DagRun will not be scheduled yet, dag is at max_active_runs",
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                active_runs=num_running,
+                max_active_runs=max_active_runs,
+            )
+
     @classmethod
     @retry_db_transaction
     def get_running_dag_runs_to_examine(
