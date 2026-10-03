@@ -6376,7 +6376,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
-    { name = "ibmmq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'ibmmq'", specifier = ">=2.0.6" },
+    { name = "ibmmq", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and extra == 'ibmmq'", specifier = ">=2.1.0" },
 ]
 provides-extras = ["ibmmq", "common-messaging"]
 
