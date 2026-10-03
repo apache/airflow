@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import re
 import time
 from collections.abc import Iterable, Mapping, Sequence
@@ -129,7 +130,11 @@ class JenkinsJobTriggerOperator(BaseOperator):
         # Since params can be either JSON string, dictionary, or list,
         # check type and pass to build_job_url
         if params and isinstance(params, str):
-            params = ast.literal_eval(params)
+            try:
+                params = json.loads(params)
+            except json.JSONDecodeError:
+                # Keep accepting Python literals, e.g. a dict rendered by Jinja as ``{'key': 'value'}``.
+                params = ast.literal_eval(params)
 
         request = Request(method="POST", url=jenkins_server.build_job_url(self.job_name, params, None))
         return jenkins_request_with_headers(jenkins_server, request)
