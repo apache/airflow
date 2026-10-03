@@ -20,6 +20,7 @@ import logging
 import os
 import subprocess
 import sys
+import textwrap
 import time
 from unittest import mock
 
@@ -39,6 +40,7 @@ from airflow_shared.observability.metrics.otel_logger import (
     UP_DOWN_COUNTERS,
     MetricsMap,
     SafeOtelLogger,
+    _ForkSafeMeterProvider,
     _generate_key_name,
     _is_up_down_counter,
     full_name,
@@ -517,7 +519,7 @@ class TestOtelMetrics:
             )
 
     @mock.patch("airflow_shared.observability.metrics.otel_logger.metrics")
-    @mock.patch("airflow_shared.observability.metrics.otel_logger.MeterProvider")
+    @mock.patch("airflow_shared.observability.metrics.otel_logger._ForkSafeMeterProvider")
     def test_get_otel_logger_uses_exponential_histogram_view(self, mock_provider, mock_metrics):
         get_otel_logger(host="localhost", port=4318)
 
@@ -558,6 +560,11 @@ class TestOtelMetrics:
         logger = get_otel_logger(host="localhost", port=4318)
 
         assert logger.otel is not pre_existing
+
+    def test_get_otel_logger_installs_the_fork_safe_provider(self, reset_meter_provider):
+        logger = get_otel_logger(host="localhost", port=4318)
+
+        assert isinstance(logger.otel, _ForkSafeMeterProvider)
 
     def test_atexit_flush_on_process_exit(self):
         """
@@ -616,6 +623,82 @@ class TestOtelMetrics:
             f"stdout:\n{proc.stdout}\n"
             f"stderr:\n{proc.stderr}"
         )
+
+
+_FORK_SCENARIO = textwrap.dedent(
+    """
+    import os
+    import signal
+    import time
+
+    from opentelemetry.sdk import resources as otel_resources
+
+    from airflow_shared.observability.metrics.otel_logger import _ForkSafeMeterProvider
+
+    # Kept referenced: the SDK registers the after_in_child handler under test through a WeakMethod.
+    provider = _ForkSafeMeterProvider(shutdown_on_exit=False)
+
+    with otel_resources._service_instance_id_lock:
+        pid = os.fork()
+        if pid == 0:
+            os._exit(0)
+
+        deadline = time.monotonic() + 10
+        status = None
+        while time.monotonic() < deadline:
+            waited_pid, waited_status = os.waitpid(pid, os.WNOHANG)
+            if waited_pid == pid:
+                status = waited_status
+                break
+            time.sleep(0.05)
+
+        if status is None:
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
+            raise SystemExit("child never returned from os.fork()")
+    """
+)
+
+
+class TestForkSafeMeterProvider:
+    def test_handle_fork_refreshes_the_locks(self):
+        provider = _ForkSafeMeterProvider(shutdown_on_exit=False)
+        inherited_locks = (
+            provider._lock,
+            provider._meter_lock,
+            SDKMeterProvider._all_metric_readers_lock,
+        )
+
+        provider._handle_fork()
+
+        refreshed_locks = (
+            provider._lock,
+            provider._meter_lock,
+            SDKMeterProvider._all_metric_readers_lock,
+        )
+        assert all(new is not old for new, old in zip(refreshed_locks, inherited_locks))
+        assert "_all_metric_readers_lock" not in vars(_ForkSafeMeterProvider)
+
+    @mock.patch("opentelemetry.sdk.metrics._internal._get_process_dependent_resource", autospec=True)
+    def test_handle_fork_does_not_detect_the_process_resource(self, mock_get_process_dependent_resource):
+        _ForkSafeMeterProvider(shutdown_on_exit=False)._handle_fork()
+
+        mock_get_process_dependent_resource.assert_not_called()
+
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="requires os.fork()")
+    def test_forked_child_boots_with_the_service_instance_lock_held(self):
+        """
+        A child forked while the parent holds the SDK's service-instance lock still boots.
+
+        Runs in a fresh interpreter for the same reason as the ``TracerProvider`` variant in
+        ``test_traces.py``: every ``MeterProvider`` created earlier in this session registers
+        the SDK's own handler too.
+        """
+        result = subprocess.run(
+            [sys.executable, "-c", _FORK_SCENARIO], capture_output=True, text=True, timeout=60, check=False
+        )
+
+        assert result.returncode == 0, result.stderr
 
 
 def mock_service_run():

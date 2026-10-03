@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from contextlib import contextmanager
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING
@@ -248,6 +249,23 @@ def _load_exporter_from_env() -> SpanExporter:
     return ep.load()()
 
 
+class _ForkSafeTracerProvider(TracerProvider):
+    """
+    ``TracerProvider`` that survives ``os.fork()``.
+
+    The SDK's ``after_in_child`` handler refreshes process-dependent resource attributes on a
+    ``ThreadPoolExecutor``. A blocked detector is not bounded by the pool's timeout -- leaving
+    ``get_aggregated_resources`` joins the pool threads -- and the default service-instance
+    detector takes a module-level lock that a forked child inherits locked with no owner. The
+    child then never returns from ``os.fork()``, which is how OTel stalls every LocalExecutor
+    worker and DagFileProcessor child Airflow forks. Only the tracer lock is refreshed here;
+    the child keeps the parent's process-dependent resource attributes rather than deadlocking.
+    """
+
+    def _handle_fork(self) -> None:
+        self._tracers_lock = threading.Lock()
+
+
 def configure_otel(conf: ConfigParser):
     otel_on = conf.getboolean("traces", "otel_on", fallback=False)
     if not otel_on:
@@ -266,6 +284,6 @@ def configure_otel(conf: ConfigParser):
     if backcompat_endpoint and not (otlp_endpoint or otlp_traces_endpoint):
         os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = backcompat_endpoint
 
-    provider = TracerProvider(id_generator=OverrideableRandomIdGenerator(), resource=resource)
+    provider = _ForkSafeTracerProvider(id_generator=OverrideableRandomIdGenerator(), resource=resource)
     provider.add_span_processor(BatchSpanProcessor(_load_exporter_from_env()))
     trace.set_tracer_provider(provider)
