@@ -47,7 +47,7 @@ from airflow.models.pool import Pool
 from airflow.sdk.importers import DagImportError, get_importer_registry
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.utils.file import correct_maybe_zipped, find_enclosing_file
+from airflow.utils.file import find_enclosing_file
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -276,9 +276,7 @@ class DagBag(LoggingMixin):
             self.dags.pop(dag_id, None)
         if dag is None or is_expired:
             # Reprocess source file.
-            found_dags = self.process_file(
-                filepath=correct_maybe_zipped(orm_dag.fileloc), only_if_updated=False
-            )
+            found_dags = self.process_file(filepath=orm_dag.fileloc, only_if_updated=False)
 
             # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [found_dag.dag_id for found_dag in found_dags]:
@@ -287,8 +285,8 @@ class DagBag(LoggingMixin):
         return self.dags.get(dag_id)
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-        """Process a DAG file and return found DAGs."""
-        if filepath is None or not os.path.isfile(filepath):
+        """Process a Dag file, or a Dag definition nested in one, and return found Dags."""
+        if filepath is None or os.path.isdir(filepath):
             return []
         return [
             dag

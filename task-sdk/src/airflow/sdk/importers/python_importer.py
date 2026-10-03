@@ -151,14 +151,24 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
 
         A lightweight content sniff (``might_contain_dag``) is applied here so files that
         clearly hold no Dag never become definitions -- keeping the discovered set (and the
-        eventual parse-process count) close to the number of real Dag files. Zip members are
-        discovered by :class:`..zip_importer.ZipImporter`, not here.
+        eventual parse-process count) close to the number of real Dag files. A file that cannot
+        be read is reported as a DagImportError and the remaining files are still yielded. Zip
+        members are discovered by :class:`..zip_importer.ZipImporter`, not here.
         """
         for definition in find_file_dag_definitions(bundle.path, self.supported_extensions):
-            if self.might_contain_dag(definition, safe_mode):
-                yield definition
-            else:
-                log.debug("Skipping %r: no Airflow Dag markers found", definition)
+            try:
+                if not self.might_contain_dag(definition, safe_mode):
+                    log.debug("Skipping %r: no Airflow Dag markers found", definition)
+                    continue
+            except Exception as e:
+                log.warning("Cannot read Dag file %s: %s", definition.path, e)
+                yield DagImportError(
+                    source_reference=definition.get_relative_loc(bundle.path),
+                    message=f"Failed to read Dag file: {e}",
+                    error_type="read_error",
+                )
+                continue
+            yield definition
 
     def import_definition(
         self,

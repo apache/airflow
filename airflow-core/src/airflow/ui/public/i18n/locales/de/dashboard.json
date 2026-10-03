@@ -31,7 +31,7 @@
     "degraded": "Degradiert",
     "degradedHint": {
       "dagProcessor": "Einige konfigurierte Dag Bündel haben keinen Dag Prozessor zur Verarbeitung.",
-      "triggerer": "Einige Teams haben keinen Triggerer für Hintergrungsaufgaben zur Abarbeitung."
+      "triggerer": "Einige Teams haben keinen Triggerer für Hintergrundsaufgaben zur Abarbeitung."
     },
     "down": "Nicht aktiv",
     "health": "System-Gesundheit",
@@ -40,9 +40,9 @@
       "bundles": "Bündel",
       "hostname": "Host",
       "team": "Team",
-      "title_one": "{{title}} — {{status}} ({{count}} instanzen)",
-      "title_other": "{{title}} — {{status}} ({{count}} instanzen)",
-      "unknownHostname": "Unbekannter host"
+      "title_one": "{{title}} — {{status}} ({{count}} Instanzen)",
+      "title_other": "{{title}} — {{status}} ({{count}} Instanzen)",
+      "unknownHostname": "Unbekannter Host"
     },
     "lastHeartbeat": "Letztes Lebenszeichen",
     "metaDatabase": "Meta-Datenbank",

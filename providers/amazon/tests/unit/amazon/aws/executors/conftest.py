@@ -14,20 +14,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
----
-downloads:
-  - url: https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/9.4.0.0-IBM-MQC-Redist-LinuxX64.tar.gz  # yamllint disable-line rule:line-length
-    sha256: a839db8f14cef59319639336e951a52dc320fd6a42ab5bee9bc925e43985f457
-    extract_to: /opt/mqm
-    # Anycast IPs published by IBM for public.dhe.ibm.com (see
-    # https://www.ibm.com/support/pages/node/6826677). Used only when DNS
-    # resolution of the hostname fails inside the test container; TLS SNI
-    # and certificate verification remain bound to public.dhe.ibm.com.
-    fallback_ips:
-      - 170.225.126.18
-      - 129.35.224.1
-      - 129.124.168.5
-      - 9.133.44.11
-env:
-  MQ_FILE_PATH: /opt/mqm
+from uuid import uuid4
+
+import pytest
+
+
+@pytest.fixture
+def task_identity_workloads():
+    from airflow.executors.workloads import BundleInfo, ExecuteTask, TaskInstanceDTO
+
+    first = ExecuteTask(
+        ti=TaskInstanceDTO(
+            id=uuid4(),
+            dag_version_id=uuid4(),
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            try_number=1,
+            pool_slots=1,
+            priority_weight=1,
+            queue="default",
+        ),
+        dag_rel_path="dag.py",
+        bundle_info=BundleInfo(name="bundle"),
+        token="",
+        log_path=None,
+    )
+    return [first, first.model_copy(update={"ti": first.ti.model_copy(update={"id": uuid4()})})]

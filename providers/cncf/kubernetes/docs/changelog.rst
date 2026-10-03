@@ -38,6 +38,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix KubernetesExecutor not queuing tasks on Airflow 3.0.x (#73764)``
 * ``Prevent KubernetesExecutor from launching stale workloads (#69762)``
 * ``Fix KubernetesPodOperator discarding successful XCom when sidecar kill fails (#72068)``
 * ``Fix deferrable Kubernetes 401s with a default exec-based kubeconfig (#72300)``
@@ -47,6 +48,7 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Bump the default XCom sidecar image to alpine 3.24.2 (#73629)``
 * ``Unify executor workload queues (#63491)``
 
 Doc-only
@@ -58,6 +60,9 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Correlate executor task events by attempt UUID (#73916)``
+   * ``Add dedicated tests for cncf.kubernetes secret and k8s_model modules (#73751)``
+   * ``Prepare providers release 2026-09-22 (#73506)``
    * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
    * ``[main] Upgrade important CI environment (#73308)``
    * ``Remove real sleeps from slow provider unit tests (#73478)``

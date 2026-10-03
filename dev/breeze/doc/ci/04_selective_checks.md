@@ -166,7 +166,7 @@ flowchart TD
     E2 -->|yes| T
     E2 -->|no| E3{git or standard<br/>provider files?}
     E3 -->|yes| T
-    E3 -->|no| E4{core test utils?<br/>tests/utils}
+    E3 -->|no| E4{test helper loaded by every test run?<br/>tests_common pytest plugin + its imports}
     E4 -->|yes| T
     E4 -->|no| E5{'full tests needed' label?}
     E5 -->|yes| T
@@ -219,8 +219,10 @@ When unit tests run, selective checks narrow *which* test types execute, separat
 * **Provider test types** (`_get_providers_test_types_to_run`): empty on non-`main` branches. In full
   mode (or when dependencies were upgraded) → `Providers` (all). Otherwise selective checks compute the
   **affected providers** from the changed files and add their **direct upstream and downstream
-  dependents** (not the whole transitive closure). Changes to *common* provider code (tests/utils that
-  don't belong to a single provider) escalate to *all* providers. Suspended providers are excluded (and
+  dependents** (not the whole transitive closure). Changes to *common* provider code under
+  `devel-common/` escalate to *all* providers, except a changed `tests_common` helper, which instead
+  selects the test files that import it (directly or through other helpers) as if those files had
+  changed. Suspended providers are excluded (and
   a PR that touches one fails unless it carries the `allow suspended provider changes` label).
 
 The same matched-file approach drives the **prek hook skip list** (`skip_prek_hooks`): each mypy /
@@ -333,10 +335,13 @@ all versions), the cause is almost always a single rule that fired. To find it:
      `scripts/ci/*`, `scripts/docker/*`, (often this is the surprise: editing CI/breeze itself runs everything);
    * **`pyproject.toml`** or generated provider dependencies changed (also forces `all_versions`);
    * the **generated OpenAPI spec** or the client generator changed (the API contract);
-   * **`tests/utils`** or **git/standard provider** files changed;
+   * a **`tests_common` helper loaded by every test run** (the pytest plugin, anything it imports,
+     conftest or package `__init__` modules), a helper whose importers cannot be narrowed (it was
+     deleted or renamed, `git grep` failed, or an importer lies outside the known test trees), or
+     **git/standard provider** files changed;
    * the **`full tests needed`** or **`all versions`** label is set on the PR.
 4. **All providers running?** That means selective checks decided *all* providers are affected — usually
-   because *common* provider code (shared tests/utils not owned by one provider) changed, or because
+   because *common* provider code under `devel-common/` changed, or because
    dependencies were upgraded, or `full_tests_needed` is on. The reason is printed in the
    provider-selection `[warning]` lines.
 5. **Want to confirm an optimisation is safe?** Remember the canary on `main` always runs everything —
@@ -419,8 +424,10 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   miss commit info, or any of the important environment files (`pyproject.toml`, `Dockerfile`, `scripts`,
   etc.) changed, or the API *contract* changed (the generated OpenAPI spec or the client generator —
   plain API source/test edits that leave the committed spec
-  untouched do **not** force full tests), or `tests/utils` / git / standard provider files changed, or
-  when the `full tests needed` label is set.
+  untouched do **not** force full tests), or a `tests_common` helper loaded by every test run or whose
+  importers cannot be narrowed (helper deleted or renamed, `git grep` failed, or an importer outside the
+  known test trees), or git / standard provider files changed, or when the `full tests needed` label is
+  set. Any other changed `tests_common` helper only selects the tests that import it.
   That enables all matrix combinations of variables (representative) and all possible test type. No further
   checks are performed. See also [1] note below. Two exceptions narrow this: a PUSH that changed **only**
   `.txt`/`.md` files skips full tests, and a PUSH to a **release branch** (`v3-X-test`, i.e. not `main`)
