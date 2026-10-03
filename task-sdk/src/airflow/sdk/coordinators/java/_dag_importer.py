@@ -21,13 +21,14 @@ from __future__ import annotations
 
 import json
 import zipfile
-from typing import TYPE_CHECKING, Any, ClassVar, Final
+from typing import TYPE_CHECKING, Any, ClassVar, Final, cast
 
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators.java._jar_manifest import MAIN_CLASS, SOURCES, read_main_attributes
 from airflow.sdk.importers.base import DagSourceCode
 
 if TYPE_CHECKING:
+    from airflow.sdk.coordinators.java.coordinator import JavaCoordinator
     from airflow.sdk.importers.base import DagDefinition
 
 _SOURCES_DIR: Final = "META-INF/airflow/sources/"
@@ -67,7 +68,7 @@ class JavaDagImporter(CoordinatorDagImporter):
         if not (main_class := attributes.get(MAIN_CLASS)):
             return False
         try:
-            wanted = self.get_parsing_coordinator().main_class
+            wanted = cast("JavaCoordinator", self.get_parsing_coordinator()).main_class
         except Exception:
             return True
         return not wanted or main_class == wanted

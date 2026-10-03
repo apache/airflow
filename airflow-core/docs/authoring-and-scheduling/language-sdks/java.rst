@@ -665,6 +665,11 @@ A Dag bundle that holds only the JARs that Python Dags' tasks run should list ``
 * Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
   ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
   Dag-level queue yet.
+* A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to, which need not be
+  the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK. A
+  task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is
+  missing, or that the coordinator cannot run (for example, because ``main_class`` does not match the
+  JAR's ``Main-Class``), fails and retries while it has retries left.
 * The Code view shows the source of the JAR's main class, which the Gradle plugin packs into the JAR.
 * Cluster policies (``dag_policy``, ``task_policy``) are not applied to a native Java Dag.
 * ``airflow dags reserialize`` does not store the Dags of a JAR, which only the Dag processor stores.
@@ -1186,7 +1191,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
     pinned to the version the run was created with.
   * Set ``dag_bundle_name`` to load JARs from a separate Dag bundle.
     The task uses the version that bundle is on when it starts, pinned for the whole task.
-    If it names the task's own Dag bundle, the task uses the version the run was created with.
+
+  A task of a native Java Dag ignores ``dag_bundle_name``: it runs the JAR of its Dag from the Dag's own
+  bundle, at the version the run was created with. See :ref:`java-sdk/native-dag-parsing`.
 
 .. note::
 

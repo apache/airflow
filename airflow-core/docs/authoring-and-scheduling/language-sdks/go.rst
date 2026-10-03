@@ -538,7 +538,6 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
     pinned to the version the run was created with.
   * Set ``dag_bundle_name`` to load bundles from a separate Dag bundle.
     The task uses the version that Dag bundle is on when it starts, pinned for the whole task.
-    If it names the task's own Dag bundle, the task uses the version the run was created with.
 
 .. _go-sdk/limitations:
 

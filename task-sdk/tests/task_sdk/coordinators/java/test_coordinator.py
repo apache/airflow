@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import re
@@ -29,7 +30,8 @@ import pytest
 from task_sdk.coordinators.java._jar_test_utils import make_jar
 from uuid6 import uuid7
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
 from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _calculate_classpath,
@@ -37,9 +39,11 @@ from airflow.sdk.coordinators.java.coordinator import (
     _JarMetadata,
     _walk_jars,
 )
-from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
+from airflow.sdk.importers import reset_importer_registry
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_3_PLUS:
@@ -439,36 +443,100 @@ class TestJavaCoordinatorExecuteTask:
         assert result.exit_code == 0
 
 
-class TestBuildExecuteTaskCommandDagFile:
-    def _build(self, coordinator: JavaCoordinator, root: pathlib.Path, dag_file: pathlib.Path | None):
+class TestJavaCoordinatorExecuteNativeDag:
+    """With a JavaCoordinator configured, a task of a native Java Dag runs the JAR of its Dag."""
+
+    @pytest.fixture(autouse=True)
+    def _java_coordinator_config(self):
+        coordinators = {"java": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator"}}
+        reset_importer_registry()
+        with conf_vars({("sdk", "coordinators"): json.dumps(coordinators)}):
+            yield
+        reset_importer_registry()
+
+    @pytest.fixture
+    def mock_start(self, tmp_path):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
+        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
+        bundle = MagicMock(path=tmp_path, version="v1")
+        bundle.name = "dags-folder"
+        with (
+            patch("airflow.sdk.coordinators._subprocess._initialize_pinned_bundle", return_value=bundle),
+            patch("airflow.sdk.coordinators._subprocess.BundleVersionLock"),
+            patch.object(_PopenActivitySubprocess, "start") as mock_start,
+        ):
+            mock_start.return_value.wait.return_value = 0
+            yield mock_start
+
+    def _execute(self, rel_path: str, client, coordinator: JavaCoordinator | None = None):
+        return (coordinator or JavaCoordinator()).execute_task(
+            what=_make_ti(),
+            dag_rel_path=rel_path,
+            bundle_info=BundleInfo(name="dags-folder", version="v1"),
+            client=client,
+            subprocess_logs_to_stdout=False,
+        )
+
+    def test_runs_the_jar_of_the_dag_and_not_the_first_jar_by_path(self, mock_start, mock_client):
+        self._execute("b.jar", mock_client)
+
+        assert mock_start.call_args.kwargs["command"][-1] == "com.example.B"
+        assert mock_start.call_args.kwargs["subprocess_schema_version"] == "2026-10-30"
+
+    def test_a_task_of_a_python_dag_still_scans_the_bundle(self, mock_start, mock_client):
+        self._execute("dag.py", mock_client)
+
+        assert mock_start.call_args.kwargs["command"][-1] == "com.example.A"
+
+    def test_fails_without_starting_the_jvm_for_a_jar_the_coordinator_cannot_run(
+        self, mock_start, mock_client
+    ):
+        with pytest.raises(
+            TaskLaunchError, match="runs 'com.example.B', but .* main_class is 'com.example.A'"
+        ):
+            self._execute("b.jar", mock_client, JavaCoordinator(main_class="com.example.A"))
+
+        mock_start.assert_not_called()
+
+
+class TestBuildDagFileCommand:
+    def _build(self, coordinator: JavaCoordinator, root: pathlib.Path, jar: pathlib.Path):
         with coordinator._set_scan_roots([root]):
-            return coordinator._build_execute_task_command(what=_make_ti(), dag_file=dag_file)
+            return coordinator._build_dag_file_command(what=_make_ti(), path=jar)
 
-    @pytest.mark.parametrize(
-        "dag_file",
-        [
-            pytest.param(None, id="none"),
-            pytest.param("dag.py", id="python-stub"),
-            pytest.param("lib.jar", id="no-main-class"),
-            pytest.param("gone.jar", id="missing"),
-        ],
-    )
-    def test_falls_back_to_the_scan(self, tmp_path, dag_file):
-        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
-        _make_jar(tmp_path / "lib.jar", main_class=None)
-        (tmp_path / "dag.py").write_text("")
+    @pytest.mark.parametrize("parsed", ["a.jar", "b.jar"])
+    def test_runs_the_main_class_of_the_jar_the_dag_was_parsed_from(self, tmp_path, parsed):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-10-30")
+        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
+        coordinator = JavaCoordinator()
 
-        command, _ = self._build(JavaCoordinator(), tmp_path, dag_file and tmp_path / dag_file)
+        command, schema_version = self._build(coordinator, tmp_path, tmp_path / parsed)
 
-        assert command[-1] == "com.example.A"
+        expected = {"a.jar": "com.example.A", "b.jar": "com.example.B"}[parsed]
+        assert command[-1] == expected
+        assert schema_version == "2026-10-30"
+        with coordinator._set_scan_roots([tmp_path]):
+            assert coordinator._build_parse_dag_command(path=tmp_path / parsed) == (command, schema_version)
 
-    def test_falls_back_when_main_class_does_not_match(self, tmp_path):
-        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
-        b = _make_jar(tmp_path / "b.jar", main_class="com.example.B")
+    def test_runs_a_jar_whose_schema_version_is_too_old_to_parse(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16")
 
-        command, _ = self._build(JavaCoordinator(main_class="com.example.A"), tmp_path, b)
+        _, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
 
-        assert command[-1] == "com.example.A"
+        assert schema_version == "2026-06-16"
+
+    def test_rejects_a_jar_whose_main_class_differs_from_the_pinned_one(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Other", schema_version="2026-10-30")
+
+        with pytest.raises(ValueError, match="main_class is 'com.example.Dags'"):
+            self._build(JavaCoordinator(main_class="com.example.Dags"), tmp_path, jar)
+
+    def test_rejects_a_main_class_another_jar_sets(self, tmp_path):
+        new = _make_jar(tmp_path / "etl-new.jar", main_class="com.example.A", schema_version="2026-10-30")
+        _make_jar(tmp_path / "etl-old.jar", main_class="com.example.A", schema_version="2026-10-30")
+
+        with pytest.raises(ValueError, match="all set Main-Class 'com.example.A'"):
+            self._build(JavaCoordinator(), tmp_path, new)
 
 
 class TestBuildParseDagCommand:
@@ -506,20 +574,6 @@ class TestBuildParseDagCommand:
             execute = coordinator._build_execute_task_command(what=_make_ti())
 
         assert parse == execute
-
-    @pytest.mark.parametrize("parsed", ["a.jar", "b.jar"])
-    def test_runs_the_main_class_of_the_parsed_jar(self, tmp_path, parsed):
-        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-10-30")
-        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
-        coordinator = JavaCoordinator()
-
-        parse = self._build(coordinator, tmp_path, tmp_path / parsed)
-        with coordinator._set_scan_roots([tmp_path]):
-            execute = coordinator._build_execute_task_command(what=_make_ti(), dag_file=tmp_path / parsed)
-
-        expected = {"a.jar": "com.example.A", "b.jar": "com.example.B"}[parsed]
-        assert parse[0][-1] == expected
-        assert execute == parse
 
     def test_takes_the_schema_version_of_the_parsed_jar(self, tmp_path):
         _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
