@@ -51,7 +51,9 @@ class CachingModel(WrapperModel):
     returns the cached response without calling the underlying model.
     Otherwise, calls the model and caches the response. A fingerprint
     mismatch means the agent changed between attempts; the stale entry is
-    discarded and the step re-runs live.
+    discarded and the step re-runs live. A request that cannot be
+    fingerprinted is neither replayed nor cached: an entry stored without a
+    fingerprint could never be verified on a later attempt.
 
     With a ``replay_usage`` ledger, a replay hit does not count toward the
     run's usage (see :class:`~airflow.providers.common.ai.durable.replay_usage.ReplayUsageLedger`).
@@ -177,6 +179,7 @@ class CachingModel(WrapperModel):
             messages,
             prepared_settings,
             prepared_parameters,
+            step=step,
         )
 
         cached: ModelResponse | None
@@ -187,7 +190,7 @@ class CachingModel(WrapperModel):
             self._peeked_model = None
             cached, cached_fingerprint = self.storage.load_model_response(key)
         if cached is not None:
-            if cached_fingerprint == fingerprint:
+            if fingerprint is not None and cached_fingerprint == fingerprint:
                 self.counter.replayed_model += 1
                 log.debug("Durable: replayed cached model response", step=step)
                 self._track_chain(cached, model_request_parameters)
@@ -211,7 +214,11 @@ class CachingModel(WrapperModel):
         if self.replay_usage is not None:
             self.replay_usage.record_live_model_request(had_request_credit=had_request_credit)
         response = await self.wrapped.request(messages, model_settings, model_request_parameters)
-        if self.storage.save_model_response(key, response, fingerprint=fingerprint):
+        # An entry stored without a fingerprint could never satisfy the guard above, so
+        # a request that cannot be fingerprinted is not written, and counts as skipped.
+        if fingerprint is not None and self.storage.save_model_response(
+            key, response, fingerprint=fingerprint
+        ):
             self.counter.cached_model += 1
             log.debug("Durable: cached model response", step=step)
         else:
