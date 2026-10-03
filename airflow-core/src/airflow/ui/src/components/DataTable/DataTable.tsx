@@ -42,6 +42,8 @@ import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay"
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 
+import { formatNumber } from "src/utils";
+
 type DataTableProps<TData> = {
   readonly cardDef?: CardDef<TData>;
   readonly columns: Array<MetaColumn<TData>>;
@@ -231,7 +233,7 @@ export const DataTable = <TData,>({
   const headingNode = Boolean(hideRowCountHeading) ? undefined : (
     <Heading py={1} size="md">
       {hasRowCount
-        ? `${total.toLocaleString(i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`
+        ? `${formatNumber(total, i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`
         : pluralModelName}
     </Heading>
   );
