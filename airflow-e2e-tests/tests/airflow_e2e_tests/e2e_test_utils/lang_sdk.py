@@ -24,14 +24,17 @@ the ``postgres`` service of the stack.
 
 from __future__ import annotations
 
+import json
 import time
+from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from airflow_e2e_tests.constants import DAGS_BUNDLE_NAME
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
+    from pathlib import Path
 
     from testcontainers.compose import DockerCompose
 
@@ -175,3 +178,117 @@ def wait_until_stub_tasks_are_bound(
                     asked_for_parse.add(dag["relative_fileloc"])
                     client.reparse_dag_file(dag["file_token"])
         time.sleep(_POLL_INTERVAL)
+
+
+def read_parse_attempts(logs_path: Path, relative_fileloc: str) -> list[list[dict]]:
+    """
+    Return the log records of each parse of a ``dags-folder`` file by the Dag processor, oldest first.
+
+    The Dag processor appends the log of each parse of a file to ``dag_processor/<date>/<bundle>/<file>.log``
+    in the logs folder, one JSON record per line, and every parse starts with ``Filling up the DagBag``. A
+    line that is not JSON yet, because the Dag processor is still writing it, is skipped.
+    """
+    attempts: list[list[dict]] = []
+    log_files = sorted(logs_path.glob(f"dag_processor/????-??-??/{DAGS_BUNDLE_NAME}/{relative_fileloc}.log"))
+    for log_file in log_files:
+        for line in log_file.read_text().splitlines():
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(record, dict):
+                continue
+            if str(record.get("event", "")).startswith("Filling up the DagBag from"):
+                attempts.append([])
+            if attempts:
+                attempts[-1].append(record)
+    return attempts
+
+
+def assert_later_parses_probe_nothing(
+    client: AirflowClient,
+    compose: DockerCompose,
+    logs_path: Path,
+    dag_id_by_file: Mapping[str, str],
+    *,
+    timeout: float = 180,
+) -> None:
+    """
+    Ask the Dag processor to parse each ``dags-folder`` file again, and check that it probes no artifact.
+
+    The artifacts are probed on the first parse, and their answers are recorded with a fingerprint, so a
+    parse that finds the same artifacts probes none. That holds for the parse requested here, and for
+    every parse of each file: the log of a file holds at most one probe of each artifact, and the recorded
+    probe time of each artifact is the same afterwards.
+
+    :param dag_id_by_file: A Dag of each file, by the path of the file in the Dags folder. It must be in the
+        Dag processor's database, as it is for a file that failed to import.
+    :raises TimeoutError: when a file is not parsed again within *timeout* seconds.
+    """
+    artifacts_before = get_task_handler_artifacts(compose)
+    assert artifacts_before, "No artifact is recorded, so no later parse could skip probing one."
+    parse_counts = {file: len(read_parse_attempts(logs_path, file)) for file in dag_id_by_file}
+    dags_before = {dag["dag_id"]: dag for dag in _list_dags_of_folder(client)}
+    markers_before = {
+        file: _get_parse_marker(client, dag_id, file) for file, dag_id in dag_id_by_file.items()
+    }
+    for dag_id in dag_id_by_file.values():
+        client.reparse_dag_file(dags_before[dag_id]["file_token"])
+
+    deadline = time.monotonic() + timeout
+    while True:
+        waiting_for = [
+            file
+            for file, dag_id in dag_id_by_file.items()
+            if _get_parse_marker(client, dag_id, file) == markers_before[file]
+            or len(read_parse_attempts(logs_path, file)) <= parse_counts[file]
+        ]
+        if not waiting_for:
+            break
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"The Dag processor did not parse {waiting_for} again within {timeout:.0f}s.")
+        time.sleep(_POLL_INTERVAL)
+
+    for file in dag_id_by_file:
+        attempts = read_parse_attempts(logs_path, file)
+        probing = [
+            record
+            for attempt in attempts[parse_counts[file] :]
+            for record in attempt
+            if record.get("event") == "Probing a task handler artifact"
+        ]
+        assert not probing, f"A later parse of {file} probed artifacts: {probing}"
+        probes = Counter(
+            (record.get("bundle_name"), record.get("path"))
+            for attempt in attempts
+            for record in attempt
+            if record.get("event") == "Probed a task handler artifact"
+        )
+        assert all(count == 1 for count in probes.values()), (
+            f"The log of {file} holds more than one probe of an artifact: {probes}"
+        )
+    assert get_task_handler_artifacts(compose) == artifacts_before, (
+        "A later parse recorded another probe of an artifact."
+    )
+
+
+def _list_dags_of_folder(client: AirflowClient) -> list[dict]:
+    """Return every Dag of the Dags folder, also a stale one, which is how a file that failed to import is."""
+    return client.list_dags(bundle_name=DAGS_BUNDLE_NAME, exclude_stale=False)
+
+
+def _get_parse_marker(
+    client: AirflowClient, dag_id: str, relative_fileloc: str
+) -> tuple[str | None, str | None]:
+    """
+    Return what the Dag processor writes when it parses a file.
+
+    That is the parse time of the Dag, and the time of the import error of the file if it has one.
+    """
+    dag = next(dag for dag in _list_dags_of_folder(client) if dag["dag_id"] == dag_id)
+    error_times = [
+        error["timestamp"]
+        for error in client.list_import_errors(bundle_name=DAGS_BUNDLE_NAME)
+        if error["filename"] == relative_fileloc
+    ]
+    return dag["last_parsed_time"], error_times[0] if error_times else None
