@@ -10,12 +10,86 @@
       "eventType": "イベントタイプ"
     }
   },
+  "dagBundles": {
+    "active": "アクティブ",
+    "columns": {
+      "active": "アクティブ",
+      "importErrors": "インポートエラー",
+      "lastRefreshed": "最終更新時刻",
+      "name": "名前",
+      "version": "バージョン"
+    },
+    "detail": {
+      "status": "ステータス"
+    },
+    "files": {
+      "columns": {
+        "file": "ファイル",
+        "lastParsed": "最終パース時刻",
+        "parseDuration": "パース時間"
+      },
+      "file_one": "ファイル",
+      "file_other": "ファイル",
+      "importErrorGone": "このインポートエラーは今後記録されません。再パースによって修正されたものと思われます",
+      "neverParsed": "一度もパースされていない",
+      "showImportError_one": "エラーを表示する",
+      "showImportError_other": "{{count}} 件のエラーを表示する"
+    },
+    "inactive": "無効化済み",
+    "neverRefreshed": "一度も更新されていない",
+    "notRefreshedYet": "まだ更新されていない",
+    "notVersioned": "バージョン管理が有効になっていない"
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "アラート名称",
+      "deadlineTime": "期限時刻",
+      "status": "ステータス"
+    },
+    "deadline_one": "期限",
+    "deadline_other": "期限",
+    "filters": {
+      "status": "ステータス",
+      "statusOptions": {
+        "all": "すべて",
+        "missed": "期限超過",
+        "pending": "待機中"
+      }
+    },
+    "title": "期限"
+  },
   "xcom": {
+    "add": {
+      "error": "XCom 追加に失敗しました",
+      "errorTitle": "エラー",
+      "success": "XCom 追加が成功しました",
+      "successTitle": "XCom を追加しました",
+      "title": "XCom を追加する"
+    },
     "columns": {
       "dag": "Dag",
       "key": "キー",
       "value": "値"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "XCom 削除に失敗しました",
+      "errorTitle": "エラー",
+      "success": "XCom 削除が成功しました",
+      "successTitle": "XCom を削除しました",
+      "title": "XCom を削除する",
+      "warning": "この XCom を削除してもよろしいですか。この操作は元に戻せません"
+    },
+    "edit": {
+      "error": "XCom 更新に失敗しました",
+      "errorTitle": "エラー",
+      "success": "XCom の更新が成功しました",
+      "successTitle": "XCom を更新しました",
+      "title": "XCom を更新する"
+    },
+    "entry_one": "XCom 項目",
+    "entry_other": "XCom 項目",
+    "key": "キー",
+    "title": "XCom",
+    "value": "値"
   }
 }

@@ -1,7 +1,28 @@
 {
   "additional_data": "追加データ",
+  "alias_one": "別名",
+  "alias_other": "別名",
+  "aliases": "別名",
   "asset_many": "アセット",
   "asset_one": "アセット",
+  "assetStateStore": {
+    "add": "アセット状態ストアを追加する",
+    "clearAll": {
+      "resource": "すべてのアセット状態ストア",
+      "title": "　すべてのアセット状態ストアを消去する",
+      "warning": "すべてのアセット状態ストアが削除されます。このストアを使用して連携しているタスクは、永続化されたデータを失うことになります。"
+    },
+    "delete": "アセット状態ストアを削除する",
+    "deleteWarning": "このアセットは、永続化された状態ストアエントリを失います",
+    "edit": "アセット状態ストアを編集する",
+    "emptyState": "アセット状態ストアは、アセット ID に紐づいた値を保存し、すべての Dag 実行で共有されます。ワーカーは、Task SDK 経由でアセット状態ストアに書き込むことができます",
+    "entry_one": "項目",
+    "entry_other": "項目",
+    "lastUpdatedBy": "最終更新者",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "ウォッチャー",
+    "title": "アセット状態ストア"
+  },
   "consumingDags": "Consuming Dags",
   "consumingTasks": "Consuming Tasks",
   "createEvent": {
@@ -25,11 +46,20 @@
     },
     "title": "{{name}} 用のアセットイベントを作成"
   },
-  "extra": "追加情報",
+  "events": "イベント",
+  "filters": {
+    "groupPlaceholder": "グループを検索",
+    "lastEventDateRange": "直近のイベントの日付"
+  },
   "group": "グループ",
   "lastAssetEvent": "最終アセットイベント",
   "name": "名前",
   "producingTasks": "タスクを生成",
   "scheduledDags": "スケジュール済 Dag",
-  "searchPlaceholder": "アセットを検索"
+  "scheduling": "スケジューリング",
+  "searchPlaceholder": "アセットを検索",
+  "taskDependencies": "タスク間の依存関係",
+  "watcher_one": "リスナー",
+  "watcher_other": "リスナー",
+  "watchers": "リスナー"
 }
