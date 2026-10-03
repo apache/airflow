@@ -25,7 +25,11 @@ from typing import TYPE_CHECKING, Any
 import jmespath
 from botocore.exceptions import NoCredentialsError, WaiterError
 
-from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError, WaiterTerminalFailure
+from airflow.providers.amazon.aws.exceptions import (
+    WaiterMaxAttemptsError,
+    WaiterNoCredentialsError,
+    WaiterTerminalFailure,
+)
 from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
@@ -90,6 +94,9 @@ def wait(
     log = logging.getLogger(__name__)
     first_attempt = True
     attempt = 0
+    all_attempts_no_credentials = True
+    last_no_credentials_error: NoCredentialsError | None = None
+
     while attempt < waiter_max_attempts:
         if not first_attempt:
             time.sleep(waiter_delay)
@@ -98,9 +105,11 @@ def wait(
             waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
 
         except NoCredentialsError as error:
+            last_no_credentials_error = error
             log.info(str(error))
 
         except WaiterError as error:
+            all_attempts_no_credentials = False
             error_reason = str(error)
             last_response = error.last_response
 
@@ -134,6 +143,10 @@ def wait(
             break
         attempt += 1
     else:
+        if all_attempts_no_credentials:
+            raise WaiterNoCredentialsError(
+                f"Waiter error: max attempts reached due to missing credentials: {last_no_credentials_error}"
+            )
         raise WaiterMaxAttemptsError("Waiter error: max attempts reached")
 
 
@@ -173,6 +186,9 @@ async def async_wait(
     log = logging.getLogger(__name__)
     first_attempt = True
     attempt = 0
+    all_attempts_no_credentials = True
+    last_no_credentials_error: NoCredentialsError | None = None
+
     while attempt < waiter_max_attempts:
         if not first_attempt:
             await asyncio.sleep(waiter_delay)
@@ -181,9 +197,11 @@ async def async_wait(
             await waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
 
         except NoCredentialsError as error:
+            last_no_credentials_error = error
             log.info(str(error))
 
         except WaiterError as error:
+            all_attempts_no_credentials = False
             error_reason = str(error)
             last_response = error.last_response
 
@@ -216,6 +234,10 @@ async def async_wait(
             break
         attempt += 1
     else:
+        if all_attempts_no_credentials:
+            raise WaiterNoCredentialsError(
+                f"Waiter error: max attempts reached due to missing credentials: {last_no_credentials_error}"
+            )
         raise WaiterMaxAttemptsError("Waiter error: max attempts reached")
 
 
