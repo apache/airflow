@@ -28,6 +28,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
     AliasGenerator,
     ConfigDict,
+    Field,
     computed_field,
     field_serializer,
     field_validator,
@@ -218,6 +219,7 @@ class DAGDetailsResponse(DAGResponse):
     end_date: datetime | None
     is_paused_upon_creation: bool | None
     params: Mapping | None
+    param_presets: dict[str, dict[str, Any]] = Field(default_factory=dict)
     render_template_as_native_obj: bool
     template_search_path: list[str] | None
     timezone: str | None

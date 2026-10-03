@@ -189,6 +189,10 @@ def _convert_params(val: abc.MutableMapping | None, self_: DAG) -> ParamsDict:
     return params
 
 
+def _convert_param_presets(val: dict[str, dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    return val or {}
+
+
 def _convert_str_to_tuple(val: str | Iterable[str] | None) -> Iterable[str] | None:
     if isinstance(val, str):
         return (val,)
@@ -373,6 +377,11 @@ class DAG:
     :param params: a dictionary of DAG level parameters that are made
         accessible in templates, namespaced under `params`. These
         params can be overridden at the task level.
+    :param param_presets: named sets of param values offered in the trigger form, mapping a preset
+        name to the param values it applies, e.g.
+        ``{"Nightly": {"batch_size": 512, "shuffle": True}}``. A preset only needs to list the
+        params it changes; the rest keep their defaults. Every key must name a param declared in
+        ``params`` and its value must satisfy that param's schema.
     :param max_active_tasks: the number of task instances allowed to run
         concurrently per Dag run. Note that in Airflow 2 this was a global limit on the Dag, since Airflow 3 it is per run.
     :param max_active_runs: maximum number of active DAG runs, beyond this
@@ -527,6 +536,8 @@ class DAG:
         default=None,
         converter=attrs.Converter(_convert_params, takes_self=True),  # type: ignore[misc, call-overload]
     )
+    # Declared after ``params`` so its validator can resolve preset values against the params schema.
+    param_presets: dict[str, dict[str, Any]] = attrs.field(default=None, converter=_convert_param_presets)
     access_control: dict[str, dict[str, Collection[str]]] | None = attrs.field(
         default=None,
         converter=attrs.Converter(_convert_access_control),  # type: ignore[misc, call-overload]
@@ -623,6 +634,29 @@ class DAG:
                 f"Dag {self.dag_id!r} is not allowed to define a Schedule, "
                 "as there are required params without default values, or the default values are not valid."
             ) from pverr
+
+    @param_presets.validator
+    def _validate_param_presets(self, _, param_presets: dict[str, dict[str, Any]]):
+        """Reject presets that name an unknown param or carry a value the param's schema rejects."""
+        for preset_name, preset_values in param_presets.items():
+            if not isinstance(preset_values, dict):
+                raise TypeError(
+                    f"Param preset {preset_name!r} of Dag {self.dag_id!r} must be a dict of param "
+                    f"names to values, got {type(preset_values).__name__}."
+                )
+            for key, value in preset_values.items():
+                if key not in self.params:
+                    raise ValueError(
+                        f"Param preset {preset_name!r} of Dag {self.dag_id!r} sets unknown param {key!r}."
+                    )
+                try:
+                    # Resolve on a copy: Param.resolve() stores the value it validated.
+                    copy.copy(self.params.get_param(key)).resolve(value)
+                except ParamValidationError as pverr:
+                    raise ValueError(
+                        f"Param preset {preset_name!r} of Dag {self.dag_id!r} has an invalid value "
+                        f"for param {key!r}: {pverr}"
+                    ) from pverr
 
     @catchup.validator
     def _validate_catchup(self, _, catchup: bool):
@@ -1612,6 +1646,7 @@ if TYPE_CHECKING:
         deadline: list[DeadlineAlert] | DeadlineAlert | None = None,
         doc_md: str | None = None,
         params: ParamsDict | dict[str, Any] | None = None,
+        param_presets: dict[str, dict[str, Any]] | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,

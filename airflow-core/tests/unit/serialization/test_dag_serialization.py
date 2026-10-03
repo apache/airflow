@@ -1266,6 +1266,36 @@ class TestStringifiedDAGs:
         assert expected_val == deserialized_dag.params.dump()
         assert expected_val == deserialized_simple_task.params.dump()
 
+    def test_dag_param_presets_roundtrip(self):
+        """Presets survive serialization as plain JSON, without the nested type encoding."""
+        presets = {
+            "Nightly": {"batch_size": 512, "tuning": {"lr": 0.01, "layers": [64, 32]}},
+            "Debug": {"batch_size": 1},
+        }
+        dag = DAG(
+            dag_id="simple_dag",
+            schedule=None,
+            params={
+                "batch_size": Param(128, type="integer", minimum=1),
+                "tuning": Param({"lr": 0.1, "layers": [16]}, type="object"),
+            },
+            param_presets=presets,
+        )
+
+        serialized_dag = json.loads(DagSerialization.to_json(dag))
+
+        assert serialized_dag["dag"]["param_presets"] == presets
+        assert DagSerialization.from_dict(serialized_dag).param_presets == presets
+
+    def test_dag_without_param_presets_is_not_serialized(self):
+        """Dags that define no preset must not grow a ``param_presets`` key in their blob."""
+        dag = DAG(dag_id="simple_dag", schedule=None)
+
+        serialized_dag = json.loads(DagSerialization.to_json(dag))
+
+        assert "param_presets" not in serialized_dag["dag"]
+        assert DagSerialization.from_dict(serialized_dag).param_presets == {}
+
     def test_invalid_params(self):
         """
         Test to make sure that only native Param objects are being passed as dag or task params
