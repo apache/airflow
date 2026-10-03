@@ -206,6 +206,10 @@ class TrinoHook(DbApiHook):
             if user is None:
                 user = db.login
         http_headers = {"X-Trino-Client-Info": generate_trino_client_info()}
+        connect_kwargs: dict[str, Any] = {}
+        if _boolify(extra.get("allow_insecure_auth", False)):
+            # Only passed when enabled: trino<0.340.0 does not accept this keyword.
+            connect_kwargs["allow_insecure_auth"] = True
         trino_conn = trino.dbapi.connect(
             host=db.host,
             port=db.port,
@@ -223,6 +227,7 @@ class TrinoHook(DbApiHook):
             timezone=extra.get("timezone") or None,
             extra_credential=extra.get("extra_credential") or None,
             roles=extra.get("roles") or None,
+            **connect_kwargs,
         )
 
         return trino_conn
