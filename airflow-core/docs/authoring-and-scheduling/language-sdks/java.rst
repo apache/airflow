@@ -665,16 +665,16 @@ Otherwise, with several Java coordinators, its JARs fail to parse.
 * Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
   ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
   Dag-level queue yet.
-* A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to, which need not be
-  the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK. A
-  task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is
-  missing, or that the coordinator cannot run (for example, because ``main_class`` does not match the
-  JAR's ``Main-Class``), fails and retries while it has retries left.
+* A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to,
+  which need not be the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK.
+  A task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is missing,
+  or that the coordinator cannot run (for example, because ``main_class`` does not match the JAR's ``Main-Class``),
+  fails and retries while it has retries left.
 * The Code view shows the source of the JAR's main class, which the Gradle plugin packs into the JAR.
 * Cluster policies (``dag_policy``, ``task_policy``) are not applied to a native Java Dag.
 * ``airflow dags reserialize`` does not store the Dags of a JAR, which only the Dag processor stores.
-  ``airflow dags test``, ``tasks test``, ``tasks render`` and ``tasks list`` refuse a native Java
-  Dag.
+  ``airflow dags test``, ``tasks test`` and ``tasks render`` refuse a native Java Dag.
+  ``airflow tasks list`` lists its tasks by running the JAR's main class, so it needs a JDK.
 
 .. _java-sdk/logging:
 
