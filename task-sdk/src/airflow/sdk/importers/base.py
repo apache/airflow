@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import AirflowConfigException
-from airflow.sdk.execution_time.coordinator import InvalidCoordinatorError, get_coordinator_manager
+from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
@@ -405,10 +405,14 @@ class DagImporterRegistry:
     _extension_specs: dict[str, _ImporterSpec]
     _ordered_importers: list[AbstractDagImporter[Any]]
 
+    coordinator_importer_error: Exception | None
+    """The error that kept the bundle's coordinator Dag importers from being built, if any."""
+
     def __init__(self, register_defaults: bool = True) -> None:
         self._extension_importers = {}
         self._extension_specs = {}
         self._ordered_importers = []
+        self.coordinator_importer_error = None
         if register_defaults:
             self._register_default_importers()
 
@@ -418,8 +422,8 @@ class DagImporterRegistry:
         Create and configure a DagImporterRegistry.
 
         Importers are registered in this order, a later one taking over an extension from an
-        earlier one: the defaults, the importers of the coordinators that parse the bundle, the
-        global ``dag_importer_configs``, then the bundle's own ``importers``.
+        earlier one: the defaults, the Dag importers of the runtimes that have a configured
+        coordinator, the global ``dag_importer_configs``, then the bundle's own ``importers``.
         """
         registry = cls(register_defaults=True)
         if bundle_name:
@@ -443,16 +447,17 @@ class DagImporterRegistry:
 
     def _register_coordinator_importers(self, bundle_name: str) -> None:
         """
-        Register the Dag importers of the coordinators that parse Dag files in *bundle_name*.
+        Register the Dag importer of each runtime that has a coordinator in ``[sdk] coordinators``.
 
         A coordinator configuration that cannot be loaded registers no coordinator importers, so
-        the bundle's other importers keep working. Two coordinators that claim the same extension
-        are a configuration error, which is raised.
+        the bundle's other importers keep working. Any other error is kept in
+        :attr:`coordinator_importer_error`, which ``find_claiming_importer`` raises.
         """
+        # circular: coordinators._dag_importer imports this module at load time
+        from airflow.sdk.coordinators._dag_importer import build_coordinator_dag_importers
+
         try:
-            importers = get_coordinator_manager().for_bundle(bundle_name)
-        except InvalidCoordinatorError:
-            raise
+            manager = get_coordinator_manager()
         except Exception:
             log.exception(
                 "Cannot load the [sdk] coordinators configuration; Dag bundle %r gets no coordinator "
@@ -460,7 +465,13 @@ class DagImporterRegistry:
                 bundle_name,
             )
             return
-        for importer in importers.values():
+        try:
+            importers = build_coordinator_dag_importers(manager, bundle_name)
+        except Exception as e:
+            log.exception("Cannot build the coordinator Dag importers of Dag bundle %r", bundle_name)
+            self.coordinator_importer_error = e
+            return
+        for importer in importers:
             self.register(importer)
 
     def register(self, importer: AbstractDagImporter[Any], extensions: list[str] | None = None) -> None:
@@ -645,7 +656,7 @@ def reset_importer_registry() -> None:
     """
     Reset cached importer registries.
 
-    The coordinators their Dag importers are bound to are cached too, so they are cleared as well.
+    The coordinator manager decides which Dag importers a registry holds, so it is cleared as well.
     """
     get_importer_registry.cache_clear()
     get_coordinator_manager.cache_clear()
