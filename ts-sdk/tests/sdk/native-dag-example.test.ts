@@ -26,7 +26,7 @@
 
 import { describe, expect, it } from "vitest";
 import { serializeDag } from "../../src/coordinator/serde.js";
-import { Bundle, listBundleNativeDags } from "../../src/sdk/bundle.js";
+import { Bundle, bundleDags } from "../../src/sdk/bundle.js";
 import { finalizeDag, getDagOrderEdges, getDagTaskRecords, type Dag } from "../../src/sdk/dag.js";
 import { dag } from "../../example/src/native.js";
 
@@ -77,9 +77,7 @@ describe("the native Dag example", () => {
     // registration is rebuilt here rather than imported.
     const bundle = new Bundle(dag);
 
-    expect(listBundleNativeDags(bundle).map((served) => served.dagId)).toEqual([
-      "typescript_native_example",
-    ]);
+    expect([...bundleDags(bundle).keys()]).toEqual(["typescript_native_example"]);
   });
 
   describe("serializes", () => {
