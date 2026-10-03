@@ -2165,13 +2165,15 @@ class DagSerialization(BaseSerialization):
                 dag[key] = get(section, option)
 
     @classmethod
-    def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> None:
+    def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> SerializedDAG:
         """
         Check that a serialized Dag, such as one a Lang-SDK runtime produced, can be stored and loaded.
 
-        It must match the JSON schema, have unique task ids, deserialize, and have no cycle in its task graph.
-        *serialized_obj* is not changed.
+        It must match the JSON schema, have unique task ids and deserialize. Like a Dag built with the SDK,
+        it must not set a ``max_active_runs`` its timetable forbids, nor ``catchup`` without a
+        ``start_date``, and its task graph must have no cycle. *serialized_obj* is not changed.
 
+        :return: The deserialized Dag.
         :raises DeserializationError: if it does not.
         """
         dag = serialized_obj.get("dag")
@@ -2190,18 +2192,30 @@ class DagSerialization(BaseSerialization):
                 dag_id, f"Dag {dag_id!r} has more than one task with id {', '.join(map(repr, duplicates))}"
             )
         try:
-            cls.from_dict(copy.deepcopy(serialized_obj))
+            deserialized = cls.from_dict(copy.deepcopy(serialized_obj))
         except Exception as e:
             cause = e.__cause__ if isinstance(e, DeserializationError) and e.__cause__ else e
             raise DeserializationError(
                 dag_id, f"Dag {dag_id!r} cannot be deserialized: {type(cause).__name__}: {cause}"
             ) from e
-        downstream = {
-            task[Encoding.VAR]["task_id"]: task[Encoding.VAR].get("downstream_task_ids") or ()
-            for task in serialized_obj["dag"]["tasks"]
-        }
+        if (
+            limit := deserialized.timetable.active_runs_limit
+        ) is not None and deserialized.max_active_runs > limit:
+            raise DeserializationError(
+                dag_id,
+                f"Dag {dag_id!r} sets max_active_runs {deserialized.max_active_runs}, "
+                f"but {type(deserialized.timetable).__name__} allows at most {limit}",
+            )
+        if (
+            deserialized.catchup
+            and deserialized.timetable.can_be_scheduled
+            and not (deserialized.start_date or "start_date" in deserialized.default_args)
+        ):
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} sets catchup but no start_date")
+        downstream = {task_id: task.downstream_task_ids for task_id, task in deserialized.task_dict.items()}
         if (task_id := detect_cycle(downstream, downstream.__getitem__)) is not None:
             raise DeserializationError(dag_id, f"Dag {dag_id!r} has a cycle through task {task_id!r}")
+        return deserialized
 
 
 class TaskGroupSerialization(BaseSerialization):
