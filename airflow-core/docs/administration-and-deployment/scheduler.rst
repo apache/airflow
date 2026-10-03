@@ -240,12 +240,17 @@ However, you can also look at other non-performance-related scheduler configurat
 
 - :ref:`config:scheduler__max_dagruns_per_loop_to_schedule`
 
-  How many DagRuns should a scheduler examine (and lock) when scheduling
-  and queuing tasks. Increasing this limit will allow more throughput for
-  smaller Dags but will likely slow down throughput for larger (>500
-  tasks for example) Dags. Setting this too high when using multiple
-  schedulers could also lead to one scheduler taking all the Dag runs
-  leaving no work for the others.
+  How many Dag runs a scheduler considers per scheduling loop. Candidates
+  are selected together, then each is locked and revalidated immediately
+  before scheduling. Runs already claimed or examined by another scheduler
+  are skipped. Each run's scheduling transaction commits before the next
+  candidate is processed, releasing its locks so an expensive run does not
+  retain locks from previously scheduled runs.
+
+  Increasing this limit allows more runs to be examined before queuing tasks
+  to executors. Each run requires a claim query and a separate commit, so
+  account for database round-trip and commit costs when tuning this value.
+  Expansion of a large mapped task still happens within its run's transaction.
 
 - :ref:`config:scheduler__use_row_level_locking`
 
