@@ -80,6 +80,7 @@ runs:
         echo "Checking free space!"
         df -H
     - name: "Restore CI image snapshot ${{ inputs.platform }}:${{ inputs.python }}"
+      continue-on-error: true
       # yamllint disable-line rule:line-length
       uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
       with:
