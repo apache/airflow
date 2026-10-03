@@ -40,8 +40,8 @@ private fun JavaFileObjectSubject.hasSourceEquivalentTo(
 
 class BuilderTest {
   @Test
-  @DisplayName("generate builder for dag class")
-  fun generateBuilderForDagClass() {
+  @DisplayName("generate builder and task-reference twins for dag class")
+  fun generateBuilderAndRefForDagClass() {
     val compilation =
       compile(
         """
@@ -65,6 +65,14 @@ class BuilderTest {
           public void t3(Context ctx, int value) {
             System.out.println(String.format("%s %s", ctx.ti, value));
           }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              t1();
+              t3(t2());
+            }
+          }
         }
       """,
       )
@@ -80,20 +88,18 @@ class BuilderTest {
          import java.lang.Exception;
          import java.lang.Integer;
          import java.lang.Override;
+         import java.util.List;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
-         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             dag.addTask(new TaskDef("t1", T1.class));
-             dag.addTask(new TaskDef("t2", T2.class));
-             dag.addTask(new TaskDef("t3", T3.class));
-             return dag;
+             return Refs.record(dag, List.of("t1", "t2", "t3"), new TestExample.Wiring()::depends);
            }
 
            public static final class T1 implements Task {
@@ -117,6 +123,44 @@ class BuilderTest {
                int value = args.require(0, Integer.class);
                new TestExample().t3(context, value);
              }
+           }
+         }
+        """,
+      )
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleDeps")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleDeps",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Integer;
+         import java.lang.Number;
+         import java.lang.Void;
+         import org.apache.airflow.sdk.Arg;
+         import org.apache.airflow.sdk.Deps;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.TaskRef;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         /**
+          * Wiring view of {@link TestExample}'s task methods, for declaring its task graph.
+          *
+          * <p>Calling one registers its task with the Dag being built; passing the handle it
+          * returned into another call feeds the upstream's output into that task's parameter
+          * and wires the data edge. {@code before} and {@code after} wire an ordering-only edge.
+          */
+         public interface TestExampleDeps extends Deps {
+           default TaskRef<Void> t1() {
+             return Refs.node(new TaskDef("t1", TestExampleBuilder.T1.class));
+           }
+
+           default TaskRef<Integer> t2() {
+             return Refs.node(new TaskDef("t2", TestExampleBuilder.T2.class));
+           }
+
+           default TaskRef<Void> t3(Arg<? extends Number> value) {
+             return Refs.call(new TaskDef("t3", TestExampleBuilder.T3.class), value);
            }
          }
         """,
@@ -250,6 +294,94 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("type twin inputs by declared parameter type")
+  fun generateRefTypesTwinInputs() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import java.util.List;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public String ps() { return "x"; }
+
+          @Builder.Task
+          public void pv() {}
+
+          @Builder.Task
+          public List<String> pl() { return null; }
+
+          @Builder.Task
+          public long pn() { return 1L; }
+
+          @Builder.Task
+          public void t(String text, Object anything, List<String> items, Integer boxed) {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              t(ps(), pv(), pl(), pn());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleDeps")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleDeps",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Long;
+         import java.lang.Number;
+         import java.lang.String;
+         import java.lang.Void;
+         import java.util.List;
+         import org.apache.airflow.sdk.Arg;
+         import org.apache.airflow.sdk.Deps;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.TaskRef;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         /**
+          * Wiring view of {@link TestExample}'s task methods, for declaring its task graph.
+          *
+          * <p>Calling one registers its task with the Dag being built; passing the handle it
+          * returned into another call feeds the upstream's output into that task's parameter
+          * and wires the data edge. {@code before} and {@code after} wire an ordering-only edge.
+          */
+         public interface TestExampleDeps extends Deps {
+           default TaskRef<String> ps() {
+             return Refs.node(new TaskDef("ps", TestExampleBuilder.Ps.class));
+           }
+
+           default TaskRef<Void> pv() {
+             return Refs.node(new TaskDef("pv", TestExampleBuilder.Pv.class));
+           }
+
+           default TaskRef<List<String>> pl() {
+             return Refs.node(new TaskDef("pl", TestExampleBuilder.Pl.class));
+           }
+
+           default TaskRef<Long> pn() {
+             return Refs.node(new TaskDef("pn", TestExampleBuilder.Pn.class));
+           }
+
+           default TaskRef<Void> t(Arg<? extends String> text, Arg<?> anything,
+               Arg<? extends List<String>> items, Arg<? extends Number> boxed) {
+             return Refs.call(new TaskDef("t", TestExampleBuilder.T.class), text, anything, items, boxed);
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
   @DisplayName("lower explicit annotation attributes into config calls")
   fun generateBuilderLowersConfigAttributes() {
     val compilation =
@@ -262,6 +394,13 @@ class BuilderTest {
         public class TestExample {
           @Builder.Task(retries = 2, queue = "q", retryDelay = "PT5M", retryExponentialBackoff = 1.5)
           public void t1() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              t1();
+            }
+          }
         }
       """,
       )
@@ -276,14 +415,13 @@ class BuilderTest {
 
          import java.lang.Exception;
          import java.lang.Override;
-         import java.time.Duration;
          import java.time.OffsetDateTime;
          import java.util.List;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
-         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.Refs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -292,8 +430,7 @@ class BuilderTest {
              dag.config("tags", List.of("a", "b"));
              dag.config("catchup", true);
              dag.config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"));
-             dag.addTask(new TaskDef("t1", T1.class).config("retries", 2).config("queue", "q").config("retry_delay", Duration.parse("PT5M")).config("retry_exponential_backoff", 1.5));
-             return dag;
+             return Refs.record(dag, List.of("t1"), new TestExample.Wiring()::depends);
            }
 
            public static final class T1 implements Task {
@@ -301,6 +438,34 @@ class BuilderTest {
              public void execute(Context context, Client client) throws Exception {
                new TestExample().t1();
              }
+           }
+         }
+        """,
+      )
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleDeps")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleDeps",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Void;
+         import java.time.Duration;
+         import org.apache.airflow.sdk.Deps;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.TaskRef;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         /**
+          * Wiring view of {@link TestExample}'s task methods, for declaring its task graph.
+          *
+          * <p>Calling one registers its task with the Dag being built; passing the handle it
+          * returned into another call feeds the upstream's output into that task's parameter
+          * and wires the data edge. {@code before} and {@code after} wire an ordering-only edge.
+          */
+         public interface TestExampleDeps extends Deps {
+           default TaskRef<Void> t1() {
+             return Refs.node(new TaskDef("t1", TestExampleBuilder.T1.class).config("retries", 2).config("queue", "q").config("retry_delay", Duration.parse("PT5M")).config("retry_exponential_backoff", 1.5));
            }
          }
         """,
@@ -664,6 +829,13 @@ class BuilderTest {
         @Builder.Dag
         public class TestExample {
           @Builder.Task(id = "foo") public void t1() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              t1();
+            }
+          }
         }
       """,
       )
@@ -677,17 +849,17 @@ class BuilderTest {
 
          import java.lang.Exception;
          import java.lang.Override;
+         import java.util.List;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
-         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.Refs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             dag.addTask(new TaskDef("foo", T1.class));
-             return dag;
+             return Refs.record(dag, List.of("foo"), new TestExample.Wiring()::depends);
            }
 
            public static final class T1 implements Task {
@@ -699,6 +871,140 @@ class BuilderTest {
          }
         """,
       )
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleDeps")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleDeps",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Void;
+         import org.apache.airflow.sdk.Deps;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.TaskRef;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         /**
+          * Wiring view of {@link TestExample}'s task methods, for declaring its task graph.
+          *
+          * <p>Calling one registers its task with the Dag being built; passing the handle it
+          * returned into another call feeds the upstream's output into that task's parameter
+          * and wires the data edge. {@code before} and {@code after} wire an ordering-only edge.
+          */
+         public interface TestExampleDeps extends Deps {
+           default TaskRef<Void> t1() {
+             return Refs.node(new TaskDef("foo", TestExampleBuilder.T1.class));
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("reject wiring that feeds an incompatible upstream type")
+  fun rejectIncompatibleWiring() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public String ps() { return "x"; }
+
+          @Builder.Task
+          public void t(int v) {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { t(ps()); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("incompatible types")
+  }
+
+  @Test
+  @DisplayName("reject more than one wiring class")
+  fun rejectMultipleWiringClasses() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void t1() {}
+
+          @Builder.Deps
+          static class One implements TestExampleDeps {
+            void depends() { t1(); }
+          }
+
+          @Builder.Deps
+          static class Two implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Dag class TestExample declares more than one @Builder.Deps class: One, Two",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a non-static wiring class")
+  fun rejectNonStaticWiringClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void t1() {}
+
+          @Builder.Deps
+          class Wiring implements TestExampleDeps {
+            void depends() { t1(); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Deps class 'Wiring' must be static and non-private",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a wiring class with no depends() method")
+  fun rejectWiringClassWithoutDepends() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void t1() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void wireItUp() { t1(); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Deps class 'Wiring' must declare a non-private, no-argument depends() method",
+    )
   }
 
   @Test
@@ -717,6 +1023,28 @@ class BuilderTest {
     assertThat(compilation).hadErrorContaining(
       "Cannot create task from vararg function t1",
     )
+  }
+
+  @Test
+  @DisplayName("reject duplicate task ids")
+  fun rejectDuplicateTaskIds() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task(id = "x")
+          public void t1() {}
+
+          @Builder.Task(id = "x")
+          public void t2() {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("Tasks in Dag have duplicate ID: x")
   }
 
   @Test

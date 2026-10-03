@@ -619,17 +619,17 @@ prek hook regenerate it.
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
 | **Native-Dag authoring** |  |  |  |  |
-| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
-| capability: `task-args` | MUST † | n/a | – |  |
-| capability: `dag-params` | MUST † | n/a | – |  |
-| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
-| capability: `branching` | SHOULD † | n/a | – |  |
-| capability: `dag-test` | SHOULD † | n/a | – |  |
-| capability: `task-group` | MAY † | n/a | – |  |
-| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
-| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
-| capability: `asset-scheduling` | MAY † | n/a | – |  |
-| capability: `object-store` | MAY † | n/a | – |  |
+| capability: `native-dag-authoring` | SHOULD | ✓ | 3.3 |  |
+| capability: `task-args` | MUST † | ✓ | 3.3 |  |
+| capability: `dag-params` | MUST † | ✗ | – |  |
+| capability: `taskflow-dependencies` | MUST † | ✓ | 3.3 |  |
+| capability: `branching` | SHOULD † | ✗ | – |  |
+| capability: `dag-test` | SHOULD † | ✗ | – |  |
+| capability: `task-group` | MAY † | ✗ | – |  |
+| capability: `dynamic-task-mapping` | MAY † | ✗ | – |  |
+| capability: `asset-inlets-outlets` | MAY † | ✗ | – |  |
+| capability: `asset-scheduling` | MAY † | ✗ | – |  |
+| capability: `object-store` | MAY † | ✗ | – |  |
 
 *Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
 
@@ -729,9 +729,9 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 - The annotation processor (`BuilderProcessor.kt`) uses `kapt`. The `Builder`
   class holding the `@Builder.Dag` / `@Builder.Task` annotations is generated
   from the Dag serialization schema by `:sdk:generateDagDsl` (vendored at
-  `sdk/schema/dag-schema.json`). The `Arg`/`TaskRef` and `Deps`/`Flow` graph
-  types are hand-written next to the rest of the public surface in
-  `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
+  `sdk/schema/dag-schema.json`), `@Builder.Deps` included. The `Arg`/`TaskRef`
+  and `Deps`/`Flow` graph types are hand-written next to the rest of the public
+  surface in `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
   behaviour, handle it in `BuilderProcessor.kt` and add a golden-output test in
   `processor/src/test/kotlin/`.
 - The Python coordinator subclasses `SubprocessCoordinator`. Do not reach into
