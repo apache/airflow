@@ -167,6 +167,10 @@ The plugin exposes a FastAPI app at ``/hitl-review``. Base URL:
 - ``run_id``: Dag run ID.
 - ``task_id``: Task ID.
 - ``map_index``: Map index for mapped tasks. Use ``-1`` for non-mapped tasks or index for dynamic mapping.
+- ``region_id`` and ``region_index``: Select one pass of a loop. Send them together; ``region_index``
+  without ``region_id`` is rejected. Only supported on Airflow 3.4 or later; earlier hosts return 400 when
+  either is sent. A task inside a loop addressed without them returns 400, and a selection that matches
+  more than one task instance returns 409.
 
 Endpoints
 ^^^^^^^^^
