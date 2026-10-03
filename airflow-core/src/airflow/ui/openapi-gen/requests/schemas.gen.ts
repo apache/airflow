@@ -9947,6 +9947,17 @@ export const $ConfigResponse = {
                 }
             ],
             title: 'Rerun With Latest Version'
+        },
+        pool_include_deferred: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Pool Include Deferred'
         }
     },
     type: 'object',
