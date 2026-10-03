@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -28,7 +27,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
-from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
@@ -45,21 +44,6 @@ if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
 
     from airflow.providers.common.compat.sdk import Connection
-
-
-async def _aextra_dejson(conn: Connection) -> dict[str, Any]:
-    """
-    Deserialize a connection's extra without a synchronous call to the Task SDK.
-
-    ``extra_dejson`` masks secrets with a synchronous send to the supervisor, which raises
-    ``DeadlockImminentError`` on an event loop with another async call in flight.
-    ``Connection.aextra_dejson()`` (Airflow 3.3.2+, #71890) masks them asynchronously.
-    """
-    # TODO: Replace with airflow.providers.common.compat.connection.get_async_extra_dejson()
-    #  once https://github.com/apache/airflow/pull/74147 is released.
-    if hasattr(conn, "aextra_dejson"):
-        return await conn.aextra_dejson()
-    return json.loads(conn.extra) if conn.extra else {}
 
 
 def _has_recognized_provider_prefix(model_name: str) -> bool:
@@ -321,11 +305,11 @@ class PydanticAIHook(BaseHook):
         """Fetch this hook's connection and its fallback connections asynchronously, once."""
         if self._conn is None:
             conn = await get_async_connection(self.llm_conn_id)
-            self._seed_connection(conn, await _aextra_dejson(conn))
+            self._seed_connection(conn, await get_async_extra_dejson(conn))
         for conn_id in self._get_fallback_conn_ids():
             if conn_id not in self._prefetched_fallbacks:
                 conn = await get_async_connection(conn_id)
-                self._prefetched_fallbacks[conn_id] = (conn, await _aextra_dejson(conn))
+                self._prefetched_fallbacks[conn_id] = (conn, await get_async_extra_dejson(conn))
 
     def _qualify_model_name(self, model_name: str, *, forwarded_from_conn_id: str | None = None) -> str:
         """

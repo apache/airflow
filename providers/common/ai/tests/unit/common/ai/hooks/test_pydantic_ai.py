@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import logging
 import re
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from pydantic_ai import Agent
@@ -2067,14 +2068,23 @@ class TestConnTypeResolution:
         assert type(resolved.get_hook()) is hook_class
 
 
+def _extra_dejson_off_the_event_loop(conn: Connection) -> dict:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return json.loads(conn.extra) if conn.extra else {}
+    raise AssertionError("extra_dejson masks secrets synchronously on the event loop")
+
+
 @pytest.fixture
 def async_registry():
     """
-    Serve connections only through ``get_async_connection``: the synchronous lookups fail.
+    Serve connections only through ``get_async_connection``: the synchronous lookups fail on the loop.
 
     ``get_connection`` and the secret masking of ``extra_dejson`` send to the supervisor
     synchronously, which raises ``DeadlockImminentError`` inside an async task with another
-    async call in flight, so the async path must touch neither.
+    async call in flight. ``get_connection`` must not be called at all, and ``extra_dejson``
+    only off the event loop, where ``get_async_extra_dejson`` reads it on Airflow < 3.3.2.
     """
     reg = _ConnRegistry()
     with (
@@ -2083,12 +2093,7 @@ def async_registry():
             new=AsyncMock(side_effect=reg.get_connection),
         ) as mock_get_async_connection,
         patch.object(PydanticAIHook, "get_connection", side_effect=AssertionError("sync get_connection")),
-        patch.object(
-            Connection,
-            "extra_dejson",
-            new_callable=PropertyMock,
-            side_effect=AssertionError("extra_dejson masks secrets synchronously"),
-        ),
+        patch.object(Connection, "extra_dejson", new=property(_extra_dejson_off_the_event_loop)),
         patch.object(Connection, "get_hook", side_effect=reg.get_hook, autospec=True),
     ):
         reg.get_async_connection = mock_get_async_connection
