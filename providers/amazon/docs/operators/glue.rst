@@ -195,6 +195,14 @@ DAG change, does not turn it on either: below 3.3, behavior is unchanged from be
 existed unless ``resume_glue_job_on_retry`` is set. On Airflow 3.3+, ``durable`` defaults to
 ``True`` as described above, since the task state store makes it cheap.
 
+.. note::
+  The task-UUID scan fallback (used on retry whenever XCom has no cached run id -- always the case
+  on Airflow 3.0-3.2, and on Airflow 2.x once XCom itself has expired or been cleared) calls
+  ``glue:GetJobRuns`` against the job's run history. Grant this action, in addition to
+  ``glue:StartJobRun`` and ``glue:GetJobRun``, to any IAM policy relying on ``durable=True`` (or
+  ``resume_glue_job_on_retry=True`` below Airflow 3.3) for crash recovery -- without it, the scan
+  fails, is logged as an error, and the operator submits a fresh run instead of reconnecting.
+
 Like the persisted state itself, the stored run id isn't deleted automatically, that only happens
 when someone runs ``airflow state-store clean`` or ``airflow db clean`` (which also targets the
 ``task_state_store`` table). If a task's ``retry_delay`` is longer than
