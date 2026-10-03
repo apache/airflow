@@ -73,16 +73,16 @@ DagImporterRegistry.from_config(bundle_name)
 
 The importer is tied to its bundle because the Java importer's listing filter needs the parsing coordinator's `main_class`, and `might_contain_dag` gets no bundle argument. For the same reason it cannot come in through `dag_importer_configs`, which cannot pass a bundle name. A third-party runtime registers its `CoordinatorDagImporter` subclass in each bundle's `importers` list, with `"kwargs": {"bundle_name": "<bundle>"}`. `dag_importer_configs` remains the door for importers with no runtime behind them, a YAML importer say.
 
-Failures do not fall back to a Python file:
+When the tier fails:
 
 - If `[sdk] coordinators` cannot be loaded, the tier logs it and registers nothing. Tasks cannot start in that case anyway, because `for_queue` fails first.
-- Any other error is logged and kept on the registry. `find_claiming_importer` re-raises it, so a file is never taken for a Python file because its registry failed to build.
+- Any other error is logged and kept on the registry, and `find_claiming_importer` re-raises it. A task routed to a coordinator then fails before its runtime starts, instead of running its file as a Python file. The Dag processor and the Python task runner log the error and treat the file as a Python file.
 
 ### `CoordinatorManager`
 
 ```
 CoordinatorManager
-  ├── for_queue(queue)                                  → one coordinator   (shipped — task execution)
+  ├── for_queue(queue)                                  → one coordinator   (shipped, task execution)
   ├── get_coordinator(key)                              → the coordinator under a key
   ├── get_coordinator_keys_for_class(classpath)         → the keys of that class, building nothing
   └── get_dag_parsing_coordinator_key(classpath, bundle) → the key that parses the bundle's files of that class   (new)
@@ -111,7 +111,7 @@ DagFileProcessorProcess(analytics.jar)                       ← manager spawns,
                     │
                     ├── LangSDKDagFileProcessorProcess.start(
                     │       target=_parse_lang_sdk_dag_entrypoint,
-                    │       coordinator=JavaCoordinator(...), path=analytics.jar)
+                    │       coordinator=self.get_parsing_coordinator(), path=analytics.jar)
                     │     │
                     │     ├── in the child: _build_parse_dag_command() → (command, schema_version)
                     │     │                 coordinator.parse_dag() — spawn JVM, fd 0 ⇄ comm socket
@@ -183,7 +183,7 @@ DagModelOperation → PERSIST
 
 ## Appendix
 
-### Appendix A — Two or more coordinators and no usable entry
+### Appendix A: Two or more coordinators and no usable entry
 
 Each file of the importer fails its parse with an import error. Three outcomes were possible:
 
@@ -191,7 +191,7 @@ Each file of the importer fails its parse with an import error. Three outcomes w
 - **Raise while building the registry.** The manager skips the whole bundle, Python files included.
 - **Import error per file (chosen).** The Dags also go stale, but the UI says why, and the next good parse brings them back.
 
-### Appendix B — Extensionless artifacts
+### Appendix B: Extensionless artifacts
 
 A packed Go bundle has no suffix. `ExecutableDagImporter` claims the empty extension as a first-class key rather than depending on a `can_handle` scan, whose winner varies with
 registration order because `_ordered_importers` is scanned in reverse.
@@ -204,7 +204,7 @@ Three places assume a non-empty suffix today:
 
 Empty has to pass through all three, with the guards testing `suffix is not None`.
 
-### Appendix C — Resolving artifact roots at parse time
+### Appendix C: Resolving artifact roots at parse time
 
 `_init_root_source` resolves the roots of a task, but publishes them through `_get_scan_roots()`, which is scoped to an active task and raises outside one. Both parse-side commands need the
 same roots with no `TaskInstance` in hand. For a parse they are the root of the Dag bundle the Dag processor is parsing, whatever the coordinator's `dag_bundle_name` says. The scope that
