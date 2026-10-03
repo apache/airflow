@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import json
 import os
 import selectors
 import signal
@@ -58,6 +59,7 @@ from airflow.serialization.serialized_objects import DagSerialization, LazyDeser
 from tests_common.test_utils.config import conf_vars
 from unit.dag_processing.fake_lang_sdk import (
     FakeCoordinator,
+    FakeCoordinatorDagImporter,
     fake_coordinator,
     play_runtime,
     write_native_file,
@@ -411,10 +413,21 @@ class TestLangSDKDagFileProcessorProcess:
     @pytest.mark.parametrize("use_exec", [False, True], ids=["fork", "spawn"])
     def test_the_runtime_inherits_only_its_standard_streams(self, monkeypatch, tmp_path, use_exec):
         if use_exec:
-            # The spawned interpreter finds the coordinator again from its environment.
+            # The spawned interpreter finds the coordinator and its Dag importer again from its environment.
             monkeypatch.setattr(supervisor, "_should_use_exec", lambda: True)
             monkeypatch.setenv("PYTHONPATH", os.pathsep.join(sys.path))
             monkeypatch.setenv("AIRFLOW__SDK__COORDINATORS", conf.get("sdk", "coordinators"))
+            monkeypatch.setenv(
+                "AIRFLOW__DAG_PROCESSOR__DAG_IMPORTER_CONFIGS",
+                json.dumps(
+                    [
+                        {
+                            "classpath": f"{FakeCoordinatorDagImporter.__module__}.FakeCoordinatorDagImporter",
+                            "kwargs": {"bundle_name": "testing"},
+                        }
+                    ]
+                ),
+            )
         with selectors.DefaultSelector() as selector:
             proc = _start(tmp_path, selector, argv=["/bin/sh", "-c", "exec sleep 30"])
             deadline = time.monotonic() + 30

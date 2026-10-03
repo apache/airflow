@@ -36,7 +36,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 
 from airflow import settings
 from airflow.dag_processing.dagbag import _get_bundle_team_name, _validate_executor_fields
-from airflow.dag_processing.importer_routing import get_claiming_coordinator
+from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
     DagFileParseRequest,
@@ -128,10 +128,9 @@ def _start_runtime_entrypoint() -> None:
     try:
         # The policy is user code: it runs in this child, where a failure is only this file's import error.
         import_timeout = _get_import_timeout(msg.file)
-        coordinator = get_claiming_coordinator(msg.file, msg.bundle_name)
-        if coordinator is None:
-            raise RuntimeError(f"No coordinator's Dag importer claims {msg.file}")
-        coordinator.parse_dag(
+        if (importer := get_claiming_importer(msg.file, msg.bundle_name)) is None:
+            raise RuntimeError(f"No coordinator Dag importer claims {msg.file}")
+        importer.get_parsing_coordinator().parse_dag(
             path=Path(msg.file),
             bundle_path=msg.bundle_path,
             comm_address=msg.comm_address,
@@ -427,9 +426,8 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             return {}
         file = self._parse_request.file
         try:
-            coordinator = get_claiming_coordinator(file, self.bundle_name)
-            if coordinator is None or (importer := coordinator.get_dag_importer()) is None:
-                raise RuntimeError(f"No coordinator's Dag importer claims {file}")
+            if (importer := get_claiming_importer(file, self.bundle_name)) is None:
+                raise RuntimeError(f"No coordinator Dag importer claims {file}")
             source = importer.get_source_code(FilesystemDagDefinition(Path(file)))
         except Exception as e:
             self.process_log.warning("Cannot read the Dag source", fileloc=file, error=str(e))

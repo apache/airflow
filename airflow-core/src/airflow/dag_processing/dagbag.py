@@ -33,7 +33,7 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.local import LocalDagBundle
-from airflow.dag_processing.importer_routing import get_claiming_coordinator
+from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
@@ -580,7 +580,7 @@ def sync_bag_to_db(
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
     def is_parsed_by_runtime(rel_path: str) -> bool:
-        return get_claiming_coordinator(Path(dagbag.bundle_path or "", rel_path), bundle_name) is not None
+        return get_claiming_importer(Path(dagbag.bundle_path or "", rel_path), bundle_name) is not None
 
     import_errors = {
         (bundle_name, rel_path): error

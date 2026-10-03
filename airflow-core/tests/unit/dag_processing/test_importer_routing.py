@@ -19,33 +19,38 @@ from __future__ import annotations
 
 import json
 import logging
+from unittest import mock
 
-from airflow.dag_processing.importer_routing import get_claiming_coordinator
+from airflow.dag_processing.importer_routing import get_claiming_importer
 
 from tests_common.test_utils.config import conf_vars
-from unit.dag_processing.fake_lang_sdk import FakeCoordinator, fake_coordinator
+from unit.dag_processing.fake_lang_sdk import FakeCoordinator, FakeCoordinatorDagImporter, fake_coordinator
 
 
-def test_get_claiming_coordinator_returns_the_coordinator_of_its_importer(tmp_path):
+def test_get_claiming_importer_returns_the_importer_that_claims_the_file(tmp_path):
     with fake_coordinator():
-        coordinator = get_claiming_coordinator(tmp_path / "dags.native", "testing")
-        others = [get_claiming_coordinator(tmp_path / name, "testing") for name in ("dags.other", "dag.py")]
+        importer = get_claiming_importer(tmp_path / "dags.native", "testing")
+        others = [get_claiming_importer(tmp_path / name, "testing") for name in ("dags.other", "dag.py")]
 
-    assert isinstance(coordinator, FakeCoordinator)
+    assert isinstance(importer, FakeCoordinatorDagImporter)
+    assert importer.bundle_name == "testing"
     assert others == [None, None]
 
 
-def test_get_claiming_coordinator_logs_a_broken_configuration(tmp_path, caplog):
+@mock.patch(
+    "airflow.sdk.coordinators._dag_importer.COORDINATOR_DAG_IMPORTERS", ("nonexistent.module.Importer",)
+)
+def test_get_claiming_importer_logs_a_broken_configuration(tmp_path, caplog):
     spec = {"classpath": f"{FakeCoordinator.__module__}.FakeCoordinator", "kwargs": {}}
     with (
-        conf_vars({("sdk", "coordinators"): json.dumps({"first": spec, "second": spec})}),
+        conf_vars({("sdk", "coordinators"): json.dumps({"fake": spec})}),
         caplog.at_level(logging.ERROR, logger="airflow.dag_processing.importer_routing"),
     ):
-        assert get_claiming_coordinator(tmp_path / "dags.native", "testing") is None
+        assert get_claiming_importer(tmp_path / "dags.native", "testing") is None
 
-    [record] = caplog.records
+    [record] = [r for r in caplog.records if r.name == "airflow.dag_processing.importer_routing"]
     assert (
         record.getMessage()
         == f"Cannot load the Dag importer for {tmp_path / 'dags.native'} in bundle testing"
     )
-    assert "Coordinators 'first' and 'second' both parse .native files" in str(record.exc_info[1])
+    assert "Cannot build the coordinator Dag importers of Dag bundle 'testing'" in str(record.exc_info[1])
