@@ -1868,6 +1868,48 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_execute_deferrable_with_execution_timeout(self, mock_trigger_hook, mock_hook):
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=True,
+            execution_timeout=dt.timedelta(hours=1),
+        )
+        start_date = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+        self.mock_ti.start_date = start_date
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(self.mock_context)
+
+        expected_deadline = start_date.timestamp() + 3600
+        assert exc.value.trigger.execution_deadline == expected_deadline
+        assert exc.value.timeout is not None
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_complete_timed_out_raises(self, mock_hook):
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=True,
+        )
+        event = {
+            "job_id": TEST_JOB_ID,
+            "job_state": "TIMED_OUT",
+            "message": f"Job {TEST_JOB_ID} exceeded the task's execution_timeout while deferred.",
+        }
+        with pytest.raises(AirflowException, match="execution_timeout"):
+            op.execute_complete(context=self.mock_context, event=event)
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_PATH.format("DataprocSubmitJobOperator.defer"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook.submit_job"))
     def test_dataproc_operator_execute_async_done_before_defer(self, mock_submit_job, mock_defer, mock_hook):
