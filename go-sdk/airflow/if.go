@@ -64,6 +64,9 @@ type IfRef struct {
 //   - false skips the task from Then
 //   - an error fails the task, which then skips nothing
 //
+// A task from Then or Else runs after the condition, so naming it records an edge from the
+// condition to it, as [TaskRef.Before] would. Declaring that edge as well changes nothing.
+//
 // The condition skips only that one task. In Python, a branch skips every task directly after it
 // that it does not follow, and a short circuit skips every task after it. After the skip, the
 // trigger rule of each task after the skipped task decides whether that task runs. A task that
@@ -172,6 +175,10 @@ func (g *IfRef) setTask(side string, task *TaskRef) {
 		))
 	}
 	*slot = task
+	// The task runs after the condition, so it is a downstream task of it. Recording the edge is
+	// what puts the condition in the serialized Dag as the task's upstream, and what lets
+	// registration see a cycle that runs through a condition.
+	d.addEdgeLocked(g.task, task, "")
 }
 
 // wrapCondition wraps fn as the task of g. The task skips the side of g that the result of fn
