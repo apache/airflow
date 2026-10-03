@@ -87,11 +87,7 @@ def go_bundle(tmp_path_factory) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def _go_coordinator(monkeypatch, tmp_path):
-    # Without cgo the Go SDK reads the current user from USER and HOME, and fails without them.
-    for name, value in (("USER", "airflow"), ("HOME", os.fspath(tmp_path))):
-        if not os.environ.get(name):
-            monkeypatch.setenv(name, value)
+def _go_coordinator():
     spec = {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator"}}
     reset_coordinator_manager()
     try:
