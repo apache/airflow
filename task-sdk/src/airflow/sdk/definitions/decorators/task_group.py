@@ -39,6 +39,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     ListOfDictsExpandInput,
     MappedArgument,
 )
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value, prevent_duplicates
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
@@ -92,14 +93,17 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         """
         return self._create_task_group(TaskGroup, *args, **kwargs)
 
+    def apply_function_doc(self, task_group: TaskGroup) -> None:
+        if doc := self.function.__doc__:
+            if not task_group.tooltip:
+                task_group.tooltip = doc
+            if not task_group.doc_md:
+                # Function docstrings are documentation text, not file paths for the doc_md converter.
+                object.__setattr__(task_group, "doc_md", doc)
+
     def _create_task_group(self, tg_factory: Callable[..., TaskGroup], *args: Any, **kwargs: Any) -> DAGNode:
         with tg_factory(add_suffix_on_collision=True, **self.tg_kwargs) as task_group:
-            if doc := self.function.__doc__:
-                if not task_group.tooltip:
-                    task_group.tooltip = doc
-                if not task_group.doc_md:
-                    # Function docstrings are documentation text, not file paths for the doc_md converter.
-                    object.__setattr__(task_group, "doc_md", doc)
+            self.apply_function_doc(task_group)
 
             # Invoke function to run Tasks inside the TaskGroup
             retval = self.function(*args, **kwargs)
@@ -124,6 +128,20 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
     def override(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         # TODO: FIXME when mypy gets compatible with new attrs
         return attr.evolve(self, tg_kwargs={**self.tg_kwargs, **kwargs})  # type: ignore[arg-type]
+
+    def loop(self, *, max_iterations: int, until: Callable[..., bool] | None = None) -> TaskGroup:
+        """
+        Repeat this group's tasks, creating each iteration when the previous gate continues.
+
+        The body must have one terminal task definition, which may be mapped.
+        Use ``partial()`` to supply body arguments and ``override()`` to configure the group.
+
+        :param max_iterations: Positive upper bound on the number of iterations.
+        :param until: Synchronous callable receiving task context keyword arguments.
+            True stops the loop. False at the iteration limit fails the gate.
+            Omit for a fixed-count loop that succeeds at its limit.
+        """
+        return create_loop(self, max_iterations=max_iterations, until=until)
 
     def partial(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         self._validate_arg_names("partial", kwargs)

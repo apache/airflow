@@ -22,6 +22,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import contextmanager
 from functools import partial, reduce
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, call
@@ -53,6 +54,7 @@ from airflow._shared.observability.traces import (
 )
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
+from airflow.dag_processing.dagbag import DagBag
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -97,7 +99,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.mapping import expand_mapped_task, push_mapped_length
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
@@ -244,7 +246,7 @@ def test_loop_integrity_does_not_revive_region_without_live_gate(dag_maker, sess
 @pytest.mark.parametrize(
     "mode", ["fixed", "mapped", "empty", "until_true", "until_false", "handled_failure", "unhandled_failure"]
 )
-def test_private_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mode):
+def test_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mode):
     @task
     def terminal(value, *, ti, loop):
         assert ti.region_id != SENTINEL_REGION_ID
@@ -270,11 +272,11 @@ def test_private_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mod
         else:
             terminal(1)
 
-    def converged(loop):
+    def converged(*, loop):
         return mode == "until_true" and loop.index == 1
 
     with dag_maker(serialized=False) as dag:
-        loop = create_loop(body, max_iterations=2, until=converged if mode.startswith("until") else None)
+        loop = body.loop(max_iterations=2, until=converged if mode.startswith("until") else None)
         loop >> PythonOperator(task_id="outside", python_callable=list, trigger_rule=TriggerRule.ALL_DONE)
 
     dr = dag.test()
@@ -294,6 +296,38 @@ def test_private_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mod
         assert gates == [(0, State.SUCCESS), (1, State.SUCCESS)]
     outside = dr.get_task_instance(task_id="outside", session=session)
     assert outside.state == State.SUCCESS
+
+
+@pytest.fixture
+def clear_loop_example_runs():
+    yield
+    clear_db_runs()
+    clear_db_xcom()
+
+
+@pytest.mark.usefixtures("clear_loop_example_runs")
+@pytest.mark.parametrize(
+    ("dag_id", "expected_iterations"),
+    [("refine_estimate", 4), ("fixed_task_loop", 3), ("mapped_task_loop", 2)],
+)
+def test_documented_task_loop_examples_complete(session, dag_id, expected_iterations):
+    bag = DagBag(
+        dag_folder=str(Path(__file__).parents[3] / "src/airflow/example_dags/example_task_loops.py"),
+    )
+    assert bag.import_errors == {}
+    dag = bag.get_dag(dag_id)
+
+    dr = dag.test()
+
+    assert dr.state == DagRunState.SUCCESS
+    gates = [
+        ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.operator == "LoopGateOperator" and ti.working_set
+    ]
+    assert sorted((ti.region_index, ti.state) for ti in gates) == [
+        (index, State.SUCCESS) for index in range(expected_iterations)
+    ]
 
 
 async def empty_callback_for_deadline():

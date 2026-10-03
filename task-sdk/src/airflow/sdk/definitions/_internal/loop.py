@@ -75,10 +75,9 @@ class LoopGateOperator(BaseOperator):
 def create_loop(
     factory: _TaskGroupFactory,
     /,
-    *args: Any,
+    *,
     max_iterations: int,
     until: Callable[..., bool] | None = None,
-    **kwargs: Any,
 ) -> LoopTaskGroup:
     """Construct a loop group and its gate."""
     from airflow.sdk.bases.decorator import get_unique_task_id
@@ -96,12 +95,8 @@ def create_loop(
         has_until=until is not None,
     )
     with group:
-        if doc := factory.function.__doc__:
-            if not group.tooltip:
-                group.tooltip = doc
-            if not group.doc_md:
-                object.__setattr__(group, "doc_md", doc)
-        factory.function(*args, **factory.partial_kwargs, **kwargs)
+        factory.apply_function_doc(group)
+        factory.function(**factory.partial_kwargs)
         terminals = {task.task_id: task for task in group.get_leaves()}
         if len(terminals) != 1:
             raise ValueError("A loop body must have exactly one terminal task definition")

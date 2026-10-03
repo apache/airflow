@@ -137,7 +137,7 @@ def test_conditional_loop_names_gate_after_condition_and_preserves_arguments(ter
         return loop.result
 
     with DAG("conditional_loop", schedule=None) as dag:
-        loop = create_loop(body, "compute", max_iterations=4, until=converged)
+        loop = create_loop(body.partial(queue="compute"), max_iterations=4, until=converged)
 
     assert loop.gate_task_id == gate_task_id
     assert dag.get_task(loop.gate_task_id).until is converged

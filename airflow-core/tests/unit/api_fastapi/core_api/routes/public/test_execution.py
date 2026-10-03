@@ -21,14 +21,17 @@ from unittest import mock
 import pytest
 from sqlalchemy import select
 
+from airflow.models.dagbag import DBDagBag
+from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import task_group
+from airflow.sdk import task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.sdk.definitions.dag import _run_task
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
 
@@ -68,6 +71,109 @@ def test_execution_lists_live_work_and_selects_archived_tries(test_client, dag_m
         response = test_client.get(f"{url}/taskInstances/task/externalLogUrl/1")
         assert response.status_code == 200, response.text
         assert reader.return_value.log_handler.get_external_log_url.call_args.args[0].id == archived_id
+
+
+@pytest.mark.parametrize("retain_later", [False, True])
+def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
+    test_client, dag_maker, session, retain_later
+):
+    @task
+    def prepare():
+        return "ready"
+
+    @task
+    def work(*, loop):
+        return (loop.previous or 0) + 1
+
+    @task_group
+    def body():
+        work()
+
+    @task
+    def consume():
+        return "finished"
+
+    with dag_maker(serialized=False) as dag:
+        prepare() >> body.loop(max_iterations=3) >> consume()
+    run = dag.test()
+    run_url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}"
+    clear_url = f"/dags/{run.dag_id}/clearTaskInstances"
+
+    def live_executions():
+        response = test_client.get(f"{run_url}/execution")
+        assert response.status_code == 200, response.text
+        return response.json()["task_instances"]
+
+    def finish_run():
+        nonlocal run
+        session.expire_all()
+        run = session.get(DagRun, run.id, populate_existing=True)
+        run.dag = DBDagBag().get_dag(run.created_dag_version_id, session=session)
+        run.state = DagRunState.RUNNING
+        session.commit()
+        for _ in range(20):
+            session.expire_all()
+            runnable, _ = run.update_state(session=session)
+            if run.state != DagRunState.RUNNING:
+                assert run.state == DagRunState.SUCCESS
+                return
+            assert runnable, "Cleared loop stopped making progress"
+            for ti in runnable:
+                ti.try_number = max(ti.try_number, 1)
+                ti.state = TaskInstanceState.SCHEDULED
+            session.commit()
+            for ti in runnable:
+                _run_task(ti=ti, task=dag.get_task(ti.task_id))
+        pytest.fail("Cleared loop did not finish")
+
+    initial = live_executions()
+    prepared = next(ti for ti in initial if ti["task_id"] == "prepare")
+    archived_ids = set()
+    for index, keep_future in [(1, retain_later), (0, False)]:
+        before = live_executions()
+        selected = next(ti for ti in before if ti["task_id"] == "body.work" and ti["region_index"] == index)
+        response = test_client.post(
+            clear_url,
+            json={
+                "dag_run_id": run.run_id,
+                "task_instance_ids": [selected["id"]],
+                "dry_run": False,
+                "only_failed": False,
+                "include_downstream": True,
+                "include_later_loop_iterations": not keep_future,
+            },
+        )
+        assert response.status_code == 200, response.text
+        finish_run()
+        after = live_executions()
+        assert all(ti["state"] == "success" for ti in after)
+        assert len(after) == len(initial)
+        assert next(ti for ti in after if ti["task_id"] == "prepare")["id"] == prepared["id"]
+        old_suffix = {ti["id"] for ti in before if ti["region_index"] > index}
+        live_ids = {ti["id"] for ti in after}
+        assert old_suffix <= live_ids if keep_future else old_suffix.isdisjoint(live_ids)
+        assert selected["id"] not in live_ids
+        archived_ids.add(selected["id"])
+        for ti in after:
+            if ti["task_id"] != "body.work":
+                continue
+            value = test_client.get(
+                f"{run_url}/taskInstances/body.work/xcomEntries/return_value",
+                params={"region_id": ti["region_id"], "region_index": ti["region_index"]},
+            )
+            assert value.status_code == 200, value.text
+            assert value.json()["value"] == ti["region_index"] + 1
+
+    archived = session.scalars(
+        select(TaskInstance)
+        .where(
+            TaskInstance.dag_id == run.dag_id,
+            TaskInstance.run_id == run.run_id,
+            TaskInstance.working_set.is_(None),
+        )
+        .execution_options(include_all_attempts=True)
+    ).all()
+    assert archived_ids <= {str(ti.id) for ti in archived}
 
 
 def test_execution_requires_an_existing_dag_run(test_client):
