@@ -27,7 +27,7 @@ import sys
 import warnings
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
 from unittest import mock
@@ -971,7 +971,7 @@ def frozen_sleep(monkeypatch):
 
     def fake_sleep(seconds):
         nonlocal traveller
-        utcnow = datetime.now(tz=timezone.utc)
+        utcnow = datetime.now(tz=UTC)
         if traveller is not None:
             traveller.stop()
         traveller = time_machine.travel(utcnow + timedelta(seconds=seconds))

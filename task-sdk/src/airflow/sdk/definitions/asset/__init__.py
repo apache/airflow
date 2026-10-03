@@ -32,10 +32,10 @@ from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Collection
+    from typing import Self
     from urllib.parse import SplitResult
 
     from pydantic.types import JsonValue
-    from typing_extensions import Self
 
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.io.path import ObjectStoragePath

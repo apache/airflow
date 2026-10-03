@@ -22,7 +22,7 @@ import hashlib
 import json
 import sys
 from contextlib import ExitStack
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest import mock
 
@@ -605,7 +605,7 @@ def test_diff_preserves_templated_params(include_values, mapped, change):
 def _build_dated_payloads(field: str, task_date: datetime | None) -> list[dict]:
     payloads = []
     for day in (2, 1):
-        dag_kwargs: dict[str, Any] = {field: datetime(2024, 1, day, tzinfo=timezone.utc)}
+        dag_kwargs: dict[str, Any] = {field: datetime(2024, 1, day, tzinfo=UTC)}
         task_kwargs: dict[str, Any] = {field: task_date} if task_date else {}
         with DAG("dates_example", schedule=None, **dag_kwargs) as dag:
             BashOperator(task_id="extract", bash_command="echo hello", **task_kwargs)
@@ -626,7 +626,7 @@ def _hydrated_task_dates(payloads: list[dict], field: str) -> list[Any]:
     [("start_date", 2, [False, True]), ("end_date", 1, [True, False])],
 )
 def test_build_diff_ignores_task_dates_matching_the_dag(include_values, field, pinned_day, stored_dates):
-    pinned = datetime(2024, 1, pinned_day, tzinfo=timezone.utc)
+    pinned = datetime(2024, 1, pinned_day, tzinfo=UTC)
     payloads = _build_dated_payloads(field, pinned)
     assert [field in payload["dag"]["tasks"][0]["__var"] for payload in payloads] == stored_dates
     assert set(_hydrated_task_dates(payloads, field)) == {pinned}
@@ -891,9 +891,7 @@ def test_build_diff_keeps_operations_separate_when_grouping(include_values):
 def test_build_diff_groups_repeated_changes_in_large_dag(max_changes, valued_truncated):
     payloads = []
     for day, retries in ((1, 0), (2, 1)):
-        with DAG(
-            "grouped_diff", schedule=None, start_date=datetime(2025, 1, day, tzinfo=timezone.utc)
-        ) as dag:
+        with DAG("grouped_diff", schedule=None, start_date=datetime(2025, 1, day, tzinfo=UTC)) as dag:
             for index in range(600):
                 BashOperator(task_id=f"task_{index:04d}", bash_command="echo hello", retries=retries)
         payloads.append(_serialize_dag(dag))
@@ -929,7 +927,7 @@ def test_build_diff_counts_every_occurrence_at_a_disclosed_path(max_changes):
         with DAG(
             "fan_out",
             schedule=None,
-            start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            start_date=datetime(2025, 1, 1, tzinfo=UTC),
             default_args={"owner": owner},
         ) as dag:
             for index in range(120):
@@ -954,7 +952,7 @@ def test_build_diff_reports_no_execution_impact_for_a_default_args_owner_edit() 
         with DAG(
             "owner_only",
             schedule=None,
-            start_date=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            start_date=datetime(2025, 1, 1, tzinfo=UTC),
             default_args={"owner": owner},
         ) as dag:
             EmptyOperator(task_id="extract")
@@ -1848,7 +1846,7 @@ def test_build_diff_discards_changes_when_json_serialization_fails(location, inc
     else:
         before, after = base["dag"], target["dag"]
     before["opaque"] = None
-    after["opaque"] = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    after["opaque"] = datetime(2026, 1, 1, tzinfo=UTC)
 
     result = build_serialized_dag_diff(
         base_data=base,
@@ -2487,7 +2485,7 @@ def test_build_diff_ignores_top_level_shadowing_behind_empty_partial_kwargs(
 def test_diff_distinguishes_implicit_typed_defaults_from_template_numbers(
     include_values, field, default_type
 ):
-    with DAG("diff_regression", schedule=None, start_date=datetime(2024, 1, 1, tzinfo=timezone.utc)) as dag:
+    with DAG("diff_regression", schedule=None, start_date=datetime(2024, 1, 1, tzinfo=UTC)) as dag:
         BashOperator(task_id="extract", bash_command="echo hello")
     base = _serialize_dag(dag)
     _get_task(base)["template_fields"].append(field)

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -52,7 +52,7 @@ class TestChainMapper:
             (
                 ChainMapper(IdentityMapper(), StartOfDayMapper()),
                 "2024-03-15",
-                datetime(2024, 3, 15, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC),
             ),
             # Last mapper non-temporal → no anchor.
             (ChainMapper(StartOfDayMapper(), IdentityMapper()), "anything", None),

@@ -255,7 +255,7 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
                 EmptyOperator(task_id=f"task{task_number + 1}")
         dag_maker.create_dagrun(
             run_id=f"run{version_number}",
-            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.UTC),
             session=session,
         )
         session.commit()

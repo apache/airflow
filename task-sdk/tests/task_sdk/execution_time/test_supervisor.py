@@ -30,7 +30,7 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -3306,7 +3306,7 @@ REQUEST_TEST_CASES = [
             "relative_fileloc": "dags/example.py",
             "owners": "owner_1",
             "tags": ["a_tag", "z_tag"],
-            "next_dagrun": datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            "next_dagrun": datetime(2026, 4, 13, tzinfo=UTC),
             "type": "DagResult",
         },
         client_mock=ClientMock(
@@ -3322,7 +3322,7 @@ REQUEST_TEST_CASES = [
                 relative_fileloc="dags/example.py",
                 owners="owner_1",
                 tags=["a_tag", "z_tag"],
-                next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+                next_dagrun=datetime(2026, 4, 13, tzinfo=UTC),
             ),
         ),
         test_id="get_dag",
@@ -3342,13 +3342,13 @@ REQUEST_TEST_CASES = [
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
-            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC),
         ),
         test_id="set_task_store",
         client_mock=ClientMock(
             method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
-            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
@@ -3358,13 +3358,13 @@ REQUEST_TEST_CASES = [
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
-            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
+            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC),
         ),
         test_id="set_task_store_with_expires_at",
         client_mock=ClientMock(
             method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
-            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
