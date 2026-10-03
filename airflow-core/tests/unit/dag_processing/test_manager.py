@@ -1635,7 +1635,7 @@ class TestDagFileProcessorManager:
         manager.cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
 
-    def test_create_process_stdout_target_logs_to_stdout_with_dag_file_context(self, tmp_path):
+    def test_create_process_stdout_target_binds_dag_file_context(self, tmp_path):
         with conf_vars({("logging", "dag_processor_log_target"): "stdout"}):
             manager = DagFileProcessorManager(max_runs=1, processor_timeout=60, base_log_dir=str(tmp_path))
             dag_file = DagFileInfo(
@@ -1651,6 +1651,37 @@ class TestDagFileProcessorManager:
             kwargs["logger"].info("parsing")
         assert cap[0]["dag_file"] == "my_dag.py"
         assert cap[0]["bundle_name"] == "testing"
+
+    def test_create_process_stdout_target_logs_once_to_stdout(self, tmp_path, capsys):
+        (tmp_path / "my_dag.py").write_text(
+            textwrap.dedent(
+                """
+                import logging
+
+                from airflow.sdk import DAG
+
+                logging.getLogger(__name__).warning("parse-marker")
+
+                DAG(dag_id="my_dag", schedule=None)
+                """
+            )
+        )
+        with (
+            conf_vars({("logging", "dag_processor_log_target"): "stdout"}),
+            selectors.DefaultSelector() as selector,
+        ):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60, base_log_dir=str(tmp_path))
+            manager.selector = selector
+            dag_file = DagFileInfo(bundle_name="testing", rel_path=Path("my_dag.py"), bundle_path=tmp_path)
+            proc = manager._create_process(dag_file)
+            while not proc.is_ready:
+                proc._service_subprocess(0.1)
+
+        # The process logger is stdout itself, so a second copy would print every line twice.
+        lines = [line for line in capsys.readouterr().out.splitlines() if "parse-marker" in line]
+        assert len(lines) == 1
+        assert "dag_file=my_dag.py" in lines[0]
+        assert "bundle_name=testing" in lines[0]
 
     @pytest.mark.parametrize(
         ("log_target", "expected_log_files"),
