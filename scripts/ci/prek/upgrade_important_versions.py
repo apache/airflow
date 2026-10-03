@@ -37,7 +37,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
@@ -277,7 +277,7 @@ def _is_version_within_cooldown(releases: dict, version: str, cooldown_hours: fl
         return False
     upload_time = datetime.fromisoformat(files[0]["upload_time_iso_8601"].replace("Z", "+00:00"))
     effective_hours = COOLDOWN_DAYS * 24 if cooldown_hours is None else cooldown_hours
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=effective_hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=effective_hours)
     return upload_time > cutoff
 
 
@@ -1105,13 +1105,7 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
             "typing_extensions": "typing-extensions",
         }
         canonical = CANONICAL_NAMES.get(pkg_name_lower, pkg_spec.split("==")[0])
-        if pkg_name_lower == "tomli":
-            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
-        elif pkg_name_lower == "typing_extensions":
-            # typing_extensions is built-in from Python 3.11+
-            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
-        else:
-            requires.append(f"{canonical}=={pkg_version}")
+        requires.append(f"{canonical}=={pkg_version}")
 
     return sorted(requires, key=lambda r: r.split("==")[0].lower())
 

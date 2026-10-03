@@ -44,7 +44,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REMINDER_INTERVAL_HOURS = 24
@@ -140,7 +140,7 @@ def determine_action(current_failures: list[str], prev_state: dict | None) -> st
     """
     prev_failures = sorted(prev_state.get("failures", [])) if prev_state else []
     prev_notified = prev_state.get("last_notified") if prev_state else None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if current_failures:
         if not prev_failures:
@@ -164,7 +164,7 @@ def determine_action(current_failures: list[str], prev_state: dict | None) -> st
 
 def save_state(current_failures: list[str], action: str, prev_notified: str | None) -> None:
     """Save current state to file for upload as artifact."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     STATE_DIR.mkdir(parents=True, exist_ok=True)
 
     new_state = {

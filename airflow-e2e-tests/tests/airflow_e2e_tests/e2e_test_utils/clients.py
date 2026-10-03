@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import cached_property
 
 import boto3
@@ -167,7 +167,7 @@ class AirflowClient:
         """Trigger a DAG and wait for it to complete."""
         self.un_pause_dag(dag_id)
 
-        resp = self.trigger_dag(dag_id, json=json or {"logical_date": datetime.now(timezone.utc).isoformat()})
+        resp = self.trigger_dag(dag_id, json=json or {"logical_date": datetime.now(UTC).isoformat()})
 
         # Wait for the DAG run to complete
         return self.wait_for_dag_run(
