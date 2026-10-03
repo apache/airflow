@@ -317,6 +317,11 @@ func TestTaskPanicsOnBadFunction(t *testing.T) {
 			want: "parameter 0 is context.Context, but the first parameter must be airflow.Context",
 		},
 		{
+			name: "error result of a concrete type",
+			fn:   func(Context) (int, *taskError) { return 0, nil },
+			want: "must declare its last result as error, not *airflow.taskError",
+		},
+		{
 			// The name of a method expression keeps a dot, as a function literal's name does.
 			// This row checks that the signature check rejects the method expression for its
 			// receiver before Task looks at the name.
