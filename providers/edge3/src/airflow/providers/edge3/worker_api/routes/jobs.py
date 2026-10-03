@@ -142,7 +142,7 @@ def state(
     """Update the state of a job running on the edge worker."""
     # execute query to catch the queue and check if state toggles to success or failed
     # otherwise possible that Executor resets orphaned jobs and stats are exported 2 times
-    if state in [TaskInstanceState.SUCCESS, state == TaskInstanceState.FAILED]:
+    if state in [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED]:
         query = select(EdgeJobModel).where(
             EdgeJobModel.dag_id == dag_id,
             EdgeJobModel.task_id == task_id,

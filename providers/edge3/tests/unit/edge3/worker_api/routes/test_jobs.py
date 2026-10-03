@@ -141,6 +141,45 @@ class TestJobsApiRoutes:
             assert db_job.state == TaskInstanceState.SUCCESS
 
     @patch(f"{Stats.__module__}.Stats.incr")
+    def test_state_failed(self, mock_stats_incr, session: Session):
+        with create_session() as session:
+            job = EdgeJobModel(
+                dag_id=DAG_ID,
+                task_id=TASK_ID,
+                run_id=RUN_ID,
+                try_number=1,
+                map_index=-1,
+                state=TaskInstanceState.RUNNING,
+                queue=QUEUE,
+                concurrency_slots=1,
+                command="execute",
+                team_name="team_a",
+            )
+            session.add(job)
+            session.commit()
+
+            state(
+                dag_id=DAG_ID,
+                task_id=TASK_ID,
+                run_id=RUN_ID,
+                try_number=1,
+                map_index=-1,
+                state=TaskInstanceState.FAILED,
+                session=session,
+            )
+
+            mock_stats_incr.assert_called_with(
+                "edge_worker.ti.finish",
+                tags={
+                    "dag_id": DAG_ID,
+                    "queue": QUEUE,
+                    "state": str(TaskInstanceState.FAILED),
+                    "task_id": TASK_ID,
+                    "team_name": "team_a",
+                },
+            )
+
+    @patch(f"{Stats.__module__}.Stats.incr")
     def test_state_finish_metric_omits_team_name_for_global_job(self, mock_stats_incr, session: Session):
         with create_session() as session:
             job = EdgeJobModel(
