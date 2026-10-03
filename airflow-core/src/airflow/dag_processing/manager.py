@@ -1235,15 +1235,36 @@ class DagFileProcessorManager(LoggingMixin):
     def purge_removed_files_from_queue(self, present: set[DagFileInfo]):
         """Remove from queue any files no longer observed locally."""
         present_keys = {file.presence_key for file in present}
-        self._file_queue = OrderedDict((x, None) for x in self._file_queue if x.presence_key in present_keys)
+        self._file_queue = OrderedDict(
+            (x, None) for x in self._file_queue if self._file_is_present(x, present_keys)
+        )
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
         """Remove the stats for any dag files that don't exist anymore."""
         present_keys = {file.presence_key for file in present}
-        stats_to_remove = {file for file in self._file_stats if file.presence_key not in present_keys}
+        stats_to_remove = {
+            file for file in self._file_stats if not self._file_is_present(file, present_keys)
+        }
         for file in stats_to_remove:
             del self._file_stats[file]
+
+    @staticmethod
+    # Dag files inside a zip archive are scanned as the archive itself
+    # (``_find_files_in_bundle`` yields the ``.zip`` entry, not the inner
+    # files), so an inner path counts as present while its containing
+    # archive is still observed. Without this, a bundle refresh would
+    # treat e.g. ``my_dags.zip/my_dag.py`` as removed and kill a
+    # still-running callback processor for it.
+    def _file_is_present(file: DagFileInfo, present_keys: set[tuple[str, Path]]) -> bool:
+        """Check whether a tracked file is still observed in the bundle scan."""
+        if file.presence_key in present_keys:
+            return True
+        return any(
+            (file.bundle_name, parent) in present_keys
+            for parent in file.rel_path.parents
+            if parent.suffix.lower() == ".zip"
+        )
 
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
@@ -1252,7 +1273,7 @@ class DagFileProcessorManager(LoggingMixin):
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
 
         for file in list(self._processors.keys()):
-            if file.presence_key not in present_keys:
+            if not self._file_is_present(file, present_keys):
                 processor = self._processors.pop(file, None)
                 if not processor:
                     continue
