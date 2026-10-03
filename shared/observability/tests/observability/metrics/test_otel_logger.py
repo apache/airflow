@@ -618,6 +618,37 @@ class TestOtelMetrics:
         )
 
 
+    def test_reinit_does_not_leak_exporter_threads(self):
+        """Re-initialising must replace the previous pipeline, not run alongside it.
+
+        The replaced provider owns a ``PeriodicExportingMetricReader`` whose constructor already
+        started a daemon export thread, and it is built with ``shutdown_on_exit=False``, so
+        without an explicit shutdown it keeps exporting after its instruments stop being recorded
+        to. Its cumulative totals freeze and are republished under the same resource with a
+        different ``start_time_unix_nano``, colliding with the live stream for the same series.
+        """
+        test_module_name = "tests.observability.metrics.test_otel_logger"
+        function_call_str = f"import {test_module_name} as m; m.mock_service_run_reinit_readers()"
+
+        proc = subprocess.run(
+            [sys.executable, "-c", function_call_str],
+            check=False,
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+
+        assert proc.returncode == 0, f"Process failed\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+
+        assert "leaked_readers=0" in proc.stdout, (
+            "Re-initialisation left the replaced pipeline exporting, so the process now has two "
+            "readers publishing the same series.\n"
+            f"stdout:\n{proc.stdout}\n"
+            f"stderr:\n{proc.stderr}"
+        )
+
+
 def mock_service_run():
     logger = get_otel_logger(debug=True)
     logger.incr("my_test_stat")
@@ -636,3 +667,23 @@ def mock_service_run_reinit():
     # Second init — simulates post-fork re-initialization
     logger = get_otel_logger(debug=True)
     logger.incr("post_fork_stat")
+
+
+def mock_service_run_reinit_readers():
+    """Re-initialise the OTel pipeline twice and report whether an exporter thread leaked.
+
+    Every ``get_otel_logger()`` call builds a ``PeriodicExportingMetricReader``, and the reader's
+    constructor starts a daemon thread that exports on an interval. Replacing the provider must
+    stop the old reader; otherwise it keeps publishing instruments that nothing records to.
+    """
+    import threading
+
+    def live_readers() -> int:
+        return sum(1 for t in threading.enumerate() if t.name == "OtelPeriodicExportingMetricReader")
+
+    get_otel_logger()
+    after_first = live_readers()
+    get_otel_logger()
+    after_second = live_readers()
+
+    print(f"leaked_readers={after_second - after_first}")
