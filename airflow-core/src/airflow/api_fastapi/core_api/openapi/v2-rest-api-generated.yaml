@@ -9210,6 +9210,23 @@ paths:
         description: Cursor for keyset-based pagination. Pass an empty string for
           the first page, then use ``next_cursor`` from the response. When ``cursor``
           is provided, ``offset`` is ignored.
+      - name: loop_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Loop Id
+      - name: iteration
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+          title: Iteration
       - name: task_id
         in: query
         required: false
@@ -16950,6 +16967,20 @@ components:
       type: object
       title: LastAssetEventResponse
       description: Last asset event response serializer.
+    LoopIterationResponse:
+      properties:
+        loop_id:
+          type: string
+          title: Loop Id
+        iteration:
+          type: integer
+          title: Iteration
+      type: object
+      required:
+      - loop_id
+      - iteration
+      title: LoopIterationResponse
+      description: A task execution's position in an enclosing loop.
     MaterializeAssetBody:
       properties:
         dag_run_id:
@@ -17752,6 +17783,10 @@ components:
         region_index:
           type: integer
           title: Region Index
+        loop_iteration:
+          anyOf:
+          - $ref: '#/components/schemas/LoopIterationResponse'
+          - type: 'null'
         start_date:
           anyOf:
           - type: string
@@ -17923,6 +17958,10 @@ components:
         in_loop:
           type: boolean
           title: In Loop
+        loop_iteration:
+          anyOf:
+          - $ref: '#/components/schemas/LoopIterationResponse'
+          - type: 'null'
         logical_date:
           anyOf:
           - type: string

@@ -50,6 +50,13 @@ class NewTaskResponse(BaseModel):
     task_display_name: str
 
 
+class LoopIterationResponse(BaseModel):
+    """A task execution's position in an enclosing loop."""
+
+    loop_id: str
+    iteration: int
+
+
 class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
     """TaskInstance serializer for responses."""
 
@@ -61,6 +68,7 @@ class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
     region_id: RegionId = None
     region_index: RegionIndex = None
     in_loop: bool
+    loop_iteration: LoopIterationResponse | None = None
     logical_date: datetime | None
     run_after: datetime
     start_date: datetime | None

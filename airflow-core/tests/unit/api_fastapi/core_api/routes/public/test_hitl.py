@@ -405,6 +405,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "id": str(sample_ti.id),
             "logical_date": mock.ANY,
             "in_loop": False,
+            "loop_iteration": None,
             "map_index": -1,
             "max_tries": 0,
             "note": None,

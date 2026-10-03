@@ -22,8 +22,8 @@ import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom
 
 import { TaskName, type TaskNameProps } from "src/components/TaskName";
 
-import { SearchParamsKeys } from "src/constants/searchParams";
 import { taskNodeSeparator } from "src/utils/assetGraph";
+import { stripExecutionParams } from "src/utils/executionParams";
 
 type Props = {
   readonly dagId?: string;
@@ -59,14 +59,11 @@ export const TaskLink = forwardRef<HTMLAnchorElement, Props>(
         ? ""
         : `/tasks/${taskId}${isMapped && urlTaskId !== taskId && includeRun ? "/mapped" : ""}`;
 
-    const targetSearchParams = new URLSearchParams(searchParams);
-
-    targetSearchParams.delete(SearchParamsKeys.TRY_NUMBER);
-    targetSearchParams.delete(SearchParamsKeys.REGION_ID);
-    targetSearchParams.delete(SearchParamsKeys.REGION_INDEX);
-
     return (
-      <RouterLink ref={ref} to={{ pathname: basePath + taskPath, search: targetSearchParams.toString() }}>
+      <RouterLink
+        ref={ref}
+        to={{ pathname: basePath + taskPath, search: stripExecutionParams(searchParams).toString() }}
+      >
         <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />
       </RouterLink>
     );

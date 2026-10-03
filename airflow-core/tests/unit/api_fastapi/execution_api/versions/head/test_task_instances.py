@@ -488,6 +488,93 @@ def test_execution_breadcrumbs_keep_regional_identity_separate_from_map_index(cl
     assert {row["region_index"] for row in breadcrumbs} == {1, 2}
 
 
+@pytest.fixture
+def two_run_loop_tis(dag_maker, session):
+    @task_group
+    def body():
+        EmptyOperator(task_id="task") >> EmptyOperator(task_id="other")
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+    runs = {
+        "old": dag_maker.create_dagrun(run_id="old", logical_date=timezone.datetime(2025, 1, 1)),
+        "current": dag_maker.create_dagrun(run_id="current", logical_date=timezone.datetime(2025, 1, 2)),
+    }
+    passes = {}
+    for name, dr in runs.items():
+        region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
+        )
+        session.add(region)
+        session.flush()
+        for task_id, key in (("body.task", name), ("body.other", f"{name}_other")):
+            first = next(ti for ti in dr.task_instances if ti.task_id == task_id)
+            first.region_id, first.region_index, first.state = region.id, 0, State.SUCCESS
+            second = TaskInstance(
+                task=dag.get_task(first.task_id), run_id=dr.run_id, dag_version_id=first.dag_version_id
+            )
+            second.region_id, second.region_index, second.state = region.id, 1, State.SUCCESS
+            session.add(second)
+            passes[key] = {0: first, 1: second}
+    session.commit()
+    return passes
+
+
+@pytest.mark.parametrize("requester_pass", [0, 1])
+def test_previous_ti_for_loop_task_uses_requester_pass(client, two_run_loop_tis, requester_pass):
+    requester = two_run_loop_tis["current"][requester_pass]
+    exec_app = client.app.routes[-1].app
+    exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=requester.id, claims=TIClaims())
+
+    response = client.get(
+        f"/execution/task-instances/previous/{requester.dag_id}/{requester.task_id}",
+        params={"logical_date": "2025-01-02T00:00:00Z"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == "old"
+    assert response.json()["region_index"] == requester_pass
+
+
+def test_previous_ti_for_loop_task_finds_a_pass_beyond_the_scan_limit(client, session, two_run_loop_tis):
+    requester = two_run_loop_tis["current"][0]
+    old_pass = two_run_loop_tis["old"][0]
+    later_passes = [
+        TaskInstance(task=old_pass.task, run_id="old", dag_version_id=old_pass.dag_version_id)
+        for _ in range(task_instances_route._MAX_PREVIOUS_TIS_SCANNED + 2)
+    ]
+    for index, ti in enumerate(later_passes, start=2):
+        ti.region_id, ti.region_index, ti.state = old_pass.region_id, index, State.SUCCESS
+    session.add_all(later_passes)
+    session.commit()
+    exec_app = client.app.routes[-1].app
+    exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=requester.id, claims=TIClaims())
+
+    response = client.get(
+        f"/execution/task-instances/previous/{requester.dag_id}/{requester.task_id}",
+        params={"logical_date": "2025-01-02T00:00:00Z"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == "old"
+    assert response.json()["region_index"] == 0
+
+
+def test_previous_ti_for_other_loop_task_returns_latest_pass(client, two_run_loop_tis):
+    requester = two_run_loop_tis["current_other"][0]
+    exec_app = client.app.routes[-1].app
+    exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=requester.id, claims=TIClaims())
+
+    response = client.get(
+        f"/execution/task-instances/previous/{requester.dag_id}/body.task",
+        params={"logical_date": "2025-01-02T00:00:00Z"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == "old"
+    assert response.json()["region_index"] == 1
+
+
 class TestTIRunState:
     @pytest.mark.parametrize("mapped", [False, True])
     @pytest.mark.parametrize("version", ["2026-06-30", "2026-10-30"])

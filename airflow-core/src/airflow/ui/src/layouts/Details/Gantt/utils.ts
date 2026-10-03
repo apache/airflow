@@ -27,6 +27,7 @@ import type { GridTask } from "src/layouts/Details/Grid/utils";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending } from "src/utils";
 import { getDurationTickStep, renderDuration } from "src/utils/datetimeUtils";
+import { stripExecutionParams } from "src/utils/executionParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
@@ -34,6 +35,7 @@ export type GanttDataItem = {
   end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
+  loopIteration?: GanttTaskInstance["loop_iteration"];
   mapIndex?: number;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
   queued_when?: string | null;
@@ -147,6 +149,7 @@ export const transformGanttData = ({
               endDate ?? (hasTaskRunning && startDate !== null ? new Date().toISOString() : null);
 
             const tryMetadata = {
+              loopIteration: tryRow.loop_iteration,
               mapIndex: tryRow.map_index,
               regionId: tryRow.region_id,
               regionIndex: tryRow.region_index,
@@ -334,21 +337,15 @@ export const getGanttSegmentTo = ({
     taskId,
   });
 
-  // Clone the pre-parsed params so mutations don't leak across segments.
-  const searchParams = new URLSearchParams(baseSearchParams);
+  const searchParams = stripExecutionParams(baseSearchParams);
 
   if (item.regionId !== undefined && item.regionIndex !== undefined) {
-    searchParams.set("region_id", item.regionId);
-    searchParams.set("region_index", item.regionIndex.toString());
-  } else {
-    searchParams.delete("region_id");
-    searchParams.delete("region_index");
+    searchParams.set(SearchParamsKeys.REGION_ID, item.regionId);
+    searchParams.set(SearchParamsKeys.REGION_INDEX, item.regionIndex.toString());
   }
 
   if (tryNumber !== undefined && tryNumber < (maxTryByKey.get(getGanttTryKey(item)) ?? 1)) {
     searchParams.set(SearchParamsKeys.TRY_NUMBER, tryNumber.toString());
-  } else {
-    searchParams.delete(SearchParamsKeys.TRY_NUMBER);
   }
 
   return {

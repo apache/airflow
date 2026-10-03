@@ -33,6 +33,12 @@ LOOP_XCOM_PREFIX = "_airflow_loop_"
 LOOP_DECISION_KEY = f"{LOOP_XCOM_PREFIX}decision"
 
 
+def _get_until_doc(until: Callable[..., Any] | None) -> str | None:
+    if (inspect.isfunction(until) or inspect.ismethod(until)) and until.__doc__:
+        return inspect.cleandoc(until.__doc__)
+    return None
+
+
 def _validate_max_iterations(instance, attribute, value: int) -> None:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError("max_iterations must be a positive integer")
@@ -202,6 +208,7 @@ def create_loop(
         gate = LoopGateOperator(
             task_id=get_unique_task_id(gate_name, task_group=group),
             until=until,
+            doc_md=_get_until_doc(until),
         )
         terminal >> gate
         group.terminal_task_id = terminal.task_id
