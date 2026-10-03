@@ -925,6 +925,25 @@ export const prefetchUseDagServiceGetDagRunStateCountsUi = (queryClient: QueryCl
   dagIds: string[];
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) });
 /**
+* Get Recent Task Instance State Counts
+* Return recent task-instance state counts for the Dags of the given runs, for the Dag list page.
+*
+* Like the Airflow 2 "Recent Tasks" column, a Dag's counts cover all of its running Dag
+* runs, or its latest run when none is running.
+*
+* The Dag list response already carries the latest run of each Dag, so the caller passes
+* those run ids straight in. Deriving the latest run again here would mean an
+* ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index and degrades
+* badly once a Dag has many runs. Runs the caller may not read are dropped.
+* @param data The data for the request.
+* @param data.dagRunIds
+* @returns DAGsRecentTaskInstanceStateCountsCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDagServiceGetRecentTaskInstanceStateCountsUi = (queryClient: QueryClient, { dagRunIds }: {
+  dagRunIds: number[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetRecentTaskInstanceStateCountsUiKeyFn({ dagRunIds }), queryFn: () => DagService.getRecentTaskInstanceStateCountsUi({ dagRunIds }) });
+/**
 * Get Event Log
 * @param data The data for the request.
 * @param data.eventLogId

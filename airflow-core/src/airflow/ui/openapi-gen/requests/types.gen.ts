@@ -2578,6 +2578,21 @@ export type ConnectionHookMetaData = {
 };
 
 /**
+ * Task-instance state counts for a Dag's recent runs.
+ *
+ * The counts cover every running Dag run, or the latest run when none is running;
+ * ``run_ids`` lists those runs. ``state_counts`` only carries states present in them;
+ * task instances without a state yet are keyed as ``no_status``.
+ */
+export type DAGRecentTaskInstanceStateCountsResponse = {
+    dag_id: string;
+    run_ids: Array<(string)>;
+    state_counts: {
+        [key: string]: (number);
+    };
+};
+
+/**
  * DAG Run serializer for responses.
  */
 export type DAGRunLightResponse = {
@@ -2667,6 +2682,13 @@ export type DAGWithLatestDagRunsResponse = {
      * Return file token.
      */
     readonly file_token: string;
+};
+
+/**
+ * Collection of per-Dag recent task-instance state counts for the Dag list page.
+ */
+export type DAGsRecentTaskInstanceStateCountsCollectionResponse = {
+    dags: Array<DAGRecentTaskInstanceStateCountsResponse>;
 };
 
 /**
@@ -3997,6 +4019,12 @@ export type GetDagRunStateCountsUiData = {
 };
 
 export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
+
+export type GetRecentTaskInstanceStateCountsUiData = {
+    dagRunIds: Array<(number)>;
+};
+
+export type GetRecentTaskInstanceStateCountsUiResponse = DAGsRecentTaskInstanceStateCountsCollectionResponse;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -7055,6 +7083,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGsRunStateCountsCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/recent_task_instance_state_counts': {
+        get: {
+            req: GetRecentTaskInstanceStateCountsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGsRecentTaskInstanceStateCountsCollectionResponse;
                 /**
                  * Validation Error
                  */

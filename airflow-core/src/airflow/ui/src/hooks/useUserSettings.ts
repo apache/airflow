@@ -25,6 +25,7 @@ import {
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_RUN_DEFAULT_OPTIONS_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
+  DAGS_LIST_SHOW_RECENT_TASKS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
@@ -75,3 +76,7 @@ export const useDefaultTaskInstanceTab = () =>
 /** Page the app root ("/") lands on: the dashboard or the Dags list. */
 export const useDefaultLandingPage = () =>
   useLocalStorage<LandingPageOption>(DEFAULT_LANDING_PAGE_KEY, "dashboard");
+
+/** Whether the Dags list shows recent tasks; off also skips fetching them. */
+export const useShowDagsListRecentTasks = () =>
+  useLocalStorage<boolean>(DAGS_LIST_SHOW_RECENT_TASKS_KEY, true);
