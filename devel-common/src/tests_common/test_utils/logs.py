@@ -27,8 +27,8 @@ from collections.abc import MutableMapping
 from contextlib import ExitStack, contextmanager
 from typing import TYPE_CHECKING, NoReturn
 
+from airflow._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
 from airflow.models import Log
-from airflow_shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
 
 if TYPE_CHECKING:
     from structlog.typing import EventDict, WrappedLogger
