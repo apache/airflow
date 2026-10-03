@@ -2191,6 +2191,9 @@ sdk:
         example, two ``JavaCoordinator`` instances pinned to different JDK
         versions).
 
+        A coordinator finds the artifacts of the tasks it runs in the task's own Dag bundle, or in the Dag
+        bundle named by its ``dag_bundle_name`` kwarg.
+
         An entry may also carry an optional ``extra`` object for additional
         information associated with the coordinator that the coordinator itself
         does not receive; other components read it as needed. For example,
@@ -2205,7 +2208,6 @@ sdk:
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
-              "jars_root": ["/opt/airflow/java-bundles"],
               "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
               "jvm_args": ["-Xmx1024m"]
             },
@@ -2217,9 +2219,7 @@ sdk:
           },
           "go-sdk": {
             "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
-            "kwargs": {
-              "executables_root": ["/opt/airflow/executable-bundles"]
-            }
+            "kwargs": {}
           }
         }
       default: ~
@@ -2235,6 +2235,20 @@ sdk:
       version_added: 3.3.0
       type: string
       example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
+      default: ~
+    dag_bundle_to_coordinator:
+      description: |
+        JSON object mapping a Dag bundle name to one key of ``[sdk] coordinators``. It picks the coordinator
+        that parses the bundle's native Dag files when several coordinators of that runtime are configured.
+
+        With one coordinator of a runtime, that coordinator parses the runtime's native Dag files in every
+        Dag bundle, and this option is not read. With several, a bundle that holds such files must map to
+        one of them, otherwise each file fails to parse with an import error. A bundle maps to one
+        coordinator, so it can hold native Dag files of only one runtime that has several coordinators.
+        Tasks do not read this option; ``queue_to_coordinator`` routes them.
+      version_added: 3.4.0
+      type: string
+      example: '{"dags-folder": "java-native"}'
       default: ~
 api_auth:
   description: Settings relating to authentication on the Airflow APIs

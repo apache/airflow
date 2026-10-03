@@ -284,7 +284,7 @@ Code Signing
 The bundle format itself does not require OS-level code signing.
 ``binary_sha256`` provides integrity against truncation, in-flight
 corruption, and naive tampering, and Airflow's threat model treats
-``executables_root`` as Deployment-Manager-controlled — *authenticity*
+the Dag bundle the coordinator scans as Deployment-Manager-controlled — *authenticity*
 (signed by a trusted identity) is a deployment-time concern rather than a
 bundle-format one.
 
@@ -299,10 +299,10 @@ yields a byte-identical bundle file (and therefore a stable
 Deployment Layout
 -----------------
 
-Bundle files are placed **as-is** in any of the directories configured as the
-``executables_root`` kwarg on the
+Bundle files are placed **as-is** in the Dag bundle that the
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` entry
-under ``[sdk] coordinators``. The scanner walks each directory **recursively**
+under ``[sdk] coordinators`` scans: the one named by its ``dag_bundle_name``
+kwarg, or the task's own Dag bundle. The scanner walks it **recursively**
 and considers only regular files whose **executable bit is set** for the
 invoking user; files without the executable bit are skipped without reading
 their trailer. For each candidate it reads the last 64 bytes and treats files

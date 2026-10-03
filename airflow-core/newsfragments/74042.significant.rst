@@ -1,0 +1,8 @@
+The ``jars_root``, ``bundles_root`` and ``executables_root`` coordinator kwargs are removed
+
+The Java, TypeScript and Go coordinators no longer accept ``jars_root``, ``bundles_root`` or ``executables_root``. An entry in ``[sdk] coordinators`` that still sets one is rejected when its coordinator is built.
+
+A coordinator now finds its artifacts in a Dag bundle, either the one named by its ``dag_bundle_name`` kwarg or, when that is not set, the task's own Dag bundle. To migrate, add the directory the old kwarg pointed to as a Dag bundle in ``[dag_processor] dag_bundle_config_list``, and set ``dag_bundle_name`` to its name::
+
+    [sdk]
+    coordinators = {"java": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"dag_bundle_name": "java-jars"}}}

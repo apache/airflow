@@ -24,8 +24,8 @@ This document specifies the bundle format produced by ``airflow-ts-pack`` and co
 Artifact Name
 -------------
 
-A bundle's name must end in ``.min.mjs``. Nothing else about it is significant: the coordinator searches each
-configured root recursively and routes on embedded metadata, so one root may hold several differently named bundles.
+A bundle's name must end in ``.min.mjs``. Nothing else about it is significant: the coordinator searches its
+Dag bundle recursively and routes on embedded metadata, so one Dag bundle may hold several differently named bundles.
 ``airflow-ts-pack`` writes ``bundle.min.mjs`` by default and accepts ``--outfile`` for any other name ending in
 that suffix.
 
@@ -153,10 +153,10 @@ documents, and neither is used to execute the bundle.
 Reader and Selection Algorithm
 ------------------------------
 
-For each candidate in ``bundles_root``, the coordinator:
+For each candidate in the Dag bundle the coordinator scans, the coordinator:
 
-1. Opens it once. Candidates are the files whose name ends in ``.min.mjs``, found by walking each root recursively,
-   roots in configured order and each directory's entries in sorted order, so selection does not depend on the order
+1. Opens it once. Candidates are the files whose name ends in ``.min.mjs``, found by walking the Dag bundle recursively,
+   each directory's entries in sorted order, so selection does not depend on the order
    a filesystem returns entries in. Directories are deduplicated by ``(st_dev, st_ino)``, so a symlink loop
    terminates the walk instead of exhausting the interpreter stack.
 2. Reads a bounded first line and decodes the named metadata and code ranges.
@@ -171,14 +171,13 @@ For each candidate in ``bundles_root``, the coordinator:
 9. Resolves the supervisor schema version and selects the first usable match.
 
 A missing, unrelated, unreadable, malformed, corrupt, or incompatible earlier candidate does not prevent selection
-of a later usable match. When more than one usable bundle declares the same Dag, the first configured match wins. If
-none matches, the error identifies the requested Dag, searched roots, and rejected candidates.
+of a later usable match. When more than one usable bundle declares the same Dag, the first match in sorted path order
+wins. If none matches, the error identifies the requested Dag, searched roots, and rejected candidates.
 
-Every ``.min.mjs`` file under a root is therefore opened, and one that is not a usable bundle is named among those
-rejected candidates. ``bundles_root`` names directories of deployed Airflow bundles, so unrelated minified modules do
-not belong there.
+Every ``.min.mjs`` file in the Dag bundle is therefore opened, and one that is not a usable bundle is named among those
+rejected candidates. Keep unrelated minified modules out of the Dag bundle the coordinator scans.
 
-The coordinator does not cache Dag-to-path routing. It checks root ordering and the current deployed files for each
+The coordinator does not cache Dag-to-path routing. It checks the current deployed files for each
 task selection. It may reuse section digests from a bounded process-local cache when the open file identity,
 timestamps, size, layout ranges, and declared digests have not changed.
 

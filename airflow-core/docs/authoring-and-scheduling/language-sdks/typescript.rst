@@ -209,23 +209,39 @@ check.
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Register the coordinator and route the queue to it under ``[sdk]`` in ``airflow.cfg`` (or the equivalent
-``AIRFLOW__SDK__*`` environment variables):
+The coordinator finds ``*.min.mjs`` bundles inside a Dag bundle. Add a Dag bundle for them, then register
+the coordinator and route the queue to it in ``airflow.cfg`` (or the equivalent ``AIRFLOW__*`` environment
+variables):
 
 .. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+      {
+        "name": "dags-folder",
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {}
+      },
+      {
+        "name": "ts-bundles",
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {"path": "/opt/airflow/ts-bundles"}
+      }
+    ]
 
     [sdk]
     coordinators = {
       "ts": {
         "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
-        "kwargs": {"bundles_root": ["/opt/airflow/ts-bundles"]}
+        "kwargs": {"dag_bundle_name": "ts-bundles"}
       }
     }
     queue_to_coordinator = {"typescript": "ts"}
 
-``bundles_root`` is one or more directories the coordinator scans for bundles; ``queue_to_coordinator``
-routes stub tasks with ``queue="typescript"`` to this coordinator. See
-:ref:`typescript-sdk/coordinator-config` for the full list of accepted ``kwargs``.
+``dag_bundle_name`` names the Dag bundle the coordinator scans for ``*.min.mjs`` bundles.
+Omit it to ship the bundles in the same Dag bundle as the Python stub Dag.
+``queue_to_coordinator`` routes stub tasks with ``queue="typescript"`` to this coordinator.
+See :ref:`typescript-sdk/coordinator-config` for the full list of accepted ``kwargs``.
 
 There is no separate Node.js worker to run: the Airflow worker launches the bundle with ``node`` once per
 task instance.
@@ -233,7 +249,7 @@ task instance.
 .. note::
 
   The coordinator runs inside the Airflow worker, so the ``[sdk]`` config (and the packed ``*.min.mjs``
-  bundles in ``bundles_root``) only need to be present wherever tasks actually execute. With
+  bundles) only need to be present wherever tasks actually execute. With
   ``CeleryExecutor``, setting them on the Celery workers is sufficient. With ``LocalExecutor``, tasks run
   inside the scheduler process, so they must be present where the scheduler can read them. The API server
   and Dag processor do not need them.
@@ -499,20 +515,20 @@ that only supply utilities or types are not embedded.
     npx airflow-ts-pack src/main.ts --outdir dist
 
 Use ``--outdir <dir>`` to choose the output directory (default ``dist``), ``--outfile <path>`` to name the
-artifact exactly, which helps when one ``bundles_root`` holds several bundles, and ``--source <name>`` to set
-the source name displayed in the Airflow UI (default: the entry file's basename). ``--outdir`` and
+artifact exactly, which helps when one Dag bundle holds several ``*.min.mjs`` bundles, and ``--source <name>``
+to set the source name displayed in the Airflow UI (default: the entry file's basename). ``--outdir`` and
 ``--outfile`` are mutually exclusive, and an ``--outfile`` name must end in ``.min.mjs`` so the coordinator
 can find it.
 
 Deploying
 ~~~~~~~~~
 
-Copy or mount the bundle into a directory listed in the coordinator's ``bundles_root``.
-:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches the configured directories in order,
-recursively, and launches the first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task
-instance's Dag. The artifact's name does not matter beyond that suffix, so one root can hold several bundles
-and a Dag is routed to whichever declares it. If multiple bundles declare the same Dag, the first configured
-root wins, and within a root the first in sorted path order.
+Copy or mount the bundle into the Dag bundle the coordinator scans: the one named by ``dag_bundle_name``,
+or the task's own Dag bundle. :class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches that Dag
+bundle recursively and launches the first integrity-verified ``*.min.mjs`` bundle whose metadata declares the
+task instance's Dag. The artifact's name does not matter beyond that suffix, so one Dag bundle can hold several
+bundles and a Dag is routed to whichever declares it. If multiple bundles declare the same Dag, the first in
+sorted path order wins.
 
 .. _typescript-sdk/coordinator-config:
 
@@ -529,16 +545,10 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - Parameter
      - Default
      - Description
-   * - ``bundles_root``
-     - *(optional)*
-     - One or more directories searched recursively, in order, for an integrity-verified ``*.min.mjs``
-       bundle that declares the requested Dag. Accepts a string, a path, or a list of strings/paths. When
-       omitted, the bundle is located through a Dag bundle instead (see the note below). Explicitly setting
-       this option to ``null`` or an empty list is invalid.
    * - ``dag_bundle_name``
      - *(auto: task's own bundle)*
-     - Name of a configured Dag bundle to load the ``*.min.mjs`` bundle from. Mutually exclusive with
-       ``bundles_root``.
+     - Name of a configured Dag bundle to load the ``*.min.mjs`` bundle from. It must name a bundle in
+       ``[dag_processor] dag_bundle_config_list``.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.
@@ -549,15 +559,12 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
 .. note::
 
-  **Locating the bundle.** ``bundles_root`` and ``dag_bundle_name`` are mutually exclusive, and both
-  are optional:
+  **Locating the bundle.** The ``*.min.mjs`` bundle always lives in a Dag bundle:
 
-  * Set ``bundles_root`` to scan explicit filesystem directories you manage yourself.
-  * Set ``dag_bundle_name`` to load the bundle from a configured Dag bundle, so it is delivered
-    and versioned through the same bundle machinery as your Dags. The task uses the version that
-    bundle is on when it starts, pinned for the whole task.
-  * Leave both unset (the default) to load the bundle from the **task's own** Dag bundle, pinned to the
-    version the run was created with.
+  * Leave ``dag_bundle_name`` unset (the default) to load the bundle from the **task's own** Dag bundle,
+    pinned to the version the run was created with.
+  * Set ``dag_bundle_name`` to load the bundle from a separate Dag bundle.
+    The task uses the version that Dag bundle is on when it starts, pinned for the whole task.
 
 Limitations
 -----------
