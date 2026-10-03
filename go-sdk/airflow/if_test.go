@@ -259,6 +259,39 @@ func TestThenAndElseNameTheTasksOfTheCondition(t *testing.T) {
 	assert.Same(t, reported, reversed.elseTask)
 }
 
+// TestThenAndElseRecordTheEdgeFromTheCondition pins that naming a task orders it after the
+// condition, which is what puts the condition in the serialized Dag as the task's upstream.
+func TestThenAndElseRecordTheEdgeFromTheCondition(t *testing.T) {
+	dag := Dag("etl")
+	loaded := dag.Task(load)
+	reported := dag.Task(reportEmpty)
+
+	gate := dag.If(isReady)
+	gate.Then(loaded)
+	gate.Else(reported)
+
+	assertTasks(t, gate.task.downstreams, loaded, reported)
+	assertTasks(t, loaded.upstreams, gate.task)
+	assertTasks(t, reported.upstreams, gate.task)
+	assertEdgeLabel(t, dag, "isReady", "load", "")
+	assertEdgeLabel(t, dag, "isReady", "reportEmpty", "")
+}
+
+// TestDeclaringTheEdgeOfAConditionAgainChangesNothing covers an author who also writes the edge
+// that Then records, which is as idempotent as declaring any edge twice.
+func TestDeclaringTheEdgeOfAConditionAgainChangesNothing(t *testing.T) {
+	dag := Dag("etl")
+	loaded := dag.Task(load)
+
+	gate := dag.If(isReady)
+	gate.Then(loaded)
+	gate.task.Before(Label(loaded, "when ready"))
+
+	assertTasks(t, gate.task.downstreams, loaded)
+	assertTasks(t, loaded.upstreams, gate.task)
+	assertEdgeLabel(t, dag, "isReady", "load", "when ready")
+}
+
 func TestThenAndElseRejectATaskOutsideTheDag(t *testing.T) {
 	dag := Dag("etl")
 	loaded := dag.Task(load)
@@ -483,6 +516,23 @@ func runCondition(gate *IfRef, results, earlier map[string]any) (*conditionClien
 	)
 	ctx = bundle.WithSkipDownstreamTasks(ctx, client.skip)
 	return client, gate.task.task.Execute(ctx, discardLogger(), args)
+}
+
+// TestRegisterRejectsACycleThroughACondition pins that the edge Then records is one the cycle
+// check walks, so a cycle that runs through a condition is rejected like any other.
+func TestRegisterRejectsACycleThroughACondition(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(readRows)
+	loaded := dag.Task(load)
+	dag.If(hasRows, Inputs(read)).Then(loaded)
+	loaded.Before(read)
+
+	assert.PanicsWithValue(t,
+		`airflow.BundleRef.Register: the task dependencies of Dag "etl" contain a cycle: `+
+			`readRows -> hasRows -> load -> readRows`,
+		func() { Bundle().Register(dag) },
+	)
+	assert.False(t, dag.registered)
 }
 
 func TestConditionSkipsTheSideThatItDoesNotTake(t *testing.T) {
