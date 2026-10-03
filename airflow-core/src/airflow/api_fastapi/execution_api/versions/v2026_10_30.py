@@ -46,7 +46,7 @@ class AddStoppedTaskReport(VersionChange):
 
 
 class IdentifyRetiredTaskStateUpdates(VersionChangeWithSideEffects):
-    """Return 410 for state reports from archived attempts, preserving 404 for unknown attempts."""
+    """Return 410 for requests from archived attempts, preserving 404 for older clients and unknown attempts."""
 
     description = __doc__
     instructions_to_migrate_to_previous_version = ()

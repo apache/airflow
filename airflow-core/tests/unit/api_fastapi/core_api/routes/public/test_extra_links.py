@@ -425,10 +425,9 @@ class TestGetExtraLinks:
         assert ti is not None
         ti.try_number = 1
         ti.state = "success"
-        ti.prepare_db_for_next_try(session=session)
-        ti.state = None
+        successor = ti.prepare_db_for_next_try(session=session)
         session.commit()
-        current_id = ti.id
+        current_id = successor.id
 
         response = test_client.get(
             f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
@@ -440,13 +439,14 @@ class TestGetExtraLinks:
         )
 
         # Verify the live TI try_number was NOT modified
-        session.expire(ti)
+        session.expire(successor)
         ti = session.scalar(
             select(TaskInstance).where(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.run_id == self.dag_run_id,
                 TaskInstance.task_id == self.task_single_link,
                 TaskInstance.map_index == -1,
+                TaskInstance.working_set.is_(True),
             )
         )
         assert ti is not None

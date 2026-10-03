@@ -82,6 +82,7 @@ from airflow.configuration import conf
 from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
+from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
@@ -260,6 +261,7 @@ def get_dags(
                 defaultload(HITLDetail.task_instance).joinedload(TaskInstance.rendered_task_instance_fields)
             )
             .where(
+                TaskInstance.working_set.is_(True),
                 HITLDetail.responded_at.is_(None),
                 TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
             )
@@ -267,7 +269,8 @@ def get_dags(
             .order_by(TaskInstance.dag_id)
         )
 
-        pending_actions = session.execute(pending_actions_select)
+        pending_actions = list(session.execute(pending_actions_select))
+        load_legacy_rendered_fields([detail.task_instance for _, detail in pending_actions], session=session)
 
         # Group pending actions by dag_id
         for dag_id, hitl_detail in pending_actions:

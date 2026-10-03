@@ -329,6 +329,48 @@ def sample_update_payload() -> dict[str, Any]:
 
 
 class TestUpdateHITLDetailEndpoint:
+    def test_response_rejects_attempt_retired_after_lookup(
+        self,
+        test_client,
+        sample_ti,
+        sample_hitl_detail,
+        sample_ti_url_identifier,
+        sample_update_payload,
+        session,
+        mocker,
+    ):
+        get_task_instance = hitl_routes._get_task_instance_with_hitl_detail
+
+        def retire_after_lookup(*args, **kwargs):
+            task_instance = get_task_instance(*args, **kwargs)
+            with Session(bind=session.get_bind()) as other_session:
+                current = other_session.get(TIModel, task_instance.id)
+                current.prepare_db_for_next_try(other_session)
+                other_session.commit()
+            return task_instance
+
+        mocker.patch.object(
+            hitl_routes, "_get_task_instance_with_hitl_detail", autospec=True, side_effect=retire_after_lookup
+        )
+
+        response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)
+
+        assert response.status_code == 409
+        with Session(bind=session.get_bind()) as verify_session:
+            assert verify_session.get(TIModel, sample_ti.id).working_set is None
+            assert not verify_session.get(HITLDetail, sample_ti.id).response_received
+            current = verify_session.scalar(
+                select(TIModel).where(
+                    TIModel.dag_id == sample_ti.dag_id,
+                    TIModel.task_id == sample_ti.task_id,
+                    TIModel.run_id == sample_ti.run_id,
+                    TIModel.working_set.is_(True),
+                )
+            )
+            assert current.id != sample_ti.id
+            assert current.state is None
+            assert verify_session.get(HITLDetail, current.id) is None
+
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail")
     @mock.patch(
@@ -731,13 +773,41 @@ class TestGetHITLDetailEndpoint:
 
 
 class TestGetHITLDetailsEndpoint:
+    def test_lists_only_current_task_instance_details(
+        self, test_client, sample_ti, sample_hitl_detail, session
+    ):
+        old_id = sample_ti.id
+        successor = sample_ti.prepare_db_for_next_try(session)
+        session.add(
+            HITLDetail(
+                ti_id=successor.id,
+                options=["Approve", "Reject"],
+                subject="Current subject",
+                body="Current body",
+                defaults=["Approve"],
+                multiple=False,
+                params={},
+                assignees=None,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+        assert [detail["task_instance"]["id"] for detail in response.json()["hitl_details"]] == [
+            str(successor.id)
+        ]
+        assert session.get(HITLDetail, sample_hitl_detail.ti_id).ti_id == old_id
+
     @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_200_with_existing_response(
         self,
         test_client: TestClient,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        with assert_queries_count(3):
+        with assert_queries_count(5):
             response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
         assert response.status_code == 200
         assert response.json() == {
@@ -813,7 +883,7 @@ class TestGetHITLDetailsEndpoint:
         params: dict[str, Any],
         expected_ti_count: int,
     ) -> None:
-        with assert_queries_count(3):
+        with assert_queries_count(5):
             response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti_count

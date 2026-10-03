@@ -108,7 +108,7 @@ def historical_metrics(
     )
     task_instance_states, task_instances_are_lower_bounds = _compute_state_counts(
         TaskInstance,
-        dag_run_filters,
+        [*dag_run_filters, TaskInstance.working_set.is_(True)],
         session=session,
         join=TaskInstance.dag_run,
         null_label="no_status",

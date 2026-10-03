@@ -23,16 +23,22 @@ import json
 import logging
 import os
 import sys
+from email.message import Message
+from importlib.metadata import EntryPoint
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
+import airflow._shared.module_loading as module_loading
+import airflow._shared.plugins_manager.plugins_manager as plugin_loader_module
 import airflow.plugins_manager as plugins_manager
 from airflow._shared.module_loading import qualname
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.partition_mappers.window import Window
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers_manager import provider_incompatibility_reason
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -1055,3 +1061,72 @@ class TestExtraLinkTeamVisibility:
         with mock_plugin_manager(plugins=[TeamPlugin]):
             assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_a") is True
             assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_b") is False
+
+
+@pytest.mark.parametrize(
+    ("version", "direct_url", "allowed"),
+    [
+        pytest.param("0.10.0", None, False, id="released-0.10.0"),
+        pytest.param("1.0.0rc1", None, False, id="released-1.0.0rc1"),
+        pytest.param("1.0.0", None, True, id="released-1.0.0"),
+        pytest.param("1.1.0", None, True, id="released-1.1.0"),
+        pytest.param("0.10.0", {"dir_info": {"editable": True}}, True, id="editable-source-install"),
+        pytest.param("0.10.0", {"dir_info": {}}, True, id="directory-source-install"),
+        pytest.param("0.10.0", {"archive_info": {}}, False, id="local-archive-install"),
+    ],
+)
+def test_common_ai_plugin_entrypoint_checks_installed_version_before_import(
+    monkeypatch, caplog, version, direct_url, allowed
+):
+    metadata = Message()
+    metadata["Name"] = "apache-airflow-providers-common-ai"
+    distribution = SimpleNamespace(
+        metadata=metadata,
+        version=version,
+        read_text=lambda filename: json.dumps(direct_url) if direct_url else None,
+    )
+
+    # Defined here, not at module level: this module sits in the plugins folder and would be loaded as a plugin.
+    class CompatiblePlugin(AirflowPlugin):
+        name = "compatible_test_plugin"
+
+    entry_point = mock.Mock(spec=EntryPoint)
+    entry_point.name = "hitl_review"
+    entry_point.module = "airflow.providers.common.ai.plugins.hitl_review"
+    entry_point.load.return_value = CompatiblePlugin
+    monkeypatch.setattr(
+        module_loading,
+        "entry_points_with_dist",
+        lambda group: [(entry_point, distribution)],
+    )
+
+    with caplog.at_level(logging.WARNING):
+        plugins, import_errors = plugin_loader_module._load_entrypoint_plugins(
+            provider_incompatibility_reason
+        )
+
+    assert bool(plugins) is allowed
+    assert entry_point.load.called is allowed
+    if not allowed:
+        assert import_errors[entry_point.module].startswith(
+            f"Skipping incompatible provider apache-airflow-providers-common-ai {version}"
+        )
+        assert "apache-airflow-providers-common-ai>=1.0.0" in caplog.text
+    else:
+        assert import_errors == {}
+
+
+def test_core_plugin_manager_passes_compatibility_policy(monkeypatch, tmp_path):
+    monkeypatch.setattr(plugins_manager.settings, "PLUGINS_FOLDER", str(tmp_path))
+    with (
+        mock.patch.object(
+            plugins_manager, "_load_entrypoint_plugins", autospec=True, return_value=([], {})
+        ) as load,
+        mock.patch.object(
+            plugins_manager, "_load_plugins_from_plugin_directory", autospec=True, return_value=([], {})
+        ),
+        mock.patch.object(plugins_manager, "_load_providers_plugins", autospec=True, return_value=([], {})),
+    ):
+        plugins_manager._get_plugins.__wrapped__()
+
+    load.assert_called_once_with(provider_incompatibility_reason)

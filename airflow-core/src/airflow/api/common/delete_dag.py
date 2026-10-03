@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import Table, delete, or_, select
 
 from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
@@ -55,8 +55,11 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, *, session: Sessio
     log.info("Deleting Dag: %s", dag_id)
     running_tis = session.scalar(
         select(models.TaskInstance.state)
-        .where(models.TaskInstance.dag_id == dag_id)
-        .where(models.TaskInstance.state == TaskInstanceState.RUNNING)
+        .where(
+            models.TaskInstance.dag_id == dag_id,
+            models.TaskInstance.working_set.is_(True),
+            models.TaskInstance.state == TaskInstanceState.RUNNING,
+        )
         .limit(1)
     )
     if running_tis:
@@ -68,7 +71,9 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, *, session: Sessio
     # To ensure the TaskInstance and DagRun model is deleted before
     # each of the model DagVersion and BackFill respectively.
     models_for_deletion = [TaskInstance, DagRun] + [
-        model for model in get_sqla_model_classes() if model.__name__ not in ["TaskInstance", "DagRun"]
+        model
+        for model in get_sqla_model_classes()
+        if model.__name__ not in ["TaskInstance", "DagRun"] and isinstance(model.__table__, Table)
     ]
 
     count: int = 0

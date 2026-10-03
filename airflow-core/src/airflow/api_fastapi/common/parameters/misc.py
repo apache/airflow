@@ -63,6 +63,7 @@ class _PendingActionsFilter(BaseParam[bool]):
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
             .where(
                 HITLDetail.responded_at.is_(None),
+                TaskInstance.working_set.is_(True),
                 TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
             )
             .where(TaskInstance.dag_id == DagModel.dag_id)

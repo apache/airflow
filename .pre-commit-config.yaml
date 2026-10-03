@@ -1470,6 +1470,13 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
+      - id: check-xcom-model-columns
+        name: Check XComModel columns are read through xcom_entity, not directly in SQLAlchemy queries
+        entry: ./scripts/ci/prek/check_xcom_model_columns.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|providers/.*)/src/airflow/.*\.py$
+        exclude: ^airflow-core/src/airflow/(models/xcom\.py|api_fastapi/common/parameters/xcom\.py)$
       - id: check-no-new-airflow-exceptions
         name: Check that no new raise AirflowException usages are added
         entry: ./scripts/ci/prek/check_new_airflow_exception_usage.py

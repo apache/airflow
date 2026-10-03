@@ -226,6 +226,7 @@ def _bulk_clear_runs(
     cleared = 0
     for chunk_run_ids in chunks(run_ids, _RUN_CHUNK_SIZE):
         ti_query = select(TaskInstance).where(
+            TaskInstance.working_set.is_(True),
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id.in_(chunk_run_ids),
         )
@@ -861,6 +862,7 @@ def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) ->
     if show_dagrun or imgcat or filename:
         tis = session.scalars(
             select(TaskInstance).where(
+                TaskInstance.working_set.is_(True),
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.run_id == dr.run_id,
             )

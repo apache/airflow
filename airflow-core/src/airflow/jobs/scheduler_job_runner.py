@@ -277,7 +277,7 @@ class ConcurrencyMap:
         self.task_dagrun_concurrency_map.clear()
         query = session.execute(
             select(TI.dag_id, TI.task_id, TI.run_id, TI.state, func.count("*"))
-            .where(TI.state.in_(ACTIVE_STATES))
+            .where(TI.working_set.is_(True), TI.state.in_(ACTIVE_STATES))
             .group_by(TI.dag_id, TI.task_id, TI.run_id, TI.state)
         )
         for dag_id, task_id, run_id, state, count in query:
@@ -306,7 +306,7 @@ def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Sub
     """Get the dag_run IDs and how many tasks are in the provided states for each one."""
     return (
         select(TI.dag_id, TI.run_id, func.count("*").label("task_per_dr_count"))
-        .where(TI.state.in_(states))
+        .where(TI.working_set.is_(True), TI.state.in_(states))
         .group_by(TI.dag_id, TI.run_id)
         .subquery()
     )
@@ -610,7 +610,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             session.execute(
                 update(TI)
-                .where(TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED)
+                .where(TI.working_set.is_(True), TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED)
                 .values(state=TaskInstanceState.FAILED)
                 .execution_options(synchronize_session="fetch")
             )
@@ -1020,7 +1020,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(TI)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(TI.dag_run)
-            .where(DR.state == DagRunState.RUNNING)
+            .where(DR.state == DagRunState.RUNNING, TI.working_set.is_(True))
             .join(TI.dag_model)
             .where(~DM.is_paused)
             .where(TI.state == TaskInstanceState.SCHEDULED)
@@ -1084,7 +1084,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 & (TI.run_id == ranked_query.c.run_id)
                 & (TI.map_index == ranked_query.c.map_index),
             )
-            .where(ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks)
+            .where(ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks, TI.working_set.is_(True))
             # Add the order_by columns from the ranked query for sqlite.
             .order_by(
                 -ranked_query.c.priority_weight_for_ordering,
@@ -1530,7 +1530,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
-            .where(TI.id.in_([key.id for key in tis_with_right_state]))
+            .where(TI.working_set.is_(True), TI.id.in_([key.id for key in tis_with_right_state]))
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
             .options(alias_loader)
@@ -3142,7 +3142,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_run.set_state(DagRunState.FAILED)
             unfinished_task_instances = session.scalars(
                 select(TI)
-                .where(TI.dag_id == dag_run.dag_id)
+                .where(TI.working_set.is_(True), TI.dag_id == dag_run.dag_id)
                 .where(TI.run_id == dag_run.run_id)
                 .where(TI.state.in_(State.unfinished) | (TI.state.is_(None)))
             ).all()
@@ -3274,6 +3274,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.execute(
             update(TI)
             .where(
+                TI.working_set.is_(True),
                 TI.dag_id == dag_run.dag_id,
                 TI.run_id == dag_run.run_id,
                 TI.state.in_(State.unfinished),
@@ -3328,6 +3329,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """Query db for TIs that are stuck in queued."""
         return session.scalars(
             select(TI).where(
+                TI.working_set.is_(True),
                 TI.state == TaskInstanceState.QUEUED,
                 TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
                 TI.queued_by_job_id == self.job.id,
@@ -3486,7 +3488,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskInstance.queue,
                 func.count(TaskInstance.task_id).label("count"),
             )
-            .filter(TaskInstance.state.in_(metric_states))
+            .filter(TaskInstance.state.in_(metric_states), TaskInstance.working_set.is_(True))
             .group_by(TaskInstance.state, TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
         )
         all_states_metric = session.execute(stmt).all()
@@ -3625,7 +3627,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     query = (
                         select(TI)
                         .options(lazyload(TI.dag_run))  # avoids double join to dag_run
-                        .where(TI.state.in_(State.adoptable_states))
+                        .where(TI.state.in_(State.adoptable_states), TI.working_set.is_(True))
                         .join(TI.queued_by_job)
                         .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
@@ -3660,12 +3662,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
-                        ti.prepare_db_for_next_try(session=session)
-
-                        ti.state = None
-                        ti.queued_by_job_id = None
-                        ti.external_executor_id = None
-                        ti.clear_next_method_args()
+                        successor = ti.prepare_db_for_next_try(session=session)
+                        successor.state = None
+                        successor.queued_by_job_id = None
+                        successor.external_executor_id = None
+                        successor.clear_next_method_args()
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
@@ -3705,6 +3706,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 result = session.execute(
                     update(TI)
                     .where(
+                        TI.working_set.is_(True),
                         TI.state == TaskInstanceState.DEFERRED,
                         TI.trigger_timeout < timezone.utcnow(),
                     )
@@ -3738,6 +3740,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 query = (
                     select(TI)
                     .where(
+                        TI.working_set.is_(True),
                         TI.state == TaskInstanceState.AWAITING_INPUT,
                         TI.trigger_timeout < now,
                     )
@@ -3860,6 +3863,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
             .where(
+                TI.working_set.is_(True),
                 TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
                 TI.last_heartbeat_at < limit_dttm,
             )
@@ -4054,7 +4058,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)
                 ),
                 ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
-                ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
+                ~exists(
+                    select(TaskInstance.trigger_id).where(
+                        TaskInstance.working_set.is_(True), TaskInstance.trigger_id == Trigger.id
+                    )
+                ),
             )
             .execution_options(synchronize_session="fetch")
         )

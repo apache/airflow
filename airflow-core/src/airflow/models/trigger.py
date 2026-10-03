@@ -245,7 +245,9 @@ class Trigger(Base):
                 session.execute(
                     update(TaskInstance)
                     .where(
-                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
+                        TaskInstance.working_set.is_(True),
+                        TaskInstance.state != TaskInstanceState.DEFERRED,
+                        TaskInstance.trigger_id.is_not(None),
                     )
                     .values(trigger_id=None)
                 )
@@ -280,7 +282,9 @@ class Trigger(Base):
         # Resume deferred tasks
         for task_instance in session.scalars(
             select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+                TaskInstance.working_set.is_(True),
+                TaskInstance.trigger_id == trigger_id,
+                TaskInstance.state == TaskInstanceState.DEFERRED,
             )
         ):
             handle_event_submit(event, task_instance=task_instance, session=session)
@@ -319,7 +323,9 @@ class Trigger(Base):
         """
         for task_instance in session.scalars(
             select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+                TaskInstance.working_set.is_(True),
+                TaskInstance.trigger_id == trigger_id,
+                TaskInstance.state == TaskInstanceState.DEFERRED,
             )
         ):
             # Add the error and set the next_method to the fail state
@@ -468,7 +474,10 @@ class Trigger(Base):
             select(cls.id)
             .prefix_with("STRAIGHT_JOIN", dialect="mysql")
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
-            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
+            .where(
+                TaskInstance.working_set.is_(True),
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+            )
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),
             # Asset triggers
             select(cls.id)
@@ -653,9 +662,6 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
     from airflow.utils.state import TaskInstanceState
 
-    # Prevent the task from resuming on a worker.
-    task_instance.trigger_id = None
-
     callback_type = event.task_instance_state
     should_retry = False
 
@@ -730,9 +736,10 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         task_instance.end_date = timezone.utcnow()
         task_instance.set_duration()
         task_instance.clear_next_method_args()
-        task_instance.prepare_db_for_next_try(session)
+        task_instance = task_instance.prepare_db_for_next_try(session)
         task_instance.state = TaskInstanceState.UP_FOR_RETRY
     else:
+        task_instance.trigger_id = None
         task_instance.set_state(event.task_instance_state, session=session)
 
     _push_xcoms_if_necessary()

@@ -21,6 +21,7 @@ import re
 import threading
 import time
 from contextlib import suppress
+from datetime import timedelta
 from importlib import import_module
 from io import StringIO
 from unittest.mock import MagicMock, call, mock_open, patch
@@ -28,6 +29,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
+import sqlalchemy as sa
 from sqlalchemy import (
     Column,
     Integer,
@@ -44,7 +46,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
 
-from airflow import DAG
+from airflow import DAG, settings
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
@@ -54,6 +56,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -77,6 +80,13 @@ from airflow.utils.db_cleanup import (
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.attempt_ownership import (
+    CURRENT_ID,
+    HISTORY_ID,
+    NOW,
+    ownership_session as ownership_session,
+    table,
+)
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_callbacks,
@@ -189,15 +199,15 @@ class TestDBCleanup:
         session.commit.assert_not_called()
 
     @pytest.mark.parametrize(
-        "table_names",
+        ("table_names", "expected_count"),
         [
-            ["xcom", "log"],
-            None,
+            (["xcom", "log"], 3),
+            (None, None),
         ],
     )
     @patch("airflow.utils.db_cleanup._cleanup_table")
     @patch("airflow.utils.db_cleanup._confirm_delete", new=MagicMock())
-    def test_run_cleanup_tables(self, clean_table_mock, table_names):
+    def test_run_cleanup_tables(self, clean_table_mock, table_names, expected_count):
         """
         ``_cleanup_table`` should be called for each table in subset if one
         is provided else should be called for all tables.
@@ -208,7 +218,71 @@ class TestDBCleanup:
             verbose=None,
         )
         run_cleanup(**base_kwargs, table_names=table_names)
-        assert clean_table_mock.call_count == len(table_names) if table_names else len(config_dict)
+        if expected_count is None:
+            existing = set(inspect(settings.engine).get_table_names())
+            expected_count = len(config_dict.keys() & existing)
+        assert clean_table_mock.call_count == expected_count
+
+    @pytest.mark.parametrize(
+        ("requested", "selected", "archive_source"),
+        [
+            ("xcom", ["xcom_v1", "xcom_v2"], "xcom"),
+            ("xcom_v2", ["xcom_v2"], "xcom"),
+            ("task_instance_history", ["task_instance_history"], "task_instance_history"),
+        ],
+    )
+    def test_legacy_table_names_select_current_physical_tables_and_archives(
+        self, requested, selected, archive_source
+    ):
+        names, _ = _effective_table_names(table_names=[requested])
+        assert set(names) == set(selected)
+
+        with create_session() as session:
+            archive = f"{ARCHIVE_TABLE_PREFIX}{archive_source}__20260929"
+            with patch("airflow.utils.db_cleanup.inspect", autospec=True) as inspect_mock:
+                inspect_mock.return_value.get_table_names.return_value = [archive]
+                assert _get_archived_table_names([requested], session) == [archive]
+
+    def test_task_instance_history_alias_cleans_only_retired_attempts(self, ownership_session):
+        session = ownership_session
+        session.execute(sa.update(TaskInstance).values(start_date=NOW))
+        session.commit()
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["task_instance_history"],
+            confirm=False,
+            skip_archive=True,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        assert session.get(TaskInstance, HISTORY_ID) is None
+        assert session.get(TaskInstance, CURRENT_ID) is not None
+
+    def test_xcom_v2_cleanup_removes_shadowed_legacy_value(self, ownership_session):
+        session = ownership_session
+        XComModel.set_for_attempt(
+            task_instance_id=CURRENT_ID, key="return_value", value={"new": True}, session=session
+        )
+        session.execute(sa.update(XComModelV2).values(timestamp=NOW))
+        session.execute(
+            sa.text("UPDATE xcom_v1 SET timestamp = :future"), {"future": NOW + timedelta(days=30)}
+        )
+        session.commit()
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["xcom_v2"],
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        assert session.scalar(sa.text("SELECT count(*) FROM xcom_v1")) == 0
+        assert session.scalar(sa.text("SELECT count(*) FROM xcom_v2")) == 0
+        archives = _get_archived_table_names(["xcom_v2"], session)
+        assert any(name.startswith(f"{ARCHIVE_TABLE_PREFIX}xcom_v1__") for name in archives)
 
     @patch("airflow.utils.db_cleanup._cleanup_table")
     @patch("airflow.utils.db_cleanup._confirm_delete")
@@ -578,7 +652,12 @@ class TestDBCleanup:
             )
             model = config_dict["dag_run"].orm_model
             assert session.scalar(select(func.count()).select_from(model)) == 5
-            assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+            archives = [
+                name
+                for name in _get_archived_table_names(["dag_run"], session)
+                if name.startswith(f"{ARCHIVE_TABLE_PREFIX}dag_run__")
+            ]
+            assert len(archives) == expected_archives
 
     def test_dag_version_cleanup_skips_versions_pinned_by_task_instance(self):
         """db clean must skip dag_version rows still referenced by a task instance.
@@ -1109,7 +1188,6 @@ class TestDBCleanup:
             "asset_event_dag_run",  # foreign keys
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
-            "rendered_task_instance_fields",  # foreign key with TI
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
             "dag_bundle",  # leave alone - not appropriate for cleanup
@@ -1128,6 +1206,9 @@ class TestDBCleanup:
             "hitl_detail",  # cascade from task_instance
             "hitl_detail_history",  # cascade from task_instance_history
             "job_team",  # cascade from job
+            "legacy_task_data_owner",  # cascade from task_instance
+            "rtif_v1",  # cascade from legacy_task_data_owner
+            "rtif_v2",  # cascade from task_instance
             "task_inlet_asset_reference",  # cascade from dag
         }
 
@@ -1451,6 +1532,199 @@ class TestDBCleanup:
             error_on_cleanup_failure=True,
         )
         cleanup_table_mock.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("parent", "dry_run", "skip_archive"),
+        [
+            pytest.param("task_instance", False, False, id="task_instance"),
+            pytest.param("dag_run", False, False, id="dag_run"),
+            pytest.param("task_instance", True, False, id="dry_run"),
+            pytest.param("task_instance", False, True, id="skip_archive"),
+        ],
+    )
+    @pytest.mark.execution_timeout(10)
+    def test_cleanup_archives_owned_data_newer_than_parent_cutoff(
+        self, ownership_session, parent, dry_run, skip_archive
+    ):
+        session = ownership_session
+        session.execute(sa.update(TaskInstance).values(start_date=NOW))
+        XComModel.set_for_attempt(task_instance_id=CURRENT_ID, key="new", value=123, session=session)
+        session.execute(sa.update(XComModelV2).values(timestamp=NOW + timedelta(days=30)))
+        session.execute(
+            sa.text("UPDATE xcom_v1 SET timestamp = :future"), {"future": NOW + timedelta(days=30)}
+        )
+        session.commit()
+        owned_tables = [
+            "task_instance",
+            "xcom_v1",
+            "xcom_v2",
+            "rtif_v1",
+            "legacy_task_data_owner",
+            "task_reschedule",
+            "task_instance_note",
+            "hitl_detail",
+        ]
+        rows = {
+            name: [dict(row) for row in session.execute(sa.text(f"SELECT * FROM {name}")).mappings()]
+            for name in owned_tables
+        }
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=[parent],
+            dry_run=dry_run,
+            skip_archive=skip_archive,
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        archived = not (dry_run or skip_archive)
+        archive_names = _get_archived_table_names([parent], session)
+        for name, expected in rows.items():
+            assert session.scalar(sa.text(f"SELECT count(*) FROM {name}")) == (
+                len(expected) if dry_run else 0
+            )
+            archives = [
+                archive for archive in archive_names if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}{name}__")
+            ]
+            archived_rows = [
+                dict(row)
+                for archive in archives
+                for row in session.execute(sa.text(f"SELECT * FROM {archive}")).mappings()
+            ]
+            assert sorted(archived_rows, key=repr) == sorted(expected if archived else [], key=repr), (
+                name,
+                archives,
+            )
+            if not archived:
+                assert archives == []
+
+    @pytest.mark.execution_timeout(10)
+    def test_cleanup_reuses_child_archives_across_parent_batches(self, ownership_session):
+        session = ownership_session
+        session.execute(sa.update(TaskInstance).values(start_date=NOW))
+        for attempt in session.scalars(sa.select(TaskInstance)):
+            XComModel.set_for_attempt(
+                task_instance_id=attempt.id, key="per_attempt", value=str(attempt.id), session=session
+            )
+        session.commit()
+        expected = {
+            name: session.scalar(sa.text(f"SELECT count(*) FROM {name}"))
+            for name in ("xcom_v1", "xcom_v2", "rtif_v1", "legacy_task_data_owner")
+        }
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["task_instance"],
+            batch_size=1,
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        archives = _get_archived_table_names(["task_instance"], session)
+        parent_archives = [
+            archive for archive in archives if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}task_instance__")
+        ]
+        assert len(parent_archives) == 2
+        for name, count in expected.items():
+            child_archives = [
+                archive
+                for archive in archives
+                if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}{name}__")
+                and re.fullmatch(r"[0-9a-f]{16}", archive.rsplit("__", 1)[-1])
+            ]
+            assert len(child_archives) == 1
+            all_archives = [
+                archive for archive in archives if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}{name}__")
+            ]
+            assert (
+                sum(
+                    session.scalar(sa.select(sa.func.count()).select_from(sa.table(archive)))
+                    for archive in all_archives
+                )
+                == count
+            )
+
+    @pytest.mark.parametrize("include", [True, False])
+    @pytest.mark.execution_timeout(10)
+    def test_cleanup_scopes_attempt_cascade_to_selected_dag(self, ownership_session, include):
+        session = ownership_session
+        other_id = uuid4()
+        session.execute(
+            table(session.connection(), "dag_run")
+            .insert()
+            .values(
+                id=42,
+                dag_id="other",
+                run_id="manual",
+                run_type="manual",
+                run_after=NOW,
+                state="success",
+                start_date=NOW,
+            )
+        )
+        session.execute(
+            table(session.connection(), "task_instance", "id")
+            .insert()
+            .values(
+                id=other_id,
+                dag_id="other",
+                task_id="task",
+                run_id="manual",
+                map_index=-1,
+                state="success",
+                try_number=1,
+                working_set=True,
+                pool="default_pool",
+                pool_slots=1,
+                start_date=NOW,
+            )
+        )
+        session.execute(sa.update(TaskInstance).where(TaskInstance.id == CURRENT_ID).values(start_date=NOW))
+        for attempt_id in (CURRENT_ID, other_id):
+            XComModel.set_for_attempt(task_instance_id=attempt_id, key="new", value=123, session=session)
+        session.commit()
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=["dag_run"],
+            dag_ids=["ownership"] if include else None,
+            exclude_dag_ids=None if include else ["other"],
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        assert (
+            session.scalar(
+                sa.select(sa.func.count()).select_from(TaskInstance).where(TaskInstance.id == CURRENT_ID)
+            )
+            == 0
+        )
+        assert (
+            session.scalar(
+                sa.select(sa.func.count())
+                .select_from(XComModelV2)
+                .where(XComModelV2.task_instance_id == CURRENT_ID)
+            )
+            == 0
+        )
+        assert (
+            session.scalar(
+                sa.select(sa.func.count()).select_from(TaskInstance).where(TaskInstance.id == other_id)
+            )
+            == 1
+        )
+        assert (
+            session.scalar(
+                sa.select(sa.func.count())
+                .select_from(XComModelV2)
+                .where(XComModelV2.task_instance_id == other_id)
+            )
+            == 1
+        )
 
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
@@ -2150,7 +2424,7 @@ class TestTaskRescheduleCleanup:
             assert session.scalar(select(func.count(TaskInstance.id))) == 0
             assert session.scalar(select(func.count(TaskReschedule.id))) == 0
             archives = _get_archived_table_names(["task_reschedule"], session)
-            assert len(archives) == 1
+            assert len(archives) == 2
 
 
 @pytest.mark.backend("postgres")

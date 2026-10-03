@@ -41,7 +41,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_latest_version_of_dag,
     resolve_run_on_latest_version,
 )
-from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
+from airflow.api_fastapi.common.db.task_instances import eager_load_task_instance_for_validation
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionResponse,
@@ -60,8 +60,9 @@ from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.api_fastapi.core_api.services.public.task_instances import _emit_state_listener_hooks
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun, clear_partition_runs
+from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.session import create_session_async
 from airflow.utils.state import State, TaskInstanceState
 
@@ -111,6 +112,7 @@ def dry_run_clear_dag_run(
         existing_task_ids = set(
             session.scalars(
                 select(TaskInstance.task_id).where(
+                    TaskInstance.working_set.is_(True),
                     TaskInstance.dag_id == dag_id,
                     TaskInstance.run_id == dag_run_id,
                 )
@@ -119,7 +121,9 @@ def dry_run_clear_dag_run(
         new_task_ids = sorted(set(latest_dag.task_ids) - existing_task_ids)
         return [NewTaskResponse(task_id=task_id, task_display_name=task_id) for task_id in new_task_ids]
 
-    ti_query = eager_load_TI_and_TIH_for_validation(select(TaskInstance))
+    ti_query = eager_load_task_instance_for_validation(
+        select(TaskInstance).where(TaskInstance.working_set.is_(True))
+    )
     ti_query = ti_query.where(
         TaskInstance.dag_id == dag_id,
         TaskInstance.run_id == dag_run_id,
@@ -128,7 +132,9 @@ def dry_run_clear_dag_run(
         ti_query = ti_query.where(
             TaskInstance.state.in_([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])
         )
-    return list(session.scalars(ti_query))
+    task_instances = list(session.scalars(ti_query))
+    load_legacy_rendered_fields(task_instances, session=session)
+    return task_instances
 
 
 def perform_clear_dag_run(
@@ -259,22 +265,25 @@ class DagRunWaiter:
 
     async def _serialize_xcoms(self) -> dict[str, Any]:
         if self.result_task_ids is None:  # Return dag-author-specified results.
-            xcom_query = XComModel.get_many(
+            xcom_read = XComModel.get_many(
                 run_id=self.run_id,
                 key=XCOM_RETURN_KEY,
                 dag_ids=self.dag_id,
             )
-            xcom_query = xcom_query.where(XComModel.dag_result.is_(True))
+            entity = xcom_entity(xcom_read)
+            xcom_query = xcom_read.where(entity.dag_result.is_(True))
         else:  # Explicitly API user-specified results.
-            xcom_query = XComModel.get_many(
+            xcom_read = XComModel.get_many(
                 run_id=self.run_id,
                 key=XCOM_RETURN_KEY,
                 task_ids=self.result_task_ids,
                 dag_ids=self.dag_id,
             )
+            xcom_query = xcom_read
+            entity = xcom_entity(xcom_read)
         # XComModel.get_many() orders XCom by timestamp. Reset this to make
         # mapped task results stable since execution order is not guaranteed.
-        xcom_query = xcom_query.order_by(None).order_by(XComModel.task_id, XComModel.map_index)
+        xcom_query = xcom_query.order_by(None).order_by(entity.task_id, entity.map_index)
         async with create_session_async() as session:
             xcom_results = (await session.scalars(xcom_query)).all()
 

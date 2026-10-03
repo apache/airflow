@@ -59,6 +59,7 @@ def _require_task_instance(
 ) -> None:
     """Raise 404 unless the task instance exists. ``map_index=None`` matches any map index."""
     statement = select(TI.task_id).where(
+        TI.working_set.is_(True),
         TI.dag_id == dag_id,
         TI.run_id == dag_run_id,
         TI.task_id == task_id,

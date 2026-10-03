@@ -89,7 +89,6 @@ from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
-from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
@@ -356,13 +355,13 @@ class DagRun(Base, LoggingMixin):
     task_instances = relationship(
         TI,
         back_populates="dag_run",
+        primaryjoin="and_(DagRun.dag_id == TaskInstance.dag_id, DagRun.run_id == TaskInstance.run_id, TaskInstance.working_set.is_(True))",
         cascade="save-update, merge, delete, delete-orphan",
+        passive_deletes=True,
     )
-    task_instances_histories = relationship(
-        TIH,
-        primaryjoin="and_(DagRun.dag_id == TaskInstanceHistory.dag_id, DagRun.run_id == TaskInstanceHistory.run_id)",
-        foreign_keys="TaskInstanceHistory.dag_id, TaskInstanceHistory.run_id",
-        order_by=TIH.dag_version_id,
+    historical_task_instances = relationship(
+        TI,
+        primaryjoin="and_(DagRun.dag_id == TaskInstance.dag_id, DagRun.run_id == TaskInstance.run_id, TaskInstance.working_set.is_(None))",
         viewonly=True,
     )
     dag_model = relationship(
@@ -412,10 +411,10 @@ class DagRun(Base, LoggingMixin):
         fallback=20,
     )
     _ti_dag_versions = association_proxy("task_instances", "dag_version")
-    _tih_dag_versions = association_proxy("task_instances_histories", "dag_version")
+    _historical_dag_versions = association_proxy("historical_task_instances", "dag_version")
 
     # Can be set by manual prefetch, such as attach_dag_versions_to_runs()
-    # as an alternative to traversing all TI/TIH ORM relationships. Maps version_id -> DagVersion.
+    # as an alternative to traversing all current and historical attempts. Maps version_id -> DagVersion.
     _prefetched_dag_version_ids: dict[UUID, DagVersion] | None = None
 
     def __init__(
@@ -543,7 +542,7 @@ class DagRun(Base, LoggingMixin):
         else:
             dag_version_objects = [
                 dv
-                for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
+                for dv in dict.fromkeys(list(self._historical_dag_versions) + list(self._ti_dag_versions))
                 if dv is not None
             ]
         return sorted(dag_version_objects, key=lambda dv: dv.id)
@@ -586,12 +585,12 @@ class DagRun(Base, LoggingMixin):
     def check_version_id_exists_in_dr(self, dag_version_id: UUID, *, session: Session = NEW_SESSION):
         select_stmt = (
             select(TI.dag_version_id)
-            .where(TI.dag_id == self.dag_id, TI.dag_version_id == dag_version_id, TI.run_id == self.run_id)
-            .union(
-                select(TIH.dag_version_id).where(
-                    TIH.dag_id == self.dag_id, TIH.dag_version_id == dag_version_id, TIH.run_id == self.run_id
-                )
+            .where(
+                TI.dag_id == self.dag_id,
+                TI.dag_version_id == dag_version_id,
+                TI.run_id == self.run_id,
             )
+            .limit(1)
         )
         return session.scalar(select_stmt)
 
@@ -974,6 +973,7 @@ class DagRun(Base, LoggingMixin):
             select(TI)
             .options(joinedload(TI.dag_run))
             .where(
+                TI.working_set.is_(True),
                 TI.dag_id == dag_id,
                 TI.run_id == run_id,
             )
@@ -1102,7 +1102,9 @@ class DagRun(Base, LoggingMixin):
         :param session: Sqlalchemy ORM Session
         """
         return session.scalars(
-            select(TI).filter_by(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
+            select(TI)
+            .where(TI.working_set.is_(True))
+            .filter_by(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
         ).one_or_none()
 
     def get_dag(self) -> SerializedDAG:
@@ -1786,7 +1788,7 @@ class DagRun(Base, LoggingMixin):
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)
         if tis_filter is not None:
-            fresh_tis = session.scalars(select(TI).where(tis_filter)).all()
+            fresh_tis = session.scalars(select(TI).where(TI.working_set.is_(True), tis_filter)).all()
             changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
 
         return ready_tis, changed_tis, expansion_happened
@@ -2007,9 +2009,8 @@ class DagRun(Base, LoggingMixin):
                     "task_restored_to_dag",
                     tags={**self.stats_tags, "dag_id": dag.dag_id},
                 )
-                if ti.try_number > 0:
-                    ti.prepare_db_for_next_try(session)
-                ti.state = None
+                restored = ti.prepare_db_for_next_try(session) if ti.try_number > 0 else ti
+                restored.state = None
 
         return task_ids
 
@@ -2180,6 +2181,7 @@ class DagRun(Base, LoggingMixin):
 
         query = session.scalars(
             select(TI.map_index).where(
+                TI.working_set.is_(True),
                 TI.dag_id == self.dag_id,
                 TI.task_id == task.task_id,
                 TI.run_id == self.run_id,
@@ -2192,6 +2194,7 @@ class DagRun(Base, LoggingMixin):
             session.execute(
                 update(TI)
                 .where(
+                    TI.working_set.is_(True),
                     TI.dag_id == self.dag_id,
                     TI.task_id == task.task_id,
                     TI.run_id == self.run_id,
@@ -2201,11 +2204,22 @@ class DagRun(Base, LoggingMixin):
             )
             session.flush()
 
+        missing_indexes = [index for index in range(total_length) if index not in existing_indexes]
+        if not missing_indexes:
+            return []
+        last_tries = TI.get_last_try_numbers(
+            dag_id=self.dag_id,
+            task_id=task.task_id,
+            run_id=self.run_id,
+            map_indexes=missing_indexes,
+            session=session,
+        )
+
         new_tis: list[TI] = []
-        for index in range(total_length):
-            if index in existing_indexes:
-                continue
+        for index in missing_indexes:
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
+            ti.try_number = last_tries.get(index, -1) + 1
+            ti.max_tries += ti.try_number
             self.log.debug("Expanding TIs upserted %s", ti)
             _add_and_prime_mapped_ti(ti, task, self, session=session)
             new_tis.append(ti)
@@ -2295,7 +2309,7 @@ class DagRun(Base, LoggingMixin):
             for id_chunk in schedulable_ti_ids_chunks:
                 result = session.execute(
                     update(TI)
-                    .where(TI.id.in_(id_chunk), schedulable_state_clause)
+                    .where(TI.working_set.is_(True), TI.id.in_(id_chunk), schedulable_state_clause)
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
@@ -2306,7 +2320,9 @@ class DagRun(Base, LoggingMixin):
                 count += getattr(result, "rowcount", 0)
                 if debug_try_number_check:
                     rows = session.execute(
-                        select(TI.id, TI.try_number, TI.state).where(TI.id.in_(id_chunk))
+                        select(TI.id, TI.try_number, TI.state).where(
+                            TI.working_set.is_(True), TI.id.in_(id_chunk)
+                        )
                     ).all()
                     rows_by_ti_id = {
                         ti_id: (db_try_number, db_state) for ti_id, db_try_number, db_state in rows
@@ -2343,7 +2359,7 @@ class DagRun(Base, LoggingMixin):
             for id_chunk in dummy_ti_ids_chunks:
                 result = session.execute(
                     update(TI)
-                    .where(TI.id.in_(id_chunk), schedulable_state_clause)
+                    .where(TI.working_set.is_(True), TI.id.in_(id_chunk), schedulable_state_clause)
                     .values(
                         state=TaskInstanceState.SUCCESS,
                         start_date=timezone.utcnow(),
@@ -2512,6 +2528,7 @@ def clear_partition_runs(
             chunk_tis = list(
                 session.scalars(
                     select(TI).where(
+                        TI.working_set.is_(True),
                         TI.dag_id == dag_id,
                         TI.run_id.in_(ti_buffer_run_ids),
                     )
@@ -2560,6 +2577,7 @@ def clear_partition_runs(
                         select(func.count())
                         .select_from(TI)
                         .where(
+                            TI.working_set.is_(True),
                             TI.dag_id == dag_id,
                             TI.run_id.in_(chunk),
                         )
