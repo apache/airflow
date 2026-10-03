@@ -470,6 +470,7 @@ class BeamAsyncHook(BeamHook):
     @staticmethod
     async def _beam_version(py_interpreter: str) -> str:
         start_error: OSError | None = None
+        returncode: int | None
         try:
             proc = await asyncio.create_subprocess_exec(
                 py_interpreter,
