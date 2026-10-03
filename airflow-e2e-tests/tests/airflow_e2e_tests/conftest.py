@@ -300,7 +300,7 @@ def _build_artifact_bundle_config(tmp_dir: Path, *names: str) -> str:
     Return a Dag bundle config list with the Dags folder and one Dag bundle per artifact directory.
 
     Each ``tmp_dir / name`` is mounted at ``/opt/airflow/<name>`` and holds only task artifacts,
-    so an ``.airflowignore`` keeps the Dag processor from parsing it.
+    so an ``.airflowignore`` keeps the Dag processor from parsing them as native Dag files.
     """
     for name in names:
         (tmp_dir / name / ".airflowignore").write_text("*\n")
@@ -494,11 +494,11 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         check=True,
     )
 
-    # One JavaCoordinator per queue on the same worker image, each reading its
-    # own Dag bundle. The scala-jdk entry pins main_class (Spark's large classpath
-    # makes Main-Class discovery ambiguous) and carries Spark's Java 17 module
-    # openings, a small driver heap, and a longer startup timeout for its large
-    # dependency classpath.
+    # Four JavaCoordinators on the same worker image. The first three each read their
+    # own artifact bundle for the stub tasks of their queue. The scala-jdk entry pins
+    # main_class (Spark's large classpath makes Main-Class discovery ambiguous) and
+    # carries Spark's Java 17 module openings, a small driver heap, and a longer
+    # startup timeout for its large dependency classpath.
     coordinator_config = json.dumps(
         {
             "java-jdk": {
@@ -518,17 +518,19 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
                 "kwargs": {"dag_bundle_name": "java-test-jars"},
             },
-            # Serves the Dags folder: it parses the native-Dag JAR there and runs
-            # that JAR's tasks.
+            # Only parses: dag_bundle_to_coordinator picks it for the Dags folder, since
+            # there are four JavaCoordinators. No queue routes to it, so the native
+            # Dag's tasks run on java-jdk, from the Dag's own bundle.
             "java-native": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"dag_bundle_name": "dags-folder"},
+                "kwargs": {},
             },
         }
     )
     queue_to_coordinator = json.dumps(
-        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk", "java-native": "java-native"}
+        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk", "java-native": "java-jdk"}
     )
+    dag_bundle_to_coordinator = json.dumps({"dags-folder": "java-native"})
     bundle_config = _build_artifact_bundle_config(tmp_dir, "java-jars", "scala-jars", "java-test-jars")
 
     # Connection expected by the Java example bundle tasks. The JSON form
@@ -550,6 +552,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         # Single-quote the JSON values so Docker Compose reads them literally.
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        f"AIRFLOW__SDK__DAG_BUNDLE_TO_COORDINATOR='{dag_bundle_to_coordinator}'\n"
         f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{bundle_config}'\n"
         f"AIRFLOW_CONN_TEST_HTTP='{test_http_conn}'\n"
         # Variable expected by the Java example bundle tasks.
@@ -784,9 +787,9 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     for dag_file in ("typescript_example.py", "typescript_taskflow_example.py"):
         copyfile(TS_SDK_EXAMPLE_PATH / "dags" / dag_file, tmp_dir / "dags" / dag_file)
 
-    # "ts" runs every TypeScript task, stub or native, from the ts-bundles Dag bundle.
-    # "ts-native" serves the Dags folder: the Dag processor parses the bundle's
-    # native Dag with it.
+    # "ts" is the only NodeCoordinator, so it parses the native Dag in every Dag bundle
+    # that holds one, the Dags folder here. It runs the stub tasks from the ts-bundles
+    # Dag bundle, and the native Dag's tasks from the Dag's own bundle.
     coordinator_config = json.dumps(
         {
             "ts": {
@@ -795,10 +798,6 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
                     "dag_bundle_name": "ts-bundles",
                     "node_executable": "/opt/nodejs/node",
                 },
-            },
-            "ts-native": {
-                "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
-                "kwargs": {"dag_bundle_name": "dags-folder", "node_executable": "/opt/nodejs/node"},
             },
         }
     )

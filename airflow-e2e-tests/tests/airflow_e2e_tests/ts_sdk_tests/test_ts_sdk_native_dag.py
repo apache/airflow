@@ -28,8 +28,8 @@ Unlike ``test_ts_sdk_dag.py``, no Python file declares this Dag: the Dag process
 named fan-in, order-only edges, a conditional, a multi-way branch, and a task that triggers another
 Dag's run.
 
-The bundle sits in the Dag bundle, where the ``ts-native`` coordinator claims it. Every task, the
-trigger included, runs in the TypeScript runtime.
+The bundle sits in the Dag bundle. The ``ts`` coordinator, the only ``NodeCoordinator``, parses it
+there. Every task, the trigger included, runs in the TypeScript runtime.
 """
 
 from __future__ import annotations
