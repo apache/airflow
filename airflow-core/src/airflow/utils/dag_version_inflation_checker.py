@@ -580,8 +580,8 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
 
 
 def check_dag_file_stability(file_path) -> DagVersionInflationCheckResult:
-    from airflow.configuration import conf
     from airflow._shared.module_loading.dag_file import might_contain_dag
+    from airflow.configuration import conf
 
     try:
         check_level = DagVersionInflationCheckLevel(

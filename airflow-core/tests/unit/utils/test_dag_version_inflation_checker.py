@@ -942,6 +942,7 @@ class TestIntegrationScenarios:
         warnings = self._check_code(code)
         assert len(warnings) == 0
 
+
 def test_check_dag_file_stability_checks_dags_inside_zip(tmp_path):
     """DAGs inside ZIP files should be checked for version inflation."""
     source_1 = dedent(
