@@ -1,4 +1,4 @@
-/*!
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,21 +17,34 @@
  * under the License.
  */
 
-import { fileURLToPath } from "node:url";
+plugins {
+    id("org.apache.airflow.sdk") version "${projectVersion}"
+}
 
-import { defineConfig } from "vitest/config";
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
 
-export default defineConfig({
-  resolve: {
-    alias: {
-      // `example/` imports the package by name, which resolves to the built
-      // `dist/`. A test that reaches into both would hold two copies of the
-      // SDK, and a Dag from one is not an instance of the other's class.
-      // Tests run against the sources, so the example does too.
-      "apache-airflow-ts-sdk": fileURLToPath(new URL("./src/index.ts", import.meta.url)),
-    },
-  },
-  test: {
-    include: ["tests/**/*.test.ts", "scripts/**/*.test.mjs"],
-  },
-});
+dependencies {
+    annotationProcessor("org.apache.airflow:airflow-sdk-processor:${projectVersion}")
+    implementation("org.apache.airflow:airflow-sdk:${projectVersion}")
+    implementation("org.apache.airflow:airflow-sdk-jpl:${projectVersion}")
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+    sourceCompatibility = JavaVersion.VERSION_11
+}
+
+sourceSets {
+    main {
+        java.srcDir("src/java")
+    }
+}
+
+airflowBundle {
+    mainClass = "org.apache.airflow.e2e.NativeBundleBuilder"
+}

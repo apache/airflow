@@ -47,6 +47,8 @@ from airflow_e2e_tests.constants import (
     GO_SDK_ROOT_PATH,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
+    JAVA_NATIVE_BUNDLE_LIBS_PATH,
+    JAVA_NATIVE_BUNDLE_ROOT_PATH,
     JAVA_SDK_EXAMPLE_DAGS_PATH,
     JAVA_SDK_EXAMPLE_LIBS_PATH,
     JAVA_SDK_MAVEN_CACHE_PATH,
@@ -298,7 +300,7 @@ def _build_artifact_bundle_config(tmp_dir: Path, *names: str) -> str:
     Return a Dag bundle config list with the Dags folder and one Dag bundle per artifact directory.
 
     Each ``tmp_dir / name`` is mounted at ``/opt/airflow/<name>`` and holds only task artifacts,
-    so an ``.airflowignore`` keeps the Dag processor from parsing it.
+    so an ``.airflowignore`` keeps the Dag processor from parsing them as native Dag files.
     """
     for name in names:
         (tmp_dir / name / ".airflowignore").write_text("*\n")
@@ -347,6 +349,9 @@ def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=Fal
       image's HOME (/root) which the non-root process cannot write to.
     * files/m2 is mounted directly as ~/.m2 so publishToMavenLocal writes
       there without nesting, and its contents are visible on the host.
+      maven.repo.local names it explicitly: the JVM takes its home from
+      /etc/passwd, not HOME, so a host UID that the image does define (such
+      as 1000, its "ubuntu" user) would otherwise publish into the container.
     """
     if native:
         cwd = workdir
@@ -379,6 +384,7 @@ def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=Fal
             "eclipse-temurin:17-jdk",
             "/repo/java-sdk/gradlew",
             "--no-daemon",
+            "-Dmaven.repo.local=/workspace-home/.m2/repository",
             *gradle_argv,
         ]
     return subprocess.run(argv, cwd=cwd, check=True, capture_output=capture_output, text=True)
@@ -407,8 +413,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
     _run_java_sdk_gradle(JAVA_SDK_ROOT_PATH, "publishToMavenLocal", "-PskipSigning=true", native=native)
 
-    # The example, scala_spark_example, and java-test-bundle are independent
-    # Gradle builds that all consume the SDK artifact published above, so build
+    # The example, scala_spark_example, java-test-bundle, and java-native-bundle
+    # are independent Gradle builds that all consume the SDK artifact published above, so build
     # them concurrently. Sharing a writable Gradle user home between concurrent
     # builds is safe because each build can ping the other's lock-owner port over
     # one shared loopback - the host's own in native mode, --network=host in the
@@ -423,14 +429,17 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     rmtree(JAVA_SDK_EXAMPLE_LIBS_PATH, ignore_errors=True)
     rmtree(SCALA_SPARK_EXAMPLE_LIBS_PATH, ignore_errors=True)
     rmtree(JAVA_TEST_BUNDLE_LIBS_PATH, ignore_errors=True)
+    rmtree(JAVA_NATIVE_BUNDLE_LIBS_PATH, ignore_errors=True)
     toolchain = "host toolchain" if native else "eclipse-temurin:17-jdk"
     console.print(
-        f"[yellow]Building Java SDK, Scala Spark, and test-fixture bundles concurrently ({toolchain})..."
+        "[yellow]Building Java SDK, Scala Spark, test-fixture, and native-Dag bundles concurrently "
+        f"({toolchain})..."
     )
     example_bundle_workdirs = [
         JAVA_SDK_ROOT_PATH / "example",
         JAVA_SDK_ROOT_PATH / "scala_spark_example",
         JAVA_TEST_BUNDLE_ROOT_PATH,
+        JAVA_NATIVE_BUNDLE_ROOT_PATH,
     ]
     with ThreadPoolExecutor(max_workers=len(example_bundle_workdirs)) as pool:
         bundle_builds = [
@@ -448,6 +457,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "java-jars")
     copytree(SCALA_SPARK_EXAMPLE_LIBS_PATH, tmp_dir / "scala-jars")
     copytree(JAVA_TEST_BUNDLE_LIBS_PATH, tmp_dir / "java-test-jars")
+    # The native-Dag bundle goes into the Dag bundle, where the Dag processor parses it.
+    copytree(JAVA_NATIVE_BUNDLE_LIBS_PATH, tmp_dir / "dags" / "java-native")
 
     # Copy the Java SDK example Dag files so Airflow can discover them.
     copyfile(JAVA_SDK_EXAMPLE_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
@@ -461,7 +472,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     # JRE and copies nothing from the context, so without this docker build would
     # tar and stream the bundles (hundreds of MB of Spark JARs) to the daemon for
     # nothing. The JARs reach the worker via the compose bind-mounts, not the image.
-    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\njava-test-jars/\n")
+    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\njava-test-jars/\ndags/\n")
 
     # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
     # We do this explicitly so testcontainers' DockerCompose.start() does not
@@ -483,11 +494,11 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         check=True,
     )
 
-    # One JavaCoordinator per queue on the same worker image, each reading its
-    # own Dag bundle. The scala-jdk entry pins main_class (Spark's large classpath
-    # makes Main-Class discovery ambiguous) and carries Spark's Java 17 module
-    # openings, a small driver heap, and a longer startup timeout for its large
-    # dependency classpath.
+    # Four JavaCoordinators on the same worker image. The first three each read their
+    # own artifact bundle for the stub tasks of their queue. The scala-jdk entry pins
+    # main_class (Spark's large classpath makes Main-Class discovery ambiguous) and
+    # carries Spark's Java 17 module openings, a small driver heap, and a longer
+    # startup timeout for its large dependency classpath.
     coordinator_config = json.dumps(
         {
             "java-jdk": {
@@ -507,11 +518,19 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
                 "kwargs": {"dag_bundle_name": "java-test-jars"},
             },
+            # Only parses: dag_bundle_to_coordinator picks it for the Dags folder, since
+            # there are four JavaCoordinators. No queue routes to it, so the native
+            # Dag's tasks run on java-jdk, from the Dag's own bundle.
+            "java-native": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {},
+            },
         }
     )
     queue_to_coordinator = json.dumps(
-        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk"}
+        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk", "java-native": "java-jdk"}
     )
+    dag_bundle_to_coordinator = json.dumps({"dags-folder": "java-native"})
     bundle_config = _build_artifact_bundle_config(tmp_dir, "java-jars", "scala-jars", "java-test-jars")
 
     # Connection expected by the Java example bundle tasks. The JSON form
@@ -533,6 +552,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         # Single-quote the JSON values so Docker Compose reads them literally.
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        f"AIRFLOW__SDK__DAG_BUNDLE_TO_COORDINATOR='{dag_bundle_to_coordinator}'\n"
         f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{bundle_config}'\n"
         f"AIRFLOW_CONN_TEST_HTTP='{test_http_conn}'\n"
         # Variable expected by the Java example bundle tasks.
@@ -756,12 +776,20 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     ts_bundles_dir.mkdir()
     # Deliberately renamed: the coordinator routes on embedded metadata, not on a fixed name.
     copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
+    # The same artifact inside the Dag bundle, where the Dag processor finds its native Dag.
+    (tmp_dir / "dags" / "typescript").mkdir()
+    copyfile(
+        TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", tmp_dir / "dags" / "typescript" / "example.min.mjs"
+    )
 
     # Both of the example bundle's Dags: one bundle.mjs provides for two dag_ids,
     # and the tests check that dispatch tells their same-named tasks apart.
     for dag_file in ("typescript_example.py", "typescript_taskflow_example.py"):
         copyfile(TS_SDK_EXAMPLE_PATH / "dags" / dag_file, tmp_dir / "dags" / dag_file)
 
+    # "ts" is the only NodeCoordinator, so it parses the native Dag in every Dag bundle
+    # that holds one, the Dags folder here. It runs the stub tasks from the ts-bundles
+    # Dag bundle, and the native Dag's tasks from the Dag's own bundle.
     coordinator_config = json.dumps(
         {
             "ts": {
@@ -770,7 +798,7 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
                     "dag_bundle_name": "ts-bundles",
                     "node_executable": "/opt/nodejs/node",
                 },
-            }
+            },
         }
     )
     queue_to_coordinator = json.dumps({"typescript": "ts"})

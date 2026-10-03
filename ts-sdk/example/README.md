@@ -25,7 +25,14 @@ This example shows the coordinator-mode shape for TypeScript task handlers:
 - `src/main.ts` and `src/taskflow.ts` register a `TaskHandler` per stub task and start the coordinator runtime.
   One bundle provides for both Dags, and both declare a task called `build_message`.
   A handler binds the `(dag_id, task_id)` pair, so the two are different tasks with different bodies.
-- `dist/bundle.min.mjs` is the generated Node.js bundle that Airflow launches.
+- `src/native.ts` declares a third Dag, `typescript_native_example`, **entirely in TypeScript** — no
+  Python file declares its graph. Its schedule, task options and edges are all written on this side,
+  and the bundle answers the Dag processor's parse request with the serialized Dag. The graph is a
+  graph rather than a chain: a task group, a named fan-in, order-only edges, a conditional, a
+  multi-way branch, and a `triggerDagRun` task that waits for the run it starts. It defers to
+  `DagStateTrigger`, which the Python triggerer runs, and resumes in the TypeScript runtime.
+- `dist/bundle.min.mjs` is the generated Node.js bundle that Airflow launches. One artifact serves both
+  authoring modes.
 
 The build uses the SDK's `airflow-ts-pack` tool, which bundles the entrypoint
 with esbuild and embeds the Airflow metadata generated from the bundle's
@@ -86,6 +93,10 @@ export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'
 `dag_bundle_name` names the Dag bundle that holds the bundle, here `dist/`, outside the Dags folder.
 Omit it to copy the bundle into the same Dag bundle as the stub Dags.
 
+The Dag processor parses `typescript_native_example` from `bundle.min.mjs` with `node`, so it needs
+`node` on `PATH`, or set `node_executable` in the coordinator's `kwargs`. See
+[Parsing native Dags](../../airflow-core/docs/authoring-and-scheduling/language-sdks/typescript.rst#parsing-native-dags).
+
 Copy both files in `dags/` into your Airflow Dags folder.
 
 The example also reads one Variable and one Connection:
@@ -107,4 +118,5 @@ Then start Airflow and trigger the Dag:
 ```bash
 airflow dags trigger typescript_example
 airflow dags trigger typescript_taskflow_example
+airflow dags trigger typescript_native_example
 ```

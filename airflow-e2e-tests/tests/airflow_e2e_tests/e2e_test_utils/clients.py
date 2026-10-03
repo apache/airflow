@@ -19,6 +19,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 from functools import cached_property
+from http import HTTPStatus
 
 import boto3
 import requests
@@ -143,11 +144,7 @@ class AirflowClient:
     def wait_for_dag_run(self, dag_id: str, run_id: str, timeout=300, check_interval=5):
         start_time = time.time()
         while time.time() - start_time < timeout:
-            response = self._make_request(
-                method="GET",
-                endpoint=f"dags/{dag_id}/dagRuns/{run_id}",
-            )
-            state = response.get("state")
+            state = self.get_dag_run(dag_id=dag_id, run_id=run_id).get("state")
             if state in {"success", "failed"}:
                 return state
             time.sleep(check_interval)
@@ -162,6 +159,35 @@ class AirflowClient:
     def get_variable(self, key: str):
         """Get an Airflow Variable via API."""
         return self._make_request(method="GET", endpoint=f"variables/{key}")
+
+    def set_variable(self, key: str, value: str, description: str | None = None):
+        """Create or replace an Airflow Variable via API."""
+        body = {"key": key, "value": value, "description": description}
+        try:
+            return self._make_request(method="POST", endpoint="variables", json=body)
+        except requests.HTTPError as exc:
+            # 409 == it already exists, from an earlier run of the same suite.
+            if exc.response is None or exc.response.status_code != HTTPStatus.CONFLICT:
+                raise
+            return self._make_request(method="PATCH", endpoint=f"variables/{key}", json=body)
+
+    def get_tasks(self, dag_id: str):
+        """List a Dag's tasks, with the edges each one carries."""
+        return self._make_request(method="GET", endpoint=f"dags/{dag_id}/tasks")
+
+    def get_task_instance_links(self, dag_id: str, run_id: str, task_id: str):
+        """Get the extra links of a task instance, keyed by link name."""
+        return self._make_request(
+            method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/links"
+        )
+
+    def get_dag_source(self, dag_id: str):
+        """Get the source code stored for a Dag's latest version."""
+        return self._make_request(method="GET", endpoint=f"dagSources/{dag_id}")
+
+    def get_dag_run(self, dag_id: str, run_id: str):
+        """Get a Dag run, with its state, run type and conf."""
+        return self._make_request(method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}")
 
     def trigger_dag_and_wait(self, dag_id: str, json=None):
         """Trigger a DAG and wait for it to complete."""
@@ -200,6 +226,13 @@ class AirflowClient:
             method="GET",
             endpoint=endpoint,
         )
+
+    def get_event_logs(self, dag_id: str, run_id: str, task_id: str | None = None) -> list[dict]:
+        """List the audit log events of a Dag run, or of one of its tasks, oldest first."""
+        params = {"dag_id": dag_id, "run_id": run_id, "order_by": "event_log_id"}
+        if task_id is not None:
+            params["task_id"] = task_id
+        return self._make_request(method="GET", endpoint="eventLogs", params=params)["event_logs"]
 
 
 class TaskSDKClient:
