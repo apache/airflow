@@ -23,10 +23,11 @@ Run with::
         tests/airflow_e2e_tests/java_sdk_tests/test_java_sdk_native_dag.py -xvs
 
 No Python file declares these Dags. The ``airflow-e2e-tests/java-native-bundle`` JAR sits in the Dag
-bundle, where the root-less ``java-native`` coordinator claims it: the Dag processor runs the JAR to
-parse it, and the worker runs the same JAR for each task, which every task routes to with its
-``queue``. ``java_native_e2e`` is declared with the interface API, ``java_native_annotation_e2e``
-with annotations.
+bundle. There are four ``JavaCoordinator``s, so ``[sdk] dag_bundle_to_coordinator`` picks the
+``java-native`` one to parse it: the Dag processor runs the JAR through it. Each task sets
+``queue="java-native"``, which routes to ``java-jdk``. That coordinator runs the same JAR from the Dag's
+own bundle, whatever its ``dag_bundle_name`` says. ``java_native_e2e`` is declared with the interface
+API, ``java_native_annotation_e2e`` with annotations.
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 # The Dag processor starts a JVM to parse the JAR, and each task starts another.
 _JAVA_TASK_TIMEOUT = 600
 
+# The queue the Dag's tasks set, which ``queue_to_coordinator`` routes to ``java-jdk``.
 _QUEUE = "java-native"
 
 
@@ -114,7 +116,7 @@ def test_the_graph_is_the_one_java_declared(parsed_dags: AirflowClient, native_d
 
 
 @_by_dag_id
-def test_every_task_is_routed_to_the_native_coordinator(parsed_dags: AirflowClient, native_dag: _NativeDag):
+def test_every_task_sets_the_native_queue(parsed_dags: AirflowClient, native_dag: _NativeDag):
     """The Java DSL has no Dag-level queue, so each task sets its own."""
     tasks = parsed_dags.get_tasks(native_dag.dag_id).get("tasks", [])
 
