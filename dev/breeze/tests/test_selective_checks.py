@@ -42,6 +42,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_distributions
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
     SelectiveChecks,
@@ -4459,3 +4460,26 @@ def test_common_compat_check_ignores_test_helper_importers(
         default_branch="main",
     )
     assert selective_checks.common_compat_changed_without_next_version is False
+
+
+@patch("airflow_breeze.utils.selective_checks.get_provider_dependencies", autospec=True)
+@patch("airflow_breeze.utils.selective_checks._find_test_helper_importers", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
+def test_suspended_provider_check_ignores_test_helper_importers(
+    mock_run_command, mock_find_test_helper_importers, mock_get_provider_dependencies
+):
+    mock_get_provider_dependencies.return_value = {
+        provider: deps for provider, deps in get_provider_dependencies().items() if provider != "fab"
+    }
+    mock_find_test_helper_importers.return_value = frozenset(
+        {"providers/fab/tests/unit/fab/auth_manager/test_security.py"}
+    )
+    mock_run_command.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="")
+    selective_checks = SelectiveChecks(
+        files=("devel-common/src/tests_common/test_utils/permissions.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert selective_checks.selected_providers_list_as_string is None

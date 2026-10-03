@@ -863,14 +863,14 @@ class SelectiveChecks:
     ):
         self._files = files
         # A changed test helper selects the tests that import it, as if those test files had changed;
-        # only helpers loaded for every test run still force the full set of tests.
-        self._test_helpers_loaded_by_all_tests: tuple[str, ...] = ()
+        # only helpers that cannot be narrowed to their importers still force the full set of tests.
+        self._test_helpers_forcing_full_tests: tuple[str, ...] = ()
         self._test_helpers_replaced_by_importers: tuple[str, ...] = ()
         helper_importers: set[str] = set()
         for helper in _matching_files(files, FileGroupForCi.TESTS_UTILS_FILES, CI_FILE_GROUP_MATCHES):
             importers = _find_test_helper_importers(helper)
             if importers is None:
-                self._test_helpers_loaded_by_all_tests += (helper,)
+                self._test_helpers_forcing_full_tests += (helper,)
             else:
                 self._test_helpers_replaced_by_importers += (helper,)
                 helper_importers |= importers
@@ -1015,10 +1015,10 @@ class SelectiveChecks:
                 "and for now we have core tests depending on them.[/]"
             )
             return True
-        if self._test_helpers_loaded_by_all_tests:
+        if self._test_helpers_forcing_full_tests:
             console_print(
                 "[warning]Running full set of tests because test helpers that cannot be narrowed to their "
-                f"importers changed: {', '.join(self._test_helpers_loaded_by_all_tests)}[/]"
+                f"importers changed: {', '.join(self._test_helpers_forcing_full_tests)}[/]"
             )
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
