@@ -428,6 +428,31 @@ func TestACycleCanLeaveTheEarlierEdgesOfTheCall(t *testing.T) {
 	assertTasks(t, extracted.downstreams, loaded)
 }
 
+// TestEdgeVerbsRejectACycleThroughAnInputsEdge pins that the cycle check sees the edges Inputs
+// declared, which is what DagRef.Task recording them is for. It is the case ADR-0008 names:
+// b := dag.Task(B, Inputs(a)) followed by b.Before(a) is a genuine cycle in accepted syntax.
+func TestEdgeVerbsRejectACycleThroughAnInputsEdge(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(readRows)
+	counted := dag.Task(countRows, Inputs(read))
+	notified := orderedTask(t, dag, "notify")
+	counted.Before(notified)
+
+	assert.PanicsWithValue(t,
+		`airflow.Node.Before: Dag "etl": an edge from task "countRows" to task "readRows" would `+
+			`close a cycle: readRows -> countRows -> readRows`,
+		func() { counted.Before(read) },
+	)
+	assert.PanicsWithValue(t,
+		`airflow.Node.After: Dag "etl": an edge from task "notify" to task "readRows" would `+
+			`close a cycle: readRows -> countRows -> notify -> readRows`,
+		func() { read.After(notified) },
+	)
+	assert.Empty(t, read.upstreams)
+	assertTasks(t, counted.downstreams, notified)
+	assertTasks(t, notified.downstreams)
+}
+
 func TestEdgeVerbsRejectACycle(t *testing.T) {
 	dag := Dag("etl")
 	extracted := orderedTask(t, dag, "extract")
