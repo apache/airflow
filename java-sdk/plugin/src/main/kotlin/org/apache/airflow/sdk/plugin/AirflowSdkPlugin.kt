@@ -25,6 +25,7 @@ import org.gradle.api.Project
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
 import java.lang.reflect.Modifier
@@ -85,6 +86,15 @@ abstract class AirflowBundleExtension {
  * task `bundle` to create a Dag bundle in one command. This builds deploy-ready
  * artifacts to `build/bundle/` that can be copied directly into an Airflow Java
  * coordinator's `jars_root`.
+ *
+ * It also registers a `checkAirflowBundle` verification task, wired into the
+ * `check` lifecycle. The task runs the SDK's `BundleInspector` against the
+ * compiled classes: it instantiates the configured `mainClass` as a
+ * `BundleBuilder`, builds the `Bundle`, and prints a warning for every Dag or
+ * task ID the Airflow server would reject. Warnings do not fail the build; a
+ * bundle that cannot be built (for example duplicate Dag IDs) does. Run it
+ * alone with `./gradlew checkAirflowBundle`, or skip it with
+ * `./gradlew check -x checkAirflowBundle`.
  *
  * By default, plugin `com.github.johnrengelman.shadow` is applied automatically
  * to enable fat JAR build. In this mode, one single JAR with user code and all
@@ -161,6 +171,19 @@ class AirflowSdkPlugin : Plugin<Project> {
             }
           }
         }
+
+      val checkTask =
+        project.tasks.register("checkAirflowBundle", JavaExec::class.java) { task ->
+          task.group = "verification"
+          task.description =
+            "Warns on Dag and task IDs in the assembled Bundle that the Airflow server would reject."
+          task.dependsOn(project.tasks.named("classes"))
+          task.onlyIf { ext.mainClass.isPresent }
+          task.classpath(classFiles)
+          task.mainClass.set("org.apache.airflow.sdk.BundleInspector")
+          ext.mainClass.orNull?.let { task.args(it) }
+        }
+      project.tasks.named("check") { it.dependsOn(checkTask) }
 
       if (ext.fatJar.get()) {
         project.plugins.apply("com.gradleup.shadow")
