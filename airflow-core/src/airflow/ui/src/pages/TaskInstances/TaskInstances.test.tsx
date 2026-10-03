@@ -120,12 +120,16 @@ const mappedTaskInstance = {
   dag_display_name: "example_dag",
   dag_id: "example_dag",
   dag_run_id: "manual__2026-06-07T00:00:00+00:00",
+  id: "mapped-task-instance-id",
   map_index: 1,
+  region_id: "11111111-1111-4111-8111-111111111111",
+  region_index: 1,
   rendered_map_index: "1",
   start_date: null,
   state: "queued",
   task_display_name: "mapped_task",
   task_id: "mapped_task",
+  try_number: 2,
 } as TaskInstanceResponse;
 
 describe("TaskInstances", () => {
@@ -160,7 +164,7 @@ describe("TaskInstances", () => {
 
     expect(screen.getByRole("link", { name: "1" })).toHaveAttribute(
       "href",
-      "/dags/example_dag/runs/manual__2026-06-07T00:00:00+00:00/tasks/mapped_task/mapped/1",
+      "/dags/example_dag/runs/manual__2026-06-07T00:00:00+00:00/tasks/mapped_task/mapped/1?region_id=11111111-1111-4111-8111-111111111111&region_index=1",
     );
   });
 

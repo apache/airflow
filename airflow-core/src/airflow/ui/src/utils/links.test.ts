@@ -30,6 +30,21 @@ import {
 } from "./links";
 
 describe("getTaskInstanceLink", () => {
+  it("links a regional task DTO by exact region without pinning its try", () => {
+    const task = {
+      dag_id: "dag",
+      dag_run_id: "run",
+      map_index: -1,
+      region_id: "11111111-1111-4111-8111-111111111111",
+      region_index: 3,
+      task_id: "body.work",
+      try_number: 2,
+    } as TaskInstanceResponse;
+
+    expect(getTaskInstanceLink(task, "logs")).toBe(
+      "/dags/dag/runs/run/tasks/body.work/logs?region_id=11111111-1111-4111-8111-111111111111&region_index=3",
+    );
+  });
   const testCases = [
     // Individual parameters tests
     {

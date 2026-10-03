@@ -26,15 +26,21 @@ import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
 
 import commonLocale from "../../../public/i18n/locales/en/common.json";
-import { Header } from "./Header";
+import { Header, HistoryHeader } from "./Header";
 
 // Action buttons and note preview pull in mutation/permission wiring that is
 // unrelated to the team stat under test; stub them out so the test only
 // depends on the stats rendered by Header itself.
-vi.mock("src/components/Clear", () => ({ ClearTaskInstanceButton: () => undefined }));
+vi.mock("src/components/Clear", () => ({
+  ClearTaskInstanceButton: () => <button type="button">Clear task</button>,
+}));
 vi.mock("src/components/Clear/TaskInstance/ClearTaskInstanceDialog", () => ({ default: () => undefined }));
-vi.mock("src/components/MarkAs", () => ({ MarkTaskInstanceAsButton: () => undefined }));
-vi.mock("src/components/NotePreview", () => ({ NotePreview: () => undefined }));
+vi.mock("src/components/MarkAs", () => ({
+  MarkTaskInstanceAsButton: () => <button type="button">Mark task</button>,
+}));
+vi.mock("src/components/NotePreview", () => ({
+  NotePreview: () => <button type="button">Edit note</button>,
+}));
 
 const mockConfig: Record<string, unknown> = { multi_team: false };
 
@@ -60,6 +66,24 @@ const baseTaskInstance = {
 } satisfies Partial<TaskInstanceResponse> as unknown as TaskInstanceResponse;
 
 describe("Header", () => {
+  it("keeps historical notes visible without exposing mutations", () => {
+    render(
+      <HistoryHeader
+        taskInstance={{
+          ...baseTaskInstance,
+          note: "Investigating this pass",
+          region_id: "11111111-1111-1111-1111-111111111111",
+          region_index: 2,
+        }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText("Investigating this pass")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Clear task" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mark task" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit note" })).not.toBeInTheDocument();
+  });
   beforeEach(() => {
     mockConfig.multi_team = false;
   });

@@ -72,7 +72,12 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
     onRowClick?.();
   };
 
-  const search = searchParams.toString();
+  const targetSearchParams = new URLSearchParams(searchParams);
+
+  for (const key of ["try_number", "region_id", "region_index"]) {
+    targetSearchParams.delete(key);
+  }
+  const search = targetSearchParams.toString();
 
   // If virtualItems is provided, use virtualization; otherwise render all items
   const itemsToRender =

@@ -2680,6 +2680,7 @@ class TaskInstanceResponse(BaseModel):
     map_index: Annotated[int, Field(title="Map Index")]
     region_id: Annotated[UUID | None, Field(title="Region Id")] = None
     region_index: Annotated[int | None, Field(title="Region Index")] = None
+    in_loop: Annotated[bool, Field(title="In Loop")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     run_after: Annotated[datetime, Field(title="Run After")]
     start_date: Annotated[datetime | None, Field(title="Start Date")]

@@ -17920,6 +17920,9 @@ components:
         region_index:
           type: integer
           title: Region Index
+        in_loop:
+          type: boolean
+          title: In Loop
         logical_date:
           anyOf:
           - type: string
@@ -18071,6 +18074,7 @@ components:
       - dag_id
       - dag_run_id
       - map_index
+      - in_loop
       - logical_date
       - run_after
       - start_date

@@ -21,11 +21,11 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExternalLogUrl } from "openapi/queries";
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskInstanceHistoryResponse } from "openapi/requests/types.gen";
 
 type Props = {
   readonly externalLogName: string;
-  readonly taskInstance: TaskInstanceResponse;
+  readonly taskInstance: TaskInstanceHistoryResponse | TaskInstanceResponse;
   readonly tryNumber: number;
 };
 
@@ -42,6 +42,8 @@ export const ExternalLogLink = ({ externalLogName, taskInstance, tryNumber }: Pr
       dagId,
       dagRunId: runId,
       mapIndex: parseInt(mapIndex, 10),
+      regionId: taskInstance.region_id,
+      regionIndex: taskInstance.region_index,
       taskId,
       tryNumber,
     },

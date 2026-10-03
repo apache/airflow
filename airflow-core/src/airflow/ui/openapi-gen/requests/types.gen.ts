@@ -2199,6 +2199,7 @@ export type TaskInstanceResponse = {
     map_index: number;
     region_id?: string;
     region_index?: number;
+    in_loop: boolean;
     logical_date: string | null;
     run_after: string;
     start_date: string | null;
