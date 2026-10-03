@@ -41,7 +41,7 @@ from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_4_PLUS
 
 if TYPE_CHECKING:
     try:
@@ -394,6 +394,34 @@ def test_extract_metadata_no_extractor_emits_unknown_source_and_inlets_outlets(
     )
 
     assert "unknownSourceAttribute" in metadata.run_facets
+    assert metadata.inputs == inlets
+    assert metadata.outputs == outlets
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason=".iterate() is available from Airflow 3.4")
+def test_extract_metadata_of_an_iterated_operator_falls_back_to_its_inlets_and_outlets():
+    """
+    An iterated operator is run by an IterableOperator, which has none of the wrapped operator's
+    attributes: the wrapped operator's extractor must not be picked for it, so the declared
+    inlets and outlets are emitted rather than dropped on the extractor's AttributeError.
+    """
+    from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.sdk import DAG
+
+    inlets = [OpenLineageDataset(namespace="namespace1", name="name1")]
+    outlets = [OpenLineageDataset(namespace="namespace2", name="name2")]
+    with DAG("iterated_bash"):
+        task = BashOperator.partial(task_id="bash", inlets=inlets, outlets=outlets).iterate(
+            bash_command=["echo 1", "echo 2"]
+        )
+
+    extractor_manager = ExtractorManager()
+    assert extractor_manager.get_extractor_class(task) is None
+
+    metadata = extractor_manager.extract_metadata(
+        dagrun=MagicMock(), task=task, task_instance_state=None, task_instance=MagicMock()
+    )
+
     assert metadata.inputs == inlets
     assert metadata.outputs == outlets
 

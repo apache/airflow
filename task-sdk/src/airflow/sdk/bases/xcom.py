@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import Any, Protocol
 
 import structlog
@@ -564,3 +565,164 @@ class BaseXCom:
                 map_index=map_index,
             ),
         )
+
+
+def _normalize_index(index: int, length: int) -> int:
+    """Map a sequence index, negative ones included, onto a position in ``[0, length)``."""
+    if index < 0:
+        index += length
+    if not (0 <= index < length):
+        raise IndexError(index)
+    return index
+
+
+class XComIterable(Sequence):
+    """
+    An iterable that lazily fetches XCom values one by one instead of loading all at once.
+
+    This is a read-only :class:`collections.abc.Sequence` over the ``return_value_<index>`` XComs an
+    iterated task pushed, one per index: the values are written by the producing task's runner as
+    each sub-task finishes (see ``IterableOperator.axcom_push``), and the iterable only ever reads
+    them. Nothing on this class mutates the underlying XComs.
+
+    Indexing follows the usual sequence rules, negative indices included: ``result[-1]`` is the last
+    value. Iterations that were skipped pushed nothing and are left out, as the XComs of skipped
+    mapped task instances are: ``length`` counts every input item, ``skipped`` lists the indices
+    that produced no value, and positions in the sequence run over the others only.
+
+    Every element is a remote fetch, so random access costs one XCom read per element, and so do
+    iterating and slicing: N elements are N requests. Reading several in one request needs an
+    Execution API endpoint that takes a list of keys, which does not exist yet.
+    """
+
+    def __init__(
+        self,
+        task_id: str,
+        dag_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        length: int | None = None,
+        skipped: Sequence[int] = (),
+    ):
+        self.task_id = task_id
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.map_index = map_index
+        self.length = length or 0
+        self.skipped: list[int] = sorted(skipped)
+
+    def _index_of(self, position: int) -> int:
+        """Map ``position`` in the sequence to its input index, stepping over the skipped indices."""
+        index = _normalize_index(position, len(self))
+        for skipped_index in self.skipped:
+            if skipped_index > index:
+                break
+            index += 1
+        return index
+
+    def __iter__(self) -> Iterator[Any]:
+        return _XComIterator(self)
+
+    def __len__(self) -> int:
+        return self.length - len(self.skipped)
+
+    async def alen(self) -> int:
+        """Async twin of ``len(self)``, for readers on the event loop that take a length before each read."""
+        return len(self)
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        """Allow direct indexing so this works like a sequence."""
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if isinstance(key, slice):
+            # TODO: This issues one XCom.get_one call per element — N round-trips for a full slice.
+            # XComIterable stores results under distinct keys (return_value_0, return_value_1, …)
+            # with the same map_index, so the existing GetXComSequenceSlice endpoint (which ranges
+            # over map_index for a single key) cannot be reused.  A new POST endpoint that accepts
+            # a list of keys and returns values in a single query is needed; once that lands, replace
+            # this loop with a single batched fetch.
+            start, stop, step = key.indices(len(self))
+            return [self[i] for i in range(start, stop, step)]
+
+        return XCom.get_one(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index_of(key)}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+    async def aget(self, index: int) -> Any:
+        """
+        Async counterpart of ``self[index]``: fetch one value through ``XCom.aget_one``.
+
+        Use it, or ``async for``, from code running on an event loop that has other SDK calls in
+        flight (an iterated task consuming this iterable as its input): a synchronous read there
+        would block the loop thread on the supervisor channel and deadlock with them.
+        """
+        from airflow.sdk.execution_time.xcom import XCom
+
+        return await XCom.aget_one(
+            key=f"{BaseXCom.XCOM_RETURN_KEY}_{self._index_of(index)}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+        )
+
+    def __aiter__(self) -> AsyncIterator[Any]:
+        return _AsyncXComIterator(self)
+
+    def serialize(self) -> dict:
+        """Ensure the object is JSON serializable."""
+        return {
+            "task_id": self.task_id,
+            "dag_id": self.dag_id,
+            "run_id": self.run_id,
+            "map_index": self.map_index,
+            "length": self.length,
+            "skipped": self.skipped,
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        """Ensure the object is JSON deserializable."""
+        return XComIterable(**data)
+
+
+class _AsyncXComIterator:
+    """Async iterator for XComIterable, one ``aget`` per position in order."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._index >= await self._iterable.alen():
+            raise StopAsyncIteration
+
+        value = await self._iterable.aget(self._index)
+        self._index += 1
+        return value
+
+
+class _XComIterator:
+    """Iterator for XComIterable."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._index >= len(self._iterable):
+            raise StopIteration
+
+        value = self._iterable[self._index]
+        self._index += 1
+        return value
