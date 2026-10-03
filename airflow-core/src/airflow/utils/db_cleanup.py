@@ -416,6 +416,20 @@ def _do_delete(
         else:
             print("Performing Delete...")
 
+        if skip_archive:
+            try:
+                _delete_directly(
+                    limited_query=limited_query,
+                    source_table_name=source_table_name,
+                    session=session,
+                    dialect_name=dialect_name,
+                )
+            except BaseException:
+                with suppress(Exception):
+                    session.rollback()
+                raise
+            continue
+
         # using bulk delete
         # create a new table and copy the rows there
         timestamp_str = re.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
@@ -424,11 +438,6 @@ def _do_delete(
             f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}",
         )
         print(f"Moving data to table {target_table_name}")
-        target_table = None
-        # Lets the ``finally`` cleanup below tell the failure path (don't let a
-        # cleanup error mask the original) from the success path (a cleanup error
-        # is a real problem and must propagate).
-        error_raised = False
 
         try:
             if dialect_name == "mysql":
@@ -494,42 +503,50 @@ def _do_delete(
                 continue
 
         except BaseException:
-            error_raised = True
-            # Roll back the failed transaction so its locks are released before
-            # the archive table is dropped in the ``finally`` block below.
-            # ``rollback()`` itself can raise (e.g. the connection died); suppress
-            # it so it does not shadow the original error being re-raised.
             with suppress(Exception):
                 session.rollback()
             raise
-        finally:
-            if target_table is not None and skip_archive:
-                # Drop the archive table on the session's own connection. Binding
-                # the drop to ``session.get_bind()`` (the Engine) would check out a
-                # *second* pooled connection, and on MySQL its ``DROP TABLE`` blocks
-                # indefinitely on the metadata lock still held by this session's
-                # open transaction when the DELETE above failed -- the ``db clean``
-                # hang reported in #66177.
-                try:
-                    target_table.drop(bind=session.connection())
-                    session.commit()
-                except Exception:
-                    # If we are already unwinding from a delete failure, a cleanup
-                    # error here must not replace the original exception (Python
-                    # makes a ``finally``-raised error the top-level one). Log and
-                    # let the original delete error keep propagating. On the success
-                    # path (no delete error), a drop/commit failure is a real
-                    # problem, so re-raise it.
-                    if not error_raised:
-                        raise
-                    logger.warning(
-                        "Failed to drop archive table %s while cleaning up after a "
-                        "delete failure; propagating the original delete error instead.",
-                        target_table_name,
-                        exc_info=True,
-                    )
 
     print("Finished Performing Delete")
+
+
+def _delete_directly(
+    *,
+    limited_query: Select,
+    source_table_name: str,
+    session: Session,
+    dialect_name: str,
+) -> None:
+    metadata = reflect_tables([source_table_name], session)
+    source_table = metadata.tables[source_table_name]
+    pk_cols = list(source_table.primary_key.columns)
+    pk_query = limited_query.with_only_columns(
+        *[literal_column(f"{_BASE_TABLE_ALIAS}.{col.name}").label(col.name) for col in pk_cols]
+    )
+    rows_to_delete = pk_query.subquery("rows_to_delete")
+
+    if dialect_name == "mysql":
+        delete = source_table.delete().where(
+            select(literal(1))
+            .select_from(rows_to_delete)
+            .where(and_(*[source_table.c[col.name] == rows_to_delete.c[col.name] for col in pk_cols]))
+            .exists()
+        )
+    elif len(pk_cols) == 1:
+        pk_col = pk_cols[0]
+        delete = source_table.delete().where(
+            source_table.c[pk_col.name].in_(select(rows_to_delete.c[pk_col.name]))
+        )
+    else:
+        delete = source_table.delete().where(
+            tuple_(*[source_table.c[col.name] for col in pk_cols]).in_(
+                select(*[rows_to_delete.c[col.name] for col in pk_cols])
+            )
+        )
+
+    logger.debug("direct delete statement:\n%s", delete.compile())
+    session.execute(delete)
+    session.commit()
 
 
 def _subquery_keep_last(
