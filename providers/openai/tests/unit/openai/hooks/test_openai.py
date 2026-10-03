@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 from types import SimpleNamespace
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, mock_open, patch
 
 import pytest
 from openai import OpenAI
@@ -998,3 +1000,156 @@ def test_managed_agents_reports_sdk_upgrade_without_breaking_hook():
     hook.conn = SimpleNamespace(beta=SimpleNamespace())
     with pytest.raises(OpenAIAgentSessionError, match="requires openai>=3.13.0"):
         hook.create_agent_session(input="Hello", environment={"type": "none"}, agent_id="agent")
+
+
+def _async_conn(
+    extra: dict, password: str | None = None, host: str | None = None, *, aextra_dejson: bool = True
+) -> Mock:
+    """
+    A connection whose ``extra_dejson`` raises on the event loop, where its secret masking deadlocks.
+
+    With ``aextra_dejson=False`` it lacks ``Connection.aextra_dejson()``, like on Airflow < 3.3.2,
+    where ``get_async_extra_dejson`` reads ``extra_dejson`` from a worker thread instead.
+    """
+    conn = Mock(
+        spec=["password", "host", "extra", "extra_dejson"] + (["aextra_dejson"] if aextra_dejson else [])
+    )
+    conn.password = password
+    conn.host = host
+    conn.extra = json.dumps(extra)
+    if aextra_dejson:
+        conn.aextra_dejson = AsyncMock(return_value=extra)
+    type(conn).extra_dejson = PropertyMock(side_effect=lambda: _read_off_the_event_loop(extra))
+    return conn
+
+
+def _read_off_the_event_loop(extra: dict) -> dict:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return extra
+    raise AssertionError("extra_dejson sends mask_secret synchronously on the event loop")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("password", "extra", "expected_kwargs"),
+    [
+        pytest.param(
+            "api_key_in_password",
+            {},
+            {"api_key": "api_key_in_password", "base_url": "https://host/v1"},
+            id="api-key-in-password",
+        ),
+        pytest.param(
+            None,
+            {"openai_client_kwargs": {"api_key": "api_key_in_extra", "base_url": "https://other/v1"}},
+            {"api_key": "api_key_in_extra", "base_url": "https://other/v1"},
+            id="api-key-and-base-url-in-extra",
+        ),
+        pytest.param(
+            "api_key",
+            {"openai_client_kwargs": {"timeout": 30}},
+            {"api_key": "api_key", "base_url": "https://host/v1", "timeout": 30},
+            id="openai-client-kwargs",
+        ),
+    ],
+)
+async def test_aget_conn_api_key(password, extra, expected_kwargs):
+    conn = _async_conn(extra, password=password, host="https://host/v1")
+    with (
+        patch(
+            "airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)
+        ) as mock_get_async_connection,
+        patch.object(OpenAIHook, "get_connection", side_effect=AssertionError("sync get_connection")),
+        patch("airflow.providers.openai.hooks.openai.AsyncOpenAI") as mock_client,
+    ):
+        client = await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    mock_get_async_connection.assert_awaited_once_with("openai_async")
+    mock_client.assert_called_once_with(**expected_kwargs)
+    assert client is mock_client.return_value
+
+
+@pytest.mark.asyncio
+@patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
+async def test_aget_conn_without_aextra_dejson_reads_extra_dejson_off_the_event_loop(mock_client):
+    """On Airflow < 3.3.2 the connection has no ``aextra_dejson()``: ``extra_dejson`` runs in a worker thread."""
+    conn = _async_conn({"openai_client_kwargs": {"api_key": "api_key_in_extra"}}, aextra_dejson=False)
+    with patch(
+        "airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)
+    ):
+        await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    mock_client.assert_called_once_with(api_key="api_key_in_extra", base_url=None)
+
+
+@pytest.mark.asyncio
+@patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
+async def test_aget_conn_workload_identity(mock_client):
+    extra = {
+        "auth_type": "workload_identity",
+        "identity_provider_id": "idp",
+        "service_account_id": "sa",
+        "workload_identity_provider": "custom",
+        "token_provider": "some.module.get_token",
+        "openai_client_kwargs": {"api_key": "ignored"},
+    }
+    conn = _async_conn(extra, host="https://host/v1")
+    with (
+        patch("airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)),
+        patch.object(OpenAIHook, "_build_workload_identity", return_value={"provider": "custom"}) as build,
+    ):
+        await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    build.assert_called_once_with(extra)
+    mock_client.assert_called_once_with(workload_identity={"provider": "custom"}, base_url="https://host/v1")
+
+
+@pytest.mark.asyncio
+async def test_aget_conn_invalid_auth_type():
+    conn = _async_conn({"auth_type": "magic"})
+    with (
+        patch("airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)),
+        pytest.raises(ValueError, match="Unsupported auth_type 'magic'"),
+    ):
+        await OpenAIHook(conn_id="openai_async").aget_conn()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("input_text", "response_items", "expected"),
+    [
+        pytest.param("Sample text", [(0, [0.1, 0.2])], [0.1, 0.2], id="text"),
+        pytest.param([1, 2, 3], [(0, [0.1, 0.2])], [0.1, 0.2], id="tokens"),
+        pytest.param(
+            ["First text", "Second text"],
+            [(1, [0.3, 0.4]), (0, [0.1, 0.2])],
+            [[0.1, 0.2], [0.3, 0.4]],
+            id="text-batch",
+        ),
+    ],
+)
+async def test_acreate_embeddings(input_text, response_items, expected):
+    client = MagicMock()
+    client.embeddings.create = AsyncMock(
+        return_value=CreateEmbeddingResponse(
+            data=[
+                Embedding(embedding=vector, index=index, object="embedding")
+                for index, vector in response_items
+            ],
+            model="text-embedding-3-small",
+            object="list",
+            usage={"prompt_tokens": 4, "total_tokens": 4},
+        )
+    )
+    hook = OpenAIHook(conn_id="openai_async")
+    with patch.object(OpenAIHook, "aget_conn", new=AsyncMock(return_value=client)) as mock_aget_conn:
+        assert await hook.acreate_embeddings(input_text, dimensions=1024) == expected
+        # The client is created once per hook, like the sync ``conn``.
+        await hook.acreate_embeddings(input_text)
+
+    mock_aget_conn.assert_awaited_once()
+    client.embeddings.create.assert_any_await(
+        model="text-embedding-3-small", input=input_text, dimensions=1024
+    )
