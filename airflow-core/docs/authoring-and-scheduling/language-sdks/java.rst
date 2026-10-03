@@ -665,6 +665,11 @@ Otherwise, with several Java coordinators, its JARs fail to parse.
 * Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
   ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
   Dag-level queue yet.
+* A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to, which need not be
+  the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK. A
+  task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is
+  missing, or that the coordinator cannot run (for example, because ``main_class`` does not match the
+  JAR's ``Main-Class``), fails and retries while it has retries left.
 * The Code view shows the source of the JAR's main class, which the Gradle plugin packs into the JAR.
 * Cluster policies (``dag_policy``, ``task_policy``) are not applied to a native Java Dag.
 * ``airflow dags reserialize`` does not store the Dags of a JAR, which only the Dag processor stores.
@@ -1190,12 +1195,15 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   * The expected layout is a separate Dag bundle for the JARs, named by ``task_handler_bundle_name``,
     rather than the Dag bundle that holds your ``.py`` files. The task uses the version that Dag bundle
     is on when it starts, pinned for the whole task.
-    If ``task_handler_bundle_name`` names the task's own Dag bundle, the task uses the version the run was created with.
   * If ``task_handler_bundle_name`` is unset, JARs are read from the **task's own** Dag bundle, pinned
     to the version the run was created with.
   * Every JAR in the Dag bundle goes on one classpath, so all handlers in it share one set of
     dependencies. To isolate conflicting dependency versions, put the handlers in a second Dag bundle
     served by a second coordinator on its own queue.
+
+  A task of a native Java Dag ignores ``task_handler_bundle_name``:
+  it runs the JAR of its Dag from the Dag's own bundle, at the version the run was created with.
+  See :ref:`java-sdk/native-dag-parsing`.
 
 .. note::
 

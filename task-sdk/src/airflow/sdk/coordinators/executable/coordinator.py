@@ -345,9 +345,7 @@ class ExecutableCoordinator(SubprocessCoordinator):
         process to start, in seconds. The default is 10 seconds.
     """
 
-    def _build_execute_task_command(
-        self, *, what: TaskInstance, dag_file: pathlib.Path | None = None
-    ) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version

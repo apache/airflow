@@ -544,7 +544,6 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   * The expected layout is a separate Dag bundle for the packed bundles, named by
     ``task_handler_bundle_name``, rather than the Dag bundle that holds your ``.py`` files. The task
     uses the version that Dag bundle is on when it starts, pinned for the whole task.
-    If ``task_handler_bundle_name`` names the task's own Dag bundle, the task uses the version the run was created with.
   * If ``task_handler_bundle_name`` is unset, packed bundles are read from the **task's own** Dag
     bundle, pinned to the version the run was created with.
   * The Dag bundle must keep the executable bit (see `Deploying`_).

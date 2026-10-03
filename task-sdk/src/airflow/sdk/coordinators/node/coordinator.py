@@ -119,9 +119,7 @@ class NodeCoordinator(SubprocessCoordinator):
 
     node_executable: str = "node"
 
-    def _build_execute_task_command(
-        self, *, what: TaskInstance, dag_file: pathlib.Path | None = None
-    ) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
