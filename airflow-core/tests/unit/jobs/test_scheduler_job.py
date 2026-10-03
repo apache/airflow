@@ -4549,6 +4549,38 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_dagrun_timeout_skips_running_task_with_end_date_and_duration(self, dag_maker):
+        """A task still running when its Dag run times out must be skipped with an end_date and duration."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_scheduler_dagrun_timeout_running_task",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        now = timezone.utcnow().replace(microsecond=0)
+        dr = dag_maker.create_dagrun(start_date=now - datetime.timedelta(days=1))
+        ti = dr.get_task_instance("dummy", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.start_date = now - datetime.timedelta(minutes=10)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with time_machine.travel(now, tick=False):
+            self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(ti)
+        assert ti.state == TaskInstanceState.SKIPPED
+        assert ti.end_date == now
+        assert ti.duration == 600.0
+
+        session.rollback()
+        session.close()
+
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_dagrun_timeout_duration_metric_has_run_type(self, mock_get_backend, dag_maker):
         """
