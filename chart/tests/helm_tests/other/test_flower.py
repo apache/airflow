@@ -498,9 +498,9 @@ class TestFlowerService:
         assert jmespath.search("metadata.name", docs[0]) == "release-name-flower"
         assert jmespath.search("metadata.annotations", docs[0]) is None
         assert jmespath.search("spec.selector", docs[0]) == {
-            "tier": "airflow",
-            "component": "flower",
-            "release": "release-name",
+            "app.kubernetes.io/component": "flower",
+            "app.kubernetes.io/instance": "release-name",
+            "app.kubernetes.io/part-of": "airflow",
         }
         assert jmespath.search("spec.type", docs[0]) == "ClusterIP"
         assert {"name": "flower-ui", "port": 5555} in jmespath.search("spec.ports", docs[0])
