@@ -485,11 +485,11 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         check=True,
     )
 
-    # One JavaCoordinator per queue on the same worker image, each serving its
-    # own artifact bundle (one bundle is one classpath). The scala-jdk entry pins
-    # main_class (Spark's large classpath makes Main-Class discovery ambiguous)
-    # and carries Spark's Java 17 module openings, a small driver heap, and a
-    # longer startup timeout for its large dependency classpath.
+    # Four JavaCoordinators on the same worker image. The first three each serve their
+    # own artifact bundle for the stub tasks of their queue (one bundle is one classpath).
+    # The scala-jdk entry pins main_class (Spark's large classpath makes Main-Class
+    # discovery ambiguous) and carries Spark's Java 17 module openings, a small driver
+    # heap, and a longer startup timeout for its large dependency classpath.
     dag_bundle_config = _build_dag_bundle_config(
         {
             "java-task-handlers": "/opt/airflow/java-jars",
@@ -516,17 +516,19 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
                 "kwargs": {"task_handler_bundle_name": "java-test-task-handlers"},
             },
-            # Serves the Dags folder: it parses the native-Dag JAR there and runs
-            # that JAR's tasks.
+            # Only parses: dag_bundle_to_coordinator picks it for the Dags folder, since
+            # there are four JavaCoordinators. No queue routes to it, so the native
+            # Dag's tasks run on java-jdk, from the Dag's own bundle.
             "java-native": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"task_handler_bundle_name": "dags-folder"},
+                "kwargs": {},
             },
         }
     )
     queue_to_coordinator = json.dumps(
-        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk", "java-native": "java-native"}
+        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk", "java-native": "java-jdk"}
     )
+    dag_bundle_to_coordinator = json.dumps({"dags-folder": "java-native"})
 
     # Connection expected by the Java example bundle tasks. The JSON form
     # covers all connection fields, in particular the port: wire integers
@@ -548,6 +550,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        f"AIRFLOW__SDK__DAG_BUNDLE_TO_COORDINATOR='{dag_bundle_to_coordinator}'\n"
         f"AIRFLOW_CONN_TEST_HTTP='{test_http_conn}'\n"
         # Variable expected by the Java example bundle tasks.
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
@@ -808,9 +811,9 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
         copyfile(TS_SDK_EXAMPLE_PATH / "dags" / dag_file, tmp_dir / "dags" / dag_file)
 
     dag_bundle_config = _build_dag_bundle_config({"ts-task-handlers": "/opt/airflow/ts-bundles"})
-    # "ts" runs every TypeScript task, stub or native, from the ts-task-handlers Dag bundle.
-    # "ts-native" serves the Dags folder: the Dag processor parses the bundle's
-    # native Dag with it.
+    # "ts" is the only NodeCoordinator, so it parses the native Dag in every Dag bundle
+    # that holds one, the Dags folder here. It runs the stub tasks from the ts-task-handlers
+    # Dag bundle, and the native Dag's tasks from the Dag's own bundle.
     coordinator_config = json.dumps(
         {
             "ts": {
@@ -819,10 +822,6 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
                     "task_handler_bundle_name": "ts-task-handlers",
                     "node_executable": "/opt/nodejs/node",
                 },
-            },
-            "ts-native": {
-                "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
-                "kwargs": {"task_handler_bundle_name": "dags-folder", "node_executable": "/opt/nodejs/node"},
             },
         }
     )
