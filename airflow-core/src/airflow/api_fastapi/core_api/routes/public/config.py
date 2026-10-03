@@ -32,8 +32,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import requires_access_configuration
 from airflow.api_fastapi.core_api.services.public.config import (
     _check_expose_config,
-    _is_per_key_sensitive_option,
-    _mask_per_key_sensitive_options,
     _response_based_on_accept,
 )
 from airflow.configuration import conf
@@ -103,8 +101,6 @@ def get_config(
             detail=f"Section {section} not found.",
         )
     conf_dict = conf.as_dict(display_source=False, display_sensitive=display_sensitive)
-    if not display_sensitive:
-        _mask_per_key_sensitive_options(conf_dict)
 
     if section:
         conf_section_value = conf_dict[section]
@@ -153,7 +149,7 @@ def get_config_value(
         )
 
     section_l, option_l = section.lower(), option.lower()
-    if conf.is_sensitive_option(section_l, option_l) or _is_per_key_sensitive_option(section_l, option_l):
+    if conf.is_sensitive_option(section_l, option_l):
         value = "< hidden >"
     else:
         value = conf.get(section, option)
