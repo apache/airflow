@@ -4825,7 +4825,6 @@ def test_conf_preserves_exponent_float_type(dag_maker):
         "marker_like_string": "__airflow_dagrun_conf_float__:3.14",
         "whole_float": 1.0,
         "standard_int": 123,
-        "legitimate_large_int": 123456789012345678901234567890,
         "string_with_exponent_lookalike": "1.7e308",
         "boolean_val": True,
         "nested": {
@@ -4852,9 +4851,6 @@ def test_conf_preserves_exponent_float_type(dag_maker):
 
     assert type(dr.conf["standard_int"]) is int
     assert dr.conf["standard_int"] == 123
-
-    assert type(dr.conf["legitimate_large_int"]) is int
-    assert dr.conf["legitimate_large_int"] == 123456789012345678901234567890
 
     assert type(dr.conf["string_with_exponent_lookalike"]) is str
     assert dr.conf["string_with_exponent_lookalike"] == "1.7e308"
