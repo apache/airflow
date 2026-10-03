@@ -238,7 +238,10 @@ variables):
     }
     queue_to_coordinator = {"typescript": "ts"}
 
-``dag_bundle_name`` names the Dag bundle the coordinator scans for ``*.min.mjs`` bundles. Omit it to ship the bundles in the same Dag bundle as the Python stub Dag. ``queue_to_coordinator`` routes stub tasks with ``queue="typescript"`` to this coordinator. See :ref:`typescript-sdk/coordinator-config` for the full list of accepted ``kwargs``.
+``dag_bundle_name`` names the Dag bundle the coordinator scans for ``*.min.mjs`` bundles.
+Omit it to ship the bundles in the same Dag bundle as the Python stub Dag.
+``queue_to_coordinator`` routes stub tasks with ``queue="typescript"`` to this coordinator.
+See :ref:`typescript-sdk/coordinator-config` for the full list of accepted ``kwargs``.
 
 There is no separate Node.js worker to run: the Airflow worker launches the bundle with ``node`` once per
 task instance.
@@ -560,8 +563,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
   * Leave ``dag_bundle_name`` unset (the default) to load the bundle from the **task's own** Dag bundle,
     pinned to the version the run was created with.
-  * Set ``dag_bundle_name`` to load the bundle from a separate Dag bundle. The task uses the version that Dag
-    bundle is on when it starts, pinned for the whole task.
+  * Set ``dag_bundle_name`` to load the bundle from a separate Dag bundle.
+    The task uses the version that Dag bundle is on when it starts, pinned for the whole task.
 
 Limitations
 -----------
