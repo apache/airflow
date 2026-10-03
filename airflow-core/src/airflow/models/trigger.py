@@ -268,6 +268,18 @@ class Trigger(Base):
                 delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
             )
 
+    @staticmethod
+    def _get_deferred_task_instances(trigger_id: int, *, session: Session) -> Iterable[TaskInstance]:
+        """Lock and refresh tasks still waiting on this trigger before applying its result."""
+        query = (
+            select(TaskInstance)
+            .where(TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED)
+            .order_by(TaskInstance.id)
+            .execution_options(populate_existing=True)
+        )
+        # Wait for concurrent transitions; skipping a locked row would lose this result.
+        return session.scalars(with_row_locks(query, session, of=TaskInstance))
+
     @classmethod
     @provide_session
     def submit_event(cls, trigger_id, event: TriggerEvent, *, session: Session = NEW_SESSION) -> None:
@@ -278,11 +290,7 @@ class Trigger(Base):
         Send an event to all assets associated to the trigger.
         """
         # Resume deferred tasks
-        for task_instance in session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
-            )
-        ):
+        for task_instance in cls._get_deferred_task_instances(trigger_id, session=session):
             handle_event_submit(event, task_instance=task_instance, session=session)
 
         # Send an event to assets
@@ -317,11 +325,7 @@ class Trigger(Base):
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
         """
-        for task_instance in session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
-            )
-        ):
+        for task_instance in cls._get_deferred_task_instances(trigger_id, session=session):
             # Add the error and set the next_method to the fail state
             if isinstance(exc, BaseException):
                 traceback = format_exception(type(exc), exc, exc.__traceback__)
