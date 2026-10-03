@@ -60,7 +60,7 @@ from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
-from airflow.sdk.coordinators._dag_importer import find_claiming_coordinator
+from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import (
@@ -143,7 +143,6 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
-from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 from airflow.sdk.execution_time.email_backend import (
     _DEFAULT_EMAIL_BACKEND,
     _ErrorEmailNotifier,
@@ -163,6 +162,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.retry_policy import RetryDecision
@@ -1020,27 +1020,21 @@ def _register_deserialization_allowed_classes(dag, log: Logger) -> None:
                     )
 
 
-def _get_claiming_coordinator_key(path: str, bundle_name: str) -> str | None:
-    """Return the ``[sdk] coordinators`` key of the coordinator whose runtime parses *path*, or ``None``."""
+def _find_native_dag_importer(path: str, bundle_name: str) -> CoordinatorDagImporter | None:
+    """Return the coordinator Dag importer that claims *path*, so that a Lang-SDK runtime parses it."""
     try:
-        if (coordinator := find_claiming_coordinator(path, bundle_name)) is None:
-            return None
-        importers = get_coordinator_manager().for_bundle(bundle_name)
+        return find_claiming_importer(path, bundle_name)
     except Exception:
         # Building the Dag bag reports a broken importer configuration.
         return None
-    return next(
-        (key for key, importer in importers.items() if getattr(importer, "coordinator", None) is coordinator),
-        None,
-    )
 
 
-def _fail_lang_sdk_task(what: StartupDetails, coordinator_key: str, log: Logger) -> NoReturn:
+def _fail_lang_sdk_task(what: StartupDetails, coordinator_classpath: str, log: Logger) -> NoReturn:
     """Fail a task of a native Lang-SDK Dag without retries: running it again cannot help."""
     log.error(
         "This task belongs to a native Lang-SDK Dag and cannot run in Python. Give the Dag's tasks "
-        "their own queue and map it to coordinator %r in [sdk] queue_to_coordinator",
-        coordinator_key,
+        "their own queue and route it to a %s in [sdk] queue_to_coordinator",
+        coordinator_classpath.rsplit(".", 1)[-1],
         dag_id=what.ti.dag_id,
         task_id=what.ti.task_id,
         queue=what.ti.queue,
@@ -1069,8 +1063,8 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    if (coordinator_key := _get_claiming_coordinator_key(dag_absolute_path, bundle_info.name)) is not None:
-        _fail_lang_sdk_task(what, coordinator_key, log)
+    if (importer := _find_native_dag_importer(dag_absolute_path, bundle_info.name)) is not None:
+        _fail_lang_sdk_task(what, importer.coordinator_classpath, log)
 
     dag_file_parse_start = time.monotonic()
     bag = BundleDagBag(
