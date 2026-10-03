@@ -22,6 +22,7 @@ from __future__ import annotations
 import os.path
 import time
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from google.genai.errors import ClientError
@@ -57,6 +58,28 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
+def _build_results_file_path(results_folder: str | None, job: BatchJob) -> str:
+    """
+    Build the local results-file path for a batch job, refusing one that escapes ``results_folder``.
+
+    ``display_name`` and ``name`` come from the batch-job metadata returned by the Gemini
+    API. ``job.name`` is already sanitized against ``/``, but ``display_name`` (used first)
+    is not, so a ``..`` in it would place the file outside ``results_folder`` (CWE-22).
+    """
+    # Both are optional on BatchJob, so neither being set leaves nothing to name the file after.
+    file_name = job.display_name or (job.name or "").replace("/", "-")
+    if not file_name:
+        raise ValueError("Batch job has neither display_name nor name; cannot derive a results file name.")
+    base = Path(f"{results_folder}").resolve()
+    path_to_file = (base / f"{file_name}.jsonl").resolve()
+    if not path_to_file.is_relative_to(base):
+        raise ValueError(
+            f"Refusing to write batch-job results outside results_folder {results_folder!r}: "
+            f"file name {file_name!r} resolves to {path_to_file!r}."
+        )
+    return str(path_to_file)
+
+
 class GenAIGenerateEmbeddingsOperator(GoogleCloudBaseOperator):
     """
     Uses the Gemini AI Embeddings API to generate embeddings for words, phrases, sentences, and code.
@@ -81,7 +104,15 @@ class GenAIGenerateEmbeddingsOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "contents", "model", "config")
+    template_fields: Sequence[str] = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "contents",
+        "model",
+        "config",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -150,13 +181,14 @@ class GenAIGenerateContentOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "generation_config",
         "location",
         "project_id",
         "impersonation_chain",
         "contents",
         "model",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -222,13 +254,14 @@ class GenAISupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "project_id",
         "impersonation_chain",
         "training_dataset",
         "tuning_job_config",
         "source_model",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -304,7 +337,15 @@ class GenAICountTokensOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "contents", "model", "config")
+    template_fields: Sequence[str] = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "contents",
+        "model",
+        "config",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -363,7 +404,14 @@ class GenAICreateCachedContentOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "model", "cached_content_config")
+    template_fields: Sequence[str] = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "model",
+        "cached_content_config",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -431,7 +479,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
     :param deferrable: Optional. Run operator in the deferrable mode.
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "location",
         "project_id",
         "impersonation_chain",
@@ -439,6 +487,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         "create_batch_job_config",
         "gemini_api_key",
         "input_source",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -522,8 +571,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
             self._validate_results_folder()
             file_content_bytes = self.hook.download_file(file_name=job.dest.file_name)
             file_content = file_content_bytes.decode("utf-8")
-            file_name = job.display_name or job.name.replace("/", "-")
-            path_to_file = os.path.abspath(f"{self.results_folder}/{file_name}.jsonl")
+            path_to_file = _build_results_file_path(self.results_folder, job)
             with open(path_to_file, "w") as file_with_results:
                 file_with_results.writelines(file_content.splitlines(True))
             results = path_to_file
@@ -618,7 +666,14 @@ class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "job_name", "gemini_api_key")
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "job_name",
+        "gemini_api_key",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -681,6 +736,7 @@ class GenAIGeminiListBatchJobsOperator(GoogleCloudBaseOperator):
         "impersonation_chain",
         "list_batch_jobs_config",
         "gemini_api_key",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -750,7 +806,14 @@ class GenAIGeminiDeleteBatchJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "job_name", "gemini_api_key")
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "job_name",
+        "gemini_api_key",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -814,7 +877,14 @@ class GenAIGeminiCancelBatchJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "job_name", "gemini_api_key")
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "job_name",
+        "gemini_api_key",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -889,6 +959,7 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
         "create_embeddings_config",
         "gemini_api_key",
         "input_source",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -972,8 +1043,7 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
             self._validate_results_folder()
             file_content_bytes = self.hook.download_file(file_name=job.dest.file_name)
             file_content = file_content_bytes.decode("utf-8")
-            file_name = job.display_name or job.name.replace("/", "-")
-            path_to_file = os.path.abspath(f"{self.results_folder}/{file_name}.jsonl")
+            path_to_file = _build_results_file_path(self.results_folder, job)
             with open(path_to_file, "w") as file_with_results:
                 file_with_results.writelines(file_content.splitlines(True))
             results = path_to_file
@@ -1076,6 +1146,7 @@ class GenAIGeminiUploadFileOperator(GoogleCloudBaseOperator):
         "impersonation_chain",
         "file_path",
         "gemini_api_key",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -1152,6 +1223,7 @@ class GenAIGeminiGetFileOperator(GoogleCloudBaseOperator):
         "impersonation_chain",
         "file_name",
         "gemini_api_key",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -1219,6 +1291,7 @@ class GenAIGeminiListFilesOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
         "gemini_api_key",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -1292,6 +1365,7 @@ class GenAIGeminiDeleteFileOperator(GoogleCloudBaseOperator):
         "impersonation_chain",
         "file_name",
         "gemini_api_key",
+        "gcp_conn_id",
     )
 
     def __init__(

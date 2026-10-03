@@ -21,9 +21,12 @@ package org.apache.airflow.sdk.execution
 
 import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.comm.ConnectionResult
+import org.apache.airflow.sdk.execution.comm.DeleteVariable
 import org.apache.airflow.sdk.execution.comm.GetConnection
 import org.apache.airflow.sdk.execution.comm.GetVariable
 import org.apache.airflow.sdk.execution.comm.GetXCom
+import org.apache.airflow.sdk.execution.comm.OKResponse
+import org.apache.airflow.sdk.execution.comm.PutVariable
 import org.apache.airflow.sdk.execution.comm.SetXCom
 import org.apache.airflow.sdk.execution.comm.VariableResult
 import org.apache.airflow.sdk.execution.comm.XComResult
@@ -45,6 +48,14 @@ interface Client {
   fun getConnection(id: String): ConnectionResult
 
   fun getVariable(key: String): VariableResult
+
+  fun setVariable(
+    key: String,
+    value: String,
+    description: String?,
+  )
+
+  fun deleteVariable(key: String)
 
   fun getXCom(
     key: String,
@@ -88,6 +99,24 @@ class CoordinatorClient(
     runBlocking {
       exec.communicate<VariableResult>(GetVariable().also { it.key = key })
     }
+
+  override fun setVariable(
+    key: String,
+    value: String,
+    description: String?,
+  ) {
+    val message =
+      PutVariable().also {
+        it.key = key
+        it.value = value
+        it.description = description
+      }
+    runBlocking { exec.communicate<Unit>(message) }
+  }
+
+  override fun deleteVariable(key: String) {
+    runBlocking { exec.communicate<OKResponse>(DeleteVariable().also { it.key = key }) }
+  }
 
   override fun setXCom(
     key: String,

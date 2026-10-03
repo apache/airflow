@@ -102,6 +102,7 @@ from airflow.sdk.definitions.partition_mappers.window import (
     YearWindow,
 )
 from airflow.sdk.definitions.retry_policy import (
+    ChainRetryPolicy as ChainRetryPolicy,
     ExceptionRetryPolicy as ExceptionRetryPolicy,
     RetryAction as RetryAction,
     RetryDecision as RetryDecision,
@@ -111,6 +112,7 @@ from airflow.sdk.definitions.retry_policy import (
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
+    AssetAndTimeSchedule,
     AssetOrTimeSchedule,
     PartitionedAssetTimetable,
     PartitionedAtRuntime,
@@ -142,6 +144,7 @@ __all__ = [
     "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
+    "AssetAndTimeSchedule",
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
@@ -156,6 +159,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",

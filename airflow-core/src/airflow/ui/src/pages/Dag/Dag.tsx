@@ -78,7 +78,10 @@ export const Dag = () => {
     {
       refetchInterval: (query) => {
         // Auto-refresh when there are active runs or pending runs
-        if (hasPendingRuns ?? (query.state.data && (query.state.data.active_runs_count ?? 0) > 0)) {
+        if (
+          query.state.data?.scheduling_state === "draining" ||
+          (hasPendingRuns ?? (query.state.data && (query.state.data.active_runs_count ?? 0) > 0))
+        ) {
           return refetchInterval;
         }
 
@@ -91,7 +94,11 @@ export const Dag = () => {
 
   // Ensures continuous refresh to detect new runs when there's no
   // pending state and new runs are initiated from other page
-  useRefreshOnNewDagRuns(dagId, hasPendingRuns, dag?.is_paused);
+  useRefreshOnNewDagRuns(
+    dagId,
+    hasPendingRuns,
+    dag?.is_paused === true || dag?.scheduling_state === "draining",
+  );
 
   const {
     data: latestRun,

@@ -645,6 +645,67 @@ class TestPluginTeamName:
         assert info_by_name["team_plugin"]["team_name"] == "team_a"
 
 
+class TestGetSchedulingClassTeams:
+    @staticmethod
+    def _plugin(team_name, **registries):
+        plugin = AirflowPlugin()
+        plugin.name = f"plugin_{team_name}"
+        plugin.team_name = team_name
+        for registry, classes in registries.items():
+            setattr(plugin, registry, classes)
+        return plugin
+
+    def test_maps_each_registry_by_qualname(self):
+        from airflow.example_dags.plugins.business_day_window import BusinessDayWindow
+        from airflow.example_dags.plugins.custom_partition_mapper import PrefixStripMapper
+        from airflow.example_dags.plugins.decreasing_priority_weight_strategy import (
+            DecreasingPriorityStrategy,
+        )
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        plugin = self._plugin(
+            "team_a",
+            timetables=[AfterWorkdayTimetable],
+            partition_mappers=[PrefixStripMapper],
+            windows=[BusinessDayWindow],
+            priority_weight_strategies=[DecreasingPriorityStrategy],
+        )
+        with mock_plugin_manager(plugins=[plugin]):
+            assert plugins_manager.get_scheduling_class_teams() == {
+                qualname(cls): frozenset({"team_a"})
+                for cls in (
+                    AfterWorkdayTimetable,
+                    PrefixStripMapper,
+                    BusinessDayWindow,
+                    DecreasingPriorityStrategy,
+                )
+            }
+
+    def test_class_registered_by_several_plugins_maps_to_all_their_teams(self):
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        plugins = [self._plugin(team, timetables=[AfterWorkdayTimetable]) for team in ("team_a", None)]
+        with mock_plugin_manager(plugins=plugins):
+            assert plugins_manager.get_scheduling_class_teams() == {
+                qualname(AfterWorkdayTimetable): frozenset({"team_a", None})
+            }
+
+    def test_airflow_classes_are_left_out(self):
+        """The decoder imports these directly, so no plugin can own them."""
+        from airflow.partition_mappers.temporal import StartOfDayMapper
+        from airflow.partition_mappers.window import DayWindow
+        from airflow.timetables.trigger import CronTriggerTimetable
+
+        plugin = self._plugin(
+            "team_a",
+            timetables=[CronTriggerTimetable],
+            partition_mappers=[StartOfDayMapper],
+            windows=[DayWindow],
+        )
+        with mock_plugin_manager(plugins=[plugin]):
+            assert plugins_manager.get_scheduling_class_teams() == {}
+
+
 class TestValidatePluginTeams:
     """``validate_plugin_teams`` startup validation."""
 
@@ -912,3 +973,85 @@ class TestWarnAboutUnknownTranslationKeys:
             plugins_manager.warn_about_unknown_translation_keys(plugin_translations, tmp_path / "en")
 
         assert any("'a'" in record.getMessage() for record in caplog.records)
+
+
+class TestExtraLinkTeamVisibility:
+    """``is_extra_link_visible_to_team`` decides whether a team-scoped plugin's operator link
+    is rendered for a given Dag, so the API server can hide one team's links from another."""
+
+    @staticmethod
+    def _link_class():
+        from tests_common.test_utils.compat import BaseOperatorLink
+
+        class SomeLink(BaseOperatorLink):
+            name = "Some Link"
+
+            def get_link(self, operator, ti_key):
+                return "https://example.com"
+
+        return SomeLink
+
+    def test_operator_defined_link_is_visible_to_every_team(self):
+        """A link no plugin registered belongs to the operator, so no team owns it."""
+        from airflow import plugins_manager
+
+        link = self._link_class()()
+        with mock_plugin_manager(plugins=[]):
+            assert plugins_manager.is_extra_link_visible_to_team(link, "team_a") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link, None) is True
+
+    @pytest.mark.parametrize(
+        ("dag_team", "expected"),
+        [
+            pytest.param("team_a", True, id="owning-team"),
+            pytest.param("team_b", False, id="other-team"),
+            pytest.param(None, False, id="teamless-dag"),
+        ],
+    )
+    def test_team_scoped_link_is_visible_only_to_its_team(self, dag_team, expected):
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            global_operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), dag_team) is expected
+
+    def test_link_registered_by_a_global_plugin_too_stays_global(self):
+        """Ownership resolves least restrictively: one global registration keeps the link
+        visible everywhere, rather than the team registration narrowing it."""
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            global_operator_extra_links = [link_class()]
+
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_link_plugin"
+            global_operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin, GlobalPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_b") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), None) is True
+
+    def test_operator_scoped_links_are_tracked_alongside_global_ones(self):
+        """``operator_extra_links`` are team-owned on the same terms as ``global_operator_extra_links``."""
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_a") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_b") is False

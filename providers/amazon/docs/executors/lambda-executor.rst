@@ -365,3 +365,8 @@ To configure Airflow to utilize the Lambda Executor and leverage the resources w
 
 .. include:: general.rst
   :start-after: .. BEGIN INIT_DB
+  :end-before: .. END INIT_DB
+
+.. include:: general.rst
+  :start-after: .. BEGIN TASK_INSTANCE_IDENTITY
+  :end-before: .. END TASK_INSTANCE_IDENTITY

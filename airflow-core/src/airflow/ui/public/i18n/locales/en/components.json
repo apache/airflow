@@ -136,6 +136,7 @@
     "empty": "No completed task instances in this range",
     "title": "Slowest task instances"
   },
+  "sortMultiColumnHint": "Shift-click to sort by multiple columns",
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",

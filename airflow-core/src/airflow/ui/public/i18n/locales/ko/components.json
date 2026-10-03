@@ -110,6 +110,10 @@
     "taskGroup": "태스크 그룹",
     "zoomToTask": "선택된 태스크로 확대"
   },
+  "jsonPreview": {
+    "items_one": "1개 항목",
+    "items_other": "{{count}}개 항목"
+  },
   "limitedList": "+{{count}}개 더 보기",
   "limitedList.allItems": "모든 {{count}}개 항목:",
   "limitedList.allTags_one": "모든 태그 (1)",
@@ -132,6 +136,7 @@
     "empty": "이 범위에 완료된 태스크 인스턴스가 없습니다",
     "title": "가장 느린 태스크 인스턴스"
   },
+  "sortMultiColumnHint": "Shift를 누른 채 클릭하여 여러 열로 정렬",
   "sortedAscending": "오름차순 정렬됨",
   "sortedDescending": "내림차순 정렬됨",
   "sortedUnsorted": "정렬되지 않음",

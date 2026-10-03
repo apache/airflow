@@ -34,8 +34,12 @@ def _ensure_fake_ibmmq_if_missing():
     behavior.
     """
 
-    if importlib.util.find_spec("ibmmq") is not None:
-        # Real package available, nothing to do.
+    try:
+        importlib.import_module("ibmmq")
+    except ImportError:
+        # Not installed, or installed from a wheel without the IBM MQ C client (libmqm_r) available.
+        pass
+    else:
         yield
         return
 

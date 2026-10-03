@@ -48,7 +48,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.3.1"
+ARG AIRFLOW_VERSION="3.3.2"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
 ARG AIRFLOW_PYTHON_VERSION="3.13.15"
@@ -73,7 +73,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.2.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.12.10
+ARG AIRFLOW_UV_VERSION=0.12.18
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -498,6 +498,7 @@ function install_python() {
 function install_golang() {
     curl --retry 3 --retry-delay 5 "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+    rm -f go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
 function install_jdk() {
@@ -571,7 +572,9 @@ function install_rustup() {
         -o /tmp/rustup-init
     echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
     chmod +x /tmp/rustup-init
-    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    # Building wheels from source needs only rustc and cargo. The default profile also adds
+    # rust-docs, clippy and rustfmt, which add tens of thousands of files to the image.
+    /tmp/rustup-init -y --profile minimal --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
     rm -f /tmp/rustup-init
 }
 

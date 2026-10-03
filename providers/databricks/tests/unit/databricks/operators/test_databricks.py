@@ -293,6 +293,36 @@ ACCESS_CONTROL_LIST = [
         "permission_level": "CAN_MANAGE",
     }
 ]
+ENVIRONMENTS = [
+    {
+        "environment_key": "serverless_default",
+        "spec": {"environment_version": "3", "dependencies": ["simplejson==3.19.3"]},
+    }
+]
+TRIGGER = {
+    "pause_status": "UNPAUSED",
+    "file_arrival": {"url": "/Volumes/main/default/landing/", "min_time_between_triggers_seconds": 60},
+}
+TEMPLATED_ENVIRONMENTS = [
+    {
+        "environment_key": "serverless_default",
+        "spec": {"environment_version": "3", "dependencies": ["simplejson=={{ ds }}"]},
+    }
+]
+RENDERED_TEMPLATED_ENVIRONMENTS = [
+    {
+        "environment_key": "serverless_default",
+        "spec": {"environment_version": "3", "dependencies": [f"simplejson=={DATE}"]},
+    }
+]
+TEMPLATED_TRIGGER = {
+    "pause_status": "UNPAUSED",
+    "file_arrival": {"url": "/Volumes/main/default/landing/{{ ds }}/"},
+}
+RENDERED_TEMPLATED_TRIGGER = {
+    "pause_status": "UNPAUSED",
+    "file_arrival": {"url": f"/Volumes/main/default/landing/{DATE}/"},
+}
 JOB_PARAMS = [{"name": "param1", "default": "value1"}]
 
 
@@ -472,6 +502,56 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": override_max_concurrent_runs,
                 "git_source": override_git_source,
                 "access_control_list": override_access_control_list,
+            }
+        )
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
+    @pytest.mark.parametrize(
+        "json",
+        [
+            pytest.param(None, id="named-parameters-only"),
+            pytest.param({"environments": [], "trigger": {}}, id="named-parameters-override-json"),
+        ],
+    )
+    def test_init_with_environments_and_trigger_named_parameters(self, json):
+        """
+        Test the initializer merges ``environments`` and ``trigger`` into the create payload.
+        """
+        op = DatabricksCreateJobsOperator(
+            task_id=TASK_ID,
+            json=json,
+            name=JOB_NAME,
+            tasks=TASKS,
+            environments=ENVIRONMENTS,
+            trigger=TRIGGER,
+        )
+        expected = utils.normalise_json_content(
+            {
+                "name": JOB_NAME,
+                "tasks": TASKS,
+                "environments": ENVIRONMENTS,
+                "trigger": TRIGGER,
+            }
+        )
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
+    def test_environments_and_trigger_are_templated(self):
+        dag = DAG("test", schedule=None, start_date=datetime.now())
+        op = DatabricksCreateJobsOperator(
+            dag=dag,
+            task_id=TASK_ID,
+            name=JOB_NAME,
+            environments=TEMPLATED_ENVIRONMENTS,
+            trigger=TEMPLATED_TRIGGER,
+        )
+        op.render_template_fields(context={"ds": DATE})
+        expected = utils.normalise_json_content(
+            {
+                "name": JOB_NAME,
+                "environments": RENDERED_TEMPLATED_ENVIRONMENTS,
+                "trigger": RENDERED_TEMPLATED_TRIGGER,
             }
         )
 
@@ -748,6 +828,32 @@ class TestDatabricksCreateJobsOperator:
         settings = call_args[0] if hook_method == "create_job" else call_args[1]
         assert settings["parameters"] == JOB_PARAMS
 
+    @pytest.mark.parametrize(
+        ("params", "expected_parameters"),
+        [
+            pytest.param(
+                {"env": "prod", "start_date_str": None},
+                [{"name": "env", "default": "prod"}],
+                id="some-params-none",
+            ),
+            pytest.param({"start_date_str": None}, None, id="all-params-none"),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_skips_airflow_params_whose_value_is_none(self, db_mock_class, params, expected_parameters):
+        op = DatabricksCreateJobsOperator(
+            task_id=TASK_ID,
+            json={"name": JOB_NAME, "tasks": TASKS},
+            params=params,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = None
+
+        op.execute({})
+
+        settings = db_mock.create_job.call_args.args[0]
+        assert settings.get("parameters") == expected_parameters
+
 
 class TestDatabricksSubmitRunOperator:
     @staticmethod
@@ -783,6 +889,43 @@ class TestDatabricksSubmitRunOperator:
                 "new_cluster": NEW_CLUSTER,
                 "notebook_task": NOTEBOOK_TASK,
                 "performance_target": "PERFORMANCE_OPTIMIZED",
+                "run_name": TASK_ID,
+            }
+        )
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
+    @pytest.mark.parametrize(
+        "json",
+        [
+            pytest.param({"notebook_task": NOTEBOOK_TASK}, id="named-parameters-only"),
+            pytest.param(
+                {"notebook_task": NOTEBOOK_TASK, "environments": []},
+                id="named-parameters-override-json",
+            ),
+        ],
+    )
+    def test_init_with_environments_named_parameter(self, json):
+        """
+        Test the initializer merges ``environments`` into the submit payload.
+        """
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json, environments=ENVIRONMENTS)
+        expected = utils.normalise_json_content(
+            {"notebook_task": NOTEBOOK_TASK, "environments": ENVIRONMENTS, "run_name": TASK_ID}
+        )
+
+        assert expected == utils.normalise_json_content(op._get_merged_json())
+
+    def test_environments_is_templated(self):
+        dag = DAG("test", schedule=None, start_date=datetime.now())
+        op = DatabricksSubmitRunOperator(
+            dag=dag, task_id=TASK_ID, notebook_task=NOTEBOOK_TASK, environments=TEMPLATED_ENVIRONMENTS
+        )
+        op.render_template_fields(context={"ds": DATE})
+        expected = utils.normalise_json_content(
+            {
+                "notebook_task": NOTEBOOK_TASK,
+                "environments": RENDERED_TEMPLATED_ENVIRONMENTS,
                 "run_name": TASK_ID,
             }
         )
@@ -1529,6 +1672,33 @@ class TestDatabricksSubmitRunOperator:
 
         actual = db_mock.submit_run.call_args.args[0]
         assert actual["notebook_task"]["base_parameters"] == {"explicit": "value"}
+
+    @pytest.mark.parametrize(
+        ("params", "expected_named_parameters"),
+        [
+            pytest.param({"env": "prod", "start_date_str": None}, {"env": "prod"}, id="some-params-none"),
+            pytest.param({"start_date_str": None}, None, id="all-params-none"),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_submit_run_skips_airflow_params_whose_value_is_none(
+        self, db_mock_class, params, expected_named_parameters
+    ):
+        op = DatabricksSubmitRunOperator(
+            durable=False,
+            task_id=TASK_ID,
+            json={"python_wheel_task": {"package_name": "my_package", "entry_point": "main"}},
+            new_cluster=NEW_CLUSTER,
+            params=params,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.submit_run.call_args.args[0]
+        assert actual["python_wheel_task"].get("named_parameters") == expected_named_parameters
 
     @pytest.mark.parametrize(
         ("json", "exception_message"),
@@ -3194,6 +3364,32 @@ class TestDatabricksRunNowOperator:
 
         actual = db_mock.run_now.call_args.args[0]
         assert actual["job_parameters"] == {"explicit": "value"}
+
+    @pytest.mark.parametrize(
+        ("params", "expected_job_parameters"),
+        [
+            pytest.param({"env": "prod", "start_date_str": None}, {"env": "prod"}, id="some-params-none"),
+            pytest.param({"start_date_str": None}, None, id="all-params-none"),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_run_now_skips_airflow_params_whose_value_is_none(
+        self, db_mock_class, params, expected_job_parameters
+    ):
+        op = DatabricksRunNowOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            params=params,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.run_now.call_args.args[0]
+        assert actual.get("job_parameters") == expected_job_parameters
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_run_now_does_not_inject_airflow_params_when_forward_dag_params_is_false(self, db_mock_class):

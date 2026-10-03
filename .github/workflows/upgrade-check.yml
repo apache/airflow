@@ -98,6 +98,29 @@ jobs:
             --jq '.[0].url' 2>/dev/null || true)
           echo "pr-url=${PR_URL}" >> "${GITHUB_OUTPUT}"
       - name: >-
+          [${{ inputs.target-branch }}] Drop backport labels
+        # breeze already removed these, but boring-cyborg labels on a webhook and can land
+        # after it exits. Each branch upgrades itself on its own schedule, so a backport
+        # would race that with a change conflicting on the files it regenerates.
+        if: steps.find-pr.outputs.pr-url != ''
+        env:
+          PR_URL: ${{ steps.find-pr.outputs.pr-url }}
+        run: |
+          sleep 30
+          mapfile -t LABELS < <(gh pr view "${PR_URL}" \
+            --json labels \
+            --jq '.labels[].name | select(startswith("backport-to-"))')
+          if [[ ${#LABELS[@]} -eq 0 ]]; then
+            echo "No backport labels to remove."
+            exit 0
+          fi
+          ARGS=()
+          for label in "${LABELS[@]}"; do
+            ARGS+=(--remove-label "${label}")
+          done
+          gh pr edit "${PR_URL}" "${ARGS[@]}"
+          echo "Removed: ${LABELS[*]}"
+      - name: >-
           [${{ inputs.target-branch }}] Notify Slack on success
         if: success() && steps.find-pr.outputs.pr-url != ''
         uses: >-

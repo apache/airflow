@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
@@ -41,6 +42,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePrefixPatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPrefixPatternSearch,
+    QueryDagSchedulingStateFilter,
     QueryExcludeStaleFilter,
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
@@ -51,6 +53,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryPendingActionsFilter,
+    QueryRelativeFilelocPrefixFilter,
     QueryTagsFilter,
     QueryTeamsFilter,
     QueryTimetableTypePrefixPatternSearch,
@@ -61,6 +64,8 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dags import DAG_ALIAS_MAPPING, DAGResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
+    DagFolderCollectionResponse,
+    DagFolderResponse,
     DAGRunStateCountsResponse,
     DAGsRunStateCountsCollectionResponse,
     DagTimetableTypeCollectionResponse,
@@ -78,7 +83,7 @@ from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 
@@ -113,11 +118,13 @@ def get_dags(
     dag_display_name_prefix_pattern: QueryDagDisplayNamePrefixPatternSearch,
     exclude_stale: QueryExcludeStaleFilter,
     paused: QueryPausedFilter,
+    scheduling_state: QueryDagSchedulingStateFilter,
     has_import_errors: QueryHasImportErrorsFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     dag_run_state: QueryAnyDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
+    relative_fileloc_prefix: QueryRelativeFilelocPrefixFilter,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -160,6 +167,7 @@ def get_dags(
         filters=[
             exclude_stale,
             paused,
+            scheduling_state,
             has_import_errors,
             dag_id_pattern,
             dag_id_prefix_pattern,
@@ -179,6 +187,7 @@ def get_dags(
             readable_dags_filter,
             bundle_name,
             bundle_version,
+            relative_fileloc_prefix,
         ],
         order_by=order_by,
         offset=offset,
@@ -194,6 +203,25 @@ def get_dags(
         DagFavorite.user_id == user_id, DagFavorite.dag_id.in_([dag.dag_id for dag in dags])
     )
     favorite_dag_ids = set(session.scalars(favorites_select))
+
+    has_unfinished_runs_by_dag_id: dict[str, bool] = {}
+    if dags:
+        unfinished_run_exists = (
+            select(DagRun.id)
+            .where(
+                DagRun.dag_id == DagModel.dag_id,
+                DagRun.state.in_(State.unfinished_dr_states),
+            )
+            .exists()
+        )
+        has_unfinished_runs_by_dag_id = {
+            dag_id: has_unfinished_runs
+            for dag_id, has_unfinished_runs in session.execute(
+                select(DagModel.dag_id, unfinished_run_exists).where(
+                    DagModel.dag_id.in_([dag.dag_id for dag in dags])
+                )
+            )
+        }
 
     recent_dag_runs: list = []
     if dags:
@@ -267,6 +295,7 @@ def get_dags(
             {
                 "asset_expression": dag.asset_expression,
                 "latest_dag_runs": [],
+                "has_unfinished_runs": has_unfinished_runs_by_dag_id[dag.dag_id],
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],
                 "is_favorite": dag.dag_id in favorite_dag_ids,
                 "team_name": team_names_by_dag_id.get(dag.dag_id),
@@ -316,6 +345,51 @@ def get_dag_timetable_types(
     return DagTimetableTypeCollectionResponse(
         timetable_types=list(timetable_types),
         total_entries=total_entries,
+    )
+
+
+@dags_router.get(
+    "/folders",
+    dependencies=[Depends(requires_access_dag(method="GET"))],
+    operation_id="get_dag_folders",
+)
+def get_dag_folders(
+    readable_dags_filter: ReadableDagsFilterDep,
+    session: SessionDep,
+) -> DagFolderCollectionResponse:
+    """
+    Get the distinct folders the readable Dags live in, scoped to their bundle.
+
+    A folder is the directory part of a Dag's ``relative_fileloc`` (relative to its
+    bundle root). Because ``relative_fileloc`` is relative to each bundle, the same
+    path can exist in several bundles, so every folder is paired with its bundle
+    name to keep them apart. Dags located directly at the bundle root have no folder
+    and are not represented here. The result powers the folder navigation tree in
+    the UI, which reconstructs the hierarchy by splitting each path on ``/`` and
+    groups it under its bundle when more than one bundle is present.
+
+    Stale Dags are left out to match the Dag list, which hides them by default: keeping
+    them would surface folders (or whole bundles, once they stop being parsed) that
+    select down to an empty list.
+    """
+    query = readable_dags_filter.to_orm(
+        select(DagModel.bundle_name, DagModel.relative_fileloc)
+        .where(DagModel.relative_fileloc.is_not(None), DagModel.is_stale == false())
+        .distinct()
+    )
+    folders: set[tuple[str, str]] = set()
+    for bundle_name, relative_fileloc in session.execute(query):
+        parent = PurePosixPath(relative_fileloc).parent
+        if str(parent) != ".":
+            folders.add((bundle_name, str(parent)))
+
+    sorted_folders = sorted(folders)
+    return DagFolderCollectionResponse(
+        folders=[
+            DagFolderResponse(bundle_name=bundle_name, folder=folder)
+            for bundle_name, folder in sorted_folders
+        ],
+        total_entries=len(sorted_folders),
     )
 
 

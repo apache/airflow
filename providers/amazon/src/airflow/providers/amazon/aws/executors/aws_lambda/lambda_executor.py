@@ -21,7 +21,8 @@ import time
 import warnings
 from collections import deque
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias, cast
+from uuid import UUID
 
 from boto3.session import NoCredentialsError
 from botocore.utils import ClientError
@@ -42,9 +43,21 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
+from airflow.providers.amazon.version_compat import (
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import prune_dict
+
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.executors.workloads.base import WorkloadType
+
+    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+
+if hasattr(BaseExecutor, "get_task_key"):
+    from airflow.executors.workloads.types import TaskInstanceUuid
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -72,14 +85,11 @@ class AwsLambdaExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
-
-    if AIRFLOW_V_3_3_PLUS:
+    supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
+    if AIRFLOW_V_3_4_PLUS:
+        supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
+    elif AIRFLOW_V_3_3_PLUS:
         supports_callbacks: bool = True
-
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor.
-        queued_tasks: dict[WorkloadKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -230,17 +240,14 @@ class AwsLambdaExecutor(BaseExecutor):
         except Exception:
             self.log.exception("An error occurred while syncing workloads.")
 
-    # TODO: Remove this once the minimum supported version is 3.2+, and defer to BaseExecutor.queue_workload.
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
+    if not AIRFLOW_V_3_1_PLUS:
 
-        if isinstance(workload, workloads.ExecuteTask):
+        def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+            from airflow.executors import workloads
+
+            if not isinstance(workload, workloads.ExecuteTask):
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
             self.queued_tasks[workload.ti.key] = workload
-            return
-        if AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.ExecuteCallback):
-            self.queued_callbacks[workload.callback.key] = workload
-            return
-        raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
@@ -251,11 +258,14 @@ class AwsLambdaExecutor(BaseExecutor):
             command: CommandType
             if isinstance(workload, workloads.ExecuteTask):
                 command = [workload]
-                key = workload.ti.key
+                key = self.get_task_key(workload.ti) if self.supports_task_instance_uuid else workload.ti.key
                 queue = workload.ti.queue
                 executor_config = workload.ti.executor_config or {}
 
-                del self.queued_tasks[key]
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+                else:
+                    del self.queued_tasks[key]
 
                 self.execute_async(
                     key=key,
@@ -275,7 +285,10 @@ class AwsLambdaExecutor(BaseExecutor):
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
                     queue = workload.callback.data["queue"]
 
-                del self.queued_callbacks[key]
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][key]
+                else:
+                    del self.queued_callbacks[key]
 
                 self.execute_async(
                     key=key,
@@ -298,7 +311,7 @@ class AwsLambdaExecutor(BaseExecutor):
         """
         Save the workload to be executed in the next sync by inserting the commands into a queue.
 
-        :param key: Unique workload key. Task workloads use TaskInstanceKey, callback workloads use a string id.
+        :param key: Task UUID (coordinate key on older Airflow versions) or callback identifier.
         :param command: The workload command or serialized shell command to execute.
         :param executor_config:  (Unused) to keep the same signature as the base.
         :param queue: (Unused) to keep the same signature as the base.
@@ -349,8 +362,6 @@ class AwsLambdaExecutor(BaseExecutor):
             try:
                 ser_workload_key = json.dumps(workload_key._asdict())
             except AttributeError:
-                # Callback workloads use CallbackKey (or legacy string id); both have a
-                # str() representation that round-trips through JSON.
                 ser_workload_key = str(workload_key)
 
             payload = {
@@ -554,9 +565,8 @@ class AwsLambdaExecutor(BaseExecutor):
         """
         Adopt task instances which have an external_executor_id (the serialized workload key).
 
-        The external_executor_id represents the workload identifier. In legacy executors (Airflow < 3.3)
-        this is the serialized TaskInstanceKey. In the workload-based executor model (Airflow ≥ 3.3)
-        this corresponds to the WorkloadKey.
+        Preserve the exact external_executor_id used in SQS messages, including coordinate keys
+        submitted before upgrading to an Airflow version with UUID executor-key support.
 
         Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
 
@@ -566,23 +576,48 @@ class AwsLambdaExecutor(BaseExecutor):
             "lambda_executor.adopt_task_instances.duration", tags=prune_dict({"team_name": self.team_name})
         ):
             adopted_tis: list[TaskInstance] = []
+            workload_key: WorkloadKey
 
             if serialized_workload_keys := [
                 (ti, ti.external_executor_id) for ti in tis if ti.external_executor_id
             ]:
                 for ti, ser_workload_key in serialized_workload_keys:
-                    try:
-                        data = json.loads(ser_workload_key)
-                        workload_key = TaskInstanceKey.from_dict(data)
-                    except (json.JSONDecodeError, KeyError, TypeError) as e:
-                        self.log.warning(
-                            "Failed to deserialize workload_key '%s' (%s); "
-                            "skipping deserialization and treating as callback id.",
-                            ser_workload_key,
-                            str(e),
-                        )
-                        # Callback workloads use string keys.
-                        workload_key = ser_workload_key
+                    if self.supports_task_instance_uuid:
+                        try:
+                            task_id = UUID(ser_workload_key)
+                        except ValueError:
+                            try:
+                                legacy_key = TaskInstanceKey.from_dict(json.loads(ser_workload_key))
+                            except (ValueError, KeyError, TypeError):
+                                self.log.warning(
+                                    "Cannot adopt task with invalid identity %s", ser_workload_key
+                                )
+                                continue
+                            if legacy_key != ti.key:
+                                self.log.warning(
+                                    "Cannot adopt task with mismatched identity %s", ser_workload_key
+                                )
+                                continue
+                            workload_key = self.get_task_key(ti)
+                        else:
+                            if task_id != ti.id:
+                                self.log.warning(
+                                    "Cannot adopt task with mismatched identity %s", ser_workload_key
+                                )
+                                continue
+                            workload_key = TaskInstanceUuid(task_id)
+                    else:
+                        try:
+                            data = json.loads(ser_workload_key)
+                            workload_key = TaskInstanceKey.from_dict(data)
+                        except (json.JSONDecodeError, KeyError, TypeError) as e:
+                            self.log.warning(
+                                "Failed to deserialize workload_key '%s' (%s); "
+                                "skipping deserialization and treating as callback id.",
+                                ser_workload_key,
+                                str(e),
+                            )
+                            workload_key = cast("WorkloadKey", ser_workload_key)
 
                     self.running_workloads[ser_workload_key] = workload_key
                     adopted_tis.append(ti)

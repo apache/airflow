@@ -43,14 +43,18 @@ Repository URL
     or ``https://github.com/apache/airflow.git`` for HTTPS.
     This can also be passed directly to the hook via the ``repo_url`` parameter.
 
+    A ``user:password@`` embedded in an ``http(s)`` repository URL is stripped out before use and
+    treated as the username/access token; the explicit fields below take precedence over it
+    when both are present.
+
 Username or Access Token name (optional)
     The username for HTTPS authentication or the token name. Defaults to ``user`` if not specified.
-    When using HTTPS with an access token, this value is used as the username in the
-    authenticated URL (e.g. ``https://user:token@github.com/repo.git``).
 
 Access Token (optional)
-    The access token for HTTPS authentication. When provided along with the username,
-    the hook injects the credentials into the repository URL for HTTPS cloning.
+    The access token for HTTPS authentication. The connection's username and token are never written into
+    the repository URL or the bundle's git config; instead they are handed to git through a
+    credential helper scoped to the repository's host (``credential.<scheme>://<host>[:port].helper``).
+    Token authentication over http(s) requires git version 2.31 or higher.
 
 Extra (optional)
     Specify the extra parameters as a JSON dictionary. The following keys are supported:

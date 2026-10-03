@@ -27,14 +27,14 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
-from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.db import get_query_count
 
 
@@ -269,6 +269,9 @@ def get_mapped_xcom_by_slice(
 @router.head(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     responses={
+        **create_openapi_http_exception_doc(
+            [(status.HTTP_400_BAD_REQUEST, "map_index cannot be specified in a HEAD request")]
+        ),
         status.HTTP_200_OK: {
             "description": "Metadata about the number of matching XCom values",
             "headers": {
@@ -367,6 +370,14 @@ def get_xcom(
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            (
+                status.HTTP_400_BAD_REQUEST,
+                "The key is empty, the value is too large to map, or is unserializable",
+            )
+        ]
+    ),
 )
 def set_xcom(
     dag_id: str,
@@ -397,7 +408,7 @@ def set_xcom(
     map_index: Annotated[int, Query()] = -1,
     dag_result: Annotated[bool, Query(description="Whether this XCom is a dag result")] = False,
     mapped_length: Annotated[
-        int | None, Query(description="Number of mapped tasks this value expands into")
+        int | None, Query(ge=0, description="Number of mapped tasks this value expands into")
     ] = None,
 ):
     """Set an Airflow XCom."""
@@ -415,16 +426,17 @@ def set_xcom(
         )
 
     if mapped_length is not None:
-        task_map = TaskMap(
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-            length=mapped_length,
-            keys=None,
-        )
+        # The scheduler only ever reads a length off the return value, so any other key is write-only.
+        if key != XCOM_RETURN_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "reason": "invalid_mapped_length_key",
+                    "message": f"mapped_length is only valid for the {XCOM_RETURN_KEY!r} key.",
+                },
+            )
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
-        if task_map.length > max_map_length:
+        if mapped_length > max_map_length:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -432,7 +444,6 @@ def set_xcom(
                     "message": "pushed value is too large to map as a downstream's dependency",
                 },
             )
-        session.merge(task_map)
 
     # else:
     # TODO: Can/should we check if a client _hasn't_ provided this for an upstream of a mapped task? That
@@ -449,6 +460,7 @@ def set_xcom(
             map_index=map_index,
             serialize=False,
             dag_result=dag_result,
+            mapped_length=mapped_length,
             session=session,
         )
     except ValueError as e:

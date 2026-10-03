@@ -45,12 +45,21 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import convert_camel_to_snake
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
+
+if hasattr(BaseExecutor, "get_task_key"):
+    from airflow.executors.workloads.types import TaskInstanceUuid
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
@@ -225,6 +234,7 @@ class TestAwsBatchExecutor:
 
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
+        workload.ti.id = uuid4()
         workload.ti.key = mock_airflow_key()
         workload.ti.queue = "some-job-queue"
         tags_exec_config = [{"key": "FOO", "value": "BAR"}]
@@ -232,17 +242,29 @@ class TestAwsBatchExecutor:
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = workload.ti.key
+            task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = mock_executor.queued_tasks
+
+        executor_key = (
+            TaskInstanceUuid(workload.ti.id) if mock_executor.supports_task_instance_uuid else workload.ti.key
+        )
         mock_executor.queue_workload(workload, mock.Mock())
 
         mock_executor.batch.submit_job.return_value = {"jobId": ARN1, "jobName": "some-job-name"}
 
-        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert task_queue[executor_key] == workload
         assert len(mock_executor.pending_jobs) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
-        assert len(mock_executor.queued_tasks) == 0
+        assert len(task_queue) == 0
         assert len(mock_executor.running) == 1
-        assert workload.ti.key in mock_executor.running
+        assert executor_key in mock_executor.running
         assert len(mock_executor.pending_jobs) == 1
         assert mock_executor.pending_jobs[0].command == [
             "python",
@@ -281,10 +303,10 @@ class TestAwsBatchExecutor:
         assert len(mock_executor.active_workers) == 1
         # Get the job_id for this task key
         job_id = next(
-            job_id for job_id, key in mock_executor.active_workers.id_to_key.items() if key == workload.ti.key
+            job_id for job_id, key in mock_executor.active_workers.id_to_key.items() if key == executor_key
         )
         assert job_id == ARN1
-        running_state_mock.assert_called_once_with(workload.ti.key, ARN1)
+        running_state_mock.assert_called_once_with(executor_key, ARN1)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
@@ -295,6 +317,11 @@ class TestAwsBatchExecutor:
         workload = mock.Mock(spec=ExecuteCallback)
         workload.callback = mock.Mock()
         workload.callback.key = mock_airflow_key()
+        workload.key = workload.callback.key
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_CALLBACK
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
@@ -355,7 +382,7 @@ class TestAwsBatchExecutor:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
-    def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
+    def test_task_sdk_callback_with_queue(self, running_state_mock, mock_airflow_key, mock_executor):
         """Test task sdk execution for callbacks with queue from end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
 
@@ -363,6 +390,11 @@ class TestAwsBatchExecutor:
         workload.callback = mock.Mock()
         workload.callback.key = mock_airflow_key()
         workload.callback.data = {"queue": "fast-queue"}
+        workload.key = workload.callback.key
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_CALLBACK
 
         mock_executor.queue_workload(workload, mock.Mock())
 
@@ -1351,3 +1383,90 @@ class TestBatchExecutorConfig:
         from airflow.providers.amazon.aws.executors.batch import AwsBatchExecutor as AwsBatchExecutorShortPath
 
         assert AwsBatchExecutor is AwsBatchExecutorShortPath
+
+
+@pytest.mark.skipif(not hasattr(BaseExecutor, "get_task_key"), reason="Requires executor UUID capability")
+class TestTaskIdentity:
+    @pytest.mark.parametrize(("native", "modern_queue"), [(True, True), (False, True), (False, False)])
+    @pytest.mark.parametrize("success", [False, True])
+    def test_task_results_preserve_submitted_identity(
+        self, mock_executor, task_identity_workloads, monkeypatch, native, modern_queue, success
+    ):
+        monkeypatch.setattr(batch_executor, "AIRFLOW_V_3_4_PLUS", modern_queue)
+        if not native:
+            monkeypatch.setattr(AwsBatchExecutor, "supports_task_instance_uuid", False)
+            task_identity_workloads[1].ti.try_number = 2
+        keys = [TaskInstanceUuid(w.ti.id) if native else w.ti.key for w in task_identity_workloads]
+        for workload in task_identity_workloads:
+            mock_executor.queue_workload(workload, session=None)
+        mock_executor._process_workloads(task_identity_workloads)
+        assert mock_executor.running == set(keys)
+        mock_executor.batch.submit_job.side_effect = [
+            {"jobId": name, "jobName": "job"} for name in ("remote-a", "remote-b")
+        ]
+        mock_executor.attempt_submit_jobs()
+        mock_executor.get_event_buffer()
+        mock_executor.max_submit_job_attempts = 1
+        mock_executor.batch.describe_jobs.return_value = {
+            "jobs": [{"jobId": "remote-a", "status": "SUCCEEDED" if success else "FAILED"}]
+        }
+        mock_executor.sync_running_jobs()
+        assert mock_executor.get_event_buffer() == {
+            keys[0]: (
+                TaskInstanceState.SUCCESS if success else TaskInstanceState.FAILED,
+                None,
+            )
+        }
+        assert mock_executor.running == {keys[1]}
+
+    @pytest.mark.parametrize("native", [False, True])
+    def test_adoption_captures_uuid_for_remote_task(
+        self, mock_executor, task_identity_workloads, monkeypatch, native
+    ):
+        if not native:
+            monkeypatch.setattr(AwsBatchExecutor, "supports_task_instance_uuid", False)
+        source = task_identity_workloads[0].ti
+        ti = mock.Mock(
+            spec=TaskInstance,
+            id=source.id,
+            key=source.key,
+            state=TaskInstanceState.RUNNING,
+            try_number=source.try_number,
+            queue="default",
+            executor_config={},
+        )
+        ti.external_executor_id = "remote-a"
+        expected_key = TaskInstanceUuid(ti.id) if native else ti.key
+        mock_executor.batch.describe_jobs.return_value = {
+            "jobs": [{"jobId": "remote-a", "status": "RUNNING"}]
+        }
+        with mock.patch.object(mock_executor, "_build_task_command", autospec=True, return_value=["command"]):
+            assert mock_executor.try_adopt_task_instances([ti]) == []
+        ti.id = uuid4()
+        assert mock_executor.active_workers.id_to_key["remote-a"] == expected_key
+        assert mock_executor.running == {expected_key}
+
+    @pytest.mark.db_test
+    def test_retry_does_not_adopt_previous_worker(self, mock_executor, create_task_instance, session):
+        ti = create_task_instance(state=TaskInstanceState.RUNNING, external_executor_id="previous-worker")
+        ti.task.retries = 1
+        ti.try_number = 1
+        ti.max_tries = 1
+        session.commit()
+        old_id = ti.id
+
+        ti.handle_failure("worker lost", session=session)
+        session.refresh(ti)
+        history = session.get(TaskInstanceHistory, old_id)
+
+        assert ti.state == TaskInstanceState.UP_FOR_RETRY
+        assert ti.id != old_id
+        assert ti.try_number == 2
+        assert ti.external_executor_id is None
+        assert history.external_executor_id == "previous-worker"
+        ti.state = TaskInstanceState.QUEUED
+        session.flush()
+        assert mock_executor.try_adopt_task_instances([ti]) == [ti]
+        mock_executor.batch.describe_jobs.assert_not_called()
+        assert not mock_executor.running
+        assert not mock_executor.get_event_buffer()

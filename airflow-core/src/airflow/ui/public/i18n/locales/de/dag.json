@@ -6,6 +6,7 @@
     "title": "Abhängigkeiten die die Planung des Task blockieren"
   },
   "calendar": {
+    "backfill": "Auffüllung",
     "daily": "Täglich",
     "hourly": "Stündlich",
     "legend": {
@@ -100,7 +101,11 @@
       "placeholder": "Protokolle durchsuchen..."
     },
     "settings": "Protokoll-Ansicht",
+    "tryNotStarted": "Dieser Versuch ist nicht gestartet.",
+    "viewFailedTry": "Logs ansehen für fehlgeschlagenen Versuch {{tryNumber}}",
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
+    "viewPreviousTry": "Logs des vorigen Versuch {{tryNumber}}",
+    "waitingToRetry": "Versuch Nummer {{tryNumber}} wartet zum Start.",
     "warning": "WARNING"
   },
   "notFound": {

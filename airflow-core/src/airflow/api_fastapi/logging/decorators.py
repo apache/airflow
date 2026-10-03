@@ -203,8 +203,19 @@ def action_logging(event: str | None = None):
         masked_body_json = {}
 
         if has_json_body:
-            # Non-dict bodies fall through to the endpoint's own 422.
-            parsed_body = await request.json()
+            # This runs before the route so an access is logged whether or not the route succeeds,
+            # so it must never fail the request. On a route declaring no body FastAPI parses none,
+            # leaving this the only parse, where an error became a 500.
+            #
+            # Broad like FastAPI's own catch here: ``json.loads`` also raises UnicodeDecodeError,
+            # bare ValueError (``int_max_str_digits``) and RecursionError, and enumerating types is
+            # how this line collected three fixes that each missed the next shape.
+            try:
+                parsed_body = await request.json()
+            except Exception:
+                logger.debug("Audit log could not parse the request body; logging without it")
+                parsed_body = None
+            # A non-dict body is left to the endpoint, which rejects it where it declares one.
             if isinstance(parsed_body, dict):
                 request_body = parsed_body
                 masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
@@ -228,14 +239,13 @@ def action_logging(event: str | None = None):
             for k, v in itertools.chain(request.query_params.items(), request.path_params.items())
             if k not in fields_skip_logging
         }
+        # ``request_body`` is empty with no body, or one that could not be read. The path/query
+        # fallback keeps the target in the row: a delete names it only there, and ``Log`` has no
+        # column for it.
         if "variable" in event_name:
-            extra_fields = _mask_variable_fields(
-                {k: v for k, v in request_body.items()} if has_json_body else extra_fields
-            )
+            extra_fields = _mask_variable_fields(request_body or extra_fields)
         elif "connection" in event_name:
-            extra_fields = _mask_connection_fields(
-                {k: v for k, v in request_body.items()} if has_json_body else extra_fields
-            )
+            extra_fields = _mask_connection_fields(request_body or extra_fields)
         elif has_json_body:
             extra_fields = {**extra_fields, **masked_body_json}
 
