@@ -32,6 +32,7 @@ from airflow_e2e_tests.constants import (
     AIRFLOW_ROOT_PATH,
     AIRFLOW_SERVICES_FOR_PROVIDER_MOUNT,
     AWS_INIT_PATH,
+    DAGS_BUNDLE_NAME,
     DOCKER_COMPOSE_HOST_PORT,
     DOCKER_COMPOSE_PATH,
     DOCKER_IMAGE,
@@ -62,10 +63,14 @@ from airflow_e2e_tests.constants import (
     JAVA_SDK_EXAMPLE_DAGS_PATH,
     JAVA_SDK_EXAMPLE_LIBS_PATH,
     JAVA_SDK_MAVEN_CACHE_PATH,
+    JAVA_SDK_QUEUE,
     JAVA_SDK_ROOT_PATH,
+    JAVA_SDK_TASK_HANDLER_BUNDLE,
     JAVA_TEST_BUNDLE_DAGS_PATH,
     JAVA_TEST_BUNDLE_LIBS_PATH,
     JAVA_TEST_BUNDLE_ROOT_PATH,
+    JAVA_TEST_QUEUE,
+    JAVA_TEST_TASK_HANDLER_BUNDLE,
     KAFKA_DIR_PATH,
     LANG_SDK_E2E_MODES,
     LANG_SDK_NATIVE_TOOLCHAIN,
@@ -79,14 +84,21 @@ from airflow_e2e_tests.constants import (
     PROVIDERS_ROOT_PATH,
     SCALA_SPARK_EXAMPLE_DAGS_PATH,
     SCALA_SPARK_EXAMPLE_LIBS_PATH,
+    SCALA_SPARK_QUEUE,
+    SCALA_SPARK_TASK_HANDLER_BUNDLE,
     TEST_REPORT_FILE,
     TS_COMPOSE_PATH,
     TS_SDK_BUILD_HOME_PATH,
+    TS_SDK_BUNDLE_FILE,
     TS_SDK_EXAMPLE_PATH,
+    TS_SDK_QUEUE,
     TS_SDK_ROOT_PATH,
+    TS_SDK_TASK_HANDLER_BUNDLE,
     XCOM_BUCKET,
 )
+from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 from airflow_e2e_tests.e2e_test_utils.go_toolchain import run_go
+from airflow_e2e_tests.e2e_test_utils.lang_sdk import wait_until_stub_tasks_are_bound
 
 from tests_common.test_utils.fernet import generate_fernet_key_string
 
@@ -99,6 +111,12 @@ class _E2ETestState:
     airflow_logs_path: Path | None = None
     airflow_dags_path: Path | None = None
     go_dynamic_dag_ids: list[str] = []
+    # In the Lang-SDK modes: the queues that the Dag processor routes to a Lang-SDK coordinator, the Dag
+    # files of the Lang SDK that the stack was given, and the files of the Dags folder that fail to import
+    # by design.
+    lang_sdk_queues: tuple[str, ...] = ()
+    lang_sdk_dag_files: tuple[str, ...] = ()
+    expected_import_errors: tuple[str, ...] = ()
 
 
 def _copy_localstack_files(tmp_dir):
@@ -317,7 +335,7 @@ def _build_dag_bundle_config(artifact_bundles: dict[str, str]) -> str:
     runs the artifacts in them to check the stub tasks, and finds no Dag files there.
     """
     local_bundle = "airflow.dag_processing.bundles.local.LocalDagBundle"
-    bundles = [{"name": "dags-folder", "classpath": local_bundle, "kwargs": {}}]
+    bundles = [{"name": DAGS_BUNDLE_NAME, "classpath": local_bundle, "kwargs": {}}]
     bundles.extend(
         {"name": name, "classpath": local_bundle, "kwargs": {"path": path}}
         for name, path in artifact_bundles.items()
@@ -461,6 +479,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         tmp_dir / "dags" / "scala_spark_examples.py",
     )
     copyfile(JAVA_TEST_BUNDLE_DAGS_PATH / "java_test_dags.py", tmp_dir / "dags" / "java_test_dags.py")
+    _E2ETestState.lang_sdk_dag_files = ("java_examples.py", "scala_spark_examples.py", "java_test_dags.py")
 
     # Keep the bundle JARs out of the build context: Dockerfile.java only adds a
     # JRE and copies nothing from the context, so without this docker build would
@@ -496,21 +515,21 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     # timeout for its large dependency classpath.
     dag_bundle_config = _build_dag_bundle_config(
         {
-            "java-task-handlers": "/opt/airflow/java-jars",
-            "scala-task-handlers": "/opt/airflow/scala-jars",
-            "java-test-task-handlers": "/opt/airflow/java-test-jars",
+            JAVA_SDK_TASK_HANDLER_BUNDLE: "/opt/airflow/java-jars",
+            SCALA_SPARK_TASK_HANDLER_BUNDLE: "/opt/airflow/scala-jars",
+            JAVA_TEST_TASK_HANDLER_BUNDLE: "/opt/airflow/java-test-jars",
         }
     )
     coordinator_config = json.dumps(
         {
             "java-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"task_handler_bundle_name": "java-task-handlers"},
+                "kwargs": {"task_handler_bundle_name": JAVA_SDK_TASK_HANDLER_BUNDLE},
             },
             "scala-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
                 "kwargs": {
-                    "task_handler_bundle_name": "scala-task-handlers",
+                    "task_handler_bundle_name": SCALA_SPARK_TASK_HANDLER_BUNDLE,
                     "main_class": "org.apache.airflow.example.ScalaSparkBundleBuilder",
                     "jvm_args": ["-Xmx512m", *_SPARK_JAVA_MODULE_OPTIONS],
                     "task_startup_timeout": 60.0,
@@ -518,13 +537,14 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             },
             "java-test-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"task_handler_bundle_name": "java-test-task-handlers"},
+                "kwargs": {"task_handler_bundle_name": JAVA_TEST_TASK_HANDLER_BUNDLE},
             },
         }
     )
     queue_to_coordinator = json.dumps(
-        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk"}
+        {JAVA_SDK_QUEUE: "java-jdk", SCALA_SPARK_QUEUE: "scala-jdk", JAVA_TEST_QUEUE: "java-test-jdk"}
     )
+    _E2ETestState.lang_sdk_queues = (JAVA_SDK_QUEUE, SCALA_SPARK_QUEUE, JAVA_TEST_QUEUE)
 
     # Connection expected by the Java example bundle tasks. The JSON form
     # covers all connection fields, in particular the port: wire integers
@@ -625,8 +645,10 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     # Copy the Go SDK example stub Dag so Airflow can discover and serialize it, and the stub
     # Dags of the test bundles.
     copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
-    for dag_file in sorted(GO_TEST_BUNDLE_DAGS_PATH.glob("*.py")):
+    go_test_dag_files = sorted(GO_TEST_BUNDLE_DAGS_PATH.glob("*.py"))
+    for dag_file in go_test_dag_files:
         copyfile(dag_file, tmp_dir / "dags" / dag_file.name)
+    _E2ETestState.lang_sdk_dag_files = ("go_examples.py", *(dag_file.name for dag_file in go_test_dag_files))
 
     # go_test_dags.py generates these Dag ids when it is parsed, and handlers_a registers handlers for them,
     # both from E2E_GO_DYNAMIC_DAG_IDS. They are the same in every run: a database kept from an earlier run
@@ -657,6 +679,9 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
         }
     )
     dag_processor_queues = {GO_SDK_QUEUE: GO_SDK_COORDINATOR, GO_TEST_QUEUE: GO_TEST_COORDINATOR}
+    _E2ETestState.lang_sdk_queues = tuple(dag_processor_queues)
+    # The one Dag file that fails to import, because its stub tasks do not match their task handlers.
+    _E2ETestState.expected_import_errors = ("go_task_handler_failures.py",)
     queue_to_coordinator = json.dumps({**dag_processor_queues, GO_UNBOUND_QUEUE: GO_TEST_COORDINATOR})
 
     dot_env_file.write_text(
@@ -750,26 +775,29 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     ts_bundles_dir = tmp_dir / "ts-bundles"
     ts_bundles_dir.mkdir()
     # Deliberately renamed: the coordinator runs the bundle a task is bound to, whatever its name.
-    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / TS_SDK_BUNDLE_FILE)
 
     # Both of the example bundle's Dags: one bundle.mjs provides for two dag_ids,
     # and the tests check that dispatch tells their same-named tasks apart.
-    for dag_file in ("typescript_example.py", "typescript_taskflow_example.py"):
+    ts_dag_files = ("typescript_example.py", "typescript_taskflow_example.py")
+    for dag_file in ts_dag_files:
         copyfile(TS_SDK_EXAMPLE_PATH / "dags" / dag_file, tmp_dir / "dags" / dag_file)
+    _E2ETestState.lang_sdk_dag_files = ts_dag_files
 
-    dag_bundle_config = _build_dag_bundle_config({"ts-task-handlers": "/opt/airflow/ts-bundles"})
+    dag_bundle_config = _build_dag_bundle_config({TS_SDK_TASK_HANDLER_BUNDLE: "/opt/airflow/ts-bundles"})
     coordinator_config = json.dumps(
         {
             "ts": {
                 "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
                 "kwargs": {
-                    "task_handler_bundle_name": "ts-task-handlers",
+                    "task_handler_bundle_name": TS_SDK_TASK_HANDLER_BUNDLE,
                     "node_executable": "/opt/nodejs/node",
                 },
             }
         }
     )
-    queue_to_coordinator = json.dumps({"typescript": "ts"})
+    queue_to_coordinator = json.dumps({TS_SDK_QUEUE: "ts"})
+    _E2ETestState.lang_sdk_queues = (TS_SDK_QUEUE,)
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
@@ -932,6 +960,31 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitC
             _print_logs(_E2ETestState.compose_instance)
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
             _E2ETestState.compose_instance.stop()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _wait_until_stub_tasks_are_bound():
+    """
+    Wait until the Dag processor has bound every stub task on a queue it routes, in the Lang-SDK modes.
+
+    The Dag files with an import error are left out of the binding check, and the files that have one must
+    be the expected ones. The stack is up before the Dag processor has parsed the Dag files with the
+    artifacts in place, and the Lang-SDK modes skip ``airflow dags reserialize``, which would write stub Dags
+    without bindings. A test that triggers a Dag at once would then fail its tasks one by one. Waiting here
+    turns a binding that never comes into one message, and a Dag file with an import error that is not on
+    the list into a failure.
+    """
+    if E2E_TEST_MODE not in LANG_SDK_E2E_MODES:
+        return
+    assert _E2ETestState.compose_instance is not None
+    wait_until_stub_tasks_are_bound(
+        AirflowClient(),
+        _E2ETestState.compose_instance,
+        queues=_E2ETestState.lang_sdk_queues,
+        dag_files=_E2ETestState.lang_sdk_dag_files,
+        expected_import_errors=_E2ETestState.expected_import_errors,
+        timeout=300,
+    )
 
 
 @pytest.fixture(scope="session")

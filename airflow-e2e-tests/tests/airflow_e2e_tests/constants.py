@@ -35,6 +35,8 @@ AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflo
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
 
 E2E_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "tests" / "airflow_e2e_tests" / "dags"
+# The Dag bundle of the Dags folder, which the stack serves the Dag files of the e2e tests from.
+DAGS_BUNDLE_NAME = "dags-folder"
 
 # The logs folder where the Airflow logs will be copied to and uploaded to github artifacts
 LOGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "logs"
@@ -71,6 +73,9 @@ JAVA_SDK_EXAMPLE_DAGS_PATH = JAVA_SDK_ROOT_PATH / "example" / "src" / "resources
 JAVA_SDK_EXAMPLE_LIBS_PATH = JAVA_SDK_ROOT_PATH / "example" / "build" / "bundle"
 JAVA_SDK_MAVEN_CACHE_PATH = AIRFLOW_ROOT_PATH / "files" / "m2"
 JAVA_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "java.yml"
+# The queue and the Dag bundle of the Java example's JARs. Each Java bundle has a coordinator of its own.
+JAVA_SDK_QUEUE = "java"
+JAVA_SDK_TASK_HANDLER_BUNDLE = "java-task-handlers"
 JAVA_DOCKERFILE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "Dockerfile.java"
 
 # Scala Spark example paths (a separate bundle with its own coordinator/queue).
@@ -78,6 +83,8 @@ SCALA_SPARK_EXAMPLE_DAGS_PATH = (
     JAVA_SDK_ROOT_PATH / "scala_spark_example" / "src" / "main" / "resources" / "dags"
 )
 SCALA_SPARK_EXAMPLE_LIBS_PATH = JAVA_SDK_ROOT_PATH / "scala_spark_example" / "build" / "bundle"
+SCALA_SPARK_QUEUE = "scala"
+SCALA_SPARK_TASK_HANDLER_BUNDLE = "scala-task-handlers"
 
 # Java test-fixture bundle paths (deliberately broken task classes for the
 # runner-behaviour E2E tests; a separate bundle with its own coordinator/queue
@@ -85,6 +92,8 @@ SCALA_SPARK_EXAMPLE_LIBS_PATH = JAVA_SDK_ROOT_PATH / "scala_spark_example" / "bu
 JAVA_TEST_BUNDLE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "java-test-bundle"
 JAVA_TEST_BUNDLE_DAGS_PATH = JAVA_TEST_BUNDLE_ROOT_PATH / "src" / "resources" / "dags"
 JAVA_TEST_BUNDLE_LIBS_PATH = JAVA_TEST_BUNDLE_ROOT_PATH / "build" / "bundle"
+JAVA_TEST_QUEUE = "java-test"
+JAVA_TEST_TASK_HANDLER_BUNDLE = "java-test-task-handlers"
 
 # Go SDK E2E test paths
 GO_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "go-sdk"
@@ -129,6 +138,10 @@ GO_DYNAMIC_DAG_IDS_ENV = "E2E_GO_DYNAMIC_DAG_IDS"
 TS_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "ts-sdk"
 TS_SDK_EXAMPLE_PATH = TS_SDK_ROOT_PATH / "example"
 TS_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "ts.yml"
+# The queue and the Dag bundle of the packed example bundle, and the name conftest deploys it under.
+TS_SDK_QUEUE = "typescript"
+TS_SDK_TASK_HANDLER_BUNDLE = "ts-task-handlers"
+TS_SDK_BUNDLE_FILE = "example.min.mjs"
 # Builds the bundle and provides the worker's node binary (ts.yml), so the
 # bundle runs on the runtime it was built for.
 NODE_IMAGE = os.environ.get("NODE_IMAGE", "node:22-slim")

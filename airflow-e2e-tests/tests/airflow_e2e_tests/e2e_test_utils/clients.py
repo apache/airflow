@@ -124,6 +124,37 @@ class AirflowClient:
             time.sleep(check_interval)
         raise TimeoutError(f"Dag {dag_id} was not registered within {timeout}s. Last error: {last_error}")
 
+    def _list_all(self, endpoint: str, collection_key: str, **params) -> list[dict]:
+        """Return the items of *collection_key* from every page of the list *endpoint*."""
+        page_size = 100
+        params = {
+            key: str(value).lower() if isinstance(value, bool) else value for key, value in params.items()
+        }
+        items: list[dict] = []
+        while True:
+            page = self._make_request(
+                method="GET", endpoint=endpoint, params={**params, "limit": page_size, "offset": len(items)}
+            )
+            items.extend(page[collection_key])
+            if len(page[collection_key]) < page_size or len(items) >= page["total_entries"]:
+                return items
+
+    def list_dags(self, **params) -> list[dict]:
+        """List the Dags that match *params*, the filters of ``GET /dags`` such as ``exclude_stale``."""
+        return self._list_all("dags", "dags", **params)
+
+    def get_dag_tasks(self, dag_id: str) -> list[dict]:
+        """List the tasks of a Dag, each with its ``queue``."""
+        return self._make_request(method="GET", endpoint=f"dags/{dag_id}/tasks")["tasks"]
+
+    def list_import_errors(self, **params) -> list[dict]:
+        """List the import errors that match *params*, each with its ``filename`` and ``stack_trace``."""
+        return self._list_all("importErrors", "import_errors", **params)
+
+    def reparse_dag_file(self, file_token: str) -> None:
+        """Ask the Dag processor to parse a Dag file next, named by the ``file_token`` of one of its Dags."""
+        self._make_request(method="PUT", endpoint=f"parseDagFile/{file_token}")
+
     def un_pause_dag(self, dag_id: str):
         self.wait_for_dag(dag_id)
         return self._make_request(
