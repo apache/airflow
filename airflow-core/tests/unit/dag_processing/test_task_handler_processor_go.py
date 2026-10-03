@@ -42,6 +42,7 @@ from unit.dag_processing.fake_task_handler_runtime import (
     LOCAL_BUNDLE,
     get_stub_task_ids,
     parse_dag_file,
+    require_toolchain,
     sort_bindings,
     task_handler_config,
 )
@@ -81,8 +82,7 @@ def _pack(bundle: Path, *flags: str) -> Path:
 
 @pytest.fixture(scope="module")
 def go_bundle(tmp_path_factory) -> Path:
-    if shutil.which("go") is None:
-        pytest.skip("needs a Go toolchain on PATH")
+    require_toolchain("needs a Go toolchain on PATH" if shutil.which("go") is None else None)
     return _pack(tmp_path_factory.mktemp("go-task-handlers") / "example_dags")
 
 
