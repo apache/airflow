@@ -1161,7 +1161,7 @@ class EksPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
 
-    def invoke_defer_method(self, last_log_time=None, context=None) -> None:
+    def invoke_defer_method(self, last_log_time=None, context=None) -> Any:
         """Override to use EksPodTrigger which regenerates kubeconfig with fresh credentials."""
         import datetime
 
@@ -1224,7 +1224,7 @@ class EksPodOperator(KubernetesPodOperator):
             container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED
         ):
             self.log.info("Skipping deferral as pod is already in a terminal state")
-            self.trigger_reentry(
+            return self.trigger_reentry(
                 context=context,
                 event={
                     "status": "success" if container_state == ContainerState.TERMINATED else "failed",
@@ -1234,8 +1234,7 @@ class EksPodOperator(KubernetesPodOperator):
                     **(self.trigger_kwargs or {}),
                 },
             )
-        else:
-            self.defer(trigger=trigger, method_name="trigger_reentry")
+        self.defer(trigger=trigger, method_name="trigger_reentry")
 
     def execute(self, context: Context):
         eks_hook = EksHook(
