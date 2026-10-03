@@ -145,7 +145,7 @@ def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str
     log = logging.getLogger(__name__)
 
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
-    with subprocess.Popen(
+    proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -153,7 +153,8 @@ def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str
         close_fds=False,
         cwd=cwd,
         env=env,
-    ) as proc:
+    )
+    try:
         log.info("Output:")
         if proc.stdout:
             with proc.stdout:
@@ -161,6 +162,15 @@ def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str
                     log.info("%s", line.decode().rstrip())
 
         exit_code = proc.wait()
+    except BaseException:
+        # e.g. AirflowTaskTimeout delivered via SIGALRM while blocked on the read/wait above.
+        # subprocess.Popen used as a context manager only closes pipes on exit and then calls
+        # proc.wait() again -- which blocks until the child exits on its own, silently absorbing
+        # the timeout for however long the child keeps running (indefinitely, if it's blocked on
+        # something like an open network connection). Kill it explicitly instead.
+        proc.kill()
+        proc.wait()
+        raise
     if exit_code != 0:
         raise subprocess.CalledProcessError(exit_code, cmd)
 

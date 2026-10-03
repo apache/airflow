@@ -17,16 +17,97 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import signal
+import subprocess
+import time
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 
 import pytest
 
-from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
+from airflow.providers.standard.utils.python_virtualenv import (
+    _execute_in_subprocess,
+    _generate_pip_conf,
+    _use_uv,
+    prepare_virtualenv,
+)
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import remove_task_decorator
+
+
+class TestExecuteInSubprocess:
+    """
+    Regression tests for a signal-based timeout (e.g. AirflowTaskTimeout via SIGALRM)
+    interrupting _execute_in_subprocess while the child is still running.
+
+    ``with subprocess.Popen(...) as proc`` only closes pipes on exit and calls
+    ``proc.wait()`` again -- it does not kill the child. If the child is blocked on
+    something long-running (e.g. an open network connection), that silently absorbs
+    the timeout: the exception isn't actually delivered to the caller until the child
+    exits on its own, however long that takes.
+    """
+
+    def test_signal_interrupt_kills_child_promptly(self):
+        class _Interrupted(Exception):
+            pass
+
+        def _handler(signum, frame):
+            raise _Interrupted
+
+        original_handler = signal.signal(signal.SIGALRM, _handler)
+        signal.setitimer(signal.ITIMER_REAL, 1)
+        start = time.monotonic()
+        try:
+            with pytest.raises(_Interrupted):
+                _execute_in_subprocess(["python3", "-c", "import time; time.sleep(30)"])
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, original_handler)
+
+        # The exception must propagate promptly (bounded by the 1s alarm), not after
+        # waiting out the child's full 30s runtime.
+        assert time.monotonic() - start < 10
+
+    def test_signal_interrupt_does_not_orphan_child(self):
+        class _Interrupted(Exception):
+            pass
+
+        def _handler(signum, frame):
+            raise _Interrupted
+
+        pids: list[int] = []
+        real_popen = subprocess.Popen
+
+        def _spy_popen(*args, **kwargs):
+            proc = real_popen(*args, **kwargs)
+            pids.append(proc.pid)
+            return proc
+
+        original_handler = signal.signal(signal.SIGALRM, _handler)
+        signal.setitimer(signal.ITIMER_REAL, 1)
+        try:
+            with mock.patch("subprocess.Popen", side_effect=_spy_popen):
+                with pytest.raises(_Interrupted):
+                    _execute_in_subprocess(["python3", "-c", "import time; time.sleep(30)"])
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, original_handler)
+
+        # Give the kill a moment to take effect, then confirm the child is gone.
+        time.sleep(0.5)
+        with pytest.raises(ProcessLookupError):
+            os.kill(pids[0], 0)
+
+    def test_normal_execution_still_succeeds(self):
+        # Baseline: unaffected by the exception-handling change on the happy path.
+        _execute_in_subprocess(["python3", "-c", "print('hello')"])
+
+    def test_nonzero_exit_still_raises_called_process_error(self):
+        with pytest.raises(subprocess.CalledProcessError):
+            _execute_in_subprocess(["python3", "-c", "import sys; sys.exit(3)"])
 
 
 class TestPrepareVirtualenv:
