@@ -19,6 +19,8 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
+from aiobotocore.session import get_session
+from aiobotocore.stub import AioStubber
 
 from tests_common.test_utils.common_msg_queue import (
     collect_queue_param_deprecation_warning,
@@ -43,6 +45,49 @@ TEST_BOTOCORE_CONFIG = {"region_name": "us-east-1"}
 
 
 class TestSqsTriggers:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failed_ids", [["two"], ["one", "two"]])
+    async def test_poke_reports_batch_delete_failures_without_dropping_messages(self, failed_ids, caplog):
+        self.sqs_trigger.delete_message_on_reception = True
+        self.sqs_trigger.max_messages = 2
+        self.sqs_trigger.sqs_queue = "https://sqs.eu-central-1.amazonaws.com/123456789012/queue"
+        messages = [
+            {"MessageId": name, "ReceiptHandle": f"handle-{name}", "Body": "test"} for name in ["one", "two"]
+        ]
+        failed_entries = [{"Id": name, "Code": "InternalError", "SenderFault": False} for name in failed_ids]
+        async with get_session().create_client("sqs", region_name=TEST_REGION_NAME) as client:
+            with AioStubber(client) as stubber:
+                stubber.add_response(
+                    "receive_message",
+                    {"Messages": messages},
+                    {
+                        "QueueUrl": self.sqs_trigger.sqs_queue,
+                        "MaxNumberOfMessages": 2,
+                        "WaitTimeSeconds": TEST_WAIT_TIME_SECONDS,
+                        "VisibilityTimeout": TEST_VISIBILITY_TIMEOUT,
+                    },
+                )
+                stubber.add_response(
+                    "delete_message_batch",
+                    {
+                        "Successful": [{"Id": name} for name in ["one", "two"] if name not in failed_ids],
+                        "Failed": failed_entries,
+                    },
+                    {
+                        "QueueUrl": self.sqs_trigger.sqs_queue,
+                        "Entries": [
+                            {"Id": name, "ReceiptHandle": f"handle-{name}"} for name in ["one", "two"]
+                        ],
+                    },
+                )
+                assert await self.sqs_trigger.poke(client=client) == messages
+                stubber.assert_no_pending_responses()
+        assert {
+            "event": "SQS batch deletion failed",
+            "failed_entries": failed_entries,
+            "log_level": "warning",
+        } in caplog
+
     @pytest.fixture(autouse=True)
     def _setup_test_cases(self, cleanup_providers_manager):
         from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
