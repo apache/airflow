@@ -499,6 +499,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
+        use_airflow_context: bool = False,
         **kwargs,
     ):
         if (
@@ -539,6 +540,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         )
         self.env_vars = env_vars
         self.inherit_env = inherit_env
+        if use_airflow_context and not AIRFLOW_V_3_0_PLUS:
+            raise ValueError("use_airflow_context requires Airflow 3.0 or later.")
+        self.use_airflow_context = use_airflow_context
 
     @abstractmethod
     def _iter_serializable_context_keys(self):
@@ -548,6 +552,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         serializable_keys = set(self._iter_serializable_context_keys())
         new = {k: v for k, v in context.items() if k in serializable_keys}
         serializable_context = cast("Context", new)
+        self._airflow_context = serializable_context
         # Store bundle_path for subprocess execution
         self._bundle_path = self._get_bundle_path_from_context(context)
         return super().execute(context=serializable_context)
@@ -639,10 +644,15 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             string_args_path = tmp_dir / "string_args.txt"
             script_path = tmp_dir / "script.py"
             termination_log_path = tmp_dir / "termination.log"
-            airflow_context_path = tmp_dir / "airflow_context.json"
+            airflow_context_path = tmp_dir / "airflow_context.bin"
 
             self._write_args(input_path)
             self._write_string_args(string_args_path)
+            if self.use_airflow_context:
+                from airflow.serialization.serialized_objects import BaseSerialization
+
+                serialized_context = BaseSerialization.serialize(self._airflow_context)
+                airflow_context_path.write_bytes(self.pickling_library.dumps(serialized_context))
 
             jinja_context = {
                 "op_args": self.op_args,
@@ -651,6 +661,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 "pickling_library": self.serializer,
                 "python_callable": self.python_callable.__name__,
                 "python_callable_source": self.get_python_source(),
+                "use_airflow_context": self.use_airflow_context,
                 **self._get_additional_jinja_context(),
             }
 
@@ -827,6 +838,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         environment. If set to ``True``, the virtual environment will inherit the environment variables
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
+    :param use_airflow_context: Whether to make the current Airflow context available to
+        ``get_current_context()`` in the virtual environment. Airflow must be installed in the
+        virtual environment.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -857,6 +871,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         venv_cache_path: None | os.PathLike[str] = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
+        use_airflow_context: bool = False,
         **kwargs,
     ):
         if (
@@ -872,6 +887,11 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         if python_version is not None and not isinstance(python_version, str):
             raise AirflowException(
                 "Passing non-string types (e.g. int or float) as python_version not supported"
+            )
+        if use_airflow_context and not (expect_airflow or system_site_packages):
+            raise ValueError(
+                "use_airflow_context requires Airflow in the virtual environment; set "
+                "expect_airflow or system_site_packages to True."
             )
         if not requirements:
             self.requirements: list[str] = []
@@ -907,6 +927,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
             inherit_env=inherit_env,
+            use_airflow_context=use_airflow_context,
             **kwargs,
         )
 
@@ -1220,6 +1241,9 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         environment. If set to ``True``, the virtual environment will inherit the environment variables
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
+    :param use_airflow_context: Whether to make the current Airflow context available to
+        ``get_current_context()`` in the external Python environment. Airflow must be installed in the
+        external environment.
     """
 
     template_fields: Sequence[str] = tuple({"python"}.union(PythonOperator.template_fields))
@@ -1240,10 +1264,13 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
+        use_airflow_context: bool = False,
         **kwargs,
     ):
         if not python:
             raise ValueError("Python Path must be defined in ExternalPythonOperator")
+        if use_airflow_context and not expect_airflow:
+            raise ValueError("use_airflow_context requires expect_airflow to be True.")
         self.python = python
         self.expect_pendulum = expect_pendulum
         super().__init__(
@@ -1258,6 +1285,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
             inherit_env=inherit_env,
+            use_airflow_context=use_airflow_context,
             **kwargs,
         )
 
