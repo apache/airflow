@@ -991,12 +991,9 @@ class TestDagRun:
             run_type=DagRunType.SCHEDULED,
         )
 
-        prev_ti = TI(task, run_id=dag_run_1.run_id, dag_version_id=dag_run_1.created_dag_version_id)
-        prev_ti.refresh_from_db(session=session)
+        prev_ti = dag_run_1.get_task_instance(task.task_id, session=session)
         prev_ti.set_state(prev_ti_state, session=session)
         session.flush()
-        ti = TI(task, run_id=dag_run_2.run_id, dag_version_id=dag_run_1.created_dag_version_id)
-        ti.refresh_from_db(session=session)
 
         decision = dag_run_2.task_instance_scheduling_decisions(session=session)
         schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]
