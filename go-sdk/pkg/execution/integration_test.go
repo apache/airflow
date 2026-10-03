@@ -852,9 +852,11 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 }
 
 // TestServeSkipsDownstreamTasksEndToEnd drives a task that skips downstream tasks through the
-// real Serve. Before the terminal SucceedTask frame, the supervisor gets the return value XCom,
-// the skipmixin_key XCom and, if there is a task to skip, the SkipDownstreamTasks request, in that
-// order.
+// real Serve. Before the terminal SucceedTask frame, the supervisor gets an empty skipmixin_key
+// XCom and the return value XCom. If there is a task to skip, the skipmixin_key XCom with its
+// task_id and the SkipDownstreamTasks request follow, in that order. The empty list replaces any
+// list that an earlier try of the task left in the XCom. It has to arrive as a list, because
+// NotPreviouslySkippedDep raises a TypeError on null.
 func TestServeSkipsDownstreamTasksEndToEnd(t *testing.T) {
 	xcom := func(key string, value any) map[string]any {
 		return map[string]any{
@@ -877,6 +879,7 @@ func TestServeSkipsDownstreamTasksEndToEnd(t *testing.T) {
 			name:   "false skips load",
 			result: false,
 			wantRequests: []map[string]any{
+				xcom("skipmixin_key", map[string]any{"skipped": []any{}}),
 				xcom("return_value", false),
 				xcom("skipmixin_key", map[string]any{"skipped": []any{"load"}}),
 				{"type": "SkipDownstreamTasks", "tasks": []any{"load"}},
@@ -884,14 +887,11 @@ func TestServeSkipsDownstreamTasksEndToEnd(t *testing.T) {
 			wantSkipLogs: []any{[]any{"load"}},
 		},
 		{
-			// The empty list replaces a list that an earlier try of the task left in the XCom.
-			// It has to arrive as a list, because NotPreviouslySkippedDep raises a TypeError on
-			// null.
 			name:   "true skips nothing",
 			result: true,
 			wantRequests: []map[string]any{
-				xcom("return_value", true),
 				xcom("skipmixin_key", map[string]any{"skipped": []any{}}),
+				xcom("return_value", true),
 			},
 		},
 	}

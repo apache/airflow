@@ -195,10 +195,6 @@ func (g *IfRef) wrapCondition(fn any) (bundle.Task, error) {
 // findSkipped returns the task_id of the task on the side of g that result does not take. It
 // returns nil when that side has no task.
 func (g *IfRef) findSkipped(result any) []string {
-	d := g.task.dag
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
 	notTaken := g.thenTask
 	if result.(bool) {
 		notTaken = g.elseTask

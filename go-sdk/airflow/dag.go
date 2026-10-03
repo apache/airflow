@@ -224,7 +224,7 @@ func (d *DagRef) addTask(method string, fn any, opts []TaskOption, ifRef *IfRef)
 		panic(fmt.Sprintf("%s: task %q of Dag %q: %v", method, taskID, d.dagID, triggerErr))
 	}
 	if err := checkTaskSpec(cfg.spec); err != nil {
-		panic(fmt.Sprintf("airflow.DagRef.Task: task %q of Dag %q: %v", taskID, d.dagID, err))
+		panic(fmt.Sprintf("%s: task %q of Dag %q: %v", method, taskID, d.dagID, err))
 	}
 	if _, exists := d.tasksByID[taskID]; exists {
 		panic(fmt.Sprintf(

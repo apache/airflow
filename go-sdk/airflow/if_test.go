@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"testing"
@@ -169,6 +170,11 @@ func TestIfPanicsUnderItsOwnName(t *testing.T) {
 			name: "no name for the task_id",
 			add:  func(dag *DagRef) { dag.If(literal) },
 			want: "has no name to use as the task_id",
+		},
+		{
+			name: "unknown trigger rule",
+			add:  func(dag *DagRef) { dag.If(isReady, TaskSpec{TriggerRule: "bogus"}) },
+			want: `airflow.TaskSpec.TriggerRule is "bogus", which is not a trigger rule`,
 		},
 		{
 			name: "duplicate task_id",
@@ -454,13 +460,16 @@ func (c *conditionClient) skip(_ context.Context, taskIDs []string) error {
 // runCondition runs the task of gate through its Execute method, as the runtime runs a task. It
 // passes one XCom binding per input, named after the arg tag of rowSet, so that a struct
 // parameter shows whether it takes the whole result. results maps the task_id of each upstream
-// task to its result.
-func runCondition(gate *IfRef, results map[string]any) (*conditionClient, error) {
+// task to its result. earlier maps each key to an XCom that an earlier try of the task left.
+func runCondition(gate *IfRef, results, earlier map[string]any) (*conditionClient, error) {
 	args := make([]binding.Arg, len(gate.task.inputs))
 	for i, upstream := range gate.task.inputs {
 		args[i] = binding.XComArg{Kind: "xcom", Name: "rows", TaskID: upstream.taskID}
 	}
-	client := &conditionClient{results: results, xcoms: map[string]any{}}
+	client := &conditionClient{results: results, xcoms: maps.Clone(earlier)}
+	if client.xcoms == nil {
+		client.xcoms = map[string]any{}
+	}
 	ti := sdk.TaskInstance{DagID: "etl", RunID: "run1", TaskID: gate.task.taskID}
 	ctx := context.WithValue(
 		context.Background(),
@@ -527,7 +536,7 @@ func TestConditionSkipsTheSideThatItDoesNotTake(t *testing.T) {
 
 			client, err := runCondition(gate, map[string]any{
 				"readRows": map[string]any{"rows": tt.rows},
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.want, client.xcoms["return_value"])
@@ -552,13 +561,19 @@ func TestConditionThatFailsSkipsNothing(t *testing.T) {
 	).Then(dag.Task(load)).Else(dag.Task(reportEmpty))
 	Bundle().Register(dag)
 
-	client, err := runCondition(gate, nil)
+	// An earlier try of the condition skipped load, and this try fails before it decides which
+	// side to skip.
+	client, err := runCondition(gate, nil, map[string]any{
+		"skipmixin_key": map[string][]string{"skipped": {"load"}},
+	})
 
 	require.EqualError(t, err, "cannot reach the table")
 	assert.Empty(t, client.skipped)
-	if recorded, ok := client.xcoms["skipmixin_key"]; ok {
-		assert.Equal(t, map[string][]string{"skipped": {}}, recorded, "a failed task skips nothing")
-	}
+	assert.Equal(t,
+		map[string][]string{"skipped": {}},
+		client.xcoms["skipmixin_key"],
+		"the list of the earlier try must not be left behind",
+	)
 }
 
 // Else and Register both take the lock of the Dag, so each Else call either names its task before
