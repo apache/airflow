@@ -315,6 +315,57 @@ def test_handle_event_submit_fails_task_with_unusable_next_kwargs(
     assert isinstance(task_instance.next_kwargs["traceback"], list)
 
 
+def test_handle_event_submit_keeps_stored_values_encoded(session, create_task_instance, monkeypatch):
+    """
+    Stored values are carried over as encoded, never reconstructed: only the worker resuming the
+    task needs them as objects, so submitting the event must not run their constructors.
+    """
+    from airflow.sdk import Asset
+    from airflow.sdk.serde import serialize
+
+    stored = {"asset": serialize(Asset("resume-data")), "count": 1}
+
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = stored
+    session.flush()
+
+    constructed = []
+    original_init = Asset.__init__
+
+    def spy(self, *args, **kwargs):
+        constructed.append(True)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(Asset, "__init__", spy)
+
+    handle_event_submit(TriggerEvent("payload"), task_instance=task_instance, session=session)
+
+    assert constructed == []
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_method == "execute_complete"
+    assert task_instance.next_kwargs == {**stored, "event": "payload"}
+
+
+def test_handle_event_submit_keeps_legacy_encoding(session, create_task_instance):
+    """Rows still in the legacy ``{"__type": "dict", "__var": ...}`` form get the event in that form."""
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = BaseSerialization.serialize({"count": 1})
+    session.flush()
+
+    handle_event_submit(TriggerEvent("payload"), task_instance=task_instance, session=session)
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_kwargs == BaseSerialization.serialize({"count": 1, "event": "payload"})
+
+
 def test_handle_event_submit_fails_task_when_the_event_payload_cannot_be_serialized(
     session, create_task_instance
 ):
