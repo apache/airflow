@@ -30,6 +30,7 @@ Prerequisites are provisioned by ``breeze k8s setup-lang-sdk-test``.
 from __future__ import annotations
 
 import os
+import time
 
 import pytest
 
@@ -38,6 +39,8 @@ from kubernetes_tests.test_base import EXECUTOR, BaseK8STest
 _RUN_LANG_SDK = os.environ.get("RUN_LANG_SDK_K8S_TESTS", "").lower() in ("true", "1")
 
 DAG_ID = "lang_sdk_combined"
+# The Dag bundle the stub Dags are uploaded to (kubernetes-tests/lang_sdk/config/values.yaml).
+STUB_DAG_BUNDLE = "lang-sdk-dags"
 TASK_IDS = [
     "python_task_1",
     "go_extract",
@@ -49,6 +52,9 @@ TASK_IDS = [
 # Each task is a fresh pod (KubernetesExecutor) and the lang tasks also pull an
 # artifact + start a coordinator subprocess, so allow generous headroom.
 _TIMEOUT = 600
+# How long a test waits for the Dag processor to import its Dag file. The execution timeout of each test
+# adds it, so that the wait reports the import errors before pytest times the test out.
+_IMPORT_TIMEOUT = 600
 
 
 @pytest.mark.skipif(
@@ -62,9 +68,26 @@ class TestLangSdkCoordinatorExecutor(BaseK8STest):
         # 409 == already exists from a previous run; both are acceptable.
         assert resp.status_code in (200, 201, 409), f"Could not create variable {key}: {resp.text}"
 
-    @pytest.mark.execution_timeout(900)
+    def _wait_until_dag_imports(self, dag_id: str, timeout: int = _IMPORT_TIMEOUT) -> None:
+        """Wait until the Dag processor has imported the file of *dag_id*, or fail with its import errors."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            response = self.session.get(
+                f"http://{self.host}/dags",
+                params={"bundle_name": STUB_DAG_BUNDLE, "dag_id_pattern": dag_id, "exclude_stale": "false"},
+            )
+            response.raise_for_status()
+            dags = response.json()["dags"]
+            if any(d["dag_id"] == dag_id and not d["has_import_errors"] and not d["is_stale"] for d in dags):
+                return
+            time.sleep(10)
+        errors = self.session.get(f"http://{self.host}/importErrors", params={"bundle_name": STUB_DAG_BUNDLE})
+        pytest.fail(f"{dag_id} did not import on the Dag processor: {errors.json()['import_errors']}")
+
+    @pytest.mark.execution_timeout(_IMPORT_TIMEOUT + 900)
     def test_lang_sdk_combined_dag_succeeds(self):
         self._ensure_variable("my_variable", "value_from_test")
+        self._wait_until_dag_imports(DAG_ID)
 
         dag_run_id, logical_date = self.start_job_in_kubernetes(DAG_ID, self.host)
         print(f"Triggered {DAG_ID} run {dag_run_id} (logical_date={logical_date})")
