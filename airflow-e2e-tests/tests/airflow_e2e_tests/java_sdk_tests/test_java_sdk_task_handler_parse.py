@@ -42,6 +42,7 @@ from airflow_e2e_tests.constants import (
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 from airflow_e2e_tests.e2e_test_utils.lang_sdk import (
     assert_later_parses_probe_nothing,
+    get_import_errors,
     get_routed_stub_tasks,
     get_task_handler_artifacts,
     get_task_handler_bindings,
@@ -97,3 +98,8 @@ def test_a_later_parse_probes_nothing(client: AirflowClient, compose_instance, a
             "java_test_dags.py": "java_variable_write",
         },
     )
+
+
+def test_no_dag_file_has_an_import_error(client: AirflowClient):
+    """Every Dag file of the Dags folder imports: each stub task has exactly one handler that fits it."""
+    assert get_import_errors(client) == {}

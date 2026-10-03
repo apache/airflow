@@ -101,6 +101,14 @@ def get_task_handler_artifacts(compose: DockerCompose) -> dict[ArtifactRef, str]
     return {ArtifactRef(bundle_name, rel_path): probed_at for bundle_name, rel_path, probed_at in rows}
 
 
+def get_import_errors(client: AirflowClient) -> dict[str, str]:
+    """Return the text of the import error of each ``dags-folder`` file that has one, by file."""
+    return {
+        error["filename"]: error["stack_trace"]
+        for error in client.list_import_errors(bundle_name=DAGS_BUNDLE_NAME)
+    }
+
+
 def get_routed_stub_tasks(client: AirflowClient, queues: Collection[str]) -> dict[tuple[str, str], str]:
     """
     Return the queue of each task on *queues* in a non-stale ``dags-folder`` Dag without import errors.
@@ -146,10 +154,7 @@ def wait_until_stub_tasks_are_bound(
     while True:
         bindings = get_task_handler_bindings(compose)
         unbound = sorted(task for task in get_routed_stub_tasks(client, queues) if task not in bindings)
-        import_errors = {
-            error["filename"]: error["stack_trace"]
-            for error in client.list_import_errors(bundle_name=DAGS_BUNDLE_NAME)
-        }
+        import_errors = get_import_errors(client)
         missing = sorted(set(expected_import_errors) - set(import_errors))
         unexpected = {
             name: text for name, text in import_errors.items() if name not in expected_import_errors

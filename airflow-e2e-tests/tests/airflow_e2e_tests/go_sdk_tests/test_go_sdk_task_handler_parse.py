@@ -32,6 +32,7 @@ from __future__ import annotations
 import pytest
 
 from airflow_e2e_tests.constants import (
+    DAGS_BUNDLE_NAME,
     GO_SDK_BUNDLE_NAME,
     GO_SDK_QUEUE,
     GO_SDK_TASK_HANDLER_BUNDLE,
@@ -42,14 +43,30 @@ from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 from airflow_e2e_tests.e2e_test_utils.lang_sdk import (
     ArtifactRef,
     assert_later_parses_probe_nothing,
+    get_import_errors,
     get_routed_stub_tasks,
     get_task_handler_artifacts,
     get_task_handler_bindings,
+    read_parse_attempts,
 )
 
 _EXAMPLE_ARTIFACT = ArtifactRef(GO_SDK_TASK_HANDLER_BUNDLE, GO_SDK_BUNDLE_NAME)
 _HANDLERS_A = ArtifactRef(GO_TEST_TASK_HANDLER_BUNDLE, "handlers_a")
 _HANDLERS_B = ArtifactRef(GO_TEST_TASK_HANDLER_BUNDLE, "handlers_b")
+
+_FAILURE_FILE = "go_task_handler_failures.py"
+# The import error of the Dag file whose stub tasks do not match their task handlers, one line for each.
+_FAILURE_IMPORT_ERROR = "\n".join(
+    [
+        f"Stub tasks in {_FAILURE_FILE} do not match their task handlers:",
+        f"- Dag 'go_task_handler_failures', task 'claimed_twice': registered by 'handlers_a' and 'handlers_b' "
+        f"in Dag bundle '{GO_TEST_TASK_HANDLER_BUNDLE}'",
+        f"- Dag 'go_task_handler_failures', task 'not_registered': no artifact in Dag bundle "
+        f"'{GO_TEST_TASK_HANDLER_BUNDLE}' registers it",
+        f"- Dag 'go_task_handler_failures', task 'takes_two_numbers' ('handlers_a' in Dag bundle "
+        f"'{GO_TEST_TASK_HANDLER_BUNDLE}'): passes 3 arguments, the task handler takes 2",
+    ]
+)
 
 
 @pytest.fixture(scope="module")
@@ -120,3 +137,60 @@ def test_a_later_parse_probes_nothing(client: AirflowClient, compose_instance, a
             "go_task_handler_failures.py": "go_task_handler_failures",
         },
     )
+
+
+def test_problems_are_one_import_error_of_their_dag_file(client: AirflowClient, compose_instance):
+    """
+    A missing handler, a positional count mismatch and a handler two artifacts claim are one import error.
+
+    The error is the one of the file, and lists each problem on a line of its own. Its Dag is serialized but
+    marked as having import errors, and none of its stub tasks is bound.
+    """
+    assert get_import_errors(client).get(_FAILURE_FILE) == _FAILURE_IMPORT_ERROR
+
+    failing_dags = client.list_dags(bundle_name=DAGS_BUNDLE_NAME, exclude_stale=False, has_import_errors=True)
+    assert [dag["dag_id"] for dag in failing_dags] == ["go_task_handler_failures"]
+    assert not {dag_id for dag_id, _ in get_task_handler_bindings(compose_instance)} & {
+        "go_task_handler_failures"
+    }
+
+
+def test_named_mismatches_are_warnings_in_the_parse_log(airflow_logs_path):
+    """
+    A Dag call that passes an argument the handler does not declare, and the other way round, only warn.
+
+    ``taskflow_binding_dag`` binds its arguments by name, so the Dag file imports and the tasks are bound, and
+    the Dag processor logs each mismatch when it parses ``go_examples.py``.
+    """
+    records = [
+        record for attempt in read_parse_attempts(airflow_logs_path, "go_examples.py") for record in attempt
+    ]
+    expected = [
+        {
+            "event": "Dag's call passed argument(s) the task handler does not declare",
+            "task_id": "via_struct_more_args",
+            "passed_not_declared": ["unused_label"],
+        },
+        {
+            "event": "Task handler declares argument(s) the Dag's call did not pass",
+            "task_id": "via_struct_fewer_args",
+            "declared_not_passed": ["not_in_dag"],
+        },
+    ]
+    for warning in expected:
+        context = {
+            **warning,
+            "level": "warning",
+            "dag_id": "taskflow_binding_dag",
+            "artifact_bundle_name": GO_SDK_TASK_HANDLER_BUNDLE,
+            "artifact_rel_path": GO_SDK_BUNDLE_NAME,
+        }
+        assert any(context.items() <= record.items() for record in records), (
+            f"No parse of go_examples.py logged {context}. Records of its parses: "
+            f"{[record for record in records if record.get('level') == 'warning']}"
+        )
+
+
+def test_only_the_failing_dag_file_has_an_import_error(client: AirflowClient):
+    """No other Dag file of the Dags folder fails to import, so no fixture hides behind the expected error."""
+    assert set(get_import_errors(client)) == {_FAILURE_FILE}
