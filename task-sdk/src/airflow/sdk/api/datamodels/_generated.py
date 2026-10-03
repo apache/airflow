@@ -233,6 +233,16 @@ class IntermediateTIState(str, Enum):
     AWAITING_INPUT = "awaiting_input"
 
 
+class MetricKind(str, Enum):
+    """
+    Type of stats operation of a forwarded metric.
+    """
+
+    COUNTER = "counter"
+    GAUGE = "gauge"
+    TIMING = "timing"
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -684,6 +694,35 @@ class ConnectionTestResultBody(BaseModel):
     )
     state: ConnectionTestState
     result_message: Annotated[ResultMessage | None, Field(title="Result Message")] = None
+
+
+class ForwardMetric(BaseModel):
+    """
+    One metric aggregated by the Task SDK.
+
+    Forwarded to a long-lived process like the API server and exported by its stats backend.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: MetricKind
+    name: Annotated[str, Field(title="Name")]
+    tags: Annotated[dict[str, str] | None, Field(title="Tags")] = None
+    value: Annotated[int | float | None, Field(title="Value")] = None
+    delta: Annotated[bool | None, Field(title="Delta")] = False
+    values: Annotated[list[float] | None, Field(title="Values")] = None
+
+
+class ForwardMetricsBody(BaseModel):
+    """
+    Metrics the Task SDK accumulated since its previous batch.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    metrics: Annotated[list[ForwardMetric], Field(title="Metrics")]
 
 
 class HITLDetailRequest(BaseModel):

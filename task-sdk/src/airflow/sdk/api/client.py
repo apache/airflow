@@ -59,6 +59,8 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunNoteUpdatePayload,
     DagRunStateResponse,
     DagRunType,
+    ForwardMetric,
+    ForwardMetricsBody,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -1037,6 +1039,26 @@ class DagsOperations:
         return DagResponse.model_validate_json(resp.read())
 
 
+class MetricsOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def forward(self, metrics: list[ForwardMetric]) -> OKResponse:
+        """Forward a batch of metrics to the API server."""
+        body = ForwardMetricsBody(metrics=metrics)
+        try:
+            self.client.post("metrics", content=body.model_dump_json())
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                # If the API server's previous version doesn't support the endpoint, there is nowhere to send them.
+                log.warning("API server does not accept forwarded metrics; dropping them", count=len(metrics))
+                return OKResponse(ok=False)
+            raise
+        return OKResponse(ok=True)
+
+
 class HITLOperations:
     """
     Operations related to Human in the loop. Require Airflow 3.1+.
@@ -1368,6 +1390,12 @@ class Client(httpx.Client):
     def dags(self) -> DagsOperations:
         """Operations related to DAGs."""
         return DagsOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def metrics(self) -> MetricsOperations:
+        """Operations related to metrics forwarded from the Task SDK."""
+        return MetricsOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

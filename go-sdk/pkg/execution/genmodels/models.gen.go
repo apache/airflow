@@ -809,6 +809,39 @@ const ErrorTypeXCOMNOTFOUND ErrorType = "XCOM_NOT_FOUND"
 
 type Extra map[string]JsonValue
 
+// One metric aggregated by the Task SDK.
+//
+// Forwarded to a long-lived process like the API server and exported by its stats
+// backend.
+type ForwardMetric struct {
+	// Delta corresponds to the JSON schema field "delta".
+	Delta interface{} `msgpack:"delta,omitempty"`
+
+	// Kind corresponds to the JSON schema field "kind".
+	Kind MetricKind `msgpack:"kind"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name string `msgpack:"name"`
+
+	// Tags corresponds to the JSON schema field "tags".
+	Tags *Tags `msgpack:"tags,omitempty"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value,omitempty"`
+
+	// Values corresponds to the JSON schema field "values".
+	Values *Values `msgpack:"values,omitempty"`
+}
+
+// Metrics accumulated in the Task SDK since its previous batch.
+type ForwardMetrics struct {
+	// Metrics corresponds to the JSON schema field "metrics".
+	Metrics []ForwardMetric `msgpack:"metrics"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 type GetAssetByName struct {
 	// Name corresponds to the JSON schema field "name".
 	Name string `msgpack:"name"`
@@ -1318,6 +1351,12 @@ type MaskSecret struct {
 	Value JsonValue `msgpack:"value"`
 }
 
+type MetricKind string
+
+const MetricKindCounter MetricKind = "counter"
+const MetricKindGauge MetricKind = "gauge"
+const MetricKindTiming MetricKind = "timing"
+
 type NextKwargs map[string]interface{}
 
 type OKResponse struct {
@@ -1667,6 +1706,8 @@ type TIRunContext struct {
 	XcomKeysToClear []string `msgpack:"xcom_keys_to_clear,omitempty"`
 }
 
+type Tags map[string]string
+
 type TaskArgBinding interface{}
 
 type TaskBreadcrumbsResult struct {
@@ -1853,6 +1894,21 @@ type TriggerDagRun struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
+
+type Warnings []interface{}
+
+type VersionData map[string]interface{}
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value"`
+}
+
+type Values []float64
 
 type TriggerKwargs map[string]interface{}
 

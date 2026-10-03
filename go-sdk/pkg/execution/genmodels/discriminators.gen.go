@@ -49,6 +49,7 @@ const (
 	TypeDeleteXCom                  = "DeleteXCom"
 	TypeEmailRequest                = "EmailRequest"
 	TypeErrorResponse               = "ErrorResponse"
+	TypeForwardMetrics              = "ForwardMetrics"
 	TypeGetAssetByName              = "GetAssetByName"
 	TypeGetAssetByURI               = "GetAssetByUri"
 	TypeGetAssetEventByAsset        = "GetAssetEventByAsset"
@@ -196,6 +197,9 @@ func EnsureType(m any) any {
 		return b
 	case ErrorResponse:
 		b.Type = TypeErrorResponse
+		return b
+	case ForwardMetrics:
+		b.Type = TypeForwardMetrics
 		return b
 	case GetAssetByName:
 		b.Type = TypeGetAssetByName

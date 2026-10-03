@@ -64,3 +64,12 @@ class AddDagDefinitionsToDagFileParsingResult(VersionChange):
         schema(DagFileParsingResult).field("parsed_definitions").didnt_exist,
         schema(DagFileParsingResult).field("dag_source_codes").didnt_exist,
     )
+
+
+class AddForwardMetricsMessage(VersionChange):
+    """Add the ``ForwardMetrics`` message the Task SDK sends its batched metrics in."""
+
+    description = __doc__
+
+    # A message that did not exist in the previous version has no earlier shape to migrate to.
+    instructions_to_migrate_to_previous_version = ()
