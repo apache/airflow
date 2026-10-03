@@ -160,15 +160,3 @@ def find_claiming_importer(
     file = Path(path)
     importer = registry.get_importer(file)
     return importer if isinstance(importer, CoordinatorDagImporter) and importer.can_handle(file) else None
-
-
-def find_claiming_coordinator(
-    path: str | os.PathLike[str], bundle_name: str | None
-) -> SubprocessCoordinator | None:
-    """
-    Return the coordinator whose runtime parses *path*, or ``None`` when a Python Dag importer parses it.
-
-    :raises InvalidCoordinatorError: when the file's importer cannot find its coordinator.
-    """
-    importer = find_claiming_importer(path, bundle_name)
-    return importer.get_parsing_coordinator() if importer is not None else None

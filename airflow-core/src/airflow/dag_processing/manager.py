@@ -55,7 +55,7 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-from airflow.dag_processing.importer_routing import get_claiming_coordinator
+from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
@@ -810,7 +810,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _add_callback_to_queue(self, request: CallbackRequest) -> None:
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
-        if get_claiming_coordinator(request.filepath, request.bundle_name) is not None:
+        if get_claiming_importer(request.filepath, request.bundle_name) is not None:
             self._log_dropped_lang_sdk_callback(request)
             return
         bundle = self.prepare_callback_bundle(request)
@@ -1491,7 +1491,7 @@ class DagFileProcessorManager(LoggingMixin):
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
         subprocess_logs_to_stdout = conf.get("logging", "dag_processor_log_target") == "stdout"
 
-        if get_claiming_coordinator(dag_file.absolute_path, dag_file.bundle_name) is not None:
+        if get_claiming_importer(dag_file.absolute_path, dag_file.bundle_name) is not None:
             return LangSDKDagFileProcessorProcess.start(
                 id=id,
                 path=dag_file.absolute_path,
