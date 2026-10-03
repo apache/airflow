@@ -60,6 +60,8 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
+from airflow.sdk.api.datamodels._generated import TIRunContext
+from airflow.sdk.execution_time.comms import _ResponseFrame
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
@@ -169,6 +171,33 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 
 
 class TestTIRunState:
+    @pytest.mark.parametrize(
+        "conf_value",
+        [-(2**63), 2**64 - 1, -(2**63) - 1, 2**64, str(2**64)],
+        ids=["min-int64", "max-uint64", "below-int64", "above-uint64", "large-number-string"],
+    )
+    def test_run_conf_can_be_sent_to_task_runner(self, client, session, create_task_instance, conf_value):
+        ti = create_task_instance(task_id="large_integer_conf", state=State.QUEUED)
+        ti.dag_run.conf = {"large_integer": conf_value}
+        session.commit()
+        session.expire_all()
+        assert ti.dag_run.conf == {"large_integer": conf_value}
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-worker",
+                "unixname": "airflow",
+                "pid": 100,
+                "start_date": "2024-10-31T12:00:00Z",
+            },
+        )
+        assert response.status_code == 200, response.text
+        context = TIRunContext.model_validate_json(response.content)
+        assert context.dag_run.conf == {"large_integer": conf_value}
+        _ResponseFrame(id=0, body={"ti_context": context.model_dump()}).as_bytes()
+
     @pytest.mark.parametrize("matching_worker", [True, False])
     def test_restarting_start_distinguishes_original_worker(
         self, client, session, create_task_instance, matching_worker

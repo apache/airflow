@@ -30,6 +30,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 import attrs
 import psutil
 import pytest
+import structlog
 from uuid6 import uuid7
 
 from airflow.dag_processing.bundles.base import BundleVersion
@@ -46,6 +47,7 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
+from airflow.sdk.execution_time.comms import XComResult
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
@@ -746,6 +748,28 @@ class TestSubprocessCoordinatorExecuteTask:
 
 
 class TestPopenActivitySubprocessStart:
+    @pytest.mark.parametrize("schema_version", [None, "2026-06-16"], ids=["unversioned", "versioned"])
+    @pytest.mark.parametrize("value", [-(2**63) - 1, 2**64], ids=["negative", "positive"])
+    def test_rejects_large_integers_without_writing_to_socket(self, mock_client, schema_version, value):
+        comm_socket = MagicMock(spec=socket.socket)
+        process = _PopenActivitySubprocess(
+            id=uuid7(),
+            pid=12345,
+            stdin=comm_socket,
+            process=MagicMock(spec=psutil.Process),
+            process_log=structlog.get_logger(),
+            client=mock_client,
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+            subprocess_schema_version=schema_version,
+        )
+        try:
+            with pytest.raises(OverflowError, match="can't serialize ints"):
+                process.send_msg(XComResult(key="large", value=value), request_id=0)
+            comm_socket.sendall.assert_not_called()
+        finally:
+            process.selector.close()
+
     def _start_with_mocks(self, mock_client, *, command: list[str], schema_version=None):
         ti = _make_ti()
         mock_proc = MagicMock(spec=subprocess.Popen)
