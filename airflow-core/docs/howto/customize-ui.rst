@@ -149,12 +149,12 @@ Screenshots
 Light Mode
 """"""""""
 
-.. image:: ../img/change-theme/exmaple_theme_configuration_light_mode.png
+.. image:: ../img/change-theme/example_theme_configuration_light_mode.png
 
 Dark Mode
 """""""""
 
-.. image:: ../img/change-theme/exmaple_theme_configuration_dark_mode.png
+.. image:: ../img/change-theme/example_theme_configuration_dark_mode.png
 
 3.  To add custom CSS rules to the airflow UI, you can include a ``globalCss`` key in the theme configuration. More information https://chakra-ui.com/docs/theming/customization/global-css
 

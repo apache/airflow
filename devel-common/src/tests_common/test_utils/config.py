@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import sys
 from typing import TYPE_CHECKING, Literal, overload
 
 if TYPE_CHECKING:
@@ -66,8 +67,6 @@ PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK: list[tuple[str, str, str, str]] = [
 @contextlib.contextmanager
 def conf_vars(overrides):
     """Automatically detects which config modules are loaded (Core, SDK, or both) and updates them accordingly temporarily."""
-    import sys
-
     from airflow import settings
 
     configs = []
@@ -98,6 +97,8 @@ def conf_vars(overrides):
 
     if "airflow.configuration" in sys.modules:
         settings.configure_vars()
+    _clear_dag_bundle_config_cache()
+    _clear_importer_registry_cache()
 
     try:
         yield
@@ -116,6 +117,25 @@ def conf_vars(overrides):
 
         if "airflow.configuration" in sys.modules:
             settings.configure_vars()
+        _clear_dag_bundle_config_cache()
+        _clear_importer_registry_cache()
+
+
+def _clear_dag_bundle_config_cache() -> None:
+    """Drop the per-process Dag bundle configuration cache so the new config is read."""
+    import sys
+
+    manager = sys.modules.get("airflow.dag_processing.bundles.manager")
+    # compat for airflow versions without the snapshot cache
+    cache = getattr(manager, "_load_bundle_config_snapshot", None)
+    if cache is not None:
+        cache.cache_clear()
+
+
+def _clear_importer_registry_cache() -> None:
+    """Drop the cached Dag importer registries (and their importers) so they read the current config."""
+    if importers := sys.modules.get("airflow.sdk.importers.base"):
+        importers.reset_importer_registry()
 
 
 @overload

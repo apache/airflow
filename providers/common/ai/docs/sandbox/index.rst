@@ -20,6 +20,11 @@
 Sandboxed execution for agents
 ==============================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 An agent that is asked to do open-ended work writes code, and then something has
 to run that code. By default that something is the Airflow worker: a skill
 script, a hand-written tool that shells out, or generated glue in
@@ -50,10 +55,11 @@ model a disposable workspace for that code instead. It exposes four tools:
 
 The sandbox is provisioned by a
 :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` on the model's first
-tool call and destroyed when the agent run ends. Two backends ship: a hosted one on
-`Modal <https://modal.com/docs/guide/sandbox>`__ for production and Kubernetes,
-and a local microVM one on `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__
-for development. The four tool names and shapes match pydantic-ai's own sandbox
+tool call and torn down when the agent run ends. Three backends ship: a hosted one on
+`Modal <https://modal.com/docs/guide/sandbox>`__ and a self-hosted one on
+`OpenSandbox <https://open-sandbox.ai/>`__ for production and Kubernetes, and a local
+microVM one on `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ for
+development. The four tool names and shapes match pydantic-ai's own sandbox
 capabilities, so a model that has seen one already knows this one.
 
 **Adding this toolset gives the agent shell and file operations in a separate
@@ -136,8 +142,8 @@ carrying them through the model's context.
 **Migrate forty dbt models between warehouse dialects.** The model files go into
 the workspace, the image carries ``sqlglot`` and ``sqlfluff``, and the loop of
 convert, lint, read errors, fix runs for as long as it takes, fully offline. The
-rewritten files are the deliverable, and getting forty files out is the gap
-described under :ref:`Getting a result out <sandbox-results>`.
+rewritten files are the deliverable, so the sandbox is one a task provisions and
+reads out afterwards (:ref:`sandbox-attach`).
 
 **A failing task's traceback, handed to an agent to propose a fix.** The agent
 reproduces the crash against a sample, tries a fix, reruns, and posts a diff for a
@@ -222,9 +228,9 @@ actual isolation. Choose the smallest boundary that fits, then configure it.
        a package, or fix its own failing script by reading the traceback
      - ``SandboxToolset``
    * - Produce a large artifact for a downstream task
-     - Today, a ``@task`` driving a backend directly, not the agent. That is a
-       missing seam in the toolset rather than a recommendation; see
-       :ref:`Getting a result out <sandbox-results>`.
+     - A ``@task`` driving a backend directly when the Dag knows the job. When
+       the agent has to produce it, ``SandboxToolset(exports=...)`` copies the file
+       to object storage when the run ends; see :ref:`sandbox-results`.
    * - A whole task's worth of untrusted work isolated, with no agent involved
      - ``KubernetesPodOperator``
    * - Airflow's own credentials kept away from the agent
@@ -236,6 +242,57 @@ fold into ``run_code`` as callables the generated code can loop over, and
 ``run_command`` stays a tool the model calls directly, so a shell command is
 written as a shell command rather than quoted inside generated Python. Both paths
 reach the same sandbox: there is one per agent run whichever way a call arrives.
+
+.. _sandbox-substrates:
+
+What enforces the boundary
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Swapping ``SbxSandboxBackend`` for ``ModalSandboxBackend`` changes how the tool-call
+boundary is enforced and leaves its contents alone: the same four tools run in the
+sandbox, and every other toolset stays on the worker.
+
+.. list-table::
+   :widths: 20 28 26 26
+   :header-rows: 1
+
+   * - Enforced by
+     - Isolation
+     - Where the code runs
+     - If the worker dies
+   * - Monty, under :ref:`code mode <code-mode>`
+     - Language-level confinement. The worker subprocess isolates a crash but is
+       not an OS security boundary.
+     - A subprocess on the worker host. Every tool the generated code calls runs
+       in the task process.
+     - Nothing remote to reclaim. The subprocess lives on the worker host
+       beside the task.
+   * - A container on the worker host (no shipped backend; one you write)
+     - Namespaces over the host's shared kernel.
+     - The worker host.
+     - Up to the backend. Without its own expiry or reaper, the container stays
+       until someone removes it.
+   * - ``SbxSandboxBackend``
+     - A microVM with its own kernel.
+     - The worker host.
+     - Left running. No server-side lifetime, so the microVM and its workspace
+       directory survive.
+   * - ``ModalSandboxBackend``
+     - Modal's container runtime, which Modal documents as gVisor.
+     - Modal's infrastructure, off the worker.
+     - Ended by Modal at ``sandbox_timeout``, or ``idle_timeout`` if set.
+   * - ``OpenSandboxBackend``
+     - The container runtime your OpenSandbox deployment configures, on Docker or
+       Kubernetes.
+     - Your OpenSandbox server's Docker host or Kubernetes cluster, off the worker.
+     - Ended by the OpenSandbox server at ``sandbox_timeout``.
+
+When a run ends normally, the task calls the backend's ``destroy``. ``sbx`` runs its
+removal command and waits up to two minutes for it; Modal and OpenSandbox each send a
+termination request and return without waiting for the sandbox to stop. Any of them
+can return with the sandbox still present, and none of those cases fails the task. A SIGKILL, an
+out-of-memory kill or a lost node skips that teardown entirely, and then only the
+last column applies.
 
 Why not ``KubernetesPodOperator`` or the ``KubernetesExecutor``?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -291,36 +348,39 @@ When to choose it
 -----------------
 
 **Choose it when** the work is running code the model wrote, rather than calling
-a tool you picked in advance — exploratory analysis, installing a package for one
+a tool you picked in advance: exploratory analysis, installing a package for one
 task, a script the model writes, runs, and fixes from its own traceback. Every
 other toolset route answers "call this thing"; this one answers "here is
 somewhere to work". This page has the worked scenarios above and
 the limitations below to read before designing a Dag around it.
 
-Before reaching for it, check whether the actual need is narrower than that:
-``code_mode=True`` is a flag on ``AgentOperator``, not a toolset
-— it changes how the model invokes the tools it already has, letting it write
-code to call several of them instead of emitting one call per step. It does not
-give the agent somewhere to run arbitrary code of its own, and it avoids the
-``sbx`` backend's production-readiness, network-isolation, and reclamation
-caveats on :doc:`backends` and needs no backend at all — but not the reachability one: the generated code runs in
-Monty's deny-by-default sandbox, but the tools it calls still run in the
-worker, so a credential-bearing toolset on the same agent stays within reach
-whether or not code mode is on. See :ref:`code-mode` and
+Before reaching for it, check whether the actual need is narrower than that.
+``code_mode=True`` is a flag on ``AgentOperator``. It changes how the
+model invokes the tools it already has, letting it write code that calls several
+of them instead of emitting one call per step. It does not give the agent somewhere
+to run arbitrary code of its own. Because it needs no backend, it avoids the
+production-readiness, network-isolation and reclamation caveats of the ``sbx``
+backend on :doc:`backends`. It does not change what the agent can reach: the
+generated code runs in Monty's deny-by-default sandbox, but the tools it calls
+still run in the worker, so a credential-bearing toolset on the same agent stays
+within reach whether or not code mode is on. See :ref:`code-mode` and
 :ref:`sandbox-boundaries`.
 
 **What it cannot do**
 
-- Only one of its two backends runs on Kubernetes. ``SbxSandboxBackend`` drives
+- One of its three backends does not run on Kubernetes. ``SbxSandboxBackend`` drives
   Docker Sandboxes on the worker host, and its own documentation says to use it
   for local development: it wants the ``sbx`` binary on the host, an
   authenticated Docker account, a one-time ``sbx policy init``, and on Linux KVM
-  or nested virtualization — which an unprivileged container cannot provide.
-  Production and Kubernetes use
-  :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend`, a
-  hosted backend behind the ``modal`` extra that installs nothing on the worker
-  and reclaims a sandbox at its own lifetime if the worker dies. Both implement
-  :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and a third
+  or nested virtualization, which an unprivileged container cannot provide.
+  Production and Kubernetes use a remote backend instead, either
+  :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` behind
+  the ``modal`` extra for a managed service, or
+  :class:`~airflow.providers.common.ai.sandbox.opensandbox.OpenSandboxBackend`
+  behind ``opensandbox`` for a self-hosted one. Neither installs anything on the
+  worker, and each reclaims a sandbox at its own server-side lifetime if the
+  worker dies. All three implement
+  :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and another
   vendor can too.
 - It does not contain the agent. Only what these tools do runs in the sandbox;
   the agent loop, the model calls, and every other toolset on the same agent stay
@@ -338,7 +398,10 @@ whether or not code mode is on. See :ref:`code-mode` and
   under the default ``host_network_policy="unknown"``. On Modal the same default
   maps onto the sandbox's own ``block_network`` and is enforced exactly; a
   hostname allowlist there is matched on the TLS handshake name and has to be
-  opted into, for the reasons set out on :doc:`backends`.
+  opted into, for the reasons set out on :doc:`backends`. OpenSandbox enforces
+  hostname allowlists with its egress sidecar, but refuses
+  ``allow_egress_to_cidrs`` because the SDK cannot prove the sidecar is in the
+  ``dns+nft`` mode required for CIDR enforcement.
 - Reclamation depends on the backend. A failed teardown is logged as a warning
   rather than raised, deliberately, so that a teardown blip cannot fail a
   finished run. On ``sbx`` nothing else picks up the slack: there is no
@@ -346,15 +409,18 @@ whether or not code mode is on. See :ref:`code-mode` and
   workspace directory behind, named ``airflow-sandbox-*`` so an operator can find
   and remove them. On Modal the sandbox ends at its own ``sandbox_timeout``
   whatever became of the worker.
-- Nothing survives the run, and a file the agent built can leave only through
-  the model's context, which is text-only and capped. Producing an artifact for a
-  downstream task is a ``@task`` driving a backend directly today, not the agent;
-  :doc:`configuration` has the example.
+- A sandbox the toolset provisions itself lives for one run, and a file the
+  agent built in it can leave only through the model's context, which is text-only
+  and capped. When a file has to come out, or a credential has to come from a
+  connection, a ``@task`` provisions the sandbox and the agent attaches to it;
+  :ref:`sandbox-attach` has the example. When the Dag already knows the job, a
+  ``@task`` drives the backend and no agent is involved.
 
 **A real example.** ``example_sandbox_toolset.py`` in this provider's example
 Dags has an agent investigating a revenue anomaly on the Modal backend beside a
-``SQLToolset``, the same agent shape on ``sbx`` for a laptop, and a ``@task``
-producing a file through a sandbox; all three are on this page and :doc:`configuration`. The two
+``SQLToolset``, the same agent shape on ``sbx`` for a laptop, a ``@task``
+producing a file through a sandbox, and a task-owned sandbox that an agent attaches
+to; all four are on this page and :doc:`configuration`. The two
 system tests, ``example_sandbox_toolset_sbx.py`` and
 ``example_sandbox_toolset_modal.py``, run against a real backend and are
 reachable from the System Tests entry in the sidebar.
@@ -364,12 +430,46 @@ Airflow connection. Airflow puts none of its context, connections, variables or
 worker environment into the sandbox; only what you pass through
 :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` goes in, and the
 credential that provisions the sandbox never enters it. Authorization to the
-backend sits outside Airflow — ``sbx login`` and ``sbx policy init`` on the
+backend sits outside Airflow: ``sbx login`` and ``sbx policy init`` on the
 machine for ``sbx``, or ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` on the
 worker for Modal. Work runs in a per-run microVM on the worker host with
 ``sbx``, or off the worker entirely in Modal's infrastructure. Its tool calls
 act as barriers, as they do for the other
 routes that build their own tools; see :ref:`toolset-call-barriers`.
+
+.. _sandbox-other-frameworks:
+
+With another agent framework
+----------------------------
+
+A Strands or Google ADK agent can use the same sandbox through ``AirflowTools``
+(see :doc:`../frameworks/index`). Outside a Pydantic AI run nothing ends the run for the
+toolset, so the task owns the sandbox's life: open the toolset with ``with`` (or
+``async with``) around the agent, and the sandbox it provisions is destroyed when the
+block ends, however the agent finishes:
+
+.. code-block:: python
+
+    from strands import Agent
+
+    from airflow.providers.common.ai.sandbox.modal import ModalSandboxBackend
+    from airflow.providers.common.ai.tools.strands import AirflowTools
+    from airflow.providers.common.ai.toolsets import SandboxToolset, SQLToolset
+    from airflow.sdk import task
+
+    warehouse = SQLToolset("warehouse", allowed_tables=["ledger"])
+
+
+    @task
+    def reconcile() -> str:
+        with SandboxToolset(ModalSandboxBackend()) as sandbox:
+            agent = Agent(plugins=[AirflowTools(warehouse, sandbox)])
+            return str(agent("Reconcile the September ledger against the warehouse."))
+
+A tool call made before the block or after it is refused rather than provisioning a
+sandbox nothing would destroy. The toolset's own error rules hold as well: a command
+that fails is output the model reads, and a sandbox that cannot be provisioned ends the
+agent run so the task fails.
 
 .. _sandbox-limitations:
 
@@ -379,15 +479,19 @@ Limitations
 These apply to every backend. Each is explained in the section it belongs to; this
 is the list to read before designing a Dag around an agent with a sandbox.
 
-- **Nothing survives the run**, including across task retries.
+- **Nothing survives the run** in a sandbox the toolset provisions itself,
+  including across task retries. A sandbox a task provisions and the agent
+  attaches to does. :ref:`Lifecycle <sandbox-lifecycle>`,
+  :ref:`A sandbox another task owns <sandbox-attach>`.
+- **A file the agent built leaves only through a task**, never through the
+  model's context, which is text-only and capped.
+  :ref:`Getting a result out <sandbox-results>`.
+- **A credential comes from a connection only when a task provisions the
+  sandbox**; the toolset's own spec is fixed at parse time, and anything injected
+  is readable by the model. :ref:`Credentials <sandbox-credentials>`.
+- **Cannot be combined with** ``durable=True``, and with ``enable_hitl_review=True``
+  only when the sandbox is task-owned; ``AgentOperator`` raises otherwise.
   :ref:`Lifecycle <sandbox-lifecycle>`.
-- **A file the agent built cannot leave** except through the model's context,
-  which is text-only and capped. :ref:`Getting a result out <sandbox-results>`.
-- **A credential cannot come from a connection or a secrets backend**; the spec is
-  fixed at parse time, and anything injected is readable by the model.
-  :ref:`Credentials <sandbox-credentials>`.
-- **Cannot be combined with** ``durable=True`` **or** ``enable_hitl_review=True``;
-  ``AgentOperator`` raises. :ref:`Lifecycle <sandbox-lifecycle>`.
 - **A run that outlives** ``sandbox_timeout`` **fails the task.**
   :ref:`Lifecycle <sandbox-lifecycle>`.
 - **The hostname allowlist is a weak control** and refused unless opted into. The
@@ -418,6 +522,66 @@ capability toolset, which lets the model *use* a connection without ever holding
 it, over a credential in ``SandboxSpec.env``, which the model can read. And treat
 a table allowlist as a guardrail that contains intent rather than a boundary that
 contains access.
+
+Isolation is one of several controls an agent needs, and each has a limit:
+
+.. list-table::
+   :widths: 20 25 27 28
+   :header-rows: 1
+
+   * - Protection
+     - Question it answers
+     - Where it stops
+     - What provides it
+   * - Tool selection and argument checks
+     - Which actions can the model request?
+     - An allowed action can still be harmful.
+     - The toolsets you register, ``allowed_methods`` on ``HookToolset``,
+       ``allowed_tables`` on ``SQLToolset``.
+   * - Restricted interpreter
+     - What can generated glue execute directly?
+     - Tools it calls keep their full authority.
+     - :ref:`Code mode <code-mode>`.
+   * - Process, container or sandbox isolation
+     - Which filesystem, processes and host resources can code reach?
+     - A credential injected into the sandbox is readable inside it.
+     - ``SandboxToolset``; for the whole task, ``KubernetesExecutor`` from the
+       ``cncf.kubernetes`` provider.
+   * - Identity and entitlement
+     - Which data and operations may this workload use?
+     - Hiding a password does not remove the power to use it.
+     - Least-privilege roles on the connections you pass. Nothing in this
+       provider enforces them.
+   * - Network policy
+     - Which destinations can each component contact?
+     - A sandbox's egress policy does not govern worker-side tools or model
+       requests.
+     - ``SandboxSpec`` network fields, for the sandbox only.
+   * - Approval
+     - Which effects need sign-off before they happen?
+     - Reviewing the final answer does not undo writes made during the run.
+     - Keep writes out of the agent and gate the task that makes them.
+       ``AgentOperator`` refuses ``enable_hitl_review`` beside a
+       ``SandboxToolset`` it can inspect; see :ref:`Lifecycle <sandbox-lifecycle>`.
+   * - Deadlines, resource limits, cleanup
+     - What bounds runaway work and orphaned resources?
+     - A resource request or a cost report is not an enforced ceiling.
+     - Command timeouts, ``sandbox_timeout``, ``usage_limits``.
+   * - Audit
+     - Can you establish what happened afterwards?
+     - A record does not prevent the action.
+     - :doc:`LoggingToolset <../toolsets/logging>` and
+       :doc:`tracing <../observability>`.
+
+A sandbox with no egress can still leak data. A secret printed inside comes back
+through the tool result to the worker and the model's context, and from there it
+can reach the agent's output, its message history and any traces you record.
+Keeping a credential out of the prompt does not limit its use either. A
+``SQLToolset`` never shows the model its password, yet every query the toolset lets
+through runs with the connection's grants. Its read-only default and
+``allowed_tables`` narrow what reaches the database; the connection's role sets the
+limit.
+:ref:`toolset-defense-layers` covers the same controls toolset by toolset.
 
 What the sandbox does contain, verified against a live worker environment carrying
 sentinel credentials: nothing Airflow-shaped reaches it. No connection, variable,

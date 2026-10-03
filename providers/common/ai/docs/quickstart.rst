@@ -25,7 +25,8 @@ which one task asks a model to summarize release notes and a second task uses th
 At the end you know where the model's output lands and what a successful run looks like.
 
 You need a working :doc:`Airflow installation <apache-airflow:installation/index>` on
-Airflow 3.0 or later and an API key for the model vendor you plan to use. Step 4 makes one
+Airflow 2.11 or later and an API key for the model vendor you plan to use. On Airflow 2,
+see :ref:`howto/installation` for what differs. Step 4 makes one
 real, billed API call.
 
 1. Install the provider
@@ -48,12 +49,12 @@ connection change, not a Dag change. The Dag below uses the default connection i
 ``pydanticai_default``.
 
 The quickest way to create it is an environment variable on the machine that runs the
-scheduler and the workers. Replace ``sk-...`` with your key and ``openai:gpt-5.6-sol`` with
+scheduler and the workers. Replace ``sk-...`` with your key and ``openai:gpt-5`` with
 a model you have access to:
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_PYDANTICAI_DEFAULT='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-5.6-sol"}}'
+    export AIRFLOW_CONN_PYDANTICAI_DEFAULT='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-5"}}'
 
 You can also create it in the UI under **Admin > Connections**: choose the connection type
 **Pydantic AI**, set the connection id to ``pydanticai_default``, put the API key in
@@ -121,3 +122,5 @@ Where to go next
   files, generating SQL, batch processing.
 - :doc:`operators/agent` gives the model tools built from Airflow hooks, SQL databases or
   MCP servers, so it can act instead of only answering.
+- :doc:`local_development` shows how to iterate on an agent in a notebook and test the
+  Dag without an API key.

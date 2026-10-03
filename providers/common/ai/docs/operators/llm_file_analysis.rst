@@ -20,6 +20,11 @@
 Analyze files and images: ``LLMFileAnalysisOperator``
 =====================================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Use :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
 or the ``@task.llm_file_analysis`` decorator to analyze files from object storage
 or local storage with a single prompt.
@@ -192,5 +197,5 @@ Parquet and Avro readers require their corresponding optional extras:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai[parquet]
-    pip install apache-airflow-providers-common-ai[avro]
+    pip install "apache-airflow-providers-common-ai[parquet]"
+    pip install "apache-airflow-providers-common-ai[avro]"

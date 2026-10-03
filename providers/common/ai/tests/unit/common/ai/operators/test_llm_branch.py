@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -36,9 +36,9 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
-    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer to
+    # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer to
     # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
-    # against whichever pause signal the running core uses.
+    # against whichever pause signal the running Airflow version uses.
     from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
 else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
@@ -85,7 +85,9 @@ class TestLLMBranchOperator:
 
         assert result == "task_a"
         mock_do_branch.assert_called_once_with(ctx, "task_a")
-        mock_agent.run_sync.assert_called_once_with("Pick a branch", usage_limits=None)
+        mock_agent.run_sync.assert_called_once_with(
+            "Pick a branch", usage_limits=None, cancellation_token=ANY
+        )
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

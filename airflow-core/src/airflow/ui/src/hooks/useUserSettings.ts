@@ -21,10 +21,12 @@ import { useLocalStorage } from "usehooks-ts";
 import type { Direction } from "src/components/Graph/DirectionDropdown";
 
 import {
+  CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_RUN_DEFAULT_OPTIONS_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
@@ -44,6 +46,9 @@ export type LandingPageOption = "dags" | "dashboard";
 export const useDefaultGraphDirection = () =>
   useLocalStorage<Direction>(DEFAULT_GRAPH_DIRECTION_KEY, "RIGHT");
 
+export const useDefaultTaskGroupsExpanded = () =>
+  useLocalStorage<boolean>(DEFAULT_TASK_GROUPS_EXPANDED_KEY, false);
+
 /** Default selection for the Dag-run Clear dialog toggle (existing / only-failed / queue-new). */
 export const useClearRunDefaultOptions = () =>
   useLocalStorage<Array<string>>(CLEAR_RUN_DEFAULT_OPTIONS_KEY, ["existingTasks"]);
@@ -55,6 +60,9 @@ export const useClearTaskInstanceDefaultOptions = () =>
 /** Default state of the "prevent running tasks" checkbox when clearing task instances. */
 export const useClearPreventRunningTaskDefault = () =>
   useLocalStorage<boolean>(CLEAR_PREVENT_RUNNING_TASK_KEY, true);
+
+/** Default state of the "keep task state" checkbox when clearing task instances. */
+export const useClearKeepTaskStateDefault = () => useLocalStorage<boolean>(CLEAR_KEEP_TASK_STATE_KEY, false);
 
 /** Default selection for the "Mark as" task-instance dialog toggle (past / future / … ). */
 export const useMarkTaskInstanceDefaultOptions = () =>

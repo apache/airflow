@@ -55,7 +55,10 @@ import {
   type StartupDetails,
 } from "./protocol.js";
 import { getArgNames } from "../sdk/arg-names.js";
-import { listBundleTasks, type Bundle } from "../sdk/bundle.js";
+import { bundleDags, bundleDagTaskIds, type Bundle } from "../sdk/bundle.js";
+import { finalizeDag } from "../sdk/dag.js";
+import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
+import { computeRelativeFileloc, serializeDag } from "./serde.js";
 import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
@@ -148,10 +151,10 @@ export async function startCoordinator(
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
-    const tasks = listBundleTasks(bundle);
+    const byDag = bundleDagTaskIds(bundle);
     runtimeLogs.info("Coordinator runtime started", {
-      registered_tasks: tasks,
-      count: tasks.length,
+      registered_tasks: Object.fromEntries(byDag),
+      count: [...byDag.values()].reduce((total, tasks) => total + tasks.length, 0),
       // Cadwyn schema version this SDK was generated against. Logged
       // for operator visibility; not sent on the wire.
       supervisor_api_version: SUPERVISOR_API_VERSION,
@@ -262,22 +265,70 @@ export function createRuntimeAbort(
   };
 }
 
+/**
+ * Answer a parse request with the Dags this bundle declared in TypeScript.
+ *
+ * A Dag known only through task handlers is left out: its graph belongs to the
+ * Python Dag file that declares it, and serializing it here would register a
+ * second Dag with the same `dag_id` from a different `fileloc`.
+ *
+ * No handler body runs: a `TaskRef` is inert, so reading a Dag only walks what
+ * its module already built. Reading it is also what enforces that every task
+ * was called exactly once, which is why a Dag that is not fully laid out
+ * surfaces here.
+ *
+ * A Dag that cannot be finalized or serialized becomes an import error against
+ * this file, as a Python Dag file that raises does, rather than failing the
+ * whole parse: one broken Dag must not take out the others a bundle serves.
+ */
 function handleParse(
   request: { file: string; bundle_path: string },
   bundle: Bundle,
   logs: LogChannel,
 ): RuntimeDagFileParsingResult {
-  // TypeScript-native Dag parsing is not yet supported.
-  // Respond with an empty result so the Python-stub-Dag workflow works.
-  logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: listBundleTasks(bundle),
+  const fileloc = request.file;
+  const relativeFileloc = computeRelativeFileloc(fileloc, request.bundle_path);
+  const serializedDags: { data: Record<string, unknown> }[] = [];
+  // Airflow keys an import error by the bundle-relative path and holds one row
+  // per file (`DagFileProcessorManager.update_import_errors`), so every failure
+  // in this bundle is reported under that one key, naming its Dag in the
+  // message. An absolute path, or one with a Dag id appended, would give a row
+  // the UI cannot tie back to the file, and would leave the file itself looking
+  // healthy while its Dags had vanished.
+  const failures: string[] = [];
+
+  const dags = [...bundleDags(bundle).values()];
+  for (const dag of dags) {
+    try {
+      finalizeDag(dag);
+      serializedDags.push({
+        data: {
+          __version: SERIALIZATION_VERSION,
+          dag: serializeDag(dag, fileloc, relativeFileloc),
+        },
+      });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      logs.error("Dag could not be serialized", { dag_id: dag.dagId, detail });
+      failures.push(`Dag "${dag.dagId}": ${detail}`);
+    }
+  }
+
+  logs.info("Parse-mode response", {
+    fileloc,
+    dag_ids: dags.map((dag) => dag.dagId),
+    serialized: serializedDags.length,
+    import_errors: failures.length,
   });
-  const response: RuntimeDagFileParsingResult = {
+  const result: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
-    fileloc: request.file,
-    serialized_dags: [],
+    fileloc,
+    serialized_dags: serializedDags,
   };
-  return response;
+  if (failures.length > 0) {
+    result.import_errors = { [relativeFileloc]: failures.join("\n") };
+  }
+  return result;
 }
 
 async function handleTask(
@@ -295,7 +346,7 @@ async function handleTask(
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
-      available: listBundleTasks(bundle),
+      available: Object.fromEntries(bundleDagTaskIds(bundle)),
     });
     // A missing handler means this bundle cannot run the task, so retrying the
     // same bundle/configuration mismatch would not help.

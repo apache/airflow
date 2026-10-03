@@ -123,7 +123,7 @@ func decodeBody(raw msgpack.RawMessage, dst any) error {
 // apiErrorFromFrame returns the supervisor error carried by a frame, or nil if
 // it is not an error reply. An error arrives either as the third element of a
 // 3-tuple frame (frame.Err) or as a 2-tuple body whose "type" is "ErrorResponse".
-func apiErrorFromFrame(f IncomingFrame) *ApiError {
+func apiErrorFromFrame(f IncomingFrame) *APIError {
 	var raw msgpack.RawMessage
 	switch {
 	case !isNilRaw(f.Err):
@@ -146,7 +146,7 @@ func apiErrorFromFrame(f IncomingFrame) *ApiError {
 		if errCode == "" {
 			errCode = string(genmodels.ErrorTypeGENERICERROR)
 		}
-		return &ApiError{
+		return &APIError{
 			Err:    errCode,
 			Detail: fmt.Sprintf("undecodable error frame: %v", err),
 		}
@@ -155,7 +155,7 @@ func apiErrorFromFrame(f IncomingFrame) *ApiError {
 	if resp.Detail != nil {
 		detail = map[string]any(*resp.Detail)
 	}
-	return &ApiError{Err: string(resp.Error), Detail: detail}
+	return &APIError{Err: string(resp.Error), Detail: detail}
 }
 
 // ifaceString returns the string carried by a nullable schema field decoded as

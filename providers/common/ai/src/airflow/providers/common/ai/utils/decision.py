@@ -99,8 +99,9 @@ def _choice_types() -> tuple[Any, Any]:
                 Choices as loaded_choices,
             )
         except ImportError:  # pydantic-ai < 2.46.0: build the same schema from an Enum instead
-            loaded_choice = loaded_choices = None
-        Choice, Choices = loaded_choice, loaded_choices
+            Choice = Choices = None
+        else:
+            Choice, Choices = loaded_choice, loaded_choices
     return Choice, Choices
 
 

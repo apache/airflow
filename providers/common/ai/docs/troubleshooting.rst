@@ -65,6 +65,30 @@ An ``ImportError`` for ``pydantic_ai.models.<vendor>`` or the vendor SDK
     types. Chains are also not resolved recursively, so a fallback connection may not
     declare its own ``fallback_conn_ids``; list every vendor directly on the primary.
 
+.. _troubleshooting-conn-type-rename:
+
+A connection of type ``pydanticai-azure``, ``pydanticai-bedrock`` or ``pydanticai-vertex`` no longer resolves
+    These connection types are spelled with an underscore: ``pydanticai_azure``,
+    ``pydanticai_bedrock`` and ``pydanticai_vertex``.
+
+    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is encoded
+    in a URI scheme, so the hyphenated form is decoded to the underscore form on read.
+    That covers ``AIRFLOW_CONN_*`` environment variables and secrets backends such as
+    HashiCorp Vault, AWS Secrets Manager and GCP Secret Manager.
+
+    A connection whose type is stored verbatim does need updating, because the hyphen is
+    preserved and no longer matches a registered hook. That means rows in the metadata
+    database, including any created through the UI, and connections imported in object
+    form from a local file:
+
+    .. code-block:: bash
+
+        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-azure'
+        airflow connections delete <conn_id>
+        airflow connections add <conn_id> --conn-type pydanticai_azure ...
+
+    In the UI, edit the connection and re-pick its type.
+
 Operator construction errors
 ----------------------------
 
@@ -75,8 +99,8 @@ as a task failure.
 ``require_approval=True needs Airflow 3.1+`` / ``DecisionPolicy(on_uncertain='review') needs Airflow 3.1+`` / ``approval_assigned_users needs Airflow 3.1+`` / ``Human in the loop functionality needs Airflow 3.1+``
     Human-in-the-loop review, whether through ``require_approval``,
     ``DecisionPolicy(on_uncertain="review")`` or ``enable_hitl_review``, needs Airflow 3.1
-    or later. Upgrade the core, or use ``on_uncertain="fail"`` and drop the review flags
-    on an older core. See :doc:`approval_gates` and :doc:`hitl_review`.
+    or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
+    on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
 ``durable=True and enable_hitl_review=True cannot be used together`` / ``durable=True and code_mode=True cannot be used together``
     Durable replay assumes a stable step order across attempts, which neither a human
@@ -110,7 +134,7 @@ Run-time errors
     above.
 
 ``durable=True`` on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
-    On cores older than 3.3 the step cache lives in object storage and
+    On Airflow versions older than 3.3 the step cache lives in object storage and
     ``[common.ai] durable_cache_path`` must be set. On 3.3 and later the task state store
     is used and the option is ignored. See :doc:`durable_execution`.
 
@@ -124,7 +148,7 @@ A structured ``output_type`` arrives downstream as a string or fails to deserial
 A review task waits for a long time
     That is expected: the task is waiting for a reviewer. An approval gate on an LLM operator
     releases its worker slot while it waits (it pauses as awaiting input on Airflow 3.3+, and
-    defers to the triggerer on older cores); a HITL review on ``AgentOperator`` polls from the
+    defers to the triggerer on older Airflow versions); a HITL review on ``AgentOperator`` polls from the
     worker and holds its slot. Set ``approval_timeout`` or ``hitl_timeout`` so an unattended
     review cannot wait forever. See :doc:`approval_gates` and :doc:`hitl_review`.
 

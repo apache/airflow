@@ -19,15 +19,17 @@ from __future__ import annotations
 
 import inspect
 import logging
+import os
 import pathlib
 import sys
 import textwrap
 import typing
 import uuid
+import zipfile
 from collections.abc import Callable, Iterable
 from socket import socketpair
 from typing import TYPE_CHECKING, Any, BinaryIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 import structlog
@@ -66,6 +68,7 @@ from airflow.dag_processing.processor import (
     _pre_import_airflow_modules,
 )
 from airflow.models import DagRun
+from airflow.models.dagwarning import DagWarning
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
@@ -85,6 +88,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.sdk.importers import DagSourceCode
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -765,6 +769,29 @@ def test_parse_file_static_check_with_default_warning():
         warning.get("dag_id") and warning.get("warning_type") and warning.get("message")
         for warning in result.warnings
     )
+
+
+@patch.object(DagBag, "dag_warnings", new_callable=PropertyMock)
+def test_parse_file_reports_definitions_source_codes_and_dag_warnings(mock_dag_warnings, tmp_path):
+    source = "from airflow.sdk import DAG\n\ndag = DAG('member', schedule=None)\n"
+    with zipfile.ZipFile(tmp_path / "dags.zip", "w") as zf:
+        zf.writestr("member.py", source)
+    mock_dag_warnings.return_value = {DagWarning("member", "test:deprecated_field", "Deprecated field")}
+
+    result = _parse_file(
+        DagFileParseRequest(
+            file=os.fspath(tmp_path / "dags.zip"), bundle_path=tmp_path, bundle_name="testing"
+        ),
+        log=structlog.get_logger(),
+    )
+
+    assert result.parsed_definitions == ["dags.zip/member.py"]
+    assert result.dag_source_codes == {
+        os.fspath(tmp_path / "dags.zip" / "member.py"): DagSourceCode(source_code=source, language="python")
+    }
+    assert result.warnings == [
+        {"dag_id": "member", "warning_type": "test:deprecated_field", "message": "Deprecated field"}
+    ]
 
 
 def test_callback_processing_does_not_update_timestamps():
@@ -2139,6 +2166,8 @@ class TestExecuteEmailCallbacks:
             mock_dagbag_instance = MagicMock()
             mock_dagbag_instance.dags = {}
             mock_dagbag_instance.import_errors = {}  # Must be a dict, not MagicMock for Pydantic validation
+            mock_dagbag_instance.parsed_definitions = []
+            mock_dagbag_instance.dag_source_codes = {}
             mock_dagbag_class.return_value = mock_dagbag_instance
 
             request = DagFileParseRequest(
@@ -2283,6 +2312,7 @@ class TestDagProcessingMessageTypes:
             "DeleteAssetStateStoreByUri",
             "ClearAssetStateStoreByName",
             "ClearAssetStateStoreByUri",
+            "UpdateDagRunNote",
         }
 
         in_task_runner_but_not_in_dag_processing_process = {
@@ -2326,6 +2356,63 @@ class TestDagProcessingMessageTypes:
 
 
 class TestDagFileProcessorProcess:
+    def test_registered_message_types(self):
+        expected = set(typing.get_args(typing.get_args(ToManager)[0]))
+        assert set(DagFileProcessorProcess._request_handlers) == expected
+
+    @pytest.mark.parametrize(
+        "message_type",
+        sorted(set(typing.get_args(typing.get_args(ToManager)[0])) - {DagFileParsingResult}, key=str),
+        ids=lambda message_type: message_type.__name__,
+    )
+    def test_reuses_shared_request_handlers(self, message_type):
+        handler = DagFileProcessorProcess._request_handlers[message_type]
+        assert handler is supervisor.ActivitySubprocess._request_handlers[message_type]
+        assert handler is supervisor.WatchedSubprocess._shared_request_handlers[message_type]
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    @pytest.mark.parametrize(
+        "message_type",
+        sorted(
+            set(typing.get_args(typing.get_args(ToSupervisor)[0]))
+            - set(typing.get_args(typing.get_args(ToManager)[0])),
+            key=str,
+        ),
+        ids=lambda message_type: message_type.__name__,
+    )
+    def test_rejects_task_only_messages(self, send_msg, proc, message_type):
+        proc._handle_request(message_type.model_construct(), structlog.get_logger(), req_id=42)
+
+        send_msg.assert_called_once_with(
+            proc,
+            None,
+            request_id=42,
+            error=comms.ErrorResponse(detail={"status_code": 400, "message": "Unhandled request"}),
+        )
+        assert not proc.client.mock_calls
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_dispatch_parsing_result(self, send_msg, proc):
+        result = DagFileParsingResult(fileloc="test_dag.py", serialized_dags=[])
+        proc._handle_request(result, structlog.get_logger(), req_id=42)
+
+        assert proc.parsing_result is result
+        send_msg.assert_called_once_with(proc, None, request_id=42, error=None)
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_previous_successful_run_uses_process_id(self, send_msg, proc):
+        proc.client.task_instances.get_previous_successful_dagrun.return_value = (
+            comms.PrevSuccessfulDagRunResult()
+        )
+        proc._handle_request(
+            comms.GetPrevSuccessfulDagRun(ti_id=uuid.uuid4()), structlog.get_logger(), req_id=42
+        )
+
+        proc.client.task_instances.get_previous_successful_dagrun.assert_called_once_with(proc.id)
+        send_msg.assert_called_once_with(
+            proc, comms.PrevSuccessfulDagRunResult(), request_id=42, error=None, exclude_unset=True
+        )
+
     @pytest.fixture
     def proc(self):
         from socket import socketpair
@@ -2388,7 +2475,9 @@ class TestDagFileProcessorProcess:
         )
 
         with (
-            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch(
+                "airflow.sdk.execution_time.request_handlers.mask_secret", autospec=True
+            ) as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(
@@ -2429,7 +2518,9 @@ class TestDagFileProcessorProcess:
         )
 
         with (
-            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch(
+                "airflow.sdk.execution_time.request_handlers.mask_secret", autospec=True
+            ) as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(

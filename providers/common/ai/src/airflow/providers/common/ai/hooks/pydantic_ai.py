@@ -100,12 +100,12 @@ class PydanticAIHook(BaseHook):
     Connection fields:
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
-        - **extra** JSON: ``{"model": "openai:gpt-5.6-sol",
+        - **extra** JSON: ``{"model": "openai:gpt-5",
           "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
     :param model_id: Model identifier. A name whose segment before the first ``:``
-        is itself a pydantic-ai provider (e.g. ``"openai:gpt-5.6-sol"``) pins the
+        is itself a pydantic-ai provider (e.g. ``"openai:gpt-5"``) pins the
         platform and is used verbatim -- a plain ``:`` alone is not enough, since
         some vendors' native model ids contain one of their own (e.g. Bedrock's
         version-suffixed ``"us.anthropic.claude-opus-4-6-v1:0"``, which is still a
@@ -158,6 +158,16 @@ class PydanticAIHook(BaseHook):
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
 
+    @classmethod
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id``, built with ``hook_params``.
+
+        Airflow 3's ``BaseHook.get_hook`` already takes ``hook_params``; Airflow 2's does
+        not, so this mirrors the Airflow 3 body.
+        """
+        return cls.get_connection(conn_id).get_hook(hook_params=hook_params)
+
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Return custom field behaviour for the Airflow connection form."""
@@ -166,7 +176,7 @@ class PydanticAIHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5.6-sol"}',
+                "extra": '{"model": "openai:gpt-5"}',
             },
         }
 
@@ -641,14 +651,14 @@ class PydanticAIAzureHook(PydanticAIHook):
         - **host**: Azure endpoint (e.g. ``https://<resource>.openai.azure.com/openai/v1``)
         - **extra** JSON::
 
-            {"model": "azure:gpt-4o"}
+            {"model": "azure:gpt-5"}
 
           ``api_version`` must be omitted when the endpoint path ends in ``/v1``
           or the host is ``*.models.ai.azure.com``. For other endpoints, set it
           here or with ``OPENAI_API_VERSION``.
 
     :param llm_conn_id: Airflow connection ID.
-    :param model_id: Model identifier, e.g. ``"azure:gpt-4o"``.
+    :param model_id: Model identifier, e.g. ``"azure:gpt-5"``.
     """
 
     conn_type = "pydanticai_azure"
@@ -664,7 +674,7 @@ class PydanticAIAzureHook(PydanticAIHook):
             "relabeling": {"password": "API Key", "host": "Azure Endpoint"},
             "placeholders": {
                 "host": "https://<resource>.openai.azure.com/openai/v1",
-                "extra": '{"model": "azure:gpt-4o"}',
+                "extra": '{"model": "azure:gpt-5"}',
             },
         }
 

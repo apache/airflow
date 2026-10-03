@@ -120,8 +120,10 @@ class PiiAnonymizer(Anonymizer):
                 netloc = ""
         else:
             # A netloc-less URL is a local-file backend (SQLite is the default), where
-            # the path itself is the identifying information.
-            return self.process_path(value)
+            # the path itself is the identifying information. Split off the scheme so the
+            # unanchored username substitution cannot touch it ("sqlite:" -> "sq${USER}:").
+            scheme, sep, rest = value.partition(":")
+            return f"{scheme}{sep}{self.process_path(rest)}"
 
         return urlunsplit((url_parts.scheme, netloc, url_parts.path, url_parts.query, url_parts.fragment))
 

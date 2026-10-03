@@ -32,7 +32,7 @@ import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
-import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
+import { hasDagRunConfig, isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 
 export const Details = () => {
   const { t: translate } = useTranslation(["common", "components"]);
@@ -196,7 +196,7 @@ export const Details = () => {
         <Table.Row>
           <Table.Cell>{translate("dagRun.conf")}</Table.Cell>
           <Table.Cell>
-            <RenderedJsonField content={dagRun.conf ?? {}} />
+            {hasDagRunConfig(dagRun.conf) ? <RenderedJsonField content={dagRun.conf} /> : undefined}
           </Table.Cell>
         </Table.Row>
       </Table.Body>

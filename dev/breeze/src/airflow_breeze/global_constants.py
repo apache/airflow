@@ -185,19 +185,8 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = [
     "docker-compose",
 ]
 
-# Every docker compose project name that any breeze command, prek hook, or
-# CI workflow uses. `breeze down` discovers running compose projects via the
-# `com.docker.compose.project` label and only touches the ones that match
-# either an exact entry in `KNOWN_DOCKER_COMPOSE_PROJECT_NAMES` or one of the
-# prefixes in `KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES`. When you add a new
-# project_name pattern anywhere (new breeze command, new prek hook, new CI
-# step), update this list so `breeze down` stays a one-shot cleanup.
-KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = [
-    "breeze",  # default `breeze shell` / `breeze start-airflow`
-]
-KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = [
-    "breeze-",  # breeze-registry-*, breeze-backfill-*, *-run-*
-]
+KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = ["breeze"]
+KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = ["breeze-"]
 ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
 DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
@@ -301,7 +290,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.2.1"
-UV_VERSION = "0.12.13"
+UV_VERSION = "0.12.18"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -873,7 +862,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.1",
-        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica common.ai opensearch",
+        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica modal opensearch",
         "run-unit-tests": "true",
     },
     {

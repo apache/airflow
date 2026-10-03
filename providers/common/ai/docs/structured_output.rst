@@ -64,5 +64,4 @@ that pattern work.
 
 If a downstream consumer needs the dict shape (e.g. forwarding to an external
 system that expects JSON-style payloads), pass ``serialize_output=True`` and the
-operator calls ``model_dump()`` before pushing to XCom. The pre-PR behavior is
-available on demand without giving up the typed default.
+operator calls ``model_dump()`` before pushing to XCom.

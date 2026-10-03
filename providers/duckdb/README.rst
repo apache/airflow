@@ -1,3 +1,4 @@
+
 .. Licensed to the Apache Software Foundation (ASF) under one
    or more contributor license agreements.  See the NOTICE file
    distributed with this work for additional information
@@ -22,10 +23,12 @@
 
 Package ``apache-airflow-providers-duckdb``
 
-Release: ``0.1.0``
+Release: ``0.2.0``
 
 
-`DuckDB <https://duckdb.org/>`__
+`DuckDB <https://duckdb.org/>`__ provider for Apache Airflow. Runs SQL against an in-process
+DuckDB database — in memory, backed by a local file, or hosted by MotherDuck — and manages
+extension loading and resource limits so Dag authors only supply the SQL.
 
 
 Provider package
@@ -35,12 +38,12 @@ This is a provider package for ``duckdb`` provider. All classes for this provide
 are in ``airflow.providers.duckdb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-duckdb/0.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-duckdb/0.2.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-duckdb``
 
@@ -57,28 +60,5 @@ PIP package                              Version required
 ``duckdb``                               ``>=1.2.0``
 =======================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-duckdb[common.sql]
-
-
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
-
-DuckDB version compatibility
-----------------------------
-
-The DuckDB storage format and the extension ABI are both tied to the DuckDB minor version. A
-deployment that persists DuckDB database files, or that pre-installs extensions into an extension
-directory, should pin ``duckdb`` itself rather than relying on this provider's lower bound.
+The changelog for the provider package can be found in the
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-duckdb/0.2.0/changelog.html>`_.

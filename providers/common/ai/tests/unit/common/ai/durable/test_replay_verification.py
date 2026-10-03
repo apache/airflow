@@ -37,7 +37,7 @@ from airflow.providers.common.ai.durable.caching_model import CachingModel
 from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
 from airflow.providers.common.ai.durable.storage import DurableStorage
-from airflow.sdk import ObjectStoragePath
+from airflow.providers.common.compat.sdk import ObjectStoragePath
 
 
 @pytest.fixture

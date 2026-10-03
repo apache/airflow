@@ -1725,7 +1725,7 @@ def get_provider_info():
         "auth-backends": ["airflow.providers.google.common.auth_backend.google_openid"],
         "logging": [
             "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
-            "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
+            "airflow.providers.google.cloud.log.cloud_logging_task_handler.CloudLoggingTaskHandler",
         ],
         "remote-logging": [
             {
@@ -1733,7 +1733,7 @@ def get_provider_info():
                 "scheme": "gs",
             },
             {
-                "classpath": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO",
+                "classpath": "airflow.providers.google.cloud.log.cloud_logging_task_handler.CloudLoggingRemoteLogIO",
                 "scheme": "stackdriver",
             },
         ],

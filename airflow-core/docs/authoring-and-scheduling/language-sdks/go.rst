@@ -163,9 +163,14 @@ Dag, and the ``task_id`` must match a ``@task.stub`` function in that Dag. Neith
 function name, so a handler can be named whatever reads best in Go.
 
 ``TaskHandler`` also checks the signature of the function it is given and panics if the check fails -- for
-instance when the function does not take an ``airflow.Context`` first, or does not return an ``error``.
-Because ``main`` registers every handler before ``Serve``, a mistake stops the executable as soon as it
-starts rather than when the task first runs.
+instance when the function does not take an ``airflow.Context`` first, does not return an ``error``, or
+declares a variadic ``...`` parameter, which no stub argument can fill. Because ``main`` registers every
+handler before ``Serve``, a mistake stops the executable as soon as it starts rather than when the task
+first runs.
+
+``Serve`` closes registration: a ``Register`` left below it in ``main`` panics rather than adding a handler
+to the map the runtime is already answering from, so what a bundle can run never depends on how far
+``main`` has got.
 
 A package that defines task handlers of its own can export them as a ``[]airflow.Registerable`` for ``main``
 to pass on with ``bundle.Register(reports.Handlers()...)``.
@@ -502,13 +507,31 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Default
      - Description
    * - ``executables_root``
-     - *(required)*
+     - *(optional)*
      - One or more directories scanned recursively for executable bundles. Accepts a string,
-       a path, or a list of strings/paths.
+       a path, or a list of strings/paths. When omitted, bundles are located through a Dag
+       bundle instead (see the note below). Explicitly setting this option to ``null`` or
+       an empty list is invalid.
+   * - ``dag_bundle_name``
+     - *(auto: task's own bundle)*
+     - Name of a configured Dag bundle to load executable bundles from. Mutually exclusive
+       with ``executables_root``.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the bundle subprocess to connect after launch. Increase this if your
        bundle startup is slow (e.g. on constrained hardware).
+
+.. note::
+
+  **Locating bundles.** ``executables_root`` and ``dag_bundle_name`` are mutually exclusive,
+  and both are optional:
+
+  * Set ``executables_root`` to scan explicit filesystem directories you manage yourself.
+  * Set ``dag_bundle_name`` to load bundles from a configured Dag bundle, so they are delivered
+    and versioned through the same bundle machinery as your Dags. The task uses the version that
+    bundle is on when it starts, pinned for the whole task.
+  * Leave both unset (the default) to load bundles from the **task's own** Dag bundle, pinned
+    to the version the run was created with.
 
 .. _go-sdk/limitations:
 

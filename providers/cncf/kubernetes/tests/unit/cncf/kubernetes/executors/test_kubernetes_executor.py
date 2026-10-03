@@ -1083,6 +1083,51 @@ class TestKubernetesExecutor:
             finally:
                 kubernetes_executor.end()
 
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="workloads are used on Airflow 3+")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_sync_drops_stale_execute_task_workload_before_pod_creation(
+        self,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        create_task_instance,
+        session,
+    ):
+        """A delayed Kubernetes workload should not create a pod after the DB task moved on."""
+        from airflow.executors.workloads import ExecuteTask
+
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            ti = create_task_instance(state=TaskInstanceState.QUEUED)
+            ti.queued_by_job_id = executor.job_id
+            session.merge(ti)
+            session.commit()
+
+            workload = ExecuteTask.make(ti)
+            # Enqueue the pod-creation job directly: `BaseExecutor.queue_workload` only accepts
+            # `ExecuteTask` from Airflow 3.1, and the provider compat jobs also run this on 3.0.
+            executor.execute_async(key=ti.key, command=[workload], queue=ti.queue, executor_config={})
+            executor.running.add(ti.key)
+
+            ti.state = TaskInstanceState.SUCCESS
+            session.merge(ti)
+            session.commit()
+
+            assert executor.kube_scheduler is not None
+            executor.kube_scheduler.run_next = mock.Mock()
+
+            executor.sync()
+
+            executor.kube_scheduler.run_next.assert_not_called()
+            assert executor.task_queue is not None
+            assert executor.task_queue.empty()
+            assert ti.key not in executor.running
+            assert ti.key not in executor.event_buffer
+        finally:
+            executor.end()
+
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -1694,6 +1739,38 @@ class TestKubernetesExecutor:
         mock_execute_async.assert_called_once_with(
             key=key, command=[workload], queue="default", executor_config={}
         )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    def test_queue_workload_queues_execute_task(self):
+        """queue_workload must queue an ExecuteTask on every supported Airflow 3 version.
+
+        On Airflow 3.0.x ``BaseExecutor.queue_workload`` raises unconditionally and the scheduler falls back
+        to ``queue_command`` for executors without their own override, which this executor cannot process.
+        """
+        from airflow.executors.workloads import ExecuteTask
+
+        executor = self.kubernetes_executor
+        key = TaskInstanceKey("dag", "task", "run_id", 1, -1)
+        workload = mock.Mock(spec=ExecuteTask)
+        workload.ti = mock.Mock()
+        workload.ti.key = key
+
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = key
+            task_queue = executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = executor.queued_tasks
+
+        executor.queue_workload(workload, session=mock.MagicMock())
+
+        assert task_queue[key] is workload
+        if not AIRFLOW_V_3_1_PLUS:
+            from airflow.executors.base_executor import BaseExecutor
+
+            assert KubernetesExecutor.queue_workload is not BaseExecutor.queue_workload
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
@@ -3141,6 +3218,8 @@ class TestKubernetesExecutor:
         executor.kube_client = mock_kube_client
         executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
+        if hasattr(executor, "_register_task"):
+            executor._register_task(ti)
         executor.running.add(ti.key)  # so we can verify it gets removed after revoke
         assert executor.has_task(task_instance=ti)
         executor.revoke_task(ti=ti)

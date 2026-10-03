@@ -63,7 +63,6 @@ files_not_fully_covered = [
     "airflow-core/src/airflow/models/taskinstance.py",
     "airflow-core/src/airflow/models/taskinstancehistory.py",
     "airflow-core/src/airflow/models/taskinstancekey.py",
-    "airflow-core/src/airflow/models/taskmap.py",
     "airflow-core/src/airflow/models/taskmixin.py",
     "airflow-core/src/airflow/models/trigger.py",
     "airflow-core/src/airflow/models/variable.py",

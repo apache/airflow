@@ -37,60 +37,69 @@ Overview
 
 **Components**
 
-- **HITL Review Plugin** — FastAPI app mounted at ``/hitl-review`` on the
+- **HITL Review Plugin**: FastAPI app mounted at ``/hitl-review`` on the
   Airflow API server. Provides REST endpoints and a chat UI for reviewers.
 
-**Storage** — All state is stored in XCom on the running task instance. The
+**Storage**: All state is stored in XCom on the running task instance. The
 worker writes session and agent outputs; the plugin writes human feedback and
 actions. Both sides read and write the same keys.
 
-**Compatibility** — Requires Airflow 3.1+. Uses the Task SDK execution model
+**Compatibility**: Requires Airflow 3.1+. Uses the Task SDK execution model
 where workers communicate via the Execution API and XCom; the plugin runs on
 the API server and accesses the metadata database.
 
 .. important::
-   **Worker slot usage** — Each HITL task **holds a worker slot for the entire
+   **Worker slot usage**: Each HITL task **holds a worker slot for the entire
    review duration** (until approve, reject, or timeout or max_iterations). The operator polls
    XCom with ``time.sleep``; it does not defer. With a 10-second poll interval
    and review times of 30+ minutes, the worker is occupied for the duration.
 
-**Implementation: XCom polling vs deferral** — This implementation uses XCom
-polling with ``time.sleep`` rather than the deferral/Triggerer pattern (as used
-by the standard provider's ``HITLOperator``). Deferral would free the worker
-during review but adds cross-process coordination complexity: the agent state
-(message history, tool results) lives in the worker process and would need to
-be serialized and restored across defer/resume. XCom polling keeps the flow
-simple and keeps all agent context in-process. Future versions may have different approaches.
+**Why the operator does not defer**: the agent state (message history, tool
+results) lives in the worker process. Polling XCom with ``time.sleep`` keeps it
+there for the whole review instead of serializing and restoring it across a
+defer and resume. The standard provider's ``HITLOperator`` defers because it
+carries no in-process state.
 
 Workflow
 --------
 
-.. code-block:: text
+The operator and the plugin never talk to each other directly — every
+arrow below crosses the XCom store. The operator holds its worker slot for
+the whole loop; it polls instead of deferring because the agent's message
+history and tool state live in-process.
 
-    [Operator]                    [API Server / Plugin]
-         |                                 |
-         | 1. Generate output              |
-         | 2. Push session + output_1      |
-         |    to XCom                      |
-         |                                 |
-         | 3. Poll XCOM_HUMAN_ACTION       |
-         |    (sleep, poll, repeat)        |
-         |                                 | 4. Reviewer opens chat UI,
-         |                                 |    submits feedback / approve / reject
-         |                                 | 5. Plugin writes human action
-         |                                 |    to XCom
-         | 6. Read action from XCom        |
-         |                                 |
-         | 7a. approve → return output     |
-         | 7b. reject  → raise HITLRejectException
-         | 7c. changes_requested           |
-         |     → regenerate_with_feedback  |
-         |     → push output_2, loop to 3  |
-         | 7d. max_iterations reached      |
-         |     (iteration >= max, human requests changes) |
-         |     → push status max_iterations_exceeded, raise HITLMaxIterationsError
-         | 7e. hitl_timeout elapsed        |
-         |     → push status timeout_exceeded, raise HITLTimeoutError
+.. mermaid::
+
+    sequenceDiagram
+        participant Op as Operator (worker)
+        participant X as XCom
+        participant P as API server / plugin
+        participant H as Reviewer
+
+        Op->>X: push agent_session + agent_output_1
+        loop until a terminal action
+            Op->>X: poll airflow_hitl_review_human_action
+            H->>P: open chat UI, submit action
+            P->>X: write human_action + feedback
+            X-->>Op: read action
+            Op->>Op: handle action (see below)
+        end
+
+Once the operator reads a human action, it resolves to one of five outcomes:
+
+.. mermaid::
+
+    flowchart TD
+        A[Read human_action] --> B{action}
+        B -->|approve| C[Return output]
+        B -->|reject| D[Raise HITLRejectException]
+        B -->|changes_requested| E[regenerate_with_feedback]
+        E --> F["Push agent_output_N<br/>status: pending_review"]
+        F -.loop.-> A
+        B -->|"iteration &ge; max_hitl_iterations"| G["Push status:<br/>max_iterations_exceeded"]
+        G --> H[Raise HITLMaxIterationsError]
+        B -->|hitl_timeout elapsed| I["Push status:<br/>timeout_exceeded"]
+        I --> J[Raise HITLTimeoutError]
 
 Using HITL review with ``AgentOperator``
 ----------------------------------------
@@ -115,20 +124,20 @@ Enable the review loop with ``enable_hitl_review=True``:
 
 **Parameters**
 
-- ``enable_hitl_review`` — When ``True``, the operator enters the review loop
+- ``enable_hitl_review``: When ``True``, the operator enters the review loop
   after the first generation. Default ``False``.
-- ``max_hitl_iterations`` — Maximum outputs the reviewer can see (1 = initial
+- ``max_hitl_iterations``: Maximum outputs the reviewer can see (1 = initial
   output plus subsequent regenerations). When the reviewer requests changes at
   iteration ``>= max_hitl_iterations``, the task fails with
   ``HITLMaxIterationsError`` without running the LLM. For example, ``5`` allows
-  changes at iterations 1–4; the fifth output must be either approved or
+  changes at iterations 1 to 4; the fifth output must be either approved or
   rejected. Default ``5``.
-- ``hitl_timeout`` — Maximum wall-clock time to wait for all review rounds.
+- ``hitl_timeout``: Maximum wall-clock time to wait for all review rounds.
   ``None`` = no timeout (blocks until a terminal action).
-- ``hitl_poll_interval`` — Seconds between XCom polls while waiting for a
+- ``hitl_poll_interval``: Seconds between XCom polls while waiting for a
   human response. Default ``10``.
 
-**Accessing the chat UI** — The chat loads as a React plugin on the task
+**Accessing the chat UI**: The chat loads as a React plugin on the task
 instance page. Use the **HITL Review** extra link on the task instance, or
 navigate to
 ``/dags/{dag_id}/runs/{run_id}/tasks/{task_id}/plugin/hitl-review``.
@@ -151,10 +160,10 @@ The plugin exposes a FastAPI app at ``/hitl-review``. Base URL:
 
 **Common query parameters** (where applicable):
 
-- ``dag_id`` — Dag ID.
-- ``run_id`` — Dag run ID.
-- ``task_id`` — Task ID.
-- ``map_index`` — Map index for mapped tasks. Use ``-1`` for non-mapped tasks or index for dynamic mapping.
+- ``dag_id``: Dag ID.
+- ``run_id``: Dag run ID.
+- ``task_id``: Task ID.
+- ``map_index``: Map index for mapped tasks. Use ``-1`` for non-mapped tasks or index for dynamic mapping.
 
 Endpoints
 ^^^^^^^^^
@@ -236,12 +245,12 @@ All keys use the prefix ``airflow_hitl_review_``.
 Session lifecycle
 ^^^^^^^^^^^^^^^^^
 
-- **pending_review** — Awaiting human action. Plugin accepts approve, reject,
+- **pending_review**: Awaiting human action. Plugin accepts approve, reject,
   or feedback.
-- **changes_requested** — Feedback submitted; worker is regenerating (or
+- **changes_requested**: Feedback submitted; worker is regenerating (or
   polling for the next action). Plugin does not accept new actions until the
   worker pushes a new output and status returns to ``pending_review``.
-- **approved** / **rejected** — Terminal. Worker has exited the loop.
+- **approved** / **rejected**: Terminal. Worker has exited the loop.
 
 Chat UI
 -------

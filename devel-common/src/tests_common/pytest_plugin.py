@@ -166,7 +166,7 @@ ALL_PYPROJECT_TOML_FILES: list[Path] = []
 
 
 def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
-    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
+    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text(encoding="utf-8").splitlines()
     in_workspace = False
     for line in pyproject_toml_content:
         trimmed_line = line.strip()
@@ -198,9 +198,12 @@ if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSO
     subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 else:
     calculated_provider_deps_hash = _calculate_provider_deps_hash()
-    if calculated_provider_deps_hash.strip() != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text().strip():
+    if (
+        calculated_provider_deps_hash.strip()
+        != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text(encoding="utf-8").strip()
+    ):
         subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
-        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_provider_deps_hash)
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_provider_deps_hash, encoding="utf-8")
 # End of copied code from breeze
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
@@ -1476,8 +1479,29 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             ti = self.create_ti(task_id, dag_run=dag_run, dag_run_kwargs=dag_run_kwargs, map_index=map_index)
             if AIRFLOW_V_3_2_PLUS:
+                from airflow.ti_deps.dep_context import DepContext
+                from airflow.ti_deps.dependencies_deps import RUNNING_DEPS
+
                 from tests_common.test_utils.taskinstance import run_task_instance
 
+                if ti.try_number == 0 and ti.state is None:
+                    dep_context = DepContext(
+                        deps=RUNNING_DEPS,
+                        ignore_depends_on_past=kwargs.get("ignore_depends_on_past", False),
+                        ignore_task_deps=kwargs.get("ignore_task_deps", False),
+                        ignore_ti_state=kwargs.get("ignore_ti_state", False),
+                    )
+                    if not kwargs.get("mark_success", False) and not ti.are_dependencies_met(
+                        dep_context=dep_context, session=self.session, verbose=True
+                    ):
+                        self.session.commit()
+                        return ti
+                    ti.get_dagrun(session=self.session).schedule_tis([ti], session=self.session)
+                    ti.refresh_from_db(session=self.session)
+                    if ti.state == "scheduled":
+                        ti.state = "queued"
+                        self.session.merge(ti)
+                    self.session.commit()
                 run_task_instance(ti, task, **kwargs)
             else:
                 ti.run(**kwargs)
@@ -1571,7 +1595,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance
             from airflow.models.serialized_dag import SerializedDagModel
-            from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
             from tests_common.test_utils.compat import AssetEvent
@@ -1607,7 +1630,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
                     self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
                     self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(TaskMap).where(TaskMap.dag_id.in_(dag_ids)))
                     self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
                     if AIRFLOW_V_3_0_PLUS:
                         for bundle_name in self.created_bundle_names:
@@ -2165,6 +2187,32 @@ def clear_current_task_instance_session():
         yield
     finally:
         task_instance_session.__current_task_instance_session = None
+
+
+@pytest.fixture(autouse=True)
+def reset_dag_bundle_config_cache():
+    """Reset the per-process Dag bundle configuration cache between tests.
+
+    The configuration is parsed once per process, so a test that sets a different
+    ``[dag_processor] dag_bundle_config_list`` would otherwise be served the previous
+    test's bundles. ``conf_vars`` clears it too, for tests that switch config midway.
+    """
+    if importlib.util.find_spec("airflow") is None:
+        yield
+        return
+
+    try:
+        from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
+    except ImportError:
+        # compat for airflow versions without the snapshot cache
+        yield
+        return
+
+    _load_bundle_config_snapshot.cache_clear()
+    try:
+        yield
+    finally:
+        _load_bundle_config_snapshot.cache_clear()
 
 
 @pytest.fixture(autouse=True)

@@ -18,9 +18,14 @@
 Files with DataFusion: ``DataFusionToolset``
 ============================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Curated toolset wrapping
 :class:`~airflow.providers.common.sql.datafusion.engine.DataFusionEngine`
-with three tools — ``list_tables``, ``get_schema``, and ``query`` — for
+with three tools (``list_tables``, ``get_schema``, and ``query``) for
 querying files on object stores (S3, GCS, local filesystem, Iceberg) via Apache DataFusion.
 
 .. list-table::
@@ -32,7 +37,9 @@ querying files on object stores (S3, GCS, local filesystem, Iceberg) via Apache 
    * - ``list_tables``
      - Lists registered table names
    * - ``get_schema``
-     - Returns column names and types for a table (Arrow schema)
+     - Returns a table's columns (Arrow schema) as JSON, with a ``name_contains``
+       filter and a bounded summary on very wide tables (see
+       :ref:`bounded-schema-results`)
    * - ``query``
      - Executes a SQL query and returns bounded, columnar JSON (see
        :ref:`bounded-query-results`)
@@ -75,18 +82,23 @@ Parameters
   :class:`~airflow.providers.common.sql.config.DataSourceConfig` entries.
   Requires ``apache-airflow-providers-common-sql[datafusion]``.
 - ``allow_writes``: Allow data-modifying SQL (CREATE TABLE, CREATE VIEW,
-  INSERT INTO, etc.). Default ``False`` — only SELECT-family statements are
+  INSERT INTO, etc.). Default ``False``: only SELECT-family statements are
   permitted. DataFusion on object stores is mostly read-only, but it does
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
-- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
-  See :ref:`bounded-query-results`.
+- ``max_result_bytes``: Budget for the serialized ``query`` result, and the byte backstop
+  that also triggers the ``get_schema`` summary. Default 64 KiB.
+  See :ref:`bounded-query-results` and :ref:`bounded-schema-results`.
+- ``max_columns``: Maximum columns ``get_schema`` returns in full. Default ``100``.
+  Above it the result becomes a bounded summary. See :ref:`bounded-schema-results`.
+- ``max_retries``: How many times the model may correct a failed call to these
+  tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
 When to choose it
 -----------------
 
 **Choose it when** the data is files on an object store rather than rows in a
-database — Parquet, CSV or Avro — or a table in a catalog such as Iceberg, and
+database (Parquet, CSV or Avro), or a table in a catalog such as Iceberg, and
 you want the agent to ask SQL questions of them without loading them anywhere
 first. (This route needs the ``datafusion`` extra of
 ``apache-airflow-providers-common-sql``.) Each ``DataSourceConfig`` registers
@@ -101,14 +113,16 @@ Iceberg is looked up by ``db_name`` instead, and ``DataSourceConfig`` raises
 - It has no table allow-list. ``allow_writes=False`` is the only guard, and it
   blocks non-SELECT statements, not reach: the defense-layer table records that
   this toolset "does not prevent the agent from reading any registered data
-  source". The registration list is therefore the whole boundary — register
+  source". The registration list is therefore the whole boundary: register
   exactly what the agent may read.
-- It bounds the payload, not the scan. DataFusion has already materialized the
-  full result before ``max_rows`` and ``max_result_bytes`` apply, so those limits
-  protect the model's context, not the cost of the query.
+- It bounds what the engine materializes, not what it scans. The ``query`` tool
+  runs the statement with a ``LIMIT`` of ``max_rows + 1``, so DataFusion never
+  builds a larger result than that, but a plan that has to read every row before
+  it can return one -- an aggregation, a sort, a late-matching filter -- still
+  pays for the whole scan.
 - It cannot tell failure kinds apart precisely. The DataFusion Python bindings
   expose no native exception types, so the retry decision is made by matching the
-  error message against regular expressions — which a wording change upstream can
+  error message against regular expressions, which a wording change upstream can
   quietly defeat.
 
 **A real example.** The same bucket as the ``HookToolset`` example on :doc:`hook`, reached

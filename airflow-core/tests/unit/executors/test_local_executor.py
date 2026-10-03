@@ -35,8 +35,8 @@ from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO
 from airflow.executors.workloads.task import TaskInstanceDTO
+from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.models.callback import CallbackFetchMethod
-from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.settings import Session
 from airflow.utils.state import State
 
@@ -94,8 +94,8 @@ def _make_task_workload():
 
 def _write_large_results_to_queue(result_queue, result_count, payload_size):
     payload = RuntimeError("x" * payload_size)
-    for index in range(result_count):
-        key = TaskInstanceKey("test_dag", f"test_task_{index}", "test_run")
+    for _ in range(result_count):
+        key = uuid7()
         result_queue.put((key, State.SUCCESS, payload))
 
 
@@ -237,8 +237,8 @@ class TestLocalExecutor:
         assert executor._unread_messages.value == 0
 
         for ti in success_tis:
-            assert executor.event_buffer[ti.key][0] == State.SUCCESS
-        assert executor.event_buffer[fail_ti.key][0] == State.FAILED
+            assert executor.event_buffer[TaskInstanceUuid(ti.id)][0] == State.SUCCESS
+        assert executor.event_buffer[TaskInstanceUuid(fail_ti.id)][0] == State.FAILED
 
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_workloads")

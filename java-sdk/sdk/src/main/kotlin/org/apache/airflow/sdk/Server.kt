@@ -143,6 +143,7 @@ class Server(
    */
   suspend fun serveAsync(bundle: Bundle) =
     coroutineScope {
+      bundle.finalizeRegistration()
       val deferral = CompletableDeferred<Unit>()
 
       launch {
