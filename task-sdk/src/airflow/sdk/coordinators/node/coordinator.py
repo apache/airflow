@@ -29,7 +29,6 @@ import structlog
 from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, walk_files
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.coordinators.node._bundle_reader import BUNDLE_SUFFIX, read_bundle
-from airflow.sdk.coordinators.node._dag_importer import NodeDagImporter
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -115,8 +114,6 @@ class NodeCoordinator(SubprocessCoordinator):
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
 
-    A task of a native TypeScript Dag runs the ``*.min.mjs`` bundle its Dag was parsed from.
-
     The coordinator also parses native TypeScript Dags: every packed ``*.min.mjs`` bundle in a
     Dag bundle is run to list its Dags. With one NodeCoordinator configured, it parses the bundles
     of every Dag bundle. With several, ``[sdk] dag_bundle_to_coordinator`` picks the one that
@@ -127,31 +124,8 @@ class NodeCoordinator(SubprocessCoordinator):
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         roots = self._get_scan_roots()
-        if (bundle := self._find_dag_bundle(roots, dag_file, what.dag_id)) is None:
-            bundle = _Bundle.find(roots, what.dag_id)
+        bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
-
-    @staticmethod
-    def _find_dag_bundle(
-        roots: Sequence[pathlib.Path], dag_file: pathlib.Path | None, dag_id: str
-    ) -> _Bundle | None:
-        """Return *dag_file* when it is a bundle under *roots* that declares *dag_id*, or ``None``."""
-        if dag_file is None or not _is_bundle(dag_file):
-            return None
-        resolved = dag_file.resolve()
-        if not any(resolved.is_relative_to(root.resolve()) for root in roots):
-            return None
-        try:
-            metadata = read_bundle(dag_file)
-        except (OSError, TypeError, ValueError) as exc:
-            log.debug("Cannot run the Dag's own TypeScript bundle", path=dag_file, reason=str(exc))
-            return None
-        if dag_id not in metadata.dag_ids:
-            return None
-        return _Bundle(path=dag_file, schema_version=metadata.supervisor_schema_version)
-
-    def get_dag_importer(self) -> NodeDagImporter:
-        return NodeDagImporter(coordinator=self)
 
     def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         return [self.node_executable, os.fspath(path)], read_bundle(path).supervisor_schema_version
