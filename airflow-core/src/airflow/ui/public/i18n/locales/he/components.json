@@ -26,7 +26,6 @@
         "title": "Backfill נוצר"
       }
     },
-    "unpause": "הפעל את {{dag_display_name}} בעת הריצה",
     "validation": {
       "datesRequired": "יש להזין גם תאריך התחלה וגם תאריך סיום של מרווח הנתונים.",
       "startBeforeEnd": "תאריך התחלת מרווח הנתונים חייב להיות קטן או שווה לתאריך סיום מרווח הנתונים."
@@ -160,8 +159,7 @@
         "title": "ריצת Dag הופעלה"
       }
     },
-    "triggerAgainWithConfig": "הפעל שוב עם התצורה הזו",
-    "unpause": "הפעל את {{dagDisplayName}} בעת ההרצה"
+    "triggerAgainWithConfig": "הפעל שוב עם התצורה הזו"
   },
   "trimText": {
     "details": "פרטים",

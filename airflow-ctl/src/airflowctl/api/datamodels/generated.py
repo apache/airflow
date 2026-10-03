@@ -1005,6 +1005,13 @@ class MaterializeAssetBody(BaseModel):
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
+    drain_dag: Annotated[
+        bool | None,
+        Field(
+            description="Drain the Dag together with this run. Draining changes the whole Dag: unfinished runs can start or resume except those held by paused backfills. No scheduled runs are created, and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining to complete. Requires the same permission as pausing the Dag.",
+            title="Drain Dag",
+        ),
+    ] = False
 
 
 class NewTaskResponse(BaseModel):
@@ -1356,6 +1363,13 @@ class TriggerDAGRunPostBody(BaseModel):
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
+    drain_dag: Annotated[
+        bool | None,
+        Field(
+            description="Drain the Dag together with this run. Draining changes the whole Dag: unfinished runs can start or resume except those held by paused backfills. No scheduled runs are created, and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining to complete. Requires the same permission as pausing the Dag.",
+            title="Drain Dag",
+        ),
+    ] = False
 
 
 class TriggerResponse(BaseModel):
@@ -1651,6 +1665,13 @@ class BackfillPostBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
+    drain_dag: Annotated[
+        bool | None,
+        Field(
+            description="Drain the Dag together with the backfill. Draining changes the whole Dag: unfinished runs can start or resume except those held by paused backfills. No scheduled runs are created, and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining to complete. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.",
+            title="Drain Dag",
+        ),
+    ] = False
 
 
 class BackfillResponse(BaseModel):
