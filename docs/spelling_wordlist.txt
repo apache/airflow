@@ -840,6 +840,7 @@ ideation
 idempotence
 idempotency
 IdP
+idp
 ie
 iframe
 iframes
