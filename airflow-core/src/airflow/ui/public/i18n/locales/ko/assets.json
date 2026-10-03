@@ -33,8 +33,8 @@
       "label": "수동 생성"
     },
     "materialize": {
-      "description": "이 에셋의 상위 Dag을 트리거합니다",
-      "descriptionWithDag": "이 에셋의 상위 Dag을 트리거합니다: {{dagName}}",
+      "description": "이 에셋의 상위 Dag를 트리거합니다",
+      "descriptionWithDag": "이 에셋의 상위 Dag를 트리거합니다: {{dagName}}",
       "label": "구체화",
       "unpauseDag": "트리거 시 {{dagName}}의 일시중지를 해제합니다"
     },
