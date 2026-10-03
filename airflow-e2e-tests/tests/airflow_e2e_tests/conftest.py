@@ -73,6 +73,7 @@ from airflow_e2e_tests.constants import (
     TS_SDK_ROOT_PATH,
     XCOM_BUCKET,
 )
+from airflow_e2e_tests.e2e_test_utils.go_toolchain import run_go
 
 from tests_common.test_utils.fernet import generate_fernet_key_string
 
@@ -540,81 +541,23 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
-def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
-    """Run ``go tool airflow-go-pack`` natively or inside the pinned Go toolchain container.
-
-    ``go tool airflow-go-pack`` builds the bundle package, reads the go-sdk
-    version from the binary's build information (it never runs the binary), and
-    appends the source + airflow-metadata.yaml + the AFBNDL01 trailer, writing a
-    single self-contained executable bundle.
-    CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
-
-    In ``native`` mode (used in CI, where the host already has a Go toolchain plus
-    restored module/build caches via ``actions/setup-go``) it invokes the host ``go``
-    directly, skipping the toolchain-image pull and the container workarounds below.
-
-    The containerized path stays the default for local runs so a dev host needs
-    no Go installed:
-
-    * --user keeps build outputs owned by the current user (not root).
-    * HOME points at a writable, gitignored dir under go-sdk/bin so the Go build
-      and module caches persist between runs (first run downloads modules once;
-      subsequent runs skip straight to compilation).
+def _pack_go_bundle(module: Path, package: str, output: Path, *, native: bool):
     """
-    if native:
-        cwd = GO_SDK_ROOT_PATH
-        env = {**os.environ, "CGO_ENABLED": "0"}
-        argv = [
-            "go",
-            "tool",
-            "airflow-go-pack",
-            "--output",
-            str(output_path),
-            GO_SDK_EXAMPLE_BUNDLE_PKG,
-        ]
-    else:
-        cwd = None
-        env = None
-        # Mount the repo so the whole go-sdk module (go.mod, tool directive,
-        # example sources) is visible to `go tool`.
-        container_go_sdk_dir = f"/repo/{GO_SDK_ROOT_PATH.relative_to(AIRFLOW_ROOT_PATH)}"
-        container_bin_dir = f"/repo/{GO_SDK_BIN_PATH.relative_to(AIRFLOW_ROOT_PATH)}"
-        argv = [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            "-e",
-            f"HOME={container_bin_dir}/.home",
-            "-e",
-            "USER=airflow",
-            "-e",
-            "CGO_ENABLED=0",
-            "-v",
-            f"{AIRFLOW_ROOT_PATH}:/repo",
-            "-w",
-            container_go_sdk_dir,
-            GO_BUILDER_IMAGE,
-            "go",
-            "tool",
-            "airflow-go-pack",
-            "--output",
-            f"{container_bin_dir}/{output_path.name}",
-            GO_SDK_EXAMPLE_BUNDLE_PKG,
-        ]
-    return subprocess.run(argv, cwd=cwd, env=env, check=True, capture_output=capture_output, text=True)
+    Pack the ``main`` package *package* of the Go module *module* into the bundle *output*.
 
-
-def _pack_go_sdk_example_bundle(*, native=False):
-    """Build the Go SDK example bundle, capturing output so a failure prints the build log."""
-    output_path = GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME
+    ``go tool airflow-go-pack`` builds the package, reads the go-sdk version from the binary's build
+    information (it never runs the binary), and appends the source + airflow-metadata.yaml + the
+    AFBNDL01 trailer, writing a single self-contained executable bundle.
+    The output of a failed pack is printed, so the build log is not lost.
+    """
     mode_label = "host toolchain" if native else GO_BUILDER_IMAGE
-    console.print(f"[yellow]Building Go SDK example bundle ({mode_label})...")
+    console.print(f"[yellow]Packing Go bundle {output.name} from {package} ({mode_label})...")
     try:
-        completed = _run_go_sdk_pack(output_path, capture_output=True, native=native)
+        completed = run_go(
+            ["tool", "airflow-go-pack", "--output", output, package], module=module, native=native
+        )
     except subprocess.CalledProcessError as e:
-        console.print("[red]Go SDK example bundle build failed:")
+        console.print(f"[red]Packing Go bundle {output.name} failed:")
         console.print(e.stdout, e.stderr, sep="\n", markup=False, soft_wrap=True)
         raise
     console.print(completed.stdout, completed.stderr, sep="\n", markup=False, soft_wrap=True)
@@ -633,7 +576,12 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     worker and the Dag processor without a Go toolchain or any extra runtime
     installed -- see ``go.yml``.
     """
-    _pack_go_sdk_example_bundle(native=LANG_SDK_NATIVE_TOOLCHAIN)
+    _pack_go_bundle(
+        GO_SDK_ROOT_PATH,
+        GO_SDK_EXAMPLE_BUNDLE_PKG,
+        GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME,
+        native=LANG_SDK_NATIVE_TOOLCHAIN,
+    )
 
     # Copy the compose override into the temp directory.
     copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
