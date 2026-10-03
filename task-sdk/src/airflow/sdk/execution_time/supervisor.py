@@ -129,6 +129,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskStateStore,
@@ -292,6 +293,10 @@ SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout
 # Maximum possible time (in seconds) that task will have for execution of auxiliary processes
 # like listeners after task is complete.
 TASK_OVERTIME_THRESHOLD: float = conf.getfloat("core", "task_success_overtime")
+
+# How long a task process gets to clean up when the supervisor stops it: after the server says it should no
+# longer run, SIGTERM to SIGKILL; after execution_timeout elapses, both before SIGTERM and before SIGKILL.
+KILLED_TASK_CLEANUP_TIME: float = conf.getfloat("core", "killed_task_cleanup_time")
 
 SERVER_TERMINATED = TerminalStateNonSuccess.SERVER_TERMINATED.value
 
@@ -1620,6 +1625,11 @@ class ActivitySubprocess(WatchedSubprocess):
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
     _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
+    _execution_timeout_seconds: float | None = attrs.field(default=None, init=False)
+    _execution_timeout_enforce_at: float | None = attrs.field(default=None, init=False)
+    """Monotonic time at which the supervisor sends ``_execution_timeout_next_signal``."""
+    _execution_timeout_next_signal: signal.Signals | None = attrs.field(default=None, init=False)
+
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     ti: RuntimeTI | None = None
@@ -1882,6 +1892,8 @@ class ActivitySubprocess(WatchedSubprocess):
                     MIN_HEARTBEAT_INTERVAL,
                 ),
             )
+            if self._exit_code is None and (due_in := self._execution_timeout_due_in()) is not None:
+                max_wait_time = max(0, min(max_wait_time, due_in))
             # Block until events are ready or the timeout is reached
             # This listens for activity (e.g., subprocess output) on registered file objects
             alive = self._service_subprocess(max_wait_time=max_wait_time) is None
@@ -1907,6 +1919,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._send_heartbeat_if_needed()
 
                 self._handle_process_overtime_if_needed()
+                self._handle_execution_timeout_if_needed()
 
     def _handle_process_overtime_if_needed(self):
         """Handle termination of auxiliary processes if the task exceeds the configured overtime."""
@@ -1920,6 +1933,61 @@ class ActivitySubprocess(WatchedSubprocess):
                 ti_id=self.id,
             )
             self.kill(signal.SIGTERM, force=True)
+
+    def _execution_timeout_due_in(self) -> float | None:
+        """Seconds until the supervisor must act on an overrunning task, or None if there is nothing to enforce."""
+        if (
+            self._execution_timeout_next_signal is None
+            or self._execution_timeout_enforce_at is None
+            or self._terminal_state
+            or self._pending_terminal_state_msg is not None
+        ):
+            return None
+        return self._execution_timeout_enforce_at - time.monotonic()
+
+    def _handle_execution_timeout_if_needed(self):
+        """
+        Enforce ``execution_timeout`` from outside the task process.
+
+        The task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the only
+        place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that can
+        still run Python signal handlers; one that has not reported a terminal state within the grace period
+        is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
+
+        The deadline is armed by ``SetExecutionTimeout``, which the task process sends right before
+        ``execute()``. Anything before that (bundle load, Dag parsing) is not covered here.
+        """
+        due_in = self._execution_timeout_due_in()
+        if due_in is None or due_in > 0:
+            return
+
+        next_signal = self._execution_timeout_next_signal
+        if next_signal == signal.SIGTERM:
+            self.process_log.error(
+                "Task did not stop after execution_timeout elapsed; terminating process",
+                timeout_seconds=self._execution_timeout_seconds,
+                grace_period_seconds=KILLED_TASK_CLEANUP_TIME,
+            )
+            try:
+                self._signal_subprocess(signal.SIGTERM)
+            except self._process.ProcessNotFound:
+                self._execution_timeout_next_signal = None
+                self._execution_timeout_enforce_at = None
+                return
+            self._execution_timeout_next_signal = signal.SIGKILL
+            self._execution_timeout_enforce_at = time.monotonic() + KILLED_TASK_CLEANUP_TIME
+            return
+
+        if next_signal != signal.SIGKILL:
+            return
+
+        self.process_log.error(
+            "Task process did not exit after SIGTERM; killing it",
+            timeout_seconds=self._execution_timeout_seconds,
+        )
+        self._execution_timeout_next_signal = None
+        self._execution_timeout_enforce_at = None
+        self.kill(signal.SIGKILL)
 
     def _send_heartbeat_if_needed(self):
         """Send a heartbeat to the client if heartbeat interval has passed."""
@@ -1955,7 +2023,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 # kill() drains worker messages while waiting for the process to exit.
                 self._terminal_state = SERVER_TERMINATED
                 self._pending_terminal_state_msg = None
-                self.kill(signal.SIGTERM, force=True)
+                self.kill(signal.SIGTERM, force=True, escalation_delay=KILLED_TASK_CLEANUP_TIME)
                 self.process_log.error("Task killed!")
             else:
                 # If we get any other error, we'll just log it and try again next time
@@ -2051,6 +2119,14 @@ class ActivitySubprocess(WatchedSubprocess):
         self, msg: SkipDownstreamTasks, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
         self.client.task_instances.skip_downstream_tasks(self.id, msg)
+        return None, {}
+
+    def _handle_set_execution_timeout(
+        self, msg: SetExecutionTimeout, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        self._execution_timeout_seconds = msg.timeout_seconds
+        self._execution_timeout_next_signal = signal.SIGTERM
+        self._execution_timeout_enforce_at = time.monotonic() + msg.timeout_seconds + KILLED_TASK_CLEANUP_TIME
         return None, {}
 
     def _handle_set_rendered_fields(
@@ -2344,6 +2420,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(RetryTask, _handle_task_state),
                 register_request_method(SetAssetStateStoreByName, _handle_set_asset_state_store_by_name),
                 register_request_method(SetAssetStateStoreByUri, _handle_set_asset_state_store_by_uri),
+                register_request_method(SetExecutionTimeout, _handle_set_execution_timeout),
                 register_request_method(SetRenderedFields, _handle_set_rendered_fields),
                 register_request_method(SetRenderedMapIndex, _handle_set_rendered_map_index),
                 register_request_method(SetTaskStateStore, _handle_set_task_state_store),
