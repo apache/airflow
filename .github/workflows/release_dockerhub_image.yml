@@ -57,21 +57,11 @@ jobs:
       AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
       AMD_ONLY: ${{ github.event.inputs.amdOnly }}
       LIMIT_PYTHON_VERSIONS: ${{ github.event.inputs.limitPythonVersions }}
-    if: contains(fromJSON('[
-      "ashb",
-      "bugraoz93",
-      "eladkal",
-      "ephraimbuddy",
-      "jedcunningham",
-      "jscheffl",
-      "kaxil",
-      "pierrejeambrun",
-      "potiuk",
-      "uranusjr",
-      "utkarsharma2",
-      "vincbeck",
-      "vatsrahul1001",
-      ]'), github.event.sender.login)
+    # Access is gated by the RM-only "release" deployment environment, which
+    # replaces the previous hardcoded release-manager allowlist. The environment
+    # must be configured by ASF INFRA with release managers as required
+    # reviewers - see https://github.com/apache/airflow/issues/69460
+    environment: release
     steps:
       - name: "Input parameters summary"
         shell: bash
