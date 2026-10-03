@@ -67,6 +67,7 @@ if TYPE_CHECKING:
 __all__ = [
     "BaseCoordinator",
     "CoordinatorManager",
+    "TaskHandlerArtifactError",
     "TaskHandlerCandidate",
     "get_coordinator_manager",
     "reset_coordinator_manager",
@@ -82,6 +83,15 @@ def _drop_unrecordable_cache_digest(cache_digest: str | None) -> str | None:
     if cache_digest is not None and len(cache_digest) > _MAX_CACHE_DIGEST_LENGTH:
         return None
     return cache_digest
+
+
+class TaskHandlerArtifactError(Exception):
+    """
+    The artifact that would run a task cannot be resolved.
+
+    A coordinator raises this from :meth:`BaseCoordinator.execute_task` before it starts the task's
+    runtime. The supervisor then fails the task instance and writes the message to the task log.
+    """
 
 
 @attrs.frozen(kw_only=True)
@@ -140,6 +150,10 @@ class BaseCoordinator:
         This should execute the task and return a result. *task_handler_artifact* is the Lang-SDK
         artifact that implements a stub task, as the task's workload names it, or ``None`` when the
         workload names none.
+
+        :raises TaskHandlerArtifactError: when the artifact that would run the task cannot be
+            resolved. Raise it before the runtime starts: the supervisor fails the task instance with
+            the message in its task log, and the task retries if it has retries left.
         """
         raise NotImplementedError
 

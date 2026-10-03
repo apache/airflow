@@ -50,8 +50,8 @@ carries an integrity hash of the binary region, and identifies the file as a
 bundle. See :ref:`bundle-trailer-layout`.
 
 Filenames follow OS conventions for executables: no extension on Linux/macOS,
-``.exe`` on Windows. The scanner identifies bundles by the trailer's magic,
-not by the filename.
+``.exe`` on Windows. The Dag processor identifies bundles by the trailer's
+magic, not by the filename.
 
 The complete bundle file regions are:
 
@@ -143,18 +143,18 @@ Reader algorithm:
 
 1. Open the file. Seek to ``EOF - 64``. Read 64 bytes.
 2. Compare bytes ``56..63`` against ``"AFBNDL01"``. If different, the file
-   is not a bundle; the scanner MUST ignore it.
+   is not a bundle; the Dag processor MUST ignore it.
 3. Parse ``footer_ver``. If unknown, fail with a versioning error.
 4. Compute ``metadata_start = filesize - 64 - metadata_len`` and
    ``source_start = metadata_start - source_len``.
 5. Validate ``source_start >= 0`` and that the implied binary region
    (``[0, source_start)``) is non-empty.
 6. Compute SHA-256 over the binary region ``[0, source_start)`` and compare
-   to ``binary_sha256``. Mismatch is a hard failure handled identically to
-   a magic-check failure: the scanner logs and skips the file. The result
-   MAY be cached by ``(path, inode, mtime, size)`` so the runtime does not
-   re-hash on every exec; a cache miss (file replaced, mtime bumped)
-   triggers re-verification.
+   to ``binary_sha256``. Mismatch is a hard failure: the Dag processor's
+   probe of the file fails and is logged, and a task bound to the file fails
+   with the reason. The result MAY be cached by ``(path, inode, mtime, size)``
+   so the runtime does not re-hash on every exec; a cache miss (file replaced,
+   mtime bumped) triggers re-verification.
 7. Read ``metadata_len`` bytes from ``metadata_start`` for the manifest.
 8. Read ``source_len`` bytes from ``source_start`` for the source view.
    If ``source_len == 0``, no source is embedded; the UI displays
@@ -210,9 +210,11 @@ Top-level keys:
       this value to the supervisor so it can downgrade outbound messages /
       upgrade inbound messages to a shape the bundle understands. The value
       MUST resolve against the supervisor's schema bundle; the coordinator
-      validates it lazily when matching a bundle to a task at
-      task-execution time, and an unknown version causes that bundle to be
-      skipped.
+      validates it before it starts the bundle. The Dag processor cannot
+      probe a bundle with an unknown version, so its stub Dag fails to import
+      with the reason in its import error. A task fails with the reason in
+      its task log only when its worker's Airflow or bundle differs from the
+      Dag processor's.
 
 ``source`` (string, required)
     Original filename of the primary DAG source file (e.g. ``example.go``).
@@ -241,8 +243,9 @@ Top-level keys:
 
 ``dags`` (mapping, required)
     Mapping of ``dag_id`` to a *DAG entry*. Every ``dag_id`` the bundle
-    exposes MUST appear here. The scanner uses these keys to match a DAG
-    parsing or task-execution request to the bundle that owns it.
+    exposes MUST appear here. No coordinator reads these keys to find a
+    bundle: the Dag processor lists bundles by their trailer, and a task
+    runs the bundle it is bound to.
 
 DAG entry fields:
 
@@ -321,15 +324,14 @@ Bundle files are placed **as-is** in the Dag bundle named by the
 ``task_handler_bundle_name`` kwarg on the
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` entry
 under ``[sdk] coordinators`` (or, when it is unset, in the task's own Dag
-bundle). The scanner walks the Dag bundle **recursively** and considers only
-regular files whose **executable bit is set** for the invoking user; files
-without the executable bit are skipped without reading their trailer, so the
-Dag bundle must preserve it. For each candidate it reads the last 64 bytes and
-treats files whose magic matches ``"AFBNDL01"`` as bundles. Matched files are
-then SHA-256-verified per the reader algorithm; a mismatch demotes the file
-back to "ignored, with an error log." Files without the magic are silently
-ignored, so non-bundle files (READMEs, dotfiles) MAY share the Dag bundle
-without interfering with the scan.
+bundle). The Dag processor walks the Dag bundle **recursively** and lists every
+regular file whose last 64 bytes carry the magic ``"AFBNDL01"`` as a bundle,
+whatever its executable bit. Files without the magic are silently ignored, so
+non-bundle files (READMEs, dotfiles) MAY share the Dag bundle without
+interfering with the listing. A task runs only the one bundle file it is bound
+to, which must have the **executable bit set** for the invoking user, so the
+Dag bundle must preserve it; the file is SHA-256-verified per the reader
+algorithm first, and a mismatch fails the task with the reason in its task log.
 
 ::
 
@@ -339,13 +341,12 @@ without interfering with the scan.
     │   └── pipeline
     └── analytics
 
-At task-execution time the runtime execs the bundle file directly with the
-coordinator arguments (``--comm=<addr>`` / ``--logs=<addr>``). No extraction,
-no transient cache directory, no chmod-after-extract step is required: the
-file is already a runnable executable with the appropriate permission bits
-preserved by the build pipeline. The integrity check runs at scan/discovery
-time and is cached by ``(path, inode, mtime, size)``, so the exec hot path
-does not re-hash.
+At task-execution time the runtime execs the bound bundle file directly with
+the coordinator arguments (``--comm=<addr>`` / ``--logs=<addr>``). No
+extraction, no transient cache directory, no chmod-after-extract step is
+required: the file is already a runnable executable with the appropriate
+permission bits preserved by the build pipeline. The integrity check is cached
+by ``(path, inode, mtime, size)``, so the exec hot path does not re-hash.
 
 The compiled executable MUST honor the SDK coordinator protocol —
 ``--comm=<host:port>`` / ``--logs=<host:port>`` socket-based IPC.

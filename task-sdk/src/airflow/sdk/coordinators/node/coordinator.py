@@ -21,12 +21,9 @@ from __future__ import annotations
 
 import os
 import pathlib
-from typing import TYPE_CHECKING
 
 import attrs
-import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, walk_files
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.coordinators.node._bundle_reader import (
     _LAYOUT_COMMENT_PREFIX,
@@ -35,64 +32,11 @@ from airflow.sdk.coordinators.node._bundle_reader import (
 )
 from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
-
-    from airflow.sdk.api.datamodels._generated import TaskInstance
-
-log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node")
-
 BUNDLE_SUFFIX = ".min.mjs"
 
 
 def _is_bundle(path: pathlib.Path) -> bool:
     return path.name.endswith(BUNDLE_SUFFIX)
-
-
-@attrs.define
-class _Bundle(ResolvedBundle):
-    @classmethod
-    def find(cls, roots: Sequence[pathlib.Path], dag_id: str) -> Self:
-        """Return the first verified configured bundle that declares *dag_id*."""
-        log.debug("Finding TypeScript bundles recursively", roots=roots, dag_id=dag_id)
-        rejected: list[tuple[pathlib.Path, str]] = []
-        for candidate in walk_files(roots, match=_is_bundle):
-            try:
-                metadata = read_bundle(candidate)
-                if dag_id not in metadata.dag_ids:
-                    log.debug(
-                        "TypeScript bundle does not contain requested Dag; skipping",
-                        path=candidate,
-                        dag_id=dag_id,
-                    )
-                    rejected.append(
-                        (candidate, f"verified bundle declares dag_ids={sorted(metadata.dag_ids)!r}")
-                    )
-                    continue
-                bundle = cls(path=candidate, schema_version=metadata.supervisor_schema_version)
-            except (OSError, TypeError, ValueError) as exc:
-                log.debug(
-                    "TypeScript bundle rejected; skipping",
-                    path=candidate,
-                    reason=str(exc),
-                    exc_info=True,
-                )
-                rejected.append((candidate, str(exc)))
-                continue
-            log.debug("Selected TypeScript bundle", path=candidate, dag_id=dag_id)
-            return bundle
-
-        searched = os.pathsep.join(os.fspath(root) for root in roots)
-        if rejected:
-            details = "; ".join(f"{path}: {reason}" for path, reason in rejected)
-            raise FileNotFoundError(
-                f"Cannot find usable TypeScript bundle containing dag_id={dag_id!r} in {searched}: "
-                f"rejected candidates ({details})"
-            )
-        raise FileNotFoundError(f"Cannot find TypeScript bundle containing dag_id={dag_id!r} in {searched}")
 
 
 @attrs.define(kw_only=True)
@@ -117,21 +61,17 @@ class NodeCoordinator(SubprocessCoordinator):
 
     :param node_executable: Path to the ``node`` binary (defaults to
         ``"node"``, which relies on ``$PATH``).
-    :param task_handler_bundle_name: Name of the Dag bundle searched recursively for the first
-        verified ``*.min.mjs`` bundle declaring the task instance's Dag. It must be registered in
-        ``[dag_processor] dag_bundle_config_list``. If unset, the task's own Dag bundle is used.
+    :param task_handler_bundle_name: Name of the Dag bundle the Dag processor lists for
+        ``*.min.mjs`` bundles. It must be registered in ``[dag_processor] dag_bundle_config_list``.
+        If unset, the task's own Dag bundle is listed. A task runs the bundle its stub task was
+        bound to or, for a Dag defined in TypeScript, its own Dag file, after verifying it.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
 
     node_executable: str = "node"
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        roots = self._get_scan_roots()
-        bundle = _Bundle.find(roots, what.dag_id)
-        return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
-
-    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+    def _build_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         metadata = read_bundle(path)
         return [self.node_executable, os.fspath(path)], metadata.supervisor_schema_version
 

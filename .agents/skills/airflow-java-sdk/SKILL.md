@@ -51,8 +51,10 @@ subclasses must only import from `org.apache.airflow.sdk`; any import of
 ## Bundle composition and coordinator discovery
 
 A **bundle** is a directory of JAR files (typically `build/bundle/`) placed in the Dag bundle named
-by the coordinator's `task_handler_bundle_name` (the task's own Dag bundle when unset). The
-coordinator scans that Dag bundle at task-dispatch time to find:
+by the coordinator's `task_handler_bundle_name` (the task's own Dag bundle when unset). The Dag
+processor lists the handler JARs in that Dag bundle and binds each stub task to the JAR that registers
+its handler. At task-dispatch time the coordinator runs only the JAR the task was bound to (or, for a
+Dag defined in Java, its own Dag file), and reads from it:
 
 1. **`Main-Class`** (standard JAR manifest attribute) — the fully-qualified class name of the
    entry point that the coordinator invokes with `java -classpath … <Main-Class> --comm … --logs …`.
@@ -66,16 +68,23 @@ coordinator scans that Dag bundle at task-dispatch time to find:
    `runtimeClasspath` and copies it into the shadow JAR manifest. In thin-JAR mode (`fatJar =
    false`), the value stays in the `airflow-sdk` JAR deployed alongside the bundle JAR.
 
-The Python coordinator (`JavaCoordinator`) scans every JAR in that Dag bundle with
-`_JarInfo.find()`, reads `META-INF/MANIFEST.MF` out of each ZIP, and collects `Main-Class` and
-`Airflow-Supervisor-Schema-Version` from whichever JARs carry them. The resolved schema version
-is then passed as the `schema_version` return value from `_build_execute_task_command`, which
-the base `SubprocessCoordinator` uses to negotiate the supervisor wire protocol.
+The Python coordinator (`JavaCoordinator`) reads `META-INF/MANIFEST.MF` out of that JAR in
+`_build_task_handler_command`, and takes `Main-Class` and `Airflow-Supervisor-Schema-Version` from
+it. A thin JAR that carries no schema version takes the first one found in the other JARs of the
+Dag bundle, in sorted path order. The resolved schema version is returned from
+`_build_task_handler_command`, and the base `SubprocessCoordinator` uses it to negotiate the
+supervisor wire protocol. The Dag processor probes a JAR with the same command.
 
 If `main_class` is set explicitly on the `JavaCoordinator` instance (via `[sdk] coordinators`
-kwargs), the scan uses it as a filter; otherwise the first JAR with a `Main-Class` attribute
-wins. Either way, `Airflow-Supervisor-Schema-Version` must be present in at least one JAR in
-the Dag bundle or startup fails. Every JAR in the Dag bundle goes on one classpath.
+kwargs), it runs instead of the manifest's `Main-Class`, for tasks and for the probe, so keep one
+handler JAR per Dag bundle then. The Java candidate's cache digest then covers `main_class`, so
+changing it makes the Dag processor probe again. Only a JAR whose manifest has `Airflow-Cache-Digest`
+is a handler JAR: the Gradle plugin writes it, and a Maven build must set a value that changes on
+every build (see java.rst). Either way, `Airflow-Supervisor-Schema-Version` must be present in
+at least one JAR in the Dag bundle. Without it the Dag processor cannot probe the JAR, so the stub
+Dag fails to import with the reason in its import error. A task fails before the JVM starts, with
+the reason in its task log, only when its worker's JARs differ from the Dag processor's. Every JAR
+in the Dag bundle goes on one classpath.
 
 ---
 
@@ -116,11 +125,12 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 
 ## Updating the Python coordinator
 
-`coordinator.py` extends `SubprocessCoordinator`. The only method subclasses must implement is
-`_build_execute_task_command`, which returns `(argv, schema_version)`. Look at the existing
-implementation for how the scanned Dag bundle, `java_executable`, `jvm_args`, and `main_class` are
-assembled into the command. Do not reach into the JVM process from Python beyond what this
-method provides.
+`coordinator.py` extends `SubprocessCoordinator`. The methods subclasses implement are
+`_read_task_handler_candidate`, which tells the coordinator's artifacts apart from the other files
+of a Dag bundle, and `_build_task_handler_command`, which returns `(argv, schema_version)` for the
+artifact at a path, for the probe and for a task alike. Look at the existing implementation for how
+the Dag bundle's JARs, `java_executable`, `jvm_args`, and `main_class` are assembled into the
+command. Do not reach into the JVM process from Python beyond what this method provides.
 
 ---
 

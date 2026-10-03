@@ -122,7 +122,8 @@ Now `cd example` into the example project, and
   task handlers the JARs register. The scheduler needs the settings too, to
   send each stub task the artifact the Dag processor bound it to, but not the
   bundle directory or a JRE. A scheduler that rejects the settings logs a
-  warning and sends no artifacts. The API server does not need them.
+  warning and sends no artifacts, so the stub tasks it queues fail with the
+  reason in their task logs. The API server does not need them.
   `task_handler_bundle_name` is used only by mixed-language Dags, to locate
   the task handlers for the `@task.stub` tasks of a Python Dag; Dags defined
   natively in a language SDK do not use it.
@@ -663,8 +664,9 @@ where Airflow can find it.
 When the Airflow supervisor identifies that a task should run with Java, it
 launches the JVM application as a subprocess. The flow is:
 
-1. `JavaCoordinator.execute_task()` (Python) scans the Dag bundle named by
-   `task_handler_bundle_name`, builds the classpath, and spawns
+1. `JavaCoordinator.execute_task()` (Python) runs the JAR the task points at,
+   which is the artifact its workload names or, without one, its own Dag file.
+   It builds the classpath from every JAR in that JAR's Dag bundle, and spawns
    `java -cp <jars> <MainClass> --comm=<host>:<port> --logs=<host>:<port>`.
 2. `Server.kt` connects to both sockets immediately on startup.
 3. The supervisor sends a `StartupDetails` MessagePack message; the JVM reads
@@ -762,7 +764,7 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
   behaviour, handle it in `BuilderProcessor.kt` and add a golden-output test in
   `processor/src/test/kotlin/`.
 - The Python coordinator subclasses `SubprocessCoordinator`. Do not reach into
-  the JVM process from Python beyond what `_build_execute_task_command`
+  the JVM process from Python beyond what `_build_task_handler_command`
   provides.
 - Run `./gradlew ktLintCheck spotlessCheck` (or `ktLintFormat spotlessApply`)
   before submitting — the project enforces Kotlin and Java formatting.

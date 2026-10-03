@@ -46,7 +46,7 @@ coordinator workflow for every assertion.
 The test asserts that the Java task instances reach state ``success``, which
 confirms:
 
-1. ``JavaCoordinator`` correctly discovers and launches the JVM JAR.
+1. ``JavaCoordinator`` correctly launches the JVM JAR the task is bound to.
 2. The wire protocol (supervisor → JVM → supervisor) round-trips
    ``StartupDetails`` and the task result (``SucceedTask``/``TaskState``).
 3. XCom reads and API calls (getXCom, getConnection, getVariable) work

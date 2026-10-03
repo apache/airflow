@@ -30,8 +30,9 @@ Java stub tasks so one run exercises all three runtimes on KubernetesExecutor::
   implementations live in ``../java_example`` under this same dag_id.
 * The Python tasks run on the default Python path.
 
-The dag_id and the Go/Java task ids MUST match the identities the bundles expose
-so each coordinator can locate its artifact by dag_id and look up the task by id.
+The dag_id and the Go/Java task ids MUST match the task handlers the artifacts
+register: the Dag processor binds each stub task to the artifact that registers
+its handler, and each runtime looks up the task by id.
 """
 
 from __future__ import annotations

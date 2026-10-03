@@ -247,15 +247,14 @@ the full range of task states, and alternate XCom backends without implementing 
 ### Quickstart
 
 - Build and pack your bundle with `airflow-go-pack`. The packer compiles the bundle and appends an
-  embedded metadata footer so the coordinator can read its `dag_id`s without executing the binary,
-  producing a single runnable file:
+  embedded metadata footer, producing a single runnable file:
 
   ```bash
   go tool airflow-go-pack ./example/bundle -- -trimpath -tags=prod
   ```
 
-  Use `--output <path>` to write the packed bundle straight into the directory of the Dag bundle the
-  coordinator scans (`task_handler_bundle_name`), and pass extra `go build` flags after `--`.
+  Use `--output <path>` to write the packed bundle straight into the directory of the Dag bundle named by
+  `task_handler_bundle_name`, and pass extra `go build` flags after `--`.
 
   For cross-compiling (e.g. deploy to a Linux host from an Apple-silicon (darwin/arm64) machine), pass `--goos`/`--goarch` and the
   packer cross-builds for you:
@@ -299,12 +298,12 @@ the full range of task states, and alternate XCom backends without implementing 
   queue_to_coordinator = {"golang": "go"}
   ```
 
-  `task_handler_bundle_name` names the Dag bundle the coordinator scans for packed bundles (the task's own
+  `task_handler_bundle_name` names the Dag bundle the Dag processor lists for packed bundles (the task's own
   Dag bundle when unset). It is used only by mixed-language Dags, to locate the task handlers for the
   `@task.stub` tasks of a Python Dag; Dags defined natively in a language SDK do not use it.
-  `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator. Only files with the
-  executable bit are considered, so use a Dag bundle that keeps it: a `LocalDagBundle` does, object-store
-  Dag bundles such as `S3DagBundle` do not.
+  `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator. A worker runs a
+  packed bundle only if its executable bit is set, so use a Dag bundle that keeps it: a `LocalDagBundle`
+  does, object-store Dag bundles such as `S3DagBundle` do not.
 
   > [!IMPORTANT]
   > The `[sdk]` config and the packed bundle files must be present wherever tasks execute and on the Dag
@@ -312,11 +311,12 @@ the full range of task states, and alternate XCom backends without implementing 
   > inside the scheduler process. The Dag processor checks the stub tasks of each Python Dag against the
   > task handlers the packed bundles register, so it runs them too and needs bundles built for its
   > operating system and CPU architecture. The API server does not need any of it. Register the Dag bundle
-  > in `[dag_processor] dag_bundle_config_list` on every component, like your other Dag bundles: the worker
-  > and the Dag processor resolve `task_handler_bundle_name` through it, and wherever the `[sdk]` config is
-  > read it is rejected if the name is missing there. The scheduler reads the `[sdk]` config too, to send
-  > each stub task the artifact the Dag processor bound it to; for that it needs no bundle files or
-  > runtime. A scheduler that rejects the config logs a warning and sends no artifacts.
+  > in `[dag_processor] dag_bundle_config_list` on every component, like your other Dag bundles: the Dag
+  > processor resolves `task_handler_bundle_name` through it, a worker resolves the Dag bundle of the
+  > artifact it runs, and wherever the `[sdk]` config is read it is rejected if the name is missing there.
+  > The scheduler reads the `[sdk]` config too, to send each stub task the artifact the Dag processor bound
+  > it to; for that it needs no bundle files or runtime. A scheduler that rejects the config logs a warning
+  > and sends no artifacts, so the stub tasks it queues fail with the reason in their task logs.
 
 - Deploy the matching Python stub Dag (above) into Airflow. There is no separate Go worker to run: the
   Airflow worker forks the bundle binary once per task instance.

@@ -158,16 +158,17 @@ BaseCoordinator                          execution_time/coordinator.py
 SubprocessCoordinator                    coordinators/_subprocess.py
   implements all three; each resolves (command, subprocess_schema_version)
   from a hook and owns the socket lifecycle:
-  ├── _build_execute_task_command         (shipped)
-  ├── _build_parse_dag_command            (new)
-  └── _build_parse_task_handler_command   (new)
+  ├── _build_task_handler_command         (execute_task and parse_task_handler)
+  └── _build_parse_dag_command            (new)
         │
 JavaCoordinator · ExecutableCoordinator · NodeCoordinator
-  supply the three commands; no socket or protocol code
+  supply the commands; no socket or protocol code
 ```
 
-Names follow the shipped `execute_task` / `_build_execute_task_command` pair and supersede ADR-0004's `run_dag_parsing` / `dag_parsing_cmd`. Each hook returns its own
-`subprocess_schema_version`, so handler parsing negotiates the schema the same way task execution does.
+`execute_task` and `parse_task_handler` share one hook, `_build_task_handler_command(path=…)`: the command that runs the artifact at a path, with the
+`subprocess_schema_version` it understands. A probe and a task therefore start an artifact the same way and negotiate the schema the same way, and a task runs the artifact it
+is pointed at instead of searching a bundle for it ([ADR-0013](0013-persisted-task-handler-bindings.md)). The shared hook replaces the separate execution and handler-parse
+commands the shipped code and this ADR first had, and the names supersede ADR-0004's `run_dag_parsing` / `dag_parsing_cmd`.
 
 ## Consequences
 

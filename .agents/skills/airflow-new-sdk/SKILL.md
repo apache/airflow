@@ -54,7 +54,8 @@ Does the runtime compile to a self-contained native executable?
   NO  →
     Does it start via a single shell command (node, ruby, dotnet, …)?
       YES → Subclass SubprocessCoordinator.
-            Implement _build_execute_task_command only (see 30_new_language_sdk.rst).
+            Implement _build_task_handler_command and _read_task_handler_candidate
+            (see 30_new_language_sdk.rst).
       NO  →
         Subclass BaseCoordinator and implement execute_task from scratch.
         (Rare: gRPC daemons, shared memory, persistent processes.)

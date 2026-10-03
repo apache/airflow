@@ -50,7 +50,7 @@ Prerequisites
 
 * Node.js 22 or later must be available on the Airflow worker nodes and the Dag processor.
 * The packed bundle (a single ``bundle.min.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible
-  from the worker and the Dag processor, in the Dag bundle the coordinator scans.
+  from the worker and the Dag processor, in the Dag bundle the coordinator reads.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 * In the TypeScript project, install the ``apache-airflow-ts-sdk`` npm package to author task handlers:
@@ -235,7 +235,7 @@ Register a Dag bundle for the packed bundles, register the coordinator, and rout
     }
     queue_to_coordinator = {"typescript": "ts"}
 
-``task_handler_bundle_name`` names the Dag bundle the coordinator scans for packed bundles;
+``task_handler_bundle_name`` names the Dag bundle the Dag processor lists for packed bundles;
 ``queue_to_coordinator`` routes stub tasks with ``queue="typescript"`` to this coordinator. See
 :ref:`typescript-sdk/coordinator-config` for the full list of accepted ``kwargs`` and how the bundle is
 located.
@@ -250,11 +250,12 @@ task instance.
   ``LocalExecutor``, they run inside the scheduler process. The Dag processor checks the stub tasks of each
   Python Dag against the task handlers the packed bundles register, so it runs them too. The API server
   does not need any of it. Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every
-  component, like your other Dag bundles: the worker and the Dag processor resolve
-  ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read it is rejected if the
-  name is missing there. The scheduler reads the ``[sdk]`` config too, to send each stub task the artifact
-  the Dag processor bound it to; for that it needs no packed bundles or Node.js. A scheduler that rejects the
-  config logs a warning and sends no artifacts.
+  component, like your other Dag bundles: the Dag processor resolves ``task_handler_bundle_name`` through
+  it, a worker resolves the Dag bundle of the artifact it runs, and wherever the ``[sdk]`` config is read it
+  is rejected if the name is missing there. The scheduler reads the ``[sdk]`` config too, to send each stub
+  task the artifact the Dag processor bound it to; for that it needs no packed bundles or Node.js. A
+  scheduler that rejects the config logs a warning and sends no artifacts, so the stub tasks it queues fail
+  with the reason in their task logs.
 
 .. _typescript-sdk/native-dag:
 
@@ -526,10 +527,12 @@ Deploying
 ~~~~~~~~~
 
 Copy or mount the bundle into the Dag bundle named by the coordinator's ``task_handler_bundle_name``.
-:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches that Dag bundle recursively and launches the
-first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task instance's Dag. The artifact's
-name does not matter beyond that suffix, so one Dag bundle can hold several bundles and a Dag is routed to
-whichever declares it. If multiple bundles declare the same Dag, the first in sorted path order wins.
+The Dag processor lists the ``*.min.mjs`` bundles in that Dag bundle recursively and asks each for the task
+handlers it registers, and each stub task is bound to the bundle that registers its handler.
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` launches only the bundle a task is bound to, after
+verifying its integrity. The artifact's name does not matter beyond the ``.min.mjs`` suffix, so one Dag
+bundle can hold several bundles. A bundle that fails verification fails the tasks bound to it, with the
+reason in their task logs.
 
 .. _typescript-sdk/coordinator-config:
 
@@ -548,11 +551,11 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Description
    * - ``task_handler_bundle_name``
      - *(task's own Dag bundle)*
-     - Name of the Dag bundle searched recursively for an integrity-verified ``*.min.mjs`` bundle that
-       declares the requested Dag. It is used only by mixed-language Dags, to locate the task handlers for
-       the ``@task.stub`` tasks of a Python Dag; Dags defined natively in a language SDK do not use it. It
-       must be registered in ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]``
-       configuration is loaded, so a typo fails there rather than on the first task.
+     - Name of the Dag bundle the Dag processor lists recursively for ``*.min.mjs`` bundles; a worker runs
+       the bundle its stub task was bound to. It is used only by mixed-language Dags, to locate the task
+       handlers for the ``@task.stub`` tasks of a Python Dag; Dags defined natively in a language SDK do
+       not use it. It must be registered in ``[dag_processor] dag_bundle_config_list``. It is checked when
+       the ``[sdk]`` configuration is loaded, so a typo fails there rather than on the first task.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.

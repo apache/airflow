@@ -35,6 +35,7 @@ import os
 import selectors
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import time
@@ -50,7 +51,7 @@ from airflow.sdk.api.datamodels._generated import BundleInfo
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._bundle_metadata import walk_files
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
-from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskHandlerArtifactError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
@@ -453,19 +454,92 @@ def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) 
     return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
 
 
-def _check_artifact_in_bundle(bundle: BaseDagBundle, rel_path: str) -> None:
+_ARTIFACT_ORIGIN = "Task handler artifact"
+_DAG_FILE_ORIGIN = "Dag file"
+
+
+@attrs.frozen
+class _ArtifactTarget:
+    """The file a task runs and the Dag bundle it is read from."""
+
+    origin: str
+    """What names the file in messages: the task handler artifact the workload references, or the Dag file."""
+    bundle: BundleInfo
+    rel_path: str
+
+
+def _select_artifact_target(
+    bundle_info: BundleInfo,
+    dag_rel_path: str | os.PathLike[str],
+    task_handler_artifact: TaskHandlerArtifactRef | None,
+) -> _ArtifactTarget:
     """
-    Raise :class:`FileNotFoundError` unless *rel_path* names a file inside *bundle*.
+    Return the file a task runs, as a Python task picks its Dag file.
+
+    With *task_handler_artifact*, that is the file it names, in the bundle it names, or in the task's own
+    bundle when it names none. A reference that names the task's own bundle without a version uses
+    *bundle_info*, so a pinned run keeps its version. Without a reference, it is the task's own Dag
+    file, *dag_rel_path* in the bundle of *bundle_info*: the way a task of a Dag defined in a Lang SDK
+    runs.
+    """
+    if task_handler_artifact is None:
+        return _ArtifactTarget(origin=_DAG_FILE_ORIGIN, bundle=bundle_info, rel_path=os.fspath(dag_rel_path))
+    ref_bundle = task_handler_artifact.bundle_info
+    if ref_bundle is None or (ref_bundle.name == bundle_info.name and ref_bundle.version is None):
+        ref_bundle = bundle_info
+    return _ArtifactTarget(
+        origin=_ARTIFACT_ORIGIN, bundle=ref_bundle, rel_path=task_handler_artifact.rel_path
+    )
+
+
+def _resolve_artifact_bundle(target: _ArtifactTarget, logger: FilteringBoundLogger) -> BaseDagBundle:
+    """
+    Materialize the Dag bundle of *target*, pinned to a concrete version.
+
+    *logger* is the task logger, so materialization failures surface in the task log.
+
+    :raises TaskHandlerArtifactError: when the bundle cannot be read.
+    """
+    cannot_run = f"{target.origin} {target.rel_path!r} cannot run: Dag bundle {target.bundle.name!r}"
+    try:
+        bundle = _initialize_pinned_bundle(target.bundle, logger)
+    except Exception as e:
+        raise TaskHandlerArtifactError(f"{cannot_run} cannot be read: {e}") from e
+    try:
+        bundle.path.stat()
+    except (FileNotFoundError, NotADirectoryError):
+        raise TaskHandlerArtifactError(
+            f"{cannot_run} cannot be read: it resolved to {bundle.path}, which does not exist."
+        ) from None
+    except OSError as e:
+        raise TaskHandlerArtifactError(f"{cannot_run} cannot be read: {e}") from e
+    return bundle
+
+
+def _is_file_in_bundle(bundle: BaseDagBundle, rel_path: str) -> bool:
+    """
+    Return whether *rel_path* names a file inside *bundle*.
 
     *rel_path* must be a relative path inside the bundle, with no ``..`` part. A symlink in the
     bundle is followed, as the Dag processor follows it when it lists the bundle's artifacts.
     """
     path = PurePosixPath(rel_path)
-    if path.is_absolute() or ".." in path.parts or not (bundle.path / path).is_file():
-        version = f" at version {bundle.version!r}" if bundle.version is not None else ""
-        raise FileNotFoundError(
-            f"Task handler artifact {rel_path!r} is not a file in Dag bundle {bundle.name!r}{version}."
-        )
+    if path.is_absolute() or ".." in path.parts:
+        return False
+    try:
+        return stat.S_ISREG((bundle.path / path).stat().st_mode)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+
+
+def _require_supported_schema_version(version: str) -> None:
+    """Raise ``ValueError`` unless the supervisor of this worker's Task SDK knows *version*."""
+    try:
+        get_schema_version_migrator().resolve_version(version)
+    except ValueError as e:
+        raise ValueError(
+            f"uses supervisor schema version {version!r}, which this worker's Task SDK does not support"
+        ) from e
 
 
 @attrs.define(kw_only=True)
@@ -473,69 +547,30 @@ class SubprocessCoordinator(BaseCoordinator):
     """
     Abstract base for coordinators that launch a subprocess and IPC over TCP sockets.
 
-    Subclasses provide the per-task subprocess command and the supervisor
-    wire-schema version via :meth:`_build_execute_task_command`. The rest of
-    the socket lifecycle — listening, spawning the child, accepting
-    connections, draining startup output, and tearing everything down on
-    failure — is handled here.
-
-    A subclass that also reports its artifacts' task handlers implements
-    :meth:`_build_parse_task_handler_command`, and :meth:`_read_task_handler_candidate`
-    to tell its artifacts apart from the other files of a Dag bundle.
+    A subclass implements :meth:`_read_task_handler_candidate`, which tells its artifacts apart
+    from the other files of a Dag bundle, and :meth:`_build_task_handler_command`, which builds the
+    command that runs an artifact and resolves its supervisor wire-schema version. The Dag processor
+    probes an artifact with that command, and a worker runs a task with it. The base class handles the
+    rest of the socket lifecycle: listening, spawning the child, accepting connections, draining
+    startup output, and tearing everything down on failure.
 
     :param task_startup_timeout: Maximum time the coordinator waits for the
         subprocess to connect to both servers, in seconds. The default is 10
         seconds.
-    :param task_handler_bundle_name: Name of the Dag bundle that holds the compiled
-        task handlers. It must be registered in ``[dag_processor] dag_bundle_config_list``.
-        If unset, the task's own Dag bundle is used. A named bundle resolves to the
-        version current when the task starts. The task's own bundle is read at the version
-        the run uses: its pinned version, or the version current when the task starts if
-        the run is not pinned. Either way the resolved version is pinned for the whole task.
+    :param task_handler_bundle_name: Name of the Dag bundle the Dag processor lists and probes for
+        task handler artifacts. It must be registered in ``[dag_processor] dag_bundle_config_list``.
+        If unset, the Dag processor reads the task's own Dag bundle. A task does not read this
+        setting: it runs the artifact its stub task was bound to or, for a Dag defined in a Lang
+        SDK, its own Dag file. An artifact in a named bundle is read at the version current when
+        the task starts, and one in the task's own bundle at the version the run uses: its pinned
+        version, or the version current when the task starts if the run is not pinned. Either way
+        the resolved version is pinned for the whole task.
     """
 
     task_startup_timeout: float = 10.0
     task_handler_bundle_name: str | None = None
 
     _active_scan_roots: tuple[pathlib.Path, ...] | None = attrs.field(init=False, default=None)
-
-    def _resolve_artifact_bundle(
-        self,
-        bundle_info: BundleInfo,
-        logger: FilteringBoundLogger,
-        *,
-        task_handler_artifact: TaskHandlerArtifactRef | None = None,
-    ) -> BaseDagBundle:
-        """
-        Materialize the Dag bundle holding the artifacts for a task of *bundle_info*.
-
-        With *task_handler_artifact*, that is the bundle it names, or the task's own bundle
-        when it names none, and its file must exist there. A reference that names the task's
-        own bundle without a version uses *bundle_info*, so a pinned run keeps its version.
-        Without a reference, that is the bundle named by ``task_handler_bundle_name``, or the
-        task's own bundle when it is unset. *logger* is the task logger, so materialization failures
-        surface in the task log.
-
-        :raises FileNotFoundError: when the bundle path, or the referenced file, does not exist.
-        """
-        if task_handler_artifact is not None:
-            ref_bundle = task_handler_artifact.bundle_info
-            if ref_bundle is None or (ref_bundle.name == bundle_info.name and ref_bundle.version is None):
-                target = bundle_info
-            else:
-                target = ref_bundle
-        elif self.task_handler_bundle_name is None:
-            target = bundle_info
-        else:
-            target = BundleInfo(name=self.task_handler_bundle_name)
-
-        bundle = _initialize_pinned_bundle(target, logger)
-        path = bundle.path
-        if not path.exists():
-            raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
-        if task_handler_artifact is not None:
-            _check_artifact_in_bundle(bundle, task_handler_artifact.rel_path)
-        return bundle
 
     def _get_scan_roots(self) -> tuple[pathlib.Path, ...]:
         """Return the artifact roots resolved for the active task or parse."""
@@ -546,30 +581,17 @@ class SubprocessCoordinator(BaseCoordinator):
             )
         return self._active_scan_roots
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
+    def _build_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         """
-        Build the subprocess command and resolve its supervisor wire-schema version for *what*.
+        Build the command that runs the artifact at *path*, with its supervisor schema version.
 
-        Subclasses can retrieve the directories to scan for artifacts with
-        :meth:`_get_scan_roots`.
-        Returns a ``(command, subprocess_schema_version)`` pair. *command* MUST
-        NOT include the ``--comm`` / ``--logs`` flags — those are appended by
-        :class:`_PopenActivitySubprocess` once the listening sockets have been
-        bound. A ``None`` schema version disables schema migration; messages are
-        then exchanged at the runtime's native wire format.
+        Subclasses can retrieve the root of the Dag bundle holding *path* with
+        :meth:`_get_scan_roots`. *command* MUST NOT include the ``--comm`` / ``--logs`` flags,
+        which are appended once the listening sockets have been bound. A ``None`` schema version
+        disables schema migration; messages are then exchanged at the runtime's native wire format.
+        Raise an exception when the artifact cannot run, for example when its integrity check fails.
         """
-        raise NotImplementedError
-
-    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
-        """
-        Build the command that reports the task handlers of the artifact at *path*, with its schema version.
-
-        Subclasses can retrieve the directories to scan for artifacts with
-        :meth:`_get_scan_roots`; for a parse they are the root of the Dag bundle holding
-        *path*. The contract is that of :meth:`_build_execute_task_command`: *command*
-        MUST NOT include the ``--comm`` / ``--logs`` flags.
-        """
-        raise NotImplementedError(f"{type(self).__name__} does not parse task handlers")
+        raise NotImplementedError(f"{type(self).__name__} does not build task handler commands")
 
     def parse_task_handler(
         self,
@@ -594,7 +616,7 @@ class SubprocessCoordinator(BaseCoordinator):
             exited; the process is then unchanged.
         """
         with self._set_scan_roots([bundle_path]):
-            command, schema_version = self._build_parse_task_handler_command(path=path)
+            command, schema_version = self._build_task_handler_command(path=path)
         if schema_version is not None:
             get_schema_version_migrator().resolve_version(schema_version)
         argv = [
@@ -662,6 +684,74 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         raise NotImplementedError(f"{type(self).__name__} does not list task handler artifacts")
 
+    def _unimplemented_task_hooks(self) -> list[str]:
+        return [
+            name
+            for name in ("_read_task_handler_candidate", "_build_task_handler_command")
+            if getattr(type(self), name) is getattr(SubprocessCoordinator, name)
+        ]
+
+    def _build_task_command(
+        self, *, what: TaskInstance, bundle: BaseDagBundle, target: _ArtifactTarget
+    ) -> tuple[list[str], str | None]:
+        """
+        Check that *target* is an artifact this coordinator runs, and return its command and schema version.
+
+        :raises TaskHandlerArtifactError: when the file is missing, is not this coordinator's kind,
+            cannot be opened or run, or its command or supervisor schema version cannot be resolved.
+        """
+        rel_path = target.rel_path
+        path = bundle.path / rel_path
+        cannot_run = f"{target.origin} {rel_path!r} in Dag bundle {bundle.name!r} cannot run"
+        candidate = None
+        try:
+            in_bundle = _is_file_in_bundle(bundle, rel_path)
+            if in_bundle:
+                # The candidate readers return None for a file they cannot open, so open it here first.
+                with path.open("rb"):
+                    pass
+                candidate = self._read_task_handler_candidate(path, rel_path=rel_path)
+        except Exception as e:
+            raise TaskHandlerArtifactError(f"{cannot_run}: {e}") from e
+        if candidate is None:
+            raise TaskHandlerArtifactError(
+                self._get_unusable_artifact_message(what, bundle, target, in_bundle)
+            )
+        if candidate.error is not None:
+            raise TaskHandlerArtifactError(f"{cannot_run}: {candidate.error}")
+        try:
+            command, schema_version = self._build_task_handler_command(path=path)
+            if schema_version is not None:
+                _require_supported_schema_version(schema_version)
+        except Exception as e:
+            raise TaskHandlerArtifactError(f"{cannot_run}: {e}") from e
+        return command, schema_version
+
+    def _get_unusable_artifact_message(
+        self, what: TaskInstance, bundle: BaseDagBundle, target: _ArtifactTarget, in_bundle: bool
+    ) -> str:
+        kind = type(self).__name__
+        if target.origin == _DAG_FILE_ORIGIN:
+            return (
+                f"Task {what.task_id!r} of Dag {what.dag_id!r} has no task handler artifact, "
+                "and its Dag file "
+                f"{target.rel_path!r} is not an artifact that {kind} runs. Queue {what.queue or 'default'!r} "
+                "routes it to a Lang-SDK coordinator, so it must be a @task.stub task the Dag processor "
+                "bound to an artifact, or a task of a Dag defined in a Lang SDK. "
+                f"Check the import errors of {target.rel_path!r}, and that the scheduler has the same "
+                "[sdk] configuration as the Dag processor."
+            )
+        if not in_bundle:
+            version = f" at version {bundle.version!r}" if bundle.version is not None else ""
+            return (
+                f"Task handler artifact {target.rel_path!r} is not a file in Dag bundle "
+                f"{bundle.name!r}{version}."
+            )
+        return (
+            f"Task handler artifact {target.rel_path!r} in Dag bundle {bundle.name!r} is not an artifact "
+            f"that {kind} runs. A newer parse may route this task to another coordinator."
+        )
+
     def execute_task(
         self,
         *,
@@ -675,9 +765,23 @@ class SubprocessCoordinator(BaseCoordinator):
         task_handler_artifact: TaskHandlerArtifactRef | None = None,
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
-        bundle = self._resolve_artifact_bundle(
-            bundle_info, logger or log, task_handler_artifact=task_handler_artifact
-        )
+        """
+        Run the one file a task points at, the way a Python task runs its Dag file.
+
+        That is the artifact *task_handler_artifact* names, or without one the task's own Dag
+        file, *dag_rel_path* in the bundle of *bundle_info*. The file must be an artifact this
+        coordinator runs. No other file of the bundle is read.
+
+        :raises TaskHandlerArtifactError: when the file cannot be resolved or run, before the
+            runtime starts.
+        """
+        if missing_hooks := self._unimplemented_task_hooks():
+            raise TaskHandlerArtifactError(
+                f"{type(self).__name__} cannot run tasks: implement {' and '.join(missing_hooks)}."
+            )
+        task_logger = logger or log
+        target = _select_artifact_target(bundle_info, dag_rel_path, task_handler_artifact)
+        bundle = _resolve_artifact_bundle(target, task_logger)
         # Hold the version lock across start()/wait() so bundle cleanup cannot
         # rmtree a version this task is still reading from, mirroring
         # task_runner.main() for the Python task path.
@@ -685,7 +789,16 @@ class SubprocessCoordinator(BaseCoordinator):
             BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version),
             self._set_scan_roots([bundle.path]),
         ):
-            command, subprocess_schema_version = self._build_execute_task_command(what=what)
+            command, subprocess_schema_version = self._build_task_command(
+                what=what, bundle=bundle, target=target
+            )
+            task_logger.info(
+                "Running a Lang-SDK artifact",
+                origin=target.origin,
+                bundle_name=bundle.name,
+                bundle_version=bundle.version,
+                path=target.rel_path,
+            )
             process = _PopenActivitySubprocess.start(
                 what=what,
                 dag_rel_path=dag_rel_path,

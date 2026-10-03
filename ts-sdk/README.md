@@ -108,9 +108,10 @@ coordinators = {
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-The Dag bundle named by `task_handler_bundle_name` (the task's own Dag bundle when unset) is searched
-recursively for `*.min.mjs` bundles built with `airflow-ts-pack` (see [Packing bundles](#packing-bundles)),
-which embeds the Airflow metadata in the bundle itself. `task_handler_bundle_name` is used only by
+The Dag processor lists the `*.min.mjs` bundles built with `airflow-ts-pack` (see
+[Packing bundles](#packing-bundles)) in the Dag bundle named by `task_handler_bundle_name` (the task's own
+Dag bundle when unset), recursively, and a worker runs the one a stub task was bound to. The packer embeds the
+Airflow metadata in the bundle itself. `task_handler_bundle_name` is used only by
 mixed-language Dags, to locate the task handlers for the `@task.stub` tasks of a Python Dag; Dags defined
 natively in a language SDK do not use it.
 
@@ -118,7 +119,8 @@ This config, the packed bundles and Node.js 22 or later must be present wherever
 Dag processor, which checks the stub tasks of each Python Dag against the task handlers the bundles
 register. The scheduler reads the config too, to send each stub task the artifact the Dag processor bound
 it to; for that it needs no packed bundles or Node.js. A scheduler that rejects the config logs a warning and
-sends no artifacts. The API server does not need them.
+sends no artifacts, so the stub tasks it queues fail with the reason in their task logs. The API server does
+not need them.
 
 TypeScript entrypoint:
 

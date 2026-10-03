@@ -2196,8 +2196,8 @@ sdk:
         ``task_handler_bundle_name`` kwarg. Dags defined natively in a language
         SDK do not use it. It must name a bundle in
         ``[dag_processor] dag_bundle_config_list`` and is checked when this
-        option is loaded. When it is unset, a task reads its handlers from its
-        own Dag bundle.
+        option is loaded. When it is unset, the Dag processor lists the Dag's own
+        bundle, and a task runs the artifact it was bound to there.
 
         The Dag processor needs this option too, with the language runtime the
         coordinator starts and the files of that Dag bundle, because it checks
@@ -2208,7 +2208,8 @@ sdk:
         the Dag processor bound it to. It needs the Dag bundles named by
         ``task_handler_bundle_name`` in ``[dag_processor] dag_bundle_config_list``,
         but not the language runtime or the files of those bundles. A scheduler
-        that cannot read this option logs a warning and sends no artifacts. The
+        that cannot read this option logs a warning and sends no artifacts, so
+        the stub tasks it queues fail with the reason in their task logs. The
         API server does not need it.
 
         An entry may also carry an optional ``extra`` object for additional

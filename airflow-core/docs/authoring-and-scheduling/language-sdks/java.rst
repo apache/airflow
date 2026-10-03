@@ -281,12 +281,13 @@ and a JRE must be available wherever tasks execute and on the Dag processor. Wit
 execute on the Celery workers; with ``LocalExecutor``, they run in subprocesses on the scheduler's host. The
 Dag processor checks the stub tasks of ``sales_pipeline.py`` against the task handlers the JARs register, so
 it runs them too. The API server does not need any of it. Register the Dag bundle in
-``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker and
-the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read
-it is rejected if the name is missing there. The scheduler reads the ``[sdk]`` config too, to send each stub
-task the artifact the Dag processor bound it to; for that it needs no JARs or JRE. A scheduler that rejects
-the config logs a warning and sends no artifacts. The Dag processor still receives ``sales_pipeline.py``
-through the separate Dag delivery process.
+``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the Dag
+processor resolves ``task_handler_bundle_name`` through it, a worker resolves the Dag bundle of the artifact
+it runs, and wherever the ``[sdk]`` config is read it is rejected if the name is missing there. The
+scheduler reads the ``[sdk]`` config too, to send each stub task the artifact the Dag processor bound it
+to; for that it needs no JARs or JRE. A scheduler that rejects the config logs a warning and sends no
+artifacts, so the stub tasks it queues fail with the reason in their task logs. The Dag processor still
+receives ``sales_pipeline.py`` through the separate Dag delivery process.
 
 After Airflow has parsed the Dag, trigger it from the UI or command line:
 
@@ -875,8 +876,10 @@ Then run:
 
 The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it into the Dag bundle named by
 ``task_handler_bundle_name`` in the coordinator configuration.
-:class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans that Dag bundle recursively and builds the
-classpath automatically.
+The Dag processor lists the handler JARs in that Dag bundle and asks each for the task handlers it
+registers, and each stub task is bound to the JAR that registers its handler.
+:class:`~airflow.sdk.coordinators.java.JavaCoordinator` runs only the JAR a task is bound to, and builds the
+classpath automatically from every JAR in that Dag bundle.
 
 .. note::
 
@@ -964,6 +967,8 @@ simplest deployment: one file, no dependency management at runtime.
                             <manifestEntries>
                                 <!-- Resolved from the BOM; do not hard-code this value. -->
                                 <Airflow-Supervisor-Schema-Version>${airflow.supervisor.schema.version}</Airflow-Supervisor-Schema-Version>
+                                <!-- Changes on every build. See "Manifest of a handler JAR" below. -->
+                                <Airflow-Cache-Digest>${maven.build.timestamp}</Airflow-Cache-Digest>
                             </manifestEntries>
                         </transformer>
                     </transformers>
@@ -997,6 +1002,8 @@ JAR and ``maven-dependency-plugin`` to collect all runtime dependencies alongsid
             <archive>
                 <manifestEntries>
                     <Main-Class>com.example.Main</Main-Class>
+                    <!-- Changes on every build. See "Manifest of a handler JAR" below. -->
+                    <Airflow-Cache-Digest>${maven.build.timestamp}</Airflow-Cache-Digest>
                 </manifestEntries>
             </archive>
         </configuration>
@@ -1042,6 +1049,22 @@ Then run:
 ``target/bundle/`` will contain the thin JAR and all runtime dependency JARs. Copy or mount this
 directory into the Dag bundle named by ``task_handler_bundle_name``.
 
+**Manifest of a handler JAR**
+
+A JAR in the Dag bundle is a handler JAR when its manifest has ``Airflow-Cache-Digest``. To run, it also
+needs a ``Main-Class`` and a schema version. The Gradle plugin writes these attributes. A Maven build must
+write them, as the two options above do:
+
+* ``Airflow-Cache-Digest``: required. A JAR without it is not a handler JAR: the Dag processor does not
+  list it and a worker does not run it. The Dag processor asks a JAR for its task handlers again only
+  when its size, this value or ``main_class`` changes, so the value must change on every build. The
+  build timestamp, ``${maven.build.timestamp}``, does. Use at most 128 characters, and set it only in the
+  handler JAR: every JAR in the Dag bundle that has it is treated as a handler JAR.
+* ``Main-Class``: required, unless ``main_class`` is set in the coordinator configuration.
+* ``Airflow-Supervisor-Schema-Version``: required in the handler JAR or in another JAR of the Dag bundle.
+  A fat JAR must set it, as option 1 does. A thin JAR takes it from the ``airflow-sdk`` JAR in the same
+  Dag bundle.
+
 .. note::
 
   You only need the ``annotationProcessorPaths`` entry if you use the annotation-based API.
@@ -1068,11 +1091,12 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Description
    * - ``task_handler_bundle_name``
      - *(task's own Dag bundle)*
-     - Name of the Dag bundle scanned recursively for ``.jar`` files. It is used only by
-       mixed-language Dags, to locate the task handlers for the ``@task.stub`` tasks of a Python Dag;
-       Dags defined natively in a language SDK do not use it. It must be registered in
-       ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]`` configuration is
-       loaded, so a typo fails there rather than on the first task.
+     - Name of the Dag bundle the Dag processor lists recursively for handler JARs; a worker runs the
+       JAR its stub task was bound to. It is used only by mixed-language Dags, to locate the task
+       handlers for the ``@task.stub`` tasks of a Python Dag; Dags defined natively in a language SDK
+       do not use it. It must be registered in ``[dag_processor] dag_bundle_config_list``. It is
+       checked when the ``[sdk]`` configuration is loaded, so a typo fails there rather than on the
+       first task.
    * - ``java_executable``
      - ``"java"``
      - Path to the ``java`` binary.  Defaults to ``java`` on ``$PATH``.
@@ -1080,10 +1104,12 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - ``[]``
      - Extra JVM arguments such as ``["-Xmx1g", "-Dsome.property=value"]``.
    * - ``main_class``
-     - *(auto-detect)*
-     - Explicit entry-point class. If omitted, the coordinator scans the Dag bundle for a JAR
-       whose manifest sets ``Main-Class``. If more than one JAR in that Dag bundle sets it, which
-       one runs is non-deterministic, so set ``main_class`` explicitly in that case.
+     - *(the JAR's Main-Class)*
+     - Explicit entry-point class, used instead of the ``Main-Class`` of a JAR's manifest, both to run a
+       task and to ask the JAR for its task handlers. If omitted, the manifest of the JAR a task is bound
+       to decides. When set, every handler JAR in the Dag bundle is asked through the same class and
+       reports the same handlers, so keep one handler JAR in the Dag bundle. Changing it makes the Dag
+       processor ask the handler JARs again.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your

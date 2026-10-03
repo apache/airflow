@@ -71,9 +71,9 @@ The execution model has three moving parts.
 **Coordinators**
    A coordinator is a Python object registered in the ``[sdk] coordinators`` configuration. This is considered
    a part of an Airflow worker. When the worker picks up a stub task, it looks up the coordinator mapped to
-   that task's specified ``queue``, and uses the coordinator to execute the task. The coordinator is
-   responsible for managing the target language's runtime, forwarding messages from, and relaying results back
-   to Airflow. All coordinators extend
+   that task's specified ``queue``, and uses the coordinator to execute the task. The coordinator runs the
+   artifact the Dag processor bound the stub task to, and no other. It is responsible for managing the target
+   language's runtime, forwarding messages from, and relaying results back to Airflow. All coordinators extend
    :class:`task-sdk:airflow.sdk.execution_time.coordinator.BaseCoordinator`.
 
 **Language runtime**
@@ -185,7 +185,8 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
     configuration on the scheduler, and list the Dag bundles that the coordinators name in
     ``task_handler_bundle_name`` in its ``[dag_processor] dag_bundle_config_list``. The scheduler needs
     neither the language runtime nor the files of those bundles. A scheduler that cannot read the
-    configuration logs a warning and sends no artifacts.
+    configuration logs a warning and sends no artifacts, so the stub tasks it queues fail with the reason
+    in their task logs.
 
 Both settings can be supplied as environment variables using the standard Airflow convention:
 
@@ -220,6 +221,10 @@ own bundle when it is unset.
   coordinator reads a Dag bundle of another team than the Dag file's bundle.
 * A stub task on a queue that ``queue_to_coordinator`` does not route is not checked, so a worker outside
   Airflow's coordinators can run it. Without ``queue_to_coordinator``, nothing is checked.
+* A stub task runs only once the Dag processor has bound it. One queued without a binding, for example before
+  the first parse after an upgrade, or by a scheduler that is older than the workers or cannot read
+  ``[sdk]``, fails with the reason in its task log, and retries apply. Upgrade the Dag processor, the
+  scheduler and the workers together.
 
 Each parse of a Dag file with stub tasks lists the files in the bundle of each coordinator they route to, and
 a coordinator that runs executables opens every one of them. Give each coordinator a dedicated, small bundle

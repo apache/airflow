@@ -86,10 +86,11 @@ The Go binary, Java jar, and stub Dag share one object store (localstack) but li
 The checkout's own copies win because they are the ones that pair with the Airflow this test
 deploys. A packed bundle declares a dated `supervisor_schema_version` and the task-SDK supervisor
 rejects a bundle whose version it does not know, so a release branch's Airflow cannot run an SDK
-built from a later `main` — the Go task fails with `cannot find executable bundle with usable
-supervisor_schema_version`. Building the checkout's own SDK is also what makes the k8s test exercise
-a PR's SDK changes: `go_example`/`java_example` are harness fixtures that track the checked-out
-branch, so compiling them against a *different* SDK means any SDK rename in the PR fails to build.
+built from a later `main`: the Dag processor cannot probe the Go bundle, and the import error of the
+stub Dag says `Version '<date>' not found in supervisor schema bundle`. Building the checkout's own
+SDK is also what makes the k8s test exercise a PR's SDK changes: `go_example`/`java_example` are
+harness fixtures that track the checked-out branch, so compiling them against a *different* SDK
+means any SDK rename in the PR fails to build.
 
 The upstream-`main` fallback is only for a branch cut before `go-sdk`/`java-sdk` existed. When it
 kicks in, that copy and the branch's `go_example` can diverge (upstream may change go-sdk's

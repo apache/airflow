@@ -66,7 +66,6 @@ class TestBundleReader:
         assert "version" not in _read_layout(TYPESCRIPT_V1_FIXTURE)
         metadata = read_bundle(TYPESCRIPT_V1_FIXTURE)
 
-        assert metadata.dag_ids == frozenset({"test_dag"})
         assert metadata.supervisor_schema_version == SCHEMA_VERSION
 
     def test_reads_source_embedded_by_typescript_encoder(self):
@@ -92,7 +91,7 @@ class TestBundleReader:
         code_start = int(layout["code"]["start"], 16)  # type: ignore[index, call-overload]
         assert b"*/" in fixture[code_start:]
 
-        assert read_bundle(TYPESCRIPT_V1_FIXTURE).dag_ids == frozenset({"test_dag"})
+        assert read_bundle(TYPESCRIPT_V1_FIXTURE).supervisor_schema_version == SCHEMA_VERSION
 
     def test_rejects_metadata_first_legacy_bundle(self, tmp_path):
         payload = _metadata_json("sales")
@@ -129,7 +128,6 @@ class TestBundleReader:
 
         metadata = read_bundle(bundle)
 
-        assert metadata.dag_ids == frozenset({"sales"})
         assert metadata.supervisor_schema_version == SCHEMA_VERSION
 
     @pytest.mark.parametrize(
@@ -363,7 +361,7 @@ class TestBundleReader:
             entrypoint_path="sales.ts",
         )
 
-        assert read_bundle(bundle).dag_ids == frozenset({"sales", "inventory"})
+        assert read_bundle(bundle).supervisor_schema_version == SCHEMA_VERSION
         assert read_bundle_source(bundle, "sales") == "export const sales = 1;\n"
         assert read_bundle_source(bundle, "inventory") == "export const inv = 2;\n"
 
@@ -385,7 +383,7 @@ class TestBundleReader:
             entrypoint_path="main.ts",
         )
 
-        assert read_bundle(bundle).dag_ids == frozenset({"sales"})
+        assert read_bundle(bundle).supervisor_schema_version == SCHEMA_VERSION
         assert read_bundle_source(bundle, "dynamic_dag") == "export const entry = 1;\n"
 
     def test_falls_back_to_entrypoint_when_dag_source_paths_absent(self, tmp_path):
@@ -400,7 +398,7 @@ class TestBundleReader:
         # returns metadata from a layout with an empty sources array.
         bundle = write_bundle(tmp_path, "sales", sources=[], dag_source_paths={}, entrypoint_path=None)
 
-        assert read_bundle(bundle).dag_ids == frozenset({"sales"})
+        assert read_bundle(bundle).supervisor_schema_version == SCHEMA_VERSION
         assert read_bundle_source(bundle, "sales") is None
 
     def test_rejects_source_read_when_dag_maps_to_absent_region(self, tmp_path):
@@ -465,8 +463,12 @@ class TestBundleReader:
         with pytest.raises(ValueError, match="embedded airflow metadata must contain a mapping"):
             read_bundle(tmp_path / BUNDLE_NAME)
 
-    @pytest.mark.parametrize("task_handlers", [None, []], ids=["missing", "not-a-mapping"])
-    def test_rejects_missing_or_malformed_task_handlers(self, tmp_path, task_handlers):
+    @pytest.mark.parametrize(
+        "task_handlers",
+        [None, {"sales": {"tasks": ["load"]}}, []],
+        ids=["missing", "mapping", "not-a-mapping"],
+    )
+    def test_reads_metadata_whether_or_not_it_lists_task_handlers(self, tmp_path, task_handlers):
         metadata = json.loads(_metadata_json("sales"))
         if task_handlers is None:
             del metadata["task_handlers"]
@@ -474,8 +476,7 @@ class TestBundleReader:
             metadata["task_handlers"] = task_handlers
         write_bundle(tmp_path, metadata_payload=json.dumps(metadata).encode())
 
-        with pytest.raises(ValueError, match="metadata must contain a task_handlers mapping"):
-            read_bundle(tmp_path / BUNDLE_NAME)
+        assert read_bundle(tmp_path / BUNDLE_NAME).supervisor_schema_version == SCHEMA_VERSION
 
     def test_rejects_oversized_metadata(self, tmp_path):
         write_bundle(
