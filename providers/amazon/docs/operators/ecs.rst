@@ -209,6 +209,25 @@ the operator returns before checking exit codes. On Airflow versions supporting
 ``retry_policy``, a matching code raises ``AirflowFailException``, which bypasses
 retry policies, including a policy that would otherwise retry the task.
 
+Control task termination
+""""""""""""""""""""""""
+
+By default, ``EcsRunTaskOperator`` requests that ECS stop the task when Airflow calls
+the operator's ``on_kill()`` callback, for example on an execution timeout while the
+worker is waiting for completion. Set ``stop_task_on_kill=False`` to let the ECS task
+continue running independently. Local log fetching is stopped in either case.
+
+This option only controls ``on_kill()``. It does not change cancellation after the
+operator has deferred or guarantee cleanup after an abrupt worker failure.
+``stop_task_on_failure`` separately controls cleanup when the ECS waiter fails after
+this execution starts an ECS task. To preserve the external task in both cases, set
+both options to ``False``.
+
+When leaving an ECS task running, arrange for its monitoring and eventual cleanup
+outside the terminated Airflow task. A subsequent Airflow retry can launch another
+ECS task. ``reattach=True`` can reuse a matching running task, but does not recover
+the result of one that has already stopped; the application must handle duplicate work.
+
 Stream logs to AWS CloudWatch
 """""""""""""""""""""""""""""
 
