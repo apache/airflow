@@ -190,7 +190,8 @@ class LocalExecutor(BaseExecutor):
         for pid, proc in self.workers.items():
             if not proc.is_alive():
                 self._read_results()
-                # A worker killed between dequeue and START cannot identify its workload.
+                # A worker killed between dequeue and START has no entry here; the scheduler's
+                # stuck-in-queued handling releases that workload through revoke_task.
                 if (key := self._worker_tasks.pop(pid, None)) is not None:
                     self._finish_dispatch(key, state_class_for_key(key).FAILED)
                 to_remove.add(pid)
