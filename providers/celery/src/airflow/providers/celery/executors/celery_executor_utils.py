@@ -553,6 +553,9 @@ class BulkStateFetcher(LoggingMixin):
             if task_result:
                 state = task_result["status"]
                 info = task_result.get("info")
+                # Database and key-value backends store failure exceptions under "result".
+                if info is None and state == celery_states.FAILURE:
+                    info = task_result.get("result")
             else:
                 state = celery_states.PENDING
                 info = None

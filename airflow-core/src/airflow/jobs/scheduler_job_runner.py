@@ -143,9 +143,10 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.selectable import Select, Subquery
 
     from airflow._shared.logging.types import Logger
+    from airflow._shared.state import TaskFailureKind
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.executors.workloads.types import SchedulerWorkload
+    from airflow.executors.workloads.types import SchedulerWorkload, WorkloadKey
     from airflow.models.pool import PoolStats
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
@@ -1468,6 +1469,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
         executors as well.
         """
+        failure_info_by_key: dict[WorkloadKey, tuple[TaskFailureKind | None, str | None] | None] = {
+            key: executor.get_task_failure_info(key) for key in executor.event_buffer
+        }
         event_buffer, event_coordinates = executor._drain_events_with_task_ids()
         num_events = len(event_buffer)
         tis_with_right_state: list[TaskInstanceUuid] = []
@@ -1551,6 +1555,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             buffer_key = TaskInstanceUuid(ti.id)
             try_number = ti.try_number
             state, info = event_buffer.pop(buffer_key)
+            failure_info = failure_info_by_key.pop(buffer_key, None)
+            if failure_info is None and (coordinates := event_coordinates.get(buffer_key)) is not None:
+                failure_info = failure_info_by_key.pop(coordinates, None)
+            failure_info = failure_info or (None, None)
+            failure_kind: TaskFailureKind | None = failure_info[0]
+            reason: str | None = failure_info[1]
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
@@ -1587,6 +1597,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.scheduled_dttm,
                 ti.queued_by_job_id,
                 ti.pid,
+                failure_kind=failure_kind.value if failure_kind is not None else None,
+                failure_reason=reason,
             )
 
             if ti.state == TaskInstanceState.RESTARTING:
@@ -1744,7 +1756,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor.send_callback(email_request)
 
                 # Update task state - emails are handled by DAG processor now
-                ti.handle_failure(error=msg, session=session)
+                ti.handle_failure(
+                    error=msg,
+                    session=session,
+                    failure_kind=failure_kind,
+                    reason=reason,
+                )
 
         for task_id in tis_with_right_state:
             if task_id in event_buffer:

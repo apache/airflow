@@ -122,6 +122,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Update
     from sqlalchemy.sql.elements import ColumnElement
 
+    from airflow._shared.state import TaskFailureKind
     from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
@@ -1909,7 +1910,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         *,
         session: Session,
         fail_fast: bool = False,
-    ):
+        failure_kind: TaskFailureKind | None = None,
+        reason: str | None = None,
+    ) -> TaskInstance:
         """
         Fetch the context needed to handle a failure.
 
@@ -1918,6 +1921,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         :param test_mode: doesn't record success or failure in the DB if True
         :param session: SQLAlchemy ORM Session
         :param fail_fast: if True, fail all downstream tasks
+        :param failure_kind: Known failure category, or ``None`` when unknown
+        :param reason: Short producer-owned reason passed to listeners without being persisted
         """
         if error:
             cls.logger().error("%s", error)
@@ -1927,11 +1932,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ti.end_date = timezone.utcnow()
         ti.set_duration()
 
+        failure_tags: dict[str, str] = {
+            **ti.stats_tags,
+            "failure_kind": failure_kind.value if failure_kind is not None else "unclassified",
+        }
         stats.incr(
             "operator_failures",
-            tags={**ti.stats_tags, "operator_name": ti.operator},
+            tags={**failure_tags, "operator_name": ti.operator},
         )
-        stats.incr("ti_failures", tags=ti.stats_tags)
+        stats.incr("ti_failures", tags=failure_tags)
 
         if not test_mode:
             session.add(Log(TaskInstanceState.FAILED.value, ti))
@@ -1959,17 +1968,26 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             allocate_next_try = ti.state != TaskInstanceState.UP_FOR_RETRY
             ti.state = State.UP_FOR_RETRY
 
-        ti.notify_failure(error)
+        ti.notify_failure(error=error, failure_kind=failure_kind, reason=reason)
         if allocate_next_try:
             ti.prepare_db_for_next_try(session)
 
         return ti
 
-    def notify_failure(self, error: str | None) -> None:
+    def notify_failure(
+        self,
+        error: str | None,
+        failure_kind: TaskFailureKind | None = None,
+        reason: str | None = None,
+    ) -> None:
         """Notify listeners before replacing this try's UUID and try number."""
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=self, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=self,
+                error=error,
+                failure_kind=failure_kind,
+                reason=reason,
             )
         except Exception:
             log.exception("error calling listener")
@@ -1989,6 +2007,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         test_mode: bool | None = None,
         *,
         session: Session = NEW_SESSION,
+        failure_kind: TaskFailureKind | None = None,
+        reason: str | None = None,
     ) -> None:
         """
         Handle Failure for a task instance.
@@ -1996,6 +2016,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         :param error: if specified, log the specific exception if thrown
         :param test_mode: doesn't record success or failure in the DB if True
         :param session: SQLAlchemy ORM Session
+        :param failure_kind: Known failure category forwarded to listeners and metrics
+        :param reason: Short producer-owned reason passed to listeners without being persisted
         """
         if TYPE_CHECKING:
             assert self.task
@@ -2012,6 +2034,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             test_mode=test_mode,
             session=session,
             fail_fast=fail_fast,
+            failure_kind=failure_kind,
+            reason=reason,
         )
 
         _log_state(task_instance=self)

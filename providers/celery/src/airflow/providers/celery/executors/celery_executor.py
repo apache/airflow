@@ -32,8 +32,9 @@ import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
+from billiard.exceptions import WorkerLostError
 from celery import states as celery_states
 from deprecated import deprecated
 
@@ -53,6 +54,8 @@ if AIRFLOW_V_3_4_PLUS:
     _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
 
 log = logging.getLogger(__name__)
+
+WORKER_LOST_REASON: str = "WorkerLost"
 
 
 CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery workload"
@@ -291,18 +294,25 @@ class CeleryExecutor(BaseExecutor):
         for key, async_result in list(self.workloads.items()):
             state, info = state_and_info_by_celery_task_id.get(async_result.task_id)
             if state:
-                self.update_task_state(cast("TaskInstanceKey", key), state, info)
+                self.update_task_state(key, state, info)
 
     def change_state(self, key: WorkloadKey, state: WorkloadState, info=None, remove_running=True) -> None:
         super().change_state(key, state, info, remove_running=remove_running)
         self.workloads.pop(key, None)
 
-    def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
+    def update_task_state(self, key: WorkloadKey, state: str, info: Any) -> None:
         """Update state of a single workload."""
         try:
             if state == celery_states.SUCCESS:
                 self.success(key, info)
             elif state in (celery_states.FAILURE, celery_states.REVOKED):
+                if isinstance(info, WorkerLostError) and AIRFLOW_V_3_4_PLUS:
+                    # The provider still imports on Airflow versions without the cause contract.
+                    from airflow.models.taskinstancekey import TaskInstanceKey
+
+                    if isinstance(key, TaskInstanceKey):
+                        self.fail(key=key, info=info, reason=WORKER_LOST_REASON)
+                        return
                 self.fail(key, info)
             elif state in (celery_states.STARTED, celery_states.PENDING, celery_states.RETRY):
                 pass
