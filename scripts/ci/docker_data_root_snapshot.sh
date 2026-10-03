@@ -30,6 +30,32 @@
 set -euo pipefail
 
 DATA_ROOT="/var/lib/docker"
+DAEMON_STOPPED=false
+RESTORE_IN_PROGRESS=false
+
+function cleanup_daemon() {
+    local result=$?
+    trap - EXIT
+    if [[ "${RESTORE_IN_PROGRESS}" == true ]]; then
+        stop_daemon
+        remove_image_store
+        start_daemon
+    elif [[ "${DAEMON_STOPPED}" == true ]]; then
+        start_daemon
+    fi
+    exit "${result}"
+}
+trap cleanup_daemon EXIT
+
+function check_supported_daemon() {
+    local daemon=$1
+    local _ driver root
+    read -r _ driver _ root <<< "${daemon}"
+    if [[ "${driver}" != overlay2 || "${root}" != "${DATA_ROOT}" ]]; then
+        echo "Unsupported Docker image store: ${daemon}"
+        exit 3
+    fi
+}
 
 # A data directory is only readable by the daemon version and storage driver that wrote it.
 function daemon_fingerprint() {
@@ -38,10 +64,12 @@ function daemon_fingerprint() {
 
 function stop_daemon() {
     sudo systemctl stop docker.socket docker
+    DAEMON_STOPPED=true
 }
 
 function start_daemon() {
     sudo systemctl start docker
+    DAEMON_STOPPED=false
 }
 
 function remove_image_store() {
@@ -51,6 +79,7 @@ function remove_image_store() {
 function create_snapshot() {
     local snapshot_file="${1}"
     local image_id
+    check_supported_daemon "$(daemon_fingerprint)"
     image_id="$(docker images --quiet --filter "label=org.apache.airflow.image=airflow-ci" | sort -u)"
     if [[ -z "${image_id}" || "${image_id}" == *$'\n'* ]]; then
         echo "Expected exactly one CI image in the daemon, found: '${image_id}'" >&2
@@ -60,7 +89,7 @@ function create_snapshot() {
     docker images --quiet | sort -u | { grep --invert-match --fixed-strings --line-regexp "${image_id}" || true; } \
         | xargs --no-run-if-empty docker rmi --force >/dev/null
     docker builder prune --all --force >/dev/null
-    printf '%s %s\n' "$(daemon_fingerprint)" "${image_id}" > "${snapshot_file}.meta"
+    printf '%s %s %s\n' "$(daemon_fingerprint)" "${image_id}" "$(git rev-parse HEAD)" > "${snapshot_file}.meta"
     stop_daemon
     sudo tar --directory "${DATA_ROOT}" --xattrs --acls --numeric-owner --create --file - image overlay2 \
         | zstd -3 -T0 --quiet --force -o "${snapshot_file}"
@@ -76,29 +105,37 @@ function restore_snapshot() {
         exit 2
     fi
     read -r -a meta < "${snapshot_file}.meta"
-    image_id="${meta[${#meta[@]}-1]}"
-    snapshot_fingerprint="${meta[*]:0:${#meta[@]}-1}"
+    if [[ ${#meta[@]} != 6 ]]; then
+        echo "Invalid snapshot metadata"
+        exit 3
+    fi
+    if [[ "${meta[5]}" != "$(git rev-parse HEAD)" ]]; then
+        echo "Snapshot belongs to a different checkout revision"
+        exit 3
+    fi
+    image_id="${meta[4]}"
+    snapshot_fingerprint="${meta[*]:0:4}"
     daemon="$(daemon_fingerprint)"
+    check_supported_daemon "${daemon}"
     if [[ "${snapshot_fingerprint}" != "${daemon}" ]]; then
         echo "The snapshot was written by '${snapshot_fingerprint}', this daemon is '${daemon}'"
         exit 3
     fi
-    if [[ -n "$(docker images --all --quiet)" ]]; then
+    if [[ -n "$(docker images --all --quiet)" || -n "$(docker ps --all --quiet)" ]]; then
         echo "The daemon already holds images, which restoring the snapshot would drop"
         exit 3
     fi
     stop_daemon
+    RESTORE_IN_PROGRESS=true
     remove_image_store
     zstd -d -T0 --quiet --stdout "${snapshot_file}" \
         | sudo tar --directory "${DATA_ROOT}" --xattrs --acls --numeric-owner --extract --file -
     start_daemon
     if ! docker run --rm --entrypoint /bin/bash "${image_id}" -c true; then
         echo "The restored image ${image_id} does not run"
-        stop_daemon
-        remove_image_store
-        start_daemon
         exit 4
     fi
+    RESTORE_IN_PROGRESS=false
     rm -f "${snapshot_file}" "${snapshot_file}.meta"
 }
 

@@ -37,19 +37,34 @@ def fake_tools(tmp_path):
         r"""#!/usr/bin/env bash
 name="${0##*/}"
 printf '%s\n' "${name} $*" >> "${COMMAND_LOG}"
+if [[ "${name}" == "git" && "$*" == "rev-parse HEAD" ]]; then
+    echo "${CHECKOUT_SHA:-revision1}"
+fi
+if [[ "${name}" == "zstd" ]]; then
+    exit "${ZSTD_EXIT:-0}"
+fi
+if [[ "${name}" == "sudo" && "$*" == "tar "* ]]; then
+    exit "${TAR_EXIT:-0}"
+fi
+if [[ "${name}" == "sudo" && "$*" == "systemctl start docker" && "${START_FAIL_ONCE:-0}" == 1 ]]; then
+    if [[ $(grep -c 'sudo systemctl start docker' "${COMMAND_LOG}") == 1 ]]; then
+        exit 1
+    fi
+fi
 if [[ "${name}" == "docker" ]]; then
     case "$*" in
         "info --format "*) echo "${DAEMON_FINGERPRINT}" ;;
         "images --quiet --filter label=org.apache.airflow.image=airflow-ci") printf '%b' "${CI_IMAGES:-}" ;;
         "images --quiet") printf '%b' "${ALL_IMAGES:-}" ;;
         "images --all --quiet") printf '%b' "${ALL_IMAGES:-}" ;;
+        "ps --all --quiet") printf '%b' "${CONTAINERS:-}" ;;
         "run "*) exit "${RUN_EXIT:-0}" ;;
     esac
 fi
 """
     )
     command.chmod(0o755)
-    for name in ("docker", "sudo", "zstd"):
+    for name in ("docker", "sudo", "zstd", "git"):
         (tools / name).symlink_to(command)
     return {
         "PATH": f"{tools}:{os.environ['PATH']}",
@@ -62,7 +77,7 @@ fi
 def snapshot(tmp_path):
     snapshot_file = tmp_path / "ci-image-snapshot-linux_amd64-3.10.tar.zst"
     snapshot_file.write_bytes(b"")
-    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} abc123\n")
+    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} abc123 revision1\n")
     return snapshot_file
 
 
@@ -140,7 +155,7 @@ def test_create_keeps_only_the_ci_image(fake_tools, tmp_path):
     assert ["docker", "rmi", "--force", "other1"] in commands
     assert not [c for c in commands if c[:2] == ["docker", "rmi"] and "abc123" in c]
     assert ["docker", "builder", "prune", "--all", "--force"] in commands
-    assert Path(f"{snapshot_file}.meta").read_text() == f"{FINGERPRINT} abc123\n"
+    assert Path(f"{snapshot_file}.meta").read_text() == f"{FINGERPRINT} abc123 revision1\n"
     archive = next(c for c in commands if c[:2] == ["sudo", "tar"])
     assert archive[-2:] == ["image", "overlay2"]
 
@@ -152,3 +167,51 @@ def test_create_refuses_ambiguous_ci_image(fake_tools, tmp_path):
 
     assert result.returncode == 1
     assert not [c for c in read_commands(env) if c[:2] == ["sudo", "systemctl"]]
+
+
+@pytest.mark.parametrize("failure", [{"ZSTD_EXIT": "1"}, {"TAR_EXIT": "1"}, {"START_FAIL_ONCE": "1"}])
+def test_restore_recovers_empty_running_daemon_after_materialization_failure(fake_tools, snapshot, failure):
+    result = run_script({**fake_tools, **failure}, "restore", str(snapshot))
+    assert result.returncode != 0
+    commands = read_commands(fake_tools)
+    assert commands[-2:] == [
+        ["sudo", "rm", "-rf", "/var/lib/docker/image", "/var/lib/docker/overlay2"],
+        ["sudo", "systemctl", "start", "docker"],
+    ]
+    assert not any(command[:2] == ["docker", "run"] for command in commands)
+
+
+@pytest.mark.parametrize("failure", [{"ZSTD_EXIT": "1"}, {"TAR_EXIT": "1"}])
+def test_create_restarts_daemon_after_archive_failure(fake_tools, tmp_path, failure):
+    result = run_script(
+        {**fake_tools, **failure, "CI_IMAGES": "abc123"}, "create", str(tmp_path / "snapshot.tar.zst")
+    )
+    assert result.returncode != 0
+    assert read_commands(fake_tools)[-1] == ["sudo", "systemctl", "start", "docker"]
+
+
+@pytest.mark.parametrize("mode", ["create", "restore"])
+@pytest.mark.parametrize("daemon", ["28.5.2 btrfs x86_64 /var/lib/docker", "28.5.2 overlay2 x86_64 /other"])
+def test_unsupported_storage_does_not_modify_daemon(fake_tools, snapshot, mode, daemon):
+    result = run_script({**fake_tools, "DAEMON_FINGERPRINT": daemon}, mode, str(snapshot))
+    assert result.returncode == 3
+    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
+
+
+def test_existing_container_prevents_restore(fake_tools, snapshot):
+    result = run_script({**fake_tools, "CONTAINERS": "container1"}, "restore", str(snapshot))
+    assert result.returncode == 3
+    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
+
+
+def test_malformed_metadata_prevents_restore(fake_tools, snapshot):
+    Path(f"{snapshot}.meta").write_text("invalid\n")
+    result = run_script(fake_tools, "restore", str(snapshot))
+    assert result.returncode == 3
+    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
+
+
+def test_stale_snapshot_does_not_modify_daemon(fake_tools, snapshot):
+    result = run_script({**fake_tools, "CHECKOUT_SHA": "revision2"}, "restore", str(snapshot))
+    assert result.returncode == 3
+    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))

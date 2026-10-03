@@ -349,7 +349,11 @@ jobs:
       # unpacking and checksumming each layer again; a copy of the image store restores with one
       # extraction. Taken while the freshly built layers are still in the page cache, and after the
       # mount cache export, as it drops the build cache that the export reads.
+      # Only PR-scoped snapshots: arbitrary checkout refs in privileged dispatch/scheduled
+      # workflows must never publish a snapshot into the default branch's cache scope.
       - name: "Snapshot CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        id: snapshot-export
+        continue-on-error: true
         env:
           PLATFORM: ${{ inputs.platform }}
         run: >
@@ -357,9 +361,11 @@ jobs:
           "/mnt/ci-image-snapshot-${PLATFORM//\//_}-${PYTHON_MAJOR_MINOR_VERSION}.tar.zst"
         shell: bash
         if: >
+          github.event_name == 'pull_request' &&
           inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
           steps.stashed-image.outputs.reusable != 'true'
       - name: "Stash CI image snapshot ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        continue-on-error: true
         uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
         with:
           key: ci-image-snapshot-v1-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -368,6 +374,7 @@ jobs:
           compression-level: '0'
           retention-days: '2'
         if: >
+          github.event_name == 'pull_request' && steps.snapshot-export.outcome == 'success' &&
           inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
           steps.stashed-image.outputs.reusable != 'true'
       # zstd stands in for the stash's zlib (compression-level 0 below), which every consumer inflates.
