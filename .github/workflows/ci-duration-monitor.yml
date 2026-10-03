@@ -63,6 +63,12 @@ jobs:
           # Network-bound jobs (constraint resolution, provider installs) legitimately swing
           # tens of minutes run-to-run; require a larger sustained jump before flagging them.
           JOB_MIN_ABS_INCREASE_MINUTES: "6"
+          # The median of the latest window still reports a job that was slow twice and has
+          # since recovered: the 2026-09-22 MySQL 8.4:3.13 alert came from 25m, 33m, 34m,
+          # where the most recent run was already back at the 25m baseline. Requiring every
+          # run in the window to be slow drops those blips and keeps the sustained climbs
+          # (replayed over the 2026-09-12..21 canaries).
+          JOB_REQUIRE_SUSTAINED: "true"
           OUTPUT_FILE: "slack-message.json"
 
       - name: "Post duration alert to Slack"
