@@ -50,6 +50,11 @@ To start a new execution of an MWAA Serverless workflow, use
     :start-after: [START howto_operator_mwaa_serverless_start_workflow_run]
     :end-before: [END howto_operator_mwaa_serverless_start_workflow_run]
 
+By default, the operator returns the run ID as soon as the run starts. Set ``wait_for_completion=True``
+to wait for the run to reach a terminal state, or ``deferrable=True`` to wait asynchronously in the
+triggerer. Use ``client_token`` to make retries idempotent: starting a run again with the same token
+returns the existing run instead of starting a new one.
+
 Reference
 ~~~~~~~~~
 
@@ -68,6 +73,9 @@ To wait for an Amazon MWAA Serverless workflow run to complete, use
     :dedent: 4
     :start-after: [START howto_sensor_mwaa_serverless_workflow_run]
     :end-before: [END howto_sensor_mwaa_serverless_workflow_run]
+
+Set ``deferrable=True`` to release the worker slot while waiting. In deferrable mode, the sensor
+checks the run every ``poke_interval`` seconds, up to ``max_retries`` times.
 
 .. _howto/operator:MwaaServerlessUpdateWorkflowOperator:
 
