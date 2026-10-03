@@ -136,6 +136,7 @@
     "empty": "此范围内没有已完成的任务实例",
     "title": "耗时最长的任务实例"
   },
+  "sortMultiColumnHint": "按住 Shift 点击可按多列排序",
   "sortedAscending": "递增排序",
   "sortedDescending": "递减排序",
   "sortedUnsorted": "未排序",
