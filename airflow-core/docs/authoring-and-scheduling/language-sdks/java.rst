@@ -285,10 +285,10 @@ must be available wherever tasks execute. With ``CeleryExecutor``, that means th
 ``LocalExecutor``, tasks run in subprocesses on the scheduler's host. The API server does not need the JARs,
 and the Dag processor must receive ``sales_pipeline.py`` through the separate Dag delivery process.
 
-A Dag processor with this ``[sdk]`` configuration also parses the executable JARs of every Dag bundle, and
-needs a JDK to do so (see :ref:`java-sdk/native-dag-parsing`). The ``java-jars`` bundle only holds the JARs
-that the Python Dag's tasks run, so keep the Dag processor from parsing it by listing ``*`` in its
-``.airflowignore``:
+A Dag processor with this ``[sdk]`` configuration also parses the executable JARs of every Dag bundle,
+and needs a JDK to do so (see :ref:`java-sdk/native-dag-parsing`).
+The ``java-jars`` bundle only holds the JARs that the Python Dag's tasks run,
+so keep the Dag processor from parsing it by listing ``*`` in its ``.airflowignore``:
 
 .. code-block:: bash
 
@@ -619,9 +619,9 @@ fails the build for an annotation, and the ``config`` call itself for an object.
 Parsing native Java Dags
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-To have Airflow parse the Dags a bundle JAR declares, put the JAR in a Dag bundle and configure a
-:class:`~airflow.sdk.coordinators.java.JavaCoordinator`. The Dag processor runs the JAR's main class to list
-its Dags, so it needs a Java executable, as the workers do:
+To have Airflow parse the Dags a bundle JAR declares,
+put the JAR in a Dag bundle and configure a :class:`~airflow.sdk.coordinators.java.JavaCoordinator`.
+The Dag processor runs the JAR's main class to list its Dags, so it needs a Java executable, as the workers do:
 
 .. code-block:: ini
 
@@ -635,18 +635,17 @@ its Dags, so it needs a Java executable, as the workers do:
     queue_to_coordinator = {"java-native": "java-native"}
 
 Once a ``JavaCoordinator`` is configured, the Dag processor parses the executable JARs of every Dag bundle,
-so it needs this ``[sdk]`` configuration and a JDK. With one ``JavaCoordinator``, it parses them all. With
-several, map each Dag bundle that holds native Java Dags to one of them in
-``[sdk] dag_bundle_to_coordinator``. A JAR in a bundle that has no entry, or an entry that names no
-``JavaCoordinator``, fails to parse with an import error:
+so it needs this ``[sdk]`` configuration and a JDK. With one ``JavaCoordinator``, it parses them all.
+With several, map each Dag bundle that holds native Java Dags to one of them in ``[sdk] dag_bundle_to_coordinator``.
+A JAR in a bundle that has no entry, or an entry that names no ``JavaCoordinator``, fails to parse with an import error:
 
 .. code-block:: ini
 
     [sdk]
     dag_bundle_to_coordinator = {"dags-folder": "java-native"}
 
-A Dag bundle that holds only the JARs that Python Dags' tasks run should list ``*`` in its
-``.airflowignore``. Otherwise, with several Java coordinators, its JARs fail to parse.
+A Dag bundle that holds only the JARs that Python Dags' tasks run should list ``*`` in its ``.airflowignore``.
+Otherwise, with several Java coordinators, its JARs fail to parse.
 
 * Every JAR in the bundle whose manifest sets ``Main-Class`` is parsed. Each Dag its main class
   declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Builder.Dag`` class, is stored with
@@ -665,16 +664,16 @@ A Dag bundle that holds only the JARs that Python Dags' tasks run should list ``
 * Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
   ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
   Dag-level queue yet.
-* A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to, which need not be
-  the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK. A
-  task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is
-  missing, or that the coordinator cannot run (for example, because ``main_class`` does not match the
-  JAR's ``Main-Class``), fails and retries while it has retries left.
+* A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to,
+  which need not be the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK.
+  A task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is missing,
+  or that the coordinator cannot run (for example, because ``main_class`` does not match the JAR's ``Main-Class``),
+  fails and retries while it has retries left.
 * The Code view shows the source of the JAR's main class, which the Gradle plugin packs into the JAR.
 * Cluster policies (``dag_policy``, ``task_policy``) are not applied to a native Java Dag.
 * ``airflow dags reserialize`` does not store the Dags of a JAR, which only the Dag processor stores.
-  ``airflow dags test``, ``tasks test``, ``tasks render`` and ``tasks list`` refuse a native Java
-  Dag.
+  ``airflow dags test``, ``tasks test`` and ``tasks render`` refuse a native Java Dag.
+  ``airflow tasks list`` lists its tasks by running the JAR's main class, so it needs a JDK.
 
 .. _java-sdk/logging:
 
@@ -1192,8 +1191,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   * Set ``dag_bundle_name`` to load JARs from a separate Dag bundle.
     The task uses the version that bundle is on when it starts, pinned for the whole task.
 
-  A task of a native Java Dag ignores ``dag_bundle_name``: it runs the JAR of its Dag from the Dag's own
-  bundle, at the version the run was created with. See :ref:`java-sdk/native-dag-parsing`.
+  A task of a native Java Dag ignores ``dag_bundle_name``: it runs the JAR of its Dag from the Dag's own bundle,
+  at the version the run was created with. See :ref:`java-sdk/native-dag-parsing`.
 
 .. note::
 
