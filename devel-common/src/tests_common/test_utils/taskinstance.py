@@ -28,7 +28,7 @@ from airflow.utils.session import NEW_SESSION
 
 from tests_common.test_utils.compat import SerializedBaseOperator, SerializedMappedOperator
 from tests_common.test_utils.dag import create_scheduler_dag
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_4_PLUS
 
 try:
     from airflow.serialization.serialized_objects import create_scheduler_operator
@@ -146,13 +146,23 @@ def run_task_instance(
     from airflow.sdk.definitions.dag import _run_task
 
     # Session handling is a mess in tests; use a fresh ti to run the task.
-    new_ti = TaskInstance.get_task_instance(
-        dag_id=ti.dag_id,
-        run_id=ti.run_id,
-        task_id=ti.task_id,
-        map_index=ti.map_index,
-        **session_kwargs,
-    )
+    if AIRFLOW_V_3_4_PLUS:
+        new_ti = TaskInstance.get_task_instance(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.region_index,
+            region_id=ti.region_id,
+            **session_kwargs,
+        )
+    else:
+        new_ti = TaskInstance.get_task_instance(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index,
+            **session_kwargs,
+        )
     # Some tests don't even save the ti at all, in which case new_ti is None.
     taskrun_result = _run_task(ti=new_ti or ti, task=task)
     _dispose_in_process_async_connections()

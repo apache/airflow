@@ -29,7 +29,7 @@ from unittest import mock
 
 import time_machine
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import false, select
 
 from airflow.api_fastapi.app import create_app, purge_cached_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -56,6 +56,11 @@ from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
+
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -547,6 +552,18 @@ class TestReadXcom:
             assert result == expected
         _clear_db()
 
+    @pytest.mark.parametrize(("is_v3_4_plus", "expect_region"), [(True, True), (False, False)])
+    @mock.patch("airflow.providers.common.ai.plugins.hitl_review.XComModel.get_many", autospec=True)
+    def test_region_is_only_passed_to_airflow_that_supports_it(
+        self, mock_get_many, session, is_v3_4_plus, expect_region
+    ):
+        mock_get_many.return_value = select(1).where(false())
+
+        with mock.patch("airflow.providers.common.ai.plugins.hitl_review.AIRFLOW_V_3_4_PLUS", is_v3_4_plus):
+            _read_xcom(session, dag_id="d", run_id="r", task_id="t", key="k")
+
+        assert ("region_id" in mock_get_many.call_args.kwargs) is expect_region
+
 
 class TestWriteXcom:
     """Test _write_xcom."""
@@ -996,6 +1013,94 @@ class TestHITLReviewPlugin:
         assert app["url_route"] == "hitl-review"
         assert app["destination"] == "task_instance"
         assert "main.umd.cjs" in app["bundle_url"]
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regional task identity requires Airflow 3.4+")
+class TestRegionalReview:
+    @pytest.fixture
+    def regional_review(self, dag_maker, session):
+        _clear_db()
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="review")
+
+        with dag_maker(TEST_DAG_ID, serialized=True):
+            create_loop(body, max_iterations=2)
+        dr = dag_maker.create_dagrun(run_id=TEST_RUN_ID)
+        first = next(ti for ti in dr.task_instances if ti.task_id == "body.review")
+        first.state = "success"
+        second = TaskInstance(
+            task=dag_maker.serialized_dag.get_task(first.task_id),
+            run_id=dr.run_id,
+            dag_version_id=first.dag_version_id,
+            region_id=first.region_id,
+            region_index=1,
+            state="deferred",
+        )
+        session.add(second)
+        for ti in (first, second):
+            output = f"pass {ti.region_index}"
+            values = {
+                XCOM_AGENT_SESSION: AgentSessionData(
+                    status=SessionStatus.PENDING_REVIEW,
+                    iteration=1,
+                    max_iterations=5,
+                    current_output=output,
+                ).model_dump(mode="json"),
+                f"{XCOM_AGENT_OUTPUT_PREFIX}1": output,
+            }
+            session.flush()
+            for key, value in values.items():
+                XComModel.set_for_attempt(
+                    task_instance_id=ti.id, key=key, value=value, serialize=False, session=session
+                )
+        session.commit()
+        yield second
+        _clear_db()
+
+    @pytest.mark.parametrize("action", ["find", "feedback", "approve", "reject"])
+    def test_exact_scope_preserves_other_loop_pass(self, regional_review, test_client, session, action):
+        ti = regional_review
+        params = {
+            "dag_id": ti.dag_id,
+            "run_id": ti.run_id,
+            "task_id": ti.task_id,
+            "map_index": -1,
+            "region_id": str(ti.region_id),
+            "region_index": ti.region_index,
+        }
+        if action == "find":
+            response = test_client.get("/hitl-review/sessions/find", params=params)
+        else:
+            response = test_client.post(
+                f"/hitl-review/sessions/{action}", params=params, json={"feedback": "revise"}
+            )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["current_output"] == "pass 1"
+        assert data["conversation"][0]["content"] == "pass 1"
+        assert data["task_completed"] is False
+        session.expire_all()
+        earlier = session.scalar(
+            select(XComModel.value).where(
+                XComModel.key == XCOM_AGENT_SESSION,
+                XComModel.region_id == ti.region_id,
+                XComModel.region_index == 0,
+            )
+        )
+        assert earlier["status"] == "pending_review"
+        assert earlier["current_output"] == "pass 0"
+
+    def test_loop_scope_is_required(self, regional_review, test_client):
+        ti = regional_review
+        response = test_client.get(
+            "/hitl-review/sessions/find",
+            params={"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id},
+        )
+        assert response.status_code == 400
+        assert "loop producer requires" in response.json()["detail"]
 
 
 class TestFindSessionEndpoint:

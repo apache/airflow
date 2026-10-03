@@ -31,6 +31,7 @@ export interface PluginComponentProps {
   mapIndex?: string;
   runId?: string;
   taskId?: string;
+  taskInstance?: { id?: string; region_id?: string; region_index?: number };
 }
 
 /**
@@ -40,19 +41,28 @@ export interface PluginComponentProps {
  * host (from route params). Renders ChatPage when all params are present,
  * otherwise shows NoSession fallback.
  */
-const PluginComponent: FC<PluginComponentProps> = ({
-  dagId = "",
-  runId = "",
-  taskId = "",
-  mapIndex: mapIndexProp = "-1",
-}) => {
+const PluginComponent: FC<PluginComponentProps> = (props) => {
+  const {
+    dagId = "",
+    runId = "",
+    taskId = "",
+    mapIndex: mapIndexProp = "-1",
+    taskInstance,
+  } = props;
   const mapIndex = /^-?\d+$/.test(String(mapIndexProp)) ? parseInt(String(mapIndexProp), 10) : -1;
 
-  if (!dagId || !runId || !taskId) {
+  if (!dagId || !runId || !taskId || ("taskInstance" in props && taskInstance == null)) {
     return <NoSession />;
   }
 
-  return <ChatPage dagId={dagId} runId={runId} taskId={taskId} mapIndex={mapIndex} />;
+  const region = taskInstance?.region_id !== undefined && taskInstance.region_index !== undefined
+    ? { region_id: taskInstance.region_id, region_index: taskInstance.region_index }
+    : undefined;
+
+  return <ChatPage
+    key={`${dagId}/${runId}/${taskId}/${mapIndex}/${taskInstance?.id ?? ""}/${region?.region_id ?? ""}/${region?.region_index ?? ""}`}
+    dagId={dagId} runId={runId} taskId={taskId} mapIndex={mapIndex} region={region}
+  />;
 };
 
 /**
@@ -60,7 +70,7 @@ const PluginComponent: FC<PluginComponentProps> = ({
  * Chakra semantic tokens handle light/dark mode automatically.
  */
 const WrappedPluginComponent: FC<PluginComponentProps> = (props) => {
-  const system = (globalThis as Record<string, unknown>).ChakraUISystem ?? localSystem;
+  const system = (globalThis as typeof globalThis & { ChakraUISystem?: typeof localSystem }).ChakraUISystem ?? localSystem;
 
   return (
     <ChakraProvider value={system}>
