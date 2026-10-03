@@ -74,7 +74,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
 
   const targetSearchParams = new URLSearchParams(searchParams);
 
-  for (const key of ["try_number", "region_id", "region_index"]) {
+  for (const key of ["try_number", "region_id", "region_index", "iteration", "loop_region_id"]) {
     targetSearchParams.delete(key);
   }
   const search = targetSearchParams.toString();
@@ -138,8 +138,10 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                       fontSize="sm"
                       fontWeight="normal"
                       isGroup={true}
+                      isLoop={Boolean(node.is_loop)}
                       isMapped={Boolean(node.is_mapped)}
                       label={node.label}
+                      loopMaxIterations={node.loop_max_iterations}
                       paddingLeft={indent(node.depth)}
                       setupTeardownType={node.setup_teardown_type}
                     />

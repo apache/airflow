@@ -16,5 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export { GroupTaskInstance } from "./GroupTaskInstance";
-export { GroupTaskInstances } from "./GroupTaskInstances";
+import type { GridNodeResponse } from "openapi/requests/types.gen";
+
+import { useGridStructure } from "src/queries/useGridStructure";
+import { getGroupTask } from "src/utils/groupTask";
+
+/** The given Task Group's node from the cached grid structure (carries ``is_loop``, ``doc_md``). */
+export const useLoopGroupNode = (groupId: string): GridNodeResponse | undefined => {
+  const { data } = useGridStructure({ limit: 1 });
+
+  return getGroupTask(data, groupId);
+};
+
+/** Whether the given Task Group is a looped group (``is_loop``), from the cached grid structure. */
+export const useIsLoopGroup = (groupId: string): boolean => Boolean(useLoopGroupNode(groupId)?.is_loop);

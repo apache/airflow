@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from airflow.configuration import conf
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator, is_mapped
+from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -45,6 +46,18 @@ def _ui_colors(node) -> dict[str, str]:
     """Return the node's ``ui_color``/``ui_fgcolor`` values (hex or Chakra token) for the graph."""
     return {
         key: value for key in ("ui_color", "ui_fgcolor") if (value := getattr(node, key, None)) is not None
+    }
+
+
+def loop_metadata(task_group) -> dict:
+    if not isinstance(task_group, SerializedLoopTaskGroup):
+        return {}
+    gate = task_group.dag.get_task(task_group.gate_task_id)
+    return {
+        "is_loop": True,
+        "loop_max_iterations": task_group.max_iterations,
+        "loop_exit_task_id": gate.task_id if task_group.has_until else None,
+        "loop_exit_criteria_doc": gate.doc_md if task_group.has_until else None,
     }
 
 
@@ -93,6 +106,7 @@ def task_group_to_dict(task_item_or_group, *, group_dict=None, parent_group_is_m
         "id": task_group.group_id,
         "label": task_group.group_display_name or task_group.label,
         "tooltip": task_group.tooltip,
+        **loop_metadata(task_group),
         "is_mapped": mapped,
         "children": children,
         "type": "task",
@@ -155,6 +169,7 @@ def task_group_to_dict_grid(
         "id": task_group.group_id,
         "label": task_group.group_display_name or task_group.label,
         "is_mapped": mapped or None,
+        **loop_metadata(task_group),
         "children": children or None,
     }
     if task_group.doc_md is not None:

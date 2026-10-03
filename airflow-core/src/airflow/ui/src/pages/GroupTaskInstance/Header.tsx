@@ -20,19 +20,31 @@ import type { ReactNode } from "react";
 
 import { useTranslation } from "react-i18next";
 import { AiOutlineGroup } from "react-icons/ai";
+import { FiBookOpen } from "react-icons/fi";
+import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskGroupAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 
+import { useLoopGroupNode } from "src/queries/useIsLoopGroup";
+import { useLoopSummary } from "src/queries/useLoopSummary";
 import { formatNumber, useDurationFormat } from "src/utils";
+
+import { useLoopOutcomeStats } from "./useLoopOutcomeStats";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { i18n, t: translate } = useTranslation();
   const { formatElapsed } = useDurationFormat();
+  const { dagId = "", groupId = "", runId = "" } = useParams();
+  const outcomeStats = useLoopOutcomeStats({ dagId, groupId, runId });
+  const { data: loopSummary } = useLoopSummary({ dagId, groupId, runId });
+  const groupNode = useLoopGroupNode(groupId);
+  const docMd = loopSummary === undefined ? groupNode?.doc_md : loopSummary.doc_md;
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
   Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
@@ -42,6 +54,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
     });
   });
   const stats = [
+    ...outcomeStats,
     ...entries,
     { label: translate("startDate"), value: <Time datetime={taskInstance.min_start_date} /> },
     { label: translate("endDate"), value: <Time datetime={taskInstance.max_end_date} /> },
@@ -59,6 +72,14 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
     <HeaderCard
       actions={
         <>
+          {docMd === null || docMd === undefined ? undefined : (
+            <DisplayMarkdownButton
+              header={translate("taskGroup.documentation")}
+              icon={<FiBookOpen />}
+              mdContent={docMd}
+              text={translate("docs.documentation")}
+            />
+          )}
           <ClearTaskInstanceButton
             bg="bg"
             groupTaskInstance={taskInstance}

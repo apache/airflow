@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
+import type { ReactNode } from "react";
+
+import { Flex, HStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -26,6 +28,8 @@ import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { RouterLink, ActionBar } from "src/system-components";
+
+import { ITERATION_ALL } from "src/pages/GroupTaskInstance/LoopIterations/loopUtils";
 
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
@@ -180,6 +184,13 @@ const taskInstanceColumns = ({
     header: translate("mapIndex"),
   },
   {
+    accessorKey: "loop_iterations",
+    cell: ({ row: { original } }) =>
+      original.loop_iterations?.map((loop) => `${loop.loop_id}: ${loop.iteration}`).join(" / "),
+    enableSorting: false,
+    header: translate("taskInstance.iteration"),
+  },
+  {
     accessorKey: "state",
     cell: ({
       row: {
@@ -278,7 +289,12 @@ const taskInstanceColumns = ({
   },
 ];
 
-export const TaskInstances = () => {
+type TaskInstancesProps = {
+  readonly extraFilter?: ReactNode;
+  readonly loopGroupId?: string;
+};
+
+export const TaskInstances = ({ extraFilter, loopGroupId }: TaskInstancesProps = {}) => {
   const { i18n, t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
 
@@ -311,6 +327,7 @@ export const TaskInstances = () => {
   const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
+  const iterationFilter = searchParams.get(SearchParamsKeys.ITERATION);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const poolNamePattern = searchParams.get(POOL_NAME_PATTERN_PARAM);
@@ -377,9 +394,21 @@ export const TaskInstances = () => {
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
+      iteration:
+        loopGroupId !== undefined &&
+        runId !== undefined &&
+        iterationFilter !== null &&
+        iterationFilter !== ITERATION_ALL
+          ? Number(iterationFilter)
+          : undefined,
       limit: pagination.pageSize,
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
+      loopId: runId === undefined ? undefined : loopGroupId,
+      loopRegionId:
+        runId === undefined || loopGroupId === undefined
+          ? undefined
+          : (searchParams.get(SearchParamsKeys.LOOP_REGION_ID) ?? undefined),
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
       ...operatorNameArg,
       orderBy,
@@ -435,7 +464,16 @@ export const TaskInstances = () => {
         columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
-        filterActions={<TaskInstancesFilter />}
+        filterActions={
+          extraFilter === undefined ? (
+            <TaskInstancesFilter />
+          ) : (
+            <HStack alignItems="flex-start" gap={2} wrap="wrap">
+              {extraFilter}
+              <TaskInstancesFilter />
+            </HStack>
+          )
+        }
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:taskInstance"

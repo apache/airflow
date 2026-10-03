@@ -3131,6 +3131,9 @@ export class TaskInstanceService {
      * @param data.regionId
      * @param data.regionIndex
      * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     * @param data.loopId
+     * @param data.iteration
+     * @param data.loopRegionId
      * @param data.taskId
      * @param data.runAfterGte
      * @param data.runAfterGt
@@ -3198,6 +3201,9 @@ export class TaskInstanceService {
                 region_id: data.regionId,
                 region_index: data.regionIndex,
                 cursor: data.cursor,
+                loop_id: data.loopId,
+                iteration: data.iteration,
+                loop_region_id: data.loopRegionId,
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
@@ -5727,6 +5733,64 @@ export class GridService {
             },
             errors: {
                 400: 'Bad Request',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Loop Summary
+     * Summarize one loop invocation from the run's live task instances.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.runId
+     * @param data.groupId
+     * @param data.loopRegionId
+     * @returns LoopSummaryResponse Successful Response
+     * @throws ApiError
+     */
+    public static getLoopSummary(data: GetLoopSummaryData): CancelablePromise<GetLoopSummaryResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/grid/loop/{dag_id}/{run_id}/{group_id}',
+            path: {
+                dag_id: data.dagId,
+                run_id: data.runId,
+                group_id: data.groupId
+            },
+            query: {
+                loop_region_id: data.loopRegionId
+            },
+            errors: {
+                404: 'Not Found',
+                422: 'Unprocessable Entity'
+            }
+        });
+    }
+    
+    /**
+     * Get Loop History
+     * Show loop invocations from recent runs, oldest first.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.groupId
+     * @param data.limit
+     * @returns LoopHistoryResponse Successful Response
+     * @throws ApiError
+     */
+    public static getLoopHistory(data: GetLoopHistoryData): CancelablePromise<GetLoopHistoryResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/grid/loop-history/{dag_id}/{group_id}',
+            path: {
+                dag_id: data.dagId,
+                group_id: data.groupId
+            },
+            query: {
+                limit: data.limit
+            },
+            errors: {
                 404: 'Not Found',
                 422: 'Validation Error'
             }

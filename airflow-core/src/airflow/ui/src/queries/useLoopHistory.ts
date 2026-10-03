@@ -16,5 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export { GroupTaskInstance } from "./GroupTaskInstance";
-export { GroupTaskInstances } from "./GroupTaskInstances";
+import { useGridServiceGetLoopHistory } from "openapi/queries";
+
+/** How many iterations a looped Task Group took in each recent run. */
+export const useLoopHistory = ({ dagId, groupId }: { dagId: string; groupId: string }) =>
+  useGridServiceGetLoopHistory({ dagId, groupId }, undefined, {
+    enabled: Boolean(dagId) && Boolean(groupId),
+  });

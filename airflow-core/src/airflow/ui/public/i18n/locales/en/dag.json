@@ -119,6 +119,55 @@
     "waitingToRetry": "Try {{tryNumber}} is waiting to retry.",
     "warning": "WARNING"
   },
+  "loop": {
+    "decision": {
+      "continue": "Continue",
+      "failed": "Failed",
+      "notRun": "Not run",
+      "stop": "Stop"
+    },
+    "filter": {
+      "all": "All iterations",
+      "invocation": "Invocation",
+      "label": "Iteration"
+    },
+    "history": {
+      "capLabel": "Limit: {{max}}",
+      "iterationsAxis": "Iterations",
+      "stats": {
+        "capHits": "Hit the limit",
+        "converged": "Converged",
+        "medianIterations": "Median iterations"
+      },
+      "title": "Iterations per run"
+    },
+    "iteration": "Iteration {{index}}",
+    "iterations": "Iterations",
+    "outcome": "Outcome",
+    "reached": "reached {{actual}}",
+    "reason": {
+      "cap_reached": "Reached the iteration limit ({{max}})",
+      "criteria_met": "Stopped at iteration {{index}}: {{criteria}} was met",
+      "criteria_met_unnamed": "Stopped at iteration {{index}}: the exit criteria was met",
+      "failed": "Failed at iteration {{index}}",
+      "iteration_failed": "Iteration {{index}} failed in {{taskId}}",
+      "not_converged": "{{criteria}} was not met after the iteration limit ({{max}})",
+      "not_converged_unnamed": "The exit criteria was not met after the iteration limit ({{max}})",
+      "ran_to_cap": "Ran all {{max}} allowed iterations",
+      "removed": "Removed",
+      "running": "Running",
+      "skipped": "Skipped",
+      "stopped_early": "Stopped early at iteration {{index}}"
+    },
+    "rules": {
+      "behaviour": "Behaviour",
+      "boundedFor": "Runs a fixed number of iterations",
+      "exitCriteria": "Exit criteria",
+      "maxIterations": "Maximum iterations",
+      "whileUntil": "Repeats until {{criteria}}"
+    },
+    "target": "Target"
+  },
   "notFound": {
     "back": "Go Back",
     "backToDags": "Back to Dags",

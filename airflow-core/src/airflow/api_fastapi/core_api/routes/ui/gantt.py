@@ -21,12 +21,14 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import or_, select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.task_instances import LoopIterationResponse
 from airflow.api_fastapi.core_api.datamodels.ui.gantt import GanttResponse, GanttTaskInstance
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.models.task_coordinates import public_map_index_expression
+from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import TaskInstanceState
 
@@ -59,11 +61,15 @@ def get_gantt_data(
     dag_id: str,
     run_id: str,
     session: SessionDep,
+    dag_bag: DagBagDep,
 ) -> GanttResponse:
     """Get all task instance tries for Gantt chart."""
     # Pending retries retain timing for backoff; only the archived attempt belongs on the chart.
     current_tis = select(
         TaskInstance.id,
+        TaskInstance.dag_id,
+        TaskInstance.run_id,
+        TaskInstance.dag_version_id,
         TaskInstance.region_id,
         TaskInstance.region_index,
         public_map_index_expression(TaskInstance).label("map_index"),
@@ -94,11 +100,17 @@ def get_gantt_data(
             f"No task instances for dag_id={dag_id} run_id={run_id}",
         )
 
+    resolver = TaskCoordinateResolver(dag_bag, session)
+    resolver.prefetch_regions(results)
     task_instances = [
         GanttTaskInstance(
             id=row.id,
             region_id=row.region_id,
             region_index=row.region_index,
+            loop_iterations=[
+                LoopIterationResponse(loop_id=loop_id, iteration=iteration)
+                for loop_id, iteration in resolver.loop_iterations(row)
+            ],
             map_index=row.map_index,
             task_id=row.task_id,
             task_display_name=row.task_display_name,

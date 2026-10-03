@@ -90,6 +90,7 @@ const toTooltipSummary = (
 
   return {
     child_states: null,
+    loop_iterations: segment.loopIterations,
     max_end_date: segment.end_when ?? dayjs(segment.x[1]).toISOString(),
     min_start_date: segment.start_when ?? dayjs(segment.x[0]).toISOString(),
     state: segment.state ?? null,
@@ -348,16 +349,6 @@ export const GanttTimeline = ({
 
                     return (
                       <TaskInstanceTooltip
-                        iteration={
-                          !node.isGroup &&
-                          !node.is_mapped &&
-                          segment.regionId !== undefined &&
-                          segment.regionId !== "00000000-0000-0000-0000-000000000000" &&
-                          segment.regionIndex !== undefined &&
-                          segment.regionIndex >= 0
-                            ? segment.regionIndex
-                            : undefined
-                        }
                         key={`${segment.taskInstanceId ?? taskId}-${tryNumber ?? -1}-${state ?? "none"}-${x[0]}`}
                         openDelay={500}
                         positioning={{

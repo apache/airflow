@@ -681,7 +681,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstanceKeyFn = ({ dagId, dagRun
 export type TaskInstanceServiceGetTaskInstancesDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstances>>;
 export type TaskInstanceServiceGetTaskInstancesQueryResult<TData = TaskInstanceServiceGetTaskInstancesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskInstanceServiceGetTaskInstancesKey = "TaskInstanceServiceGetTaskInstances";
-export const UseTaskInstanceServiceGetTaskInstancesKeyFn = ({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const UseTaskInstanceServiceGetTaskInstancesKeyFn = ({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, iteration, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, loopId, loopRegionId, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   cursor?: string;
   dagId: string;
   dagIdPattern?: string;
@@ -696,11 +696,14 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = ({ cursor, dagId, dag
   endDateLt?: string;
   endDateLte?: string;
   executor?: string[];
+  iteration?: number;
   limit?: number;
   logicalDateGt?: string;
   logicalDateGte?: string;
   logicalDateLt?: string;
   logicalDateLte?: string;
+  loopId?: string;
+  loopRegionId?: string;
   mapIndex?: number[];
   offset?: number;
   operator?: string[];
@@ -739,7 +742,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = ({ cursor, dagId, dag
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetTaskInstancesKey, ...(queryKey ?? [{ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }])];
+}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetTaskInstancesKey, ...(queryKey ?? [{ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, iteration, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, loopId, loopRegionId, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }])];
 export type TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstanceTryDetails>>;
 export type TaskInstanceServiceGetTaskInstanceTryDetailsQueryResult<TData = TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskInstanceServiceGetTaskInstanceTryDetailsKey = "TaskInstanceServiceGetTaskInstanceTryDetails";
@@ -1214,6 +1217,23 @@ export const UseGridServiceGetGridTiSummariesStreamKeyFn = ({ dagId, runIds }: {
   dagId: string;
   runIds?: string[];
 }, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesStreamKey, ...(queryKey ?? [{ dagId, runIds }])];
+export type GridServiceGetLoopSummaryDefaultResponse = Awaited<ReturnType<typeof GridService.getLoopSummary>>;
+export type GridServiceGetLoopSummaryQueryResult<TData = GridServiceGetLoopSummaryDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useGridServiceGetLoopSummaryKey = "GridServiceGetLoopSummary";
+export const UseGridServiceGetLoopSummaryKeyFn = ({ dagId, groupId, loopRegionId, runId }: {
+  dagId: string;
+  groupId: string;
+  loopRegionId?: string;
+  runId: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetLoopSummaryKey, ...(queryKey ?? [{ dagId, groupId, loopRegionId, runId }])];
+export type GridServiceGetLoopHistoryDefaultResponse = Awaited<ReturnType<typeof GridService.getLoopHistory>>;
+export type GridServiceGetLoopHistoryQueryResult<TData = GridServiceGetLoopHistoryDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useGridServiceGetLoopHistoryKey = "GridServiceGetLoopHistory";
+export const UseGridServiceGetLoopHistoryKeyFn = ({ dagId, groupId, limit }: {
+  dagId: string;
+  groupId: string;
+  limit?: number;
+}, queryKey?: Array<unknown>) => [useGridServiceGetLoopHistoryKey, ...(queryKey ?? [{ dagId, groupId, limit }])];
 export type GanttServiceGetGanttDataDefaultResponse = Awaited<ReturnType<typeof GanttService.getGanttData>>;
 export type GanttServiceGetGanttDataQueryResult<TData = GanttServiceGetGanttDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGanttServiceGetGanttDataKey = "GanttServiceGetGanttData";

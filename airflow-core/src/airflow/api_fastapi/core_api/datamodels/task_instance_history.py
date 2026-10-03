@@ -31,6 +31,7 @@ from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.datamodels.task_instances import LoopIterationResponse
 from airflow.utils.state import TaskInstanceState
 
 
@@ -47,6 +48,7 @@ class TaskInstanceHistoryResponse(OmitsMissingRegion, BaseModel):
     map_index: int
     region_id: RegionId = None
     region_index: RegionIndex = None
+    loop_iterations: list[LoopIterationResponse] = Field(default_factory=list)
     start_date: datetime | None
     end_date: datetime | None
     duration: float | None

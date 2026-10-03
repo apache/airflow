@@ -55,7 +55,7 @@ export const GridButton = ({
   const { renderDuration } = useDurationFormat();
   const targetSearchParams = new URLSearchParams(searchParams);
 
-  for (const key of ["try_number", "region_id", "region_index"]) {
+  for (const key of ["try_number", "region_id", "region_index", "iteration", "loop_region_id"]) {
     targetSearchParams.delete(key);
   }
 

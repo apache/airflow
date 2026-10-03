@@ -270,6 +270,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json()["id"] == str(replacement.id)
         assert response.json()["map_index"] == -1
         assert response.json()["region_index"] == 2
+        assert response.json()["rendered_map_index"] is None
+        assert response.json()["loop_iterations"] == [{"loop_id": "body", "iteration": 2}]
         response = test_client.get(f"{url}/tries/1", params=params)
         assert response.status_code == 200
         assert response.json()["state"] == TaskInstanceState.RUNNING
@@ -278,6 +280,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json()["state"] == TaskInstanceState.SUCCESS
         assert response.json()["map_index"] == -1
         assert response.json()["region_id"] == str(first.id)
+        assert response.json()["loop_iterations"] == [{"loop_id": "body", "iteration": 2}]
         assert test_client.get(url).status_code == 400
         collection_url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
         cursor = ""
@@ -293,6 +296,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             assert len(entries) <= 4
         assert [ti["map_index"] for ti in entries] == [-1, -1, 0, 1]
         assert len({ti["id"] for ti in entries}) == 4
+        assert all(ti["rendered_map_index"] is None for ti in entries if ti["map_index"] < 0)
+        assert all(ti["loop_iterations"] == [] for ti in entries if ti["task_id"] == "mapped")
         response = test_client.get(collection_url, params={"map_index": -1})
         assert response.json()["total_entries"] == 2
 
@@ -399,6 +404,25 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json()["map_index"] == 0
 
+    def test_unmapped_task_instance_keeps_stored_rendered_map_index(self, test_client, session):
+        self.create_task_instances(session)
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.task_id == "print_the_context")
+            .values(_rendered_map_index="eu-west")
+        )
+        session.commit()
+        base = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+
+        response = test_client.get(f"{base}/print_the_context")
+        assert response.status_code == 200
+        assert response.json()["map_index"] == -1
+        assert response.json()["rendered_map_index"] == "eu-west"
+
+        response = test_client.get(base, params={"task_id": "print_the_context"})
+        assert response.status_code == 200
+        assert [ti["rendered_map_index"] for ti in response.json()["task_instances"]] == ["eu-west"]
+
     def test_should_respond_200(self, test_client, session):
         self.create_task_instances(session)
         # Update ti and set operator to None to
@@ -434,6 +458,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
+            "loop_iterations": [],
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": None,
@@ -547,6 +572,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": run_id,
             "dag_display_name": "dag_with_multiple_versions",
             "map_index": -1,
+            "loop_iterations": [],
             "logical_date": mock.ANY,
             "start_date": None,
             "end_date": mock.ANY,
@@ -635,6 +661,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
+            "loop_iterations": [],
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
@@ -703,6 +730,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
+            "loop_iterations": [],
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
@@ -761,6 +789,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "hostname": "",
             "id": response_data["id"],
             "map_index": -1,
+            "loop_iterations": [],
             "max_tries": 0,
             "note": "placeholder-note",
             "operator": "PythonOperator",
@@ -895,6 +924,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "hostname": "",
                 "id": response_data["id"],
                 "map_index": map_index,
+                "loop_iterations": [],
                 "max_tries": 0,
                 "note": "placeholder-note",
                 "operator": "PythonOperator",
@@ -1418,6 +1448,68 @@ class TestGetMappedTaskInstances:
 
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
+    @pytest.mark.parametrize("cursor", [None, ""])
+    def test_loop_filter_keeps_prefix_and_mapped_members_before_pagination(
+        self, test_client, dag_maker, session, cursor
+    ):
+        @task_group
+        def body():
+            MockOperator(task_id="member")
+
+        with dag_maker("loop-list", serialized=True) as dag:
+            create_loop(body, max_iterations=4)
+            MockOperator(task_id="outside")
+        dr = dag_maker.create_dagrun()
+        member = next(ti for ti in dr.task_instances if ti.task_id == "body.member")
+        root_id = member.region_id
+        replacement = DynamicRegion(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", forked_from_region_id=root_id
+        )
+        session.add(replacement)
+        session.flush()
+        child = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            node_id="child",
+            parent_region_id=replacement.id,
+            parent_region_index=2,
+            session=session,
+        )
+        session.add(child)
+        session.flush()
+        for region_id, region_index in ((replacement.id, 2), (child.id, 7)):
+            session.add(
+                TaskInstance(
+                    task=dag.get_task(member.task_id),
+                    run_id=dr.run_id,
+                    dag_version_id=member.dag_version_id,
+                    region_id=region_id,
+                    region_index=region_index,
+                )
+            )
+        session.commit()
+        url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
+        params = {"loop_id": "body", "loop_region_id": str(root_id), "limit": 1}
+        if cursor is not None:
+            params["cursor"] = cursor
+        response = test_client.get(url, params=params)
+        assert response.status_code == 200, response.text
+        assert response.json()["total_entries"] == 4
+        assert len(response.json()["task_instances"]) == 1
+        response = test_client.get(url, params={**params, "iteration": 2, "limit": 100})
+        assert response.status_code == 200, response.text
+        assert response.json()["total_entries"] == 2
+        assert {ti["region_index"] for ti in response.json()["task_instances"]} == {2, 7}
+        response = test_client.get(url, params={**params, "iteration": 0, "limit": 100})
+        assert response.json()["total_entries"] == 2
+
+    @pytest.mark.parametrize(
+        "params", [{"iteration": 1}, {"loop_region_id": "00000000-0000-0000-0000-000000000000"}]
+    )
+    def test_iteration_filter_requires_loop(self, test_client, params):
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params=params)
+        assert response.status_code == 400
+
     @pytest.mark.parametrize(
         ("task_instances", "update_extras", "url", "params", "expected_ti", "expected_queries_number"),
         [
@@ -3048,6 +3140,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
+            "loop_iterations": [],
             "max_tries": 0,
             "operator": "PythonOperator",
             "operator_name": "PythonOperator",
@@ -3132,6 +3225,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
+            "loop_iterations": [],
             "max_tries": 0 if try_number == 1 else 1,
             "operator": "PythonOperator",
             "operator_name": "PythonOperator",
@@ -3215,6 +3309,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "note": mock.ANY,
                 "hostname": "",
                 "map_index": map_index,
+                "loop_iterations": [],
                 "max_tries": 0 if try_number == 1 else 1,
                 "operator": "PythonOperator",
                 "operator_name": "PythonOperator",
@@ -3284,6 +3379,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
+            "loop_iterations": [],
             "max_tries": 0,
             "operator": "PythonOperator",
             "operator_name": "PythonOperator",
@@ -3334,6 +3430,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
+            "loop_iterations": [],
             "max_tries": 0,
             "operator": "PythonOperator",
             "operator_name": "PythonOperator",
@@ -3407,6 +3504,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_display_name": "dag_with_multiple_versions",
             "dag_run_id": run_id,
             "map_index": -1,
+            "loop_iterations": [],
             "start_date": None,
             "end_date": mock.ANY,
             "duration": None,
@@ -4685,6 +4783,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "id": response_data["task_instances"][0]["id"],
                 "logical_date": response_logical_date,
                 "map_index": -1,
+                "loop_iterations": [],
                 "max_tries": 0,
                 "note": "placeholder-note",
                 "operator": "PythonOperator",
@@ -5380,6 +5479,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "note": mock.ANY,
                     "hostname": "",
                     "map_index": -1,
+                    "loop_iterations": [],
                     "max_tries": 0,
                     "operator": "PythonOperator",
                     "operator_name": "PythonOperator",
@@ -5420,6 +5520,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "note": mock.ANY,
                     "hostname": "",
                     "map_index": -1,
+                    "loop_iterations": [],
                     "max_tries": 1,
                     "operator": "PythonOperator",
                     "operator_name": "PythonOperator",
@@ -5538,6 +5639,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "note": mock.ANY,
                         "hostname": "",
                         "map_index": map_index,
+                        "loop_iterations": [],
                         "max_tries": 0,
                         "operator": "PythonOperator",
                         "operator_name": "PythonOperator",
@@ -5578,6 +5680,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "note": mock.ANY,
                         "hostname": "",
                         "map_index": map_index,
+                        "loop_iterations": [],
                         "max_tries": 1,
                         "operator": "PythonOperator",
                         "operator_name": "PythonOperator",
@@ -5643,6 +5746,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "dag_display_name": "dag_with_multiple_versions",
             "dag_run_id": run_id,
             "map_index": -1,
+            "loop_iterations": [],
             "start_date": None,
             "end_date": mock.ANY,
             "duration": None,
@@ -6291,6 +6395,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "hostname": "",
                     "id": response_data["task_instances"][0]["id"],
                     "map_index": -1,
+                    "loop_iterations": [],
                     "max_tries": 0,
                     "note": "placeholder-note",
                     "operator": "PythonOperator",
@@ -6570,6 +6675,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "hostname": "",
                             "id": mock.ANY,
                             "map_index": -1,
+                            "loop_iterations": [],
                             "max_tries": 0,
                             "note": "placeholder-note",
                             "operator": "PythonOperator",
@@ -6709,6 +6815,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
+                    "loop_iterations": [],
                     "max_tries": 0,
                     "note": new_note_value,
                     "operator": "PythonOperator",
@@ -6775,6 +6882,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "executor_config": "{}",
                     "hostname": "",
                     "map_index": -1,
+                    "loop_iterations": [],
                     "max_tries": 0,
                     "note": new_note_value,
                     "operator": "PythonOperator",
@@ -6888,6 +6996,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "executor_config": "{}",
                         "hostname": "",
                         "map_index": map_index,
+                        "loop_iterations": [],
                         "max_tries": 0,
                         "note": new_note_value,
                         "operator": "PythonOperator",
@@ -6975,6 +7084,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "executor_config": "{}",
                 "hostname": "",
                 "map_index": map_index,
+                "loop_iterations": [],
                 "max_tries": 0,
                 "note": new_note_value,
                 "operator": "PythonOperator",
@@ -7174,6 +7284,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "hostname": "",
                     "id": response_data["task_instances"][0]["id"],
                     "map_index": -1,
+                    "loop_iterations": [],
                     "max_tries": 0,
                     "note": "placeholder-note",
                     "operator": "PythonOperator",
@@ -7465,6 +7576,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "hostname": "",
                             "id": mock.ANY,
                             "map_index": -1,
+                            "loop_iterations": [],
                             "max_tries": 0,
                             "note": "placeholder-note",
                             "operator": "PythonOperator",

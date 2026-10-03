@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
+from uuid import UUID
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.task_instances import LoopIterationResponse
 from airflow.utils.state import TaskInstanceState
 
 
@@ -35,6 +37,7 @@ class LightGridTaskInstanceSummary(BaseModel):
     max_end_date: datetime | None
     dag_version_number: int | None = None
     has_note: bool = False
+    loop_iterations_count: int | None = None
 
 
 class GridTISummaries(BaseModel):
@@ -43,3 +46,75 @@ class GridTISummaries(BaseModel):
     run_id: str
     dag_id: str
     task_instances: list[LightGridTaskInstanceSummary]
+
+
+class LoopCriteriaComparison(BaseModel):
+    """Optional comparison details reported by a loop condition."""
+
+    field: str
+    op: str
+    target: Any = None
+    actual: Any = None
+
+
+class LoopIterationSummary(BaseModel):
+    """Execution state for one existing iteration."""
+
+    index: int
+    state: TaskInstanceState | None = None
+    decision: Literal["stop", "continue"] | None = None
+    is_tail: bool = False
+    result: Any = None
+    criteria: LoopCriteriaComparison | None = None
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+
+
+class LoopInvocationResponse(BaseModel):
+    """An invocation and its enclosing loop iterations."""
+
+    region_id: UUID
+    parent_iterations: list[LoopIterationResponse]
+
+
+class LoopSummaryResponse(BaseModel):
+    """Runtime state of one loop invocation."""
+
+    dag_id: str
+    run_id: str
+    group_id: str
+    doc_md: str | None = None
+    max_iterations: int
+    iterations_ran: int
+    status: Literal["running", "stopped_early", "ran_to_cap", "failed", "skipped", "removed"]
+    stopped_at_iteration: int | None = None
+    failed_at_iteration: int | None = None
+    exit_task_id: str | None = None
+    exit_criteria_doc: str | None = None
+    exit_criteria_name: str | None = None
+    reason: Literal["criteria_met", "cap_reached", "not_converged", "iteration_failed"] | None = None
+    reason_task_id: str | None = None
+    loop_region_id: UUID | None = None
+    loop_regions: list[LoopInvocationResponse] = []
+    iterations: list[LoopIterationSummary]
+
+
+class LoopRunSummary(BaseModel):
+    """A loop invocation in a recent DAG run."""
+
+    run_id: str
+    run_after: datetime
+    logical_date: datetime | None = None
+    max_iterations: int
+    iterations_ran: int
+    status: Literal["running", "stopped_early", "ran_to_cap", "failed", "skipped", "removed"]
+    reason: Literal["criteria_met", "cap_reached", "not_converged", "iteration_failed"] | None = None
+    loop_region_id: UUID | None = None
+
+
+class LoopHistoryResponse(BaseModel):
+    """Loop invocations across recent DAG runs."""
+
+    dag_id: str
+    group_id: str
+    runs: list[LoopRunSummary]

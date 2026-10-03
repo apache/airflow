@@ -88,6 +88,7 @@ vi.mock("src/components/DataTable", () => ({
     const renderedColumns = columns.filter(
       (column) => column.accessorKey === "rendered_map_index" || column.accessorKey === "dag_run_id",
     );
+    const iterationColumn = columns.find((column) => column.accessorKey === "loop_iterations");
 
     return (
       <table>
@@ -97,6 +98,7 @@ vi.mock("src/components/DataTable", () => ({
               {renderedColumns.map((column) => (
                 <td key={column.accessorKey}>{column.cell?.({ row: { original: taskInstance } })}</td>
               ))}
+              <td>{iterationColumn?.cell?.({ row: { original: taskInstance } })}</td>
             </tr>
           ))}
         </tbody>
@@ -189,6 +191,58 @@ describe("TaskInstances", () => {
     expect(screen.getByRole("link", { name: "manual__2026-06-07T00:00:00+00:00" })).toHaveAttribute(
       "href",
       "/dags/example_dag/runs/manual__2026-06-07T00:00:00+00:00",
+    );
+  });
+
+  it("shows nested loop iterations separately from mapped slots", () => {
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
+      getTaskInstancesResponse([
+        {
+          ...mappedTaskInstance,
+          loop_iterations: [
+            { iteration: 2, loop_id: "outer" },
+            { iteration: 3, loop_id: "outer.inner" },
+          ],
+        },
+      ]),
+    );
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(screen.getByRole("link", { name: "1" })).toBeInTheDocument();
+    expect(screen.getByText("outer: 2 / outer.inner: 3")).toBeInTheDocument();
+  });
+
+  it("shows the stored rendered map index label of an unmapped task instance", () => {
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
+      getTaskInstancesResponse([{ ...mappedTaskInstance, map_index: -1, rendered_map_index: "eu-west" }]),
+    );
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(screen.getByText("eu-west")).toBeInTheDocument();
+  });
+
+  it("keeps loop iteration filters separate from mapped slot filters", () => {
+    mockParams.groupId = "loop";
+    mockSearchParams = new URLSearchParams("iteration=3&map_index=1&loop_region_id=selected-region");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    render(<TaskInstances loopGroupId="loop" />, { wrapper: Wrapper });
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        iteration: 3,
+        loopId: "loop",
+        loopRegionId: "selected-region",
+        mapIndex: [1],
+      }),
+      undefined,
+      expect.any(Object),
+    );
+  });
+  it("ignores stale loop selectors outside a loop group", () => {
+    mockSearchParams = new URLSearchParams("iteration=3&loop_region_id=old-family");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
+      expect.objectContaining({ iteration: undefined, loopId: undefined, loopRegionId: undefined }),
+      undefined,
+      expect.any(Object),
     );
   });
 });

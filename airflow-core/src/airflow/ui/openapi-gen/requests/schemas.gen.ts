@@ -6700,6 +6700,23 @@ export const $LastAssetEventResponse = {
     description: 'Last asset event response serializer.'
 } as const;
 
+export const $LoopIterationResponse = {
+    properties: {
+        loop_id: {
+            type: 'string',
+            title: 'Loop Id'
+        },
+        iteration: {
+            type: 'integer',
+            title: 'Iteration'
+        }
+    },
+    type: 'object',
+    required: ['loop_id', 'iteration'],
+    title: 'LoopIterationResponse',
+    description: "A task execution's position in an enclosing loop."
+} as const;
+
 export const $MaterializeAssetBody = {
     properties: {
         dag_run_id: {
@@ -7810,6 +7827,13 @@ export const $TaskInstanceHistoryResponse = {
             type: 'integer',
             title: 'Region Index'
         },
+        loop_iterations: {
+            items: {
+                '$ref': '#/components/schemas/LoopIterationResponse'
+            },
+            type: 'array',
+            title: 'Loop Iterations'
+        },
         start_date: {
             anyOf: [
                 {
@@ -8066,6 +8090,13 @@ export const $TaskInstanceResponse = {
         region_index: {
             type: 'integer',
             title: 'Region Index'
+        },
+        loop_iterations: {
+            items: {
+                '$ref': '#/components/schemas/LoopIterationResponse'
+            },
+            type: 'array',
+            title: 'Loop Iterations'
         },
         logical_date: {
             anyOf: [
@@ -11590,6 +11621,13 @@ export const $GanttTaskInstance = {
             type: 'integer',
             title: 'Region Index'
         },
+        loop_iterations: {
+            items: {
+                '$ref': '#/components/schemas/LoopIterationResponse'
+            },
+            type: 'array',
+            title: 'Loop Iterations'
+        },
         map_index: {
             type: 'integer',
             title: 'Map Index'
@@ -11747,6 +11785,50 @@ export const $GridNodeResponse = {
                 }
             ],
             title: 'Is Mapped'
+        },
+        is_loop: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Loop'
+        },
+        loop_max_iterations: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Max Iterations'
+        },
+        loop_exit_task_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Exit Task Id'
+        },
+        loop_exit_criteria_doc: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Exit Criteria Doc'
         },
         setup_teardown_type: {
             anyOf: [
@@ -11992,12 +12074,385 @@ export const $LightGridTaskInstanceSummary = {
             type: 'boolean',
             title: 'Has Note',
             default: false
+        },
+        loop_iterations_count: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Iterations Count'
         }
     },
     type: 'object',
     required: ['task_id', 'task_display_name', 'state', 'child_states', 'min_start_date', 'max_end_date'],
     title: 'LightGridTaskInstanceSummary',
     description: 'Task Instance Summary model for the Grid UI.'
+} as const;
+
+export const $LoopCriteriaComparison = {
+    properties: {
+        field: {
+            type: 'string',
+            title: 'Field'
+        },
+        op: {
+            type: 'string',
+            title: 'Op'
+        },
+        target: {
+            title: 'Target'
+        },
+        actual: {
+            title: 'Actual'
+        }
+    },
+    type: 'object',
+    required: ['field', 'op'],
+    title: 'LoopCriteriaComparison',
+    description: 'Optional comparison details reported by a loop condition.'
+} as const;
+
+export const $LoopHistoryResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        group_id: {
+            type: 'string',
+            title: 'Group Id'
+        },
+        runs: {
+            items: {
+                '$ref': '#/components/schemas/LoopRunSummary'
+            },
+            type: 'array',
+            title: 'Runs'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'group_id', 'runs'],
+    title: 'LoopHistoryResponse',
+    description: 'Loop invocations across recent DAG runs.'
+} as const;
+
+export const $LoopInvocationResponse = {
+    properties: {
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        parent_iterations: {
+            items: {
+                '$ref': '#/components/schemas/LoopIterationResponse'
+            },
+            type: 'array',
+            title: 'Parent Iterations'
+        }
+    },
+    type: 'object',
+    required: ['region_id', 'parent_iterations'],
+    title: 'LoopInvocationResponse',
+    description: 'An invocation and its enclosing loop iterations.'
+} as const;
+
+export const $LoopIterationSummary = {
+    properties: {
+        index: {
+            type: 'integer',
+            title: 'Index'
+        },
+        state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        decision: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: ['stop', 'continue']
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Decision'
+        },
+        is_tail: {
+            type: 'boolean',
+            title: 'Is Tail',
+            default: false
+        },
+        result: {
+            title: 'Result'
+        },
+        criteria: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/LoopCriteriaComparison'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        }
+    },
+    type: 'object',
+    required: ['index'],
+    title: 'LoopIterationSummary',
+    description: 'Execution state for one existing iteration.'
+} as const;
+
+export const $LoopRunSummary = {
+    properties: {
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
+        },
+        logical_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date'
+        },
+        max_iterations: {
+            type: 'integer',
+            title: 'Max Iterations'
+        },
+        iterations_ran: {
+            type: 'integer',
+            title: 'Iterations Ran'
+        },
+        status: {
+            type: 'string',
+            enum: ['running', 'stopped_early', 'ran_to_cap', 'failed', 'skipped', 'removed'],
+            title: 'Status'
+        },
+        reason: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: ['criteria_met', 'cap_reached', 'not_converged', 'iteration_failed']
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Reason'
+        },
+        loop_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Region Id'
+        }
+    },
+    type: 'object',
+    required: ['run_id', 'run_after', 'max_iterations', 'iterations_ran', 'status'],
+    title: 'LoopRunSummary',
+    description: 'A loop invocation in a recent DAG run.'
+} as const;
+
+export const $LoopSummaryResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        group_id: {
+            type: 'string',
+            title: 'Group Id'
+        },
+        doc_md: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Doc Md'
+        },
+        max_iterations: {
+            type: 'integer',
+            title: 'Max Iterations'
+        },
+        iterations_ran: {
+            type: 'integer',
+            title: 'Iterations Ran'
+        },
+        status: {
+            type: 'string',
+            enum: ['running', 'stopped_early', 'ran_to_cap', 'failed', 'skipped', 'removed'],
+            title: 'Status'
+        },
+        stopped_at_iteration: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Stopped At Iteration'
+        },
+        failed_at_iteration: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Failed At Iteration'
+        },
+        exit_task_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Exit Task Id'
+        },
+        exit_criteria_doc: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Exit Criteria Doc'
+        },
+        exit_criteria_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Exit Criteria Name'
+        },
+        reason: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: ['criteria_met', 'cap_reached', 'not_converged', 'iteration_failed']
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Reason'
+        },
+        reason_task_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Reason Task Id'
+        },
+        loop_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Region Id'
+        },
+        loop_regions: {
+            items: {
+                '$ref': '#/components/schemas/LoopInvocationResponse'
+            },
+            type: 'array',
+            title: 'Loop Regions',
+            default: []
+        },
+        iterations: {
+            items: {
+                '$ref': '#/components/schemas/LoopIterationSummary'
+            },
+            type: 'array',
+            title: 'Iterations'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'run_id', 'group_id', 'max_iterations', 'iterations_ran', 'status', 'iterations'],
+    title: 'LoopSummaryResponse',
+    description: 'Runtime state of one loop invocation.'
 } as const;
 
 export const $MenuItem = {
@@ -12230,6 +12685,50 @@ export const $NodeResponse = {
                 }
             ],
             title: 'Is Mapped'
+        },
+        is_loop: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Loop'
+        },
+        loop_max_iterations: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Max Iterations'
+        },
+        loop_exit_task_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Exit Task Id'
+        },
+        loop_exit_criteria_doc: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Exit Criteria Doc'
         },
         tooltip: {
             anyOf: [

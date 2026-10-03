@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -133,5 +133,22 @@ describe("Details state reason row", () => {
     expect(screen.getByText("older try: auth error")).toBeInTheDocument();
     expect(screen.queryByText("latest try: rate limit")).not.toBeInTheDocument();
     expect(screen.getByText(i18n.t("common:taskInstance.stateReason"))).toBeInTheDocument();
+  });
+});
+
+describe("Details loop context", () => {
+  beforeEach(() => {
+    i18n.addResourceBundle("en", "common", commonLocale, true, true);
+  });
+
+  it("shows the loop iteration separately from the map index", () => {
+    renderDetails(buildTaskInstance({ loop_iterations: [{ iteration: 2, loop_id: "loop" }], map_index: 8 }));
+
+    const iterationRow = screen.getByRole("row", {
+      name: new RegExp(`^${i18n.t("common:taskInstance.iteration")} \\(loop\\)`, "u"),
+    });
+
+    expect(within(iterationRow).getByText("2")).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("common:mapIndex"))).toBeInTheDocument();
   });
 });

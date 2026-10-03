@@ -1091,6 +1091,15 @@ class LastAssetEventResponse(BaseModel):
     timestamp: Annotated[datetime | None, Field(title="Timestamp")] = None
 
 
+class LoopIterationResponse(BaseModel):
+    """
+    A task execution's position in an enclosing loop.
+    """
+
+    loop_id: Annotated[str, Field(title="Loop Id")]
+    iteration: Annotated[int, Field(title="Iteration")]
+
+
 class MaterializeAssetBody(BaseModel):
     """
     Materialize asset request.
@@ -2636,6 +2645,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     map_index: Annotated[int, Field(title="Map Index")]
     region_id: Annotated[UUID | None, Field(title="Region Id")] = None
     region_index: Annotated[int | None, Field(title="Region Index")] = None
+    loop_iterations: Annotated[list[LoopIterationResponse] | None, Field(title="Loop Iterations")] = None
     start_date: Annotated[datetime | None, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")]
     duration: Annotated[float | None, Field(title="Duration")]
@@ -2680,6 +2690,7 @@ class TaskInstanceResponse(BaseModel):
     map_index: Annotated[int, Field(title="Map Index")]
     region_id: Annotated[UUID | None, Field(title="Region Id")] = None
     region_index: Annotated[int | None, Field(title="Region Index")] = None
+    loop_iterations: Annotated[list[LoopIterationResponse] | None, Field(title="Loop Iterations")] = None
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     run_after: Annotated[datetime, Field(title="Run After")]
     start_date: Annotated[datetime | None, Field(title="Start Date")]

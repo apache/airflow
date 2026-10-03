@@ -42,7 +42,7 @@ from airflow.serialization.definitions.mappedoperator import is_mapped
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedMappedTaskGroup
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Sequence
+    from collections.abc import Collection, Iterable, Sequence
 
     from sqlalchemy import Select
     from sqlalchemy.orm import Session
@@ -162,6 +162,7 @@ class TaskCoordinateResolver:
     dag_bag: DBDagBag
     session: Session
     _dags: dict[UUID, SerializedDAG] = attrs.field(factory=dict, init=False)
+    _regions: dict[tuple[str, str], dict[UUID, DynamicRegion]] = attrs.field(factory=dict, init=False)
     _region_nodes: dict[UUID, str | None] = attrs.field(factory=dict, init=False)
     _regional_tasks: dict[tuple[str, str | None, str], bool] = attrs.field(factory=dict, init=False)
 
@@ -175,6 +176,46 @@ class TaskCoordinateResolver:
     def adopt_dag(self, dag: SerializedDAG | None) -> None:
         if dag is not None and dag.dag_version_id is not None:
             self._dags.setdefault(dag.dag_version_id, dag)
+
+    def prefetch_regions(self, tis: Iterable[TaskCoordinate]) -> None:
+        wanted: dict[tuple[str, str], set[UUID]] = {}
+        for ti in tis:
+            if ti.region_id != SENTINEL_REGION_ID and ti.region_id not in self._regions.get(
+                (ti.dag_id, ti.run_id), {}
+            ):
+                wanted.setdefault((ti.dag_id, ti.run_id), set()).add(ti.region_id)
+        for (dag_id, run_id), region_ids in wanted.items():
+            self._regions.setdefault((dag_id, run_id), {}).update(
+                load_region_ancestry(region_ids, dag_id=dag_id, run_id=run_id, session=self.session)
+            )
+
+    def loop_iterations(self, ti: TaskCoordinate) -> list[tuple[str, int]]:
+        if ti.region_id == SENTINEL_REGION_ID:
+            return []
+        try:
+            task = self.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+        except (TaskNotFound, ValueError):
+            return []
+        groups = []
+        group = task.task_group
+        while group is not None:
+            if isinstance(group, SerializedLoopTaskGroup):
+                groups.append(group)
+            group = group.parent_group
+        if not groups:
+            return []
+        regions = self._regions.setdefault((ti.dag_id, ti.run_id), {})
+        if ti.region_id not in regions:
+            regions.update(
+                load_region_ancestry([ti.region_id], dag_id=ti.dag_id, run_id=ti.run_id, session=self.session)
+            )
+        iterations = []
+        for group in reversed(groups):
+            position = loop_position(regions, ti.region_id, ti.region_index, group.node_id)
+            if position is None:
+                raise ValueError("Task coordinates do not belong to the pinned loop")
+            iterations.append((group.node_id, position[1]))
+        return iterations
 
     def loop_context(self, ti: TaskCoordinate) -> tuple[SerializedLoopTaskGroup, int] | None:
         if ti.region_id == SENTINEL_REGION_ID:

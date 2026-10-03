@@ -17,19 +17,37 @@
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
+from uuid import UUID
 
 import structlog
+from fastapi import HTTPException
+from sqlalchemy import select
 
 from airflow.api_fastapi.common.parameters import state_priority
+from airflow.api_fastapi.core_api.datamodels.task_instances import LoopIterationResponse
+from airflow.api_fastapi.core_api.datamodels.ui.grid import (
+    LoopInvocationResponse,
+    LoopIterationSummary,
+    LoopSummaryResponse,
+)
 from airflow.api_fastapi.core_api.services.ui.task_group import get_task_group_children_getter
+from airflow.models.dynamic_region import load_region_ancestry, loop_position
+from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
-from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
+from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedTaskGroup
+from airflow.utils.state import State, TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.dagrun import DagRun
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -43,6 +61,7 @@ class GridNodeAgg:
     max_end_date: datetime | None = None
     dag_version_number: int | None = None
     has_note: bool = False
+    loop_iterations: dict[str, set[tuple[UUID, int]]] = field(default_factory=dict)
 
     def add_ti(
         self,
@@ -52,9 +71,12 @@ class GridNodeAgg:
         end_date: datetime | None,
         dag_version_number: int | None,
         has_note: bool = False,
+        loop_positions: dict[str, tuple[UUID, int]] | None = None,
     ) -> None:
         """Merge one task instance row into the summary."""
         self.child_states[state] += 1
+        for loop_id, position in (loop_positions or {}).items():
+            self.loop_iterations.setdefault(loop_id, set()).add(position)
         if start_date is not None and (self.min_start_date is None or start_date < self.min_start_date):
             self.min_start_date = start_date
         if end_date is not None and (self.max_end_date is None or end_date > self.max_end_date):
@@ -68,6 +90,8 @@ class GridNodeAgg:
     def merge(self, other: GridNodeAgg) -> None:
         """Merge another summary into this one."""
         self.child_states.update(other.child_states)
+        for loop_id, positions in other.loop_iterations.items():
+            self.loop_iterations.setdefault(loop_id, set()).update(positions)
         if other.min_start_date is not None and (
             self.min_start_date is None or other.min_start_date < self.min_start_date
         ):
@@ -189,6 +213,11 @@ def _find_aggregates(
                     "type": "group",
                     "parent_id": parent_id,
                     **_get_aggs_for_node(children_summary),
+                    **(
+                        {"loop_iterations_count": len(children_summary.loop_iterations.get(node_id, set()))}
+                        if isinstance(node, SerializedLoopTaskGroup)
+                        else {}
+                    ),
                 },
                 children_summary,
             )
@@ -205,3 +234,176 @@ def _find_aggregates(
             summary,
         )
         return
+
+
+def loop_run_summaries(
+    run: DagRun,
+    group_id: str,
+    *,
+    session: Session,
+    dag_bag: DBDagBag,
+    loop_region_id: UUID | None = None,
+) -> list[LoopSummaryResponse]:
+    """Read each invocation of a loop separately, keyed by its fork family."""
+    live = (
+        TaskInstance.dag_id == run.dag_id,
+        TaskInstance.run_id == run.run_id,
+        TaskInstance.working_set.is_(True),
+    )
+    definitions: dict[UUID | None, SerializedLoopTaskGroup | None] = {}
+    for version_id in session.scalars(select(TaskInstance.dag_version_id).where(*live).distinct()):
+        pinned_id = version_id or run.created_dag_version_id
+        if pinned_id is None:
+            raise HTTPException(404, "Pinned DAG definition not found")
+        dag = dag_bag.get_dag(pinned_id, session=session)
+        definition = dag.task_group.get_task_group_dict().get(group_id) if dag else None
+        definitions[version_id] = definition if isinstance(definition, SerializedLoopTaskGroup) else None
+    found = {
+        version_id: definition for version_id, definition in definitions.items() if definition is not None
+    }
+    task_ids_by_version = {
+        version_id: {task.task_id for task in definition.iter_tasks()}
+        for version_id, definition in found.items()
+    }
+    members = []
+    if task_ids_by_version:
+        member_rows = session.execute(
+            select(
+                TaskInstance.task_id,
+                TaskInstance.region_id,
+                TaskInstance.region_index,
+                TaskInstance.state,
+                TaskInstance.start_date,
+                TaskInstance.end_date,
+                TaskInstance.dag_version_id,
+            )
+            .where(*live, TaskInstance.task_id.in_(set().union(*task_ids_by_version.values())))
+            .order_by(TaskInstance.task_id, TaskInstance.region_id, TaskInstance.region_index)
+        )
+        members = [ti for ti in member_rows if ti.task_id in task_ids_by_version.get(ti.dag_version_id, ())]
+    loop_definitions = {ti.dag_version_id: found[ti.dag_version_id] for ti in members}
+    group = next(iter(loop_definitions.values()), None)
+    if group is None:
+        if run.created_dag_version_id is None:
+            raise HTTPException(404, "Pinned DAG definition not found")
+        dag = dag_bag.get_dag(run.created_dag_version_id, session=session)
+        definition = dag.task_group.get_task_group_dict().get(group_id) if dag else None
+        if definition is None:
+            raise HTTPException(404, "Task group not found")
+        if not isinstance(definition, SerializedLoopTaskGroup):
+            raise HTTPException(422, "Task group is not a loop")
+        group = definition
+    regions = load_region_ancestry(
+        {ti.region_id for ti in members}, dag_id=run.dag_id, run_id=run.run_id, session=session
+    )
+    invocations: dict[UUID, dict[int, list[Any]]] = defaultdict(lambda: defaultdict(list))
+    for ti in members:
+        if position := loop_position(regions, ti.region_id, ti.region_index, group_id):
+            family, index = position
+            invocations[family][index].append(ti)
+    families = sorted(invocations, key=str)
+    if loop_region_id is not None and loop_region_id not in invocations:
+        raise HTTPException(404, "Loop invocation not found in this Dag run")
+    selected: list[UUID | None] = (
+        [loop_region_id] if loop_region_id is not None else [*families] if families else [None]
+    )
+    region_options = []
+    for family in families:
+        parents = []
+        region = regions[family]
+        while region.parent_region_id is not None:
+            parent = regions[region.parent_region_id]
+            parent_group = group.dag.task_group.get_task_group_dict().get(parent.node_id)
+            if isinstance(parent_group, SerializedLoopTaskGroup):
+                if TYPE_CHECKING:
+                    assert region.parent_region_index is not None
+                parents.append(
+                    LoopIterationResponse(loop_id=parent.node_id, iteration=region.parent_region_index)
+                )
+            region = parent
+        region_options.append(
+            LoopInvocationResponse(region_id=family, parent_iterations=list(reversed(parents)))
+        )
+    summaries = []
+    for selected_family in selected:
+        iterations = invocations[selected_family] if selected_family is not None else {}
+        gate_rows = [
+            ti
+            for tasks in iterations.values()
+            for ti in tasks
+            if ti.task_id == loop_definitions[ti.dag_version_id].gate_task_id
+        ]
+        if gate_rows:
+            group = loop_definitions[max(gate_rows, key=lambda ti: ti.region_index).dag_version_id]
+        gate = group.dag.get_task(group.gate_task_id)
+        rows = []
+        failed = None
+        reason_task = None
+        for index, tasks in sorted(iterations.items()):
+            states = [ti.state for ti in tasks]
+            starts = [ti.start_date for ti in tasks if ti.start_date is not None]
+            ends = [ti.end_date for ti in tasks if ti.end_date is not None]
+            failures = [ti for ti in tasks if ti.state in State.failed_states]
+            if failures and failed is None:
+                failed = index
+                reason_task = next(
+                    (ti.task_id for ti in failures if ti.state == TaskInstanceState.FAILED),
+                    failures[0].task_id,
+                )
+            rows.append(
+                LoopIterationSummary(
+                    index=index,
+                    state=agg_state(states),
+                    start_date=min(starts) if starts else None,
+                    end_date=max(ends) if ends and all(s in State.finished for s in states) else None,
+                )
+            )
+        latest = max(iterations, default=-1)
+        last_gate = next((ti for ti in iterations.get(latest, []) if ti.task_id == group.gate_task_id), None)
+        active = any(ti.state not in State.finished for tasks in iterations.values() for ti in tasks)
+        status: Literal["running", "stopped_early", "ran_to_cap", "failed", "skipped", "removed"] = "running"
+        stopped = None
+        reason: Literal["cap_reached", "iteration_failed"] | None = None
+        if failed is not None:
+            status, reason = "failed", "iteration_failed"
+        elif not active and last_gate is not None:
+            if last_gate.state == TaskInstanceState.SKIPPED:
+                status = "skipped"
+            elif last_gate.state == TaskInstanceState.REMOVED:
+                status = "removed"
+            elif last_gate.state == TaskInstanceState.SUCCESS:
+                if latest + 1 == group.max_iterations:
+                    status = "ran_to_cap"
+                    if not group.has_until:
+                        reason = "cap_reached"
+                else:
+                    status, stopped = "stopped_early", latest
+        summaries.append(
+            LoopSummaryResponse(
+                dag_id=run.dag_id,
+                run_id=run.run_id,
+                group_id=group_id,
+                doc_md=group.doc_md,
+                max_iterations=group.max_iterations,
+                iterations_ran=sum(
+                    any(
+                        ti.start_date is not None
+                        or ti.state in State.failed_states | {TaskInstanceState.SUCCESS}
+                        for ti in tasks
+                    )
+                    for tasks in iterations.values()
+                ),
+                status=status,
+                stopped_at_iteration=stopped,
+                failed_at_iteration=failed,
+                exit_task_id=gate.task_id,
+                exit_criteria_name=gate.task_id.rpartition(".")[2] if group.has_until else None,
+                exit_criteria_doc=gate.doc_md if group.has_until else None,
+                reason=reason,
+                reason_task_id=reason_task,
+                loop_region_id=selected_family,
+                loop_regions=region_options,
+                iterations=rows,
+            )
+        )
+    return summaries

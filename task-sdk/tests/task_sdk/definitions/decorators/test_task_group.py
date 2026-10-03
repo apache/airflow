@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import gc
 import warnings
 from datetime import timedelta
@@ -34,6 +35,36 @@ from airflow.sdk.definitions._internal.expandinput import (
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
 
+class _CallableUntil:
+    """Class docstring that must not become the gate documentation."""
+
+    def __call__(self, *, loop):
+        return loop.index == 1
+
+
+def _threshold_until(*, loop, threshold):
+    """Function docstring that a partial must not expose."""
+    return loop.index >= threshold
+
+
+@pytest.mark.parametrize(
+    "until",
+    [
+        pytest.param(functools.partial(_threshold_until, threshold=1), id="partial"),
+        pytest.param(_CallableUntil(), id="callable-object"),
+    ],
+)
+def test_loop_gate_has_no_doc_md_for_non_function_until(until):
+    @task_group
+    def body():
+        EmptyOperator(task_id="terminal")
+
+    with DAG("callable_until_loop", schedule=None) as pipeline:
+        group = body.loop(max_iterations=3, until=until)
+
+    assert pipeline.get_task(group.gate_task_id).doc_md is None
+
+
 @pytest.mark.parametrize("mapped", [False, True])
 @pytest.mark.parametrize("conditional", [False, True])
 def test_loop_preserves_group_configuration_and_body_arguments(mapped, conditional):
@@ -49,6 +80,7 @@ def test_loop_preserves_group_configuration_and_body_arguments(mapped, condition
         return terminal(value)
 
     def converged(*, loop):
+        """Stop after the second iteration."""
         return loop.index == 1
 
     with DAG("public_loop", schedule=None) as pipeline:
@@ -64,6 +96,7 @@ def test_loop_preserves_group_configuration_and_body_arguments(mapped, condition
     gate = pipeline.get_task("refine.converged" if conditional else "refine.__loop_gate")
     assert group.doc_md == "Refine the input."
     assert gate.until is (converged if conditional else None)
+    assert gate.doc_md == ("Stop after the second iteration." if conditional else None)
     assert gate.upstream_task_ids == {"refine.terminal"}
     assert gate.downstream_task_ids == {"finish"}
     result = pipeline.get_task("refine.terminal")

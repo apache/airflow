@@ -1829,6 +1829,14 @@ export type LastAssetEventResponse = {
 };
 
 /**
+ * A task execution's position in an enclosing loop.
+ */
+export type LoopIterationResponse = {
+    loop_id: string;
+    iteration: number;
+};
+
+/**
  * Materialize asset request.
  */
 export type MaterializeAssetBody = {
@@ -3055,6 +3063,10 @@ export type GridNodeResponse = {
     label: string;
     children?: Array<GridNodeResponse> | null;
     is_mapped: boolean | null;
+    is_loop?: boolean | null;
+    loop_max_iterations?: number | null;
+    loop_exit_task_id?: string | null;
+    loop_exit_criteria_doc?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     doc_md?: string | null;
 };
@@ -3110,6 +3122,87 @@ export type LightGridTaskInstanceSummary = {
     max_end_date: string | null;
     dag_version_number?: number | null;
     has_note?: boolean;
+    loop_iterations_count?: number | null;
+};
+
+/**
+ * Optional comparison details reported by a loop condition.
+ */
+export type LoopCriteriaComparison = {
+    field: string;
+    op: string;
+    target?: unknown;
+    actual?: unknown;
+};
+
+/**
+ * Loop invocations across recent DAG runs.
+ */
+export type LoopHistoryResponse = {
+    dag_id: string;
+    group_id: string;
+    runs: Array<LoopRunSummary>;
+};
+
+/**
+ * An invocation and its enclosing loop iterations.
+ */
+export type LoopInvocationResponse = {
+    region_id: string;
+    parent_iterations: Array<LoopIterationResponse>;
+};
+
+/**
+ * Execution state for one existing iteration.
+ */
+export type LoopIterationSummary = {
+    index: number;
+    state?: TaskInstanceState | null;
+    decision?: 'stop' | 'continue' | null;
+    is_tail?: boolean;
+    result?: unknown;
+    criteria?: LoopCriteriaComparison | null;
+    start_date?: string | null;
+    end_date?: string | null;
+};
+
+/**
+ * A loop invocation in a recent DAG run.
+ */
+export type LoopRunSummary = {
+    run_id: string;
+    run_after: string;
+    logical_date?: string | null;
+    max_iterations: number;
+    iterations_ran: number;
+    status: 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+    reason?: 'criteria_met' | 'cap_reached' | 'not_converged' | 'iteration_failed' | null;
+    loop_region_id?: string | null;
+};
+
+export type status = 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+
+/**
+ * Runtime state of one loop invocation.
+ */
+export type LoopSummaryResponse = {
+    dag_id: string;
+    run_id: string;
+    group_id: string;
+    doc_md?: string | null;
+    max_iterations: number;
+    iterations_ran: number;
+    status: 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+    stopped_at_iteration?: number | null;
+    failed_at_iteration?: number | null;
+    exit_task_id?: string | null;
+    exit_criteria_doc?: string | null;
+    exit_criteria_name?: string | null;
+    reason?: 'criteria_met' | 'cap_reached' | 'not_converged' | 'iteration_failed' | null;
+    reason_task_id?: string | null;
+    loop_region_id?: string | null;
+    loop_regions?: Array<LoopInvocationResponse>;
+    iterations: Array<LoopIterationSummary>;
 };
 
 /**
@@ -3163,6 +3256,10 @@ export type NodeResponse = {
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
+    is_loop?: boolean | null;
+    loop_max_iterations?: number | null;
+    loop_exit_task_id?: string | null;
+    loop_exit_criteria_doc?: string | null;
     tooltip?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
@@ -4550,11 +4647,14 @@ export type GetTaskInstancesData = {
     endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
+    iteration?: number | null;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    loopId?: string | null;
+    loopRegionId?: string | null;
     mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
@@ -5462,6 +5562,23 @@ export type GetGridTiSummariesStreamData = {
 };
 
 export type GetGridTiSummariesStreamResponse = string;
+
+export type GetLoopSummaryData = {
+    dagId: string;
+    groupId: string;
+    loopRegionId?: string | null;
+    runId: string;
+};
+
+export type GetLoopSummaryResponse = LoopSummaryResponse;
+
+export type GetLoopHistoryData = {
+    dagId: string;
+    groupId: string;
+    limit?: number;
+};
+
+export type GetLoopHistoryResponse = LoopHistoryResponse;
 
 export type GetGanttDataData = {
     dagId: string;
@@ -9797,6 +9914,44 @@ export type $OpenApiTs = {
                  * Bad Request
                  */
                 400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/loop/{dag_id}/{run_id}/{group_id}': {
+        get: {
+            req: GetLoopSummaryData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: LoopSummaryResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Unprocessable Entity
+                 */
+                422: HTTPExceptionResponse;
+            };
+        };
+    };
+    '/ui/grid/loop-history/{dag_id}/{group_id}': {
+        get: {
+            req: GetLoopHistoryData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: LoopHistoryResponse;
                 /**
                  * Not Found
                  */

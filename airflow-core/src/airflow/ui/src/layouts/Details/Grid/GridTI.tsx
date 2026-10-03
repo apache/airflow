@@ -36,6 +36,7 @@ type Props = {
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
+  readonly loopMaxIterations?: number | null;
   readonly onClick?: () => void;
   readonly runId: string;
   readonly taskId: string;
@@ -47,6 +48,7 @@ export const GridTI = ({
   instance,
   isGroup,
   isMapped,
+  loopMaxIterations,
   onClick,
   runId,
   taskId,
@@ -71,7 +73,7 @@ export const GridTI = ({
 
   const redirectionParams = new URLSearchParams(searchParams);
 
-  for (const key of ["try_number", "region_id", "region_index"]) {
+  for (const key of ["try_number", "region_id", "region_index", "iteration", "loop_region_id"]) {
     redirectionParams.delete(key);
   }
   const redirectionSearch = redirectionParams.toString();
@@ -97,6 +99,7 @@ export const GridTI = ({
       transition="background-color 0.2s"
     >
       <TaskInstanceTooltip
+        loopMaxIterations={loopMaxIterations}
         openDelay={500}
         positioning={{ placement: "bottom" }}
         runId={runId}

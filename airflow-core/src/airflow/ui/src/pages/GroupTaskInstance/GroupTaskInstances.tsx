@@ -16,5 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export { GroupTaskInstance } from "./GroupTaskInstance";
-export { GroupTaskInstances } from "./GroupTaskInstances";
+import { useParams } from "react-router-dom";
+
+import { useLoopSummary } from "src/queries/useLoopSummary";
+
+import { TaskInstances } from "../TaskInstances";
+import { IterationSelect } from "./LoopIterations";
+
+export const GroupTaskInstances = () => {
+  const { dagId = "", groupId = "", runId = "" } = useParams();
+  const { data: summary } = useLoopSummary({ dagId, groupId, runId });
+
+  return summary === undefined ? (
+    <TaskInstances />
+  ) : (
+    <TaskInstances extraFilter={<IterationSelect summary={summary} />} loopGroupId={groupId} />
+  );
+};

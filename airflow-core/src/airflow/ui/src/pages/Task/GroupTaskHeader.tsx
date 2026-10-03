@@ -19,9 +19,12 @@
 import { useTranslation } from "react-i18next";
 import { AiOutlineGroup } from "react-icons/ai";
 import { FiBookOpen } from "react-icons/fi";
+import { useParams } from "react-router-dom";
 
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
+
+import { useLoopRuleStats } from "src/hooks/useLoopRuleStats";
 
 export const GroupTaskHeader = ({
   docMd,
@@ -31,6 +34,8 @@ export const GroupTaskHeader = ({
   readonly title: string;
 }) => {
   const { t: translate } = useTranslation();
+  const { groupId } = useParams();
+  const loopStats = useLoopRuleStats(groupId);
 
   return (
     <HeaderCard
@@ -45,7 +50,7 @@ export const GroupTaskHeader = ({
         )
       }
       icon={<AiOutlineGroup />}
-      stats={[]}
+      stats={loopStats}
       title={title}
       type="taskGroup"
     />

@@ -211,6 +211,14 @@ export const Details = () => {
               </Table.Cell>
             </Table.Row>
           ) : undefined}
+          {(selectedTaskInstance?.loop_iterations ?? []).map((loop) => (
+            <Table.Row key={loop.loop_id}>
+              <Table.Cell>
+                {translate("taskInstance.iteration")} ({loop.loop_id})
+              </Table.Cell>
+              <Table.Cell>{loop.iteration}</Table.Cell>
+            </Table.Row>
+          ))}
           <Table.Row>
             <Table.Cell>{translate("task.operator")}</Table.Cell>
             <Table.Cell>{tryInstance?.operator_name}</Table.Cell>
