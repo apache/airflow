@@ -274,14 +274,14 @@ def get_provider_info():
                     },
                     "client_factory": {
                         "description": "Import path of a zero-argument callable returning the ``kubernetes.client.CoreV1Api``\nthe executor should use, for deployments that mint their own credentials. When set it\nreplaces the default client construction entirely, so ``in_cluster``, ``cluster_context``,\n``config_file``, ``verify_ssl``, ``ssl_ca_cert``, ``enable_tcp_keepalive`` and\n``api_client_retry_configuration`` no longer apply. It is resolved in every process that\nneeds a client, including the pod watcher subprocess, so it must be importable wherever\nthe scheduler runs.\n",
-                        "version_added": "10.23.0",
+                        "version_added": "10.24.0",
                         "type": "string",
                         "example": "my_company.kubernetes.build_client",
                         "default": None,
                     },
                     "async_client_factory": {
                         "description": "Import path of a zero-argument callable returning the ``kubernetes_asyncio.client.CoreV1Api``\nused for concurrent pod creation. Required when ``client_factory`` is set and\n``async_pod_creation`` is enabled, so that both clients carry the same credentials;\nthe executor refuses to build a default async client next to a factory-built sync one.\n",
-                        "version_added": "10.23.0",
+                        "version_added": "10.24.0",
                         "type": "string",
                         "example": "my_company.kubernetes.build_async_client",
                         "default": None,

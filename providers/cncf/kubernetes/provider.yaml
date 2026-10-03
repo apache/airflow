@@ -445,7 +445,7 @@ config:
           ``api_client_retry_configuration`` no longer apply. It is resolved in every process that
           needs a client, including the pod watcher subprocess, so it must be importable wherever
           the scheduler runs.
-        version_added: 10.23.0
+        version_added: 10.24.0
         type: string
         example: "my_company.kubernetes.build_client"
         default: ~
@@ -455,7 +455,7 @@ config:
           used for concurrent pod creation. Required when ``client_factory`` is set and
           ``async_pod_creation`` is enabled, so that both clients carry the same credentials;
           the executor refuses to build a default async client next to a factory-built sync one.
-        version_added: 10.23.0
+        version_added: 10.24.0
         type: string
         example: "my_company.kubernetes.build_async_client"
         default: ~
