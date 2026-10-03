@@ -38,7 +38,7 @@ Deferred Operators
 ------------------
 
 A deferred operator is an operator that can pause its execution until an external trigger event occurs,
-without holding a worker slot. For more details see :doc:`airflow:authoring-and-scheduling/deferring`.
+without holding a worker slot. For more details see :doc:`apache-airflow:authoring-and-scheduling/deferring`.
 Examples include the HttpOperator in deferrable mode, sensors or operators integrated with triggers.
 
 Key characteristics:
