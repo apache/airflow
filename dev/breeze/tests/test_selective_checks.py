@@ -3641,6 +3641,7 @@ def test_testable_providers_integrations_gated_by_affected_provider():
     assert "mongo" not in result
     assert "ydb" not in result
 
+
 def test_opensearch_provider_integration_triggered_by_affected_provider():
     """Verify that changes to the OpenSearch provider trigger its integration test."""
     selective_checks = SelectiveChecks(
