@@ -44,7 +44,12 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
   const [searchParams] = useSearchParams();
 
   const isSelected = runId === run.run_id;
-  const search = searchParams.toString();
+  const targetSearchParams = new URLSearchParams(searchParams);
+
+  for (const key of ["try_number", "region_id", "region_index"]) {
+    targetSearchParams.delete(key);
+  }
+  const search = targetSearchParams.toString();
 
   return (
     <Box

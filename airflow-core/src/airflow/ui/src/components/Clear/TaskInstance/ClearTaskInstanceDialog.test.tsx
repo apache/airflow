@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer, type SetupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -75,6 +75,14 @@ const taskInstance: TaskInstanceResponse = {
 
 const affectedTasks = { task_instances: [taskInstance], total_entries: 1 };
 
+const loopPass = (id: string, regionIndex: number): TaskInstanceResponse => ({
+  ...taskInstance,
+  id,
+  region_id: "11111111-1111-4111-8111-111111111111",
+  region_index: regionIndex,
+  task_id: "body.work",
+});
+
 const mutateMock = vi.fn();
 
 vi.mock("src/queries/useClearTaskInstances", () => ({
@@ -99,6 +107,8 @@ beforeAll(() => {
   server.listen({ onUnhandledFrame: "bypass" });
 });
 afterEach(() => {
+  affectedTasks.task_instances = [taskInstance];
+  mutateMock.mockClear();
   server.resetHandlers();
   localStorage.clear();
 });
@@ -125,5 +135,26 @@ describe("ClearTaskInstanceDialog", () => {
     const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: { keep_task_state?: boolean } }];
 
     expect(requestBody.keep_task_state).toBe(true);
+  });
+
+  it("clears the kept loop passes by execution id when another pass is unticked", async () => {
+    affectedTasks.task_instances = [loopPass("pass-0", 0), loopPass("pass-2", 2)];
+
+    render(<ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={taskInstance} />, {
+      wrapper: Wrapper,
+    });
+
+    const rows = await screen.findAllByRole("row");
+
+    fireEvent.click(within(rows[1] as HTMLElement).getByRole("checkbox"));
+    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
+    const [{ requestBody }] = mutateMock.mock.calls[0] as [
+      { requestBody: { task_ids?: unknown; task_instance_ids?: Array<string> } },
+    ];
+
+    expect(requestBody.task_instance_ids).toEqual(["pass-2"]);
+    expect(requestBody.task_ids).toBeUndefined();
   });
 });

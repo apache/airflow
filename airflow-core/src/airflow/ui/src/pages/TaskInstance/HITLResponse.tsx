@@ -29,12 +29,14 @@ import { ProgressBar } from "src/system-components";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
 
 export const HITLResponse = () => {
   const { dagId, mapIndex, runId, taskId } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
 
   const refetchInterval = useAutoRefresh({ dagId });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,6 +46,7 @@ export const HITLResponse = () => {
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
     {
+      ...coordinates,
       dagId: dagId ?? "",
       dagRunId: runId ?? "",
       mapIndex: parsedMapIndex,
@@ -69,6 +72,7 @@ export const HITLResponse = () => {
 
   const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetailTryDetail(
     {
+      ...coordinates,
       dagId: dagId ?? "",
       dagRunId: runId ?? "",
       mapIndex: parsedMapIndex,

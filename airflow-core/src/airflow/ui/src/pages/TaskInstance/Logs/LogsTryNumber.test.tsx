@@ -97,6 +97,31 @@ const expectLogTry = async (tryNumber: number) => {
 };
 
 describe("Task log try selection", () => {
+  it("keeps exact coordinates when selecting a retained try", async () => {
+    const regionId = "11111111-1111-4111-8111-111111111111";
+
+    vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+      dag_id: "dag",
+      dag_run_id: "run",
+      id: "retained",
+      map_index: -1,
+      region_id: regionId,
+      region_index: 3,
+      state: "success",
+      task_id: "task",
+      try_number: 2,
+    } as TaskInstanceResponse);
+    renderLogs("success", `?region_id=${regionId}&region_index=3&try_number=2`);
+    await expectLogTry(2);
+    await waitFor(() =>
+      expect(vi.mocked(useLogs).mock.lastCall?.[0]).toMatchObject({
+        taskInstance: { id: "retained", region_id: regionId, region_index: 3 },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    expect(screen.getByTestId("search-params")).toHaveTextContent(`region_id=${regionId}`);
+    expect(screen.getByTestId("search-params")).toHaveTextContent("try_number=2");
+  });
   it.each(["up_for_retry", null] as const)("disables pending log fetching in %s", async (state) => {
     renderLogs(state);
     await waitFor(() =>

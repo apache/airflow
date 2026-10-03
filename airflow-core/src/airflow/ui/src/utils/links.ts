@@ -39,9 +39,20 @@ export const getTaskInstanceLink = (
   const tabPath = tab === undefined ? "" : `/${tab}`;
 
   if ("dag_id" in tiOrParams) {
-    return `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
+    const path = `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
       tiOrParams.map_index >= 0 ? `/mapped/${tiOrParams.map_index}` : ""
     }${tabPath}`;
+
+    if (tiOrParams.region_id === "00000000-0000-0000-0000-000000000000") {
+      return path;
+    }
+    const query = new URLSearchParams({
+      region_id: tiOrParams.region_id,
+      region_index: String(tiOrParams.region_index),
+      try_number: String(tiOrParams.try_number),
+    });
+
+    return `${path}?${query}`;
   }
 
   const { dagId, dagRunId, mapIndex = -1, taskId } = tiOrParams;

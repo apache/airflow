@@ -36,6 +36,7 @@ import { DateTimeInput } from "src/components/DateTimeInput";
 import { JsonEditor } from "src/components/JsonEditor";
 
 import { useTimezone } from "src/context/timezone";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useStoreMutation } from "src/queries/useStoreMutation";
 
 dayjs.extend(tz);
@@ -77,6 +78,7 @@ export const TaskStateStoreModal = ({
 }: Props) => {
   const { t: translate } = useTranslation(["dag", "common"]);
   const { selectedTimezone } = useTimezone();
+  const coordinates = useTaskInstanceCoordinates();
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
   const [expiresAt, setExpiresAt] = useState<"custom" | "default" | "never">("default");
@@ -89,7 +91,7 @@ export const TaskStateStoreModal = ({
   );
 
   const { data: existingState, isLoading: isFetchingExisting } = useTaskStateStoreServiceGetTaskStateStore(
-    { dagId, dagRunId: runId, key: storeKey ?? "", mapIndex, taskId },
+    { ...coordinates, dagId, dagRunId: runId, key: storeKey ?? "", mapIndex, taskId },
     undefined,
     { enabled: isEditMode && Boolean(storeKey) },
   );
@@ -131,6 +133,7 @@ export const TaskStateStoreModal = ({
 
   const onSave = () => {
     setTaskStore({
+      ...coordinates,
       dagId,
       dagRunId: runId,
       key: isEditMode ? (storeKey ?? "") : key,

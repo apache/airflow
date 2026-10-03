@@ -41,6 +41,7 @@ import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { ClearExecutionDialog } from "./ClearExecutionDialog";
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
 import { getRunOnLatestVersionState } from "./runOnLatestVersion";
 
@@ -339,16 +340,16 @@ const ClearTaskInstanceDialog = (props: Props) => {
               // instances by run and fire one run-scoped clear each, with the graph-expansion
               // flags off. This honors per-run exclusions (e.g. keep task X in run 1 but drop
               // it from run 2) that a single flat request cannot express.
-              const idsByRun = new Map<string, NonNullable<ClearTaskInstancesBody["task_ids"]>>();
+              const idsByRun = new Map<string, Array<string>>();
 
               for (const ti of keptTaskInstances) {
                 const ids = idsByRun.get(ti.dag_run_id) ?? [];
 
-                ids.push(ti.map_index < 0 ? ti.task_id : [ti.task_id, ti.map_index]);
+                ids.push(ti.id);
                 idsByRun.set(ti.dag_run_id, ids);
               }
 
-              for (const [runId, taskIds] of idsByRun) {
+              for (const [runId, taskInstanceIds] of idsByRun) {
                 mutate({
                   dagId,
                   requestBody: {
@@ -361,7 +362,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
                     note: noteChanged ? note : undefined,
                     only_failed: onlyFailed,
                     run_on_latest_version: runOnLatestVersion,
-                    task_ids: taskIds,
+                    task_instance_ids: taskInstanceIds,
                     ...(keepTaskState ? { keep_task_state: true } : {}),
                     ...(preventRunningTask ? { prevent_running_task: true } : {}),
                   },
@@ -399,4 +400,27 @@ const ClearTaskInstanceDialog = (props: Props) => {
   );
 };
 
-export default ClearTaskInstanceDialog;
+const ScopedClearTaskInstanceDialog = (props: Props) => {
+  const { allMapped } = props;
+
+  if (allMapped) {
+    return <ClearTaskInstanceDialog {...props} />;
+  }
+  const { onClose, open, taskInstance } = props;
+
+  if (taskInstance.region_id !== "00000000-0000-0000-0000-000000000000") {
+    return (
+      <ClearExecutionDialog
+        dagId={taskInstance.dag_id}
+        executions={[taskInstance]}
+        onClose={onClose}
+        open={open}
+        runId={taskInstance.dag_run_id}
+      />
+    );
+  }
+
+  return <ClearTaskInstanceDialog {...props} />;
+};
+
+export default ScopedClearTaskInstanceDialog;

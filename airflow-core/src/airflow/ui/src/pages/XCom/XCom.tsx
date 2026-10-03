@@ -37,6 +37,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -120,12 +121,18 @@ const getColumns = ({
           cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
             <RouterLink
               fontWeight="bold"
-              to={getTaskInstanceLink({
-                dagId: original.dag_id,
-                dagRunId: original.run_id,
-                mapIndex: original.map_index,
-                taskId: original.task_id,
-              })}
+              to={{
+                pathname: getTaskInstanceLink({
+                  dagId: original.dag_id,
+                  dagRunId: original.run_id,
+                  mapIndex: original.map_index,
+                  taskId: original.task_id,
+                }),
+                search: new URLSearchParams({
+                  region_id: original.region_id,
+                  region_index: String(original.region_index),
+                }).toString(),
+              }}
             >
               <TruncatedText text={original.task_display_name} />
             </RouterLink>
@@ -148,6 +155,8 @@ const getColumns = ({
         dagId={original.dag_id}
         mapIndex={original.map_index}
         open={open}
+        regionId={original.region_id}
+        regionIndex={original.region_index}
         runId={original.run_id}
         taskId={original.task_id}
         xcomKey={original.key}
@@ -171,6 +180,7 @@ const getColumns = ({
 
 export const XCom = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
   const { t: translate } = useTranslation(["browse", "common"]);
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
@@ -224,6 +234,7 @@ export const XCom = () => {
   });
 
   const apiParams = {
+    ...coordinates,
     ...dagDisplayNameArg,
     dagId,
     dagRunId: runId,

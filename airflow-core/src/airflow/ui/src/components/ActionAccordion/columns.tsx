@@ -27,10 +27,10 @@ import type { DataTableFeatures } from "src/components/DataTable/features";
 import type { MetaColumn } from "src/components/DataTable/types";
 import { StateBadge } from "src/components/StateBadge";
 
-// Stable per-row key; dag_run_id keeps the same task distinct across runs (past/future
-// expansion), and map_index disambiguates the mapped instances of one task.
 export const taskInstanceKey = (ti: TaskInstanceResponse): string =>
-  `${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
+  ti.region_id === "00000000-0000-0000-0000-000000000000"
+    ? `${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`
+    : ti.id;
 
 // When provided, rows render a leading checkbox so the user can exclude individual
 // task instances from the action. Excluded keys are tracked by the caller.

@@ -77,6 +77,9 @@ const BulkDeleteTaskInstancesButton = ({ deselectKeys, selectedTaskInstances }: 
                     action: "delete" as const,
                     action_on_non_existence: "skip",
                     entities: selectedTaskInstances.map((ti) => ({
+                      ...(ti.region_id === "00000000-0000-0000-0000-000000000000"
+                        ? {}
+                        : { region_id: ti.region_id, region_index: ti.region_index }),
                       dag_id: ti.dag_id,
                       dag_run_id: ti.dag_run_id,
                       map_index: ti.map_index,
