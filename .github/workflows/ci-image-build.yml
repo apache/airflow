@@ -321,6 +321,55 @@ jobs:
           docker rmi "${CACHE_FROM_IMAGE}"
         shell: bash
         if: always() && env.CACHE_FROM_IMAGE != ''
+      - name: "Export mount cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+        run: >
+          breeze ci-image export-mount-cache
+          --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+        if: >
+          inputs.upload-mount-cache-artifact == 'true' &&
+          steps.stashed-image.outputs.reusable != 'true'
+      - name: >
+          Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          ${{ inputs.image-stash-ref != '' && format('for ref {0}', inputs.image-stash-ref) || '' }}
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
+        with:
+          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+            ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
+          path: "/tmp/ci-cache-mount-save-v3-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
+          if-no-files-found: 'error'
+          # A ref's cache is read by the next publish of that same ref, days rather than hours
+          # later, so it gets the retention the ref's image gets rather than the branch's.
+          retention-days: ${{ inputs.image-stash-ref != '' && '6' || '2' }}
+        if: >
+          inputs.upload-mount-cache-artifact == 'true' &&
+          steps.stashed-image.outputs.reusable != 'true'
+      # Every job that prepares the CI image would otherwise `docker image load` the stash below,
+      # unpacking and checksumming each layer again; a copy of the image store restores with one
+      # extraction. Taken while the freshly built layers are still in the page cache, and after the
+      # mount cache export, as it drops the build cache that the export reads.
+      - name: "Snapshot CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        env:
+          PLATFORM: ${{ inputs.platform }}
+        run: >
+          ./scripts/ci/docker_data_root_snapshot.sh create
+          "/mnt/ci-image-snapshot-${PLATFORM//\//_}-${PYTHON_MAJOR_MINOR_VERSION}.tar.zst"
+        shell: bash
+        if: >
+          inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
+          steps.stashed-image.outputs.reusable != 'true'
+      - name: "Stash CI image snapshot ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
+        with:
+          key: ci-image-snapshot-v1-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          path: "/mnt/ci-image-snapshot-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst*"
+          if-no-files-found: 'error'
+          compression-level: '0'
+          retention-days: '2'
+        if: >
+          inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
+          steps.stashed-image.outputs.reusable != 'true'
       # zstd stands in for the stash's zlib (compression-level 0 below), which every consumer inflates.
       # The .tar name, which every Breeze expects, stays: docker image load detects zstd by content.
       - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
@@ -374,30 +423,6 @@ jobs:
           retention-days: '6'
         if: >
           inputs.upload-image-artifact == 'true' && inputs.image-stash-ref != '' &&
-          steps.stashed-image.outputs.reusable != 'true'
-      - name: "Export mount cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-        run: >
-          breeze ci-image export-mount-cache
-          --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
-        if: >
-          inputs.upload-mount-cache-artifact == 'true' &&
-          steps.stashed-image.outputs.reusable != 'true'
-      - name: >
-          Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-          ${{ inputs.image-stash-ref != '' && format('for ref {0}', inputs.image-stash-ref) || '' }}
-        uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
-        with:
-          key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
-            ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
-          path: "/tmp/ci-cache-mount-save-v3-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
-          if-no-files-found: 'error'
-          # A ref's cache is read by the next publish of that same ref, days rather than hours
-          # later, so it gets the retention the ref's image gets rather than the branch's.
-          retention-days: ${{ inputs.image-stash-ref != '' && '6' || '2' }}
-        if: >
-          inputs.upload-mount-cache-artifact == 'true' &&
           steps.stashed-image.outputs.reusable != 'true'
       - name: "Check disk space after build"
         run: df -H
