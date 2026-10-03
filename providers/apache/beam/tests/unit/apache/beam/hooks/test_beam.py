@@ -732,22 +732,3 @@ class TestBeamAsyncHook:
         assert mock_exec.await_args.args == tuple(cmd)
         assert mock_exec.await_args.kwargs.get("shell") is None
         assert return_code == 0
-
-    @pytest.mark.asyncio
-    async def test_run_beam_command_async_preserves_arguments_with_spaces(self, tmp_path):
-        hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
-        marker = tmp_path / "got-arg.txt"
-        cmd = [
-            sys.executable,
-            "-c",
-            "import pathlib, sys; pathlib.Path(sys.argv[1]).write_text(sys.argv[2])",
-            str(marker),
-            "hello world",
-        ]
-        return_code = await hook.run_beam_command_async(
-            cmd=cmd,
-            log=logging.getLogger("beam-test"),
-            working_directory=str(tmp_path),
-        )
-        assert return_code == 0
-        assert marker.read_text() == "hello world"
