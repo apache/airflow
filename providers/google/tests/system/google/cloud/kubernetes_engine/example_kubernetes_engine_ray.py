@@ -50,12 +50,6 @@ CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NA
 # [START howto_operator_gcp_gke_create_cluster_definition_with_ray]
 CLUSTER = {
     "name": CLUSTER_NAME,
-    "node_pools": [
-        {
-            "name": f"{CLUSTER_NAME}-node",
-            "initial_node_count": 1,
-        },
-    ],
     "autopilot": {"enabled": True},
     "addons_config": {
         "ray_operator_config": {"enabled": True},
