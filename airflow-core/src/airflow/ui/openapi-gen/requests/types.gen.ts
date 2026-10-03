@@ -2578,14 +2578,15 @@ export type ConnectionHookMetaData = {
 };
 
 /**
- * Task-instance state counts for a Dag's latest run.
+ * Task-instance state counts for a Dag's recent runs.
  *
- * ``state_counts`` only carries states present in the run; task instances without a
- * state yet are keyed as ``no_status``.
+ * The counts cover every running Dag run, or the latest run when none is running;
+ * ``run_ids`` lists those runs. ``state_counts`` only carries states present in them;
+ * task instances without a state yet are keyed as ``no_status``.
  */
-export type DAGLatestRunTaskInstanceStateCountsResponse = {
+export type DAGRecentTaskInstanceStateCountsResponse = {
     dag_id: string;
-    run_id: string;
+    run_ids: Array<(string)>;
     state_counts: {
         [key: string]: (number);
     };
@@ -2684,10 +2685,10 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
- * Collection of per-Dag latest-run task-instance state counts for the Dag list page.
+ * Collection of per-Dag recent task-instance state counts for the Dag list page.
  */
-export type DAGsLatestRunTaskInstanceStateCountsCollectionResponse = {
-    dags: Array<DAGLatestRunTaskInstanceStateCountsResponse>;
+export type DAGsRecentTaskInstanceStateCountsCollectionResponse = {
+    dags: Array<DAGRecentTaskInstanceStateCountsResponse>;
 };
 
 /**
@@ -4019,11 +4020,11 @@ export type GetDagRunStateCountsUiData = {
 
 export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
 
-export type GetLatestRunTaskInstanceStateCountsUiData = {
+export type GetRecentTaskInstanceStateCountsUiData = {
     dagRunIds: Array<(number)>;
 };
 
-export type GetLatestRunTaskInstanceStateCountsUiResponse = DAGsLatestRunTaskInstanceStateCountsCollectionResponse;
+export type GetRecentTaskInstanceStateCountsUiResponse = DAGsRecentTaskInstanceStateCountsCollectionResponse;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -7089,14 +7090,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/dags/latest_run_task_instance_state_counts': {
+    '/ui/dags/recent_task_instance_state_counts': {
         get: {
-            req: GetLatestRunTaskInstanceStateCountsUiData;
+            req: GetRecentTaskInstanceStateCountsUiData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: DAGsLatestRunTaskInstanceStateCountsCollectionResponse;
+                200: DAGsRecentTaskInstanceStateCountsCollectionResponse;
                 /**
                  * Validation Error
                  */

@@ -994,13 +994,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/dags/latest_run_task_instance_state_counts:
+  /ui/dags/recent_task_instance_state_counts:
     get:
       tags:
       - DAG
-      summary: Get Latest Run Task Instance State Counts
-      description: 'Return task-instance state counts for the given Dag runs, for
-        the Dag list page.
+      summary: Get Recent Task Instance State Counts
+      description: 'Return recent task-instance state counts for the Dags of the given
+        runs, for the Dag list page.
+
+
+        Like the Airflow 2 "Recent Tasks" column, a Dag''s counts cover all of its
+        running Dag
+
+        runs, or its latest run when none is running.
 
 
         The Dag list response already carries the latest run of each Dag, so the caller
@@ -1012,7 +1018,7 @@ paths:
         and degrades
 
         badly once a Dag has many runs. Runs the caller may not read are dropped.'
-      operationId: get_latest_run_task_instance_state_counts_ui
+      operationId: get_recent_task_instance_state_counts_ui
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -1033,7 +1039,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGsLatestRunTaskInstanceStateCountsCollectionResponse'
+                $ref: '#/components/schemas/DAGsRecentTaskInstanceStateCountsCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -3144,14 +3150,16 @@ components:
         that
 
         the API server/Web UI can use this data to render connection form UI.'
-    DAGLatestRunTaskInstanceStateCountsResponse:
+    DAGRecentTaskInstanceStateCountsResponse:
       properties:
         dag_id:
           type: string
           title: Dag Id
-        run_id:
-          type: string
-          title: Run Id
+        run_ids:
+          items:
+            type: string
+          type: array
+          title: Run Ids
         state_counts:
           additionalProperties:
             type: integer
@@ -3160,16 +3168,18 @@ components:
       type: object
       required:
       - dag_id
-      - run_id
+      - run_ids
       - state_counts
-      title: DAGLatestRunTaskInstanceStateCountsResponse
-      description: 'Task-instance state counts for a Dag''s latest run.
+      title: DAGRecentTaskInstanceStateCountsResponse
+      description: 'Task-instance state counts for a Dag''s recent runs.
 
 
-        ``state_counts`` only carries states present in the run; task instances without
-        a
+        The counts cover every running Dag run, or the latest run when none is running;
 
-        state yet are keyed as ``no_status``.'
+        ``run_ids`` lists those runs. ``state_counts`` only carries states present
+        in them;
+
+        task instances without a state yet are keyed as ``no_status``.'
     DAGRunLightResponse:
       properties:
         id:
@@ -3493,19 +3503,19 @@ components:
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
-    DAGsLatestRunTaskInstanceStateCountsCollectionResponse:
+    DAGsRecentTaskInstanceStateCountsCollectionResponse:
       properties:
         dags:
           items:
-            $ref: '#/components/schemas/DAGLatestRunTaskInstanceStateCountsResponse'
+            $ref: '#/components/schemas/DAGRecentTaskInstanceStateCountsResponse'
           type: array
           title: Dags
       type: object
       required:
       - dags
-      title: DAGsLatestRunTaskInstanceStateCountsCollectionResponse
-      description: Collection of per-Dag latest-run task-instance state counts for
-        the Dag list page.
+      title: DAGsRecentTaskInstanceStateCountsCollectionResponse
+      description: Collection of per-Dag recent task-instance state counts for the
+        Dag list page.
     DAGsRunStateCountsCollectionResponse:
       properties:
         dags:
