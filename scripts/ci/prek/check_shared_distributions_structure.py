@@ -31,12 +31,8 @@ import ast
 import itertools
 import re
 import sys
+import tomllib
 from pathlib import Path
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
 
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
 

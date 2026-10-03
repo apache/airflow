@@ -165,9 +165,9 @@ class TestMasking:
         cause = ConnectionError(f"socket closed by {registered_secret}")
         inner = ValueError(f"login failed for {registered_secret}")
         inner.__cause__ = cause
-        group = ExceptionGroup("tool calls failed", [inner])  # noqa: F821
+        group = ExceptionGroup("tool calls failed", [inner])
 
-        with pytest.raises(ExceptionGroup) as caught:  # noqa: F821
+        with pytest.raises(ExceptionGroup) as caught:
             _call(_ScriptedToolset(group))
 
         assert [str(e) for e in caught.value.exceptions] == ["login failed for ***"]

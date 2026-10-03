@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -99,10 +99,8 @@ MIN_VERSION_OVERRIDE: dict[str, Version] = {
 
 
 def get_optional_dependencies(pyproject_toml_path: Path) -> list[str]:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
+    import tomllib
+
     airflow_core_toml_dict = tomllib.loads(pyproject_toml_path.read_text())
     return airflow_core_toml_dict["project"]["optional-dependencies"].keys()
 
@@ -126,10 +124,8 @@ all_providers_dependencies = json.loads(PROVIDER_DEPENDENCIES_FILE_PATH.read_tex
 
 
 def _read_toml(path: Path) -> dict[str, Any]:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
+    import tomllib
+
     return tomllib.loads(path.read_text())
 
 
@@ -184,9 +180,7 @@ def find_min_provider_version(provider_id: str) -> tuple[Version | None, str]:
     # We should periodically update the starting date to avoid pip install resolution issues
     # TODO: when min Python version is 3.11 change back the code to fromisoformat
     # https://github.com/apache/airflow/pull/49155/files
-    cut_off_date = datetime.strptime("2024-10-12T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(
-        tzinfo=timezone.utc
-    )
+    cut_off_date = datetime.strptime("2024-10-12T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
     last_version_newer_than_cutoff: Version | None = None
     date_released: datetime | None = None
     min_version_override = MIN_VERSION_OVERRIDE.get(provider_id)
@@ -200,7 +194,7 @@ def find_min_provider_version(provider_id: str) -> tuple[Version | None, str]:
         for version in versions:
             provider_info = metadata[str(version)]
             date_released = datetime.strptime(provider_info["date_released"], "%Y-%m-%dT%H:%M:%SZ").replace(
-                tzinfo=timezone.utc
+                tzinfo=UTC
             )
             if date_released < cut_off_date:
                 break
