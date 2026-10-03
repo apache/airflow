@@ -20,6 +20,7 @@ from __future__ import annotations
 import ast
 import json
 import os
+import shutil
 import sys
 from argparse import Namespace
 from contextlib import contextmanager
@@ -32,6 +33,7 @@ from sqlalchemy import select
 import airflow
 from airflow import settings
 from airflow._shared.timezones import timezone
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
@@ -47,6 +49,41 @@ from tests_common.test_utils.config import conf_vars
 # - ``cli_action_loggers.on_post_execution``
 pytestmark = pytest.mark.db_test
 repo_root = Path(airflow.__file__).parents[1]
+
+_DEFERRED_BUNDLE_NAME = "deferred-path-bundle"
+_DEFERRED_BUNDLE_DAG_ID = "deferred_path_bundle_dag"
+
+
+class _DeferredPathBundle(BaseDagBundle):
+    """Bundle whose files only land on disk in ``initialize()``, like the Git bundle's clone."""
+
+    def __init__(self, *, source: Path, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._source = source
+        self._path = source.parent / "checkout"
+
+    def initialize(self) -> None:
+        shutil.copytree(self._source, self._path, dirs_exist_ok=True)
+        super().initialize()
+
+    def get_current_version(self) -> None:
+        return None
+
+    def refresh(self) -> None:
+        """Nothing to refresh."""
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+
+def _make_deferred_path_bundle(tmp_path: Path) -> _DeferredPathBundle:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "dag.py").write_text(
+        f"from airflow.sdk import DAG\nwith DAG({_DEFERRED_BUNDLE_DAG_ID!r}, schedule=None):\n    pass\n"
+    )
+    return _DeferredPathBundle(name=_DEFERRED_BUNDLE_NAME, source=source)
 
 
 class TestCliUtil:
@@ -105,6 +142,30 @@ class TestCliUtil:
 
         with pytest.raises(AirflowException):
             cli.get_dags(None, "foobar", True)
+
+    @pytest.mark.parametrize(
+        "get_matching_dags",
+        [
+            pytest.param(
+                lambda: cli.get_bagged_dag([_DEFERRED_BUNDLE_NAME], _DEFERRED_BUNDLE_DAG_ID),
+                id="get_bagged_dag",
+            ),
+            pytest.param(
+                lambda: cli.get_dags([_DEFERRED_BUNDLE_NAME], f"^{_DEFERRED_BUNDLE_DAG_ID}$", use_regex=True)[
+                    0
+                ],
+                id="get_dags_regex",
+            ),
+        ],
+    )
+    @mock.patch("airflow.utils.cli.DagBundlesManager", autospec=True)
+    def test_explicit_bundle_name_is_initialized(self, mock_manager_cls, tmp_path, get_matching_dags):
+        bundle = _make_deferred_path_bundle(tmp_path)
+        mock_manager_cls.return_value.get_bundle.return_value = bundle
+        mock_manager_cls.return_value.get_all_dag_bundles.return_value = []
+
+        assert get_matching_dags().dag_id == _DEFERRED_BUNDLE_DAG_ID
+        assert bundle.is_initialized
 
     @pytest.mark.parametrize(
         ("given_command", "expected_masked_command", "is_command_list"),
