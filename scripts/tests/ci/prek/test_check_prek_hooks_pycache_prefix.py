@@ -14,20 +14,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.3.4'
-default_language_version:
-  python: python3
+from __future__ import annotations
+
+from check_prek_hooks_pycache_prefix import find_hooks_without_pycache_prefix
+
+CONFIG = """\
 repos:
-  - repo: local
+  - repo: meta
     hooks:
-      - id: mypy-shared-observability
-        name: Run mypy for shared-observability
+      - id: with-prefix
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
-        language: python
-        entry: ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py shared/observability
-        pass_filenames: false
-        files: ^.*\.py$
-        require_serial: true
+  - repo: local
+    hooks:
+      - id: no-env
+      - id: other-env
+        env:
+          FOO: bar
+      - id: wrong-prefix
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/pycache
+"""
+
+
+def test_find_hooks_without_pycache_prefix(tmp_path):
+    config = tmp_path / ".pre-commit-config.yaml"
+    config.write_text(CONFIG)
+
+    assert find_hooks_without_pycache_prefix(config) == ["no-env", "other-env", "wrong-prefix"]
+
+
+def test_find_hooks_without_pycache_prefix_empty_config(tmp_path):
+    config = tmp_path / ".pre-commit-config.yaml"
+    config.write_text("")
+
+    assert find_hooks_without_pycache_prefix(config) == []

@@ -25,6 +25,8 @@ repos:
     hooks:
       - id: ts-sdk-lint
         name: Lint TypeScript SDK
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/ts_sdk_lint.py
         language: node
         files: |
@@ -40,6 +42,8 @@ repos:
         require_serial: true
       - id: check-ts-sdk-supervisor-schema
         name: Check TypeScript SDK supervisor schema is up to date
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_supervisor_schema.py
         language: node
         files: >
@@ -51,6 +55,8 @@ repos:
         require_serial: true
       - id: check-ts-sdk-dag-schema
         name: Check TypeScript SDK Dag schema fields are up to date
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_dag_schema.py
         language: node
         files: >
@@ -77,6 +83,8 @@ repos:
         require_serial: true
       - id: check-ts-sdk-docs-package-version-in-sync
         name: Check ts-sdk/docs package.json versions match ts-sdk/package.json
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_ts_sdk_docs_package_version_in_sync.py
         language: python
         files: >
@@ -87,6 +95,8 @@ repos:
         require_serial: true
       - id: compile-ts-sdk
         name: Compile TypeScript SDK
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/compile_ts_sdk.py
         language: node
         stages: [manual]
@@ -102,6 +112,8 @@ repos:
         require_serial: true
       - id: verify-ts-sdk-package
         name: Verify TypeScript SDK package artifact
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/verify_ts_sdk_package.py
         language: node
         stages: [manual]
