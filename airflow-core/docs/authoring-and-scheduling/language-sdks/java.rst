@@ -282,9 +282,17 @@ You can instead omit it and ship the JARs in the same Dag bundle as ``sales_pipe
 
 Restart the affected Airflow components after changing this configuration. The coordinator config and JARs
 must be available wherever tasks execute. With ``CeleryExecutor``, that means the Celery workers; with
-``LocalExecutor``, tasks run in subprocesses on the scheduler's host. The API server and Dag processor do not
-need the JARs, while the Dag processor must receive ``sales_pipeline.py`` through the separate Dag delivery
-process.
+``LocalExecutor``, tasks run in subprocesses on the scheduler's host. The API server does not need the JARs,
+and the Dag processor must receive ``sales_pipeline.py`` through the separate Dag delivery process.
+
+A Dag processor with this ``[sdk]`` configuration also parses the executable JARs of every Dag bundle, and
+needs a JDK to do so (see :ref:`java-sdk/native-dag-parsing`). The ``java-jars`` bundle only holds the JARs
+that the Python Dag's tasks run, so keep the Dag processor from parsing it by listing ``*`` in its
+``.airflowignore``:
+
+.. code-block:: bash
+
+    echo '*' > /opt/airflow/jars/.airflowignore
 
 After Airflow has parsed the Dag, trigger it from the UI or command line:
 
@@ -612,8 +620,7 @@ Parsing native Java Dags
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 To have Airflow parse the Dags a bundle JAR declares, put the JAR in a Dag bundle and configure a
-:class:`~airflow.sdk.coordinators.java.JavaCoordinator` that reads that bundle: leave ``dag_bundle_name``
-unset to read every Dag bundle, or set it to read one. The Dag processor runs the JAR's main class to list
+:class:`~airflow.sdk.coordinators.java.JavaCoordinator`. The Dag processor runs the JAR's main class to list
 its Dags, so it needs a Java executable, as the workers do:
 
 .. code-block:: ini
@@ -627,8 +634,19 @@ its Dags, so it needs a Java executable, as the workers do:
     }
     queue_to_coordinator = {"java-native": "java-native"}
 
-Every Java coordinator parses the JARs of the Dag bundles it reads. If you configure more than one, give
-each a different ``dag_bundle_name``, otherwise Airflow fails to load ``[sdk] coordinators``.
+Once a ``JavaCoordinator`` is configured, the Dag processor parses the executable JARs of every Dag bundle,
+so it needs this ``[sdk]`` configuration and a JDK. With one ``JavaCoordinator``, it parses them all. With
+several, map each Dag bundle that holds native Java Dags to one of them in
+``[sdk] dag_bundle_to_coordinator``. A JAR in a bundle that has no entry, or an entry that names no
+``JavaCoordinator``, fails to parse with an import error:
+
+.. code-block:: ini
+
+    [sdk]
+    dag_bundle_to_coordinator = {"dags-folder": "java-native"}
+
+A Dag bundle that holds only the JARs that Python Dags' tasks run should list ``*`` in its
+``.airflowignore``. Otherwise, with several Java coordinators, its JARs fail to parse.
 
 * Every JAR in the bundle whose manifest sets ``Main-Class`` is parsed. Each Dag its main class
   declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Builder.Dag`` class, is stored with

@@ -32,7 +32,6 @@ from airflow.sdk.coordinators._bundle_metadata import (
     validate_schema_version,
 )
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.coordinators.java._dag_importer import JavaDagImporter
 from airflow.sdk.coordinators.java._jar_manifest import (
     MAIN_CLASS,
     SUPERVISOR_SCHEMA_VERSION,
@@ -240,10 +239,12 @@ class JavaCoordinator(SubprocessCoordinator):
     dependency JARs are deployed as-is. If you repackage the dependencies,
     however, you must also reproduce the metadata entry in one of the JARs.
 
-    The coordinator also parses native Java Dags: every JAR in the Dag bundles it
-    reads whose manifest sets Main-Class (matching *main_class* when that is set)
-    is run to list the Dags its main class declares. A JAR whose Main-Class
-    another JAR in the bundle also sets is rejected.
+    The coordinator also parses native Java Dags: every JAR whose manifest sets
+    Main-Class (matching *main_class* when that is set) is run to list the Dags
+    its main class declares. With one JavaCoordinator configured, it parses the
+    JARs of every Dag bundle. With several, ``[sdk] dag_bundle_to_coordinator``
+    picks the one that parses a bundle. A JAR whose Main-Class another JAR in the
+    bundle also sets is rejected.
 
     The default *task_startup_timeout* should plenty long enough since a task-
     containing JAR is not supposed to consume significant time to perform setup
@@ -256,9 +257,6 @@ class JavaCoordinator(SubprocessCoordinator):
     java_executable: str = "java"
     jvm_args: list[str] = attrs.field(factory=list)
     main_class: str = ""
-
-    def get_dag_importer(self) -> JavaDagImporter:
-        return JavaDagImporter(coordinator=self)
 
     def _build_command(self, roots: Sequence[pathlib.Path], main_class: str) -> list[str]:
         return [self.java_executable, "-classpath", _calculate_classpath(roots), *self.jvm_args, main_class]
