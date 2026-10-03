@@ -33,6 +33,7 @@ suffix is not meaningful for those):
 
 - ``go-sdk/go.mod``                             -> ``go <maj.min[.patch]>``  (SOURCE OF TRUTH)
 - ``kubernetes-tests/lang_sdk/go_example/go.mod`` -> ``go <maj.min[.patch]>``  (resolves the SDK via ``replace``)
+- ``airflow-e2e-tests/go-test-bundle/go.mod``   -> ``go <maj.min[.patch]>``  (resolves the SDK via ``replace``)
 - ``.github/workflows/ci-amd.yml``              -> Setup Go ``go-version: <maj.min>``
 - ``.github/workflows/ci-arm.yml``              -> Setup Go ``go-version: <maj.min>``
 - ``airflow-e2e-tests/tests/airflow_e2e_tests/constants.py`` -> ``GO_BUILDER_IMAGE`` default ``golang:<maj.min>-alpine``
@@ -106,6 +107,11 @@ def build_sites(repo_root: pathlib.Path) -> list[VersionSite]:
         VersionSite(
             label="kubernetes-tests/lang_sdk/go_example/go.mod  (go directive)",
             path=repo_root / "kubernetes-tests" / "lang_sdk" / "go_example" / "go.mod",
+            pattern=GO_MOD_DIRECTIVE,
+        ),
+        VersionSite(
+            label="airflow-e2e-tests/go-test-bundle/go.mod  (go directive)",
+            path=repo_root / "airflow-e2e-tests" / "go-test-bundle" / "go.mod",
             pattern=GO_MOD_DIRECTIVE,
         ),
         VersionSite(
