@@ -2660,9 +2660,8 @@ def _lang_sdk_build_go_bundle(
     else:
         uid_gid = f"{os.getuid()}:{os.getgid()}"
         go_example_ctr = f"/repo/{example_rel.as_posix()}"
-        # USER/HOME must be set because the SDK calls user.Current() at init; with cgo disabled Go's
-        # pure-Go resolver reads those env vars and panics if either is empty. HOME is mounted from
-        # the real go_example's gitignored cache dir so the caches persist across scratch workspaces.
+        # The container user has no home of its own, so HOME is the real go_example's gitignored cache
+        # dir: the Go build cache persists across scratch workspaces.
         (LANG_SDK_GO_EXAMPLE_PATH / ".home").mkdir(parents=True, exist_ok=True)
         get_console(output=output).print(f"[info]Building Go bundle in {LANG_SDK_GO_BUILDER_IMAGE}")
         docker_base = [
@@ -2673,8 +2672,6 @@ def _lang_sdk_build_go_bundle(
             uid_gid,
             "-e",
             f"HOME={go_example_ctr}/.home",
-            "-e",
-            "USER=airflow",
             "-e",
             "CGO_ENABLED=0",
             "-v",

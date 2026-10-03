@@ -120,6 +120,16 @@ class TestLangSdkBuildGoBundle:
         assert kubernetes_commands.LANG_SDK_GO_BUILDER_IMAGE in tidy_cmd
         assert tidy_cmd[-3:] == ["go", "mod", "tidy"]
 
+    @mock.patch.object(kubernetes_commands, "run_command", autospec=True)
+    def test_container_mode_sets_home_for_the_caches_and_no_user(
+        self, mock_run, tmp_path, go_example, upstream_go_sdk
+    ):
+        _lang_sdk_build_go_bundle(tmp_path, upstream_go_sdk, None, native=False)
+
+        cmd = mock_run.call_args.args[0]
+        env = [cmd[i + 1] for i, arg in enumerate(cmd) if arg == "-e"]
+        assert env == [f"HOME=/repo/{go_example.name}/.home", "CGO_ENABLED=0"]
+
 
 class TestLangSdkBuildJavaJar:
     @mock.patch.object(kubernetes_commands, "run_command")
