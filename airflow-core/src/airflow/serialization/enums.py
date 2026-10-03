@@ -74,6 +74,7 @@ class DagAttributeTypes(str, Enum):
     BASE_EXC_SER = "base_exc_ser"
     DICT = "dict"
     SET = "set"
+    FROZENSET = "frozenset"
     TUPLE = "tuple"
     POD = "k8s.V1Pod"
     TASK_GROUP = "taskgroup"
