@@ -28,6 +28,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
     AliasGenerator,
     ConfigDict,
+    Field,
     computed_field,
     field_serializer,
     field_validator,
@@ -226,7 +227,18 @@ class DAGDetailsResponse(DAGResponse):
     rerun_with_latest_version: bool | None = None
     owner_links: dict[str, str] | None = None
     is_favorite: bool = False
-    active_runs_count: int = 0
+    active_runs_count: int = Field(
+        default=0, description="Number of currently running runs (backfill runs excluded)."
+    )
+    queued_runs_count: int = Field(
+        default=0, description="Number of currently queued runs (backfill runs excluded)."
+    )
+    is_at_max_active_runs: bool = Field(
+        description=(
+            "Whether this Dag is currently at its max_active_runs limit, counting running and "
+            "queued runs (backfill runs excluded)."
+        )
+    )
     team_name: str | None = None
 
     @field_validator("timezone", mode="before")

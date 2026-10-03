@@ -19,12 +19,13 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import type { DAGDetailsResponse } from "openapi-gen/requests/types.gen";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import i18n from "src/i18n/config";
 import { MOCK_DAG } from "src/mocks/handlers/dag";
 import { Wrapper } from "src/utils/Wrapper";
 
+import commonLocale from "../../../public/i18n/locales/en/common.json";
 import { Header } from "./Header";
 
 const mockConfig: Record<string, unknown> = { multi_team: false };
@@ -49,6 +50,7 @@ const mockDag = {
   next_dagrun_logical_date: "2024-08-22T00:00:00+00:00",
   next_dagrun_run_after: "2024-08-22T19:00:00+00:00",
   owner_links: {},
+  queued_runs_count: 0,
   relative_fileloc: "stale_dag.py",
   tags: [],
   timetable_partitioned: false,
@@ -56,6 +58,10 @@ const mockDag = {
 } as unknown as DAGDetailsResponse;
 
 describe("Header", () => {
+  beforeAll(() => {
+    i18n.addResourceBundle("en", "common", commonLocale, true, true);
+  });
+
   afterEach(() => {
     mockConfig.multi_team = false;
   });
@@ -67,7 +73,7 @@ describe("Header", () => {
       </Wrapper>,
     );
 
-    expect(screen.queryByText(i18n.t("dag:dagDetails.nextRun"))).not.toBeInTheDocument();
+    expect(screen.queryByText(i18n.t("common:dagDetails.nextRun"))).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reparse Dag" })).not.toBeInTheDocument();
   });
 
@@ -78,7 +84,7 @@ describe("Header", () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText(i18n.t("dag:dagDetails.nextRun"))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("common:dagDetails.nextRun"))).toBeInTheDocument();
     expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
   });
 
@@ -93,6 +99,80 @@ describe("Header", () => {
     expect(screen.getByText("2 of 2")).toBeInTheDocument();
   });
 
+  it("does not show an info icon or queued count when nothing is queued", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 1, max_active_runs: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.queryByTestId("active-runs-exceeds-max-info")).not.toBeInTheDocument();
+    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+  });
+
+  it("does not show the icon when exactly at capacity with nothing queued", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 2, max_active_runs: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.queryByTestId("active-runs-exceeds-max-info")).not.toBeInTheDocument();
+    expect(screen.getByText("2 of 2")).toBeInTheDocument();
+  });
+
+  it("shows an info icon and the queued count when runs are queued behind the maximum", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 1, max_active_runs: 1, queued_runs_count: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByTestId("active-runs-exceeds-max-info")).toBeInTheDocument();
+    expect(screen.getByText("1 of 1 (2 queued)")).toBeInTheDocument();
+  });
+
+  it("shows the info icon when over capacity, e.g. after max_active_runs was lowered", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 3, max_active_runs: 1, queued_runs_count: 2 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByTestId("active-runs-exceeds-max-info")).toBeInTheDocument();
+    expect(screen.getByText("3 of 1 (2 queued)")).toBeInTheDocument();
+  });
+
+  it("shows the queued count without the icon when below capacity (scheduler hasn't caught up yet)", () => {
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, active_runs_count: 0, max_active_runs: 2, queued_runs_count: 1 }} />
+      </Wrapper>,
+    );
+
+    expect(screen.queryByTestId("active-runs-exceeds-max-info")).not.toBeInTheDocument();
+    expect(screen.getByText("0 of 2 (1 queued)")).toBeInTheDocument();
+  });
+
+  it("shows the queued count without the icon for a paused Dag even at capacity", () => {
+    render(
+      <Wrapper>
+        <Header
+          dag={{
+            ...mockDag,
+            active_runs_count: 2,
+            is_paused: true,
+            max_active_runs: 2,
+            queued_runs_count: 1,
+          }}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.queryByTestId("active-runs-exceeds-max-info")).not.toBeInTheDocument();
+    expect(screen.getByText("2 of 2 (1 queued)")).toBeInTheDocument();
+  });
+
   it("renders the draining badge instead of the next run timestamp for a draining Dag", () => {
     render(
       <Wrapper>
@@ -100,7 +180,7 @@ describe("Header", () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText(i18n.t("dag:dagDetails.nextRun"))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("common:dagDetails.nextRun"))).toBeInTheDocument();
     expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
     expect(screen.getByTestId("draining-badge")).toBeInTheDocument();
   });

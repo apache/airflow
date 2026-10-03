@@ -27,11 +27,17 @@ import { StateBadge } from "src/components/StateBadge";
 
 import { DagDeactivatedBanner } from "./DagDeactivatedBanner";
 
+// A stat needs a stable React key. A string label already is one, so key is optional there;
+// any other label (e.g. a label with an inline icon/tooltip) must supply its own key explicitly.
+type Stat =
+  | { readonly key: string; readonly label: ReactNode; readonly value: ReactNode | string }
+  | { readonly key?: string; readonly label: string; readonly value: ReactNode | string };
+
 type Props = {
   readonly actions?: ReactNode;
   readonly icon: ReactNode;
   readonly state?: TaskInstanceState | null;
-  readonly stats: Array<{ key?: string; label: string; value: ReactNode | string }>;
+  readonly stats: Array<Stat>;
   readonly subTitle?: ReactNode | string;
   readonly title: ReactNode | string;
   readonly type: "asset" | "dag" | "dagBundle" | "dagRun" | "task" | "taskGroup" | "taskInstance";
@@ -78,7 +84,10 @@ export const HeaderCard = ({ actions, icon, state, stats, subTitle, title, type 
 
         <HStack alignItems="flex-start" flexWrap="wrap" gap={6} my={3}>
           {stats.map((stat) => (
-            <Box data-testid="stat" key={stat.key ?? stat.label}>
+            <Box
+              data-testid="stat"
+              key={stat.key ?? (typeof stat.label === "string" ? stat.label : undefined)}
+            >
               <Box
                 color="fg.muted"
                 fontSize="xs"

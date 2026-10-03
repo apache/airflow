@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiBookOpen } from "react-icons/fi";
+import { FiBookOpen, FiInfo } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 
-import { RouterLink } from "src/system-components";
+import { RouterLink, Tooltip } from "src/system-components";
 
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
@@ -65,6 +66,13 @@ export const Header = ({
   const { dagId } = useParams();
   const showTeam = useShowTeam(dag?.team_name);
   const isStale = dag?.is_stale;
+  const hasQueuedRuns = (dag?.queued_runs_count ?? 0) > 0;
+  // Queued runs alone don't mean anything is stuck: on a busy deployment the scheduler may
+  // simply not have picked them up yet, and a paused Dag never promotes queued runs at all.
+  // Only warn once active runs are actually at (or over) the limit.
+  const isBlockedByMaxActiveRuns =
+    (dag?.active_runs_count ?? 0) >= (dag?.max_active_runs ?? Number.POSITIVE_INFINITY) &&
+    dag?.is_paused !== true;
 
   const nextRunStat = isStale
     ? []
@@ -113,11 +121,31 @@ export const Header = ({
     },
     ...nextRunStat,
     {
-      label: translate("dagDetails.activeRuns"),
+      key: "activeRuns",
+      label:
+        isBlockedByMaxActiveRuns && hasQueuedRuns ? (
+          <HStack gap={1}>
+            {translate("dagDetails.activeRuns")}
+            <Tooltip content={translate("dagDetails.activeRunsExceedsMaxTooltip")} portalled>
+              <FiInfo data-testid="active-runs-exceeds-max-info" />
+            </Tooltip>
+          </HStack>
+        ) : (
+          translate("dagDetails.activeRuns")
+        ),
       value:
         dag?.max_active_runs === undefined
           ? undefined
-          : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
+          : hasQueuedRuns
+            ? translate("dagDetails.activeRunsWithQueued", {
+                activeRuns: dag.active_runs_count ?? 0,
+                maxActiveRuns: dag.max_active_runs,
+                queuedRuns: dag.queued_runs_count,
+              })
+            : translate("dagDetails.activeRunsOfMax", {
+                activeRuns: dag.active_runs_count ?? 0,
+                maxActiveRuns: dag.max_active_runs,
+              }),
     },
     {
       label: translate("dagDetails.owner"),
