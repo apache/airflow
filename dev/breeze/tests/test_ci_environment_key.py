@@ -84,6 +84,14 @@ def test_implementation_and_tests_do_not_invalidate_key(checkout, path):
 
 
 @pytest.mark.parametrize("operation", ["add", "delete", "rename"])
+def test_unstaged_metadata_deletion_invalidates_key(checkout):
+    before = fingerprint(checkout)
+    (checkout / "providers/example/provider.yaml").unlink()
+    after = fingerprint(checkout)
+    assert after["key"] != before["key"]
+    assert after["inputs"]["files"]["providers/example/provider.yaml"] == "missing"
+
+
 def test_metadata_membership_invalidates_key(checkout, operation):
     before = fingerprint(checkout)
     path = "providers/example/provider.yaml"
@@ -106,7 +114,12 @@ def test_execution_coordinates_invalidate_key(checkout, coordinates):
 def test_key_is_versioned_and_observational(checkout, monkeypatch):
     before = fingerprint(checkout)
     assert before["reuse_eligible"] is False
-    assert before["unresolved_inputs"] == ["base_image_digest", "effective_build_parameters"]
+    assert before["unresolved_inputs"] == [
+        "resolved_base_image_digest",
+        "effective_semantic_build_parameters",
+        "complete_environment_file_inputs",
+        "external_dependency_inputs",
+    ]
     monkeypatch.setattr("airflow_breeze.utils.ci_environment_key.ENVIRONMENT_KEY_SCHEMA_VERSION", 2)
     assert fingerprint(checkout)["key"] != before["key"]
 
