@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import threading
 import time
 import weakref
@@ -48,6 +49,7 @@ from airflow.api_fastapi.auth.tokens import (
 
 if TYPE_CHECKING:
     import httpx
+    from starlette.types import ASGIApp
 
 import structlog
 from structlog.contextvars import bind_contextvars
@@ -373,6 +375,29 @@ def _shutdown_loop(
     thread.join(timeout=5)
 
 
+def _serving_supervisor_request(app: ASGIApp) -> ASGIApp:
+    """
+    Wrap the in-process app so the code serving a request acts as the server side.
+
+    Under ``dag.test()`` the task, its supervisor and this server share one process. A route reading
+    ``models.Variable`` or ``models.Connection`` must go to the database, not send a request of its own
+    through the task's comms. The flag is set in the request's context, which the event loop task and
+    the worker threads of sync routes inherit, so the task's own threads keep their comms meanwhile.
+    """
+
+    async def serve(scope, receive, send):
+        task_runner = sys.modules.get("airflow.sdk.execution_time.task_runner")
+        serving = getattr(task_runner, "serving_supervisor_request", None)
+        if serving is None:
+            # No task runs in this process (or a Task SDK from before the flag): nothing to hide.
+            await app(scope, receive, send)
+            return
+        with serving():
+            await app(scope, receive, send)
+
+    return serve
+
+
 @attrs.define()
 class InProcessExecutionAPI:
     """
@@ -434,7 +459,7 @@ class InProcessExecutionAPI:
         thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
         thread.start()
 
-        middleware = ASGIMiddleware(self.app, loop=loop)
+        middleware = ASGIMiddleware(_serving_supervisor_request(self.app), loop=loop)  # type: ignore[arg-type]
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -462,4 +487,4 @@ class InProcessExecutionAPI:
     def atransport(self) -> httpx.ASGITransport:
         import httpx
 
-        return httpx.ASGITransport(app=self.app)
+        return httpx.ASGITransport(app=_serving_supervisor_request(self.app))
