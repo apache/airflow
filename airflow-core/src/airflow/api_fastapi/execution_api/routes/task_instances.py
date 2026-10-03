@@ -23,8 +23,8 @@ import contextlib
 import itertools
 import json
 from collections import defaultdict
-from collections.abc import Callable, Iterator, Sequence
-from typing import Annotated, Any, NoReturn, cast
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from typing import Annotated, Any, Final, NoReturn, cast
 from uuid import UUID
 
 import attrs
@@ -38,7 +38,7 @@ from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, exists, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import InstrumentedAttribute, contains_eager, joinedload
 from sqlalchemy.sql import select
 from sqlalchemy.sql.dml import Update
 from structlog.contextvars import bind_contextvars
@@ -1371,7 +1371,12 @@ async def get_previous_task_instance(
 
 
 # Hydrating full TaskInstance entities would block the API event loop on large runs.
-_TI_STATE_COLUMNS = (TI.run_id, TI.task_id, TI.map_index, TI.state)
+_TI_STATE_COLUMNS: Final[tuple[InstrumentedAttribute[str | int | None], ...]] = (
+    TI.run_id,
+    TI.task_id,
+    TI.map_index,
+    TI.state,
+)
 
 
 @router.get("/states", status_code=status.HTTP_200_OK)
@@ -1402,23 +1407,22 @@ async def get_task_instance_states(
     if map_index is not None:
         query = query.where(TI.map_index == map_index)
 
-    results = (await session.execute(query)).all()
+    def add_states(rows: Iterable[Sequence[Any]]) -> None:
+        for run_id, task_id, ti_map_index, state in rows:
+            key = task_id if ti_map_index < 0 else f"{task_id}_{ti_map_index}"
+            run_id_task_state_map[run_id][key] = state
+
+    # Without task_ids, task_group_id replaces the Dag-wide match instead of extending it.
+    if task_ids or not task_group_id:
+        # Partitions yield the event loop between batches on large runs.
+        streamed = await session.stream(query.execution_options(yield_per=500))
+        async for partition in streamed.partitions():
+            add_states(partition)
 
     if task_group_id:
-        group_tasks = await _get_group_tasks(
-            dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
+        add_states(
+            await _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index)
         )
-
-        results = results + group_tasks if task_ids else group_tasks
-
-    [
-        run_id_task_state_map[task.run_id].update(
-            {task.task_id: task.state}
-            if task.map_index < 0
-            else {f"{task.task_id}_{task.map_index}": task.state}
-        )
-        for task in results
-    ]
 
     return TaskStatesResponse(task_states=run_id_task_state_map)
 
