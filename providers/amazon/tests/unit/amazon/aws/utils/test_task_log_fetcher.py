@@ -44,6 +44,21 @@ class TestAwsTaskLogFetcher:
     def setup_method(self):
         self.set_up_log_fetcher()
 
+    def test_hook_is_built_with_the_given_aws_configuration(self):
+        log_fetcher = AwsTaskLogFetcher(
+            log_group="test_log_group",
+            log_stream_name="test_log_stream_name",
+            fetch_interval=timedelta(milliseconds=1),
+            logger=self.logger_mock,
+            region_name="eu-west-3",
+            verify="/path/to/ca-bundle.pem",
+            botocore_config={"read_timeout": 10},
+        )
+
+        assert log_fetcher.hook.region_name == "eu-west-3"
+        assert log_fetcher.hook._verify == "/path/to/ca-bundle.pem"
+        assert log_fetcher.hook._config.read_timeout == 10
+
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=(

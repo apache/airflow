@@ -757,6 +757,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         return AwsTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=self.resolve_awslogs_region(),
+            verify=self.verify,
+            botocore_config=self.botocore_config,
             log_group=self.awslogs_group,
             log_stream_name=self._get_logs_stream_name(),
             fetch_interval=self.awslogs_fetch_interval,

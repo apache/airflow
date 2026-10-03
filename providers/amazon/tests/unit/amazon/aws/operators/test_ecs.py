@@ -191,6 +191,20 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert fetcher.hook.region_name == "region"
 
+    def test_get_task_log_fetcher_uses_operator_aws_configuration(self):
+        self.set_up_operator(
+            awslogs_group="awslogs-group",
+            awslogs_stream_prefix="prefix",
+            region_name="region",
+            verify="/path/to/ca-bundle.pem",
+            botocore_config={"read_timeout": 10},
+        )
+
+        fetcher = self.ecs._get_task_log_fetcher()
+
+        assert fetcher.hook._verify == "/path/to/ca-bundle.pem"
+        assert fetcher.hook._config.read_timeout == 10
+
     def test_template_fields_overrides(self):
         assert self.ecs.template_fields == (
             "task_definition",
