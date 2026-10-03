@@ -273,8 +273,8 @@ class XComModel(TaskInstanceDependencies):
         """
         Composes a query to get one or more XCom entries.
 
-        This function returns an SQLAlchemy query of full XCom objects. If you
-        just want one stored value, use :meth:`get_one` instead.
+        This function returns an SQLAlchemy query of full XCom objects. Narrow it
+        with ``with_only_columns`` and ``limit`` if you just want one stored value.
 
         :param run_id: DAG run ID for the task.
         :param key: A key for the XComs. If provided, only XComs with matching
