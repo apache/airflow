@@ -412,6 +412,19 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         return self._from_frame(frame)
 
 
+class TaskHandlerArtifactRef(BaseModel):
+    """The Lang-SDK artifact that implements a stub task: its Dag bundle and its path in that bundle."""
+
+    bundle_info: BundleInfo | None = None
+    """
+    The Dag bundle holding the artifact; ``None`` means the task's own Dag bundle, at the version the
+    run uses: its pinned version, or the version current when the task starts if the run is not pinned.
+    """
+
+    rel_path: str
+    """POSIX path of the artifact within that bundle."""
+
+
 class StartupDetails(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -421,6 +434,8 @@ class StartupDetails(BaseModel):
     start_date: datetime
     ti_context: TIRunContext
     sentry_integration: str
+    task_handler_artifact: TaskHandlerArtifactRef | None = None
+    """The artifact that implements this stub task, as the workload names it; ``None`` when it names none."""
     type: Literal["StartupDetails"] = "StartupDetails"
 
 

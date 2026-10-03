@@ -549,7 +549,8 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
     ``task_handler_bundle_name``, rather than the Dag bundle that holds your ``.py`` files. The task
     uses the version that Dag bundle is on when it starts, pinned for the whole task.
   * If ``task_handler_bundle_name`` is unset, packed bundles are read from the **task's own** Dag
-    bundle, pinned to the version the run was created with.
+    bundle, at the version the run uses: its pinned version, or the version current when the task
+    starts if the run is not pinned.
   * The Dag bundle must keep the executable bit (see `Deploying`_).
 
 .. _go-sdk/limitations:

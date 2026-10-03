@@ -43,6 +43,7 @@ def get_bundle() -> VersionBundle:
         AddKnownArtifactsToDagFileParseRequest,
         AddProbedArtifactsToDagFileParsingResult,
         AddRetryReasonToTaskState,
+        AddTaskHandlerArtifactToStartupDetails,
         AddTaskHandlerBindingsToDagFileParsingResult,
     )
 
@@ -56,6 +57,7 @@ def get_bundle() -> VersionBundle:
             AddKnownArtifactsToDagFileParseRequest,
             AddTaskHandlerBindingsToDagFileParsingResult,
             AddProbedArtifactsToDagFileParsingResult,
+            AddTaskHandlerArtifactToStartupDetails,
         ),
         Version("2026-06-16"),
     )

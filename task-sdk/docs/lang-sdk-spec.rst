@@ -166,6 +166,8 @@ getters that read the scope opened at step 6 — and all this spec asks is that 
 same pair the SDK built at step 3. The terminal state at step 7 is one of ``SucceedTask``,
 ``RetryTask``, or ``TaskState``, and it is reported exactly once.
 
+``StartupDetails`` may carry ``task_handler_artifact``, the artifact that implements the stub task: its ``rel_path`` in a Dag bundle, and that bundle's ``bundle_info``, which is ``null`` for the task's own Dag bundle. A runtime may ignore it.
+
 Task handler parse lifecycle
 ----------------------------
 

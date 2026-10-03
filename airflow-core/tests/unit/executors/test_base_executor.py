@@ -930,6 +930,37 @@ def test_run_workload_passes_team_name_to_connection_test_supervisor(mock_superv
     )
 
 
+@mock.patch("airflow.sdk.execution_time.supervisor.supervise_task", autospec=True)
+def test_run_workload_passes_task_handler_artifact_to_task_supervisor(mock_supervise):
+    mock_supervise.return_value = 0
+    reference = workloads.TaskHandlerArtifactRef(
+        bundle_info=BundleInfo(name="java-task-handlers"), rel_path="libs/etl.jar"
+    )
+    wl = workloads.ExecuteTask(
+        ti=workloads.TaskInstanceDTO(
+            id=uuid4(),
+            dag_version_id=uuid4(),
+            task_id="extract",
+            dag_id="etl",
+            run_id="r",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="jdk-17",
+            priority_weight=1,
+        ),
+        dag_rel_path=Path("etl.py"),
+        token="test-token",
+        bundle_info=BundleInfo(name="dags-folder", version="v1"),
+        log_path="etl.log",
+        task_handler_artifact=reference,
+    )
+
+    BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/")
+
+    assert mock_supervise.call_args.kwargs["task_handler_artifact"] is reference
+
+
 @mock.patch.dict("os.environ", {}, clear=True)
 class TestExecutorConf:
     """Test ExecutorConf shim class that provides team-specific configuration access."""

@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import os
 import pathlib
+import re
 import signal
 import socket
 import subprocess
@@ -47,6 +48,7 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
+from airflow.sdk.execution_time.comms import TaskHandlerArtifactRef
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskHandlerCandidate
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
@@ -811,6 +813,7 @@ class TestPopenActivitySubprocessStart:
 
     def test_on_child_started_called(self, mock_client):
         ti = _make_ti()
+        task_handler_artifact = TaskHandlerArtifactRef(rel_path="etl.jar")
         with (
             patch("airflow.sdk.coordinators._subprocess.subprocess.Popen") as popen_mock,
             patch(
@@ -831,12 +834,14 @@ class TestPopenActivitySubprocessStart:
                 client=mock_client,
                 command=["/bin/true"],
                 subprocess_logs_to_stdout=False,
+                task_handler_artifact=task_handler_artifact,
             )
 
         mock_on_started.assert_called_once()
         kwargs = mock_on_started.call_args.kwargs
         assert kwargs["ti"] is ti
         assert kwargs["dag_rel_path"] == "bundle"
+        assert kwargs["task_handler_artifact"] is task_handler_artifact
 
     @conf_vars({("logging", "logging_level"): "DEBUG"})
     def test_resolved_log_level_passed_to_subprocess_env(self, mock_client):
@@ -942,6 +947,98 @@ class TestResolveArtifactBundle:
         with pytest.raises(FileNotFoundError, match="does not exist"):
             coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log)
 
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    def test_reference_bundle_is_pinned_instead_of_the_configured_one(self, mock_initialize, tmp_path):
+        """The workload's artifact bundle wins over ``task_handler_bundle_name`` and is pinned at task start."""
+        pinned_tree = tmp_path / "versions" / "sha-abc"
+        (pinned_tree / "libs").mkdir(parents=True)
+        (pinned_tree / "libs" / "etl.jar").touch()
+
+        unpinned = _make_bundle(tmp_path, name="java-task-handlers")
+        unpinned.get_current_version.return_value = BundleVersion(version="sha-abc", data=None)
+        pinned = _make_bundle(pinned_tree, version="sha-abc", name="java-task-handlers")
+        mock_initialize.side_effect = [unpinned, pinned]
+        coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
+        reference = TaskHandlerArtifactRef(
+            bundle_info=BundleInfo(name="java-task-handlers"), rel_path="libs/etl.jar"
+        )
+
+        resolved = coordinator._resolve_artifact_bundle(
+            BundleInfo(name="dags", version="v3"), log, task_handler_artifact=reference
+        )
+
+        assert resolved is pinned
+        assert mock_initialize.call_args_list == [
+            call(BundleInfo(name="java-task-handlers")),
+            call(BundleInfo(name="java-task-handlers", version="sha-abc")),
+        ]
+
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    def test_reference_without_bundle_uses_the_task_bundle_at_the_run_version(
+        self, mock_initialize, tmp_path
+    ):
+        (tmp_path / "etl.jar").touch()
+        resolved = _make_bundle(tmp_path, version="v3")
+        mock_initialize.return_value = resolved
+        coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
+        bundle_info = BundleInfo(name="dags", version="v3", version_data={"k": "v"})
+        reference = TaskHandlerArtifactRef(rel_path="etl.jar")
+
+        assert (
+            coordinator._resolve_artifact_bundle(bundle_info, log, task_handler_artifact=reference)
+            is resolved
+        )
+        mock_initialize.assert_called_once_with(bundle_info)
+
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    def test_reference_naming_the_task_bundle_without_a_version_keeps_the_pinned_run_version(
+        self, mock_initialize, tmp_path
+    ):
+        (tmp_path / "etl.jar").touch()
+        resolved = _make_bundle(tmp_path, version="v3")
+        mock_initialize.return_value = resolved
+        coordinator = _StubSubprocessCoordinator(command=["x"])
+        bundle_info = BundleInfo(name="dags", version="v3", version_data={"k": "v"})
+        reference = TaskHandlerArtifactRef(bundle_info=BundleInfo(name="dags"), rel_path="etl.jar")
+
+        assert (
+            coordinator._resolve_artifact_bundle(bundle_info, log, task_handler_artifact=reference)
+            is resolved
+        )
+        mock_initialize.assert_called_once_with(bundle_info)
+
+    @pytest.mark.parametrize(
+        "make_rel_path",
+        [
+            pytest.param(lambda root: "missing.jar", id="missing"),
+            pytest.param(lambda root: "libs", id="directory"),
+            pytest.param(lambda root: "../outside.jar", id="parent"),
+            pytest.param(lambda root: (root.parent / "outside.jar").as_posix(), id="absolute"),
+        ],
+    )
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    def test_missing_directory_parent_or_absolute_reference_raises(
+        self, mock_initialize, tmp_path, make_rel_path
+    ):
+        bundle_root = tmp_path / "bundle"
+        (bundle_root / "libs").mkdir(parents=True)
+        (tmp_path / "outside.jar").touch()
+        mock_initialize.return_value = _make_bundle(bundle_root, version="sha-abc", name="java-task-handlers")
+        coordinator = _StubSubprocessCoordinator(command=["x"])
+        rel_path = make_rel_path(bundle_root)
+        reference = TaskHandlerArtifactRef(
+            bundle_info=BundleInfo(name="java-task-handlers", version="sha-abc"), rel_path=rel_path
+        )
+
+        with pytest.raises(
+            FileNotFoundError,
+            match=rf"^Task handler artifact '{re.escape(rel_path)}' is not a file in Dag bundle "
+            r"'java-task-handlers' at version 'sha-abc'\.$",
+        ):
+            coordinator._resolve_artifact_bundle(
+                BundleInfo(name="dags"), log, task_handler_artifact=reference
+            )
+
 
 class TestExecuteTaskBundleWiring:
     """execute_task passes the task bundle, forwards resolved roots, and holds the version lock."""
@@ -1000,6 +1097,36 @@ class TestExecuteTaskBundleWiring:
 
         assert coordinator.recorded_roots == [[pinned_tree]]
         mock_lock.assert_called_once_with(bundle_name="artifacts", bundle_version="sha-abc")
+
+    @patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
+    def test_reference_bundle_is_locked_scanned_and_sent_on(
+        self, mock_start, mock_initialize, mock_lock, mock_client, tmp_path
+    ):
+        (tmp_path / "etl.jar").touch()
+        mock_initialize.return_value = _make_bundle(tmp_path, version="sha-abc", name="java-task-handlers")
+        mock_start.return_value.wait.return_value = 0
+        reference = TaskHandlerArtifactRef(
+            bundle_info=BundleInfo(name="java-task-handlers", version="sha-abc"), rel_path="etl.jar"
+        )
+
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"], task_handler_bundle_name="artifacts")
+
+        coordinator.execute_task(
+            what=_make_ti(),
+            dag_rel_path="dag.py",
+            bundle_info=BundleInfo(name="dags", version="v9"),
+            client=mock_client,
+            subprocess_logs_to_stdout=False,
+            task_handler_artifact=reference,
+        )
+
+        mock_initialize.assert_called_once_with(reference.bundle_info)
+        assert coordinator.recorded_roots == [[tmp_path]]
+        mock_lock.assert_called_once_with(bundle_name="java-task-handlers", bundle_version="sha-abc")
+        assert mock_start.call_args.kwargs["task_handler_artifact"] is reference
+        assert mock_start.call_args.kwargs["bundle_info"] == BundleInfo(name="dags", version="v9")
 
 
 class TestGetScanRoots:

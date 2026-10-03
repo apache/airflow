@@ -21,7 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo, WorkloadType
@@ -61,11 +61,26 @@ class TaskInstanceDTO(TaskInstance):
         )
 
 
+class TaskHandlerArtifactRef(BaseModel):
+    """The Lang-SDK artifact that implements a stub task: its Dag bundle and its path in that bundle."""
+
+    bundle_info: BundleInfo | None = None
+    """
+    The Dag bundle holding the artifact; ``None`` means the task's own Dag bundle, at the version the
+    run uses: its pinned version, or the version current when the task starts if the run is not pinned.
+    """
+
+    rel_path: str
+    """POSIX path of the artifact within that bundle."""
+
+
 class ExecuteTask(BaseDagBundleWorkload):
     """Execute the given Task."""
 
     ti: TaskInstanceDTO
     sentry_integration: str = ""
+    task_handler_artifact: TaskHandlerArtifactRef | None = None
+    """The artifact that implements this stub task; ``None`` when the workload names none."""
 
     type: Literal[WorkloadType.EXECUTE_TASK] = Field(init=False, default=WorkloadType.EXECUTE_TASK)
 

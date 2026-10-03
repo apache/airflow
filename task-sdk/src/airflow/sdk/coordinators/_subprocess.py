@@ -38,6 +38,7 @@ import socket
 import subprocess
 import sys
 import time
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
 
 import attrs
@@ -63,6 +64,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.execution_time.comms import TaskHandlerArtifactRef
     from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
@@ -361,6 +363,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         command: Sequence[str],
         subprocess_schema_version: str | None = None,
         startup_timeout: float = 10.0,
+        task_handler_artifact: TaskHandlerArtifactRef | None = None,
         **kwargs,
     ) -> Self:
         with _ResourceTracker(timeout=startup_timeout) as tracker:
@@ -412,6 +415,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 dag_rel_path=dag_rel_path,
                 bundle_info=bundle_info,
                 sentry_integration=sentry_integration,
+                task_handler_artifact=task_handler_artifact,
             )
 
             # Untrack everything left. 'self' keeps track of these and closes
@@ -449,6 +453,21 @@ def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) 
     return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
 
 
+def _check_artifact_in_bundle(bundle: BaseDagBundle, rel_path: str) -> None:
+    """
+    Raise :class:`FileNotFoundError` unless *rel_path* names a file inside *bundle*.
+
+    *rel_path* must be a relative path inside the bundle, with no ``..`` part. A symlink in the
+    bundle is followed, as the Dag processor follows it when it lists the bundle's artifacts.
+    """
+    path = PurePosixPath(rel_path)
+    if path.is_absolute() or ".." in path.parts or not (bundle.path / path).is_file():
+        version = f" at version {bundle.version!r}" if bundle.version is not None else ""
+        raise FileNotFoundError(
+            f"Task handler artifact {rel_path!r} is not a file in Dag bundle {bundle.name!r}{version}."
+        )
+
+
 @attrs.define(kw_only=True)
 class SubprocessCoordinator(BaseCoordinator):
     """
@@ -470,8 +489,9 @@ class SubprocessCoordinator(BaseCoordinator):
     :param task_handler_bundle_name: Name of the Dag bundle that holds the compiled
         task handlers. It must be registered in ``[dag_processor] dag_bundle_config_list``.
         If unset, the task's own Dag bundle is used. A named bundle resolves to the
-        version current when the task starts; the task's own bundle uses the run's
-        version. Either way the resolved version is pinned for the whole task.
+        version current when the task starts. The task's own bundle is read at the version
+        the run uses: its pinned version, or the version current when the task starts if
+        the run is not pinned. Either way the resolved version is pinned for the whole task.
     """
 
     task_startup_timeout: float = 10.0
@@ -480,16 +500,31 @@ class SubprocessCoordinator(BaseCoordinator):
     _active_scan_roots: tuple[pathlib.Path, ...] | None = attrs.field(init=False, default=None)
 
     def _resolve_artifact_bundle(
-        self, bundle_info: BundleInfo, logger: FilteringBoundLogger
+        self,
+        bundle_info: BundleInfo,
+        logger: FilteringBoundLogger,
+        *,
+        task_handler_artifact: TaskHandlerArtifactRef | None = None,
     ) -> BaseDagBundle:
         """
         Materialize the Dag bundle holding the artifacts for a task of *bundle_info*.
 
-        That is the bundle named by ``task_handler_bundle_name``, or the task's own
-        bundle when it is unset. *logger* is the task logger, so materialization
-        failures surface in the task log.
+        With *task_handler_artifact*, that is the bundle it names, or the task's own bundle
+        when it names none, and its file must exist there. A reference that names the task's
+        own bundle without a version uses *bundle_info*, so a pinned run keeps its version.
+        Without a reference, that is the bundle named by ``task_handler_bundle_name``, or the
+        task's own bundle when it is unset. *logger* is the task logger, so materialization failures
+        surface in the task log.
+
+        :raises FileNotFoundError: when the bundle path, or the referenced file, does not exist.
         """
-        if self.task_handler_bundle_name is None:
+        if task_handler_artifact is not None:
+            ref_bundle = task_handler_artifact.bundle_info
+            if ref_bundle is None or (ref_bundle.name == bundle_info.name and ref_bundle.version is None):
+                target = bundle_info
+            else:
+                target = ref_bundle
+        elif self.task_handler_bundle_name is None:
             target = bundle_info
         else:
             target = BundleInfo(name=self.task_handler_bundle_name)
@@ -498,6 +533,8 @@ class SubprocessCoordinator(BaseCoordinator):
         path = bundle.path
         if not path.exists():
             raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
+        if task_handler_artifact is not None:
+            _check_artifact_in_bundle(bundle, task_handler_artifact.rel_path)
         return bundle
 
     def _get_scan_roots(self) -> tuple[pathlib.Path, ...]:
@@ -635,9 +672,12 @@ class SubprocessCoordinator(BaseCoordinator):
         logger: FilteringBoundLogger | None = None,
         sentry_integration: str = "",
         subprocess_logs_to_stdout: bool,
+        task_handler_artifact: TaskHandlerArtifactRef | None = None,
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
-        bundle = self._resolve_artifact_bundle(bundle_info, logger or log)
+        bundle = self._resolve_artifact_bundle(
+            bundle_info, logger or log, task_handler_artifact=task_handler_artifact
+        )
         # Hold the version lock across start()/wait() so bundle cleanup cannot
         # rmtree a version this task is still reading from, mirroring
         # task_runner.main() for the Python task path.
@@ -657,6 +697,7 @@ class SubprocessCoordinator(BaseCoordinator):
                 command=command,
                 subprocess_schema_version=subprocess_schema_version,
                 startup_timeout=self.task_startup_timeout,
+                task_handler_artifact=task_handler_artifact,
             )
             exit_code = process.wait()
             return self.ExecutionResult(exit_code, process.final_state)

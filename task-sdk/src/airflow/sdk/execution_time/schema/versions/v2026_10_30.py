@@ -30,7 +30,7 @@ from cadwyn import VersionChange, schema
 
 from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import TIRunContext
-from airflow.sdk.execution_time.comms import TaskState
+from airflow.sdk.execution_time.comms import StartupDetails, TaskState
 
 
 class AddArgBindingsToSupervisorTIRunContext(VersionChange):
@@ -93,4 +93,14 @@ class AddProbedArtifactsToDagFileParsingResult(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(DagFileParsingResult).field("probed_artifacts").didnt_exist,
+    )
+
+
+class AddTaskHandlerArtifactToStartupDetails(VersionChange):
+    """Add ``task_handler_artifact``, the Lang-SDK artifact that implements a stub task, to ``StartupDetails``."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(StartupDetails).field("task_handler_artifact").didnt_exist,
     )

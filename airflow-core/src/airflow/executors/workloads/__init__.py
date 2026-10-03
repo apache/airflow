@@ -25,7 +25,7 @@ from pydantic import Field
 from airflow.executors.workloads.base import WORKLOAD_TYPE_PRIORITY, BaseWorkload, BundleInfo, WorkloadType
 from airflow.executors.workloads.callback import CallbackFetchMethod, ExecuteCallback
 from airflow.executors.workloads.connection_test import TestConnection
-from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
+from airflow.executors.workloads.task import ExecuteTask, TaskHandlerArtifactRef, TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
 
 All = Annotated[
@@ -49,6 +49,7 @@ __all__ = [
     "ExecuteCallback",
     "ExecuteTask",
     "ExecutorWorkload",
+    "TaskHandlerArtifactRef",
     "TaskInstance",
     "TaskInstanceDTO",
     "TestConnection",

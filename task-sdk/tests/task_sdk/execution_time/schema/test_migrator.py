@@ -28,8 +28,10 @@ schema diverges from head.
 
 from __future__ import annotations
 
+import datetime
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 from typing import Literal
 
@@ -59,7 +61,15 @@ from airflow.dag_processing.processor import (
     TaskHandlerParseRequest,
 )
 from airflow.sdk import TaskInstanceState
-from airflow.sdk.execution_time.comms import TaskState
+from airflow.sdk.api.datamodels._generated import (
+    BundleInfo,
+    DagRun,
+    DagRunState,
+    DagRunType,
+    TaskInstance,
+    TIRunContext,
+)
+from airflow.sdk.execution_time.comms import StartupDetails, TaskHandlerArtifactRef, TaskState
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
@@ -699,3 +709,67 @@ class TestRealBundleProbedArtifacts:
         body = {"type": "DagFileParsingResult", "fileloc": "/files/dags/etl.py", "serialized_dags": []}
         out = real_migrator.upgrade(body, DagFileParsingResult, "2026-06-16")
         assert out["probed_artifacts"] == []
+
+
+class TestRealBundleTaskHandlerArtifact:
+    """
+    Drive the *real* supervisor bundle through the ``task_handler_artifact`` migration.
+
+    ``StartupDetails`` flows supervisor -> runtime, so ``downgrade`` is the direction a pinned
+    runtime travels.
+    """
+
+    @pytest.fixture
+    def startup_details(self) -> StartupDetails:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return StartupDetails(
+            ti=TaskInstance(
+                id=uuid.uuid4(),
+                task_id="extract",
+                dag_id="etl",
+                run_id="r",
+                try_number=1,
+                dag_version_id=uuid.uuid4(),
+            ),
+            dag_rel_path="etl.py",
+            bundle_info=BundleInfo(name="dags-folder", version="v1"),
+            start_date=now,
+            ti_context=TIRunContext(
+                dag_run=DagRun(
+                    dag_id="etl",
+                    run_id="r",
+                    logical_date=now,
+                    data_interval_start=None,
+                    data_interval_end=None,
+                    start_date=now,
+                    end_date=None,
+                    run_type=DagRunType.MANUAL,
+                    state=DagRunState.RUNNING,
+                    run_after=now,
+                    consumed_asset_events=[],
+                    partition_key=None,
+                ),
+                max_tries=1,
+            ),
+            sentry_integration="",
+            task_handler_artifact=TaskHandlerArtifactRef(
+                bundle_info=BundleInfo(name="java-task-handlers"), rel_path="libs/etl.jar"
+            ),
+        )
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_task_handler_artifact_for_previous_version(
+        self, real_migrator, startup_details
+    ):
+        out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
+        assert "task_handler_artifact" not in out
+
+    def test_downgrade_keeps_task_handler_artifact_at_head(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-10-30").model_dump()
+        assert out["task_handler_artifact"] == {
+            "bundle_info": {"name": "java-task-handlers", "version": None, "version_data": None},
+            "rel_path": "libs/etl.jar",
+        }
