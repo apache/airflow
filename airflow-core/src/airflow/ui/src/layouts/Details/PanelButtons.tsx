@@ -298,7 +298,7 @@ export const PanelButtons = ({
 
       {dagView !== "graph" && (
         <Flex justifyContent="space-between" mt={2}>
-          <GridFilters />
+          <GridFilters showGanttDateFilters={dagView === "gantt"} />
         </Flex>
       )}
     </Box>
