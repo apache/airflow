@@ -747,6 +747,9 @@ Discovery includes volumes and networks even when no containers remain. Resource
 directly through Docker, so deleted worktrees do not need their Compose files restored.
 ``--preserve-volumes`` keeps named and anonymous volumes, including those from deleted worktrees.
 Shared MyPy and bytecode caches remain controlled by their explicit cleanup flags.
+The build cache volume of each project (``/root/.cache`` in the container) is kept as well until
+``--cleanup-build-cache`` is passed, which also works together with ``--preserve-volumes``.
+Build cache volumes of deleted worktrees are removed without the flag.
 Unlike ``breeze cleanup``, ``down`` does not delete local source files, environments, images,
 or build caches unless an explicit cache-cleanup flag is passed.
 
