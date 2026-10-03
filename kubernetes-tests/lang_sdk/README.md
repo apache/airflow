@@ -53,9 +53,10 @@ The dag-processor pod stages both buckets the same way (`dagProcessor.extraInitC
 because it runs the Go binary and the Java jar to check the stub tasks of `lang_sdk_combined.py`
 against the task handlers they register. A stub task without a handler fails the Dag file's import.
 The dag-processor needs a JRE for the jar, and the chart sets one image for every Airflow component,
-so `setup-lang-sdk-test` runs the Airflow components on the Java worker image. The task pods keep the
-plain prod image: the setup pins `[kubernetes_executor] worker_container_repository` and
-`worker_container_tag` to it, so the `java` queue still shows its coordinator's own image.
+so `setup-lang-sdk-test` runs the Airflow components on the Java worker image. The Java coordinator's
+`extra` takes its image from the same chart value, so `--java-image` also reaches the Java task pods.
+The other task pods keep the plain prod image: the setup pins `[kubernetes_executor]
+worker_container_repository` and `worker_container_tag` to it.
 
 ## Components
 

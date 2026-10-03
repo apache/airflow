@@ -2998,9 +2998,10 @@ def _lang_sdk_deploy_airflow(
     """Upgrade the Helm release with the lang-SDK values, the Airflow components running on *java_image*.
 
     The Dag processor runs the Go binary and the Java jar to check the stub Dag's tasks, so it needs
-    the JRE of the Java worker image, and the chart sets one image for all Airflow components. The chart
-    also takes the task pods' default image from it, so that is set back to the plain prod image: the
-    Go and Python tasks run on it, and the Java queue shows its coordinator's own image.
+    the JRE of the Java worker image, and the chart sets one image for all Airflow components. The
+    Java coordinator's extra in values.yaml takes its image from the same value, so the Java task pods
+    run on it too. The chart also takes the task pods' default image from it, so that is set back to
+    the plain prod image for the Go and Python tasks.
     """
     params = BuildProdParams(python=python)
     image = params.airflow_image_kubernetes
@@ -3155,10 +3156,10 @@ def _setup_lang_sdk_test(
 )
 @click.option(
     "--java-image",
-    help="Image every Airflow component runs on, and the Java (JavaCoordinator) worker pod's init "
-    "container. Must be a full Airflow image of the deployed version with a JRE, already loaded into "
-    "the kind cluster. Defaults to building the prod image plus a headless JRE (Dockerfile.java) and "
-    "loading it into the kind cluster.",
+    help="Image every Airflow component and the Java (JavaCoordinator) task pods run on. Must be a "
+    "full Airflow image of the deployed version with a JRE, already loaded into the kind cluster. "
+    "Defaults to building the prod image plus a headless JRE (Dockerfile.java) and loading it into "
+    "the kind cluster.",
 )
 @option_verbose
 @option_dry_run

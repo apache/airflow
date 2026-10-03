@@ -147,12 +147,14 @@ dagProcessor:
 
 config:
   # Route the golang/java queues to their coordinators, each carrying an
-  # extra.pod_template_file (the worktree-1 feature) so the worker pod is
+  # extra.pod_template_file (per-coordinator pod templates) so the worker pod is
   # launched from a coordinator-specific template that stages the artifact and,
-  # for Java, runs on the JVM-bearing image.
+  # for Java, runs on the JVM-bearing image. The java-sdk extra takes that image from
+  # images.airflow, which breeze sets to --java-image, so the Java task pods run on the
+  # image the Airflow components run on. The chart renders config values with tpl.
   sdk:
     # Single-line JSON: airflow.cfg is an ini file, so a value with embedded
     # newlines would break the rendered configmap.
     # yamllint disable-line rule:line-length
-    coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"task_handler_bundle_name": "go-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_golang.yaml"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"task_handler_bundle_name": "java-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_java.yaml", "worker_container_repository": "lang-sdk-java-worker", "worker_container_tag": "latest"}}}'
+    coordinators: '{"go-sdk": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"task_handler_bundle_name": "go-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_golang.yaml"}}, "java-sdk": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": {"task_handler_bundle_name": "java-task-handlers"}, "extra": {"pod_template_file": "/opt/airflow/lang_sdk/pod_templates/lang_sdk_java.yaml", "worker_container_repository": "{{ .Values.images.airflow.repository }}", "worker_container_tag": "{{ .Values.images.airflow.tag }}"}}}'
     queue_to_coordinator: '{"golang": "go-sdk", "java": "java-sdk"}'
