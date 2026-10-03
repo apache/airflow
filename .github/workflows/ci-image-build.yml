@@ -160,6 +160,13 @@ jobs:
         run: ./scripts/ci/move_docker_to_mnt.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+      - name: "Log provisional CI environment fingerprint"
+        continue-on-error: true
+        env:
+          FINGERPRINT_PLATFORM: ${{ inputs.platform }}
+        run: >
+          breeze ci-image environment-key --python "${PYTHON_MAJOR_MINOR_VERSION}"
+          --platform "${FINGERPRINT_PLATFORM}"
       # A ref is not a commit: a branch documented twice moves between the two publishes, and
       # an image built before it moved is a cache, not an answer. The commit each stashed image
       # is saved with tells the two apart, and it is stashed separately so that deciding costs

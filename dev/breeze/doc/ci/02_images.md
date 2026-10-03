@@ -37,6 +37,23 @@
 
 # Airflow Docker images
 
+`breeze ci-image environment-key --python 3.12 --platform linux/amd64` prints
+a provisional SHA-256 environment fingerprint and its input manifest as JSON.
+CI logs it without changing image builds, constraints generation, or tests.
+An instrumentation failure does not prevent the existing build path from running.
+
+The versioned fingerprint includes relative paths and content digests for the
+existing seven rebuild-check files, root `uv.lock`, and every tracked
+`pyproject.toml` and `provider.yaml`, along with Python and platform. Source and
+test implementation files are excluded. Tracked manifest additions, deletions,
+and renames change the fingerprint; untracked files are excluded.
+
+This is observational: `reuse_eligible` is always false. Base-image digests and
+effective build parameters remain unresolved, so matching fingerprints do not
+authorize image or constraints reuse. The existing sources-hash label and rebuild
+decisions retain their current meaning. Future reuse requires a complete input
+contract, trusted artifacts, and validation of current source and package metadata.
+
 Airflow has two main images (build from Dockerfiles):
 
 - Production image (Dockerfile) - that can be used to build your own

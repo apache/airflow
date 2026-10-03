@@ -51,6 +51,19 @@ latest image build on CI. This might happen when for example latest patches have
 Python images or when significant changes are made in the Dockerfile. In such cases, Breeze will
 download the latest images before rebuilding because this is usually faster than rebuilding the image.
 
+Logging environment fingerprints
+................................
+
+``breeze ci-image environment-key`` prints a versioned input manifest and provisional
+SHA-256 fingerprint. It does not build images or change reuse decisions. Python,
+platform, rebuild-check files, ``uv.lock``, and tracked package/provider manifests
+are included. Base-image digests and effective build parameters remain unresolved;
+matching fingerprints cannot authorize reuse.
+
+.. image:: ./images/output_ci-image_environment-key.svg
+  :width: 100%
+  :alt: Breeze ci-image environment-key
+
 Building CI image
 .................
 

@@ -85,6 +85,7 @@ from airflow_breeze.commands.common_package_installation_options import (
 )
 from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL, UV_VERSION
 from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.utils.ci_environment_key import calculate_ci_environment_fingerprint
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
@@ -129,6 +130,14 @@ if TYPE_CHECKING:
 )
 def ci_image_group():
     pass
+
+
+@ci_image_group.command(name="environment-key")
+@option_python
+@option_platform_single
+def environment_key(python: str, platform: str):
+    """Print an observational environment fingerprint without changing image reuse."""
+    click.echo(json.dumps(calculate_ci_environment_fingerprint(AIRFLOW_ROOT_PATH, python, platform)))
 
 
 def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Output | None) -> bool:

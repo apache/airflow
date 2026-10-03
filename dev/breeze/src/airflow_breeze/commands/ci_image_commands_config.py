@@ -20,6 +20,7 @@ CI_IMAGE_TOOLS_COMMANDS: dict[str, str | list[str]] = {
     "name": "CI Image tools",
     "commands": [
         "build",
+        "environment-key",
         "pull",
         "verify",
         "save",
@@ -29,6 +30,10 @@ CI_IMAGE_TOOLS_COMMANDS: dict[str, str | list[str]] = {
     ],
 }
 CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
+    "breeze ci-image environment-key": [
+        {"name": "Environment coordinates", "options": ["--python", "--platform"]},
+        {"name": "Common options", "options": ["--help"]},
+    ],
     "breeze ci-image build": [
         {
             "name": "Basic usage",
