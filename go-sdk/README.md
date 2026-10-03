@@ -292,7 +292,9 @@ the full range of task states, and alternate XCom backends without implementing 
   queue_to_coordinator = {"golang": "go"}
   ```
 
-  `dag_bundle_name` names the Dag bundle the coordinator scans for executable bundles. Omit it to ship them in the same Dag bundle as the Python stub Dag. `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator.
+  `dag_bundle_name` names the Dag bundle the coordinator scans for executable bundles.
+  Omit it to ship them in the same Dag bundle as the Python stub Dag.
+  `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator.
 
   > [!IMPORTANT]
   > The coordinator is part of the Airflow worker, so the `[sdk]` config (and the executable bundle

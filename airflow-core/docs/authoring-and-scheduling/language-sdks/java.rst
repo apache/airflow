@@ -274,7 +274,8 @@ Configure Airflow so the parent JAR directory is a Dag bundle, the coordinator s
     }
     queue_to_coordinator = {"java": "java"}
 
-``dag_bundle_name`` names the Dag bundle that holds the JARs. You can instead omit it and ship the JARs in the same Dag bundle as ``sales_pipeline.py``.
+``dag_bundle_name`` names the Dag bundle that holds the JARs.
+You can instead omit it and ship the JARs in the same Dag bundle as ``sales_pipeline.py``.
 
 ``java`` is a user-chosen coordinator name, not a reserved value. The value assigned to the queue in
 ``queue_to_coordinator`` must match a key in ``coordinators``.
@@ -1083,10 +1084,10 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
   **Locating JARs.** JARs always live in a Dag bundle:
 
-  * Leave ``dag_bundle_name`` unset (the default) to load JARs from the **task's own** Dag bundle, pinned
-    to the version the run was created with.
-  * Set ``dag_bundle_name`` to load JARs from a separate Dag bundle. The task uses the version that bundle
-    is on when it starts, pinned for the whole task.
+  * Leave ``dag_bundle_name`` unset (the default) to load JARs from the **task's own** Dag bundle,
+    pinned to the version the run was created with.
+  * Set ``dag_bundle_name`` to load JARs from a separate Dag bundle.
+    The task uses the version that bundle is on when it starts, pinned for the whole task.
 
 .. note::
 

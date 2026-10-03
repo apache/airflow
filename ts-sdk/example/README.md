@@ -83,7 +83,8 @@ export AIRFLOW__SDK__COORDINATORS='{
 export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"typescript": "ts"}'
 ```
 
-`dag_bundle_name` names the Dag bundle that holds the bundle, here `dist/`, outside the Dags folder. Omit it to copy the bundle into the same Dag bundle as the stub Dags.
+`dag_bundle_name` names the Dag bundle that holds the bundle, here `dist/`, outside the Dags folder.
+Omit it to copy the bundle into the same Dag bundle as the stub Dags.
 
 Copy both files in `dags/` into your Airflow Dags folder.
 
