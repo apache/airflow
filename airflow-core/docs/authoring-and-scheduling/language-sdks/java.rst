@@ -581,7 +581,7 @@ Wiring the graph with ``@Builder.Deps``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For a Dag written with annotations, the graph is declared by a nested ``@Builder.Deps`` class.  The
-annotation processor generates a ``<ClassName>Deps`` interface — the *wiring view* — with one method
+annotation processor generates a ``<ClassName>Deps`` interface, the *wiring view*, with one method
 per ``@Builder.Task`` method: the injected ``Client`` and ``Context`` parameters are dropped, each
 data parameter becomes an ``Arg<T>``, and the return value becomes a ``TaskRef<T>``.  Calling a view
 method registers its task, and passing the handle one returned into another feeds the upstream's
@@ -631,7 +631,7 @@ generated view, with a no-argument ``depends()`` method:
     }
 
 Every ``@Builder.Task`` method must be called in the wiring class; a task the wiring missed fails at
-Dag-parse time.  ``lit(...)`` wires an inline constant where no upstream feeds a parameter — a bare
+Dag-parse time.  ``lit(...)`` wires an inline constant where no upstream feeds a parameter.  A bare
 ``double`` cannot be an ``Arg``, so a constant is wrapped.  A view method that takes no arguments
 returns the same handle every time, so it names one node wherever it appears; one that takes
 arguments is called once, and the wiring fails if it is called again with arguments, so hold its

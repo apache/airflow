@@ -74,7 +74,7 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
  *   method (implementing [Task]), and a static `build()` that constructs the
  *   [DagDef], lowers every explicitly-written `@Builder.Dag` attribute into a
  *   `DagDef.config` call, then runs the class's [Builder.Deps] class and
- *   verifies it registered every task — or, when the class declares none,
+ *   verifies it registered every task. When the class declares none, it
  *   registers every task with no Java-side edges.
  * - A `*Deps` wiring-view interface (only when a [Builder.Deps] class exists)
  *   whose methods mirror the task methods: injectable parameters ([Client],

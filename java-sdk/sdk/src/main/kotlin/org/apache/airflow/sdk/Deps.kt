@@ -89,9 +89,9 @@ interface Deps {
   }
 
   /**
-   * Wraps an inline constant as a task argument — `transform(extract(),
-   * lit(0.9))` — passed to the task as a constant, creating no dependency
-   * edge.
+   * Wraps an inline constant as a task argument, as in
+   * `transform(extract(), lit(0.9))`. It is passed to the task as a constant
+   * and creates no dependency edge.
    *
    * @param value Constant to bind; may be null for a nullable parameter.
    */

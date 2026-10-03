@@ -504,8 +504,9 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * Container for the annotation-based Dag-authoring API.
             | *
             | * Annotating a class with [Dag] generates a `<Class>Builder` whose static
-            | * `build()` returns the [DagDef] to add to a [Bundle], and — when the class
-            | * declares a [Deps] class — a `<Class>Deps` wiring view for it to implement.
+            | * `build()` returns the [DagDef] to add to a [Bundle]. When the class
+            | * declares a [Deps] class, it also generates a `<Class>Deps` wiring view
+            | * for that class to implement.
             | *
             | * Example:
             | *
@@ -521,9 +522,9 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * }
             | * ```
             | *
-            | * A task method's data parameters — everything other than the injected
-            | * [Client] and [Context] — receive, by position, the inputs the [Deps]
-            | * class wired. For a task the Python Dag file declares with `@task.stub`,
+            | * A task method's data parameters, meaning every parameter other than the
+            | * injected [Client] and [Context], receive by position the inputs the
+            | * [Deps] class wired. For a task the Python Dag file declares with `@task.stub`,
             | * the arguments bound at that call site take their place. Keyword
             | * arguments bind by name instead through a single [TaskInput] parameter.
             | */
