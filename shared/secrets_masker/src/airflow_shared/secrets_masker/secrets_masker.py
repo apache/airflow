@@ -711,4 +711,4 @@ class RedactedIO(TextIO):
         return self.target.write(s)
 
     def writelines(self, lines) -> None:
-        self.target.writelines(lines)
+        self.target.writelines(str(redact(line)) for line in lines)
