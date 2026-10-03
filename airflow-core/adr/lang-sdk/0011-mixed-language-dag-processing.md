@@ -83,6 +83,10 @@ The split is per registration, not per file and not per bundle.
 Comparing a stub against its handler needs two things at once: the `airflow.sdk.DAG` objects the Python file produced, and the `arg_bindings` that only appear once those Dags are
 serialized. `_parse_file` holds both, between `_serialize_dags` and the `DagFileParsingResult` it returns. That is where the handler query is issued.
 
+Steps 2 to 4 below are superseded by [ADR-0013](0013-persisted-task-handler-bindings.md) Flow 1. A stub task on a queue no coordinator serves is not checked, and the coordinator
+lists every candidate in its Dag bundle instead of locating the artifact behind each `dag_id`. Each candidate without a recorded answer is probed until a coordinator that lists it
+gets an answer (see ADR-0013 Flow 1), whatever Dag ids the stub tasks need.
+
 ```
 DagFileProcessorProcess(etl.py)                                ← manager spawns, as for any file
   └── _parse_file_entrypoint → _parse_file
@@ -208,8 +212,9 @@ There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` — a
 - The Python Dag and Lang-SDK artifact can live in different DagBundles.
 - A single Dag can have stubs targeting different queues, some Java, some Go. Each resolves to its own coordinator instance, and each stub task is checked only against the handlers
   of its own coordinator's artifacts.
-- Validating a file costs one extra process per (coordinator, artifact) pair its stubs resolve to — one for the common case of a file whose stubs all target a single runtime, and
-  none at all for a file with no stub tasks.
+- Validating a file costs, on a cold start, one extra process per candidate artifact without a recorded answer in the coordinators' Dag bundles, plus one per retry of a failed
+  probe under the next coordinator that lists it, and none in the steady state or for a file with no stub tasks. This supersedes the cost of one process per (coordinator, artifact)
+  pair the stubs resolve to; see [ADR-0013](0013-persisted-task-handler-bindings.md) Flow 1.
 - Mixed-language is Python-primary only. Lang-SDK runtimes cannot define stub operators; a native Dag cannot delegate tasks to Python.
 - No per-Dag flag, no schema migration, no new `DagModel` column, no REST/UI change.
 - Terms track Language SDK spec `1.0`. A spec rename of `TaskHandler`, or of the `register` / `serve` verbs, lands here too.

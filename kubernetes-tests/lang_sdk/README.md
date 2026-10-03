@@ -29,7 +29,9 @@ End-to-end test that one Dag mixing **Python + Go + Java** tasks runs to success
 ```
                     localstack (S3)                     scheduler (KubernetesExecutor)
    go-artifacts ─┐   ┌ dags bucket ── S3DagBundle ──► dag-processor parses lang_sdk_combined.py
-   java-artifacts┘   │                                         │ task on queue golang/java
+   java-artifacts┘   │                                and checks its stub tasks against the
+                     │                                Go binary / Java jar (staged as below)
+                     │                                         │ task on queue golang/java
                      │                                         ▼
    stub Dag ─────────┘                       reads [sdk] coordinators[key].extra.pod_template_file
                                                               │
@@ -47,6 +49,14 @@ by running `stage_artifacts.py`, which reuses the **DagBundle interface**
 `task_runner.parse`) to pull the artifact from its S3 bucket, then restores the Go binary's
 execute bit, which the S3 download drops and the coordinator requires.
 
+The dag-processor pod stages both buckets the same way (`dagProcessor.extraInitContainers`),
+because it runs the Go binary and the Java jar to check the stub tasks of `lang_sdk_combined.py`
+against the task handlers they register. A stub task without a handler fails the Dag file's import.
+The dag-processor needs a JRE for the jar, and the chart sets one image for every Airflow component,
+so `setup-lang-sdk-test` runs the Airflow components on the Java worker image. The task pods keep the
+plain prod image: the setup pins `[kubernetes_executor] worker_container_repository` and
+`worker_container_tag` to it, so the `java` queue still shows its coordinator's own image.
+
 ## Components
 
 | Path | Role |
@@ -58,7 +68,7 @@ execute bit, which the S3 download drops and the coordinator requires.
 | `pod_templates/lang_sdk_golang.yaml` | `golang` queue worker pod: prod image + go-artifacts init container. |
 | `pod_templates/lang_sdk_java.yaml` | `java` queue worker pod: JVM image + java-artifacts init container. |
 | `manifests/localstack.yaml` | In-cluster S3 (localstack). |
-| `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, stub-Dag S3 bundle, artifact Dag bundles, AWS conn, scheduler pod-template mount. |
+| `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, stub-Dag S3 bundle, artifact Dag bundles, dag-processor artifact init containers, AWS conn, scheduler pod-template mount. |
 
 The Go binary, Java jar, and stub Dag share one object store (localstack) but live in
 **separate buckets** (`go-artifacts`, `java-artifacts`, `dags`).
@@ -114,7 +124,8 @@ breeze k8s deploy-airflow --executor KubernetesExecutor
 
 # 2. Provision the lang-SDK test: build the Go bundle + Java jar (in Docker),
 #    build + load the Java worker image (prod + JRE for the JavaCoordinator),
-#    deploy localstack, upload artifacts + stub Dag, render config, helm upgrade.
+#    deploy localstack, upload artifacts + stub Dag, render config, helm upgrade
+#    with the Airflow components on the Java worker image.
 breeze k8s setup-lang-sdk-test
 
 # 3. Run the test by name (the shared harness triggers a fresh Dag run). The test is gated on

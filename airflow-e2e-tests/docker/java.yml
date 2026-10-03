@@ -17,15 +17,24 @@
 
 # Docker Compose override for java_sdk E2E test mode.
 #
-# Replaces the stock airflow-worker image with one that has a JRE installed
-# (built by conftest._setup_java_sdk_integration via Dockerfile.java), mounts
-# the pre-built bundle JARs (the Java example under /opt/airflow/java-jars, the
-# Scala Spark example under /opt/airflow/scala-jars, and the runner-behaviour
-# test fixtures under /opt/airflow/java-test-jars), and configures the worker to
-# consume the "java", "scala", and "java-test" Celery queues where @task.stub
-# tasks are routed.
+# Replaces the stock airflow-worker and airflow-dag-processor image with one
+# that has a JRE installed (built by conftest._setup_java_sdk_integration via
+# Dockerfile.java), mounts the pre-built bundle JARs on both (the Java example
+# under /opt/airflow/java-jars, the Scala Spark example under
+# /opt/airflow/scala-jars, and the runner-behaviour test fixtures under
+# /opt/airflow/java-test-jars), and configures the worker to consume the "java",
+# "scala", and "java-test" Celery queues where @task.stub tasks are routed. The
+# Dag processor runs the JARs to check the stub tasks of the Python Dags against
+# the task handlers they register.
 ---
 services:
+  airflow-dag-processor:
+    image: airflow-java-worker
+    volumes:
+      - ./java-jars:/opt/airflow/java-jars:ro
+      - ./scala-jars:/opt/airflow/scala-jars:ro
+      - ./java-test-jars:/opt/airflow/java-test-jars:ro
+
   airflow-worker:
     image: airflow-java-worker
     volumes:

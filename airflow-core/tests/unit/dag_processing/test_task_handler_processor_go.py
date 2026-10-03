@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Pack the Go SDK example bundle, probe it for its task handlers, and read its cache digest."""
+"""Pack the Go SDK example bundle, probe it for its task handlers, check the example Dags against it, and read its cache digest."""
 
 from __future__ import annotations
 
@@ -36,6 +36,13 @@ from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
+from unit.dag_processing.fake_task_handler_runtime import (
+    LOCAL_BUNDLE,
+    get_stub_task_ids,
+    parse_dag_file,
+    sort_bindings,
+    task_handler_config,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -155,6 +162,56 @@ def test_probes_the_task_handlers_of_a_packed_go_bundle(go_bundle):
             TaskHandlerParam(name="Count", value_schema=INT64),
         ],
     )
+
+
+def test_the_example_dags_match_the_packed_bundle(go_bundle, cap_structlog):
+    dag_file = GO_SDK_PATH / "dags" / "go_examples.py"
+    coordinators = {
+        "go-sdk": {
+            "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+            "kwargs": {"task_handler_bundle_name": "go-task-handlers"},
+        }
+    }
+    bundles = [
+        {"name": "dags", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(dag_file.parent)}},
+        {
+            "name": "go-task-handlers",
+            "classpath": LOCAL_BUNDLE,
+            "kwargs": {"path": os.fspath(go_bundle.parent)},
+        },
+    ]
+
+    with task_handler_config(
+        dag_file.parent,
+        go_bundle.parent,
+        coordinators,
+        queue_to_coordinator={"golang": "go-sdk"},
+        bundles=bundles,
+    ):
+        first = parse_dag_file(dag_file)
+        second = parse_dag_file(dag_file, known_artifacts=first.probed_artifacts)
+
+    assert first.import_errors == {}
+    assert {(b.dag_id, b.task_id) for b in first.task_handler_bindings} == get_stub_task_ids(first)
+    assert [a.relative_fileloc for a in first.probed_artifacts] == [go_bundle.name]
+    # The Dag passes via_struct_more_args an argument its struct does not declare, and
+    # via_struct_fewer_args's struct declares one the Dag does not pass: warnings, not errors.
+    assert {
+        "event": "Dag's call passed argument(s) the task handler does not declare",
+        "dag_id": "taskflow_binding_dag",
+        "task_id": "via_struct_more_args",
+        "passed_not_declared": ["unused_label"],
+    } in cap_structlog
+    assert {
+        "event": "Task handler declares argument(s) the Dag's call did not pass",
+        "dag_id": "taskflow_binding_dag",
+        "task_id": "via_struct_fewer_args",
+        "declared_not_passed": ["not_in_dag"],
+    } in cap_structlog
+
+    assert second.import_errors == {}
+    assert second.probed_artifacts == []
+    assert sort_bindings(second) == sort_bindings(first)
 
 
 def test_a_repack_keeps_the_cache_digest_until_a_source_byte_changes(go_bundle, tmp_path):

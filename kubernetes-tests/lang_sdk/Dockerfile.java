@@ -19,7 +19,10 @@
 # JRE so the JavaCoordinator can exec `java`. The Go queue runs on the plain
 # prod image (a Go bundle is a self-contained static binary), so keeping this a
 # separate image demonstrates routing each coordinator's queue to its own
-# pod_template_file with a queue-specific base image.
+# pod_template_file with a queue-specific base image. The Airflow components
+# run on this image too, because the Dag processor runs the Java jar to check
+# the stub Dag's tasks, but the task pods of the other queues keep the plain
+# prod image.
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 

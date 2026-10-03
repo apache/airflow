@@ -693,6 +693,19 @@ class DagBundlesManager(LoggingMixin):
             name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
         )
 
+    def get_bundle_team_name(self, name: str) -> str | None:
+        """
+        Return the team that owns the Dag bundle *name*, or ``None`` when it is not team scoped.
+
+        An empty team name is no team.
+
+        :raises ValueError: when *name* is not a configured Dag bundle.
+        """
+        cfg_bundle = self._bundle_config.get(name)
+        if not cfg_bundle:
+            raise ValueError(f"Requested bundle '{name}' is not configured.")
+        return cfg_bundle.team_name or None
+
     @classmethod
     def is_bundle_configured(cls, name: str) -> bool:
         """

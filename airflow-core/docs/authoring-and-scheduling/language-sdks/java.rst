@@ -473,10 +473,13 @@ so renaming one in an IDE never rebinds an input.
 A primitive parameter cannot hold ``null``, so the task fails with ``MissingXComException`` when its
 binding resolves to nothing; declare a boxed type (``Long``, ``Double``, …) to receive ``null``
 instead.  The method must declare as many data parameters as the call site bound: positions carry
-the whole meaning of a flat binding, so any other count has already shifted them, and the task fails
-rather than running on arguments it has mistaken for others.  A parameter the Python call omitted
-does not count towards that.  Its default still arrives, but a method that does not declare it is
-not reading shifted arguments, so the SDK drops it before comparing the two counts.
+the whole meaning of a flat binding, so any other count has already shifted them.  The Dag processor
+reports it as an import error of the Python Dag file (see :ref:`language-sdks/dag-processor-checks`),
+and a task that runs anyway fails rather than running on arguments it has mistaken for others.  A
+parameter the Python call omitted does not count towards that when the counts differ.  Its default
+still arrives, but a method that declares none of the omitted parameters is not reading shifted
+arguments, so they are all dropped and the counts are compared again.  A method that declares only
+some of them still fails.
 
 Generic parameters are decoded element by element.  Declare ``List<Double>`` and ``values.get(0)``
 really is a ``Double``, even though the call site passed whole numbers and the wire carries them as

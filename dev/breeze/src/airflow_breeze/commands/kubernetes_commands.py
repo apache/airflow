@@ -2502,7 +2502,8 @@ LANG_SDK_GRADLE_CACHE_PATH = AIRFLOW_ROOT_PATH / "files" / "gradle"
 # The Java queue needs a JRE the JavaCoordinator can exec; the Go queue runs on
 # the plain prod image. Building the Java worker image as a separate tag (prod +
 # JRE, see Dockerfile.java) lets each coordinator route its queue to a distinct
-# pod_template_file base image.
+# pod_template_file base image. The Airflow components run on it too, because the
+# Dag processor runs the jar, while the task pods keep the plain prod image.
 LANG_SDK_JAVA_WORKER_IMAGE = "lang-sdk-java-worker:latest"
 LANG_SDK_JAVA_DOCKERFILE = LANG_SDK_PATH / "Dockerfile.java"
 LANG_SDK_AWS_CONN_URI = (
@@ -2983,9 +2984,27 @@ def _lang_sdk_build_java_worker_image(
     return LANG_SDK_JAVA_WORKER_IMAGE
 
 
-def _lang_sdk_deploy_airflow(python: str, kubernetes_version: str, output: Output | None) -> None:
+def _split_image_reference(image: str) -> tuple[str, str]:
+    """Split *image* into its repository and tag, ``latest`` when it names none."""
+    repository, separator, tag = image.rpartition(":")
+    if not separator or "/" in tag:
+        return image, "latest"
+    return repository, tag
+
+
+def _lang_sdk_deploy_airflow(
+    python: str, kubernetes_version: str, java_image: str, output: Output | None
+) -> None:
+    """Upgrade the Helm release with the lang-SDK values, the Airflow components running on *java_image*.
+
+    The Dag processor runs the Go binary and the Java jar to check the stub Dag's tasks, so it needs
+    the JRE of the Java worker image, and the chart sets one image for all Airflow components. The chart
+    also takes the task pods' default image from it, so that is set back to the plain prod image: the
+    Go and Python tasks run on it, and the Java queue shows its coordinator's own image.
+    """
     params = BuildProdParams(python=python)
     image = params.airflow_image_kubernetes
+    java_repository, java_tag = _split_image_reference(java_image)
     get_console(output=output).print("[info]Upgrading airflow Helm release with lang-SDK values")
     run_command_with_k8s_env(
         [
@@ -3008,6 +3027,14 @@ def _lang_sdk_deploy_airflow(python: str, kubernetes_version: str, output: Outpu
             f"defaultAirflowRepository={image}",
             "--set",
             "defaultAirflowTag=latest",
+            "--set",
+            f"images.airflow.repository={java_repository}",
+            "--set",
+            f"images.airflow.tag={java_tag}",
+            "--set",
+            f"config.kubernetes_executor.worker_container_repository={image}",
+            "--set",
+            "config.kubernetes_executor.worker_container_tag=latest",
             "-f",
             str(LANG_SDK_PATH / "config" / "values.yaml"),
             "--timeout",
@@ -3108,7 +3135,7 @@ def _setup_lang_sdk_test(
         _run_lang_sdk_parallel(steps, output=output)
         _lang_sdk_upload_artifacts(staging, python, kubernetes_version, output)
     _lang_sdk_apply_configmaps_and_secret(python, kubernetes_version, go_image, java_image, output)
-    _lang_sdk_deploy_airflow(python, kubernetes_version, output)
+    _lang_sdk_deploy_airflow(python, kubernetes_version, java_image, output)
 
 
 @kubernetes_group.command(
@@ -3123,12 +3150,15 @@ def _setup_lang_sdk_test(
 @option_kubernetes_version
 @click.option(
     "--go-image",
-    help="Image for the Go (ExecutableCoordinator) worker pod. Defaults to the k8s image.",
+    help="Image for the Go (ExecutableCoordinator) worker pod. Defaults to the k8s image. "
+    "Without --java-image, it is also the base of the built Java image.",
 )
 @click.option(
     "--java-image",
-    help="Image for the Java (JavaCoordinator) worker pod. Must include a JRE. Defaults to building "
-    "the prod image plus a headless JRE (Dockerfile.java) and loading it into the kind cluster.",
+    help="Image every Airflow component runs on, and the Java (JavaCoordinator) worker pod's init "
+    "container. Must be a full Airflow image of the deployed version with a JRE, already loaded into "
+    "the kind cluster. Defaults to building the prod image plus a headless JRE (Dockerfile.java) and "
+    "loading it into the kind cluster.",
 )
 @option_verbose
 @option_dry_run

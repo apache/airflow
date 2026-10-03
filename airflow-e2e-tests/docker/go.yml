@@ -18,12 +18,22 @@
 # Docker Compose override for go_sdk E2E test mode.
 #
 # The Go bundle compiled by airflow-go-pack (conftest._setup_go_sdk_integration)
-# is a self-contained, statically linked executable, so the stock Airflow worker
-# image can exec it directly -- no extra runtime needs to be installed. We only
-# bind-mount the bundle into the directory the ExecutableCoordinator scans and
-# point the worker at the "golang" queue where @task.stub tasks are routed.
+# is a self-contained, statically linked executable, so the stock Airflow image
+# can exec it directly -- no extra runtime needs to be installed. We only
+# bind-mount the bundle into the directory the ExecutableCoordinator scans, on
+# the worker and the Dag processor, and point the worker at the "golang" queue
+# where @task.stub tasks are routed. The Dag processor runs the bundle to check
+# the stub tasks of go_examples.py against the task handlers it registers.
 ---
 services:
+  airflow-dag-processor:
+    # As on the worker, below.
+    environment:
+      USER: airflow
+      HOME: /home/airflow
+    volumes:
+      - ./go-bundles:/opt/airflow/go-bundles:ro
+
   airflow-worker:
     # The bundle is built with CGO_ENABLED=0, so the SDK's user.Current() call at
     # init falls back to Go's pure-Go resolver, which reads $USER / $HOME and

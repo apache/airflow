@@ -145,8 +145,9 @@ the schema version the runtime understands. The runtime then answers as
 described in `Answering TaskHandlerParseRequest`_.
 
 The default raises ``NotImplementedError``, so a coordinator that does not
-implement it cannot be probed. ``ExecutableCoordinator`` implements it for
-executable bundles.
+implement it cannot be probed. Its artifacts then have no answer, and a stub
+task that no other artifact registers fails to import. ``ExecutableCoordinator``
+implements it for executable bundles.
 
 SubprocessCoordinator: implementing ``_read_task_handler_candidate``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -174,10 +175,13 @@ digest longer than 128 characters counts as none, so the artifact is then asked
 on every parse.
 
 Set ``error`` on an artifact of yours that cannot be asked, for example a file
-that is not executable. The Dag processor reports it and does not run it.
+that is not executable. The Dag processor logs it and does not run it, and names
+it in the import error of a stub task that finds no task handler.
 
 The default raises ``NotImplementedError``, so a coordinator that does not
-implement it cannot be probed.
+implement it cannot be probed. The Dag processor then reports the stub tasks
+routed to the coordinator as an import error of their Dag file, since they
+cannot be bound to an artifact.
 
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~

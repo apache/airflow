@@ -20,12 +20,14 @@ import contextlib
 import importlib
 import logging
 import os
+import time
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal
 
 import attrs
+import psutil
 from pydantic import BaseModel, Field, TypeAdapter
 
 from airflow._shared.observability.metrics import stats
@@ -39,6 +41,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time import supervisor
@@ -88,6 +91,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+    from airflow.dag_processing.task_handler_resolution import TaskHandlerResolution
     from airflow.sdk.api.client import Client
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.context import Context
@@ -354,14 +358,24 @@ def _parse_file_entrypoint():
     task_runner.SUPERVISOR_COMMS = comms_decoder
     log = structlog.get_logger(logger_name="task")
 
-    result = _parse_file(msg, log)
+    result = _parse_file(msg, log, started=_get_process_start())
 
     if result is not None:
         comms_decoder.send(result)
 
 
-def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
+def _parse_file(
+    msg: DagFileParseRequest, log: FilteringBoundLogger, *, started: float | None = None
+) -> DagFileParsingResult | None:
+    """
+    Parse the Dag file of *msg* and return the result to send, or ``None`` for a callback request.
+
+    *started* is when the parse began, a :func:`time.monotonic` value that the check of the stub tasks counts
+    its time budget from. It defaults to the call of this function.
+    """
     # TODO: Set known_pool names on DagBag!
+    if started is None:
+        started = time.monotonic()
 
     stability_check_result = check_dag_file_stability(os.fspath(msg.file))
 
@@ -392,6 +406,8 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
+    task_handlers = _resolve_task_handlers(msg, bag, serialized_dags, log, started=started)
+    _add_import_errors(bag.import_errors, task_handlers.import_errors)
     result = DagFileParsingResult(
         fileloc=msg.file,
         serialized_dags=serialized_dags,
@@ -405,8 +421,91 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         ],
         parsed_definitions=bag.parsed_definitions,
         dag_source_codes=bag.dag_source_codes,
+        task_handler_bindings=task_handlers.bindings,
+        probed_artifacts=task_handlers.probed_artifacts,
     )
     return result
+
+
+def _get_process_start() -> float:
+    """
+    Return when this process was created, as a :func:`time.monotonic` value.
+
+    The manager counts ``[dag_processor] dag_file_processor_timeout`` from the creation of the Dag-parsing
+    child, so the start-up of an interpreter that is exec'd counts too. An age that is negative or larger than
+    the timeout means the clocks disagree, and the process is counted from now, as it is when its creation
+    time cannot be read. On Linux psutil computes the creation time from the boot time in whole seconds,
+    so the age can be up to about 1 s too high, which only makes the deadline earlier.
+    """
+    now = time.monotonic()
+    try:
+        age = time.time() - psutil.Process().create_time()
+    except (psutil.Error, OSError):
+        return now
+    if not 0 <= age <= conf.getfloat("dag_processor", "dag_file_processor_timeout"):
+        return now
+    return now - age
+
+
+def _resolve_task_handlers(
+    msg: DagFileParseRequest,
+    bag: DagBag,
+    serialized_dags: list[LazyDeserializedDAG],
+    log: FilteringBoundLogger,
+    *,
+    started: float,
+) -> TaskHandlerResolution:
+    """
+    Check the stub tasks of the serialized Dags whose queues ``[sdk] queue_to_coordinator`` routes.
+
+    Nothing is checked without that option, and a stub task on another queue is left to a worker outside
+    Airflow's coordinators. The check ends by 90% of ``[dag_processor] dag_file_processor_timeout`` from
+    *started*, so the result is sent before the manager kills this process. An unexpected error is an
+    import error of each Dag file with a checked stub task, so the serialized Dags are still sent.
+    """
+    # Imported here: the probe imports this module, and a Dag file without stub tasks needs neither.
+    from airflow.dag_processing.task_handler_resolution import TaskHandlerResolution, resolve_task_handlers
+    from airflow.dag_processing.task_handler_validation import collect_stub_tasks
+
+    try:
+        queue_to_coordinator = conf.getjson("sdk", "queue_to_coordinator", fallback={})
+    except AirflowConfigException:
+        queue_to_coordinator = None
+    else:
+        if not queue_to_coordinator:
+            return TaskHandlerResolution(bindings=None, probed_artifacts=[], import_errors={})
+    # An invalid option does not filter here: resolving the stub tasks reports it.
+    routed_queues = queue_to_coordinator if isinstance(queue_to_coordinator, dict) else None
+    stub_tasks = [
+        stub
+        for stub in collect_stub_tasks(bag.dags.values(), serialized_dags)
+        if routed_queues is None or stub.queue in routed_queues
+    ]
+    if not stub_tasks:
+        return TaskHandlerResolution(bindings=[], probed_artifacts=[], import_errors={})
+    try:
+        return resolve_task_handlers(
+            stub_tasks,
+            dag_bundle_name=msg.bundle_name,
+            dag_bundle_path=msg.bundle_path,
+            known_artifacts=msg.known_artifacts,
+            deadline=started + 0.9 * conf.getfloat("dag_processor", "dag_file_processor_timeout"),
+            log=log,
+        )
+    except Exception as e:
+        log.exception("Failed to check the stub tasks against their task handlers", file=msg.file)
+        return TaskHandlerResolution.failed(
+            stub_tasks, f"Unexpected error while checking the stub tasks: {type(e).__name__}: {e}"
+        )
+
+
+def _add_import_errors(import_errors: dict[str, str], new_import_errors: dict[str, str]) -> None:
+    """Add *new_import_errors* to *import_errors*, after a blank line in a file that already has one."""
+    for fileloc, message in new_import_errors.items():
+        if existing := import_errors.get(fileloc):
+            import_errors[fileloc] = f"{existing.rstrip()}\n\n{message}"
+        else:
+            import_errors[fileloc] = message
 
 
 def _serialize_dags(

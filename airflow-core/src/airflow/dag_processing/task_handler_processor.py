@@ -102,6 +102,15 @@ class LangSDKRuntimeStartFailed(BaseModel):
     type: Literal["LangSDKRuntimeStartFailed"] = "LangSDKRuntimeStartFailed"
 
 
+class TaskHandlerProbeStopped(TaskHandlerParsingResult):
+    """
+    The result of a probe that the caller's deadline stopped before its runtime answered.
+
+    Its import error says so. A runtime that failed on its own, or answered before the deadline, gives a
+    plain :class:`TaskHandlerParsingResult`.
+    """
+
+
 def _get_import_timeout(path: str) -> float | None:
     """Return the ``get_dagbag_import_timeout`` policy's timeout for *path*; ``None`` means none."""
     timeout = settings.get_dagbag_import_timeout(path)
@@ -287,12 +296,16 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
         bundle_name: str,
         artifact_rel_path: str,
         logger: FilteringBoundLogger,
+        deadline: float | None = None,
     ) -> TaskHandlerParsingResult:
         """
         Probe the artifact at *path* as :meth:`start` does, and wait for the result.
 
         The artifact's ``get_dagbag_import_timeout`` bounds the probe, and
-        ``[dag_processor] dag_file_processor_timeout`` until the parse child resolves it.
+        ``[dag_processor] dag_file_processor_timeout`` until the parse child resolves it. A
+        *deadline*, a :func:`time.monotonic` value, bounds it too: a probe still running then is
+        killed, and its result is a :class:`TaskHandlerProbeStopped` import error, unless the runtime
+        had already answered.
         """
         return cls._run_to_completion(
             coordinator=coordinator,
@@ -301,17 +314,19 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
             bundle_name=bundle_name,
             artifact_rel_path=artifact_rel_path,
             logger=logger,
+            deadline=deadline,
         )
 
     @classmethod
     def _run_to_completion(
-        cls, *, logger: FilteringBoundLogger, **start_kwargs: Any
+        cls, *, logger: FilteringBoundLogger, deadline: float | None = None, **start_kwargs: Any
     ) -> TaskHandlerParsingResult:
         """
         Probe outside a caller's selector loop and wait for the result.
 
         The import timeout the parse child reports bounds the probe, and
-        ``[dag_processor] dag_file_processor_timeout`` until it is reported.
+        ``[dag_processor] dag_file_processor_timeout`` until it is reported. *deadline* bounds it
+        either way.
         """
         processor_timeout = conf.getfloat("dag_processor", "dag_file_processor_timeout")
         with selectors.DefaultSelector() as selector:
@@ -319,10 +334,14 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
             try:
                 while not proc.is_ready:
                     # is_ready applies the import timeout once the parse child has reported it.
-                    if (
-                        not proc._schema_version_reported
-                        and time.monotonic() - proc.start_time > processor_timeout
-                    ):
+                    now = time.monotonic()
+                    if deadline is not None and now >= deadline:
+                        proc._stop(
+                            f"The Lang-SDK runtime did not parse {proc._parse_request.file} by its deadline",
+                            at_deadline=True,
+                        )
+                        break
+                    if not proc._schema_version_reported and now - proc.start_time > processor_timeout:
                         proc._time_out(processor_timeout)
                         break
                     proc._service_subprocess(max_wait_time=0.1)
@@ -449,8 +468,9 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
             ),
         )
 
-    def _set_import_error(self, message: str) -> None:
-        self.parsing_result = TaskHandlerParsingResult(
+    def _set_import_error(self, message: str, *, at_deadline: bool = False) -> None:
+        result_type = TaskHandlerProbeStopped if at_deadline else TaskHandlerParsingResult
+        self.parsing_result = result_type(
             fileloc=self._parse_request.file,
             task_handlers={},
             import_errors={self.dag_file_rel_path: message},
@@ -566,10 +586,12 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
         return True
 
     def _time_out(self, timeout: float) -> None:
+        self._stop(f"The Lang-SDK runtime did not parse {self._parse_request.file} within {timeout}s")
+
+    def _stop(self, error: str, *, at_deadline: bool = False) -> None:
+        """Kill the runtime; *error* is the import error unless a parse result was already received."""
         if self.parsing_result is None:
-            self._set_import_error(
-                f"The Lang-SDK runtime did not parse {self._parse_request.file} within {timeout}s"
-            )
+            self._set_import_error(error, at_deadline=at_deadline)
         self._kill_runtime()
 
     def _check_subprocess_exit(

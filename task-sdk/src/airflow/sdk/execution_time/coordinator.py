@@ -362,6 +362,14 @@ class CoordinatorManager:
         log.debug("Coordinator found for queue", coordinator=coordinator, queue=queue)
         return coordinator
 
+    def get_coordinator_key(self, queue: str) -> str | None:
+        """
+        Return the key of the coordinator *queue* routes to, or ``None`` when it routes to none.
+
+        No coordinator is built.
+        """
+        return self._queue_to_coordinator.get(queue)
+
     def get_coordinator(self, key: str) -> BaseCoordinator:
         """
         Return the coordinator configured under *key* in ``[sdk] coordinators``, building it on first use.

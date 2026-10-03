@@ -21,24 +21,31 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import socket
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import attrs
+import structlog
 from pydantic import TypeAdapter
 
 from airflow.dag_processing.processor import (
+    DagFileParseRequest,
+    DagFileParsingResult,
+    TaskHandlerArtifact,
+    TaskHandlerBinding,
     TaskHandlerParseRequest,
     TaskHandlerParsingResult,
     ToManager,
     ToSDKTaskHandlerProcessor,
+    _parse_file,
 )
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import CommsDecoder
-from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
+from airflow.sdk.execution_time.coordinator import TaskHandlerCandidate, reset_coordinator_manager
 
 from tests_common.test_utils.config import conf_vars
 
@@ -49,10 +56,11 @@ if TYPE_CHECKING:
 @attrs.define(kw_only=True)
 class FakeCoordinator(SubprocessCoordinator):
     """
-    The artifact's JSON names the command that parses it.
+    The JSON of an ``*.artifact`` file names the command that parses it.
 
     ``argv`` is the command, ``schema_version`` its schema version, and ``command_error`` an error to
-    raise instead.
+    raise instead. The listing reads the stored ``cache_digest``, and ``listing_error`` as why the
+    artifact cannot be probed. ``task_handlers`` is the answer :func:`reply_with_task_handlers` sends.
     """
 
     def _build_parse_task_handler_command(self, *, path: Path) -> tuple[list[str], str | None]:
@@ -60,6 +68,18 @@ class FakeCoordinator(SubprocessCoordinator):
         if error := spec.get("command_error"):
             raise FileNotFoundError(error)
         return spec.get("argv", ["/bin/false"]), spec.get("schema_version")
+
+    def _read_task_handler_candidate(self, path: Path, *, rel_path: str) -> TaskHandlerCandidate | None:
+        if path.suffix != ".artifact":
+            return None
+        content = path.read_bytes()
+        spec = json.loads(content)
+        return TaskHandlerCandidate(
+            rel_path=rel_path,
+            size_bytes=len(content),
+            cache_digest=spec.get("cache_digest"),
+            error=spec.get("listing_error"),
+        )
 
 
 @contextlib.contextmanager
@@ -81,9 +101,96 @@ def fake_coordinator(**kwargs: Any) -> Iterator[None]:
         reset_coordinator_manager()
 
 
+FAKE_COORDINATOR = f"{__name__}.FakeCoordinator"
+LOCAL_BUNDLE = "airflow.dag_processing.bundles.local.LocalDagBundle"
+
+
+@contextlib.contextmanager
+def task_handler_config(
+    dag_bundle: Path,
+    artifacts: Path,
+    coordinators: dict[str, Any] | None = None,
+    *,
+    queue_to_coordinator: dict[str, str] | None = None,
+    bundles: list[dict[str, Any]] | None = None,
+    multi_team: bool = False,
+) -> Iterator[None]:
+    """
+    Route the queue ``fake-queue`` to a ``FakeCoordinator`` reading the ``task-handlers`` Dag bundle.
+
+    By default *dag_bundle* is the Dag bundle ``dags`` and *artifacts* is ``task-handlers``; the other
+    arguments replace those parts of the configuration. Coordinators are fresh inside and after the block.
+    """
+    if coordinators is None:
+        coordinators = {
+            "fake": {"classpath": FAKE_COORDINATOR, "kwargs": {"task_handler_bundle_name": "task-handlers"}}
+        }
+    if bundles is None:
+        bundles = [
+            {"name": "dags", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(dag_bundle)}},
+            {"name": "task-handlers", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(artifacts)}},
+        ]
+    reset_coordinator_manager()
+    try:
+        with conf_vars(
+            {
+                ("core", "load_examples"): "False",
+                ("core", "multi_team"): str(multi_team),
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundles),
+                ("sdk", "coordinators"): json.dumps(coordinators),
+                ("sdk", "queue_to_coordinator"): json.dumps(
+                    {"fake-queue": "fake"} if queue_to_coordinator is None else queue_to_coordinator
+                ),
+            }
+        ):
+            yield
+    finally:
+        reset_coordinator_manager()
+
+
+def parse_dag_file(
+    dag_file: Path, *, known_artifacts: Sequence[TaskHandlerArtifact] = ()
+) -> DagFileParsingResult:
+    """Parse *dag_file* as the Dag processor's child does, in the Dag bundle ``dags`` at its directory."""
+    request = DagFileParseRequest(
+        file=os.fspath(dag_file),
+        bundle_path=dag_file.parent,
+        bundle_name="dags",
+        known_artifacts=list(known_artifacts),
+    )
+    result = _parse_file(request, log=structlog.get_logger())
+    assert result is not None
+    return result
+
+
+def get_stub_task_ids(result: DagFileParsingResult) -> set[tuple[str, str]]:
+    """Return the Dag and task id of every stub task in the serialized Dags of *result*."""
+    return {
+        (dag.dag_id, task["__var"]["task_id"])
+        for dag in result.serialized_dags
+        for task in dag.data["dag"]["tasks"]
+        if task["__var"].get("is_stub")
+    }
+
+
+def sort_bindings(result: DagFileParsingResult) -> list[TaskHandlerBinding]:
+    """Return the bindings of *result* by Dag and task id; a second import of a file can reorder its Dags."""
+    return sorted(result.task_handler_bindings or [], key=lambda binding: (binding.dag_id, binding.task_id))
+
+
 def write_artifact(path: Path, **spec: Any) -> Path:
     path.write_text(json.dumps(spec))
     return path
+
+
+def reply_with_task_handlers(
+    request: TaskHandlerParseRequest, comms: CommsDecoder | None
+) -> TaskHandlerParsingResult:
+    """Answer with the ``task_handlers`` of the artifact's JSON, as declarations in their wire form."""
+    spec = json.loads(Path(request.file).read_text())
+    return TaskHandlerParsingResult.model_validate(
+        {"fileloc": request.file, "task_handlers": spec.get("task_handlers", {})}
+    )
 
 
 def play_runtime(
