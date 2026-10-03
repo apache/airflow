@@ -79,6 +79,30 @@ runs:
       run: |
         echo "Checking free space!"
         df -H
+    - name: "Restore CI image snapshot ${{ inputs.platform }}:${{ inputs.python }}"
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
+      with:
+        key: "ci-image-snapshot-v1-${{ inputs.platform }}-${{ inputs.python }}"
+        path: "/mnt/"
+        only-current-branch: 'true'
+      id: restore-snapshot
+      if: inputs.image-type == 'ci' && inputs.image-stash-ref == ''
+    # Falls back to the image stash below whenever the snapshot does not fit this runner's daemon.
+    - name: "Unpack CI image snapshot ${{ inputs.platform }}:${{ inputs.python }}"
+      id: snapshot
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+      run: |
+        if ./scripts/ci/docker_data_root_snapshot.sh restore \
+            "/mnt/ci-image-snapshot-${PLATFORM//\//_}-${PYTHON}.tar.zst"; then
+          echo "restored=true" >> "${GITHUB_OUTPUT}"
+        else
+          echo "Falling back to loading the image stash"
+        fi
+      shell: bash
+      if: steps.restore-snapshot.outputs.stash-hit == 'true'
     - name: >
         Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}
         ${{ inputs.image-stash-ref != '' && format('built for ref {0}', inputs.image-stash-ref) || '' }}
@@ -90,6 +114,7 @@ runs:
         path: "/mnt/"
         only-current-branch: 'true'
         fail-on-download: 'true'
+      if: steps.snapshot.outputs.restored != 'true'
     - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
       env:
         PLATFORM: ${{ inputs.platform }}
@@ -98,3 +123,4 @@ runs:
       run: >
         breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
       shell: bash
+      if: steps.snapshot.outputs.restored != 'true'
