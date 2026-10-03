@@ -28,7 +28,8 @@ import org.apache.airflow.sdk.*;
  * from this JAR.
  *
  * <p>This is the bundle's main class, so it is the Dag source the Airflow UI shows. Every task sets
- * {@code queue}, which routes it to the {@code java-native} coordinator.
+ * {@code queue}, which {@code queue_to_coordinator} routes to the {@code java-jdk} coordinator.
+ * The {@code java-native} coordinator only parses this JAR.
  */
 public class NativeBundleBuilder {
   public static final String QUEUE = "java-native";
