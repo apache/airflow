@@ -793,7 +793,7 @@ as executor you use, similar to:
 
 .. code-block:: bash
 
-    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.11-v1.24.0:KubernetesExecutor)>
 
 
 The shell automatically activates the virtual environment that has all appropriate dependencies
@@ -802,7 +802,7 @@ be created and Airflow deployed to it before running the tests):
 
 .. code-block:: bash
 
-    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
+    (kind-airflow-python-3.11-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
     platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/kubernetes-tests/.venv/bin/python
     cachedir: .pytest_cache
@@ -814,14 +814,14 @@ be created and Airflow deployed to it before running the tests):
     test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
 
     ================================================== warnings summary ===================================================
-    kubernetes-tests/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
-      /home/jarek/code/airflow/kubernetes-tests/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
+    kubernetes-tests/.venv/lib/python3.11/site-packages/_pytest/config/__init__.py:1233
+      /home/jarek/code/airflow/kubernetes-tests/.venv/lib/python3.11/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
 
         self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
 
     -- Docs: https://docs.pytest.org/en/stable/warnings.html
     ============================================ 2 passed, 1 warning in 38.62s ============================================
-    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.11-v1.24.0:KubernetesExecutor)>
 
 
 All parameters of the command are here:
