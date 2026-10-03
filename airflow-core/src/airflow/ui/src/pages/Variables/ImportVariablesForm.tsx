@@ -32,6 +32,17 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { useImportVariables } from "src/queries/useImportVariables";
 
+type ActionIfExists = "fail" | "overwrite" | "skip";
+
+const ACTION_IF_EXISTS_VALUES = [
+  "fail",
+  "overwrite",
+  "skip",
+] as const satisfies ReadonlyArray<ActionIfExists>;
+
+const isActionIfExists = (value: string | null): value is ActionIfExists =>
+  (ACTION_IF_EXISTS_VALUES as ReadonlyArray<string | null>).includes(value);
+
 type ImportVariablesFormProps = {
   readonly onClose: () => void;
 };
@@ -60,7 +71,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
     onSuccessConfirm: onClose,
   });
 
-  const [actionIfExists, setActionIfExists] = useState<"fail" | "overwrite" | "skip">("fail");
+  const [actionIfExists, setActionIfExists] = useState<ActionIfExists>("fail");
   const [isParsing, setIsParsing] = useState(false);
   const [fileContent, setFileContent] = useState<Record<string, unknown> | undefined>(undefined);
 
@@ -168,10 +179,10 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
       <RadioCardRoot
         defaultValue="fail"
         mb={6}
-        onChange={(event) => {
-          const target = event.target as HTMLInputElement;
-
-          setActionIfExists(target.value as "fail" | "overwrite" | "skip");
+        onValueChange={(details) => {
+          if (isActionIfExists(details.value)) {
+            setActionIfExists(details.value);
+          }
         }}
       >
         <RadioCardLabel fontSize="md" mb={3}>

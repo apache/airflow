@@ -205,7 +205,7 @@ describe("CreateAssetEventModal", () => {
     });
   });
 
-  it("sends materialize partition_key as null when the trigger form leaves it undefined", () => {
+  it("sends materialize partition_key as null when the trigger form leaves it undefined", async () => {
     vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
     vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
       data: upstreamDag,
@@ -215,7 +215,7 @@ describe("CreateAssetEventModal", () => {
     render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
 
     fireEvent.click(screen.getByText("createEvent.materialize.label"));
-    fireEvent.click(screen.getByText("submit materialize"));
+    fireEvent.click(await screen.findByText("submit materialize"));
 
     expect(materializeAsset).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -224,7 +224,7 @@ describe("CreateAssetEventModal", () => {
     );
   });
 
-  it("sends the materialize partition_key from the trigger form as-is", () => {
+  it("sends the materialize partition_key from the trigger form as-is", async () => {
     vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
     vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
       data: upstreamDag,
@@ -234,7 +234,7 @@ describe("CreateAssetEventModal", () => {
     render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
 
     fireEvent.click(screen.getByText("createEvent.materialize.label"));
-    fireEvent.click(screen.getByText("submit materialize"));
+    fireEvent.click(await screen.findByText("submit materialize"));
 
     expect(materializeAsset).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -35,6 +35,9 @@ enum RunMode {
   SINGLE = "single",
 }
 
+const isRunMode = (value: string | null): value is RunMode =>
+  (Object.values(RunMode) as Array<string | null>).includes(value);
+
 type TriggerDAGModalProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
@@ -110,8 +113,10 @@ const TriggerDAGModal = ({
           {dag ? (
             <RadioCardRoot
               my={4}
-              onChange={(event) => {
-                setRunMode((event.target as HTMLInputElement).value as RunMode);
+              onValueChange={(details) => {
+                if (isRunMode(details.value)) {
+                  setRunMode(details.value);
+                }
               }}
               value={runMode}
             >
