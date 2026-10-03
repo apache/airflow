@@ -329,10 +329,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         return script_args, task_uuid
 
     def _find_job_run_id_by_task_uuid(self, task_uuid: str) -> tuple[str, str] | None:
-        # Unbounded walk with no page cap; a no-match run is the common retry shape and pays the
-        # full scan. Tracked at https://github.com/apache/airflow/issues/71489.
         next_token: str | None = None
-        while True:
+        for _ in range(100):
             request = {"JobName": self.job_name, "MaxResults": 50}
             if next_token:
                 request["NextToken"] = next_token
@@ -347,6 +345,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
             next_token = response.get("NextToken")
             if not next_token:
                 return None
+        return None
 
     def execute(self, context: Context) -> str | None:
         """
@@ -449,8 +448,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                 self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
                 if self.is_job_active(state):
                     return previous_job_run_id
-            except Exception:
-                self.log.warning("Failed to get previous Glue job run state", exc_info=True)
+            except ClientError:
+                self.log.exception("Failed to get previous Glue job run state")
         else:
             try:
                 existing = self._find_job_run_id_by_task_uuid(task_uuid)
@@ -463,8 +462,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                     )
                     if self.is_job_active(existing_job_run_state):
                         return existing_job_run_id
-            except Exception:
-                self.log.warning("Failed to find previous Glue job run by task UUID", exc_info=True)
+            except ClientError:
+                self.log.exception("Failed to find previous Glue job run by task UUID")
         return None
 
     def _has_stored_external_id(self, context: Context) -> bool:
