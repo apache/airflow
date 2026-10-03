@@ -57,6 +57,7 @@ import javax.lang.model.element.VariableElement
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
+import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
 
 /**
  * @suppress
@@ -132,7 +133,11 @@ class BuilderProcessor : AbstractProcessor() {
         runCatching {
           val packageName = elementUtils.getPackageOf(el).qualifiedName.toString()
           val declarations = collectTasks(el)
-          val builderName = ClassName.get(packageName, dagAnnotation(el).to.ifBlank { "${el.simpleName}Builder" })
+          val builderName =
+            ClassName.get(
+              packageName,
+              generatedBuilderName(packageName, el.simpleName.toString(), dagAnnotation(el).to).substringAfterLast('.'),
+            )
           val depsName = ClassName.get(packageName, "${el.simpleName}Deps")
           val deps = findDeps(el, depsName)
           if (deps != null) declarations.forEach { checkViewName(it) }

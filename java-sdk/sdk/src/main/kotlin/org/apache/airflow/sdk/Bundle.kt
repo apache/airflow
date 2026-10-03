@@ -19,7 +19,10 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.builderName
 import org.apache.airflow.sdk.internal.registrarName
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
 
 /**
  * All [DagDef]s that this JVM process can execute.
@@ -89,27 +92,31 @@ class Bundle(
   }
 
   /**
-   * Registers what an annotated class holds — the same class the annotations
-   * are on, so there is no second name to keep in sync.
+   * Registers what an annotated class holds, read from the class itself so
+   * there is no second name to keep in sync.
    *
    * A [Builder.Dag] class contributes the Dag its generated builder builds; a
    * class of [Builder.TaskHandler] methods contributes each handler, bound to
-   * the Dag the Python file owns.
+   * the Dag the Python file owns. A class can carry both.
    *
    * @param annotated A class carrying [Builder.Dag] or [Builder.TaskHandler].
    * @return This bundle, for chaining.
    * @throws IllegalArgumentException if the class has no generated code,
-   *    because annotation processing did not run over it.
+   *    because annotation processing did not run over it, or if the Dag's
+   *    wiring is invalid, such as a task the `@Builder.Deps` class did not
+   *    call.
    */
   fun register(annotated: Class<*>): Bundle {
     checkOpen()
-    annotated.getAnnotation(Builder.Dag::class.java)?.let { dag ->
-      val builderName = dag.to.ifBlank { "${annotated.simpleName}Builder" }
-      val builder = generated("${annotated.packageName}.$builderName", annotated, "builder")
-      return register(builder.getMethod("build").invoke(null) as DagDef)
+    val dag = annotated.getAnnotation(Builder.Dag::class.java)
+    if (dag != null) {
+      val builder = generated(builderName(annotated.packageName, annotated.simpleName, dag.to), annotated, "builder")
+      register(invokeGenerated(builder.getMethod("build")) as DagDef)
     }
-    val registrar = generated(registrarName(annotated.name), annotated, "registrar")
-    registrar.getMethod("registerInto", Bundle::class.java).invoke(null, this)
+    if (dag == null || annotated.declaredMethods.any { it.isAnnotationPresent(Builder.TaskHandler::class.java) }) {
+      val registrar = generated(registrarName(annotated.name), annotated, "registrar")
+      invokeGenerated(registrar.getMethod("registerInto", Bundle::class.java), this)
+    }
     return this
   }
 
@@ -161,6 +168,16 @@ class Bundle(
           "@Builder.TaskHandler, and is airflow-sdk-processor on the annotationProcessor path?",
         e,
       )
+    }
+
+  private fun invokeGenerated(
+    method: Method,
+    vararg args: Any?,
+  ): Any? =
+    try {
+      method.invoke(null, *args)
+    } catch (e: InvocationTargetException) {
+      throw e.cause ?: e
     }
 
   /**

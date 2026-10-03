@@ -34,6 +34,21 @@ internal class BundleTest {
   /** A class of handlers that the processor generated [BundleTest_NestedHandlers] for. */
   class Nested
 
+  /** A Dag class that the processor generated [WiredDagBuilder] for. */
+  @Builder.Dag(id = "wired")
+  class WiredDag
+
+  /** A Dag class whose generated [BrokenDagBuilder] fails, as an invalid wiring would. */
+  @Builder.Dag
+  class BrokenDag
+
+  /** A Dag class that also holds a task handler, so the processor generated both. */
+  @Builder.Dag(id = "mixed")
+  class MixedDag {
+    @Builder.TaskHandler(dag = "etl", task = "score")
+    fun score() = Unit
+  }
+
   @Test
   @DisplayName("Should index dags by dagId")
   fun shouldIndexDagsByDagId() {
@@ -163,6 +178,41 @@ internal class BundleTest {
   }
 
   @Test
+  @DisplayName("Should register the Dag a @Builder.Dag class's generated builder builds")
+  fun shouldRegisterDagFromBuilderClass() {
+    val bundle = Bundle().register(WiredDag::class.java)
+
+    Assertions.assertEquals(listOf("wired"), bundle.dags.keys.toList())
+    Assertions.assertEquals(emptySet<String>(), bundle.taskHandlers.keys)
+  }
+
+  @Test
+  @DisplayName("Should rethrow the failure of a generated builder rather than its reflection wrapper")
+  fun shouldUnwrapBuilderFailure() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Bundle().register(BrokenDag::class.java)
+      }
+
+    Assertions.assertEquals("wiring failed", error.message)
+  }
+
+  @Test
+  @DisplayName("Should register both the Dag and the handlers of a class that carries both")
+  fun shouldRegisterDagAndHandlersOfOneClass() {
+    val bundle = Bundle().register(MixedDag::class.java)
+
+    Assertions.assertEquals(listOf("mixed"), bundle.dags.keys.toList())
+    Assertions.assertEquals(
+      listOf("score"),
+      bundle.taskHandlers
+        .getValue("etl")
+        .tasks.keys
+        .toList(),
+    )
+  }
+
+  @Test
   @DisplayName("Should find the registrar generated for a nested handler class")
   fun shouldFindRegistrarOfNestedHandlerClass() {
     val bundle = Bundle().register(Nested::class.java)
@@ -278,6 +328,41 @@ class NoopBundleTask : Task {
     context: Context,
     client: Client,
   ) = Unit
+}
+
+/** Stands in for the builder the annotation processor generates for [BundleTest.WiredDag]. */
+class WiredDagBuilder {
+  companion object {
+    @JvmStatic
+    fun build() = DagDef("wired")
+  }
+}
+
+/** Stands in for a generated builder whose wiring is invalid. */
+class BrokenDagBuilder {
+  companion object {
+    @JvmStatic
+    fun build(): DagDef = throw IllegalArgumentException("wiring failed")
+  }
+}
+
+/** Stands in for the builder the annotation processor generates for [BundleTest.MixedDag]. */
+class MixedDagBuilder {
+  companion object {
+    @JvmStatic
+    fun build() = DagDef("mixed")
+  }
+}
+
+/** Stands in for the registrar the annotation processor generates for [BundleTest.MixedDag]. */
+@Suppress("ktlint:standard:class-naming", "ClassName")
+class BundleTest_MixedDagHandlers {
+  companion object {
+    @JvmStatic
+    fun registerInto(bundle: Bundle) {
+      bundle.register("etl", "score", NoopBundleTask::class.java)
+    }
+  }
 }
 
 /**
