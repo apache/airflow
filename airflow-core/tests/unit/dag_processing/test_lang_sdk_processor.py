@@ -544,6 +544,20 @@ def test_a_dag_source_that_cannot_be_read_is_a_placeholder():
     assert source.source_code.startswith("Cannot read the source of dag.native: [Errno 2] No such file")
 
 
+@patch.object(DagSerialization, "from_dict", autospec=True, side_effect=DagSerialization.from_dict)
+def test_a_dag_is_deserialized_once_to_validate_it_and_apply_the_team_rules(mock_from_dict):
+    proc = _make_process()
+
+    proc._handle_request(
+        DagFileParsingResult(fileloc="/b/dag.native", serialized_dags=[_serialize_dag("native_dag")]),
+        MagicMock(),
+        1,
+    )
+
+    assert proc.parsing_result.import_errors is None
+    mock_from_dict.assert_called_once()
+
+
 @patch.object(LangSDKDagFileProcessorProcess, "send_msg", autospec=True)
 def test_the_first_parse_result_wins(mock_send_msg):
     proc = _make_process()
