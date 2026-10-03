@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, ClassVar, Final
 
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators.node._bundle_reader import (
@@ -30,18 +30,21 @@ from airflow.sdk.coordinators.node._bundle_reader import (
 from airflow.sdk.importers.base import DagSourceCode
 
 if TYPE_CHECKING:
-    from airflow.sdk.coordinators.node.coordinator import NodeCoordinator
     from airflow.sdk.importers.base import DagDefinition
 
 _NO_SOURCE: Final = "// Source code is not available: the bundle embeds no entrypoint source.\n"
 
 
 class NodeDagImporter(CoordinatorDagImporter):
-    """Parse the native Dags of packed ``*.min.mjs`` TypeScript bundles with a :class:`NodeCoordinator`."""
+    """
+    Claim the native Dags of packed ``*.min.mjs`` TypeScript bundles.
 
+    A :class:`~airflow.sdk.coordinators.node.NodeCoordinator` parses them.
+    """
+
+    coordinator_classpath: ClassVar[str] = "airflow.sdk.coordinators.node.NodeCoordinator"
     artifact_suffix = BUNDLE_SUFFIX
     supported_extensions = [".mjs"]
-    coordinator: NodeCoordinator
 
     def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
         # The header identifies a packed bundle rather than guessing at content, so safe_mode keeps it.
