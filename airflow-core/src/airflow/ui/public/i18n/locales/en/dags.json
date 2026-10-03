@@ -38,12 +38,13 @@
     "show": "Show folders",
     "title": "Folders"
   },
-  "latestRunTaskStateCounts": {
-    "label": "Latest run tasks",
-    "loading": "Loading latest run task state counts",
+  "ownerLink": "Owner link for {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Status of tasks from all running Dag runs or, if none is running, from the most recent run.",
+    "label": "Recent tasks",
+    "loading": "Loading recent task state counts",
     "tooltip": "{{state}}: {{formattedCount}} — click to filter tasks"
   },
-  "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No tasks found.",

@@ -19,10 +19,7 @@
 import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import type {
-  DAGLatestRunTaskInstanceStateCountsResponse,
-  DAGWithLatestDagRunsResponse,
-} from "openapi/requests/types.gen";
+import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
 import { RouterLink, Tooltip } from "src/system-components";
 
@@ -33,32 +30,29 @@ import { TeamName } from "src/components/TeamName";
 
 import { useNearViewport } from "src/hooks/useNearViewport";
 import { useConfig } from "src/queries/useConfig";
+import type { RecentTasks } from "src/queries/useRecentTaskStateCounts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagCardActions } from "./DagCardActions";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
-import { LatestRunTaskStateCounts } from "./LatestRunTaskStateCounts";
 import { RecentRuns } from "./RecentRuns";
+import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
 import { Schedule } from "./Schedule";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
-  readonly latestRunTaskStateCounts: DAGLatestRunTaskInstanceStateCountsResponse | undefined;
-  readonly latestRunTaskStateCountsLoading: boolean;
+  readonly recentTasks: RecentTasks;
   readonly runStateCounts: Record<string, number> | undefined;
   readonly runStateCountsLoading: boolean;
-  readonly showLatestRunTaskStateCounts: boolean;
   readonly stateCountLimit: number | undefined;
 };
 
 export const DagCard = ({
   dag,
-  latestRunTaskStateCounts,
-  latestRunTaskStateCountsLoading,
+  recentTasks,
   runStateCounts,
   runStateCountsLoading,
-  showLatestRunTaskStateCounts,
   stateCountLimit,
 }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
@@ -174,14 +168,14 @@ export const DagCard = ({
             ) : undefined}
           </Box>
         </GridItem>
-        {showLatestRunTaskStateCounts ? (
+        {recentTasks.show ? (
           <GridItem alignSelf="end" gridColumn="2 / 4" gridRow={2}>
             <Box minHeight="22px">
               {isNearViewport ? (
-                <LatestRunTaskStateCounts
+                <RecentTaskStateCounts
                   dagId={dag.dag_id}
-                  entry={latestRunTaskStateCounts}
-                  isLoading={latestRunTaskStateCountsLoading}
+                  entry={recentTasks.entriesByDag[dag.dag_id]}
+                  isLoading={recentTasks.isLoading}
                 />
               ) : undefined}
             </Box>

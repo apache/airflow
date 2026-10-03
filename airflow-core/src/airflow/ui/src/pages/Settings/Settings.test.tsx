@@ -25,7 +25,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
-  DAGS_LIST_SHOW_TASK_STATE_COUNTS_KEY,
+  DAGS_LIST_SHOW_RECENT_TASKS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
@@ -54,7 +54,7 @@ beforeAll(async () => {
               title: "Clearing",
             },
             dagsList: {
-              taskStateCounts: { helper: "helper", label: "Show task state counts" },
+              recentTasks: { helper: "helper", label: "Show recent tasks" },
               title: "Dags List",
             },
             description: "browser only",
@@ -184,15 +184,15 @@ describe("task group setting", () => {
   });
 });
 
-describe("Dags list task state counts setting", () => {
+describe("Dags list recent tasks setting", () => {
   it("defaults to shown and persists turning it off", async () => {
     const { unmount } = render(<Settings />, { wrapper: BaseWrapper });
 
-    expect(screen.getByTestId("dags-list-show-task-state-counts")).toHaveAttribute("data-state", "checked");
-    fireEvent.click(screen.getByRole("checkbox", { name: "Show task state counts" }));
-    await waitFor(() => expect(localStorage.getItem(DAGS_LIST_SHOW_TASK_STATE_COUNTS_KEY)).toBe("false"));
+    expect(screen.getByTestId("dags-list-show-recent-tasks")).toHaveAttribute("data-state", "checked");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show recent tasks" }));
+    await waitFor(() => expect(localStorage.getItem(DAGS_LIST_SHOW_RECENT_TASKS_KEY)).toBe("false"));
     unmount();
     render(<Settings />, { wrapper: BaseWrapper });
-    expect(screen.getByTestId("dags-list-show-task-state-counts")).toHaveAttribute("data-state", "unchecked");
+    expect(screen.getByTestId("dags-list-show-recent-tasks")).toHaveAttribute("data-state", "unchecked");
   });
 });

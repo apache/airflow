@@ -24,7 +24,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { DagSchedulingState } from "openapi/requests/types.gen";
 
-import { DAGS_LIST_DISPLAY_KEY, DAGS_LIST_SHOW_TASK_STATE_COUNTS_KEY } from "src/constants/localStorage";
+import { DAGS_LIST_DISPLAY_KEY, DAGS_LIST_SHOW_RECENT_TASKS_KEY } from "src/constants/localStorage";
 import { handlers } from "src/mocks/handlers";
 import { failedDag, pausedDag, successDag } from "src/mocks/handlers/dags";
 import { AppWrapper } from "src/utils/AppWrapper";
@@ -325,13 +325,13 @@ describe("Dag sorting", () => {
   });
 });
 
-describe("Latest run task state counts setting", () => {
+describe("Recent tasks setting", () => {
   it.each([true, false])("fetches and shows the counts only when the setting is %s", async (show) => {
     let countsRequests = 0;
     let runStateCountsRequests = 0;
 
     server.use(
-      http.get("/ui/dags/latest_run_task_instance_state_counts", () => {
+      http.get("/ui/dags/recent_task_instance_state_counts", () => {
         countsRequests += 1;
 
         return HttpResponse.json({ dags: [] });
@@ -343,7 +343,7 @@ describe("Latest run task state counts setting", () => {
       }),
     );
     localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
-    localStorage.setItem(DAGS_LIST_SHOW_TASK_STATE_COUNTS_KEY, JSON.stringify(show));
+    localStorage.setItem(DAGS_LIST_SHOW_RECENT_TASKS_KEY, JSON.stringify(show));
     render(<AppWrapper initialEntries={["/dags"]} />);
 
     // The run state counts are requested from the same Dag list response, so once that request
@@ -352,10 +352,11 @@ describe("Latest run task state counts setting", () => {
 
     if (show) {
       await waitFor(() => expect(countsRequests).toBeGreaterThan(0));
-      expect(screen.getAllByTestId("table-cell-latest_run_task_state_counts").length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId("table-cell-recent_task_state_counts").length).toBeGreaterThan(0);
+      expect(screen.getByTestId("recent-task-state-counts-info")).toBeInTheDocument();
     } else {
       expect(countsRequests).toBe(0);
-      expect(screen.queryByTestId("table-cell-latest_run_task_state_counts")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("table-cell-recent_task_state_counts")).not.toBeInTheDocument();
     }
   });
 });

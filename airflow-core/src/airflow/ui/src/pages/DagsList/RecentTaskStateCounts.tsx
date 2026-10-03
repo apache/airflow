@@ -19,10 +19,7 @@
 import { HStack, Portal, Skeleton, Tooltip } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import type {
-  DAGLatestRunTaskInstanceStateCountsResponse,
-  TaskInstanceState,
-} from "openapi/requests/types.gen";
+import type { DAGRecentTaskInstanceStateCountsResponse, TaskInstanceState } from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
 
@@ -34,22 +31,22 @@ import { sortStateEntries } from "src/utils";
 type Props = {
   readonly compact?: boolean;
   readonly dagId: string;
-  readonly entry: DAGLatestRunTaskInstanceStateCountsResponse | undefined;
+  readonly entry: DAGRecentTaskInstanceStateCountsResponse | undefined;
   readonly isLoading: boolean;
 };
 
-export const LatestRunTaskStateCounts = ({ compact = false, dagId, entry, isLoading }: Props) => {
+export const RecentTaskStateCounts = ({ compact = false, dagId, entry, isLoading }: Props) => {
   const { t: translate } = useTranslation(["dags", "common"]);
   const gap = compact ? 0.5 : 1;
   const fontSize = compact ? "xs" : "sm";
 
   if (isLoading) {
-    // Badges are dynamic (only states present in the run), so the final count is
+    // Badges are dynamic (only states present in the runs), so the final count is
     // unknown while loading; three pills approximate a typical row without reflow.
     return (
       <HStack
-        aria-label={translate("latestRunTaskStateCounts.loading")}
-        data-testid={`latest-run-task-state-counts-loading-${dagId}`}
+        aria-label={translate("recentTaskStateCounts.loading")}
+        data-testid={`recent-task-state-counts-loading-${dagId}`}
         gap={gap}
       >
         {[1, 2, 3].map((idx) => (
@@ -66,8 +63,18 @@ export const LatestRunTaskStateCounts = ({ compact = false, dagId, entry, isLoad
   const stateEntries = sortStateEntries(entry.state_counts);
   const countByState = new Map(stateEntries);
 
+  // The task instance list can only narrow to a Dag and its runs through pattern filters
+  // (prefix matches, or substring matches with advanced search on), so another Dag whose id
+  // matches this one shows up too if it happens to have a run with the same run id.
+  const buildTaskListLink = (filterValue: string) =>
+    `/task_instances?${new URLSearchParams({
+      [SearchParamsKeys.DAG_ID_PATTERN]: dagId,
+      [SearchParamsKeys.RUN_ID_PATTERN]: entry.run_ids.join("|"),
+      [SearchParamsKeys.TASK_STATE]: filterValue,
+    }).toString()}`;
+
   const describeState = (state: string) =>
-    translate("latestRunTaskStateCounts.tooltip", {
+    translate("recentTaskStateCounts.tooltip", {
       formattedCount: `${countByState.get(state) ?? 0}`,
       state: translate(`common:states.${state}` as const),
     });
@@ -76,11 +83,7 @@ export const LatestRunTaskStateCounts = ({ compact = false, dagId, entry, isLoad
   // cards doesn't mount hundreds of tooltip state machines (same pattern as DagRunStateCounts).
   return (
     <Tooltip.Root>
-      <HStack
-        data-testid={`latest-run-task-state-counts-${dagId}`}
-        gap={gap}
-        wrap={compact ? "nowrap" : "wrap"}
-      >
+      <HStack data-testid={`recent-task-state-counts-${dagId}`} gap={gap} wrap={compact ? "nowrap" : "wrap"}>
         {stateEntries.map(([state, count]) => {
           // Task instances without a state are keyed "no_status"; the task list
           // filters them with the "none" value and StateBadge renders them as null.
@@ -90,8 +93,8 @@ export const LatestRunTaskStateCounts = ({ compact = false, dagId, entry, isLoad
             <Tooltip.Trigger asChild key={state} value={state}>
               <RouterLink
                 aria-label={describeState(state)}
-                data-testid={`latest-run-task-state-count-${state}-${dagId}`}
-                to={`/dags/${dagId}/runs/${entry.run_id}?${SearchParamsKeys.TASK_STATE}=${filterValue}`}
+                data-testid={`recent-task-state-count-${state}-${dagId}`}
+                to={buildTaskListLink(filterValue)}
               >
                 <StateBadge
                   fontSize={fontSize}

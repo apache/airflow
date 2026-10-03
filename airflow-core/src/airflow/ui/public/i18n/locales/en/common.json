@@ -291,9 +291,9 @@
       "title": "Clearing"
     },
     "dagsList": {
-      "taskStateCounts": {
-        "helper": "Show task state counts for each Dag on the Dags list. Turn off to skip loading them, which can help on deployments with many Dags.",
-        "label": "Show task state counts"
+      "recentTasks": {
+        "helper": "Show the recent task states of each Dag on the Dags list. Turn off to skip loading them, which can help on deployments with many Dags.",
+        "label": "Show recent tasks"
       },
       "title": "Dags List"
     },

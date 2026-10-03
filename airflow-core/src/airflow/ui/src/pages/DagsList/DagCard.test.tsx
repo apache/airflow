@@ -92,7 +92,7 @@ type CardContentMode = "fallback" | "hydrated" | "pending";
 const renderCard = (
   dag: DAGWithLatestDagRunsResponse,
   contentMode: CardContentMode = "hydrated",
-  showLatestRunTaskStateCounts = true,
+  showRecentTaskStateCounts = true,
 ) => {
   dagCardObservers.length = 0;
 
@@ -105,11 +105,9 @@ const renderCard = (
   const result = render(
     <DagCard
       dag={dag}
-      latestRunTaskStateCounts={undefined}
-      latestRunTaskStateCountsLoading
+      recentTasks={{ entriesByDag: {}, isLoading: true, show: showRecentTaskStateCounts }}
       runStateCounts={undefined}
       runStateCountsLoading
-      showLatestRunTaskStateCounts={showLatestRunTaskStateCounts}
       stateCountLimit={undefined}
     />,
     {
@@ -444,10 +442,10 @@ describe("DagCard", () => {
     expect(stateBadge).toHaveAttribute("aria-label", "failed");
   });
 
-  it.each([true, false])("shows latest run task state counts only when the setting is %s", (show) => {
+  it.each([true, false])("shows recent tasks only when the setting is %s", (show) => {
     renderCard(mockDag, "hydrated", show);
 
-    const counts = screen.queryByTestId(`latest-run-task-state-counts-loading-${mockDag.dag_id}`);
+    const counts = screen.queryByTestId(`recent-task-state-counts-loading-${mockDag.dag_id}`);
 
     if (show) {
       expect(counts).toBeInTheDocument();
