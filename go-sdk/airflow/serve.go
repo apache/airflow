@@ -34,18 +34,11 @@ var errCoordinatorFlagsRequired = errors.New(
 	"--comm and --logs are required for bundle execution",
 )
 
-// errFormatRequiresMetadata is returned by Serve when --format is supplied
-// without --airflow-metadata, the only mode whose encoding it selects.
-var errFormatRequiresMetadata = errors.New(
-	"--format is only valid together with --airflow-metadata",
-)
-
 // serveMode tags the protocol the binary will speak this run.
 type serveMode int
 
 const (
-	modeAirflowMetadata       serveMode = iota // --airflow-metadata: print the manifest JSON (ADR 0002/0004)
-	modeCoordinator                            // --comm/--logs: msgpack-over-IPC (ADR 0003)
+	modeCoordinator           serveMode = iota // --comm/--logs: msgpack-over-IPC (ADR 0003)
 	modeCoordinatorUsageError                  // missing coordinator flags
 )
 
@@ -54,12 +47,9 @@ const (
 // Serve closes registration: a [BundleRef.Register] call that reaches the bundle afterwards
 // panics rather than changing what the running bundle answers for.
 //
-// The command-line flags of the executable decide what Serve does.
-// With --airflow-metadata it prints the bundle's manifest and returns, which is how
-// airflow-go-pack reads the Dag and task ids of the registered task handlers.
-// With --comm and --logs, which Airflow passes, it speaks the coordinator protocol: it either
-// runs one task, or tells the Dag processor which task handlers it registers for the Dags the
-// Dag processor asks about.
+// The binary speaks only the coordinator protocol, on the --comm and --logs addresses Airflow
+// passes. It either runs one task, or tells the Dag processor which task handlers it registers
+// for the Dags the Dag processor asks about. Without both flags Serve returns an error.
 //
 // main must exit with a non-zero status when Serve returns an error, because the exit status
 // is how the supervisor learns that the task failed:
@@ -77,24 +67,12 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 	b.closed.Store(true)
 
 	// The flags go on their own FlagSet. On pflag.CommandLine, every program that imports this
-	// package would get them, and one that defines its own --format there would panic.
+	// package would get them, and one that defines its own --comm there would panic.
 	flags := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	// --help is output the caller asked for, so it goes to stdout. Anything else pflag prints,
-	// such as a deprecation warning for a flag the bundle defines, stays on stderr where it
-	// cannot land in the middle of the --airflow-metadata manifest.
+	// --help is output the caller asked for, so it goes to stdout.
 	flags.Usage = func() {
 		fmt.Fprintf(stdout, "Usage of %s:\n%s", flags.Name(), flags.FlagUsages())
 	}
-	printMetadata := flags.Bool(
-		"airflow-metadata",
-		false,
-		"print the bundle's airflow-metadata manifest and exit",
-	)
-	metadataFormat := flags.String(
-		"format",
-		string(execution.MetadataFormatYAML),
-		"encoding for --airflow-metadata: yaml (default) or json; only valid with --airflow-metadata",
-	)
 	commAddr := flags.String(
 		"comm",
 		"",
@@ -126,21 +104,7 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 		return err
 	}
 
-	mode := decideMode(*printMetadata, *commAddr, *logsAddr)
-
-	// --format applies only to --airflow-metadata; reject it elsewhere instead
-	// of silently ignoring it.
-	if mode != modeAirflowMetadata && flags.Changed("format") {
-		return errFormatRequiresMetadata
-	}
-
-	switch mode {
-	case modeAirflowMetadata:
-		format, err := execution.ParseMetadataFormat(*metadataFormat)
-		if err != nil {
-			return err
-		}
-		return execution.DumpAirflowMetadata(stdout, &b.taskHandlers, format)
+	switch decideMode(*commAddr, *logsAddr) {
 	case modeCoordinator:
 		return execution.Serve(&b.taskHandlers, *commAddr, *logsAddr)
 	case modeCoordinatorUsageError:
@@ -149,10 +113,7 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func decideMode(metadata bool, comm, logs string) serveMode {
-	if metadata {
-		return modeAirflowMetadata
-	}
+func decideMode(comm, logs string) serveMode {
 	commSet := comm != ""
 	logsSet := logs != ""
 	if commSet && logsSet {

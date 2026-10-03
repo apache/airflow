@@ -28,8 +28,8 @@ This example shows the coordinator-mode shape for TypeScript task handlers:
 - `dist/bundle.min.mjs` is the generated Node.js bundle that Airflow launches.
 
 The build uses the SDK's `airflow-ts-pack` tool, which bundles the entrypoint
-with esbuild and embeds the Airflow metadata generated from the bundle's
-registered tasks, producing a single deployable file.
+with esbuild and embeds the Airflow metadata read from the bundle, producing a
+single deployable file.
 
 ## Build
 

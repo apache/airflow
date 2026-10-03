@@ -54,9 +54,7 @@ type TaskHandlerInfo struct {
 }
 
 // EnumerableBundle lists the registered task handlers in registration order.
-// DumpAirflowMetadata in pkg/execution builds the --airflow-metadata manifest
-// from that list, which is how airflow-go-pack reads a bundle's Dag and task ids
-// without running a task.
+// The task handler parse in pkg/execution answers the Dag processor from that list.
 type EnumerableBundle interface {
 	ListTaskHandlers() []TaskHandlerInfo
 }

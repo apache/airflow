@@ -119,4 +119,7 @@ something; consumers compare for equality and interpret nothing.
 
 - Dynamic Dag rendering works.
 - The canonical schema drops the identifier mapping entirely, the coordinator task execution side will rely on persisted rel_path instead of discovering the artifact every time.
-- The packer no longer needs to execute the artifact at all. `supervisor_schema_version` is a compile-time constant of the SDK.
+- The Go packer runs nothing. It takes `supervisor_schema_version`, a compile-time constant of the SDK, from its own go-sdk and the SDK version from the binary's build information, and it refuses a binary built against another go-sdk than its own. A cross-built binary packs without a host build, and the bundle binary has no `--airflow-metadata` flag.
+- The TypeScript packer still runs the bundle, for its schema version, the source file of each Dag declared in TypeScript ([ADR-0015](0015-per-dag-source-in-bundle-artifact.md)) and its pack-time checks, but it embeds no `task_handlers`. `dag_source_paths` is the one place a Dag id remains in TypeScript metadata. It is for display, and nothing reads it to find an artifact.
+- A bundle packed before this change may still carry `dags` (Go) or `task_handlers` (TypeScript) in its metadata. Readers ignore them.
+- Java never had an inventory. The Gradle plugin adds `Airflow-Cache-Digest` to the JAR manifest, next to its `Main-Class`, and for a fat JAR `Airflow-Supervisor-Schema-Version` too, which a thin JAR takes from the `airflow-sdk` JAR. It runs nothing. `Airflow-Cache-Digest` marks a handler JAR.

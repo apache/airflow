@@ -28,10 +28,10 @@ to a compiled Go *bundle* that is launched by
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` for each task instance.
 
 Because Go is a compiled language, every task must be compiled ahead of time and registered inside a single,
-self-contained native executable called a **bundle**. The bundle also embeds its Dag source and a metadata
-manifest (the ``dag_id`` and ``task_id`` map) in a footer appended to the executable, so the executable *is*
-the bundle: one runnable file to ship, with no separate manifest or archive. The
-:ref:`airflow-go-pack <go-sdk/build>` tool builds and packs that bundle.
+self-contained native executable called a **bundle**. The bundle also embeds its Dag source and a small
+metadata manifest (the SDK version and the supervisor schema version it was built against) in a footer
+appended to the executable, so the executable *is* the bundle: one runnable file to ship, with no separate
+manifest or archive. The :ref:`airflow-go-pack <go-sdk/build>` tool builds and packs that bundle.
 
 .. contents:: Contents
    :local:
@@ -136,7 +136,8 @@ Go entry point
 
 Build a bundle with ``airflow.Bundle()``, register a handler for each task, and call ``Serve`` as the last
 statement of ``main``. The ``Register`` calls are the single source of truth for which ``dag_id`` and task
-names this bundle can run, so the generated manifest can never drift from what the binary actually executes.
+names this bundle can run: the Dag processor asks the bundle for them, so it always sees what the binary
+actually executes.
 
 .. code-block:: go
 
@@ -458,6 +459,10 @@ SDKs, specified in :doc:`task-sdk:executable-bundle-spec`.
 to your bundle module's ``go.mod`` and run it with ``go tool airflow-go-pack``. This pins the packer version
 per project.
 
+The packer never runs the binary it packs. It reads the go-sdk version the binary was built against from the
+binary's build information, and refuses a binary built against a different go-sdk version than the packer's,
+so run it from the module that builds the bundle.
+
 Build and pack in one step; any flags after ``--`` are forwarded verbatim to ``go build``:
 
 .. code-block:: bash
@@ -484,20 +489,13 @@ architecture than your build machine (for example, deploying to a Linux host fro
       --output /opt/airflow/go-task-handlers/sample-dag-bundle \
       ./example/bundle
 
-Alternatively, pack a pre-built binary with ``--executable`` / ``--source``. The packer normally execs the
-binary with ``--airflow-metadata`` to read its manifest, but a cross-compiled binary cannot run on the build
-host. In that case, generate the manifest on a machine that *can* run the binary and feed it to the packer
-with ``--airflow-metadata``:
+Alternatively, pack a pre-built binary with ``--executable`` / ``--source``. The packer does not run the
+binary, so one built for any platform packs on any host:
 
 .. code-block:: bash
 
-    # On a linux/amd64 machine:
-    go build -o my-bundle ./example/bundle
-    ./my-bundle --airflow-metadata > airflow-metadata.yaml
-
-    # Back on the darwin/arm64 machine:
-    go tool airflow-go-pack --executable ./my-bundle --source main.go \
-      --airflow-metadata airflow-metadata.yaml
+    GOOS=linux GOARCH=amd64 go build -o my-bundle ./example/bundle
+    go tool airflow-go-pack --executable ./my-bundle --source ./example/bundle/main.go
 
 (``--executable`` is mutually exclusive with ``--goos`` / ``--goarch`` and with ``go build`` flags after
 ``--``, since it packs an already-built binary instead of building one.)

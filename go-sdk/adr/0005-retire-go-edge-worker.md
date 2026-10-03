@@ -26,6 +26,10 @@ Date: 2026-08-20
 Accepted. Supersedes the dual-runtime portion of
 [ADR 0003](0003-coordinator-protocol-msgpack-ipc.md).
 
+`--airflow-metadata` has since been removed, so it is no longer available to the
+bundle packer (see
+[ADR-0014](../../airflow-core/adr/lang-sdk/0014-bundle-metadata-and-cache-digest.md)).
+
 ## Context
 
 The Go SDK supported two task-execution architectures. The standalone Go Edge

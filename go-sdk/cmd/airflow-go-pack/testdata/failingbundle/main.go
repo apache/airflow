@@ -15,8 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package bundle defines what the coordinator runtime needs from a bundle:
-// the tasks it looks up and runs, and the task handlers it lists for the Dag processor.
-//
-// Package airflow builds both from the task handlers a bundle registers.
-package bundle
+// Command failingbundle is a bundle binary that links go-sdk and exits non-zero when it runs.
+// The packer's tests pack it to show that packing never runs the bundle binary.
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/apache/airflow/go-sdk/airflow"
+)
+
+func main() {
+	_ = airflow.Bundle()
+	fmt.Fprintln(os.Stderr, "failingbundle: this binary must not run")
+	os.Exit(3)
+}

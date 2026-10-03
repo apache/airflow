@@ -26,12 +26,16 @@ export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 /** Marks the manifest line on stdout, which import-time logging may also reach. */
 export const AIRFLOW_METADATA_SENTINEL = "__AIRFLOW_METADATA__ ";
 
-/** Bundle manifest fields only the built bundle itself knows: the schema version it was compiled
- *  against, and the task handlers it registered grouped by Dag. Named `task_handlers` because a
- *  TypeScript bundle provides handlers for Dags declared elsewhere, not Dag definitions. A Dag with
- *  no handlers keeps an empty `tasks` list so `airflow-ts-pack` can warn instead of dropping it.
+/** What the built bundle reports about itself when `airflow-ts-pack` runs it with
+ *  `--airflow-metadata`: the schema version it was compiled against, the task handlers it
+ *  registered grouped by Dag, and the source file of each Dag declared in TypeScript. The packer
+ *  embeds the schema version and `dag_source_paths`, and only checks `task_handlers` (a bundle
+ *  that serves nothing, a Dag with no tasks, ids the server would reject). Named `task_handlers`
+ *  because a TypeScript bundle provides handlers for Dags declared elsewhere, not Dag definitions.
+ *  A Dag with no handlers keeps an empty `tasks` list so `airflow-ts-pack` can warn instead of
+ *  dropping it.
  *
- *  `dag_source_paths` names the source file each *native* Dag was declared in — captured at
+ *  `dag_source_paths` names the source file each *native* Dag was declared in, captured at
  *  construction time from `airflow-ts-pack`'s module-source tag. Mixed-lang Dags (owned by
  *  Python) are absent here. */
 export interface BundleManifest {

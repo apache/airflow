@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -35,85 +34,55 @@ import (
 
 	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
 	"github.com/apache/airflow/go-sdk/internal/bundlefooter"
+	"github.com/apache/airflow/go-sdk/pkg/execution"
 )
 
-func TestRenderManifest_DeterministicDagOrdering(t *testing.T) {
-	meta := airflowmetadata.Manifest{
+func testSDK() airflowmetadata.Manifest {
+	return airflowmetadata.Manifest{
 		AirflowBundleMetadataVersion: "1.0",
 		SDK: airflowmetadata.SDK{
 			Language:                "go",
 			Version:                 "0.1.0",
 			SupervisorSchemaVersion: "2026-06-16",
 		},
-		Dags: map[string]airflowmetadata.Dag{
-			"zeta_dag":  {Tasks: []string{"a", "b"}},
-			"alpha_dag": {Tasks: []string{"x"}},
-		},
 	}
+}
 
-	got1, err := renderManifest(meta, "main.go", nil)
+func TestRenderManifest(t *testing.T) {
+	got1, err := renderManifest(testSDK(), "main.go", nil)
 	require.NoError(t, err)
-	got2, err := renderManifest(meta, "main.go", nil)
+	got2, err := renderManifest(testSDK(), "main.go", nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, got1, got2, "manifest should be byte-identical for identical input")
-
-	expected := `airflow_bundle_metadata_version: "1.0"
+	assert.Equal(t, `airflow_bundle_metadata_version: "1.0"
 sdk:
   language: "go"
   version: "0.1.0"
   supervisor_schema_version: "2026-06-16"
 source: "main.go"
-dags:
-  alpha_dag:
-    tasks:
-      - "x"
-  zeta_dag:
-    tasks:
-      - "a"
-      - "b"
-`
-	assert.Equal(t, expected, string(got1))
+`, string(got1))
 }
 
-// Values (task IDs, source, SDK fields) are quoted so a scalar-looking value
-// stays a string; Dag ID keys stay plain scalars.
+// Values (source, SDK fields) are quoted so a scalar-looking value stays a string; keys stay plain.
 func TestRenderManifest_QuotesValuesNotKeys(t *testing.T) {
-	meta := airflowmetadata.Manifest{
-		AirflowBundleMetadataVersion: "1.0",
-		SDK: airflowmetadata.SDK{
-			Language:                "go",
-			Version:                 "0.1.0",
-			SupervisorSchemaVersion: "2026-06-16",
-		},
-		Dags: map[string]airflowmetadata.Dag{
-			"my_dag": {Tasks: []string{"123", "true"}},
-		},
-	}
+	meta := testSDK()
+	meta.SDK.Version = "1.0"
 
-	got, err := renderManifest(meta, "main.go", nil)
+	got, err := renderManifest(meta, "true", nil)
 	require.NoError(t, err)
 
-	// Task values that look like scalars are quoted.
-	assert.Contains(t, string(got), `- "123"`)
-	assert.Contains(t, string(got), `- "true"`)
-	// The Dag ID key is a plain scalar, not quoted.
-	assert.Contains(t, string(got), "\n  my_dag:\n")
-	assert.NotContains(t, string(got), `"my_dag"`)
+	assert.Contains(t, string(got), "\n  version: \"1.0\"\n")
+	assert.Contains(t, string(got), "\nsource: \"true\"\n")
+	assert.NotContains(t, string(got), `"sdk"`)
 }
 
 func TestRenderManifest_Digests(t *testing.T) {
-	meta := airflowmetadata.Manifest{
-		AirflowBundleMetadataVersion: "1.0",
-		SDK: airflowmetadata.SDK{
-			Language:                "go",
-			Version:                 "0.1.0",
-			SupervisorSchemaVersion: "2026-06-16",
-		},
-		Dags: map[string]airflowmetadata.Dag{"my_dag": {Tasks: []string{"t1"}}},
-	}
-
-	got, err := renderManifest(meta, "main.go", &bundleDigests{Integrity: "aa11", Cache: "bb22"})
+	got, err := renderManifest(
+		testSDK(),
+		"main.go",
+		&bundleDigests{Integrity: "aa11", Cache: "bb22"},
+	)
 	require.NoError(t, err)
 
 	assert.Equal(t, `airflow_bundle_metadata_version: "1.0"
@@ -125,26 +94,18 @@ source: "main.go"
 digests:
   integrity: "aa11"
   cache: "bb22"
-dags:
-  my_dag:
-    tasks:
-      - "t1"
 `, string(got))
 }
 
-func TestRenderManifest_EmptyDags(t *testing.T) {
-	meta := airflowmetadata.Manifest{
-		AirflowBundleMetadataVersion: "1.0",
-		SDK: airflowmetadata.SDK{
-			Language:                "go",
-			Version:                 "0.1.0",
-			SupervisorSchemaVersion: "2026-06-16",
-		},
-		Dags: map[string]airflowmetadata.Dag{},
-	}
-	got, err := renderManifest(meta, "main.go", nil)
+// The manifest is rendered without the packer running the binary: a Dag inventory is not part of it.
+func TestRenderManifest_HasNoDagInventory(t *testing.T) {
+	got, err := renderManifest(testSDK(), "main.go", nil)
 	require.NoError(t, err)
-	assert.Contains(t, string(got), "dags: {}")
+
+	var parsed map[string]any
+	require.NoError(t, yaml.Unmarshal(got, &parsed))
+	assert.NotContains(t, parsed, "dags")
+	assert.NotContains(t, parsed, "task_handlers")
 }
 
 // Forwarded `go build` flags after "--" must not count against MaximumNArgs(1).
@@ -161,35 +122,6 @@ func TestRootArgs_AllowsBuildFlagsAfterDoubleDash(t *testing.T) {
 		cmd.SetArgs(argv)
 		assert.NoError(t, cmd.Execute(), "args=%v should validate", argv)
 	}
-}
-
-// A file the OS refuses to exec is errExecNotStartable; a binary that runs and
-// exits non-zero is not.
-func TestRunIntrospect_ClassifiesExecFailure(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("exec-format semantics differ on Windows")
-	}
-	dir := t.TempDir()
-
-	// A non-binary file with the exec bit set: execve rejects it with an
-	// exec-format error, standing in for a foreign-arch executable.
-	garbage := filepath.Join(dir, "garbage")
-	require.NoError(t, os.WriteFile(garbage, []byte("not a real executable\n"), 0o755))
-	_, err := runIntrospect(garbage, "--airflow-metadata")
-	require.Error(t, err)
-	assert.ErrorIs(t, err, errExecNotStartable)
-
-	// A script that starts and exits non-zero is a genuine run failure, not
-	// an unrunnable binary, so it must NOT be classified as not-startable.
-	failing := filepath.Join(dir, "failing")
-	require.NoError(t, os.WriteFile(failing, []byte("#!/bin/sh\nexit 3\n"), 0o755))
-	_, err = runIntrospect(failing, "--airflow-metadata")
-	require.Error(t, err)
-	assert.False(
-		t,
-		errors.Is(err, errExecNotStartable),
-		"non-zero exit should not be errExecNotStartable",
-	)
 }
 
 func TestRootArgs_RejectsExtraPositionalBeforeDash(t *testing.T) {
@@ -258,37 +190,6 @@ func TestRunPack_RejectsOutputAliasingExecutable(t *testing.T) {
 	assert.Equal(t, original, got, "executable must not be truncated when output aliases it")
 }
 
-// When --output resolves to the same file as --airflow-metadata, runPack must
-// refuse before the bundle is renamed onto it; the manifest file survives.
-func TestRunPack_RejectsOutputAliasingMetadataFile(t *testing.T) {
-	dir := t.TempDir()
-	exe := filepath.Join(dir, "foreign")
-	require.NoError(t, os.WriteFile(exe, []byte("foreign-arch-binary-bytes"), 0o755))
-	source := filepath.Join(dir, "main.go")
-	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
-	meta := filepath.Join(dir, "airflow-metadata.json")
-	original := []byte(
-		`{"airflow_bundle_metadata_version":"1.0",` +
-			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},` +
-			`"dags":{"my_dag":{"tasks":["t1"]}}}`,
-	)
-	require.NoError(t, os.WriteFile(meta, original, 0o644))
-
-	err := runPack(io.Discard, io.Discard, &packOptions{
-		executable:      exe,
-		source:          source,
-		airflowMetadata: meta,
-		output:          meta,
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "same file as the --airflow-metadata file")
-
-	// The guard must fire before any write: the manifest file is intact.
-	got, readErr := os.ReadFile(meta)
-	require.NoError(t, readErr)
-	assert.Equal(t, original, got, "metadata file must not be clobbered when output aliases it")
-}
-
 // When the default output path names an existing directory, the packer must
 // reject it with --output guidance, not a bare os.Rename "file exists".
 func TestRunPack_RejectsDirectoryOutput(t *testing.T) {
@@ -333,122 +234,71 @@ func TestRunPack_RejectsExecutableWithCrossFlags(t *testing.T) {
 	}
 }
 
-// A foreign-arch --executable that cannot be exec'd on the host is a hard error
-// with remediation guidance, never a silent host rebuild that could describe a
-// different DAG/task set than the shipped binary.
-func TestRunPack_FailsFastWhenExecutableUnrunnableAndNoMetadata(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("exec-format semantics differ on Windows")
-	}
+// A file that is not a Go binary cannot say which go-sdk it was built against, so it is refused
+// before anything is written.
+func TestRunPack_RejectsExecutableWithoutBuildInformation(t *testing.T) {
 	dir := t.TempDir()
-	// A non-binary file with the exec bit set stands in for a foreign-arch
-	// executable: execve rejects it with an exec-format error.
-	exe := filepath.Join(dir, "foreign")
-	require.NoError(t, os.WriteFile(exe, []byte("not a runnable binary\n"), 0o755))
+	exe := filepath.Join(dir, "not-go")
+	require.NoError(t, os.WriteFile(exe, []byte("not a Go binary\n"), 0o755))
 	source := filepath.Join(dir, "main.go")
 	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
 	out := filepath.Join(dir, "bundle")
 
-	err := runPack(io.Discard, io.Discard, &packOptions{
-		executable: exe,
-		source:     source,
-		output:     out,
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot exec --executable")
-	assert.Contains(t, err.Error(), "--goarch", "error must point at the cross-build workflow")
-	assert.Contains(
-		t,
-		err.Error(),
-		"--airflow-metadata",
-		"error must mention the --airflow-metadata escape hatch",
+	err := runPack(
+		io.Discard,
+		io.Discard,
+		&packOptions{executable: exe, source: source, output: out},
 	)
 
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reading the build information of "+exe)
 	_, statErr := os.Stat(out)
-	assert.True(t, os.IsNotExist(statErr), "no bundle should be written on a fail-fast")
+	assert.True(t, os.IsNotExist(statErr), "no bundle should be written")
 }
 
-// --airflow-metadata short-circuits introspection: a binary that cannot run on
-// the host is packed using the supplied JSON manifest, and its bytes survive.
-func TestRunPack_UsesMetadataFile(t *testing.T) {
+// The packer never runs the binary: the fixture exits with status 3 when it runs.
+func TestRunPack_DoesNotRunTheBinary(t *testing.T) {
 	dir := t.TempDir()
-	exe := filepath.Join(dir, "foreign")
-	exeBytes := []byte("foreign-arch-binary-bytes")
+	exe := filepath.Join(dir, "bundle-bin")
+	exeBytes := readFile(t, bundleBinary(t))
 	require.NoError(t, os.WriteFile(exe, exeBytes, 0o755))
 	source := filepath.Join(dir, "main.go")
 	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
-	meta := filepath.Join(dir, "airflow-metadata.json")
-	require.NoError(t, os.WriteFile(meta, []byte(
-		`{"airflow_bundle_metadata_version":"1.0",`+
-			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},`+
-			`"dags":{"my_dag":{"tasks":["t1"]}}}`,
-	), 0o644))
 	out := filepath.Join(dir, "bundle")
 
-	err := runPack(io.Discard, io.Discard, &packOptions{
-		executable:      exe,
-		source:          source,
-		airflowMetadata: meta,
-		output:          out,
-	})
-	require.NoError(t, err)
+	require.NoError(t, runPack(io.Discard, io.Discard, &packOptions{
+		executable: exe,
+		source:     source,
+		output:     out,
+	}))
 
 	gotSource, gotMeta, err := bundlefooter.Read(out)
 	require.NoError(t, err)
-	srcBytes, err := os.ReadFile(source)
-	require.NoError(t, err)
-	assert.Equal(t, srcBytes, gotSource)
+	assert.Equal(t, readFile(t, source), gotSource)
 	assert.Contains(
 		t,
 		string(gotMeta),
-		"my_dag:",
-		"Dag from --airflow-metadata must appear in the manifest",
+		`supervisor_schema_version: "`+execution.SupervisorSchemaVersion+`"`,
 	)
-
-	bundleBytes, err := os.ReadFile(out)
-	require.NoError(t, err)
+	bundleBytes := readFile(t, out)
 	binaryRegion := bundleBytes[:len(bundleBytes)-len(gotSource)-len(gotMeta)-bundlefooter.TrailerSize]
 	assert.Equal(t, exeBytes, binaryRegion, "the supplied --executable must be packed verbatim")
 }
 
-// --airflow-metadata also accepts a YAML manifest, not only the JSON the
-// binary prints.
-func TestRunPack_AcceptsYAMLMetadataFile(t *testing.T) {
-	dir := t.TempDir()
-	exe := filepath.Join(dir, "foreign")
-	require.NoError(t, os.WriteFile(exe, []byte("foreign-arch-binary-bytes"), 0o755))
-	source := filepath.Join(dir, "main.go")
-	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
-	meta := filepath.Join(dir, "airflow-metadata.yaml")
-	require.NoError(t, os.WriteFile(meta, []byte(
-		"airflow_bundle_metadata_version: \"1.0\"\n"+
-			"sdk:\n"+
-			"  language: \"go\"\n"+
-			"  version: \"0.1.0\"\n"+
-			"  supervisor_schema_version: \"2026-06-16\"\n"+
-			"dags:\n"+
-			"  yaml_dag:\n"+
-			"    tasks:\n"+
-			"      - \"t1\"\n",
-	), 0o644))
-	out := filepath.Join(dir, "bundle")
-
-	err := runPack(io.Discard, io.Discard, &packOptions{
-		executable:      exe,
-		source:          source,
-		airflowMetadata: meta,
-		output:          out,
-	})
-	require.NoError(t, err)
-
-	_, gotMeta, err := bundlefooter.Read(out)
-	require.NoError(t, err)
-	assert.Contains(
-		t,
-		string(gotMeta),
-		"yaml_dag:",
-		"Dag from a YAML --airflow-metadata file must appear in the manifest",
+// --airflow-metadata is gone: the packer takes no manifest from the user.
+func TestRootCmd_RejectsAirflowMetadataFlag(t *testing.T) {
+	cmd := newRootCmd()
+	cmd.RunE = func(*cobra.Command, []string) error { return nil }
+	cmd.SetArgs(
+		[]string{"--executable", "bin", "--source", "main.go", "--airflow-metadata", "meta.yaml"},
 	)
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	err := cmd.Execute()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --airflow-metadata")
 }
 
 // fixedManifest is a writeBundle renderMetadata that ignores the staged executable.
@@ -456,23 +306,20 @@ func fixedManifest(manifest []byte) func(string) ([]byte, error) {
 	return func(string) ([]byte, error) { return manifest, nil }
 }
 
-// packDigests packs the given executable, source and JSON manifest in dir, and
-// returns the digests the packed bundle's manifest records.
-func packDigests(t *testing.T, dir string, exe, source, meta []byte) (integrity, cache string) {
+// packDigests packs the given executable and source in dir, and returns the digests the packed
+// bundle's manifest records.
+func packDigests(t *testing.T, dir string, exe, source []byte) (integrity, cache string) {
 	t.Helper()
 	exePath := filepath.Join(dir, "exe")
 	require.NoError(t, os.WriteFile(exePath, exe, 0o755))
 	sourcePath := filepath.Join(dir, "main.go")
 	require.NoError(t, os.WriteFile(sourcePath, source, 0o644))
-	metaPath := filepath.Join(dir, "airflow-metadata.json")
-	require.NoError(t, os.WriteFile(metaPath, meta, 0o644))
 	out := filepath.Join(dir, "bundle")
 
 	require.NoError(t, runPack(io.Discard, io.Discard, &packOptions{
-		executable:      exePath,
-		source:          sourcePath,
-		airflowMetadata: metaPath,
-		output:          out,
+		executable: exePath,
+		source:     sourcePath,
+		output:     out,
 	}))
 
 	_, gotMeta, err := bundlefooter.Read(out)
@@ -488,13 +335,10 @@ func packDigests(t *testing.T, dir string, exe, source, meta []byte) (integrity,
 }
 
 func TestRunPack_RecordsDigests(t *testing.T) {
-	exe := []byte("binary-bytes")
+	exe := readFile(t, bundleBinary(t))
 	source := []byte("package main\nfunc main() {}\n")
-	meta := []byte(`{"airflow_bundle_metadata_version":"1.0",` +
-		`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},` +
-		`"dags":{"my_dag":{"tasks":["t1"]}}}`)
 
-	integrity, cache := packDigests(t, t.TempDir(), exe, source, meta)
+	integrity, cache := packDigests(t, t.TempDir(), exe, source)
 
 	binaryHash := sha256.Sum256(exe)
 	assert.Equal(
@@ -507,7 +351,7 @@ func TestRunPack_RecordsDigests(t *testing.T) {
 	assert.NotEqual(t, integrity, cache)
 
 	t.Run("a repack of the same inputs", func(t *testing.T) {
-		gotIntegrity, gotCache := packDigests(t, t.TempDir(), exe, source, meta)
+		gotIntegrity, gotCache := packDigests(t, t.TempDir(), exe, source)
 		assert.Equal(t, integrity, gotIntegrity)
 		assert.Equal(t, cache, gotCache)
 	})
@@ -518,19 +362,15 @@ func TestRunPack_RecordsDigests(t *testing.T) {
 		return changed
 	}
 	for name, tc := range map[string]struct {
-		exe, source, meta []byte
-		integrityChanges  bool
+		exe, source      []byte
+		integrityChanges bool
 	}{
-		"one source byte": {exe: exe, source: oneByte(source, len(source)-2), meta: meta},
-		"one binary byte": {exe: oneByte(exe, 0), source: source, meta: meta, integrityChanges: true},
-		"the manifest": {
-			exe:    exe,
-			source: source,
-			meta:   bytes.Replace(meta, []byte(`"0.1.0"`), []byte(`"0.1.1"`), 1),
-		},
+		"one source byte": {exe: exe, source: oneByte(source, len(source)-2)},
+		// A byte after the binary leaves its build information readable.
+		"one binary byte": {exe: append(bytes.Clone(exe), 0), source: source, integrityChanges: true},
 	} {
 		t.Run(name, func(t *testing.T) {
-			gotIntegrity, gotCache := packDigests(t, t.TempDir(), tc.exe, tc.source, tc.meta)
+			gotIntegrity, gotCache := packDigests(t, t.TempDir(), tc.exe, tc.source)
 			assert.NotEqual(t, cache, gotCache)
 			if tc.integrityChanges {
 				assert.NotEqual(t, integrity, gotIntegrity)
@@ -539,6 +379,19 @@ func TestRunPack_RecordsDigests(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestComputeDigests_CoverTheManifest(t *testing.T) {
+	exe := filepath.Join(t.TempDir(), "exe")
+	require.NoError(t, os.WriteFile(exe, []byte("binary-bytes"), 0o755))
+
+	first, err := computeDigests(exe, []byte("source"), []byte("manifest"))
+	require.NoError(t, err)
+	changed, err := computeDigests(exe, []byte("source"), []byte("manifest 2"))
+	require.NoError(t, err)
+
+	assert.Equal(t, first.Integrity, changed.Integrity)
+	assert.NotEqual(t, first.Cache, changed.Cache)
 }
 
 // With no explicit --output, packing "./bundle" from a package dir named

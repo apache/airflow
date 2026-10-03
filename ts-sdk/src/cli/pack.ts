@@ -21,8 +21,9 @@
 // `bundle.min.mjs` carries the metadata, the entrypoint source, and an integrity layout descriptor
 // in JavaScript comments.
 //
-// Build first, then run the built bundle with --airflow-metadata so the manifest comes from the
-// bundle's own Dag registry and schema version, never from a hand-written sidecar.
+// Build first, then run the built bundle with --airflow-metadata so the schema version and the Dag
+// source paths come from the bundle's own registry, never from a hand-written sidecar. The task
+// handlers the bundle reports are checked here and not embedded: nothing reads them from the artifact.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -49,8 +50,8 @@ const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir> | --outfile <path>]
 
 Bundles <entry> into a minified ${BUNDLE_FILENAME} with esbuild and embeds the
-airflow metadata generated from the bundle's served Dags, plus each Dag-defining
-source file verbatim so Airflow has readable text to display per Dag.
+airflow metadata read from the bundle, plus each Dag-defining source file
+verbatim so Airflow has readable text to display per Dag.
 
 Options:
   --outdir <dir>    Output directory, holding ${BUNDLE_FILENAME} (default: dist)
@@ -330,8 +331,7 @@ export async function runPack(argv: readonly string[]): Promise<void> {
         `${args.entry} served nothing; register Dags or task handlers with bundle.register(...)`,
       );
     }
-    // Warn rather than fail, as airflow-go-pack does: the shared schema allows a
-    // Dag with no tasks.
+    // Warn rather than fail: a Dag with no tasks is not an error.
     for (const [dagId, dag] of dagEntries) {
       if (dag.tasks.length === 0) {
         process.stderr.write(`warning: dag ${JSON.stringify(dagId)} has no tasks\n`);

@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -31,7 +30,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -42,14 +40,13 @@ import (
 
 // packOptions are the flags accepted by the root pack command.
 type packOptions struct {
-	pkg             string   // target package (default ".")
-	source          string   // override the auto-detected DAG source file
-	executable      string   // pack a pre-built binary instead of building
-	output          string   // override the default <bundleName> output path
-	airflowMetadata string   // path to a pre-captured --airflow-metadata manifest (JSON or YAML)
-	goos            string   // target GOOS for the deployable build (falls back to env GOOS, then host)
-	goarch          string   // target GOARCH for the deployable build (falls back to env GOARCH, then host)
-	buildArgs       []string // forwarded verbatim to `go build` (already includes the leading "--")
+	pkg        string   // target package (default ".")
+	source     string   // override the auto-detected DAG source file
+	executable string   // pack a pre-built binary instead of building
+	output     string   // override the default <bundleName> output path
+	goos       string   // target GOOS for the deployable build (falls back to env GOOS, then host)
+	goarch     string   // target GOARCH for the deployable build (falls back to env GOARCH, then host)
+	buildArgs  []string // forwarded verbatim to `go build` (already includes the leading "--")
 }
 
 func runPack(stdout, stderr io.Writer, opts *packOptions) error {
@@ -113,18 +110,14 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		)
 	}
 
-	// execPath is the binary that receives the footer (the deployable artefact,
-	// which MAY be cross-compiled). introspectPath is the binary obtainMetadata
-	// reads --airflow-metadata from. By default that means exec'ing it on the
-	// host (so it must be host-runnable, hence the cross-compile sidecar below),
-	// but --airflow-metadata bypasses it entirely.
-	var execPath, introspectPath string
+	// execPath is the binary that receives the footer: the deployable artefact, which may be
+	// cross-compiled. The packer never runs it.
+	var execPath string
 	cleanupExec := func() {}
 	defer func() { cleanupExec() }()
 
 	if opts.executable != "" {
 		execPath = opts.executable
-		introspectPath = opts.executable
 	} else {
 		targetGOOS, targetGOARCH := targetPlatform(opts)
 		artifact, cleanup, err := buildPackage(stderr, opts.pkg, opts.buildArgs, targetGOOS, targetGOARCH)
@@ -133,47 +126,24 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		}
 		execPath = artifact
 		cleanupExec = cleanup
-		introspectPath = artifact
-
-		// Reading the manifest means exec'ing the binary, so it must be a
-		// host-native build. When cross-compiling, the artefact cannot run
-		// here; build a throwaway host binary from the same sources and the
-		// same forwarded `--` build flags (DAG/task identity is arch-independent)
-		// solely to introspect. This sidecar is unnecessary when
-		// --airflow-metadata supplies the manifest directly.
-		crossCompiling := targetGOOS != runtime.GOOS || targetGOARCH != runtime.GOARCH
-		if crossCompiling && opts.airflowMetadata == "" {
-			hostBin, cleanupHost, err := buildPackage(stderr, opts.pkg, opts.buildArgs, runtime.GOOS, runtime.GOARCH)
-			if err != nil {
-				return fmt.Errorf("building host binary for metadata introspection: %w", err)
-			}
-			prevCleanup := cleanupExec
-			cleanupExec = func() { cleanupHost(); prevCleanup() }
-			introspectPath = hostBin
-		}
 	}
 
 	if _, err := os.Stat(execPath); err != nil {
 		return fmt.Errorf("executable %s: %w", execPath, err)
 	}
 
-	if err := rejectOutputAlias(output, execPath, sourcePath, opts.airflowMetadata); err != nil {
+	if err := rejectOutputAlias(output, execPath, sourcePath); err != nil {
 		return err
 	}
 
-	meta, err := obtainMetadata(opts, introspectPath)
+	sdk, err := readSDK(execPath)
 	if err != nil {
 		return err
 	}
-	if len(meta.Dags) == 0 {
-		return fmt.Errorf("bundle exposes no dags: nothing to pack")
+	meta := airflowmetadata.Manifest{
+		AirflowBundleMetadataVersion: airflowmetadata.FormatVersion,
+		SDK:                          sdk,
 	}
-	for dagID, dag := range meta.Dags {
-		if len(dag.Tasks) == 0 {
-			fmt.Fprintf(stderr, "warning: dag %q has no tasks\n", dagID)
-		}
-	}
-	warnOnSuspiciousIDs(stderr, meta)
 
 	sourceBytes, err := os.ReadFile(sourcePath)
 	if err != nil {
@@ -206,8 +176,13 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(stdout, "Wrote bundle %s (sdk=%s/%s, dags=%d)\n",
-		output, meta.SDK.Language, meta.SDK.Version, len(meta.Dags))
+	fmt.Fprintf(
+		stdout,
+		"Wrote bundle %s (sdk=%s/%s)\n",
+		output,
+		meta.SDK.Language,
+		meta.SDK.Version,
+	)
 	return nil
 }
 
@@ -337,9 +312,8 @@ func targetPlatform(opts *packOptions) (goos, goarch string) {
 // given GOOS/GOARCH and returns the path to the freshly built executable plus a
 // cleanup function. extraArgs is the slice that comes after the "--" separator
 // on the airflow-go-pack command line; we drop the leading "--" before
-// forwarding. GOOS/GOARCH are set explicitly (overriding any ambient env) so
-// the caller controls the target: the deployable build uses the resolved target
-// platform, the introspection sidecar uses the host.
+// forwarding. GOOS/GOARCH are set explicitly, overriding any ambient env, so
+// the caller controls the target platform.
 func buildPackage(
 	stderr io.Writer,
 	pkg string,
@@ -380,104 +354,6 @@ func buildPackage(
 	return outPath, cleanup, nil
 }
 
-func readAirflowMetadata(execPath string) (airflowmetadata.Manifest, error) {
-	out, err := runIntrospect(execPath, "--airflow-metadata")
-	if err != nil {
-		return airflowmetadata.Manifest{}, err
-	}
-	// Decode with a YAML decoder: it reads the binary's YAML default and its
-	// --format json output alike (JSON is a subset of YAML).
-	var meta airflowmetadata.Manifest
-	if err := yaml.Unmarshal(out, &meta); err != nil {
-		return airflowmetadata.Manifest{}, fmt.Errorf(
-			"decoding --airflow-metadata output (YAML/JSON): %w",
-			err,
-		)
-	}
-	return meta, nil
-}
-
-// obtainMetadata resolves the bundle manifest either from an explicit
-// --airflow-metadata file or by exec'ing a host-runnable introspection binary.
-// In --executable mode a binary that cannot be exec'd on the host is a hard
-// error with remediation guidance: --executable expects a same-platform binary,
-// and the packer never silently rebuilds a host binary, because a rebuild from
-// unknown inputs (the original build tags, ldflags, and GOOS/GOARCH-specific
-// files are not known here, and build flags are rejected in --executable mode)
-// can advertise a different DAG/task set than the artefact actually shipped.
-func obtainMetadata(opts *packOptions, introspectPath string) (airflowmetadata.Manifest, error) {
-	if opts.airflowMetadata != "" {
-		meta, err := readMetadataFile(opts.airflowMetadata)
-		if err != nil {
-			return airflowmetadata.Manifest{}, fmt.Errorf(
-				"--airflow-metadata %s: %w",
-				opts.airflowMetadata,
-				err,
-			)
-		}
-		return meta, nil
-	}
-
-	meta, err := readAirflowMetadata(introspectPath)
-	if err == nil {
-		return meta, nil
-	}
-	if opts.executable != "" && errors.Is(err, errExecNotStartable) {
-		return airflowmetadata.Manifest{}, fmt.Errorf(
-			"cannot exec --executable %q on %s/%s to read its --airflow-metadata: %w\n"+
-				"--executable expects a binary that runs on this host. To pack a binary for a\n"+
-				"different platform, drop --executable and let the packer cross-build instead:\n"+
-				"    airflow-go-pack --goos <os> --goarch <arch> ./path/to/pkg [-- <go build flags>]\n"+
-				"(the packer builds a host-arch binary, forwarding your -- build flags, solely to\n"+
-				"read the manifest). Alternatively pass --airflow-metadata with the manifest captured\n"+
-				"from the binary on its native platform: %s --airflow-metadata > airflow-metadata.yaml",
-			opts.executable, runtime.GOOS, runtime.GOARCH, err, opts.executable,
-		)
-	}
-	return airflowmetadata.Manifest{}, fmt.Errorf("--airflow-metadata: %w", err)
-}
-
-// readMetadataFile parses a manifest from a pre-captured --airflow-metadata
-// file. It accepts both the JSON a bundle binary prints (via
-// `mybundle --airflow-metadata`) and the airflow-metadata.yaml embedded in an
-// existing bundle: YAML is a superset of JSON, so a YAML decoder reads either.
-func readMetadataFile(path string) (airflowmetadata.Manifest, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return airflowmetadata.Manifest{}, err
-	}
-	var meta airflowmetadata.Manifest
-	if err := yaml.Unmarshal(data, &meta); err != nil {
-		return airflowmetadata.Manifest{}, fmt.Errorf("decoding metadata (YAML/JSON): %w", err)
-	}
-	return meta, nil
-}
-
-// errExecNotStartable marks an introspection failure where the process never
-// ran — typically the binary was built for a different CPU arch / OS, so the
-// OS rejected the exec (e.g. "exec format error", "bad CPU type"). It is
-// distinct from the binary running and exiting non-zero (an *exec.ExitError),
-// which signals a genuine --airflow-metadata failure rather than an
-// unrunnable binary.
-var errExecNotStartable = errors.New("introspection binary could not be exec'd")
-
-func runIntrospect(execPath string, flag string) ([]byte, error) {
-	cmd := exec.Command(execPath, flag)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			// The process did not start (no exit status). Wrap with the
-			// sentinel so callers can decide whether to fall back to a build.
-			return nil, fmt.Errorf("%w: %s %s: %v", errExecNotStartable, execPath, flag, err)
-		}
-		return nil, fmt.Errorf("%s %s: %w: %s", execPath, flag, err, stderr.String())
-	}
-	return stdout.Bytes(), nil
-}
-
 // cacheDigestDomain starts the cache digest's input, so the digest cannot equal
 // a SHA-256 taken of the same bytes for another purpose, and a later definition
 // can change the version.
@@ -514,12 +390,10 @@ func computeDigests(execPath string, source, baseManifest []byte) (bundleDigests
 	}, nil
 }
 
-// renderManifest serialises the airflow-metadata manifest as deterministic,
-// sorted-key YAML matching airflow-metadata.schema.json. It injects the schema's
-// source field (the filename the manifest is built from) and, when digests is
-// not nil, the digests mapping, both of which the producer's Manifest omits
-// because only the packer knows them; every other field is copied from the
-// introspected manifest verbatim.
+// renderManifest serialises the airflow-metadata manifest as deterministic YAML matching
+// airflow-metadata.schema.json. It injects the schema's source field (the filename the manifest is
+// built from) and, when digests is not nil, the digests mapping, both of which only the packer
+// knows.
 func renderManifest(
 	meta airflowmetadata.Manifest,
 	sourceName string,
@@ -528,31 +402,6 @@ func renderManifest(
 	version := meta.AirflowBundleMetadataVersion
 	if version == "" {
 		version = airflowmetadata.FormatVersion
-	}
-
-	dagIDs := make([]string, 0, len(meta.Dags))
-	for id := range meta.Dags {
-		dagIDs = append(dagIDs, id)
-	}
-	sort.Strings(dagIDs)
-
-	dagsNode := &yaml.Node{Kind: yaml.MappingNode}
-	for _, id := range dagIDs {
-		tasks := meta.Dags[id].Tasks
-		taskItems := make([]*yaml.Node, 0, len(tasks))
-		for _, t := range tasks {
-			taskItems = append(taskItems, quotedScalar(t))
-		}
-		dagsNode.Content = append(dagsNode.Content,
-			scalar(id),
-			&yaml.Node{
-				Kind: yaml.MappingNode,
-				Content: []*yaml.Node{
-					scalar("tasks"),
-					{Kind: yaml.SequenceNode, Content: taskItems},
-				},
-			},
-		)
 	}
 
 	root := &yaml.Node{Kind: yaml.DocumentNode}
@@ -585,7 +434,6 @@ func renderManifest(
 			},
 		)
 	}
-	manifest.Content = append(manifest.Content, scalar("dags"), dagsNode)
 	root.Content = []*yaml.Node{manifest}
 
 	var buf bytes.Buffer
@@ -600,37 +448,32 @@ func renderManifest(
 	return buf.Bytes(), nil
 }
 
-// scalar emits a plain (unquoted) node. It is used for structural keys
-// (e.g. "sdk", "tasks") and for the Dag ID mapping keys.
+// scalar emits a plain (unquoted) node. It is used for the structural keys,
+// such as "sdk" and "digests".
 func scalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value}
 }
 
-// quotedScalar emits a double-quoted node. Data-bearing string *values* — task
-// IDs, the source filename, and the SDK fields — go through this so a value
-// that looks like a number, bool, or date (e.g. a task named "123" or "true")
-// round-trips as a string rather than being retyped by the YAML parser.
+// quotedScalar emits a double-quoted node. Data-bearing string values, such as
+// the source filename and the SDK fields, go through this so a value that looks
+// like a number, bool, or date (e.g. a version of "1.0") round-trips as a string
+// rather than being retyped by the YAML parser.
 func quotedScalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value, Style: yaml.DoubleQuotedStyle}
 }
 
 // rejectOutputAlias fails if output resolves to the same file as any pack
-// input: the executable, the source, or a supplied --airflow-metadata file.
-// Packing copies the executable to output with O_TRUNC and renames it into
-// place, so an aliased output would clobber the input. metadataPath is empty
-// when --airflow-metadata is not used and is skipped in that case.
-func rejectOutputAlias(output, execPath, sourcePath, metadataPath string) error {
+// input: the executable or the source. Packing copies the executable to output
+// with O_TRUNC and renames it into place, so an aliased output would clobber
+// the input.
+func rejectOutputAlias(output, execPath, sourcePath string) error {
 	for _, in := range []struct {
 		path string
 		kind string
 	}{
 		{execPath, "executable"},
 		{sourcePath, "source"},
-		{metadataPath, "--airflow-metadata file"},
 	} {
-		if in.path == "" {
-			continue
-		}
 		alias, err := sameFile(output, in.path)
 		if err != nil {
 			return fmt.Errorf("resolving output path %s: %w", output, err)

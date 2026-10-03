@@ -28,9 +28,9 @@ import (
 
 // SupervisorSchemaVersion is the dated AIP-72 supervisor wire-schema version
 // (YYYY-MM-DD) this SDK's coordinator protocol is compiled against. It must
-// match the "api_version" of the schema the models are generated from, and is
-// reported in a bundle's airflow-metadata manifest as
-// sdk.supervisor_schema_version so the supervisor can down/upgrade messages to
+// match the "api_version" of the schema the models are generated from.
+// airflow-go-pack writes it into a bundle's airflow-metadata manifest as
+// sdk.supervisor_schema_version, so the supervisor can down/upgrade messages to
 // a shape the bundle understands.
 const SupervisorSchemaVersion = "2026-10-30"
 

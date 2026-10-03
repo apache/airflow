@@ -21,239 +21,368 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 
-	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
 	"github.com/apache/airflow/go-sdk/internal/bundlefooter"
 	"github.com/apache/airflow/go-sdk/pkg/execution"
 )
 
-// crossArchFor returns an architecture different from the host that the Go
-// toolchain can target, or "" if we have no safe mapping for this host.
-func crossArchFor(hostArch string) string {
-	switch hostArch {
-	case "amd64":
-		return "arm64"
-	case "arm64":
-		return "amd64"
-	default:
-		return ""
-	}
+// packBundleFixture packs the fixture bundle package through the real CLI command, as a user would, and
+// returns the bundle's source, manifest and bytes. It reports the packer's output on failure.
+func packBundleFixture(t *testing.T, args ...string) (source, manifest, bundleBytes []byte) {
+	t.Helper()
+	outPath := filepath.Join(t.TempDir(), "bundle")
+	var stderr bytes.Buffer
+	cmd := newRootCmd()
+	cmd.SetArgs(append([]string{"--output", outPath}, args...))
+	cmd.SetOut(&stderr)
+	cmd.SetErr(&stderr)
+	require.NoError(t, cmd.Execute(), stderr.String())
+
+	// Read parses the trailer and verifies binary_sha256 over the binary region; success means
+	// the bundle is spec-valid.
+	source, manifest, err := bundlefooter.Read(outPath)
+	require.NoError(t, err)
+	return source, manifest, readFile(t, outPath)
 }
 
-// End-to-end cross-arch --executable test: a binary built for an arch the host
-// cannot run is packed into a spec-conforming bundle with its binary region
-// preserved byte-for-byte. The caller supplies the artefact's own
-// --airflow-metadata output (captured here from a host build of the same
-// sources) rather than the packer rebuilding to guess the metadata.
-func TestPack_CrossArchExecutableWithMetadataFile(t *testing.T) {
-	if testing.Short() {
-		t.Skip("cross-arch pack test shells out to `go build` twice")
-	}
-	if _, err := exec.LookPath("go"); err != nil {
-		t.Skip("go toolchain not on PATH")
-	}
-	crossArch := crossArchFor(runtime.GOARCH)
-	if crossArch == "" {
-		t.Skipf("no cross-arch mapping for host arch %q", runtime.GOARCH)
-	}
-
-	// The example bundle is a real bundle that answers --airflow-metadata,
-	// so it exercises the genuine metadata path.
-	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "example", "bundle"))
-	require.NoError(t, err)
-	sourceFile := filepath.Join(exampleDir, "main.go")
-	if _, err := os.Stat(sourceFile); err != nil {
-		t.Skipf("example bundle source not found: %v", err)
-	}
-
-	tmp := t.TempDir()
-	crossBin := filepath.Join(tmp, "prebuilt_cross")
-	hostBin := filepath.Join(tmp, "prebuilt_host")
-
-	// Build the example for a foreign arch (the --executable input) and for
-	// the host. CGO is disabled so the cross build needs no C toolchain.
-	goBuild(t, exampleDir, crossBin, runtime.GOOS, crossArch)
-	goBuild(t, exampleDir, hostBin, runtime.GOOS, runtime.GOARCH)
-
-	crossBytes, err := os.ReadFile(crossBin)
-	require.NoError(t, err)
-	hostBytes, err := os.ReadFile(hostBin)
-	require.NoError(t, err)
-	require.False(t, bytes.Equal(crossBytes, hostBytes),
-		"cross and host builds should differ; cross-compile may not have taken effect")
-
-	// Capture the artefact's own --airflow-metadata JSON from the host build,
-	// standing in for the author running the binary on its native platform.
-	metaJSON := filepath.Join(tmp, "airflow-metadata.json")
-	captureMetadata(t, hostBin, metaJSON)
-
-	// Pack the foreign-arch executable through the real CLI command, feeding
-	// the captured metadata so no host rebuild is needed.
-	outPath := filepath.Join(tmp, "bundle")
-	cmd := newRootCmd()
-	cmd.SetArgs([]string{
-		"--executable", crossBin,
-		"--source", sourceFile,
-		"--airflow-metadata", metaJSON,
-		"--output", outPath,
-	})
-	cmd.SetOut(&bytes.Buffer{})
-	cmd.SetErr(&bytes.Buffer{})
-	require.NoError(t, cmd.Execute())
-
-	bundleBytes, err := os.ReadFile(outPath)
-	require.NoError(t, err)
-
-	// Read parses the trailer and verifies binary_sha256 over the binary
-	// region; success means the bundle is spec-valid.
-	source, metadata, err := bundlefooter.Read(outPath)
-	require.NoError(t, err)
-
-	srcBytes, err := os.ReadFile(sourceFile)
-	require.NoError(t, err)
-	assert.Equal(t, srcBytes, source, "embedded source must match --source bytes")
-
-	// sdk.version is environment-dependent and not asserted verbatim: a plain
-	// `go build` from a local module tree leaves Main.Version unset and yields
-	// "(devel)", while Go 1.24's VCS stamping (e.g. in CI, building from the
-	// git checkout) yields a pseudo-version like v0.0.0-<timestamp>-<commit>,
-	// and a tagged-release build yields a semver tag. Assert the version line
-	// matches an accepted form, then fold the observed value into the expected
-	// manifest so the remaining fields and ordering are checked exactly.
-	// supervisor_schema_version and the format version come from SDK constants
-	// and change only when those constants do.
+// The manifest the packer writes for a binary it did not run: the SDK block comes from the
+// binary's build information and the packer's own go-sdk, and there is no Dag inventory.
+//
+// sdk.version is environment-dependent and not asserted verbatim: a plain `go build` from a local
+// module tree leaves Main.Version unset and yields "(devel)", while Go 1.24's VCS stamping (e.g. in
+// CI, building from the git checkout) yields a pseudo-version like v0.0.0-<timestamp>-<commit>, and
+// a tagged-release build yields a semver tag. The test asserts the version matches an accepted
+// form, then folds the observed value into the expected manifest so the remaining fields and
+// ordering are checked exactly.
+func assertManifestWithoutDags(t *testing.T, manifest, binaryRegion []byte, source string) {
+	t.Helper()
 	versionLine := regexp.MustCompile(`(?m)^  version: "([^"]*)"$`)
-	m := versionLine.FindStringSubmatch(string(metadata))
-	require.NotNil(t, m, "manifest must contain an sdk.version line:\n%s", metadata)
-	sdkVersion := m[1]
-	assert.Regexp(t, `^(\(devel\)|v[0-9].*)$`, sdkVersion,
+	m := versionLine.FindStringSubmatch(string(manifest))
+	require.NotNil(t, m, "manifest must contain an sdk.version line:\n%s", manifest)
+	assert.Regexp(t, `^(\(devel\)|v[0-9].*)$`, m[1],
 		`sdk.version must be "(devel)" or a v-prefixed module version`)
-	// The cache digest covers the environment-dependent binary and sdk.version
-	// too, so it is folded in the same way.
+	// The cache digest covers the environment-dependent binary and sdk.version too.
 	cacheLine := regexp.MustCompile(`(?m)^  cache: "([0-9a-f]{64})"$`)
-	c := cacheLine.FindStringSubmatch(string(metadata))
-	require.NotNil(t, c, "manifest must contain a digests.cache line:\n%s", metadata)
-	crossHash := sha256.Sum256(crossBytes)
+	c := cacheLine.FindStringSubmatch(string(manifest))
+	require.NotNil(t, c, "manifest must contain a digests.cache line:\n%s", manifest)
+	binaryHash := sha256.Sum256(binaryRegion)
 
-	expectedManifest := `airflow_bundle_metadata_version: "1.0"
+	assert.Equal(t, `airflow_bundle_metadata_version: "1.0"
 sdk:
   language: "go"
-  version: "` + sdkVersion + `"
-  supervisor_schema_version: "` + execution.SupervisorSchemaVersion + `"
-source: "main.go"
+  version: "`+m[1]+`"
+  supervisor_schema_version: "`+execution.SupervisorSchemaVersion+`"
+source: "`+source+`"
 digests:
-  integrity: "` + hex.EncodeToString(crossHash[:]) + `"
-  cache: "` + c[1] + `"
-dags:
-  concurrent_xcom_dag:
-    tasks:
-      - "pull_xcoms_concurrently"
-  simple_dag:
-    tasks:
-      - "extract"
-      - "transform"
-      - "load"
-  taskflow_binding_dag:
-    tasks:
-      - "make_config"
-      - "make_numbers"
-      - "make_region"
-      - "via_flat_args"
-      - "via_struct_no_tags"
-      - "via_struct_arg_tag"
-      - "via_struct_default_arg"
-      - "via_struct_more_args"
-      - "via_struct_fewer_args"
-      - "via_flat_map"
-      - "via_struct_map"
-      - "via_plain_map"
-  variable_write_dag:
-    tasks:
-      - "write_and_delete_variable"
-`
-	assert.Equal(t, expectedManifest, string(metadata))
-
-	// The packed binary region must be exactly the foreign-arch executable:
-	// the captured metadata describes it, and the binary is never rebuilt.
-	binaryRegion := bundleBytes[:len(bundleBytes)-len(source)-len(metadata)-bundlefooter.TrailerSize]
-	assert.Equal(t, crossBytes, binaryRegion,
-		"packed binary region must be the foreign-arch --executable, not a host rebuild")
+  integrity: "`+hex.EncodeToString(binaryHash[:])+`"
+  cache: "`+c[1]+`"
+`, string(manifest))
 }
 
-// End-to-end build-mode cross-compile (no --executable): with GOOS/GOARCH set,
-// the packer builds the target-arch artefact and a host-arch binary (solely to
-// read the manifest), forwarding the `--` go build flags. The packed binary
-// must be the target-arch artefact built with the forwarded flags.
+func binaryRegionOf(bundleBytes, source, manifest []byte) []byte {
+	return bundleBytes[:len(bundleBytes)-len(source)-len(manifest)-bundlefooter.TrailerSize]
+}
+
+// Packing a package whose binary exits non-zero succeeds, so the packer does not run it.
+func TestPack_BuildsWithoutRunningTheBundle(t *testing.T) {
+	requireGo(t)
+
+	source, manifest, bundleBytes := packBundleFixture(t, "./testdata/failingbundle")
+
+	srcBytes := readFile(t, filepath.Join("testdata", "failingbundle", "main.go"))
+	assert.Equal(t, srcBytes, source, "embedded source must be the file with func main")
+	assertManifestWithoutDags(t, manifest, binaryRegionOf(bundleBytes, source, manifest), "main.go")
+}
+
+// A cross-arch build-mode pack needs no host build of the bundle: the artefact is the target-arch
+// build with the forwarded flags, and the host-arch binary the packer used to run is gone.
 func TestPack_CrossCompileBuildModeForwardsFlags(t *testing.T) {
-	if testing.Short() {
-		t.Skip("cross-arch pack test shells out to `go build` twice")
-	}
-	if _, err := exec.LookPath("go"); err != nil {
-		t.Skip("go toolchain not on PATH")
-	}
-	crossArch := crossArchFor(runtime.GOARCH)
-	if crossArch == "" {
-		t.Skipf("no cross-arch mapping for host arch %q", runtime.GOARCH)
-	}
-
-	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "example", "bundle"))
-	require.NoError(t, err)
-	if _, err := os.Stat(filepath.Join(exampleDir, "main.go")); err != nil {
-		t.Skipf("example bundle source not found: %v", err)
-	}
-
-	// Cross-compile via the environment, exactly as a user would. CGO is
-	// disabled so the cross build needs no C toolchain.
+	crossArch := requireCrossArch(t)
+	// Cross-compile via the environment, exactly as a user would. CGO is disabled so the cross
+	// build needs no C toolchain.
 	t.Setenv("GOOS", runtime.GOOS)
 	t.Setenv("GOARCH", crossArch)
 	t.Setenv("CGO_ENABLED", "0")
 
-	tmp := t.TempDir()
-	outPath := filepath.Join(tmp, "bundle")
+	source, manifest, bundleBytes := packBundleFixture(
+		t,
+		"./testdata/failingbundle",
+		"--",
+		"-trimpath",
+	)
 
-	// Pack the example package (no --executable, no --source), forwarding
-	// -trimpath after the "--" separator to the internal go build.
-	cmd := newRootCmd()
-	cmd.SetArgs([]string{exampleDir, "--output", outPath, "--", "-trimpath"})
-	cmd.SetOut(&bytes.Buffer{})
-	cmd.SetErr(&bytes.Buffer{})
-	require.NoError(t, cmd.Execute())
-
-	source, metadata, err := bundlefooter.Read(outPath)
-	require.NoError(t, err)
-	assert.Contains(t, string(metadata), "simple_dag:",
-		"manifest must be read from the host introspection build")
-
-	// Independently build the target-arch artefact with the same forwarded
-	// flag; the packed binary region must match it byte-for-byte, proving the
-	// deployable artefact is the cross build (not the host introspection one)
-	// and that -trimpath was forwarded.
-	wantBin := filepath.Join(tmp, "want_cross")
-	build := exec.Command("go", "build", "-trimpath", "-o", wantBin, exampleDir)
+	// Independently build the target-arch artefact with the same forwarded flag; the packed binary
+	// region must match it byte-for-byte, proving the deployable artefact is the cross build and
+	// that -trimpath was forwarded.
+	wantBin := filepath.Join(t.TempDir(), "want_cross")
+	build := exec.Command("go", "build", "-trimpath", "-o", wantBin, "./testdata/failingbundle")
 	build.Env = append(os.Environ(), "GOOS="+runtime.GOOS, "GOARCH="+crossArch, "CGO_ENABLED=0")
 	if combined, berr := build.CombinedOutput(); berr != nil {
 		t.Fatalf("reference cross build failed: %v\n%s", berr, combined)
 	}
-	wantBytes, err := os.ReadFile(wantBin)
-	require.NoError(t, err)
-
-	bundleBytes, err := os.ReadFile(outPath)
-	require.NoError(t, err)
-	binaryRegion := bundleBytes[:len(bundleBytes)-len(source)-len(metadata)-bundlefooter.TrailerSize]
-	assert.Equal(t, wantBytes, binaryRegion,
+	assert.Equal(t, readFile(t, wantBin), binaryRegionOf(bundleBytes, source, manifest),
 		"packed binary must be the cross-built artefact with -trimpath forwarded")
+	assertManifestWithoutDags(t, manifest, readFile(t, wantBin), "main.go")
+}
+
+// A cross-arch --executable pack needs no manifest and no host build: a binary built for an
+// architecture the host cannot run is packed with its binary region preserved byte-for-byte, and
+// the SDK version is read from the binary.
+func TestPack_CrossArchExecutable(t *testing.T) {
+	crossArch := requireCrossArch(t)
+	crossBin := filepath.Join(t.TempDir(), "prebuilt_cross")
+	goBuild(t, "./testdata/failingbundle", crossBin, runtime.GOOS, crossArch)
+	require.NotEqual(t, readFile(t, bundleBinary(t)), readFile(t, crossBin),
+		"cross and host builds should differ; cross-compile may not have taken effect")
+	sourceFile := filepath.Join("testdata", "failingbundle", "main.go")
+
+	source, manifest, bundleBytes := packBundleFixture(
+		t,
+		"--executable",
+		crossBin,
+		"--source",
+		sourceFile,
+	)
+
+	assert.Equal(t, readFile(t, sourceFile), source, "embedded source must match --source bytes")
+	binaryRegion := binaryRegionOf(bundleBytes, source, manifest)
+	assert.Equal(t, readFile(t, crossBin), binaryRegion,
+		"packed binary region must be the foreign-arch --executable, not a rebuild")
+	assertManifestWithoutDags(t, manifest, binaryRegion, "main.go")
+}
+
+// Build information survives a stripped binary, so the version can still be read.
+func TestPack_StrippedBinary(t *testing.T) {
+	requireGo(t)
+
+	source, manifest, bundleBytes := packBundleFixture(
+		t, "./testdata/failingbundle", "--", "-ldflags=-s -w",
+	)
+
+	// The packed binary must be the stripped build, so the flag reached `go build` and the
+	// version was read from a binary without a symbol table.
+	wantBin := filepath.Join(t.TempDir(), "want_stripped")
+	build := exec.Command(
+		"go", "build", "-ldflags=-s -w", "-o", wantBin, "./testdata/failingbundle",
+	)
+	if combined, berr := build.CombinedOutput(); berr != nil {
+		t.Fatalf("reference stripped build failed: %v\n%s", berr, combined)
+	}
+	binaryRegion := binaryRegionOf(bundleBytes, source, manifest)
+	assert.Equal(t, readFile(t, wantBin), binaryRegion,
+		"packed binary must be the stripped build with -ldflags forwarded")
+	assert.NotEqual(t, readFile(t, bundleBinary(t)), binaryRegion,
+		"packed binary must differ from the unstripped build")
+	assertManifestWithoutDags(t, manifest, binaryRegion, "main.go")
+}
+
+// A Go binary that does not link go-sdk is not a bundle.
+func TestRunPack_RejectsBinaryWithoutSDK(t *testing.T) {
+	requireGo(t)
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"),
+		[]byte("module nosdk\n\ngo 1.24\n"), 0o644))
+	source := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(source, []byte("package main\n\nfunc main() {}\n"), 0o644))
+	exe := filepath.Join(dir, "nosdk")
+	build := exec.Command("go", "build", "-o", exe, ".")
+	build.Dir = dir
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("building the binary failed: %v\n%s", err, out)
+	}
+	out := filepath.Join(dir, "bundle")
+
+	err := runPack(
+		io.Discard,
+		io.Discard,
+		&packOptions{executable: exe, source: source, output: out},
+	)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not link github.com/apache/airflow/go-sdk")
+	_, statErr := os.Stat(out)
+	assert.True(t, os.IsNotExist(statErr), "no bundle should be written")
+}
+
+// writeBundleModule writes a module that requires go-sdk at sdkVersion, resolved to this checkout
+// of go-sdk through a replace directive, with airflow-go-pack as a tool and a bundle package that
+// links go-sdk. The module copies the SDK's requirements and checksums, so it builds offline.
+func writeBundleModule(t *testing.T, dir, name, sdkVersion string) {
+	t.Helper()
+	sdkDir, err := filepath.Abs(filepath.Join("..", ".."))
+	require.NoError(t, err)
+	goMod := strings.Replace(
+		string(readFile(t, filepath.Join(sdkDir, "go.mod"))),
+		"module "+testSDKModule, "module example.com/"+name, 1,
+	)
+	goMod += "\nrequire " + testSDKModule + " " + sdkVersion + "\n\nreplace " + testSDKModule + " => " +
+		filepath.ToSlash(
+			sdkDir,
+		) + "\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o644))
+	goSum := readFile(t, filepath.Join(sdkDir, "go.sum"))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.sum"), goSum, 0o644))
+	mainGo := readFile(t, filepath.Join("testdata", "failingbundle", "main.go"))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.go"), mainGo, 0o644))
+}
+
+// goInModule runs go in dir without network access and returns its combined output.
+func goInModule(t *testing.T, dir string, args ...string) (string, error) {
+	t.Helper()
+	cmd := exec.Command("go", args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOPROXY=off", "GOFLAGS=-mod=readonly", "CGO_ENABLED=0")
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+// The packer and the bundle binary must be built against the same go-sdk. This runs the packer as
+// a user does, with `go tool` from modules that resolve go-sdk through a replace directive.
+func TestPack_TwoModules(t *testing.T) {
+	requireGo(t)
+	packerModule := t.TempDir()
+	writeBundleModule(t, packerModule, "packer", "v0.0.0")
+
+	t.Run(
+		"a module that replaces go-sdk with a local path packs with its own go tool",
+		func(t *testing.T) {
+			out := filepath.Join(t.TempDir(), "bundle")
+
+			output, err := goInModule(
+				t,
+				packerModule,
+				"tool",
+				"airflow-go-pack",
+				"--output",
+				out,
+				".",
+			)
+
+			require.NoError(t, err, output)
+			assert.Contains(t, output, "Wrote bundle "+out+" (sdk=go/(devel))\n")
+			_, manifest, err := bundlefooter.Read(out)
+			require.NoError(t, err)
+			// A replacement by a local path has the version "(devel)", which is what the manifest records.
+			assert.Contains(t, string(manifest), `  version: "(devel)"`)
+			assert.Contains(
+				t,
+				string(manifest),
+				`  supervisor_schema_version: "`+execution.SupervisorSchemaVersion+`"`,
+			)
+		},
+	)
+
+	t.Run("a binary built against another go-sdk is refused", func(t *testing.T) {
+		otherModule := t.TempDir()
+		writeBundleModule(t, otherModule, "other", "v0.0.1")
+		binary := filepath.Join(otherModule, "other")
+		output, err := goInModule(t, otherModule, "build", "-o", binary, ".")
+		require.NoError(t, err, output)
+		out := filepath.Join(t.TempDir(), "bundle")
+
+		output, err = goInModule(
+			t,
+			packerModule,
+			"tool",
+			"airflow-go-pack",
+			"--executable",
+			binary,
+			"--source",
+			filepath.Join(otherModule, "main.go"),
+			"--output",
+			out,
+		)
+
+		require.Error(t, err)
+		assert.Contains(t, output, "built against go-sdk v0.0.1 replaced by ")
+		assert.Contains(t, output, "airflow-go-pack was built against go-sdk v0.0.0 replaced by ")
+		assert.Contains(t, output, "go tool airflow-go-pack")
+		_, statErr := os.Stat(out)
+		assert.True(t, os.IsNotExist(statErr), "no bundle should be written")
+	})
+
+	t.Run("a binary built in go-sdk is refused by a replacing packer", func(t *testing.T) {
+		// go-sdk is the main module of the binary and a replaced dependency of the packer, so
+		// the comparison runs. -buildvcs=false keeps the main module's version "(devel)",
+		// whatever the checkout's version control says.
+		sdkDir, err := filepath.Abs(filepath.Join("..", ".."))
+		require.NoError(t, err)
+		fixtureDir := filepath.Join(sdkDir, "cmd", "airflow-go-pack", "testdata", "failingbundle")
+		binary := filepath.Join(t.TempDir(), "inside")
+		output, err := goInModule(t, sdkDir, "build", "-buildvcs=false", "-o", binary, fixtureDir)
+		require.NoError(t, err, output)
+		out := filepath.Join(t.TempDir(), "bundle")
+
+		output, err = goInModule(
+			t,
+			packerModule,
+			"tool",
+			"airflow-go-pack",
+			"--executable",
+			binary,
+			"--source",
+			filepath.Join(fixtureDir, "main.go"),
+			"--output",
+			out,
+		)
+
+		require.Error(t, err)
+		assert.Contains(t, output, "built against go-sdk (devel) (main module)")
+		assert.Contains(t, output, "airflow-go-pack was built against go-sdk v0.0.0 replaced by ")
+		_, statErr := os.Stat(out)
+		assert.True(t, os.IsNotExist(statErr), "no bundle should be written")
+	})
+
+	t.Run("a build flag that changes the module graph is refused", func(t *testing.T) {
+		// -modfile makes the build resolve go-sdk through another go.mod, as a user's flag after
+		// "--" could.
+		other := strings.Replace(
+			string(readFile(t, filepath.Join(packerModule, "go.mod"))),
+			"require "+testSDKModule+" v0.0.0", "require "+testSDKModule+" v0.0.1", 1,
+		)
+		require.NoError(
+			t,
+			os.WriteFile(filepath.Join(packerModule, "other.mod"), []byte(other), 0o644),
+		)
+		require.NoError(t, os.WriteFile(
+			filepath.Join(
+				packerModule,
+				"other.sum",
+			),
+			readFile(t, filepath.Join(packerModule, "go.sum")),
+			0o644,
+		))
+		out := filepath.Join(t.TempDir(), "bundle")
+
+		output, err := goInModule(
+			t,
+			packerModule,
+			"tool",
+			"airflow-go-pack",
+			"--output",
+			out,
+			".",
+			"--",
+			"-modfile=other.mod",
+		)
+
+		require.Error(t, err)
+		assert.Contains(t, output, "built against go-sdk v0.0.1 replaced by ")
+		assert.Contains(t, output, "airflow-go-pack was built against go-sdk v0.0.0 replaced by ")
+		_, statErr := os.Stat(out)
+		assert.True(t, os.IsNotExist(statErr), "no bundle should be written")
+	})
 }
 
 // When --source is supplied, the packer skips source discovery, so a package
@@ -296,60 +425,6 @@ func TestRunPack_SourceBypassesDiscovery(t *testing.T) {
 		"packing should proceed to the build step when --source is given")
 }
 
-// Checks the bundle binary's --airflow-metadata encodings: default is YAML,
-// --format json emits JSON, both decode to the same manifest, and --format
-// without --airflow-metadata is a hard error.
-func TestBundleBinary_AirflowMetadataFormats(t *testing.T) {
-	if testing.Short() {
-		t.Skip("shells out to `go build`")
-	}
-	if _, err := exec.LookPath("go"); err != nil {
-		t.Skip("go toolchain not on PATH")
-	}
-
-	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "example", "bundle"))
-	require.NoError(t, err)
-	if _, err := os.Stat(filepath.Join(exampleDir, "main.go")); err != nil {
-		t.Skipf("example bundle source not found: %v", err)
-	}
-
-	hostBin := filepath.Join(t.TempDir(), "bundle")
-	goBuild(t, exampleDir, hostBin, runtime.GOOS, runtime.GOARCH)
-
-	assertManifest := func(t *testing.T, meta airflowmetadata.Manifest) {
-		t.Helper()
-		assert.Equal(t, "go", meta.SDK.Language)
-		require.Contains(t, meta.Dags, "simple_dag")
-		assert.Equal(t, []string{"extract", "transform", "load"}, meta.Dags["simple_dag"].Tasks)
-	}
-
-	// Default: YAML. A JSON document would start with '{'.
-	yamlOut, err := exec.Command(hostBin, "--airflow-metadata").Output()
-	require.NoError(t, err, "running %s --airflow-metadata", hostBin)
-	assert.False(t, bytes.HasPrefix(bytes.TrimSpace(yamlOut), []byte("{")),
-		"default --airflow-metadata must emit YAML, not JSON")
-	assert.Contains(t, string(yamlOut), "airflow_bundle_metadata_version:")
-	var fromYAML airflowmetadata.Manifest
-	require.NoError(t, yaml.Unmarshal(yamlOut, &fromYAML))
-	assertManifest(t, fromYAML)
-
-	// --format json: JSON output.
-	jsonOut, err := exec.Command(hostBin, "--airflow-metadata", "--format", "json").Output()
-	require.NoError(t, err, "running %s --airflow-metadata --format json", hostBin)
-	assert.True(t, bytes.HasPrefix(bytes.TrimSpace(jsonOut), []byte("{")),
-		"--format json must emit JSON")
-	var fromJSON airflowmetadata.Manifest
-	require.NoError(t, json.Unmarshal(jsonOut, &fromJSON))
-	assertManifest(t, fromJSON)
-
-	assert.Equal(t, fromYAML, fromJSON, "both encodings must decode to the same manifest")
-
-	// --format without --airflow-metadata is a usage error.
-	bad, err := exec.Command(hostBin, "--format", "json").CombinedOutput()
-	require.Error(t, err, "--format without --airflow-metadata must exit non-zero")
-	assert.Contains(t, string(bad), "--format is only valid together with --airflow-metadata")
-}
-
 // Running the packer from a directory that is not a bundle main package must
 // turn the bare `go list` failure into an actionable error pointing at a
 // package path or --source.
@@ -376,14 +451,4 @@ func goBuild(t *testing.T, pkgDir, out, goos, goarch string) {
 	if combined, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build %s for %s/%s failed: %v\n%s", pkgDir, goos, goarch, err, combined)
 	}
-}
-
-// captureMetadata runs a host-runnable bundle binary with --airflow-metadata
-// and writes its JSON stdout to outPath.
-func captureMetadata(t *testing.T, hostBin, outPath string) {
-	t.Helper()
-	cmd := exec.Command(hostBin, "--airflow-metadata")
-	out, err := cmd.Output()
-	require.NoError(t, err, "running %s --airflow-metadata", hostBin)
-	require.NoError(t, os.WriteFile(outPath, out, 0o644))
 }

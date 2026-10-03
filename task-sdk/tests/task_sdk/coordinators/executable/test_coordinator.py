@@ -54,8 +54,8 @@ if not AIRFLOW_V_3_3_PLUS:
 _DEFAULT_BINARY_PAYLOAD = b"\x7fELF" + b"binary-stub-payload"
 
 
-def _make_metadata(dag_ids, source_filename: str = "example.go") -> dict:
-    return {
+def _make_metadata(dag_ids=None, source_filename: str = "example.go") -> dict:
+    metadata = {
         "airflow_bundle_metadata_version": "1.0",
         "sdk": {
             "language": "go",
@@ -63,14 +63,17 @@ def _make_metadata(dag_ids, source_filename: str = "example.go") -> dict:
             "supervisor_schema_version": "2026-06-16",
         },
         "source": source_filename,
-        "dags": {dag_id: {"tasks": ["task1"]} for dag_id in dag_ids},
     }
+    if dag_ids is not None:
+        # The Dag inventory that packers wrote before the manifest dropped it.
+        metadata["dags"] = {dag_id: {"tasks": ["task1"]} for dag_id in dag_ids}
+    return metadata
 
 
 def _build_bundle(
     path: Path,
     *,
-    dag_ids=("tutorial_dag",),
+    dag_ids=None,
     source: str | bytes = "package main\n\nfunc main() {}\n",
     source_filename: str = "example.go",
     metadata: dict | bytes | None = None,
@@ -200,7 +203,7 @@ _CACHE_DIGEST = "c" * 64
 
 
 def _make_metadata_with_digests(**digests: str) -> dict:
-    return {**_make_metadata(["etl"]), "digests": digests}
+    return {**_make_metadata(), "digests": digests}
 
 
 class TestReadCacheDigest:
@@ -281,12 +284,42 @@ class TestBuildTaskHandlerCommand:
             ExecutableCoordinator()._build_task_handler_command(path=bundle)
 
     def test_rejects_a_bundle_without_a_schema_version(self, tmp_path):
-        metadata = _make_metadata(["etl"])
+        metadata = _make_metadata()
         del metadata["sdk"]["supervisor_schema_version"]
         bundle = _build_bundle(tmp_path / "etl", metadata=metadata)
 
         with pytest.raises(ValueError, match="supervisor_schema_version"):
             ExecutableCoordinator()._build_task_handler_command(path=bundle)
+
+
+class TestManifestWithAndWithoutADagInventory:
+    """A manifest lists no Dags now. A bundle packed earlier still carries a ``dags`` mapping, which is ignored."""
+
+    @pytest.fixture(params=[None, ["etl", "other_dag"]], ids=["without-dags", "with-dags"])
+    def bundle(self, request, tmp_path):
+        metadata = _make_metadata(request.param)
+        assert ("dags" in metadata) is (request.param is not None)
+        return _build_bundle(tmp_path / "etl", metadata=metadata)
+
+    def test_is_listed_as_a_candidate(self, bundle):
+        assert _list_candidates(bundle.parent) == [
+            TaskHandlerCandidate(rel_path="etl", size_bytes=bundle.stat().st_size, cache_digest=None)
+        ]
+
+    def test_is_started_with_its_schema_version(self, bundle):
+        command, schema_version = ExecutableCoordinator()._build_task_handler_command(path=bundle)
+
+        assert command == [str(bundle.resolve())]
+        assert schema_version == "2026-06-16"
+
+    def test_runs_for_a_task_that_names_it(self, bundle, mock_client):
+        with register_dag_bundle("go-task-handlers", bundle.parent) as name:
+            reference = TaskHandlerArtifactRef(bundle_info=BundleInfo(name=name), rel_path="etl")
+            _, popen_calls = _execute_task(
+                mock_client, "other-dags", dag_rel_path="dag.py", task_handler_artifact=reference
+            )
+
+        assert popen_calls[0][0] == str(bundle.resolve())
 
 
 def _list_candidates(bundle_path: Path) -> list[TaskHandlerCandidate]:
@@ -354,7 +387,7 @@ class TestListTaskHandlerCandidates:
 @pytest.fixture
 def bundles_dir(tmp_path):
     """A directory with one bundle that declares no Dag id, so a task cannot find it by its Dag id."""
-    _build_bundle(tmp_path / "my_bundle", dag_ids=[])
+    _build_bundle(tmp_path / "my_bundle")
     return tmp_path
 
 
@@ -430,7 +463,7 @@ class TestExecutableCoordinatorExecuteTask:
     def test_a_referenced_bundle_runs_whatever_dag_ids_it_declares(
         self, bundles_dir, go_task_handlers, mock_client
     ):
-        _build_bundle(bundles_dir / "etl", dag_ids=[])
+        _build_bundle(bundles_dir / "etl")
         reference = TaskHandlerArtifactRef(rel_path="etl")
 
         _, popen_calls = _execute_task(
@@ -537,7 +570,7 @@ class TestExecutableCoordinatorExecuteTask:
     def test_a_bundle_with_an_unknown_schema_version_raises_before_the_runtime_starts(
         self, bundles_dir, go_task_handlers, mock_client
     ):
-        metadata = _make_metadata(["tutorial_dag"])
+        metadata = _make_metadata()
         metadata["sdk"]["supervisor_schema_version"] = "1999-01-01"
         _build_bundle(bundles_dir / "bogus", metadata=metadata)
         reference = TaskHandlerArtifactRef(rel_path="bogus")

@@ -38,7 +38,10 @@ from airflow.sdk.coordinators.node.coordinator import NodeCoordinator
 from airflow.sdk.execution_time.comms import TaskHandlerArtifactRef
 from airflow.sdk.execution_time.coordinator import TaskHandlerArtifactError, TaskHandlerCandidate
 
+from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
+
 SCHEMA_VERSION = "2026-06-16"
+TYPESCRIPT_FIXTURES = AIRFLOW_ROOT_PATH / "ts-sdk" / "tests" / "cli" / "fixtures"
 
 
 @pytest.fixture(autouse=True)
@@ -265,6 +268,32 @@ class TestNodeCoordinatorExecuteTask:
                 )
 
         mock_start.assert_not_called()
+
+
+class TestBundlesPackedByAirflowTsPack:
+    """A bundle reads whether or not its metadata still carries the task_handlers older packers embedded."""
+
+    @pytest.fixture(
+        params=["bundle-v1.min.mjs", "bundle-v1-with-task-handlers.min.mjs"],
+        ids=["without-task-handlers", "with-task-handlers"],
+    )
+    def packed_bundle(self, request, tmp_path):
+        bundle = tmp_path / "handlers.min.mjs"
+        bundle.write_bytes((TYPESCRIPT_FIXTURES / request.param).read_bytes())
+        return bundle
+
+    def test_is_listed_as_a_candidate(self, packed_bundle):
+        candidates = NodeCoordinator().list_task_handler_candidates(packed_bundle.parent)
+
+        assert [(c.rel_path, c.error) for c in candidates] == [("handlers.min.mjs", None)]
+
+    def test_is_started_with_its_schema_version(self, packed_bundle):
+        command, schema_version = NodeCoordinator(node_executable="node")._build_task_handler_command(
+            path=packed_bundle
+        )
+
+        assert command == ["node", str(packed_bundle)]
+        assert schema_version == SCHEMA_VERSION
 
 
 class TestListTaskHandlerCandidates:

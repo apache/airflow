@@ -16,9 +16,9 @@
 // under the License.
 
 // Command airflow-go-pack builds a self-contained Airflow bundle from a Go
-// package. It runs `go build`, exec's the freshly built binary with
-// `--airflow-metadata` to obtain the manifest, and appends the source plus
-// manifest plus AFBNDL01 trailer to the executable as specified by ADR 0004.
+// package. It runs `go build`, reads the go-sdk version from the binary's build
+// information, and appends the source plus manifest plus AFBNDL01 trailer to the
+// executable as specified by ADR 0004. It never runs the binary.
 //
 // Usage:
 //
@@ -50,42 +50,42 @@ func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "airflow-go-pack [package]",
 		Short: "Build a self-contained Airflow bundle from a Go package",
-		Long: `airflow-go-pack builds a Go bundle binary, queries it for its DAG/task
-identity via --airflow-metadata, and appends the source plus an
-airflow-metadata.yaml manifest plus an AFBNDL01 trailer to the
-executable. The result is a single self-contained file that drops into
-[executable] bundles_folder.
+		Long: `airflow-go-pack builds a Go bundle binary and appends the source plus an
+airflow-metadata.yaml manifest plus an AFBNDL01 trailer to the executable.
+The result is a single self-contained file that drops into the Dag bundle
+a Go coordinator reads.
+
+The packer never runs the binary. It records the go-sdk version the binary
+was built against, read from the binary's build information, and refuses a
+binary built against a different go-sdk than the packer itself. Run it as
+"go tool airflow-go-pack" from the module that builds the bundle, so both
+use that module's go-sdk.
 
 By default the packer builds the package in the current directory. Pass
 a different package as the positional argument; pass extra go build
 flags after a "--" separator.
 
---executable expects a binary that runs on this host (same OS/arch). To
-build a bundle for a different platform you have two options: run the
-packer with --goos/--goarch so it cross-builds the deployable artefact
-while building a host-arch binary (forwarding your -- build flags) solely
-to read the manifest; or pack a pre-built cross binary with --executable
-and supply its manifest via --airflow-metadata, captured by running the
-binary on its native platform (mybundle --airflow-metadata > meta.yaml).
+--executable packs a binary you built yourself, for any platform, as it is.
+To build for a different platform, pass --goos/--goarch so the packer
+cross-builds the bundle, or cross-build the binary yourself and pack it with
+--executable.
 
 Use --goos/--goarch rather than the GOOS/GOARCH env vars: under
 "go tool airflow-go-pack" those env vars cross-build the packer itself,
-which then cannot exec on the host.
+which then cannot run on the host.
 
 Examples:
   go tool airflow-go-pack
   go tool airflow-go-pack ./cmd/my-bundle -- -trimpath -tags=prod
   go tool airflow-go-pack --executable ./build/example --source main.go
 
-  # Cross-platform via the build path: cross-build + host introspection.
+  # Cross-platform via the build path.
   go tool airflow-go-pack --goos linux --goarch amd64 ./cmd/my-bundle -- -trimpath
 
-  # Cross-platform via a pre-built binary: pack it with its captured manifest.
+  # Cross-platform via a pre-built binary.
   GOOS=linux GOARCH=arm64 go build -o ./build/example-arm64 ./cmd/my-bundle
-  go build -o ./build/example-on-native-host ./cmd/my-bundle
-  ./build/example-on-native-host --airflow-metadata > meta.yaml
   go tool airflow-go-pack --executable ./build/example-arm64 \
-    --source ./cmd/my-bundle/main.go --airflow-metadata meta.yaml
+    --source ./cmd/my-bundle/main.go
 `,
 		// Only count args BEFORE "--" toward the positional limit; args
 		// after "--" are forwarded verbatim to `go build` and must not
@@ -128,10 +128,6 @@ Examples:
 	root.Flags().StringVar(&opts.output, "output",
 		"",
 		"output bundle path (defaults to ./<package-dir-name>)")
-	root.Flags().StringVar(&opts.airflowMetadata, "airflow-metadata",
-		"",
-		"path to a pre-captured --airflow-metadata manifest (JSON or YAML); skips "+
-			"introspecting the binary")
 	root.Flags().StringVar(&opts.goos, "goos",
 		"",
 		"target GOOS for the bundle (cross-compile); prefer this over the GOOS env "+

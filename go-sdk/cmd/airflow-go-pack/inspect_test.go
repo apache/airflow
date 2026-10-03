@@ -30,17 +30,41 @@ import (
 // inspect reads a bundle through bundlefooter.Read and prints the embedded
 // manifest, prefixing the source too under --source.
 func TestInspectCmd(t *testing.T) {
-	dir := t.TempDir()
-	exe := filepath.Join(dir, "input-bin")
-	require.NoError(t, os.WriteFile(exe, []byte("binary-bytes"), 0o755))
-	source := []byte("package main\n\nfunc main() {}\n")
 	manifest := []byte(
 		"airflow_bundle_metadata_version: \"1.0\"\n" +
+			"sdk:\n" +
+			"  language: \"go\"\n" +
+			"  version: \"0.1.0\"\n" +
+			"  supervisor_schema_version: \"2026-10-30\"\n" +
+			"source: \"main.go\"\n",
+	)
+	inspectBundle(t, manifest)
+}
+
+// A bundle packed before the manifest dropped its Dag inventory still prints, with the inventory
+// as it was written.
+func TestInspectCmd_BundleWithADagInventory(t *testing.T) {
+	manifest := []byte(
+		"airflow_bundle_metadata_version: \"1.0\"\n" +
+			"sdk:\n" +
+			"  language: \"go\"\n" +
+			"  version: \"0.1.0\"\n" +
+			"  supervisor_schema_version: \"2026-06-16\"\n" +
+			"source: \"main.go\"\n" +
 			"dags:\n" +
 			"  my_dag:\n" +
 			"    tasks:\n" +
 			"      - \"t1\"\n",
 	)
+	inspectBundle(t, manifest)
+}
+
+func inspectBundle(t *testing.T, manifest []byte) {
+	t.Helper()
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "input-bin")
+	require.NoError(t, os.WriteFile(exe, []byte("binary-bytes"), 0o755))
+	source := []byte("package main\n\nfunc main() {}\n")
 	bundle := filepath.Join(dir, "bundle")
 	require.NoError(t, writeBundle(exe, bundle, source, fixedManifest(manifest)))
 

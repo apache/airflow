@@ -228,7 +228,10 @@ If the target runtime compiles to a self-contained native executable, the
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` can
 discover and launch it automatically. For the coordinator to understand the
 bundle correctly, extra metadata should be appended to the executable by a
-custom bundling step at build-time.
+custom bundling step at build-time. The metadata names the SDK and the
+supervisor schema version and lists no Dags or tasks: the Dag processor asks the
+bundle which task handlers it registers, so the bundling step does not need to
+run the executable.
 
 See :ref:`Executable Bundle Spec` in Task SDK documentation for details.
 
@@ -536,9 +539,10 @@ authored in the target language. An SDK declares each one independently.
     The task can read, write, and delete Airflow Variables.
 
 ``self-contained-bundle`` (MUST)
-    The SDK's build artifact embeds its own Airflow metadata (``dag_id``, ``task_id`` and
-    the rest of the task descriptor) inside the *same* artifact as the task code, rather
-    than shipping it in a separate sidecar file, so the deployable unit is self-describing.
+    The SDK's build artifact embeds its own Airflow metadata (what Airflow needs to run it,
+    such as the supervisor schema version it was built against) inside the *same* artifact
+    as the task code, rather than shipping it in a separate sidecar file, so the deployable
+    unit is self-describing.
     Each runtime satisfies this its own way — a Go binary carries an ``AFBNDL01`` metadata
     trailer (see `Native Executable Bundle Format`_), a JVM artifact embeds it in the jar,
     a Node bundle embeds it in the package.

@@ -34,7 +34,11 @@ import {
 } from "../../src/cli/bundle-encoder.js";
 import { parsePackArgs, runPack } from "../../src/cli/pack.js";
 import { SUPERVISOR_API_VERSION } from "../../src/coordinator/protocol.js";
-import { AIRFLOW_METADATA_SENTINEL } from "../../src/coordinator/manifest.js";
+import {
+  AIRFLOW_METADATA_FLAG,
+  AIRFLOW_METADATA_SENTINEL,
+  type BundleManifest,
+} from "../../src/coordinator/manifest.js";
 
 const FIXTURE_ENTRY = fileURLToPath(new URL("fixtures/entry.ts", import.meta.url));
 const GOLDEN_BUNDLE = fileURLToPath(new URL("fixtures/bundle-v1.min.mjs", import.meta.url));
@@ -139,7 +143,7 @@ describe("encodeBundle", () => {
     const bundle = encodeBundle({
       bundleManifest: {
         supervisor_schema_version: "2026-06-16",
-        task_handlers: { my_dag: { tasks: ["a", 'b"c'] } },
+        task_handlers: { my_dag: { tasks: ["a"] } },
         dag_source_paths: { my_dag: "src/my_dag.ts" },
       },
       sdkVersion: "0.1.0",
@@ -170,11 +174,39 @@ describe("encodeBundle", () => {
 
     const metadata = bundle.subarray(metadataStart, metadataEnd).toString("utf-8");
     expect(metadata).toBe(
-      '{"airflow_bundle_metadata_version":"1.0","sdk":{"language":"typescript","version":"0.1.0","supervisor_schema_version":"2026-06-16"},"entrypoint_path":"src/my_dag.ts","dag_source_paths":{"my_dag":"src/my_dag.ts"},"task_handlers":{"my_dag":{"tasks":["a","b\\"c"]}}}',
+      '{"airflow_bundle_metadata_version":"1.0","sdk":{"language":"typescript","version":"0.1.0","supervisor_schema_version":"2026-06-16"},"entrypoint_path":"src/my_dag.ts","dag_source_paths":{"my_dag":"src/my_dag.ts"}}',
     );
 
     expect(header).not.toHaveProperty("version");
     expect(header).not.toHaveProperty("source");
+  });
+
+  it("embeds the schema version and the Dag source paths, and no task handlers", () => {
+    const bundle = encodeBundle({
+      bundleManifest: {
+        supervisor_schema_version: "2026-06-16",
+        task_handlers: { my_dag: { tasks: ["a"] }, py_dag: { tasks: ["stub"] } },
+        dag_source_paths: { my_dag: "src/my_dag.ts" },
+      },
+      sdkVersion: "0.1.0",
+      entrypointPath: "src/my_dag.ts",
+      sourceFiles: { "src/my_dag.ts": "export {};\n" },
+      executable: Buffer.from("export {};\n"),
+    });
+    const header = parseHeader(bundle.subarray(0, bundle.indexOf("\n")).toString("utf-8"));
+
+    const metadata = JSON.parse(
+      bundle
+        .subarray(
+          Number.parseInt(header.metadata.start, 16),
+          Number.parseInt(header.metadata.end, 16),
+        )
+        .toString("utf-8"),
+    );
+
+    expect(metadata.sdk.supervisor_schema_version).toBe("2026-06-16");
+    expect(metadata.dag_source_paths).toEqual({ my_dag: "src/my_dag.ts" });
+    expect(metadata).not.toHaveProperty("task_handlers");
   });
 
   it("embeds one source region per author-owned Dag file, each with its path", () => {
@@ -348,8 +380,8 @@ describe("encodeBundle", () => {
     const bundle = encodeBundle({
       bundleManifest: {
         supervisor_schema_version: "2026-06-16",
-        task_handlers: { "line\u2028separator": { tasks: ["paragraph\u2029separator"] } },
-        dag_source_paths: {},
+        task_handlers: {},
+        dag_source_paths: { "line\u2028separator": "paragraph\u2029separator.ts" },
       },
       sdkVersion: "0.1.0",
       entrypointPath: "entry.ts",
@@ -363,8 +395,8 @@ describe("encodeBundle", () => {
     expect(metadataLine).toContain("\\u2028");
     expect(metadataLine).toContain("\\u2029");
     expect(JSON.parse(metadataLine.slice(EMBEDDED_METADATA_PREFIX.length))).toHaveProperty(
-      "task_handlers.line\u2028separator.tasks",
-      ["paragraph\u2029separator"],
+      ["dag_source_paths", "line\u2028separator"],
+      "paragraph\u2029separator.ts",
     );
   });
 });
@@ -376,6 +408,19 @@ function readEmbeddedMetadata(bundlePath: string): string {
   const start = Number.parseInt(header.metadata.start, 16);
   const end = Number.parseInt(header.metadata.end, 16);
   return bundle.subarray(start, end).toString("utf-8");
+}
+
+/** What the packed bundle reports about itself when run with `--airflow-metadata`: the task
+ *  handlers the packer checks. The embedded metadata does not carry them. */
+function readRuntimeReport(bundlePath: string): BundleManifest {
+  const dumped = execFileSync(process.execPath, [bundlePath, AIRFLOW_METADATA_FLAG], {
+    encoding: "utf-8",
+  });
+  const line = dumped
+    .split("\n")
+    .reverse()
+    .find((candidate) => candidate.startsWith(AIRFLOW_METADATA_SENTINEL))!;
+  return JSON.parse(line.slice(AIRFLOW_METADATA_SENTINEL.length)) as BundleManifest;
 }
 
 /** Collect what runPack writes to stderr; returns a reader for the text so far. */
@@ -423,19 +468,16 @@ describe("runPack", () => {
       dag_source_paths: {
         other_dag: expect.stringMatching(/entry\.ts$/) as unknown as string,
       },
-      task_handlers: {
-        fixture_dag: { tasks: ["extract", "transform"] },
-        other_dag: { tasks: ["solo"] },
-      },
     });
+    // The packer ran the bundle and checked the handlers it reported, but embeds none of them.
+    expect(metadata).not.toHaveProperty("task_handlers");
 
-    const dumped = execFileSync(process.execPath, [bundlePath, "--airflow-metadata"], {
-      encoding: "utf-8",
+    const report = readRuntimeReport(bundlePath);
+    expect(report.supervisor_schema_version).toBe(SUPERVISOR_API_VERSION);
+    expect(report.task_handlers).toEqual({
+      fixture_dag: { tasks: ["extract", "transform"] },
+      other_dag: { tasks: ["solo"] },
     });
-    expect(dumped.startsWith(AIRFLOW_METADATA_SENTINEL)).toBe(true);
-    expect(
-      JSON.parse(dumped.slice(AIRFLOW_METADATA_SENTINEL.length)).supervisor_schema_version,
-    ).toBe(SUPERVISOR_API_VERSION);
   });
 
   it("embeds verifiable metadata and code regions", async () => {
@@ -459,9 +501,7 @@ describe("runPack", () => {
       offset(layout.metadata.end),
     );
     expect(createHash("sha256").update(metadataPayload).digest("hex")).toBe(layout.metadata.sha256);
-    expect(JSON.parse(metadataPayload.toString("utf-8"))).toHaveProperty(
-      "task_handlers.fixture_dag",
-    );
+    expect(JSON.parse(metadataPayload.toString("utf-8"))).not.toHaveProperty("task_handlers");
 
     // One source region per author-owned Dag file. The fixture declares one
     // native Dag (`other_dag`) in the entry, so exactly one region ships and
@@ -514,7 +554,7 @@ describe("runPack", () => {
     expect(readFileSync(target).subarray(0, EMBEDDED_LAYOUT_PREFIX.length).toString()).toBe(
       EMBEDDED_LAYOUT_PREFIX,
     );
-    expect(JSON.parse(readEmbeddedMetadata(target))).toHaveProperty("task_handlers.fixture_dag");
+    expect(JSON.parse(readEmbeddedMetadata(target))).toHaveProperty("dag_source_paths.other_dag");
   });
 
   it("keeps a shebang entry runnable and reads the manifest past import-time logging", async () => {
@@ -533,23 +573,31 @@ describe("runPack", () => {
 
     const metadataLine = bundle.split("\n")[1]!;
     const metadata = JSON.parse(metadataLine.slice(EMBEDDED_METADATA_PREFIX.length));
-    expect(metadata).toHaveProperty("task_handlers.noisy_dag");
+    expect(metadata).toHaveProperty("dag_source_paths.noisy_dag");
+    expect(metadata).not.toHaveProperty("task_handlers");
 
-    execFileSync(process.execPath, [bundlePath, "--airflow-metadata"], { encoding: "utf-8" });
+    expect(readRuntimeReport(bundlePath).task_handlers).toHaveProperty("noisy_dag");
   });
 
   it("leaves no bundle behind when the metadata exceeds the embedded size limit", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "huge-entry.ts");
+    // The metadata names each Dag declared in TypeScript with its source file, so it takes many
+    // long Dag ids to reach the limit. The task handlers are not embedded.
     writeFileSync(
       entry,
       [
         `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
-        'const bigDag = new Dag("big_dag");',
-        'for (let i = 0; i < 5000; i += 1) bigDag.task(String(i).padStart(240, "t"), async () => undefined)();',
-        "await new Bundle(bigDag).serve();",
+        "const dags: Dag[] = [];",
+        "for (let i = 0; i < 5000; i += 1) {",
+        '  const dag = new Dag(String(i).padStart(240, "d"));',
+        '  dag.task("work", async () => undefined)();',
+        "  dags.push(dag);",
+        "}",
+        "await new Bundle(...dags).serve();",
       ].join("\n"),
     );
+    captureStderr();
 
     await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
       "over the 1048576 byte limit",
@@ -674,7 +722,7 @@ describe("runPack", () => {
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
-  it("warns but still packs a registered Dag with no tasks, as airflow-go-pack does", async () => {
+  it("warns but still packs a registered Dag with no tasks", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "mixed-entry.ts");
     writeFileSync(
@@ -691,10 +739,9 @@ describe("runPack", () => {
     await runPack([entry, "--outdir", outdir]);
 
     expect(stderr()).toContain('warning: dag "empty_dag" has no tasks\n');
-    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
-      "task_handlers.empty_dag.tasks",
-      [],
-    );
+    const bundlePath = path.join(outdir, "bundle.min.mjs");
+    expect(readRuntimeReport(bundlePath).task_handlers.empty_dag).toEqual({ tasks: [] });
+    expect(JSON.parse(readEmbeddedMetadata(bundlePath))).not.toHaveProperty("task_handlers");
   });
 
   it("takes an omitted task id from the handler name, through minification", async () => {
@@ -717,10 +764,9 @@ describe("runPack", () => {
 
     // Read back off the packed artifact, so this asserts what minification
     // left behind rather than what the source said.
-    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
-      "task_handlers.sales_dag.tasks",
-      ["extractRows", "loadRows"],
-    );
+    expect(
+      readRuntimeReport(path.join(outdir, "bundle.min.mjs")).task_handlers.sales_dag!.tasks,
+    ).toEqual(["extractRows", "loadRows"]);
     expect(stderr()).toBe("");
   });
 
@@ -759,10 +805,9 @@ describe("runPack", () => {
 
     await runPack([entry, "--outdir", outdir]);
 
-    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
-      "task_handlers.sales_dag.tasks",
-      ["extract_north", "load_north"],
-    );
+    expect(
+      readRuntimeReport(path.join(outdir, "bundle.min.mjs")).task_handlers.sales_dag!.tasks,
+    ).toEqual(["extract_north", "load_north"]);
   });
 
   it("packs only the Dags the served bundle holds", async () => {
@@ -782,9 +827,11 @@ describe("runPack", () => {
 
     await runPack([entry, "--outdir", outdir]);
 
-    const metadata = JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")));
-    expect(metadata).toHaveProperty("task_handlers.sales_dag");
-    expect(metadata).not.toHaveProperty("task_handlers.billing_dag");
+    const bundlePath = path.join(outdir, "bundle.min.mjs");
+    const metadata = JSON.parse(readEmbeddedMetadata(bundlePath));
+    expect(metadata).toHaveProperty("dag_source_paths.sales_dag");
+    expect(metadata).not.toHaveProperty("dag_source_paths.billing_dag");
+    expect(Object.keys(readRuntimeReport(bundlePath).task_handlers)).toEqual(["sales_dag"]);
   });
 
   it("embeds the entrypoint source for a mixed-language bundle with no native Dag", async () => {

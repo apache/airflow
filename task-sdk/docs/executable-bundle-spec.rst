@@ -169,8 +169,7 @@ extending the trailer rather than inserting between existing blobs.
 ``airflow-metadata.yaml`` schema
 --------------------------------
 
-The metadata region carries the same YAML manifest documented previously,
-produced at build time from a static scan of the DAG source. A
+The metadata region carries a YAML manifest the packer writes at build time. A
 machine-readable JSON Schema is published at
 :download:`airflow-metadata.schema.json` for use by build tooling, validators,
 and editors.
@@ -183,15 +182,6 @@ and editors.
       version: "0.1.0"
       supervisor_schema_version: "2026-06-16"
     source: example.go
-    dags:
-      example_dag:
-        tasks:
-          - extract
-          - transform
-          - load
-      another_dag:
-        tasks:
-          - run
 
 Top-level keys:
 
@@ -241,21 +231,11 @@ Top-level keys:
       SHA-256 digests of the binary region, the source region, and the
       manifest as rendered without the ``digests`` key, in that order.
 
-``dags`` (mapping, required)
-    Mapping of ``dag_id`` to a *DAG entry*. Every ``dag_id`` the bundle
-    exposes MUST appear here. No coordinator reads these keys to find a
-    bundle: the Dag processor lists bundles by their trailer, and a task
-    runs the bundle it is bound to.
-
-DAG entry fields:
-
-``tasks`` (list of strings, required)
-    Static list of ``task_id``\ s declared in the DAG. Empty lists are
-    permitted but discouraged.
-
-Unrecognized top-level or DAG-entry keys MUST be ignored by the consumer so
-that future SDK versions can extend the manifest without breaking older
-runtimes.
+Unrecognized top-level keys MUST be ignored by the consumer so that future SDK
+versions can extend the manifest without breaking older runtimes. A bundle
+packed before the manifest dropped its Dag inventory still carries a ``dags``
+mapping of each ``dag_id`` to the ``tasks`` of that Dag. No coordinator reads
+it, and consumers MUST ignore it.
 
 Examples
 --------

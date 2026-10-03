@@ -133,8 +133,9 @@ export class Bundle {
    * makes.
    *
    * Everything this bundle provides must be registered before `serve()` is
-   * awaited: what is left out is not part of the bundle, and its tasks are
-   * marked removed at runtime.
+   * awaited: a stub task whose handler is left out fails the import of its
+   * Python Dag file, and a task that still reaches the bundle without its
+   * handler is marked removed.
    */
   async serve(): Promise<void> {
     // `const { serve } = bundle` detaches the method, which would otherwise
