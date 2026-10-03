@@ -67,6 +67,34 @@ class TestAzureBatchHook:
         assert isinstance(conn, BatchClient)
         assert hook.connection is conn, "`connection` property should be cached"
 
+    @mock.patch(f"{MODULE}.BatchClient")
+    def test_connection_with_retry_total(self, mock_batch):
+        hook = AzureBatchHook(
+            azure_batch_conn_id=self.test_vm_conn_id,
+            retry_total=5,
+        )
+
+        hook.get_conn()
+
+        mock_batch.assert_called_once_with(
+            endpoint=self.test_account_url,
+            credential=mock.ANY,
+            retry_total=5,
+        )
+
+    @mock.patch(f"{MODULE}.BatchClient")
+    def test_connection_without_retry_total(self, mock_batch):
+        hook = AzureBatchHook(
+            azure_batch_conn_id=self.test_vm_conn_id,
+        )
+
+        hook.get_conn()
+
+        mock_batch.assert_called_once_with(
+            endpoint=self.test_account_url,
+            credential=mock.ANY,
+        )
+
     @mock.patch(f"{MODULE}.get_sync_default_azure_credential")
     def test_fallback_to_default_azure_credential_when_name_and_key_is_not_provided(
         self, mock_get_default_credential, create_mock_connections
