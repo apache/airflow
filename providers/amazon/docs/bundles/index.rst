@@ -45,3 +45,39 @@ Example of using the S3DagBundle:
         }
       }
     ]'
+
+Staging from a single archive object
+------------------------------------
+
+By default the bundle is staged by downloading every object under ``prefix`` one at a time. Each object
+costs a full request round-trip, so bundles made of many small files can take a long time to stage — a cost
+paid by every component that stages the bundle, which with ephemeral workers (e.g. KubernetesExecutor task
+pods) means on every task start.
+
+Setting ``archive_key`` instead of ``prefix`` stages the bundle from a single ``.tar.gz`` object: one
+``HEAD`` request to detect changes (unchanged archives are not re-downloaded), one ``GET`` to fetch it, then
+a local unpack and an atomic swap into place. The two options are mutually exclusive — configuring both
+raises at startup — so the archive is the only source of the Dags, with no second copy to keep in sync.
+
+.. code-block:: bash
+
+    export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+      {
+        "name": "my-s3-dags",
+        "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle",
+        "kwargs": {
+          "aws_conn_id": "aws_default",
+          "bucket_name": "my-airflow-bucket",
+          "archive_key": "bundle-archives/dags.tar.gz",
+          "refresh_interval": 60
+        }
+      }
+    ]'
+
+Publishing the archive is the responsibility of your deployment process. Members are extracted relative to
+the bundle root, so pack the contents of the Dags directory rather than the directory itself — for example:
+
+.. code-block:: bash
+
+    tar -C ./dags -czf dags.tar.gz .
+    aws s3 cp dags.tar.gz s3://my-airflow-bucket/bundle-archives/dags.tar.gz

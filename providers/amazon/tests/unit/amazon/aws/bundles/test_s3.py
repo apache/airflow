@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import io
 import os
+import tarfile
+from pathlib import Path
+from unittest import mock
 from unittest.mock import MagicMock, call
 
 import boto3
@@ -26,7 +30,7 @@ from moto import mock_aws
 import airflow.version
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 from tests_common.test_utils.config import conf_vars
 
@@ -35,6 +39,19 @@ AWS_CONN_ID_REGION = "eu-central-1"
 AWS_CONN_ID_DEFAULT = "aws_default"
 S3_BUCKET_NAME = "my-airflow-dags-bucket"
 S3_BUCKET_PREFIX = "project1/dags"
+S3_ARCHIVE_KEY = "bundle-archives/dags.tar.gz"
+
+
+def _make_archive(files: dict[str, bytes]) -> bytes:
+    """Build an in-memory .tar.gz with the given member name -> content mapping."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
+        for name, data in files.items():
+            tar_info = tarfile.TarInfo(name=name)
+            tar_info.size = len(data)
+            tar.addfile(tar_info, io.BytesIO(data))
+    return buffer.getvalue()
+
 
 if airflow.version.version.strip().startswith("3"):
     from airflow.providers.amazon.aws.bundles.s3 import S3DagBundle
@@ -221,3 +238,117 @@ class TestS3DagBundle:
         bundle.refresh()
         assert bundle._log.debug.call_count == 2
         assert bundle._log.debug.call_args_list == [download_log_call, download_log_call]
+
+    def _archive_bundle(self) -> S3DagBundle:
+        return S3DagBundle(
+            name="test",
+            aws_conn_id=AWS_CONN_ID_WITH_REGION,
+            archive_key=S3_ARCHIVE_KEY,
+            bucket_name=S3_BUCKET_NAME,
+        )
+
+    def test_archive_key_and_prefix_are_mutually_exclusive(self):
+        with pytest.raises(ValueError, match="either 'prefix' or 'archive_key'"):
+            S3DagBundle(
+                name="test",
+                aws_conn_id=AWS_CONN_ID_DEFAULT,
+                bucket_name=S3_BUCKET_NAME,
+                prefix=S3_BUCKET_PREFIX,
+                archive_key=S3_ARCHIVE_KEY,
+            )
+
+    def test_refresh_from_archive(self, s3_bucket, s3_client):
+        archive = _make_archive({"dag_01.py": b"test data", "subproject1/dag_a.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+
+        assert (bundle.path / "dag_01.py").is_file()
+        assert (bundle.path / "subproject1" / "dag_a.py").is_file()
+        assert (bundle.path / bundle.archive_etag_marker).is_file()
+        # the bucket also holds objects under S3_BUCKET_PREFIX that the archive does not
+        # contain: staging used the archive alone, never a per-object sync
+        assert not (bundle.path / S3_BUCKET_PREFIX / "dag_02.py").exists()
+        assert not (bundle.path / "dag_02.py").exists()
+
+    def test_refresh_from_archive_skips_staging_when_etag_unchanged(self, s3_bucket, s3_client):
+        archive = _make_archive({"dag_01.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+
+        # A local sentinel file would be wiped by the swap of a re-staged tree
+        sentinel = bundle.path / "sentinel.txt"
+        sentinel.write_text("still here")
+        bundle.refresh()
+        assert sentinel.is_file()
+
+        # A changed archive (new ETag) re-stages: additions appear, removed
+        # members and local strays disappear with the swapped tree
+        updated = _make_archive({"dag_new.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=updated)
+        bundle.refresh()
+        assert (bundle.path / "dag_new.py").is_file()
+        assert not (bundle.path / "dag_01.py").exists()
+        assert not sentinel.exists()
+
+    def test_initialize_fails_when_archive_is_missing(self, s3_bucket, s3_client):
+        # there is no fallback to a per-object sync, so a missing archive is fatal even
+        # though this bucket does hold Dag objects under a prefix
+        bundle = self._archive_bundle()
+        with pytest.raises(AirflowNotFoundException, match="does not exist"):
+            bundle.initialize()
+
+    def test_refresh_raises_and_keeps_bundle_when_archive_is_corrupt(self, mocked_s3_resource, s3_client):
+        mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"test data"})
+        )
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        assert (bundle.path / "dag_01.py").is_file()
+
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=b"this is not a tarball")
+        with pytest.raises(tarfile.ReadError):
+            bundle.refresh()
+
+        # the bundle staged by the previous refresh is left untouched
+        assert (bundle.path / "dag_01.py").is_file()
+        assert not list(bundle.path.parent.glob(".s3-archive-*"))
+
+    def test_archive_staging_restores_previous_bundle_when_swap_fails(self, mocked_s3_resource, s3_client):
+        mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"old"})
+        )
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        assert (bundle.path / "dag_01.py").read_text() == "old"
+
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"new"})
+        )
+
+        real_rename = Path.rename
+
+        def fail_swap_into_place(self: Path, target):
+            # fail only moving the newly unpacked tree into place, so the restore of the
+            # previous tree (renamed from "previous") still works
+            if self.name == "unpacked" and Path(target) == bundle.path:
+                raise OSError("swap failed")
+            return real_rename(self, target)
+
+        with (
+            mock.patch.object(Path, "rename", fail_swap_into_place),
+            pytest.raises(OSError, match="swap failed"),
+        ):
+            bundle.refresh()
+
+        # the previous bundle was moved back into place, and neither the backup nor the
+        # staging directory was left behind
+        assert (bundle.path / "dag_01.py").read_text() == "old"
+        assert not list(bundle.path.parent.glob(".s3-archive-*"))
