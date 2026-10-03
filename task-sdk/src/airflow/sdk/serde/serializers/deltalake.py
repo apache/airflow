@@ -24,6 +24,9 @@ from airflow.sdk.module_loading import qualname
 serializers = ["deltalake.table.DeltaTable"]
 deserializers = serializers
 stringifiers = serializers
+# Deserializing opens the table from the serialized URI and storage options, so the class
+# must be listed in ``[core] allowed_deserialization_classes`` rather than allowed implicitly.
+allow_by_default = False
 
 if TYPE_CHECKING:
     from airflow.sdk.serde import U

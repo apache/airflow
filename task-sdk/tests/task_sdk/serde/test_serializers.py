@@ -40,7 +40,17 @@ from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.definitions.param import Param, ParamsDict
-from airflow.sdk.serde import CLASSNAME, DATA, MAX_RECURSION_DEPTH, VERSION, decode, deserialize, serialize
+from airflow.sdk.serde import (
+    CLASSNAME,
+    DATA,
+    MAX_RECURSION_DEPTH,
+    VERSION,
+    _get_patterns,
+    _match_glob,
+    decode,
+    deserialize,
+    serialize,
+)
 from airflow.sdk.serde.serializers import builtin
 
 from tests_common.test_utils.config import conf_vars
@@ -79,6 +89,17 @@ class PydanticDataclass:
     __version__: ClassVar[int] = 1
     a: int
     b: str
+
+
+@pytest.fixture
+def recalculate_patterns():
+    _get_patterns.cache_clear()
+    _match_glob.cache_clear()
+    try:
+        yield
+    finally:
+        _get_patterns.cache_clear()
+        _match_glob.cache_clear()
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -342,7 +363,13 @@ class TestSerializers:
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, data)
 
-    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
+    @conf_vars(
+        {
+            ("core", "fernet_key"): Fernet.generate_key().decode(),
+            ("core", "allowed_deserialization_classes"): "airflow.* pyiceberg.table.Table",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_iceberg(self):
         pytest.importorskip("pyiceberg", minversion="2.0.0")
         from pyiceberg.catalog import Catalog
@@ -369,7 +396,13 @@ class TestSerializers:
         mock_load_catalog.assert_called_with("catalog", uri=uri)
         mock_load_table.assert_called_with((identifier[1], identifier[2]))
 
-    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
+    @conf_vars(
+        {
+            ("core", "fernet_key"): Fernet.generate_key().decode(),
+            ("core", "allowed_deserialization_classes"): "airflow.* deltalake.table.DeltaTable",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
     def test_deltalake(self):
         deltalake = pytest.importorskip("deltalake")
 

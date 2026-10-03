@@ -292,7 +292,10 @@ core:
     allowed_deserialization_classes:
       description: |
         Space-separated list of classes that may be imported during deserialization. Items can be glob
-        expressions. Python built-in classes (like dict) are always allowed.
+        expressions. Python built-in classes (like dict) are always allowed. Classes handled by Airflow's
+        built-in serializers (for example ``datetime.datetime`` or ``decimal.Decimal``) are allowed
+        implicitly, except ``deltalake.table.DeltaTable`` and ``pyiceberg.table.Table``, which must be
+        listed here to be deserialized. Use ``[core] denied_deserialization_classes`` to block any of them.
       version_added: 2.5.0
       type: string
       default: 'airflow.*'
@@ -309,6 +312,16 @@ core:
       type: string
       default: ''
       example: ~
+    denied_deserialization_classes:
+      description: |
+        Space-separated list of classes that must never be deserialized. Items can be glob expressions.
+        A match takes precedence over ``[core] allowed_deserialization_classes``,
+        ``[core] allowed_deserialization_classes_regexp`` and the classes Airflow's built-in serializers
+        allow implicitly, so it can be used to disable individual built-in serializers.
+      version_added: 3.4.0
+      type: string
+      default: ''
+      example: 'numpy.* pandas.core.frame.DataFrame'
     killed_task_cleanup_time:
       description: |
         When a task is killed forcefully, this is the amount of time in seconds that

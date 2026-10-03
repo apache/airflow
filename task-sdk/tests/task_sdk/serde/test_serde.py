@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 import enum
 import textwrap
 from collections import namedtuple
@@ -37,9 +38,11 @@ from airflow.sdk.serde import (
     SCHEMA_ID,
     VERSION,
     _extra_allowed,
+    _get_denied_patterns,
     _get_patterns,
     _get_regexp_patterns,
     _match,
+    _match_denied,
     _match_glob,
     _match_regexp,
     allow_class,
@@ -55,15 +58,19 @@ from tests_common.test_utils.config import conf_vars
 def recalculate_patterns():
     _get_patterns.cache_clear()
     _get_regexp_patterns.cache_clear()
+    _get_denied_patterns.cache_clear()
     _match_glob.cache_clear()
     _match_regexp.cache_clear()
+    _match_denied.cache_clear()
     try:
         yield
     finally:
         _get_patterns.cache_clear()
         _get_regexp_patterns.cache_clear()
+        _get_denied_patterns.cache_clear()
         _match_glob.cache_clear()
         _match_regexp.cache_clear()
+        _match_denied.cache_clear()
 
 
 def generate_serializers_importable_tests():
@@ -348,6 +355,36 @@ class TestSerDe:
             deserialize(e)
 
         assert f"{qualname(Z)} was not found in allow list" in str(ex.value)
+
+    def test_builtin_deserializers_allowed_by_default(self):
+        assert "decimal.Decimal" in _extra_allowed
+        assert "datetime.datetime" in _extra_allowed
+        assert "deltalake.table.DeltaTable" not in _extra_allowed
+        assert "pyiceberg.table.Table" not in _extra_allowed
+
+    @pytest.mark.parametrize("classname", ["deltalake.table.DeltaTable", "pyiceberg.table.Table"])
+    @conf_vars({("core", "allowed_deserialization_classes"): "airflow.*"})
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_table_deserializers_need_allow_list(self, classname):
+        # Rejected before the class is imported, so neither library needs to be installed.
+        with pytest.raises(ImportError, match="was not found in allow list"):
+            deserialize({CLASSNAME: classname, VERSION: 1, DATA: {}})
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "airflow.* decimal.*",
+            ("core", "denied_deserialization_classes"): "decimal.*",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_deny_list_wins_over_allow_list_and_builtins(self):
+        with pytest.raises(ImportError, match="matches denied_deserialization_classes"):
+            deserialize(serialize(decimal.Decimal("1.5")))
+
+    @conf_vars({("core", "denied_deserialization_classes"): ""})
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_empty_deny_list_denies_nothing(self):
+        assert deserialize(serialize(decimal.Decimal("1.5"))) == decimal.Decimal("1.5")
 
     @conf_vars(
         {
