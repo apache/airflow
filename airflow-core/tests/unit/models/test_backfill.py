@@ -477,6 +477,8 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
     assert all(x.triggered_by == DagRunTriggeredByType.BACKFILL for x in dag_runs_in_b)
     # every run associated with the backfill should have the backfill id
     assert all(x.backfill_id == b.id for x in dag_runs_in_b)
+    # including the runs it reprocessed rather than created
+    assert all(x.triggering_user_name == "pytest" for x in dag_runs_in_b)
 
     reasons = session.execute(
         select(BackfillDagRun.logical_date, BackfillDagRun.exception_reason).where(
