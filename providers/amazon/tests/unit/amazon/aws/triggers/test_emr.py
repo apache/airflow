@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError, WaiterTerminalFailure
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
@@ -436,6 +437,48 @@ class TestEmrServerlessStartJobTrigger:
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartJobTrigger"
         assert kwargs["cancel_on_kill"] is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("waiter_error", "expected_failure_type"),
+        [
+            (WaiterTerminalFailure("Serverless Job failed", last_response={}), "terminal"),
+            (WaiterMaxAttemptsError("Waiter error: max attempts reached"), "timeout"),
+            (Exception("something unexpected"), "error"),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
+    async def test_run_failure_event_classifies_and_includes_job_details(
+        self, mock_async_wait, waiter_error, expected_failure_type
+    ):
+        """A failure event must carry job_details and a failure_type so execute_complete can act."""
+        mock_async_wait.side_effect = waiter_error
+
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+        )
+
+        mock_hook = mock.MagicMock()
+        mock_hook.get_waiter.return_value = mock.MagicMock()
+        mock_client = mock.MagicMock()
+        mock_async_cm = mock.MagicMock()
+        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            events = [event async for event in trigger.run()]
+
+        assert len(events) == 1
+        payload = events[0].payload
+        assert payload["status"] == "failure"
+        assert payload["failure_type"] == expected_failure_type
+        assert payload["job_details"] == {"application_id": "test_app", "job_id": "test_job"}
+        assert payload["message"]
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
