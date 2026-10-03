@@ -49,7 +49,7 @@ import re
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -428,7 +428,7 @@ def main() -> int:
 
     short_sha = sha[:7]
     commit_url = f"https://github.com/{owner}/{repo}/commit/{sha}"
-    stale_cut = datetime.now(tz=timezone.utc) - timedelta(days=STALE_DAYS)
+    stale_cut = datetime.now(tz=UTC) - timedelta(days=STALE_DAYS)
 
     with GitHubGraphQL(token) as client:
         source_pr = resolve_source_pr(client, owner, repo, sha, short_sha)
