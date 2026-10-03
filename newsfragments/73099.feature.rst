@@ -1,1 +1,0 @@
-Support ``Table`` objects in ``BigQueryHook.create_table`` for ``table_resource``
