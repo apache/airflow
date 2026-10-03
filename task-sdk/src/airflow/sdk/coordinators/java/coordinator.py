@@ -231,7 +231,7 @@ class JavaCoordinator(SubprocessCoordinator):
     If *main_class* is not explicitly set, JavaCoordinator scans the Dag bundle to
     find an executable JAR (one with Main-Class set in its metadata). If more
     than one executable JAR is found, the first by path is executed. A task of a
-    native Java Dag runs the JAR the Dag was parsed from.
+    native Java Dag does not scan: it runs the JAR the Dag was parsed from.
 
     A JAR containing metadata *Airflow-Supervisor-Schema-Version* should also be
     available to specify the wire schema version. The JAR containing the Java
@@ -261,29 +261,22 @@ class JavaCoordinator(SubprocessCoordinator):
     def _build_command(self, roots: Sequence[pathlib.Path], main_class: str) -> list[str]:
         return [self.java_executable, "-classpath", _calculate_classpath(roots), *self.jvm_args, main_class]
 
-    def _build_execute_task_command(
-        self, *, what: TaskInstance, dag_file: pathlib.Path | None = None
-    ) -> tuple[list[str], str | None]:
+    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
+        # Without main_class, the first executable JAR in path order wins; tracked at
+        # https://github.com/apache/airflow/issues/71134
         roots = self._get_scan_roots()
-        if (jar := self._find_dag_jar(roots, dag_file)) is None:
-            # Without main_class, the first executable JAR in walk order wins; tracked at
-            # https://github.com/apache/airflow/issues/71134
-            jar = _JarInfo.find(roots, self.main_class)
+        jar = _JarInfo.find(roots, self.main_class)
         return self._build_command(roots, jar.main_class), jar.schema_version
 
-    def _find_dag_jar(self, roots: Sequence[pathlib.Path], dag_file: pathlib.Path | None) -> _JarInfo | None:
-        """Return how to run *dag_file* when it is a JAR this coordinator runs, or ``None``."""
-        if dag_file is None or dag_file.suffix != ".jar":
-            return None
-        if (metadata := _JarMetadata.from_jar(dag_file)) is None or not metadata.main_class:
-            return None
-        if self.main_class and metadata.main_class != self.main_class:
-            return None
-        return _JarInfo.for_jar(roots, dag_file, metadata.main_class, metadata.schema_version)
+    def _build_jar_command(self, path: pathlib.Path) -> tuple[list[str], str]:
+        """
+        Build the command that runs the executable JAR at *path*, and return its schema version.
 
-    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
-        # Same command shape as execution. With one executable JAR per bundle, or main_class set,
-        # a parse runs the class a task runs.
+        The JAR's own ``Main-Class`` runs, so *main_class* must match it when set. The bundle's other
+        JARs go on the classpath, so another JAR that sets the same ``Main-Class`` is rejected.
+
+        :raises ValueError: when the JAR cannot run.
+        """
         main_class, schema_version = _read_executable_jar(path)
         if self.main_class and main_class != self.main_class:
             raise ValueError(
@@ -291,9 +284,18 @@ class JavaCoordinator(SubprocessCoordinator):
             )
         roots = self._get_scan_roots()
         jar = _JarInfo.for_jar(roots, path, main_class, schema_version)
-        if jar.schema_version < _DAG_PARSING_SCHEMA_VERSION:
+        return self._build_command(roots, jar.main_class), jar.schema_version
+
+    def _build_dag_file_command(
+        self, *, what: TaskInstance, path: pathlib.Path
+    ) -> tuple[list[str], str | None]:
+        return self._build_jar_command(path)
+
+    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        command, schema_version = self._build_jar_command(path)
+        if schema_version < _DAG_PARSING_SCHEMA_VERSION:
             raise ValueError(
-                f"{path} uses supervisor schema {jar.schema_version}, which cannot parse Dags; "
+                f"{path} uses supervisor schema {schema_version}, which cannot parse Dags; "
                 "rebuild it with a newer Java SDK or list it in .airflowignore"
             )
-        return self._build_command(roots, jar.main_class), jar.schema_version
+        return command, schema_version
