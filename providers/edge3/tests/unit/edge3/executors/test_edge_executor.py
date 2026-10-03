@@ -51,6 +51,16 @@ if AIRFLOW_V_3_3_PLUS:
 
 pytestmark = pytest.mark.db_test
 
+# Patch the ExecutorLoader class object bound at import time by the module that calls init_executors()
+# (Job before Airflow 3.2, SchedulerJobRunner since), not the one currently in
+# airflow.executors.executor_loader: tests in other providers (e.g. cncf.kubernetes, celery) reload() that
+# module, which replaces the class there, so a patch via the module path never reaches the scheduler.
+SCHEDULER_EXECUTOR_LOADER = (
+    "airflow.jobs.scheduler_job_runner.ExecutorLoader"
+    if AIRFLOW_V_3_2_PLUS
+    else "airflow.jobs.job.ExecutorLoader"
+)
+
 
 class TestEdgeExecutor:
     @pytest.fixture(autouse=True)
@@ -440,7 +450,7 @@ class TestEdgeExecutor:
             assert job in session
         assert executor.running == {key}
 
-    @mock.patch("airflow.executors.executor_loader.ExecutorLoader.init_executors", autospec=True)
+    @mock.patch(f"{SCHEDULER_EXECUTOR_LOADER}.init_executors", autospec=True)
     def test_scheduler_restart_adopts_queued_edge_task(self, mock_init_executors, dag_maker, session):
         with dag_maker("test_dag", session=session):
             EmptyOperator(task_id="test_task")
