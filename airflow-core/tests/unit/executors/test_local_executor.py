@@ -96,7 +96,8 @@ def _write_large_results_to_queue(result_queue, result_count, payload_size):
     payload = RuntimeError("x" * payload_size)
     for _ in range(result_count):
         key = uuid7()
-        result_queue.put((key, State.SUCCESS, payload))
+        # (key, state, exc, workload_run_id) — matches LocalExecutor worker output
+        result_queue.put((key, State.SUCCESS, payload, None))
 
 
 class TestLocalExecutor:
