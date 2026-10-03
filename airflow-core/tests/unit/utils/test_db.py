@@ -30,7 +30,7 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Column, Integer, MetaData, Table, delete, select
+from sqlalchemy import Column, Integer, MetaData, Table, delete, inspect, select
 
 from airflow import settings
 from airflow.models import Base as airflow_base
@@ -184,6 +184,12 @@ class TestDb:
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_user_username",
             # Postgres-only GIN index created by raw SQL in migration, not in SQLAlchemy model
             lambda t: t[0] == "remove_index" and t[1].name == "idx_asset_event_extra_gin",
+            # Excluded from MySQL with ddl_if, which compare_metadata does not honour
+            lambda t: (
+                t[0] == "add_index"
+                and t[1].name == "idx_dag_run_queued_dags"
+                and settings.engine.dialect.name == "mysql"
+            ),
         ]
 
         for ignore in ignores:
@@ -205,6 +211,25 @@ class TestDb:
             for single_diff in final_diff:
                 print(f"Diff: {single_diff}")
             pytest.fail("Database schema and SQLAlchemy model are not in sync")
+
+    def test_no_duplicate_indexes_in_database(self, initialized_db):
+        """Two indexes on the same columns with the same predicate only slow writes and confuse the planner."""
+        inspector = inspect(settings.engine)
+        duplicates = {}
+        for table_name in inspector.get_table_names():
+            seen: dict[tuple, str] = {}
+            for index in inspector.get_indexes(table_name):
+                predicate = next(
+                    (str(v) for k, v in index.get("dialect_options", {}).items() if k.endswith("_where")),
+                    None,
+                )
+                key = (tuple(index["column_names"]), predicate)
+                if key in seen:
+                    duplicates.setdefault(table_name, []).append((seen[key], index["name"], key[0]))
+                else:
+                    seen[key] = index["name"]
+
+        assert duplicates == {}
 
     def test_only_single_head_revision_in_migrations(self):
         config = Config()

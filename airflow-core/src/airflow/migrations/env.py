@@ -33,6 +33,14 @@ _POSTGRES_ONLY_INDEXES = frozenset(
     }
 )
 
+# Declared in the ORM with ``ddl_if(dialect=("postgresql", "sqlite"))``, which Alembic
+# autogenerate does not honour, so it would otherwise propose recreating them on MySQL.
+_NOT_ON_MYSQL_INDEXES = frozenset(
+    {
+        "idx_dag_run_queued_dags",
+    }
+)
+
 
 def include_object(_, name, type_, *args):
     """Filter objects for autogenerating revisions."""
@@ -45,6 +53,8 @@ def include_object(_, name, type_, *args):
     # Indexes created by raw SQL in migrations (e.g. Postgres GIN) are not
     # represented in the SQLAlchemy model; hide them from autogenerate.
     if type_ == "index" and name in _POSTGRES_ONLY_INDEXES:
+        return False
+    if type_ == "index" and name in _NOT_ON_MYSQL_INDEXES and context.get_context().dialect.name == "mysql":
         return False
     return True
 
