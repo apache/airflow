@@ -43,7 +43,11 @@ from airflow.providers.standard.exceptions import (
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
-from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
+from airflow.providers.standard.utils.sensor_helper import (
+    _check_external_task_existence,
+    _get_count,
+    _get_external_task_group_task_ids,
+)
 from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
@@ -64,6 +68,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -171,6 +176,11 @@ class ExternalTaskSensor(BaseSensorOperator):
         external_task_id is not None) or check if the DAG to wait for exists (when
         external_task_id is None), and immediately cease waiting if the external task
         or DAG does not exist (default value: False).
+        On Airflow 3 a worker has no database access, so tasks and task groups are checked
+        through the execution API against each awaited Dag run once that run exists: the API
+        reports a task or task group that the run's Dag version does not define. Until the run
+        exists the sensor keeps waiting, and so does it with an API server that does not report
+        unknown tasks. Whether the Dag itself is registered is not checked on Airflow 3.
     :param poke_interval: polling period in seconds to check for the status
     :param poll_interval: (DEPRECATED) use ``poke_interval`` instead
     :param deferrable: Run sensor in deferrable mode
@@ -351,8 +361,9 @@ class ExternalTaskSensor(BaseSensorOperator):
     def _poke_af3(self, context: Context, dttm_filter: Sequence[datetime.datetime]) -> bool:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
 
-        self._has_checked_existence = True
         ti = context["ti"]
+        if self.check_existence and not self._has_checked_existence:
+            self._check_for_existence_af3(ti, dttm_filter)
 
         def _get_count(states: list[str]) -> int:
             if self.external_task_ids:
@@ -488,6 +499,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                         logical_dates=list(dttm_filter),
                         run_ids=None,
                         execution_dates=None,
+                        check_existence=self.check_existence,
                     ),
                     method_name="execute_complete",
                 )
@@ -533,6 +545,15 @@ class ExternalTaskSensor(BaseSensorOperator):
             if self.soft_fail:
                 raise AirflowSkipException("External job has failed skipping.")
             raise ExternalDagFailedError("External job has failed.")
+        elif event["status"] == "not_found":
+            # A missing task or task group is a configuration error rather than a sensor failure,
+            # so like the poke path this is raised regardless of soft_fail.
+            message = event.get("message") or (
+                f"The external tasks or task group awaited in Dag {self.external_dag_id} do not exist."
+            )
+            if event.get("kind") == "task_group":
+                raise ExternalTaskGroupNotFoundError(message)
+            raise ExternalTaskNotFoundError(message)
         else:
             if self.soft_fail:
                 raise AirflowSkipException("External job has failed skipping.")
@@ -540,6 +561,32 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "Error occurred while trying to retrieve task status. Please, check the "
                 "name of executed task and Dag."
             )
+
+    def _check_for_existence_af3(
+        self, ti: RuntimeTaskInstanceProtocol, dttm_filter: Sequence[datetime.datetime]
+    ) -> None:
+        """
+        Check that the awaited tasks or task group exist, through the execution API.
+
+        A worker has no database access on Airflow 3, so unlike ``_check_for_existence`` this
+        relies on what the execution API reports: a task or task group that the Dag version of
+        an existing awaited run does not define. While a run does not exist yet nothing can be
+        concluded, so the check is repeated on later pokes until every awaited run has been seen.
+
+        :param ti: the task instance running this sensor, used to reach the execution API
+        :param dttm_filter: the logical dates of the awaited Dag runs
+        """
+        if not self.external_task_ids and not self.external_task_group_id:
+            self._has_checked_existence = True
+            return
+
+        self._has_checked_existence = _check_external_task_existence(
+            ti,
+            external_dag_id=self.external_dag_id,
+            external_task_ids=self.external_task_ids,
+            external_task_group_id=self.external_task_group_id,
+            logical_dates=list(dttm_filter),
+        )
 
     def _check_for_existence(self, session: Session) -> None:
         dag_to_wait = DagModel.get_current(self.external_dag_id, session=session)
