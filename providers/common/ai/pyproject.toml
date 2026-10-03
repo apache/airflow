@@ -84,12 +84,14 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 # @task.llm_batch talks to the provider batch APIs through the vendor SDKs directly, since
-# pydantic-ai has no batch abstraction. anthropic 1.0.0 is the first stable major. openai
+# pydantic-ai has no batch abstraction. anthropic 1.1.0 is the first release whose tool
+# runner runs a turn's tool calls only when the turn ends in tool_use, which the tool
+# runner adapter in airflow.providers.common.ai.tools.anthropic relies on. openai
 # 2.47.0 is the first release that accepts the httpx2 client pydantic-ai-slim>=2.33 hands it
 # (2.45 and 2.46 raise TypeError on it); pydantic-ai-slim[openai]>=2.33.0 itself asks for
 # openai>=3, so this floor only matters where that requirement is overridden, as in this
 # repository's lock.
-"anthropic" = ["pydantic-ai-slim[anthropic]>=2.33.0", "anthropic>=1.0.0"]
+"anthropic" = ["pydantic-ai-slim[anthropic]>=2.33.0", "anthropic>=1.1.0"]
 "bedrock" = ["pydantic-ai-slim[bedrock]>=2.33.0"]
 "google" = ["pydantic-ai-slim[google]>=2.33.0"]
 "openai" = ["pydantic-ai-slim[openai]>=2.33.0", "openai>=2.47.0"]
@@ -176,7 +178,7 @@ dev = [
     # @task.llm_batch's OpenAI/Anthropic adapters call these SDKs directly. The dev group
     # needs them so the adapter tests, which build real SDK models, run instead of skipping.
     "openai>=2.47.0",
-    "anthropic>=1.0.0",
+    "anthropic>=1.1.0",
     "opensandbox>=1.1.0",
 ]
 

@@ -122,6 +122,7 @@ Using it with other agent frameworks
 
 ``ObjectStorageToolset`` implements
 :class:`~airflow.providers.common.ai.tools.ToolProvider`, so the same three tools work in
-a Strands or Google ADK agent through ``AirflowTools``; see :doc:`../frameworks/index`.
+a Strands or Google ADK agent, or the Anthropic SDK's tool runner, through
+``AirflowTools``; see :doc:`../frameworks/index`.
 Outside ``AgentOperator``, ``path`` and ``conn_id`` are used as given: they are not
 rendered as templates.

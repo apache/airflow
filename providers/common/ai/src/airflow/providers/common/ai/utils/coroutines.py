@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import contextvars
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -32,11 +33,15 @@ def run_coroutine_sync(coroutine: Coroutine[Any, Any, Any]) -> Any:
 
     When no event loop is running in this thread the coroutine is driven with
     :func:`asyncio.run`. When one is (an async caller), it runs on a worker thread
-    with its own loop, so the caller's loop is never nested.
+    with its own loop, so the caller's loop is never nested. Either way it sees the
+    caller's context variables.
     """
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(coroutine)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(asyncio.run, coroutine).result()
+        pass
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(contextvars.copy_context().run, asyncio.run, coroutine).result()
+    # Outside the except block, so what the coroutine raises is not chained to the RuntimeError.
+    return asyncio.run(coroutine)
