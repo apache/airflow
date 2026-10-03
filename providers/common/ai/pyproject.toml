@@ -150,7 +150,9 @@ dependencies = [
     "llama-index-llms-openai>=0.6.8",
 ]
 "pdf" = ["pypdf>=4.0.0"]
-"docx" = ["python-docx>=1.0.0"]
+# python-docx 1.1.2 is the first release whose _Row.cells walks a single row and exposes
+# grid_cols_before/grid_cols_after; 1.1.1 pins lxml<=4.9.2, which does not build on 3.12.
+"docx" = ["python-docx>=1.1.2"]
 "git" = [
     "apache-airflow-providers-git"
 ]
@@ -178,6 +180,8 @@ dev = [
     "openai>=2.47.0",
     "anthropic>=1.0.0",
     "opensandbox>=1.1.0",
+    # The DOCX parser tests build real documents in memory instead of mocking python-docx.
+    "python-docx>=1.1.2",
 ]
 
 # To build docs:
