@@ -36,12 +36,6 @@ import java.time.OffsetDateTime
 // serde (go-sdk/pkg/execution/serde.go), which in turn matches Python's
 // DagSerialization output.
 
-// Per-Dag defaults that Python resolves from [core] config when the Dag does
-// not override them. The serializer always emits these fields (they have no
-// JSON-schema default to omit against), so we fall back to the same values.
-private const val DEFAULT_MAX_ACTIVE_TASKS_PER_DAG = 16 // [core] max_active_tasks_per_dag
-private const val DEFAULT_MAX_ACTIVE_RUNS_PER_DAG = 16 // [core] max_active_runs_per_dag
-
 private val defaultsMapper = ObjectMapper()
 
 /**
@@ -151,12 +145,11 @@ private fun serializeTask(
 }
 
 /**
- * Writes Dag-level config onto [data]. Fields with a JSON-schema default
- * (description, dates, tags, fail_fast, ...) are omitted when unset. Fields
- * with no schema default (catchup, disable_bundle_versioning,
- * max_active_tasks, max_active_runs, max_consecutive_failed_dag_runs) are
- * always emitted, because Python's serializer never omits them — it writes
- * the resolved value, falling back to the matching `[core]` config default.
+ * Writes Dag-level config onto [data], leaving out every field the Dag did
+ * not set. That includes the fields Python reads from Airflow's config
+ * (max_active_tasks, max_active_runs, max_consecutive_failed_dag_runs,
+ * catchup, disable_bundle_versioning): Airflow fills those in from its own
+ * config when it receives the Dag.
  */
 private fun applyDagConfig(
   data: MutableMap<String, Any?>,
@@ -170,11 +163,13 @@ private fun applyDagConfig(
     // dag_hash); mirror that regardless of registration order.
     data["tags"] = tags.map { it.toString() }.sorted()
   }
-  data["max_active_tasks"] = config["max_active_tasks"] ?: DEFAULT_MAX_ACTIVE_TASKS_PER_DAG
-  data["max_active_runs"] = config["max_active_runs"] ?: DEFAULT_MAX_ACTIVE_RUNS_PER_DAG
-  data["max_consecutive_failed_dag_runs"] = config["max_consecutive_failed_dag_runs"] ?: 0
-  data["catchup"] = config["catchup"] ?: false
-  data["disable_bundle_versioning"] = config["disable_bundle_versioning"] ?: false
+  listOf(
+    "max_active_tasks",
+    "max_active_runs",
+    "max_consecutive_failed_dag_runs",
+    "catchup",
+    "disable_bundle_versioning",
+  ).forEach { key -> config[key]?.let { data[key] = it } }
   // fail_fast and render_template_as_native_obj have schema default false, so
   // Python omits them when false; keep that behavior.
   if (config["fail_fast"] == true) data["fail_fast"] = true

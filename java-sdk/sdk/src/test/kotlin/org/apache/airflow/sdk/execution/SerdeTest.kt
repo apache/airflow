@@ -54,7 +54,7 @@ private fun taskData(
 
 internal class SerdeTest {
   @Test
-  @DisplayName("Should always emit required dag fields and config-backed defaults")
+  @DisplayName("Should emit required dag fields and leave unset config-backed fields out")
   fun shouldEmitRequiredDagFields() {
     val serialized = serializeDag(DagDef("d"), "/bundles/app/dags.jar", "app/dags.jar")
 
@@ -72,11 +72,11 @@ internal class SerdeTest {
     assertEquals(emptyList<Any?>(), serialized["params"])
     assertNull(serialized["deadline"])
     assertNull(serialized["allowed_run_types"])
-    assertEquals(16, serialized["max_active_tasks"])
-    assertEquals(16, serialized["max_active_runs"])
-    assertEquals(0, serialized["max_consecutive_failed_dag_runs"])
-    assertEquals(false, serialized["catchup"])
-    assertEquals(false, serialized["disable_bundle_versioning"])
+    assertFalse("max_active_tasks" in serialized)
+    assertFalse("max_active_runs" in serialized)
+    assertFalse("max_consecutive_failed_dag_runs" in serialized)
+    assertFalse("catchup" in serialized)
+    assertFalse("disable_bundle_versioning" in serialized)
     assertFalse("description" in serialized)
     assertFalse("fail_fast" in serialized)
     assertFalse("tags" in serialized)
