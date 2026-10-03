@@ -39,16 +39,20 @@ Scope keys (all optional inside ``scope``):
   to the named DAG.  Use ``emit_task_events`` / ``emit_dag_events`` to target one
   event type selectively.
 - ``task_id`` — only valid alongside ``dag_id``; targets a specific task.
+- ``hook``: fully-qualified class name of the object that reported a hook-collected
+  dataset (usually a hook).  Can be added to any of the scopes above, and narrows the
+  rule to datasets reported by that hook.  Only ``exclude_datasets`` and ``hook_lineage``
+  are valid controls for a hook-scoped rule.
 - *(empty ``scope: {}``)* — global default override; applies to every task and DAG event.
 
 ``operator`` cannot be combined with ``dag_id`` or ``task_id`` (scope is one of:
-global, operator-only, dag-only, dag+task).  ``task_id`` without ``dag_id`` and
-``operator`` combined with ``emit_dag_events`` (or ``task_id`` combined with
-``emit_dag_events``) are also rejected with a WARNING.
+global, operator-only, dag-only, dag+task, each optionally with ``hook``).  ``task_id``
+without ``dag_id`` and ``operator`` combined with ``emit_dag_events`` (or ``task_id``
+combined with ``emit_dag_events``) are also rejected with a WARNING.
 
 ``match_mode`` lives at the top level: ``"exact"`` (default) or ``"regex"``.
 When set to ``"regex"``, every value inside ``scope`` (``dag_id``, ``task_id``,
-``operator``) is treated as a ``re.fullmatch`` pattern.
+``operator``, ``hook``) is treated as a ``re.fullmatch`` pattern.
 
 Control flag keys (all optional inside ``controls``; the dict must be non-empty):
 
@@ -69,10 +73,20 @@ Control flag keys (all optional inside ``controls``; the dict must be non-empty)
 - ``hook_lineage`` — whether to use ``HookLineageCollector`` as a fallback when the
   extractor finds no inputs/outputs.  **Has no effect when ``extract_operator_metadata``
   is ``false``** — the entire extraction pipeline (including hook lineage) is skipped.
-  Only meaningful for task events.  Default: ``true``.
+  Only meaningful for task events.  Default: ``true``.  In a hook-scoped rule it instead
+  keeps (``true``) or drops (``false``) every dataset reported by the matching hook, and it
+  cannot be combined with ``exclude_datasets`` in the same rule.
 - ``include_full_task_info`` — whether to include the full serialized operator state
   in the ``AirflowRunFacet``.  When ``false`` (default), only a curated subset of
   task attributes is sent.  Only meaningful for task events.  Default: ``false``.
+- ``exclude_datasets``: list of ``re.fullmatch`` patterns (independent of ``match_mode``)
+  matched against ``"<namespace>/<name>"`` of each OpenLineage dataset; matching datasets
+  are dropped from task events and from the SQL hook lineage events of the task.  Applies
+  to extractor, hook-collected and manually declared lineage.  Default: ``[]``.
+
+Unlike the boolean controls, ``exclude_datasets`` is resolved per dataset, and the most
+specific matching rule's list **replaces** broader lists instead of merging with them, so a
+narrower rule can shorten or clear (``[]``) a broader exclusion.
 
 ``locked: true`` is an admin floor lock that prevents per-Dag / per-task authoring
 overrides from changing the field(s) carried by this rule's ``controls`` dict.
@@ -101,6 +115,11 @@ rule wins):
 
 For ``emit`` at the task level: ``emit_task_events`` beats ``emit`` within the same
 rule.
+
+For ``exclude_datasets`` on a dataset reported by a hook, each tier above is preceded by
+its hook-scoped variant: ``dag_id`` + ``task_id`` + ``hook``, ``dag_id`` + ``task_id``,
+``dag_id`` + ``hook``, ``dag_id``, ``operator`` + ``hook``, ``operator``, ``hook``,
+global.  Datasets from other sources only see the tiers without ``hook``.
 
 Priority for **DAG run events**:
 
@@ -138,17 +157,26 @@ import logging
 import re
 import warnings
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field as dataclass_field, replace
+from typing import TYPE_CHECKING, TypeVar
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import Param
 from airflow.providers.openlineage import conf as _ol_conf
 
 if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset
+
     from airflow.providers.openlineage.utils.utils import AnyOperator
 
+    DatasetT = TypeVar("DatasetT", bound=Dataset)
+
 log = logging.getLogger(__name__)
+
+V = TypeVar("V")
+
+# A validated ``controls`` value: bool for the flags, list of patterns for ``exclude_datasets``.
+ControlValue = bool | list[str]
 
 # Control flag names — the keys that may appear inside a rule's ``controls`` dict.
 EMIT = "emit"
@@ -158,11 +186,13 @@ EXTRACT_OPERATOR_METADATA = "extract_operator_metadata"
 INCLUDE_SOURCE_CODE = "include_source_code"
 HOOK_LINEAGE = "hook_lineage"
 INCLUDE_FULL_TASK_INFO = "include_full_task_info"
+EXCLUDE_DATASETS = "exclude_datasets"
 
 # Scope keys — the keys that may appear inside a rule's ``scope`` dict.
 SCOPE_DAG_ID = "dag_id"
 SCOPE_TASK_ID = "task_id"
 SCOPE_OPERATOR = "operator"
+SCOPE_HOOK = "hook"
 
 # Top-level rule keys.
 RULE_SCOPE = "scope"
@@ -178,7 +208,7 @@ OL_EMISSION_POLICY_PARAM = "_openlineage_emission_policy"
 # Schema enforcement: only these keys may appear at each level.  Unknown keys cause
 # the rule to be skipped with a WARNING (catches typos like {"scope": {"dgg_id": "x"}}).
 _ALLOWED_TOP_LEVEL_KEYS: frozenset[str] = frozenset({RULE_SCOPE, RULE_MATCH_MODE, RULE_CONTROLS, RULE_LOCKED})
-_ALLOWED_SCOPE_KEYS: frozenset[str] = frozenset({SCOPE_DAG_ID, SCOPE_TASK_ID, SCOPE_OPERATOR})
+_ALLOWED_SCOPE_KEYS: frozenset[str] = frozenset({SCOPE_DAG_ID, SCOPE_TASK_ID, SCOPE_OPERATOR, SCOPE_HOOK})
 _ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
     {
         EMIT,
@@ -188,8 +218,12 @@ _ALLOWED_CONTROL_KEYS: frozenset[str] = frozenset(
         INCLUDE_SOURCE_CODE,
         HOOK_LINEAGE,
         INCLUDE_FULL_TASK_INFO,
+        EXCLUDE_DATASETS,
     }
 )
+# The hook is only known per dataset, so a hook-scoped rule may only carry controls that
+# act on individual datasets.
+_HOOK_SCOPE_CONTROL_KEYS: frozenset[str] = frozenset({EXCLUDE_DATASETS, HOOK_LINEAGE})
 
 # Fields scanned for ``locked: true`` on task-event resolution.
 # ``emit`` is intentionally absent: emit-locking is driven by either ``emit`` or
@@ -213,6 +247,7 @@ _TASK_FLAG_KEYS: frozenset[str] = frozenset(
         INCLUDE_SOURCE_CODE,
         HOOK_LINEAGE,
         INCLUDE_FULL_TASK_INFO,
+        EXCLUDE_DATASETS,
     }
 )
 _DAG_FLAG_KEYS: frozenset[str] = frozenset({EMIT, EMIT_DAG_EVENTS})
@@ -227,6 +262,8 @@ class EmissionPolicy:
     include_source_code: bool
     hook_lineage: bool
     include_full_task_info: bool
+    # Rules hold dicts, so hashing the filter would fail; equal policies still hash equally without it.
+    dataset_filter: DatasetFilter = dataclass_field(default_factory=lambda: DatasetFilter(), hash=False)
 
     @classmethod
     def defaults(cls) -> EmissionPolicy:
@@ -251,7 +288,7 @@ class Rule:
     """
 
     scope: dict[str, str]
-    controls: dict[str, bool]
+    controls: dict[str, ControlValue]
     match_mode: str = "exact"
     locked: bool = False
 
@@ -267,6 +304,10 @@ class Rule:
     def has_op(self) -> bool:
         return SCOPE_OPERATOR in self.scope
 
+    @property
+    def has_hook(self) -> bool:
+        return SCOPE_HOOK in self.scope
+
 
 def _matches(pattern: str, value: str, match_mode: str) -> bool:
     """Return ``True`` if *value* matches *pattern* according to *match_mode*."""
@@ -275,7 +316,133 @@ def _matches(pattern: str, value: str, match_mode: str) -> bool:
     return pattern == value
 
 
-def _read_param(obj: object, param_name: str) -> dict[str, bool]:
+def get_hook_class_name(hook: object | None) -> str | None:
+    """Return the fully-qualified class name that the ``hook`` scope key matches, if any."""
+    if hook is None:
+        return None
+    hook_type = type(hook)
+    return f"{hook_type.__module__}.{hook_type.__name__}"
+
+
+def _get_dataset_identity(dataset: Dataset) -> str:
+    """Return the ``"<namespace>/<name>"`` string that ``exclude_datasets`` patterns match."""
+    return f"{dataset.namespace}/{dataset.name}"
+
+
+def _get_rule_exclude_patterns(rule: Rule) -> tuple[str, ...] | None:
+    """Return the ``exclude_datasets`` patterns *rule* sets, or ``None`` if it sets none."""
+    patterns = rule.controls.get(EXCLUDE_DATASETS)
+    if isinstance(patterns, list):
+        return tuple(patterns)
+    if rule.has_hook and HOOK_LINEAGE in rule.controls:
+        return () if rule.controls[HOOK_LINEAGE] else (".*",)
+    return None
+
+
+@dataclass(frozen=True)
+class DatasetFilter:
+    """
+    ``exclude_datasets`` resolution for the datasets of one task.
+
+    Hook-scoped rules can only be matched once the reporting hook is known, so the winning
+    patterns are resolved lazily per hook (``None`` for datasets not reported by a hook)
+    and cached.  *tiers* holds only rules that set patterns, most specific first:
+    dag+task+hook, dag+task, dag+hook, dag, operator+hook, operator, hook, global.
+    """
+
+    tiers: tuple[tuple[Rule, ...], ...] = ()
+    authoring_patterns: tuple[str, ...] | None = None
+    context: str = dataclass_field(default="", compare=False)
+    _cache: dict[str | None, tuple[tuple[str, ...], tuple[re.Pattern[str], ...]]] = dataclass_field(
+        default_factory=dict, init=False, compare=False, repr=False
+    )
+
+    def _get_resolved(self, hook: str | None) -> tuple[tuple[str, ...], tuple[re.Pattern[str], ...]]:
+        if hook not in self._cache:
+            patterns = self._resolve_patterns(hook)
+            self._cache[hook] = (patterns, tuple(re.compile(p) for p in patterns))
+        return self._cache[hook]
+
+    def get_patterns(self, hook: str | None = None) -> tuple[str, ...]:
+        """Return the exclusion patterns that apply to datasets reported by *hook*."""
+        return self._get_resolved(hook)[0]
+
+    def is_excluded(self, dataset: Dataset, hook: str | None = None) -> bool:
+        """Return ``True`` if *dataset*, reported by *hook* (if any), matches an exclusion pattern."""
+        compiled = self._get_resolved(hook)[1]
+        if not compiled:
+            return False
+        identity = _get_dataset_identity(dataset)
+        if any(p.fullmatch(identity) for p in compiled):
+            log.debug("OpenLineage emission policy: excluding dataset %r for %s.", identity, self.context)
+            return True
+        return False
+
+    def exclude(self, datasets: Sequence[DatasetT], hook: str | None = None) -> list[DatasetT]:
+        """Return *datasets* without the ones excluded for *hook*."""
+        return [d for d in datasets if not self.is_excluded(d, hook)]
+
+    def _resolve_patterns(self, hook: str | None) -> tuple[str, ...]:
+        if not self.tiers and self.authoring_patterns is None:
+            return ()
+        tiers = [
+            [
+                rule
+                for rule in tier
+                if not rule.has_hook
+                or (hook is not None and _matches(rule.scope[SCOPE_HOOK], hook, rule.match_mode))
+            ]
+            for tier in self.tiers
+        ]
+        context = self.context if hook is None else f"datasets reported by '{hook}' in {self.context}"
+        no_patterns: tuple[str, ...] = ()
+        patterns, winning_rule = _walk_tiers(tiers, _get_rule_exclude_patterns, EXCLUDE_DATASETS, no_patterns)
+        if winning_rule is not None:
+            winning_tier = next(i for i, tier in enumerate(tiers) if winning_rule in tier)
+            replaced = [rule for tier in tiers[winning_tier + 1 :] for rule in tier]
+            _audit_log_conf_patterns(patterns, context, winning_rule, replaced)
+
+        if self.authoring_patterns is None or self.authoring_patterns == patterns:
+            return patterns
+        if any(rule.locked for tier in tiers for rule in tier):
+            log.warning(
+                "OpenLineage emission_policy: extend_global_openlineage_emission_policy call for '%s' on %s"
+                " has no effect; locked by conf rule at value %r",
+                EXCLUDE_DATASETS,
+                context,
+                list(patterns),
+            )
+            return patterns
+        log.info(
+            "OpenLineage emission policy: '%s' set to %r for %s "
+            "by manual `extend_global_openlineage_emission_policy` call.",
+            EXCLUDE_DATASETS,
+            list(self.authoring_patterns),
+            context,
+        )
+        return self.authoring_patterns
+
+
+def find_invalid_pattern(field_name: str, value: object) -> str | None:
+    """
+    Return an error message if *value* is not a list of valid regex patterns, else ``None``.
+
+    Shared by the conf parser (which skips the offending rule) and the authoring API (which
+    raises), so every pattern that reaches dataset matching has compiled at least once.
+    """
+    if not isinstance(value, list):
+        return f"'{field_name}' must be a list of strings, got {value!r}"
+    for pattern in value:
+        if not isinstance(pattern, str):
+            return f"'{field_name}' must contain only strings, got {pattern!r}"
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            return f"'{field_name}' pattern {pattern!r} is not a valid regex ({exc})"
+    return None
+
+
+def _read_param(obj: object, param_name: str) -> dict[str, ControlValue]:
     """Read the flags dict stored at *param_name* on *obj*, or ``{}`` if absent."""
     val = getattr(obj, "params", {}).get(param_name)
     if val is None:
@@ -285,7 +452,7 @@ def _read_param(obj: object, param_name: str) -> dict[str, bool]:
     return val if isinstance(val, dict) else {}
 
 
-def _merge_param(obj: object, param_name: str, new_flags: dict[str, bool]) -> None:
+def _merge_param(obj: object, param_name: str, new_flags: dict[str, ControlValue]) -> None:
     """
     Merge *new_flags* into the ``param_name`` param on *obj*, creating it if absent.
 
@@ -319,6 +486,29 @@ def _audit_log_conf_field(field: str, value: bool, context: str, source: Rule) -
         context,
         source,
     )
+
+
+def _audit_log_conf_patterns(
+    patterns: tuple[str, ...], context: str, source: Rule, replaced: Sequence[Rule]
+) -> None:
+    """Log the winning ``exclude_datasets`` list, and the broader rules it replaced, if any."""
+    if replaced:
+        log.info(
+            "OpenLineage emission policy: '%s' set to %r for %s by %r, replacing broader rule(s) %r",
+            EXCLUDE_DATASETS,
+            list(patterns),
+            context,
+            source,
+            list(replaced),
+        )
+    else:
+        log.info(
+            "OpenLineage emission policy: '%s' set to %r for %s by %r",
+            EXCLUDE_DATASETS,
+            list(patterns),
+            context,
+            source,
+        )
 
 
 def _audit_log_authoring_updates(
@@ -433,7 +623,12 @@ def _parse_rule(rule: object) -> Rule | None:
         )
         return None
     for k, v in controls.items():
-        if not isinstance(v, bool):
+        if k == EXCLUDE_DATASETS:
+            invalid = find_invalid_pattern(k, v)
+            if invalid:
+                log.warning("OpenLineage emission_policy rule controls.%s; ignoring: %r", invalid, rule)
+                return None
+        elif not isinstance(v, bool):
             log.warning(
                 "OpenLineage emission_policy rule 'controls.%s' must be bool, got %r; ignoring: %r",
                 k,
@@ -456,6 +651,24 @@ def _parse_rule(rule: object) -> Rule | None:
             rule,
         )
         return None
+    if SCOPE_HOOK in scope:
+        unsupported = set(controls) - _HOOK_SCOPE_CONTROL_KEYS
+        if unsupported:
+            log.warning(
+                "OpenLineage emission_policy rule has scope 'hook' with controls %s, but hook-scoped rules "
+                "only support %s; ignoring: %r",
+                sorted(unsupported),
+                sorted(_HOOK_SCOPE_CONTROL_KEYS),
+                rule,
+            )
+            return None
+        if EXCLUDE_DATASETS in controls and HOOK_LINEAGE in controls:
+            log.warning(
+                "OpenLineage emission_policy rule has scope 'hook' with both 'exclude_datasets' and "
+                "'hook_lineage', which both set the datasets dropped for that hook; ignoring: %r",
+                rule,
+            )
+            return None
 
     match_mode = rule.get(RULE_MATCH_MODE, "exact")
     if match_mode not in ("exact", "regex"):
@@ -466,7 +679,7 @@ def _parse_rule(rule: object) -> Rule | None:
         )
         return None
     if match_mode == "regex":
-        for key in (SCOPE_DAG_ID, SCOPE_TASK_ID, SCOPE_OPERATOR):
+        for key in (SCOPE_DAG_ID, SCOPE_TASK_ID, SCOPE_OPERATOR, SCOPE_HOOK):
             if key in scope:
                 try:
                     re.compile(scope[key])
@@ -516,9 +729,15 @@ def _classify_task_rules(
     fqcn: str,
     dag_id: str,
     task_id: str,
+    *,
+    hook_scoped: bool = False,
 ) -> tuple[list[Rule], list[Rule], list[Rule], list[Rule]]:
     """
     Classify pre-validated rules into the four priority tiers for task resolution.
+
+    Only rules whose scope has a ``hook`` key (``hook_scoped=True``) or has none
+    (``hook_scoped=False``) are considered; the ``hook`` key itself is left for
+    :class:`DatasetFilter` to match per dataset.
 
     Returns ``(task_rules, dag_rules, operator_rules, global_rules)``.
     """
@@ -528,6 +747,8 @@ def _classify_task_rules(
     global_rules: list[Rule] = []
 
     for rule in rules:
+        if rule.has_hook != hook_scoped:
+            continue
         scope = rule.scope
         match_mode = rule.match_mode
 
@@ -575,24 +796,24 @@ def _classify_dag_rules(
 
 
 def _walk_tiers(
-    tiers: list[list[Rule]],
-    extract_value: Callable[[dict[str, bool]], bool | None],
+    tiers: Sequence[Sequence[Rule]],
+    extract_value: Callable[[Rule], V | None],
     field_label: str,
-    default: bool,
-) -> tuple[bool, Rule | None]:
+    default: V,
+) -> tuple[V, Rule | None]:
     """
     Walk priority tiers from most-specific to least-specific, last-wins within each tier.
 
-    *extract_value* maps a rule's ``controls`` dict to ``bool | None``; ``None`` means
+    *extract_value* maps a rule to its value for the field; ``None`` means
     "this rule does not cover this field".  A contradiction WARNING is emitted when two
     rules in the same tier produce different non-``None`` values.  Returns
     ``(default, None)`` when no rule in any tier matches.
     """
     for tier_rules in tiers:
-        value: bool | None = None
+        value: V | None = None
         winning_rule: Rule | None = None
         for rule in tier_rules:
-            new_v = extract_value(rule.controls)
+            new_v = extract_value(rule)
             if new_v is not None:
                 if winning_rule is not None and value != new_v:
                     log.warning(
@@ -616,7 +837,12 @@ def _resolve_field_with_source(
     tiers: list[list[Rule]], field: str, default: bool
 ) -> tuple[bool, Rule | None]:
     """Walk tiers for a single boolean *field* in ``controls``."""
-    return _walk_tiers(tiers, lambda c: c.get(field), field, default)
+
+    def _extract(rule: Rule) -> bool | None:
+        value = rule.controls.get(field)
+        return value if isinstance(value, bool) else None
+
+    return _walk_tiers(tiers, _extract, field, default)
 
 
 def _resolve_emit_with_source(
@@ -633,10 +859,9 @@ def _resolve_emit_with_source(
     """
     specific_key = EMIT_TASK_EVENTS if scope == "task" else EMIT_DAG_EVENTS
 
-    def _extract(c: dict[str, bool]) -> bool | None:
-        if specific_key in c:
-            return c[specific_key]
-        return c.get(EMIT)
+    def _extract(rule: Rule) -> bool | None:
+        value = rule.controls.get(specific_key, rule.controls.get(EMIT))
+        return value if isinstance(value, bool) else None
 
     return _walk_tiers(tiers, _extract, f"emit ({scope})", default)
 
@@ -860,7 +1085,8 @@ def _apply_authoring_overrides(
         return config
 
     _audit_log_authoring_updates(changed, context)
-    return replace(config, **changed)
+    # ``changed`` only holds the boolean fields, never ``dataset_filter``.
+    return replace(config, **changed)  # type: ignore[arg-type]
 
 
 def _extend_policy_with_task_authoring(
@@ -882,14 +1108,26 @@ def _extend_policy_with_task_authoring(
     flags = _read_param(operator, OL_EMISSION_POLICY_PARAM)
     if not flags:
         return config
-    return _apply_authoring_overrides(
+    config = _apply_authoring_overrides(
         config,
         locked_fields,
-        flags,
+        {k: v for k, v in flags.items() if isinstance(v, bool)},
         EMIT_TASK_EVENTS,
         context,
         extra_fields=(EXTRACT_OPERATOR_METADATA, INCLUDE_SOURCE_CODE, HOOK_LINEAGE, INCLUDE_FULL_TASK_INFO),
     )
+    # Locks on exclude_datasets depend on the hook reporting each dataset, so the filter
+    # checks them when it resolves patterns.
+    patterns = flags.get(EXCLUDE_DATASETS)
+    if patterns is None:
+        return config
+    # Params written without the authoring API skip its validation, and a bad pattern would
+    # otherwise raise during extraction and drop the task event.
+    invalid = find_invalid_pattern(EXCLUDE_DATASETS, patterns)
+    if invalid or not isinstance(patterns, list):
+        log.warning("OpenLineage emission_policy: ignoring authored %s for %s", invalid, context)
+        return config
+    return replace(config, dataset_filter=replace(config.dataset_filter, authoring_patterns=tuple(patterns)))
 
 
 def _extend_policy_with_dag_authoring(
@@ -907,7 +1145,13 @@ def _extend_policy_with_dag_authoring(
     flags = _read_param(dag, OL_EMISSION_POLICY_PARAM)
     if not flags:
         return config
-    return _apply_authoring_overrides(config, locked_fields, flags, EMIT_DAG_EVENTS, context)
+    return _apply_authoring_overrides(
+        config,
+        locked_fields,
+        {k: v for k, v in flags.items() if isinstance(v, bool)},
+        EMIT_DAG_EVENTS,
+        context,
+    )
 
 
 def _resolve_task_policy_from_conf_only(
@@ -954,6 +1198,15 @@ def _resolve_task_policy_from_conf_only(
 
     locked_fields = _compute_locked_task_fields(task_rules, dag_rules, operator_rules, global_rules)
 
+    hook_tiers = _classify_task_rules(rules, fqcn, dag_id, task_id, hook_scoped=True)
+    dataset_filter_tiers = tuple(
+        tuple(rule for rule in tier if _get_rule_exclude_patterns(rule) is not None)
+        for pair in zip(hook_tiers, tiers)
+        for tier in pair
+    )
+    if not any(dataset_filter_tiers):
+        dataset_filter_tiers = ()
+
     return (
         EmissionPolicy(
             emit=emit,
@@ -961,6 +1214,7 @@ def _resolve_task_policy_from_conf_only(
             include_source_code=include_source_code,
             hook_lineage=hook_lineage,
             include_full_task_info=include_full_task_info,
+            dataset_filter=DatasetFilter(tiers=dataset_filter_tiers, context=context),
         ),
         locked_fields,
     )

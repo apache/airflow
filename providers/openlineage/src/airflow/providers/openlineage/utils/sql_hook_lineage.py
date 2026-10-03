@@ -46,6 +46,7 @@ from airflow.providers.openlineage.sqlparser import (
     from_table_meta,
     get_openlineage_facets_with_sql,
 )
+from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, get_hook_class_name
 from airflow.providers.openlineage.utils.utils import _get_parent_run_facet
 
 if TYPE_CHECKING:
@@ -95,7 +96,12 @@ def _parse_query_into_datasets(
     return inputs, outputs
 
 
-def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful: bool = True) -> None:
+def emit_lineage_from_sql_extras(
+    task_instance,
+    sql_extras: list,
+    is_successful: bool = True,
+    dataset_filter: DatasetFilter | None = None,
+) -> None:
     """
     Process ``sql_job`` extras and emit per-query OpenLineage events.
 
@@ -103,8 +109,11 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
 
     * Parse SQL via :func:`get_openlineage_facets_with_sql` to obtain inputs,
       outputs and facets (schema enrichment, column lineage, etc.).
+    * Drop the inputs/outputs that *dataset_filter* excludes for the reporting hook.
     * Emit a separate START + COMPLETE/FAIL event pair (child job of the task).
     """
+    if dataset_filter is None:
+        dataset_filter = DatasetFilter()
     if not sql_extras:
         return None
 
@@ -191,13 +200,14 @@ def emit_lineage_from_sql_extras(task_instance, sql_extras: list, is_successful:
                 ),
             )
 
+        hook_class_name = get_hook_class_name(hook)
         events.extend(
             _create_ol_event_pair(
                 task_instance=task_instance,
                 job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{query_count}",
                 is_successful=is_successful,
-                inputs=query_lineage.inputs,
-                outputs=query_lineage.outputs,
+                inputs=dataset_filter.exclude(query_lineage.inputs, hook_class_name),
+                outputs=dataset_filter.exclude(query_lineage.outputs, hook_class_name),
                 run_facets=query_lineage.run_facets,
                 job_facets=query_lineage.job_facets,
             )
