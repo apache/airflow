@@ -25,7 +25,7 @@ license-files = ["LICENSE", "NOTICE"]
 # We do not want to upper-bind Python version unnecessarily. Airflow-ctl is a small tool with
 # minimal dependencies and does not use sophisticated Python features, so it should work with
 # new Python versions once all dependencies are updated to support them.
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 dependencies = [
     # TODO there could be still missing deps such as airflow-core
     "argcomplete>=1.10",
@@ -79,7 +79,6 @@ requires = [
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
     "trove-classifiers==2026.9.21.13",
 ]
@@ -167,7 +166,7 @@ enum-field-as-literal='one' # When a single enum member, make it output a `Liter
 input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='datetime'
-target-python-version='3.10'
+target-python-version='3.11'
 use-annotated=true
 use-default=true
 use-double-quotes=true

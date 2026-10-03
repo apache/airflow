@@ -51,10 +51,8 @@ PYPROJECT_TOML_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
 
 def _load_toml(path: Path) -> dict:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
+    import tomllib
+
     return tomllib.loads(path.read_text())
 
 
