@@ -334,7 +334,13 @@ class SecretsMasker(logging.Filter):
         *,
         replacement: str = "***",
     ) -> Redacted:
-        if depth > max_depth or isinstance(item, str):
+        # Key-name-based redaction has to fail closed on *type* as well as on
+        # depth: once the key is judged sensitive, every leaf is replaced no
+        # matter what Python type it is. Only containers are walked. Returning
+        # non-str scalars unchanged used to leak an all-digit PIN, account
+        # number or API key stored under e.g. a ``*_password`` key, while an
+        # equivalent alphanumeric value was masked.
+        if depth > max_depth or not isinstance(item, (dict, tuple, set, list)):
             return replacement
         if isinstance(item, dict):
             return {
@@ -350,7 +356,9 @@ class SecretsMasker(logging.Filter):
             return list(
                 self._redact_all(subval, depth + 1, max_depth, replacement=replacement) for subval in item
             )
-        return item
+        # Unreachable — every non-container is replaced above. Kept as a
+        # fail-closed backstop rather than returning ``item``.
+        return replacement
 
     def _redact(
         self, item: Redactable, name: str | None, depth: int, max_depth: int, replacement: str = "***"
