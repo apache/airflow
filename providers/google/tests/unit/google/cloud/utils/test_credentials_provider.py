@@ -28,6 +28,7 @@ from unittest.mock import ANY
 from uuid import uuid4
 
 import pytest
+from google.auth.credentials import Credentials
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import DefaultCredentialsError
 
@@ -539,6 +540,18 @@ class TestGetGcpCredentialsAndProjectId:
         )
 
         mock_load_credentials_from_dict.assert_called_once()
+        assert result == (mock_credentials, "")
+
+    @mock.patch("google.auth.load_credentials_from_file", autospec=True)
+    def test_get_credentials_using_credential_config_file_no_project_id(
+        self, mock_load_credentials_from_file
+    ):
+        mock_credentials = mock.create_autospec(Credentials, instance=True)
+        mock_load_credentials_from_file.return_value = (mock_credentials, None)
+
+        result = get_credentials_and_project_id(credential_config_file='{"type": "external_account"}')
+
+        mock_load_credentials_from_file.assert_called_once()
         assert result == (mock_credentials, "")
 
 
