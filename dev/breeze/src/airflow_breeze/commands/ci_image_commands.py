@@ -271,6 +271,13 @@ option_ci_image_file_to_load = click.option(
 @option_python
 @option_python_image
 @option_python_versions
+@click.option(
+    "--require-frozen-dependencies",
+    is_flag=True,
+    default=False,
+    envvar="REQUIRE_FROZEN_DEPENDENCIES",
+    help="Fail if frozen dependency installation fails instead of resolving a different environment.",
+)
 @option_run_in_parallel
 @option_skip_cleanup
 @option_upgrade_on_failure
@@ -310,6 +317,7 @@ def build(
     python: str,
     python_image: str | None,
     python_versions: str,
+    require_frozen_dependencies: bool,
     run_in_parallel: bool,
     skip_cleanup: bool,
     upgrade_on_failure: bool,
@@ -359,6 +367,7 @@ def build(
         push=push,
         python=python,
         python_image=python_image,
+        require_frozen_dependencies=require_frozen_dependencies,
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         use_uv=use_uv,
@@ -900,7 +909,7 @@ def run_build_ci_image(
             output=output,
         )
         if build_command_result.returncode != 0 and not ci_image_params.upgrade_to_newer_dependencies:
-            if ci_image_params.upgrade_on_failure:
+            if ci_image_params.upgrade_on_failure and not ci_image_params.require_frozen_dependencies:
                 ci_image_params.upgrade_to_newer_dependencies = True
                 console_print("[warning]Attempting to build with --upgrade-to-newer-dependencies on failure")
                 build_command_result = run_command(

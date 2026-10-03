@@ -36,6 +36,7 @@ class BuildCiParams(CommonBuildParams):
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_extras: str = "all"
     force_build: bool = False
+    require_frozen_dependencies: bool = False
     upgrade_to_newer_dependencies: bool = False
     upgrade_on_failure: bool = False
     skip_provider_dependencies_check: bool = False
@@ -73,10 +74,14 @@ class BuildCiParams(CommonBuildParams):
         # optional build args
         self._set_common_opt_args()
         self._opt_arg("INSTALL_MYSQL_CLIENT_TYPE", self.install_mysql_client_type)
+        if self.require_frozen_dependencies:
+            self._req_arg("AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION", False)
         # Convert to build args
         build_args = self._to_build_args()
         # Add cache directive
         return build_args
 
     def __post_init__(self):
+        if self.require_frozen_dependencies and self.upgrade_to_newer_dependencies:
+            raise ValueError("Frozen dependencies cannot be combined with dependency upgrades")
         self.version_suffix = self.version_suffix or "dev0"
