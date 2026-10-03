@@ -218,7 +218,7 @@ class BuilderProcessor : AbstractProcessor() {
         $$"return $T.record(dag, $T.of($L), new $T()::depends)",
         REFS_TYPE,
         ClassName.get(List::class.java),
-        declarations.joinToString { "\"${it.id}\"" },
+        CodeBlock.join(declarations.map { CodeBlock.of($$"$S", it.id) }, ", "),
         ClassName.get(deps),
       )
     } else {

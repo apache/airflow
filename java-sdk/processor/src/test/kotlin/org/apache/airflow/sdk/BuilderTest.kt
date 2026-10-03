@@ -1090,6 +1090,37 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("escape quotes and backslashes in the task ids the wiring must register")
+  fun generateBuilderEscapesWiredTaskIds() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task(id = "say \"hi\"") public void a() {}
+          @Builder.Task(id = "back\\slash") public void b() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              a();
+              b();
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .contentsAsUtf8String()
+      .contains("""List.of("say \"hi\"", "back\\slash")""")
+  }
+
+  @Test
   @DisplayName("bind a TaskInput through the shared populator")
   fun generateBuilderBindsTaskInputFields() {
     val compilation =
