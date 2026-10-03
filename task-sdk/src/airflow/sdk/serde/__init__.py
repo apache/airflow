@@ -377,10 +377,8 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
         class_version = getattr(cls, "__version__", 0)
         if int(version) > class_version:
             raise TypeError(
-                "serialized version of %s is newer than module version (%s > %s)",
-                classname,
-                version,
-                class_version,
+                f"serialized version of {classname} is newer than module version "
+                f"({version} > {class_version})"
             )
 
         deserialize_value = deserialize(value)

@@ -447,10 +447,8 @@ class DagBag(LoggingMixin):
                 if getattr(task, "end_from_trigger", False) and get_listener_manager().has_listeners:
                     raise AirflowException(
                         "Listeners are not supported with end_from_trigger=True for deferrable operators. "
-                        "Task %s in DAG %s has end_from_trigger=True with listeners from plugins. "
-                        "Set end_from_trigger=False to use listeners.",
-                        task.task_id,
-                        dag.dag_id,
+                        f"Task {task.task_id} in DAG {dag.dag_id} has end_from_trigger=True "
+                        "with listeners from plugins. Set end_from_trigger=False to use listeners."
                     )
 
                 settings.task_policy(task)
