@@ -71,7 +71,7 @@ def test_build_ci_image_reproduction_command_with_custom_repo():
 
 
 def test_build_ci_image_reproduction_command_default_repo():
-    result = build_ci_image_reproduction_command(platform="linux/amd64", python="3.10")
+    result = build_ci_image_reproduction_command(platform="linux/amd64", python="3.11")
     assert result.argv == [
         "breeze",
         "ci-image",
@@ -79,7 +79,7 @@ def test_build_ci_image_reproduction_command_default_repo():
         "--platform",
         "linux/amd64",
         "--python",
-        "3.10",
+        "3.11",
     ]
 
 

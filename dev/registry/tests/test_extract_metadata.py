@@ -171,7 +171,7 @@ class TestParsePyprojectToml:
         toml_file.write_text(
             textwrap.dedent("""\
                 [project]
-                requires-python = ">=3.10"
+                requires-python = ">=3.11"
                 dependencies = [
                     "apache-airflow>=3.0.0",
                     "boto3>=1.28.0",
@@ -179,7 +179,7 @@ class TestParsePyprojectToml:
             """)
         )
         result = parse_pyproject_toml(toml_file)
-        assert result["requires_python"] == ">=3.10"
+        assert result["requires_python"] == ">=3.11"
         assert result["dependencies"] == ["apache-airflow>=3.0.0", "boto3>=1.28.0"]
 
     def test_optional_dependencies(self, tmp_path):
@@ -187,7 +187,7 @@ class TestParsePyprojectToml:
         toml_file.write_text(
             textwrap.dedent("""\
                 [project]
-                requires-python = ">=3.10"
+                requires-python = ">=3.11"
                 dependencies = []
 
                 [project.optional-dependencies]
