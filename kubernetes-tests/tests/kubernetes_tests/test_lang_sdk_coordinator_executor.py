@@ -67,9 +67,8 @@ TASK_IDS = [
 _TIMEOUT = 600
 
 # The Dag processor cannot parse the native Dag here yet: the bundle is uploaded
-# only to ``ts-artifacts``, which only worker pods stage, the ``ts-sdk``
-# coordinator's ``dag_bundle_name`` limits it to that bundle, and the Dag
-# processor image has no Node.
+# only to ``ts-artifacts``, which only worker pods stage, and the Dag processor
+# image has no Node.
 _RUN_NATIVE_TS = os.environ.get("RUN_TS_SDK_NATIVE_DAG_K8S_TESTS", "").lower() in ("true", "1")
 
 
