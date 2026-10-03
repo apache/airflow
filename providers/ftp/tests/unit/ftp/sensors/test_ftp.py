@@ -148,3 +148,42 @@ class TestFTPSensor:
                     assert sensor.poke({}) is expected
                 sock.sendall.assert_has_calls([mock.call(b"MDTM file\r\n"), mock.call(b"QUIT\r\n")])
                 assert hook.conn is None
+
+    @pytest.mark.parametrize(
+        ("sensor_cls", "hook_cls", "client_cls"),
+        [(FTPSensor, FTPHook, ftplib.FTP), (FTPSSensor, FTPSHook, ftplib.FTP_TLS)],
+    )
+    @pytest.mark.parametrize(
+        ("fail_on_transient_errors", "reply", "expected_error"),
+        [
+            (False, "421 Service unavailable, closing control connection", None),
+            (True, "421 Service unavailable, closing control connection", ftplib.error_temp),
+            (False, "430 Unknown temporary reply", ftplib.error_temp),
+            (False, "530 Authentication failed", ftplib.error_perm),
+        ],
+    )
+    def test_poke_after_disconnected_control_connection(
+        self, sensor_cls, hook_cls, client_cls, fail_on_transient_errors, reply, expected_error
+    ):
+        sensor = sensor_cls(task_id="check", path="file", fail_on_transient_errors=fail_on_transient_errors)
+        hook = hook_cls()
+        client = client_cls()
+        sock = mock.create_autospec(socket.socket, instance=True)
+        client.sock = sock
+        client.file = StringIO(reply + "\r\n")
+        hook.conn = client
+        try:
+            with mock.patch.object(sensor_cls, "_create_hook", autospec=True, return_value=hook):
+                if expected_error is None:
+                    assert sensor.poke({}) is False
+                else:
+                    with pytest.raises(expected_error, match=reply):
+                        sensor.poke({})
+
+            sock.sendall.assert_has_calls([mock.call(b"MDTM file\r\n"), mock.call(b"QUIT\r\n")])
+            sock.close.assert_called_once_with()
+            assert client.sock is None
+            assert client.file is None
+            assert hook.conn is None
+        finally:
+            client.close()
