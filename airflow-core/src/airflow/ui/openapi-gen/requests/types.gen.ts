@@ -968,6 +968,10 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    /**
+     * Whether this Dag is currently at its max_active_runs limit, counting running and queued runs (backfill runs excluded).
+     */
+    is_at_max_active_runs: boolean;
     team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
