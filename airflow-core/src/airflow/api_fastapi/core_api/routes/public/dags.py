@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Response, status
@@ -78,11 +79,14 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.core_api.services.public.dags import BulkDagService, get_scheduling_state
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState
+
+log = logging.getLogger(__name__)
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -333,7 +337,14 @@ def patch_dag(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
+    was_paused = dag.is_paused
     dag.set_scheduling_state(get_scheduling_state(patch_body))
+
+    if dag.is_paused != was_paused:
+        try:
+            get_listener_manager().hook.on_dag_pause_status_change(dag=dag, is_paused=dag.is_paused)
+        except Exception:
+            log.exception("Error while calling listener")
 
     return dag
 

@@ -1,0 +1,1 @@
+Added a new ``on_dag_pause_status_change`` listener hook, fired when a Dag's pause status changes via the REST API or the ``airflow dags pause``/``airflow dags unpause`` CLI commands. Plugins can use this to observe or audit who paused/unpaused a Dag and when.
