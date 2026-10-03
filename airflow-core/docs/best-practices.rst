@@ -463,9 +463,15 @@ for any variable that contains sensitive data.
 
 Timetables
 ----------
-Avoid using Airflow Variables/Connections or accessing Airflow database at the top level of your timetable code.
-Database access should be delayed until the execution time of the Dag. This means that you should not have variables/connections retrieval
-as argument to your timetable class initialization or have Variable/connection at the top level of your custom timetable module.
+Avoid using Airflow Variables/Connections or accessing Airflow database anywhere in your timetable code: at the
+top level of the module, in ``__init__``, and in scheduling methods such as ``next_dagrun_info``. The scheduler
+rebuilds your timetable from the serialized Dag by calling ``deserialize``, which calls ``__init__`` again, so
+this code runs in the scheduler, outside of any task. Retrieving a Variable or Connection there fails and can
+crash the Dag processor or the scheduler.
+
+Instead, pass configuration as plain arguments to your timetable and store them with ``serialize`` and
+``deserialize``, as described in :doc:`/howto/timetable`. If a value really has to come from a Variable, read
+it in a task at execution time.
 
 Bad example:
 
@@ -480,7 +486,7 @@ Bad example:
             self._something = something
             super().__init__(*args, **kwargs)
 
-Good example:
+Also a bad example, because ``__init__`` runs again when the scheduler deserializes the timetable:
 
 .. code-block:: python
 
@@ -492,6 +498,29 @@ Good example:
         def __init__(self, *args, something="something", **kwargs):
             self._something = Variable.get(something)
             super().__init__(*args, **kwargs)
+
+Good example:
+
+.. code-block:: python
+
+    from typing import Any
+
+    from airflow.timetables.interval import CronDataIntervalTimetable
+
+
+    class CustomTimetable(CronDataIntervalTimetable):
+        def __init__(self, *args, something="something", **kwargs):
+            self._something = something
+            super().__init__(*args, **kwargs)
+
+        def serialize(self) -> dict[str, Any]:
+            return {**super().serialize(), "something": self._something}
+
+        @classmethod
+        def deserialize(cls, data: dict[str, Any]) -> "CustomTimetable":
+            timetable = super().deserialize(data)
+            timetable._something = data["something"]
+            return timetable
 
 
 Triggering Dags after changes
