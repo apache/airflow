@@ -627,6 +627,9 @@ def with_db_lock_timeout(session: Session, lock_timeout: int = 30) -> Generator[
             session.execute(text(f"SET SESSION innodb_lock_wait_timeout = {old_mysql_timeout}"))
 
 
+PROHIBIT_COMMIT_ERROR_MESSAGE = "UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!"
+
+
 class CommitProhibitorGuard:
     """Context manager class that powers prohibit_commit."""
 
@@ -639,7 +642,7 @@ class CommitProhibitorGuard:
         if self.expected_commit:
             self.expected_commit = False
             return
-        raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
+        raise RuntimeError(PROHIBIT_COMMIT_ERROR_MESSAGE)
 
     def __enter__(self) -> Self:
         event.listen(self.session, "before_commit", self._validate_commit)
