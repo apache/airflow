@@ -1084,6 +1084,10 @@ class _NativeDagImporter(CoordinatorDagImporter):
         return DagSourceCode("", "native")
 
 
+class _UnloadableDagImporter(_NativeDagImporter):
+    coordinator_classpath = "nonexistent.module.Coordinator"
+
+
 @contextlib.contextmanager
 def _native_dag_files(*keys: str, mapping: dict[str, str] | None = None):
     """Make ``.native`` files native Dag files, with a _NativeStubCoordinator configured for each key."""
@@ -1245,6 +1249,27 @@ class TestExecuteTaskNativeDagFile:
         mock_initialize.assert_not_called()
 
     @pytest.mark.usefixtures("mock_start", "mock_lock")
+    @patch(
+        "airflow.sdk.coordinators._subprocess.find_claiming_importer",
+        return_value=_UnloadableDagImporter(bundle_name="dags"),
+    )
+    def test_fails_without_a_retry_when_the_coordinator_class_cannot_be_loaded(
+        self, _, mock_initialize, mock_client
+    ):
+        coordinator = _NativeStubCoordinator(command=["/runtime"])
+
+        with pytest.raises(TaskLaunchError) as raised:
+            self._execute(coordinator, mock_client)
+
+        assert raised.value.retryable is False
+        assert str(raised.value).startswith(
+            "'sub/dag.native' is a native Dag file, but its coordinator class "
+            "'nonexistent.module.Coordinator' cannot be loaded: "
+        )
+        assert isinstance(raised.value.__cause__, ImportError)
+        mock_initialize.assert_not_called()
+
+    @pytest.mark.usefixtures("mock_start", "mock_lock")
     @pytest.mark.parametrize("rel_path", ["sub/dag.native", "dag.py"])
     def test_fails_without_a_retry_when_the_dag_importers_cannot_be_built(
         self, mock_initialize, mock_client, rel_path
@@ -1283,6 +1308,20 @@ class TestExecuteTaskNativeDagFile:
         assert raised.value.retryable is True
         assert (
             str(raised.value) == f"Dag file {rel_path!r} is not a file in Dag bundle 'dags' at version 'v9'"
+        )
+        assert coordinator.recorded_dag_files == []
+
+    @pytest.mark.usefixtures("mock_start", "mock_lock", "mock_initialize")
+    @patch("airflow.sdk.coordinators._subprocess._is_file_in_bundle", side_effect=PermissionError("denied"))
+    def test_fails_with_a_retry_when_the_dag_file_cannot_be_read(self, _, mock_client):
+        coordinator = _NativeStubCoordinator(command=["/runtime"])
+
+        with _native_dag_files("native"), pytest.raises(TaskLaunchError) as raised:
+            self._execute(coordinator, mock_client)
+
+        assert raised.value.retryable is True
+        assert str(raised.value) == (
+            "Dag file 'sub/dag.native' in Dag bundle 'dags' at version 'v9' cannot be read: denied"
         )
         assert coordinator.recorded_dag_files == []
 

@@ -626,8 +626,9 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         Return whether *rel_path* is a native Dag file, which this coordinator must run.
 
-        :raises TaskLaunchError: when the bundle's Dag importers cannot be built, or the file is a
-            native Dag file of a runtime that this coordinator does not run. Neither retries.
+        :raises TaskLaunchError: when the bundle's Dag importers cannot be built, the coordinator class
+            of the file's importer cannot be loaded, or the file is a native Dag file of a runtime that
+            this coordinator does not run. None of these retries.
         """
         try:
             importer = find_claiming_importer(rel_path, bundle_name)
@@ -639,8 +640,16 @@ class SubprocessCoordinator(BaseCoordinator):
             ) from e
         if importer is None:
             return False
-        runtime = import_string(importer.coordinator_classpath)
-        if not isinstance(self, runtime):
+        try:
+            runtime = import_string(importer.coordinator_classpath)
+            is_runtime = isinstance(self, runtime)
+        except Exception as e:
+            raise TaskLaunchError(
+                f"{rel_path!r} is a native Dag file, but its coordinator class "
+                f"{importer.coordinator_classpath!r} cannot be loaded: {e}",
+                retryable=False,
+            ) from e
+        if not is_runtime:
             raise TaskLaunchError(
                 f"{rel_path!r} is a native Dag file that a {runtime.__name__} runs, but the task's queue "
                 f"routes it to a {type(self).__name__}. Route the queue to a {runtime.__name__} in "
@@ -655,11 +664,17 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         Check that *rel_path* is a file of *bundle* that this coordinator can run, and return its command.
 
-        :raises TaskLaunchError: when the file is missing, cannot run *what*, or needs a supervisor
-            schema version that this worker's Task SDK does not support.
+        :raises TaskLaunchError: when the file is missing or cannot be read, cannot run *what*, or needs
+            a supervisor schema version that this worker's Task SDK does not support.
         """
         version = f" at version {bundle.version!r}" if bundle.version is not None else ""
-        if not _is_file_in_bundle(bundle, rel_path):
+        try:
+            is_file = _is_file_in_bundle(bundle, rel_path)
+        except OSError as e:
+            raise TaskLaunchError(
+                f"Dag file {rel_path!r} in Dag bundle {bundle.name!r}{version} cannot be read: {e}"
+            ) from e
+        if not is_file:
             raise TaskLaunchError(
                 f"Dag file {rel_path!r} is not a file in Dag bundle {bundle.name!r}{version}"
             )
@@ -689,8 +704,9 @@ class SubprocessCoordinator(BaseCoordinator):
         Run *what*.
 
         A task of a native Dag runs its own Dag file, *dag_rel_path* in the Dag bundle of
-        *bundle_info* at the version of the run, and no other file of the bundle is read. Any other
-        task runs the artifact found by scanning the bundle that holds the artifacts.
+        *bundle_info* at the version of the run, and never another Dag file. Its runtime may still
+        read other files of the bundle, such as the JARs on a Java classpath. Any other task runs the
+        artifact found by scanning the bundle that holds the artifacts.
 
         :raises TaskLaunchError: when a native Dag file cannot run, before the runtime starts.
         """
