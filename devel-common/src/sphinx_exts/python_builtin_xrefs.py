@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Any
 from sphinx.domains.python import PythonDomain
 
 if TYPE_CHECKING:
-    from docutils.nodes import Element, reference
+    from docutils.nodes import Element
     from sphinx.addnodes import pending_xref
     from sphinx.application import Sphinx
     from sphinx.builders import Builder
@@ -53,7 +53,7 @@ class _PythonDomainWithBuiltinXrefs(PythonDomain):
         target: str,
         node: pending_xref,
         contnode: Element,
-    ) -> reference | None:
+    ) -> Any:  # Sphinx 8 returns ``Element | None`` here, Sphinx 9 ``reference | None``.
         if type == "class" and target in _BUILTIN_NAMES:
             searchmode = 1 if node.hasattr("refspecific") else 0
             if not self.find_obj(env, node.get("py:module"), node.get("py:class"), target, type, searchmode):
