@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -27,9 +28,11 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
+
 
 # Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
 # ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
@@ -42,6 +45,21 @@ if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
 
     from airflow.providers.common.compat.sdk import Connection
+
+
+async def _aextra_dejson(conn: Connection) -> dict[str, Any]:
+    """
+    Deserialize a connection's extra without a synchronous call to the Task SDK.
+
+    ``extra_dejson`` masks secrets with a synchronous send to the supervisor, which raises
+    ``DeadlockImminentError`` on an event loop with another async call in flight.
+    ``Connection.aextra_dejson()`` (Airflow 3.3.2+, #71890) masks them asynchronously.
+    """
+    # TODO: Replace with airflow.providers.common.compat.connection.get_async_extra_dejson()
+    #  once https://github.com/apache/airflow/pull/74147 is released.
+    if hasattr(conn, "aextra_dejson"):
+        return await conn.aextra_dejson()
+    return json.loads(conn.extra) if conn.extra else {}
 
 
 def _has_recognized_provider_prefix(model_name: str) -> bool:
@@ -157,6 +175,9 @@ class PydanticAIHook(BaseHook):
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
+        # Fallback connections already fetched by :meth:`aget_conn` / :meth:`acreate_agent`,
+        # with their deserialized extra, so resolving the chain makes no Task SDK call.
+        self._prefetched_fallbacks: dict[str, tuple[Connection, dict[str, Any]]] = {}
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None):
@@ -220,7 +241,7 @@ class PydanticAIHook(BaseHook):
             self._conn_extra_dejson = self._conn.extra_dejson
         return self._conn, self._conn_extra_dejson
 
-    def _seed_connection(self, conn: Connection) -> None:
+    def _seed_connection(self, conn: Connection, extra: dict[str, Any] | None = None) -> None:
         """
         Prime this hook's connection cache with an already-fetched ``Connection``.
 
@@ -229,9 +250,12 @@ class PydanticAIHook(BaseHook):
         ``Connection`` that call built the hook from. Without this, :meth:`_get_conn_and_extra`
         would fetch that same connection a second time the first time it runs, doubling the
         Execution API round trips a fallback chain costs.
+
+        :param extra: The connection's extra, already deserialized. The async path passes it,
+            since ``extra_dejson`` masks secrets with a synchronous call to the supervisor.
         """
         self._conn = conn
-        self._conn_extra_dejson = conn.extra_dejson
+        self._conn_extra_dejson = conn.extra_dejson if extra is None else extra
 
     def get_conn(self) -> Model:
         """
@@ -277,6 +301,31 @@ class PydanticAIHook(BaseHook):
             FallbackModel(model, *fallback_models, fallback_on=(ModelAPIError,)) if fallback_models else model
         )
         return self._model
+
+    async def aget_conn(self) -> Model:
+        """
+        Return the configured pydantic-ai ``Model``, for use inside an async task or trigger.
+
+        The same model as :meth:`get_conn`, fallback chain included, but this hook's connection
+        and its fallback connections are fetched with ``get_async_connection``, so resolving
+        them makes no synchronous call to the Task SDK. ``get_connection`` and the secret
+        masking of ``extra_dejson`` send to the supervisor synchronously, which raises
+        ``DeadlockImminentError`` on an event loop with another async call in flight.
+        """
+        if self._model is not None:
+            return self._model
+        await self._aprefetch_connections()
+        return self.get_conn()
+
+    async def _aprefetch_connections(self) -> None:
+        """Fetch this hook's connection and its fallback connections asynchronously, once."""
+        if self._conn is None:
+            conn = await get_async_connection(self.llm_conn_id)
+            self._seed_connection(conn, await _aextra_dejson(conn))
+        for conn_id in self._get_fallback_conn_ids():
+            if conn_id not in self._prefetched_fallbacks:
+                conn = await get_async_connection(conn_id)
+                self._prefetched_fallbacks[conn_id] = (conn, await _aextra_dejson(conn))
 
     def _qualify_model_name(self, model_name: str, *, forwarded_from_conn_id: str | None = None) -> str:
         """
@@ -490,7 +539,10 @@ class PydanticAIHook(BaseHook):
             # dispatch the hook class from it directly instead -- this is exactly what
             # ``BaseHook.get_hook`` does internally, so the result still isn't constrained to
             # this class and the type has to be checked here.
-            conn = PydanticAIHook.get_connection(conn_id)
+            if conn_id in self._prefetched_fallbacks:
+                conn, extra = self._prefetched_fallbacks[conn_id]
+            else:
+                conn, extra = PydanticAIHook.get_connection(conn_id), None
             hook = conn.get_hook()
             if not isinstance(hook, PydanticAIHook):
                 raise ValueError(
@@ -498,7 +550,7 @@ class PydanticAIHook(BaseHook):
                     "not a PydanticAIHook. Only pydanticai connection types can be used as "
                     f"fallbacks for '{self.llm_conn_id}'."
                 )
-            hook._seed_connection(conn)
+            hook._seed_connection(conn, extra)
             if hook._get_fallback_conn_ids():
                 raise ValueError(
                     f"Fallback connection '{conn_id}' declares its own "
@@ -619,6 +671,57 @@ class PydanticAIHook(BaseHook):
             if settings is not None:
                 agent.instrument = settings
         return agent
+
+    @overload
+    async def acreate_agent(
+        self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
+    ) -> Agent[object, OutputT]: ...
+
+    @overload
+    async def acreate_agent(self, *, instructions: str, **agent_kwargs) -> Agent[object, str]: ...
+
+    @overload
+    async def acreate_agent(
+        self,
+        output_type: type[OutputT],
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[object, OutputT]: ...
+
+    @overload
+    async def acreate_agent(
+        self,
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[object, str]: ...
+
+    async def acreate_agent(
+        self,
+        output_type: type[Any] = str,
+        *,
+        instructions: str | None = None,
+        spec_file: str | Path | None = None,
+        **agent_kwargs,
+    ) -> Agent[object, Any]:
+        """
+        Create a pydantic-ai Agent configured with this hook's model, for use inside an async task.
+
+        The async counterpart of :meth:`create_agent`, with the same parameters: the
+        connections are fetched as in :meth:`aget_conn`, so building the agent makes no
+        synchronous call to the Task SDK. Run it with ``await agent.run(...)``.
+        """
+        if spec_file is None and instructions is None:
+            raise ValueError("instructions is required when spec_file is not provided.")
+        await self._aprefetch_connections()
+        if spec_file is not None:
+            return self.create_agent(
+                output_type, spec_file=spec_file, instructions=instructions, **agent_kwargs
+            )
+        return self.create_agent(output_type, instructions=instructions, **agent_kwargs)
 
     def test_connection(self) -> tuple[bool, str]:
         """
