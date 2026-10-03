@@ -1655,31 +1655,22 @@ class TestDagFileProcessorManager:
         manager.cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
 
-    @pytest.mark.parametrize(
-        ("log_target", "expected_subprocess_logs_to_stdout"),
-        [
-            ("stdout", True),
-            ("file", False),
-        ],
-    )
-    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
-    def test_create_process_subprocess_logs_to_stdout(
-        self, mock_get_logger, log_target, expected_subprocess_logs_to_stdout
-    ):
-        mock_logger = MagicMock()
-        mock_filehandle = MagicMock()
-        mock_get_logger.return_value = [mock_logger, mock_filehandle]
-
-        with conf_vars({("logging", "dag_processor_log_target"): log_target}):
-            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60)
+    def test_create_process_stdout_target_logs_to_stdout_with_dag_file_context(self, tmp_path):
+        with conf_vars({("logging", "dag_processor_log_target"): "stdout"}):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60, base_log_dir=str(tmp_path))
             dag_file = DagFileInfo(
                 bundle_name="testing", rel_path=Path("my_dag.py"), bundle_path=Path("/tmp")
             )
             with mock.patch.object(DagFileProcessorProcess, "start") as mock_start:
                 manager._create_process(dag_file)
 
-        _, kwargs = mock_start.call_args
-        assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
+        kwargs = mock_start.call_args.kwargs
+        # The process logger already writes to stdout, so nothing should copy its output there again.
+        assert not kwargs.get("subprocess_logs_to_stdout")
+        with structlog.testing.capture_logs() as cap:
+            kwargs["logger"].info("parsing")
+        assert cap[0]["dag_file"] == "my_dag.py"
+        assert cap[0]["bundle_name"] == "testing"
 
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
     def test_create_process_parses_a_coordinator_file_with_its_runtime(self, mock_get_logger, tmp_path):
@@ -3014,7 +3005,6 @@ class TestDagFileProcessorManager:
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
-                    subprocess_logs_to_stdout=False,
                     client=mock.ANY,
                 ),
                 mock.call(
@@ -3027,7 +3017,6 @@ class TestDagFileProcessorManager:
                     selector=mock.ANY,
                     logger=mock_logger,
                     logger_filehandle=mock_filehandle,
-                    subprocess_logs_to_stdout=False,
                     client=mock.ANY,
                 ),
             ]
