@@ -1016,6 +1016,16 @@ ARG_UPDATE_ALL_RECOMMENDATIONS = Arg(
     action="store_true",
 )
 
+ARG_UPDATE_CONFIG_SHOW_SENSITIVE = Arg(
+    ("--show-sensitive",),
+    help=(
+        "Show real values of sensitive options (passwords, keys, tokens, etc.) in the dry-run "
+        "preview instead of masking them as '< hidden >'. Has no effect together with --fix, "
+        "which always writes real values to airflow.cfg."
+    ),
+    action="store_true",
+)
+
 
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
@@ -2063,6 +2073,7 @@ CONFIG_COMMANDS = (
             ARG_VERBOSE,
             ARG_UPDATE_CONFIG_FIX,
             ARG_UPDATE_ALL_RECOMMENDATIONS,
+            ARG_UPDATE_CONFIG_SHOW_SENSITIVE,
         ),
     ),
 )
