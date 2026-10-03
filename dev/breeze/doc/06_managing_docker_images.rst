@@ -57,8 +57,9 @@ Logging environment fingerprints
 ``breeze ci-image environment-key`` prints a versioned input manifest and provisional
 SHA-256 fingerprint. It does not build images or change reuse decisions. Python,
 platform, rebuild-check files, ``uv.lock``, and tracked package/provider manifests
-are included. Base-image digests and effective build parameters remain unresolved;
-matching fingerprints cannot authorize reuse.
+are included. The complete reuse contract is intentionally unresolved, including the resolved
+base-image digest, semantic build parameters, complete environment-affecting file
+inputs, and external dependency inputs. Matching fingerprints cannot authorize reuse.
 
 .. image:: ./images/output_ci-image_environment-key.svg
   :width: 100%
