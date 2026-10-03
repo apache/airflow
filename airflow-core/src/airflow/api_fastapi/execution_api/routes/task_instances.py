@@ -1715,16 +1715,23 @@ async def get_task_instance_states(
     if run_ids:
         query = query.where(TI.run_id.in_(run_ids))
 
-    results = (await session.execute(query)).tuples().all()
+    results: list[Any] = []
+    # Without task_ids, task_group_id replaces the Dag-wide match instead of extending it.
+    if task_ids or not task_group_id:
+        # Partitions yield the event loop between batches on large runs.
+        streamed = await session.stream(query.execution_options(yield_per=500))
+        try:
+            async for partition in streamed.partitions():
+                results.extend(partition)
+        finally:
+            await streamed.close()
 
     if task_group_id:
         group_ti_ids = await _get_group_tasks(
             dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
         )
-
         group_query = select(*_TI_STATE_COLUMNS).where(TI.id.in_(group_ti_ids), *coordinates)
-        group_results = (await session.execute(group_query)).tuples().all()
-        results = [*results, *group_results] if task_ids else group_results
+        results.extend((await session.execute(group_query)).all())
 
     superseded = await _find_superseded_ids_async(
         session,
