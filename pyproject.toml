@@ -1642,6 +1642,12 @@ google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 # quarantined.
 # Remove once the rolling window advances past 2026-09-18.
 typesafe-sdk = "2026-09-19T00:00:00Z"
+# Temporary: openshell 0.1.2 (required by the apache-airflow-providers-common-ai[openshell]
+# extra) was published 2026-09-28, inside the "4 days" exclude-newer window. This pins the
+# per-package cutoff just past that release so it resolves while any later release stays
+# quarantined.
+# Remove once the rolling window advances past 2026-09-28 (on or after 2026-10-03).
+openshell = "2026-09-29T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
@@ -1831,6 +1837,8 @@ pydantic-ai-skills = "2026-07-16T00:00:00Z"
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 # Temporary: see the typesafe-sdk note in `[tool.uv.exclude-newer-package]`.
 typesafe-sdk = "2026-09-19T00:00:00Z"
+# Temporary: see the openshell note in `[tool.uv.exclude-newer-package]`.
+openshell = "2026-09-29T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,

@@ -94,7 +94,8 @@ class SbxSandboxBackend(SandboxBackend):
     Kubernetes, use a remote backend --
     :class:`~airflow.providers.common.ai.sandbox.ModalSandboxBackend` for a
     managed service or
-    :class:`~airflow.providers.common.ai.sandbox.OpenSandboxBackend` for a
+    :class:`~airflow.providers.common.ai.sandbox.OpenSandboxBackend` or
+    :class:`~airflow.providers.common.ai.sandbox.OpenShellSandboxBackend` for a
     self-hosted one -- or add your own behind :class:`SandboxBackend`.
 
     **Network policy is layered on a host-level setting, not independent of
