@@ -15,14 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-End-to-end test of the lang-SDK coordinators on KubernetesExecutor.
+End-to-end tests of the lang-SDK coordinators on KubernetesExecutor.
 
-Triggers the ``lang_sdk_combined`` Dag (Python + Go + Java tasks in one graph)
-and asserts every task instance and the Dag run reach ``success``. This exercises
-the full path the worktree-1 feature enables: the ``golang``/``java`` queues are
-routed to their coordinators, each coordinator's ``pod_template_file`` launches a
-worker pod whose init-container stages the artifact from localstack S3 via the
-DagBundle interface, and the coordinator then runs the Go binary / Java jar.
+``test_lang_sdk_combined_dag_succeeds`` triggers the ``lang_sdk_combined`` Dag (Python + Go + Java
+tasks in one graph) and asserts every task instance and the Dag run reach ``success``. The Dag processor
+binds each stub task to the artifact that registers its handler, the scheduler sends the task with that
+artifact, the queue (``golang`` or ``java``) picks the coordinator's ``pod_template_file`` for the pod, and
+the worker runs the bound file. A Go pod stages the Go binary from localstack S3 with an init container,
+and a Java pod downloads the Java jar as an S3 Dag bundle. Neither coordinator runs ``lang_sdk_combined.py``
+itself, so the tasks succeed only if the artifact reached the pod.
+
+``test_a_task_routed_to_a_coordinator_without_an_artifact_fails_with_its_reason`` triggers
+``lang_sdk_misrouted``, a Python task on the ``golang`` queue. No artifact is bound to it, so the worker
+fails the task, and the test reads the reason from its state reason.
 
 Prerequisites are provisioned by ``breeze k8s setup-lang-sdk-test``.
 """
@@ -41,6 +46,15 @@ _RUN_LANG_SDK = os.environ.get("RUN_LANG_SDK_K8S_TESTS", "").lower() in ("true",
 DAG_ID = "lang_sdk_combined"
 # The Dag bundle the stub Dags are uploaded to (kubernetes-tests/lang_sdk/config/values.yaml).
 STUB_DAG_BUNDLE = "lang-sdk-dags"
+MISROUTED_DAG_ID = "lang_sdk_misrouted"
+MISROUTED_TASK_ID = "python_task_on_golang_queue"
+# Why the worker fails a task whose queue is routed to a coordinator and whose workload names no artifact:
+# the task, its Dag file and its queue.
+MISROUTED_REASON = (
+    f"Task '{MISROUTED_TASK_ID}' of Dag '{MISROUTED_DAG_ID}' has no task handler artifact, and its Dag file "
+    f"'{MISROUTED_DAG_ID}.py' is not an artifact that ExecutableCoordinator runs. "
+    "Queue 'golang' routes it to a Lang-SDK coordinator"
+)
 TASK_IDS = [
     "python_task_1",
     "go_extract",
@@ -107,5 +121,34 @@ class TestLangSdkCoordinatorExecutor(BaseK8STest):
             logical_date=logical_date,
             dag_id=DAG_ID,
             expected_final_state="success",
+            timeout=_TIMEOUT,
+        )
+
+    @pytest.mark.execution_timeout(_IMPORT_TIMEOUT + 600)
+    def test_a_task_routed_to_a_coordinator_without_an_artifact_fails_with_its_reason(self):
+        self._wait_until_dag_imports(MISROUTED_DAG_ID)
+
+        dag_run_id, logical_date = self.start_job_in_kubernetes(MISROUTED_DAG_ID, self.host)
+        print(f"Triggered {MISROUTED_DAG_ID} run {dag_run_id} (logical_date={logical_date})")
+
+        self.monitor_task(
+            host=self.host,
+            dag_run_id=dag_run_id,
+            dag_id=MISROUTED_DAG_ID,
+            task_id=MISROUTED_TASK_ID,
+            expected_final_state="failed",
+            timeout=_TIMEOUT,
+        )
+        task_instance = self.session.get(
+            f"http://{self.host}/dags/{MISROUTED_DAG_ID}/dagRuns/{dag_run_id}/taskInstances/{MISROUTED_TASK_ID}"
+        ).json()
+        # The worker failed it, not the scheduler, and recorded why.
+        assert MISROUTED_REASON in (task_instance["state_reason"] or ""), task_instance
+
+        self.ensure_dag_expected_state(
+            host=self.host,
+            logical_date=logical_date,
+            dag_id=MISROUTED_DAG_ID,
+            expected_final_state="failed",
             timeout=_TIMEOUT,
         )

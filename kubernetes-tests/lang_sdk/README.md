@@ -19,9 +19,10 @@
 
 # lang-SDK coordinator system test (KubernetesExecutor)
 
-End-to-end test that one Dag mixing **Python + Go + Java** tasks runs to success on
-`KubernetesExecutor`, using the per-queue `extra.pod_template_file` routing added to the
-`[sdk] coordinators` config. The test lives at
+End-to-end tests of the lang-SDK coordinators on `KubernetesExecutor`, using the per-queue
+`extra.pod_template_file` routing added to the `[sdk] coordinators` config: one Dag mixing
+**Python + Go + Java** tasks runs to success, and a Python task on a routed queue that has no artifact
+fails with its reason. The tests live at
 `kubernetes-tests/tests/kubernetes_tests/test_lang_sdk_coordinator_executor.py`.
 
 ## How it fits together
@@ -58,6 +59,12 @@ by running `stage_artifacts.py`. It reuses the **DagBundle interface**
 (`DagBundlesManager().get_bundle(name).initialize()`, the download half of `task_runner.parse`) to
 pull the binary from its S3 bucket, then restores its execute bit.
 
+The misrouted Dag (`lang_sdk_misrouted.py`) has a plain Python task on the `golang` queue. The
+dag-processor binds no artifact to it, the scheduler still queues it, and the worker fails it
+because its Dag file is not an artifact that the Go coordinator runs. The test reads the reason from
+the task's state reason. The Go pod gets the S3 connection for it: a task without an artifact reads
+its own Dag file from its Dag bundle, which is the S3 bundle of the stub Dags.
+
 The dag-processor pod stages the Go bucket the same way (`dagProcessor.extraInitContainers`) and
 reads the Java bucket as an S3 bundle, because it runs the Go binary and the Java jar to check the
 stub tasks of `lang_sdk_combined.py` against the task handlers they register. A stub task without a
@@ -74,6 +81,7 @@ also reaches the Java task pods. The other task pods keep the plain prod image: 
 | Path | Role |
 | --- | --- |
 | `dags/lang_sdk_combined.py` | Python stub Dag (`dag_id=lang_sdk_combined`); uploaded to the `dags` bucket. |
+| `dags/lang_sdk_misrouted.py` | Python task on the `golang` queue with no artifact (`dag_id=lang_sdk_misrouted`); uploaded to the `dags` bucket. |
 | `go_example/` | Go bundle sources (own module, `replace` onto `../../../go-sdk`): `go_extract` / `go_transform` under `lang_sdk_combined`. |
 | `java_example/` | Java bundle sources (standalone Gradle build, SDK from mavenLocal): `java_extract` / `java_transform` under `lang_sdk_combined`. |
 | `stage_artifacts.py` | Init-container entrypoint; stages the Go artifact bucket via DagBundle and restores the execute bit. |
@@ -82,9 +90,9 @@ also reaches the Java task pods. The other task pods keep the plain prod image: 
 | `manifests/localstack.yaml` | In-cluster S3 (localstack). |
 | `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, stub-Dag S3 bundle, artifact Dag bundles, dag-processor Go init container, AWS conn, scheduler pod-template mount. |
 
-The Go binary, Java jar, and stub Dag share one object store (localstack) but live in
-**separate buckets** (`go-artifacts`, `java-artifacts`, `dags`), and `java-artifacts` is itself the Java
-task handler bundle.
+The Go binary, Java jar, and Dag files share one object store (localstack) but live in
+**separate buckets** (`go-artifacts`, `java-artifacts`, `dags`), and `java-artifacts` is itself the
+Java task handler bundle.
 
 ## Which SDK sources get built
 
@@ -138,25 +146,25 @@ breeze k8s deploy-airflow --executor KubernetesExecutor
 
 # 2. Provision the lang-SDK test: build the Go bundle + Java jar (in Docker),
 #    build + load the Java worker image (prod + JRE for the JavaCoordinator),
-#    deploy localstack, upload artifacts + stub Dag, render config, helm upgrade
+#    deploy localstack, upload artifacts + stub Dags, render config, helm upgrade
 #    with the Airflow components on the Java worker image.
 breeze k8s setup-lang-sdk-test
 
-# 3. Run the test by name (the shared harness triggers a fresh Dag run). The test is gated on
-#    RUN_LANG_SDK_K8S_TESTS so it stays out of the regular k8s suites; set it to run the test here.
+# 3. Run the tests by class name (the shared harness triggers a fresh Dag run for each). The tests are
+#    gated on RUN_LANG_SDK_K8S_TESTS so they stay out of the regular k8s suites; set it to run them here.
 RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests --executor KubernetesExecutor \
-    -- -k test_lang_sdk_combined_dag_succeeds
+    -- -k TestLangSdkCoordinatorExecutor
 ```
 
 In CI (and for a one-shot local run) steps 2-3 are folded into a single `run-complete-tests` call via
 `breeze k8s run-complete-tests --lang-sdk-test`: it provisions the lang-SDK env after the base deploy,
-then runs the test. Rather than bolting this onto the regular k8s system-test matrix (which ran it
+then runs the tests. Rather than bolting this onto the regular k8s system-test matrix (which ran it
 redundantly on all six `KubernetesExecutor` / standard-naming-off jobs and added ~6 minutes each), the
 `k8s-tests.yml` workflow runs it in a **dedicated `tests-kubernetes-lang-sdk` job** on a single default
 Python-Kubernetes combo (the `lang-sdk-kubernetes-combo` input, wired from the `default-python-version`
 and `default-kubernetes-version` build-info outputs). That job sets `RUN_LANG_SDK_K8S_TESTS=true`
-(which `--lang-sdk-test` reads) and runs only the lang-SDK test (`-k
-test_lang_sdk_combined_dag_succeeds`), not the full suite; the regular system-test matrix no longer runs
+(which `--lang-sdk-test` reads) and runs only the lang-SDK tests (`-k
+TestLangSdkCoordinatorExecutor`), not the full suite; the regular system-test matrix no longer runs
 it at all. The provisioning builds (Go bundle, Java jar, Java worker image) and the localstack deploy
 run in parallel.
 

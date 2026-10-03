@@ -46,7 +46,7 @@ scheduler:
       readOnly: true
       mountPath: /opt/airflow/lang_sdk/pod_templates
 
-# Serve BOTH the baked-in example Dags (dags-folder) and the lang-SDK stub Dag pulled from the
+# Serve BOTH the baked-in example Dags (dags-folder) and the lang-SDK Dag files pulled from the
 # localstack "dags" bucket. This must be additive: the standard KubernetesExecutor tests share this
 # run and trigger example Dags, so dropping dags-folder marks them stale and their runs 404.
 # Configure it here (dagProcessor.dagBundleConfigList) rather than overriding

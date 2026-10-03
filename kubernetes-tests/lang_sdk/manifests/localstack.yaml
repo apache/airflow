@@ -16,7 +16,7 @@
 # under the License.
 #
 # LocalStack (S3 only) used as the object store backing the lang-SDK system test:
-# the Go binary, Java jar, and Python stub Dag are uploaded to separate S3
+# the Go binary, Java jar, and Python Dag files are uploaded to separate S3
 # buckets and pulled into pods via S3DagBundle. Deployed into the ``airflow``
 # namespace so the api-server / dag-processor / worker pods reach it at
 # ``http://localstack.airflow.svc.cluster.local:4566``.

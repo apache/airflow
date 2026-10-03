@@ -144,7 +144,7 @@ jobs:
   # them as workers under KubernetesExecutor. It is executor/naming/version-independent, so instead of
   # bolting it onto all six ``KubernetesExecutor``/``use-standard-naming == false`` system-test jobs above
   # (which ran it redundantly and added ~6 minutes each), it runs once here on a single default combo and
-  # executes only the lang-SDK test (``-k test_lang_sdk_combined_dag_succeeds``) - not the full suite.
+  # executes only the lang-SDK tests (``-k TestLangSdkCoordinatorExecutor``) - not the full suite.
   tests-kubernetes-lang-sdk:
     timeout-minutes: 60
     name: "K8S Lang-SDK:${{ inputs.lang-sdk-kubernetes-combo }}"
@@ -221,7 +221,7 @@ jobs:
       - name: "Run lang-SDK K8S test ${{ inputs.lang-sdk-kubernetes-combo }}"
         run: >-
           breeze k8s run-complete-tests --no-copy-local-sources
-          -- -k test_lang_sdk_combined_dag_succeeds
+          -- -k TestLangSdkCoordinatorExecutor
         env:
           EXECUTOR: "KubernetesExecutor"
           USE_STANDARD_NAMING: "false"

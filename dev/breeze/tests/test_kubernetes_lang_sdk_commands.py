@@ -315,6 +315,56 @@ class TestLangSdkDryRun:
         assert str(tmp_path / "java-artifacts" / "app.jar") in cp_sources
 
 
+class TestLangSdkUploadArtifacts:
+    @staticmethod
+    def _s3_uploads(mock_run) -> list[tuple[str, str]]:
+        commands = [call.args[0] for call in mock_run.call_args_list]
+        return [(cmd[-2], cmd[-1]) for cmd in commands if "awslocal" in cmd and cmd[-3] == "cp"]
+
+    @mock.patch.object(kubernetes_commands, "run_command_with_k8s_env", autospec=True)
+    def test_uploads_every_lang_sdk_dag(self, mock_run, dry_run, tmp_path):
+        mock_run.return_value.stdout = "localstack-pod"
+        dag_names = sorted(path.name for path in (kubernetes_commands.LANG_SDK_PATH / "dags").glob("*.py"))
+
+        _lang_sdk_upload_artifacts(tmp_path, "3.10", "v1.35.0", None)
+
+        uploads = self._s3_uploads(mock_run)
+        assert [dest for _, dest in uploads if dest.startswith("s3://dags/")] == [
+            f"s3://dags/{name}" for name in dag_names
+        ]
+        # A task on a routed queue that is not a stub task has a Dag of its own.
+        assert "lang_sdk_misrouted.py" in dag_names
+        assert "lang_sdk_combined.py" in dag_names
+
+    @mock.patch.object(kubernetes_commands, "run_command_with_k8s_env", autospec=True)
+    def test_uploads_only_python_files_in_name_order(self, mock_run, dry_run, tmp_path, monkeypatch):
+        mock_run.return_value.stdout = "localstack-pod"
+        dags = tmp_path / "lang_sdk" / "dags"
+        dags.mkdir(parents=True)
+        for name in ("b_dag.py", "a_dag.py", "notes.txt"):
+            (dags / name).write_text("")
+        monkeypatch.setattr(kubernetes_commands, "LANG_SDK_PATH", tmp_path / "lang_sdk")
+
+        _lang_sdk_upload_artifacts(tmp_path, "3.10", "v1.35.0", None)
+
+        dag_uploads = [
+            (src, dest) for src, dest in self._s3_uploads(mock_run) if dest.startswith("s3://dags/")
+        ]
+        assert dag_uploads == [
+            ("/tmp/a_dag.py", "s3://dags/a_dag.py"),
+            ("/tmp/b_dag.py", "s3://dags/b_dag.py"),
+        ]
+        dag_copies = [
+            (cmd[2], cmd[3].split(":", 1)[1])
+            for cmd in (call.args[0] for call in mock_run.call_args_list)
+            if cmd[1] == "cp" and cmd[2].endswith(".py")
+        ]
+        assert dag_copies == [
+            (str(dags / "a_dag.py"), "/tmp/a_dag.py"),
+            (str(dags / "b_dag.py"), "/tmp/b_dag.py"),
+        ]
+
+
 class TestSetupLangSdkTestNativeSelection:
     @pytest.mark.parametrize(
         ("env_value", "expected_native"),

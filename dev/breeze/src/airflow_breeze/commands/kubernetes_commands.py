@@ -2841,7 +2841,7 @@ def _lang_sdk_deploy_localstack(python: str, kubernetes_version: str, output: Ou
 def _lang_sdk_upload_artifacts(
     staging: Path, python: str, kubernetes_version: str, output: Output | None
 ) -> None:
-    """Copy artifacts + stub Dag into the localstack pod and create/fill S3 buckets via awslocal."""
+    """Copy artifacts + stub Dags into the localstack pod and create/fill S3 buckets via awslocal."""
     pod = run_command_with_k8s_env(
         [
             "kubectl",
@@ -2868,12 +2868,12 @@ def _lang_sdk_upload_artifacts(
         java_jar = staging / "java-artifacts" / "app.jar"
     else:
         java_jar = next((staging / "java-artifacts").glob("*.jar"))
-    stub_dag = LANG_SDK_PATH / "dags" / "lang_sdk_combined.py"
+    stub_dags = sorted((LANG_SDK_PATH / "dags").glob("*.py"))
 
     for src, dest in (
         (go_bundle, "/tmp/go_bundle"),
         (java_jar, "/tmp/app.jar"),
-        (stub_dag, "/tmp/lang_sdk_combined.py"),
+        *((stub_dag, f"/tmp/{stub_dag.name}") for stub_dag in stub_dags),
     ):
         _lang_sdk_kubectl(
             ["cp", str(src), f"{HELM_AIRFLOW_NAMESPACE}/{pod}:{dest}"], python, kubernetes_version, output
@@ -2890,7 +2890,7 @@ def _lang_sdk_upload_artifacts(
     uploads = (
         ("/tmp/go_bundle", "s3://go-artifacts/lang_sdk_combined"),
         ("/tmp/app.jar", "s3://java-artifacts/app.jar"),
-        ("/tmp/lang_sdk_combined.py", "s3://dags/lang_sdk_combined.py"),
+        *((f"/tmp/{stub_dag.name}", f"s3://dags/{stub_dag.name}") for stub_dag in stub_dags),
     )
     for src, dest in uploads:
         _lang_sdk_kubectl(
@@ -3143,9 +3143,9 @@ def _setup_lang_sdk_test(
     name="setup-lang-sdk-test",
     help="Provision the lang-SDK (Go + Java) coordinator system test on an already-deployed "
     "KubernetesExecutor cluster: build artifacts, build + load the Java worker image, deploy "
-    "localstack S3, upload artifacts + stub Dag, create config, and upgrade the Helm release. "
-    "Run the test afterwards with `RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests "
-    "--executor KubernetesExecutor -- -k test_lang_sdk_combined_dag_succeeds`.",
+    "localstack S3, upload artifacts + stub Dags, create config, and upgrade the Helm release. "
+    "Run the tests afterwards with `RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests "
+    "--executor KubernetesExecutor -- -k TestLangSdkCoordinatorExecutor`.",
 )
 @option_python
 @option_kubernetes_version
@@ -3177,7 +3177,7 @@ def setup_lang_sdk_test(python: str, kubernetes_version: str, go_image: str | No
     )
     console_print(
         "\n[success]lang-SDK test environment is ready.[/]\n"
-        "[info]Run the test with (the test is gated on RUN_LANG_SDK_K8S_TESTS):\n"
+        "[info]Run the tests with (the tests are gated on RUN_LANG_SDK_K8S_TESTS):\n"
         "  RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests --executor KubernetesExecutor "
-        "-- -k test_lang_sdk_combined_dag_succeeds\n"
+        "-- -k TestLangSdkCoordinatorExecutor\n"
     )
