@@ -173,6 +173,19 @@ class AllProvidersSentinel:
 
 ALL_PROVIDERS_SENTINEL = AllProvidersSentinel()
 
+# What every Lang-SDK e2e mode (Go, TypeScript, Java) runs, besides its own SDK: the Dag processor's task
+# handler modules, the task runtime's coordinator modules and the shared e2e harness. Each mode also runs the
+# unit tests that probe its real artifact, which import their helpers from fake_task_handler_runtime.py.
+LANG_SDK_E2E_SHARED_FILES = [
+    r"^airflow-core/src/airflow/dag_processing/task_handler_[a-z_]+\.py$",
+    r"^airflow-core/src/airflow/models/lang_sdk_task_handler\.py$",
+    r"^airflow-core/tests/unit/dag_processing/fake_task_handler_runtime\.py$",
+    r"^task-sdk/src/airflow/sdk/execution_time/coordinator\.py$",
+    r"^task-sdk/src/airflow/sdk/coordinators/[^/]+\.py$",
+    r"^airflow-e2e-tests/tests/airflow_e2e_tests/(conftest|constants)\.py$",
+    r"^airflow-e2e-tests/tests/airflow_e2e_tests/e2e_test_utils/.*",
+]
+
 T = TypeVar("T", FileGroupForCi, SelectiveTestType)
 
 
@@ -250,16 +263,19 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/java\.yml$",
             r"^airflow-e2e-tests/docker/Dockerfile\.java$",
-            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^airflow-core/tests/unit/dag_processing/test_task_handler_processor_java\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
+            *LANG_SDK_E2E_SHARED_FILES,
         ],
         FileGroupForCi.GO_SDK_E2E_FILES: [
             # `.md` excluded — doc-only edits do not affect the Go build or e2e tests.
             r"^go-sdk/(?!.*\.md$).*",
+            r"^airflow-e2e-tests/go-test-bundle/.*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/go_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/go\.yml$",
-            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^airflow-core/tests/unit/dag_processing/test_task_handler_processor_go\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
+            *LANG_SDK_E2E_SHARED_FILES,
         ],
         FileGroupForCi.OPENLINEAGE_E2E_FILES: [
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/.*",
@@ -282,8 +298,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^ts-sdk/(?!api-docs/)(?!.*\.md$).*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/ts_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/ts\.yml$",
-            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^airflow-core/tests/unit/dag_processing/test_task_handler_processor_ts\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
+            *LANG_SDK_E2E_SHARED_FILES,
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
