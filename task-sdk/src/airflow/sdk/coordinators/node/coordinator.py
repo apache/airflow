@@ -114,6 +114,8 @@ class NodeCoordinator(SubprocessCoordinator):
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
 
+    A task of a native TypeScript Dag runs the ``*.min.mjs`` bundle its Dag was parsed from.
+
     The coordinator also parses native TypeScript Dags: every packed ``*.min.mjs`` bundle in a
     Dag bundle is run to list its Dags. With one NodeCoordinator configured, it parses the bundles
     of every Dag bundle. With several, ``[sdk] dag_bundle_to_coordinator`` picks the one that
@@ -127,5 +129,14 @@ class NodeCoordinator(SubprocessCoordinator):
         bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
 
-    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+    def _build_bundle_command(self, path: pathlib.Path) -> tuple[list[str], str]:
+        """Return the command that runs the packed bundle at *path*, and its supervisor schema version."""
         return [self.node_executable, os.fspath(path)], read_bundle(path).supervisor_schema_version
+
+    def _build_dag_file_command(
+        self, *, what: TaskInstance, path: pathlib.Path
+    ) -> tuple[list[str], str | None]:
+        return self._build_bundle_command(path)
+
+    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        return self._build_bundle_command(path)
