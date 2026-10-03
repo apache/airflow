@@ -675,9 +675,14 @@ class TestSecretsMasker:
             (["abcdef"], ["***"], 1),
             ([[[["abcdef"]]]], [[[["***"]]]], None),
             ([[[[["abcdef"]]]]], [[[[["***"]]]]], None),
-            # Items below max depth aren't redacted
-            ([[[[[["abcdef"]]]]]], [[[[[["abcdef"]]]]]], None),
-            ([["abcdef"]], [["abcdef"]], 1),
+            # Registered secrets are redacted at any depth, whatever max_depth says
+            ([[[[[["abcdef"]]]]]], [[[[[["***"]]]]]], None),
+            ([["abcdef"]], [["***"]], 1),
+            (
+                {"a": {"b": {"c": {"d": {"e": {"f": {"g": "prefix-abcdef-suffix"}}}}}}},
+                {"a": {"b": {"c": {"d": {"e": {"f": {"g": "prefix-***-suffix"}}}}}}},
+                None,
+            ),
         ],
     )
     def test_redact_max_depth(self, val, expected, max_depth):
