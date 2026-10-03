@@ -26,8 +26,6 @@ import pytest
 from airflow.models.connection import Connection
 from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 
-MODULE = "airflow.providers.common.compat.connection"
-
 
 class MockAgetBaseHook:
     def __init__(*args, **kargs):
@@ -147,47 +145,3 @@ class TestGetAsyncExtraDejson:
         conn = Connection(conn_id="test_conn", conn_type="http", extra=extra)
 
         assert await get_async_extra_dejson(conn) == expected
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("airflow_v_3_0_plus", "airflow_v_3_2_plus"),
-        [
-            pytest.param(True, True, id="airflow-3.2-to-3.3.1"),
-            pytest.param(False, False, id="airflow-2"),
-        ],
-    )
-    async def test_worker_thread_fallback_where_it_is_safe(self, airflow_v_3_0_plus, airflow_v_3_2_plus):
-        """A worker thread is used where no supervisor exists, or its channel is thread-safe."""
-        conn = mock.Mock(spec=["extra", "extra_dejson"])
-        type(conn).extra_dejson = mock.PropertyMock(return_value={"api_key": "secret"})
-
-        with (
-            mock.patch(f"{MODULE}.AIRFLOW_V_3_0_PLUS", airflow_v_3_0_plus),
-            mock.patch(f"{MODULE}.AIRFLOW_V_3_2_PLUS", airflow_v_3_2_plus),
-        ):
-            assert await get_async_extra_dejson(conn) == {"api_key": "secret"}
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("extra", "expected"),
-        [
-            pytest.param(None, {}, id="no-extra"),
-            pytest.param(json.dumps({"api_key": "secret"}), {"api_key": "secret"}, id="extra"),
-        ],
-    )
-    async def test_airflow_3_0_and_3_1_deserialize_the_extra_without_the_supervisor(
-        self, caplog, extra, expected
-    ):
-        """Their supervisor channel is not thread-safe: ``extra_dejson`` is never called, not even in a thread."""
-        conn = mock.Mock(spec=["extra", "extra_dejson"])
-        conn.extra = extra
-        type(conn).extra_dejson = _raising_extra_dejson()
-
-        with (
-            mock.patch(f"{MODULE}.AIRFLOW_V_3_0_PLUS", True),
-            mock.patch(f"{MODULE}.AIRFLOW_V_3_2_PLUS", False),
-            caplog.at_level(logging.DEBUG),
-        ):
-            assert await get_async_extra_dejson(conn) == expected
-
-        assert "Get connection extra by deserializing `Connection.extra`, without masking it." in caplog.text

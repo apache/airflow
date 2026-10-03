@@ -17,12 +17,10 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseHook
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
@@ -61,30 +59,22 @@ async def get_async_extra_dejson(conn: Connection) -> dict[str, Any]:
     call to the supervisor, which raises ``DeadlockImminentError`` when another async call
     is in flight on the same event loop.
 
-    * Airflow 3.3.2+: awaits ``Connection.aextra_dejson()``, which masks the secrets asynchronously.
-    * Airflow 3.2 to 3.3.1, and Airflow 2: runs the synchronous ``extra_dejson`` in a worker
-      thread, the same way :func:`get_async_connection` falls back to ``get_connection``. From
-      Airflow 3.2 the supervisor channel serializes a worker thread's send against the event
-      loop's in-flight ``asend()``; Airflow 2 has no supervisor.
-    * Airflow 3.0 and 3.1: deserializes ``Connection.extra`` without masking it. Their supervisor
-      channel is not thread-safe, so a send from a worker thread could interleave with the event
-      loop's in-flight call; this is what async hooks did before this helper existed.
+    On Airflow 3.3.2+ this awaits ``Connection.aextra_dejson()``, which masks the secrets
+    asynchronously. On older versions the synchronous ``extra_dejson`` runs in a worker
+    thread, where blocking on the supervisor is safe, the same way
+    :func:`get_async_connection` falls back to ``get_connection``.
 
     :param conn: The connection, e.g. from :func:`get_async_connection`.
-    :returns: The deserialized extra, with its secrets masked except on Airflow 3.0 and 3.1.
+    :returns: The deserialized extra, with its secrets masked.
     """
     if hasattr(conn, "aextra_dejson"):
         log.debug("Get connection extra using `Connection.aextra_dejson()`.")
         return await conn.aextra_dejson()
 
-    if AIRFLOW_V_3_2_PLUS or not AIRFLOW_V_3_0_PLUS:
-        from asgiref.sync import sync_to_async
+    from asgiref.sync import sync_to_async
 
-        log.debug("Get connection extra using `Connection.extra_dejson` in a worker thread.")
-        return await sync_to_async(lambda: conn.extra_dejson)()
-
-    log.debug("Get connection extra by deserializing `Connection.extra`, without masking it.")
-    return json.loads(conn.extra) if conn.extra else {}
+    log.debug("Get connection extra using `Connection.extra_dejson` in a worker thread.")
+    return await sync_to_async(lambda: conn.extra_dejson)()
 
 
 __all__ = [
