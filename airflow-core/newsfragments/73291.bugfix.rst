@@ -1,0 +1,1 @@
+Fix dag_run listener hooks (``on_dag_run_running``, ``on_dag_run_success``, ``on_dag_run_failed``) raising a spurious ``AirflowNotFoundException`` and corrupting the scheduler's session when calling ``BaseHook.get_connection()``/``Variable.get()`` on an existing Connection or Variable.
