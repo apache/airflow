@@ -41,9 +41,9 @@ from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
+    from typing import Self
 
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
 

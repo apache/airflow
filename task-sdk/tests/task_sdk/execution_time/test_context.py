@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -1474,7 +1474,7 @@ class TestTaskStateStoreAccessor:
         """set() with no retention uses global default_retention_days config."""
 
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
+        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(now, tick=False)
 
         with conf_vars({("state_store", "default_retention_days"): "30"}):
@@ -1485,14 +1485,14 @@ class TestTaskStateStoreAccessor:
                 ti_id=self.TI_ID,
                 key="job_id",
                 value="app_001",
-                expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+                expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC),
             )
         )
 
     def test_set_with_retention_computes_expires_at(self, mock_supervisor_comms, time_machine):
         """set(retention=timedelta(...)) computes expires_at on the worker and sends it."""
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
-        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
+        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(now, tick=False)
 
         TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
@@ -1504,7 +1504,7 @@ class TestTaskStateStoreAccessor:
                 ti_id=self.TI_ID,
                 key="job_id",
                 value="app_001",
-                expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
+                expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC),
             )
         )
 
@@ -1570,7 +1570,7 @@ class TestTaskStateStoreAccessor:
         with pytest.raises(ValidationError):
             TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set(
                 "watermark",
-                datetime(2026, 5, 15, tzinfo=dt_timezone.utc),
+                datetime(2026, 5, 15, tzinfo=UTC),
             )
 
         mock_supervisor_comms.send.assert_not_called()
@@ -1668,7 +1668,7 @@ class TestTaskStateStoreAccessor:
     async def test_aset_with_global_retention(self, mock_supervisor_comms, time_machine):
         """aset awaits asend with the message built from the global retention config."""
         mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
-        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
+        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(now, tick=False)
 
         with conf_vars({("state_store", "default_retention_days"): "30"}):
@@ -1679,7 +1679,7 @@ class TestTaskStateStoreAccessor:
                 ti_id=self.TI_ID,
                 key="job_id",
                 value="app_001",
-                expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+                expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC),
             )
         )
         mock_supervisor_comms.send.assert_not_called()
@@ -2355,7 +2355,7 @@ class TestTaskStateStoreAccessorWithCustomBackend:
         mock_supervisor_comms.send.return_value = OKResponse(ok=True)
         expected_ref = f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
 
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
 
         TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).set("job_id", "app_001")
@@ -2414,7 +2414,7 @@ class TestTaskStateStoreAccessorWithCustomBackend:
         mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
         expected_ref = f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
 
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
 
         await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aset("job_id", "app_001")

@@ -79,7 +79,7 @@ if TYPE_CHECKING:
 
     from airflow.models.serialized_dag import DagWriteMetadata
     from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
-    from airflow.typing_compat import Self, Unpack
+    from airflow.typing_compat import Self
 
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
@@ -707,7 +707,7 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
-        stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
+        stmt: Select[*tuple[DagModel]] = with_row_locks(
             (
                 select(DagModel)
                 .options(joinedload(DagModel.tags, innerjoin=False))

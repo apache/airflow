@@ -35,7 +35,7 @@ from airflow.providers.fab.www.extensions.init_session import (
 
 from tests_common.test_utils.config import conf_vars
 
-LOGIN_TIME = datetime.datetime(2026, 9, 9, 12, 0, tzinfo=datetime.timezone.utc)
+LOGIN_TIME = datetime.datetime(2026, 9, 9, 12, 0, tzinfo=datetime.UTC)
 
 
 class FakeUser:

@@ -47,10 +47,7 @@ task_sdk_root = Path(__file__).parents[1]
 
 
 def load_config():
-    try:
-        from tomllib import load as load_tomllib
-    except ImportError:
-        from tomli import load as load_tomllib
+    from tomllib import load as load_tomllib
 
     pyproject = AIRFLOW_TASK_SDK_ROOT_PATH / "pyproject.toml"
     # Simulate what `datamodel-code-generator` does on the CLI

@@ -22,7 +22,7 @@ import copy
 import logging
 import uuid
 import warnings
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import NamedTuple
 from unittest import mock
 
@@ -46,7 +46,7 @@ from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.definitions.template import literal
 from airflow.triggers.base import StartTriggerArgs
 
-DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
+DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=UTC)
 
 
 class ClassWithCustomAttributes:
@@ -1142,21 +1142,6 @@ def test_partial_default_args():
     assert op.queue == "THIS"
 
 
-@pytest.fixture(params=["asyncio.Runner", "fallback"])
-def event_loop_runner(request, monkeypatch):
-    """
-    Run a test against both ways ``event_loop()`` can own its loop.
-
-    ``asyncio.Runner`` exists from Python 3.11; the fallback replicates it for Python 3.10 and is
-    exercised on every Python by hiding ``asyncio.Runner`` for the test.
-    """
-    if request.param == "fallback":
-        monkeypatch.delattr(asyncio, "Runner", raising=False)
-    elif not hasattr(asyncio, "Runner"):
-        pytest.skip("asyncio.Runner needs Python 3.11+")
-    return request.param
-
-
 @pytest.fixture
 def fresh_process_loop_state():
     """
@@ -1180,7 +1165,6 @@ def _deprecation_warnings(caught: list[warnings.WarningMessage]) -> list[str]:
     return [str(w.message) for w in caught if issubclass(w.category, DeprecationWarning)]
 
 
-@pytest.mark.usefixtures("event_loop_runner")
 class TestBaseAsyncOperator:
     class AsyncOperator(BaseAsyncOperator):
         async def aexecute(self, context):
@@ -1219,7 +1203,6 @@ class TestBaseAsyncOperator:
             op.execute({})
 
 
-@pytest.mark.usefixtures("event_loop_runner")
 class TestEventLoop:
     """``event_loop()`` hands synchronous code a loop it owns, through ``asyncio.Runner`` where Python has it."""
 

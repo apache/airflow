@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import os
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
@@ -97,7 +97,7 @@ aws_to_gcs_transfer_body = {
     SCHEDULE: {
         SCHEDULE_START_DATE: datetime(2015, 1, 1).date(),
         SCHEDULE_END_DATE: datetime(2030, 1, 1).date(),
-        START_TIME_OF_DAY: (datetime.now(tz=timezone.utc) + timedelta(minutes=1)).time(),
+        START_TIME_OF_DAY: (datetime.now(tz=UTC) + timedelta(minutes=1)).time(),
     },
     TRANSFER_SPEC: {
         AWS_S3_DATA_SOURCE: {BUCKET_NAME: BUCKET_SOURCE_AWS},

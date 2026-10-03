@@ -139,9 +139,8 @@ def iter_pydantic_models(annotation: Any) -> Iterator[type]:
     stack: list[Any] = [annotation]
     while stack:
         tp = stack.pop()
-        # ``list[A]`` answers ``True`` to ``isinstance(tp, type)`` on 3.10+ yet
-        # carries a non-None ``get_origin``; recurse into its args first so the
-        # container itself is not mistaken for a leaf type.
+        # ``list[A]`` carries a non-None ``get_origin``; recurse into its args first
+        # so the container itself is not mistaken for a leaf type.
         origin = get_origin(tp)
         if origin is not None:
             stack.extend(get_args(tp))

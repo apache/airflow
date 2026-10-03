@@ -215,7 +215,7 @@ rerun in Breeze as needed (``-n auto`` will parallelize tests using the ``pytest
 
 .. code-block:: bash
 
-    breeze shell --backend none --python 3.10
+    breeze shell --backend none --python 3.11
     > pytest airflow-core/tests --skip-db-tests -n auto
 
 .. AGENT-SKILL-START
@@ -261,7 +261,7 @@ out non-DB tests. (You can specify the whole ``tests`` directory or any specific
 You can also run DB tests within the ``breeze`` dockerized environment. You can choose the backend with the
 ``--backend`` flag. The default is ``sqlite``, but you can also use ``postgres`` or ``mysql``.
 You can also select the backend version and Python version. Breeze will list the available test types via ``--help`` and provide auto-complete.
-The example below runs ``Core`` tests with the ``postgres`` backend and Python ``3.10``:
+The example below runs ``Core`` tests with the ``postgres`` backend and Python ``3.11``:
 
 You can also run the commands via ``breeze testing core-tests`` or ``breeze testing providers-tests``
 by adding the parallel flags manually:
@@ -280,14 +280,14 @@ If you want to iterate on tests, you can enter the interactive shell and run tes
 
 .. code-block:: bash
 
-    breeze shell --backend postgres --python 3.10
+    breeze shell --backend postgres --python 3.11
     > pytest airflow-core/tests --run-db-tests-only
 
 As explained before, you cannot run DB tests in parallel using the ``pytest-xdist`` plugin. However, ``breeze`` supports splitting all tests into test-types to run in separate containers with separate databases using the ``--run-in-parallel`` flag.
 
 .. code-block:: bash
 
-    breeze testing core-tests --run-db-tests-only --backend postgres --python 3.10 --run-in-parallel
+    breeze testing core-tests --run-db-tests-only --backend postgres --python 3.11 --run-in-parallel
 
 .. AGENT-SKILL-START
    type: agents-md-commands
@@ -1254,7 +1254,7 @@ Here is how to reproduce it:
 
 .. code-block:: bash
 
-   breeze ci-image build --python 3.10
+   breeze ci-image build --python 3.11
 
 2. Build providers from latest sources:
 

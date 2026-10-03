@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "pyyaml>=6.0.3",
 #   "rich>=13.6.0",
-#   "tomli>=2.0.1",
 # ]
 # ///
 from __future__ import annotations
@@ -66,10 +65,8 @@ ALL_PROVIDER_FILES: list[Path] = []
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
+    import tomllib
+
     return tomllib.loads(pyproject_toml_file_path.read_text(encoding="utf-8"))
 
 

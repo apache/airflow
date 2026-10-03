@@ -1763,10 +1763,7 @@ class SelectiveChecks:
                 f"Could not get pyproject.toml from {self._commit_ref}^[/]"
             )
             return False
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
+        import tomllib
 
         self._new_toml = tomllib.loads(new_result.stdout)
         self._old_toml = tomllib.loads(old_result.stdout)
@@ -2206,10 +2203,7 @@ class SelectiveChecks:
         if not pyproject_files or not self._github_event == GithubEvents.PULL_REQUEST:
             return False
 
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib  # type: ignore[no-redef]
+        import tomllib
 
         violations = []
         for pyproject_file in pyproject_files:

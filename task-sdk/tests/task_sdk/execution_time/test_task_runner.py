@@ -25,7 +25,7 @@ import os
 import textwrap
 import time
 from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -435,7 +435,7 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     If startup raises AirflowRescheduleException, the task runner should report a RescheduleTask
     message to the supervisor and exit cleanly (code 0).
     """
-    ts = datetime(2025, 1, 1, tzinfo=dt_timezone.utc)
+    ts = datetime(2025, 1, 1, tzinfo=UTC)
     reschedule_date = ts + timedelta(seconds=60)
 
     mock_comms_instance = mock.Mock()
@@ -3981,7 +3981,7 @@ class TestRuntimeTaskInstance:
             relative_fileloc="dags/example.py",
             owners="owner_1",
             tags=["a_tag", "z_tag"],
-            next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            next_dagrun=datetime(2026, 4, 13, tzinfo=UTC),
         )
 
         response = RuntimeTaskInstance.get_dag(
@@ -6391,7 +6391,7 @@ class TestTaskInstanceStateOperations:
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
 
         with conf_vars({("state_store", "default_retention_days"): "30"}):
@@ -6435,7 +6435,7 @@ class TestTaskInstanceStateOperations:
                 ts.set("poll_result", {"status": "succeeded", "rows": 1234})
                 ts.set("checkpoints", [1, 2, 3])
 
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
@@ -6466,7 +6466,7 @@ class TestTaskInstanceStateOperations:
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
@@ -6734,7 +6734,7 @@ class TestTaskInstanceStateOperations:
             def execute(self, context):
                 context["task_state_store"].set("job_id", "app_001")
 
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)

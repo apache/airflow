@@ -558,8 +558,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 
 | Output                                                  | Meaning of the output                                                                                   | Example value                            | List |
 |---------------------------------------------------------|---------------------------------------------------------------------------------------------------------|------------------------------------------|------|
-| all-python-versions                                     | List of all python versions there are available in the form of JSON array                               | \['3.10', '3.11'\]                       |      |
-| all-python-versions-list-as-string                      | List of all python versions there are available in the form of space separated string                   | 3.10 3.11                                | *    |
+| all-python-versions                                     | List of all python versions there are available in the form of JSON array                               | \['3.11', '3.12'\]                       |      |
+| all-python-versions-list-as-string                      | List of all python versions there are available in the form of space separated string                   | 3.11 3.12                                | *    |
 | all-versions                                            | If set to true, then all python, k8s, DB versions are used for tests.                                   | false                                    |      |
 | basic-checks-only                                       | Whether to run all static checks ("false") or only basic set of static checks ("true")                  | false                                    |      |
 | ci-image-build                                          | Whether CI image build is needed                                                                        | true                                     |      |
@@ -572,7 +572,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | default-kubernetes-version                              | Which Kubernetes version to use as default                                                              | v1.25.2                                  |      |
 | default-mysql-version                                   | Which MySQL version to use as default                                                                   | 5.7                                      |      |
 | default-postgres-version                                | Which Postgres version to use as default                                                                | 10                                       |      |
-| default-python-version                                  | Which Python version to use as default                                                                  | 3.10                                     |      |
+| default-python-version                                  | Which Python version to use as default                                                                  | 3.11                                     |      |
 | disable-airflow-repo-cache                              | Disables cache of the repo main cache in CI - airflow will be installed without main installation cache | true                                     |      |
 | docker-cache                                            | Which cache should be used for images ("registry", "local" , "disabled")                                | registry                                 |      |
 | docs-build                                              | Whether to build documentation ("true"/"false")                                                         | true                                     |      |
@@ -591,7 +591,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                              | false                                    |      |
 | java-sdk-version                                        | JDK version used to build the lang-SDK Java artifacts natively in CI                                     | 17                                       |      |
 | kind-version                                            | Which Kind version to use for tests                                                                     | v0.24.0                                  |      |
-| kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.10-v1.25.2 3.11-v1.28.13               | *    |
+| kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.11-v1.25.2 3.12-v1.28.13               | *    |
 | kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                  | \['v1.25.2'\]                            |      |
 | kubernetes-versions-list-as-string                      | All Kubernetes versions to use for tests as space-separated string                                      | v1.25.2                                  | *    |
 | latest-versions-only                                    | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones.               | false                                    |      |
@@ -604,8 +604,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers)           | \[{}\]                                   |      |
 | providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                             | Providers Providers\[-google\]           | *    |
 | pyproject-toml-changed                                  | When pyproject.toml changed in the PR.                                                                  | false                                    |      |
-| python-versions                                         | List of python versions to use for that build                                                           | \['3.10'\]                               |      |
-| python-versions-list-as-string                          | Which versions of MySQL to use for tests as space-separated string                                      | 3.10                                     | *    |
+| python-versions                                         | List of python versions to use for that build                                                           | \['3.11'\]                               |      |
+| python-versions-list-as-string                          | Which versions of MySQL to use for tests as space-separated string                                      | 3.11                                     | *    |
 | run-agent-framework-tests                               | Whether the common.ai agent framework adapter tests should be run ("true"/"false")                      | true                                     |      |
 | run-amazon-tests                                        | Whether Amazon tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-api-codegen                                         | Whether "api-codegen" are needed to run ("true"/"false")                                                | true                                     |      |

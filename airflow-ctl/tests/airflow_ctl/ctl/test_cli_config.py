@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 from argparse import BooleanOptionalAction
+from datetime import UTC
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
@@ -746,7 +747,7 @@ class TestCliConfigMethods:
 
     def test_trigger_dag_run_defaults_logical_date_to_now(self):
         """Test that trigger command defaults logical_date to now when not provided."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -776,7 +777,7 @@ class TestCliConfigMethods:
             and "logical_date" in method_params[datamodel_param_name]
             and method_params[datamodel_param_name]["logical_date"] is None
         ):
-            method_params[datamodel_param_name]["logical_date"] = datetime.now(timezone.utc)
+            method_params[datamodel_param_name]["logical_date"] = datetime.now(UTC)
 
         # Step 3: Create the Pydantic model (what happens in the actual code)
         trigger_body = datamodel.model_validate(method_params[datamodel_param_name])
@@ -786,7 +787,7 @@ class TestCliConfigMethods:
         assert isinstance(trigger_body.logical_date, datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - trigger_body.logical_date).total_seconds())
+        time_diff = abs((datetime.now(UTC) - trigger_body.logical_date).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Also verify timezone is UTC
@@ -794,7 +795,7 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_none(self):
         """Test _apply_datamodel_defaults sets logical_date to now when None for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -808,7 +809,7 @@ class TestCliConfigMethods:
         assert isinstance(result["logical_date"], datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - result["logical_date"]).total_seconds())
+        time_diff = abs((datetime.now(UTC) - result["logical_date"]).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Verify timezone is UTC
@@ -816,14 +817,14 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_value(self):
         """Test _apply_datamodel_defaults preserves existing logical_date for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
         command_factory = CommandFactory()
 
         # Test with an existing logical_date value
-        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
         params = {"logical_date": specific_date, "conf": {}}
         result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
 

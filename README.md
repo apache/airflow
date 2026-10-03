@@ -103,7 +103,7 @@ Apache Airflow is tested with:
 
 |            | Main version (dev)                 | Stable version (3.3.2)              | Deprecate version (2.11.2)   |
 |------------|------------------------------------|-------------------------------------|------------------------------|
-| Python     | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12, 3.13, 3.14        | 3.10, 3.11, 3.12             |
+| Python     | 3.11, 3.12, 3.13, 3.14             | 3.11, 3.12, 3.13, 3.14        | 3.11, 3.12, 3.13             |
 | Platform   | AMD64/ARM64                        | AMD64/ARM64                         | AMD64/ARM64(\*)              |
 | Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35 | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35  | 1.26, 1.27, 1.28, 1.29, 1.30 |
 | PostgreSQL | 14, 15, 16, 17, 18                 | 14, 15, 16, 17, 18                  | 12, 13, 14, 15, 16           |
@@ -175,14 +175,14 @@ them to the appropriate format and workflow that your tool requires.
 
 ```bash
 pip install 'apache-airflow==3.3.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.10.txt"
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.11.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
 pip install 'apache-airflow[postgres,google]==3.3.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.10.txt"
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.11.txt"
 ```
 
 For information on installing provider distributions, check
@@ -320,9 +320,9 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 1. We drop support for Python and Kubernetes versions when they reach EOL. Except for Kubernetes, a
    version stays supported by Airflow if two major cloud providers still provide support for it. We drop
    support for those EOL versions in main right after EOL date, and it is effectively removed when we release
-   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.10 it
-   means that we will drop support in main right after 27.06.2023, and the first MAJOR or MINOR version of
-   Airflow released after will not have it.
+   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.11 it
+   means that we will drop support in main right after its EOL in October 2027, and the first MAJOR or MINOR
+   version of Airflow released after will not have it.
 
 2. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
