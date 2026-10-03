@@ -34,12 +34,22 @@ def calculate_ci_environment_fingerprint(root: Path, python: str, platform: str)
         "schema_version": ENVIRONMENT_KEY_SCHEMA_VERSION,
         "python": python,
         "platform": platform,
-        "files": {path: hashlib.sha256((root / path).read_bytes()).hexdigest() for path in sorted(paths)},
+        "files": {
+            path: hashlib.sha256((root / path).read_bytes()).hexdigest()
+            if (root / path).is_file()
+            else "missing"
+            for path in sorted(paths)
+        },
     }
     canonical_inputs = json.dumps(inputs, sort_keys=True, separators=(",", ":")).encode()
     return {
         "key": hashlib.sha256(canonical_inputs).hexdigest(),
         "inputs": inputs,
         "reuse_eligible": False,
-        "unresolved_inputs": ["base_image_digest", "effective_build_parameters"],
+        "unresolved_inputs": [
+            "resolved_base_image_digest",
+            "effective_semantic_build_parameters",
+            "complete_environment_file_inputs",
+            "external_dependency_inputs",
+        ],
     }
