@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from enum import Enum
 from functools import cached_property
@@ -56,7 +55,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Connection
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.openai.exceptions import (
@@ -154,21 +153,6 @@ def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict
     return event
 
 
-async def _aextra_dejson(conn: Connection) -> dict[str, Any]:
-    """
-    Deserialize a connection's extra without a synchronous call to the Task SDK.
-
-    ``extra_dejson`` masks secrets with a synchronous send to the supervisor, which raises
-    ``DeadlockImminentError`` on an event loop with another async call in flight.
-    ``Connection.aextra_dejson()`` (Airflow 3.3.2+, #71890) masks them asynchronously.
-    """
-    # TODO: Replace with airflow.providers.common.compat.connection.get_async_extra_dejson()
-    #  once https://github.com/apache/airflow/pull/74147 is released.
-    if hasattr(conn, "aextra_dejson"):
-        return await conn.aextra_dejson()
-    return json.loads(conn.extra) if conn.extra else {}
-
-
 class OpenAIHook(BaseHook):
     """
     Use OpenAI SDK to interact with OpenAI APIs.
@@ -233,7 +217,7 @@ class OpenAIHook(BaseHook):
         ``DeadlockImminentError`` on an event loop with another async call in flight.
         """
         conn = await get_async_connection(self.conn_id)
-        return AsyncOpenAI(**self._client_kwargs(conn, await _aextra_dejson(conn)))
+        return AsyncOpenAI(**self._client_kwargs(conn, await get_async_extra_dejson(conn)))
 
     async def _aget_cached_conn(self) -> AsyncOpenAI:
         """Return the hook's ``AsyncOpenAI`` client, created on first use like :attr:`conn`."""

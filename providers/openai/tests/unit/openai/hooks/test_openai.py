@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from types import SimpleNamespace
@@ -1005,9 +1006,10 @@ def _async_conn(
     extra: dict, password: str | None = None, host: str | None = None, *, aextra_dejson: bool = True
 ) -> Mock:
     """
-    A connection whose ``extra_dejson`` raises: the async path must never touch it.
+    A connection whose ``extra_dejson`` raises on the event loop, where its secret masking deadlocks.
 
-    With ``aextra_dejson=False`` it lacks ``Connection.aextra_dejson()``, like on Airflow < 3.3.2.
+    With ``aextra_dejson=False`` it lacks ``Connection.aextra_dejson()``, like on Airflow < 3.3.2,
+    where ``get_async_extra_dejson`` reads ``extra_dejson`` from a worker thread instead.
     """
     conn = Mock(
         spec=["password", "host", "extra", "extra_dejson"] + (["aextra_dejson"] if aextra_dejson else [])
@@ -1017,10 +1019,16 @@ def _async_conn(
     conn.extra = json.dumps(extra)
     if aextra_dejson:
         conn.aextra_dejson = AsyncMock(return_value=extra)
-    type(conn).extra_dejson = PropertyMock(
-        side_effect=AssertionError("extra_dejson sends mask_secret synchronously on the event loop")
-    )
+    type(conn).extra_dejson = PropertyMock(side_effect=lambda: _read_off_the_event_loop(extra))
     return conn
+
+
+def _read_off_the_event_loop(extra: dict) -> dict:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return extra
+    raise AssertionError("extra_dejson sends mask_secret synchronously on the event loop")
 
 
 @pytest.mark.asyncio
@@ -1065,8 +1073,8 @@ async def test_aget_conn_api_key(password, extra, expected_kwargs):
 
 @pytest.mark.asyncio
 @patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
-async def test_aget_conn_without_aextra_dejson_reads_the_raw_extra(mock_client):
-    """On Airflow < 3.3.2 the connection has no ``aextra_dejson()``: the raw extra is deserialized."""
+async def test_aget_conn_without_aextra_dejson_reads_extra_dejson_off_the_event_loop(mock_client):
+    """On Airflow < 3.3.2 the connection has no ``aextra_dejson()``: ``extra_dejson`` runs in a worker thread."""
     conn = _async_conn({"openai_client_kwargs": {"api_key": "api_key_in_extra"}}, aextra_dejson=False)
     with patch(
         "airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)
