@@ -565,8 +565,7 @@ The Dag processor runs ``node`` on the bundle to list its Dags, so it needs Node
     queue_to_coordinator = {"typescript": "ts"}
 
 Once a ``NodeCoordinator`` is configured, the Dag processor parses the packed bundles of every Dag bundle,
-so it needs this ``[sdk]`` configuration and Node.js. With one ``NodeCoordinator``, it parses them all.
-With several,
+so it needs this ``[sdk]`` configuration and Node.js. With one ``NodeCoordinator``, it parses them all. With several,
 map each Dag bundle that holds native TypeScript Dags to one of them in ``[sdk] dag_bundle_to_coordinator``.
 Each packed bundle of a Dag bundle that has no entry, or whose entry names no ``NodeCoordinator``,
 fails to parse with an import error:
@@ -655,9 +654,10 @@ Limitations
   :func:`@task.stub <airflow.sdk.task.stub>`.
 * **Cluster policies do not apply to a native Dag.** ``dag_policy`` and ``task_policy`` are not run on
   it, so they cannot change or reject it.
-* **Some CLI commands do not take a native Dag.** ``airflow dags test``, ``tasks test``, ``tasks render``
-  and ``tasks list`` refuse it, and ``airflow dags reserialize`` does not store the Dags of
-  ``*.min.mjs`` bundles, which only the Dag processor stores.
+* **Some CLI commands do not take a native Dag.** ``airflow dags test``, ``tasks test`` and ``tasks render`` refuse it,
+  and ``airflow dags reserialize`` does not store the Dags of ``*.min.mjs`` bundles,
+  which only the Dag processor stores.
+  ``airflow tasks list`` lists its tasks by running the bundle with ``node``, so it needs Node.js.
 * **Beta status.** The SDK API may change in incompatible ways between releases.
 * **One Node.js subprocess per task instance.** Tasks that need to share in-process state between instances
   should use XCom or an external store instead.
