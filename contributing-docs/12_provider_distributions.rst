@@ -158,8 +158,10 @@ Because the new group is *not* part of ``dev``, a plain ``uv sync`` on a contrib
 will not try to install it. The CI image installs it via ``ci-image``.
 
 **Shape B: the Python package's wheel build needs a proprietary SDK that cannot live in the
-base CI image** (e.g. IBM MQ's ``ibmmq`` needs the IBM MQ Redistributable Client headers and
-``MQ_FILE_PATH`` set at build time). Bundling such SDKs in the base image has licence,
+base CI image** (e.g. ``ibmmq`` releases before 2.1.0 were sdist-only and needed the IBM MQ
+Redistributable Client headers and ``MQ_FILE_PATH`` set at build time). First check whether
+raising the lower bound to a release that ships wheels avoids the build — a download at test
+time makes the job depend on the upstream host being reachable. Bundling such SDKs in the base image has licence,
 maintenance, and image-size costs that the project does not want to pay on every CI run.
 The lowest-direct-dependency provider tests still call ``uv sync --all-extras`` inside the
 provider directory, so simply mocking the package in tests is not enough — the sync itself
@@ -185,7 +187,7 @@ must succeed first. Use the per-provider pre-extras-install manifest:
 
    .. code:: yaml
 
-       # providers/ibm/mq/pre_extras_install.yaml
+       # providers/<id>/pre_extras_install.yaml
        downloads:
          - url: https://public.dhe.ibm.com/.../9.4.0.0-IBM-MQC-Redist-LinuxX64.tar.gz
            sha256: <64 lowercase hex chars>
