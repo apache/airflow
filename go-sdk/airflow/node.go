@@ -20,7 +20,6 @@ package airflow
 import (
 	"fmt"
 	"slices"
-	"strings"
 )
 
 // Node is what an edge between tasks connects. A [TaskRef] is one, so the task that
@@ -40,7 +39,8 @@ import (
 // The second Before above starts from load, not from extract.
 //
 // Node is the Go counterpart of Python's DAGNode, where set_upstream and set_downstream live.
-// Its node method is unexported, so a type declared outside package airflow cannot be a Node.
+// Its node method is unexported, so a type declared outside package airflow can be a Node only by
+// embedding one, and Before and After reject such a type as an argument.
 type Node interface {
 	// Before makes the receiver an upstream task of every node, as Python's >> does.
 	Before(nodes ...Node) Node
@@ -114,12 +114,12 @@ func endpoints(where string, node Node) []nodeEndpoint {
 // Before panics if:
 //   - a node is nil, or is a task that [DagRef.Task] did not return
 //   - a node belongs to another Dag
-//   - the edge would make a task depend on itself, or would close a cycle
+//   - the edge would make a task depend on itself
 //   - the Dag is already registered
 //
-// Every check but the cycle runs before the call records any edge, so a fan-out that panics for
-// one of them leaves the Dag as it was. Whether an edge closes a cycle depends on the edges
-// recorded before it, so a cycle panic can leave the earlier edges of the same call behind.
+// Every check runs before the call records any edge, so a fan-out that panics leaves the Dag as
+// it was. Edges that close a cycle between other tasks are [BundleRef.Register]'s to reject,
+// over the whole graph at once.
 func (t *TaskRef) Before(nodes ...Node) Node { return declareEdges(t, nodes, dirBefore) }
 
 // After makes the task a downstream task of every node, which is Python's cleanup << extracted:
@@ -248,10 +248,7 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 		return args.unlabelled()
 	}
 
-	// Check and merge every pair the call declares before it records any of them, the way
-	// DagRef.Task settles every check before it writes the task. A cycle is the one exception:
-	// whether an edge closes one depends on the edges recorded before it, so addEdgeLocked
-	// raises that as it records.
+	// Check and merge every pair the call declares before it records any of them.
 	pending := make([]pendingEdge, 0, len(ends)*len(args))
 	at := make(map[edgeKey]int, len(ends)*len(args))
 	for _, end := range ends {
@@ -278,7 +275,7 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 		}
 	}
 	for _, edge := range pending {
-		dag.addEdgeLocked(edge.upstream, edge.downstream, edge.label, where)
+		dag.addEdgeLocked(edge.upstream, edge.downstream, edge.label)
 	}
 	return args.unlabelled()
 }
@@ -321,47 +318,66 @@ func edgeDag(where string, ends []nodeEndpoint) *DagRef {
 
 // addEdgeLocked records one edge of d, which the caller holds d.mu for. An edge d already has is
 // recorded once, and label is what it carries from here on, so a caller that declares an edge
-// again settles the label with [mergeLabel] first. The cycle is the one thing addEdgeLocked
-// checks, because whether an edge closes one depends on the edges already recorded.
-func (d *DagRef) addEdgeLocked(upstream, downstream *TaskRef, label, where string) {
+// again settles the label with [mergeLabel] first. Whether the edges of a Dag close a cycle is
+// [BundleRef.Register]'s to answer, over the whole graph at once.
+func (d *DagRef) addEdgeLocked(upstream, downstream *TaskRef, label string) {
 	if d.edgeLabels == nil {
 		d.edgeLabels = make(map[edgeKey]string)
 	}
 	key := edgeKey{upstream: upstream.taskID, downstream: downstream.taskID}
 	if _, exists := d.edgeLabels[key]; !exists {
-		if cycle := d.pathLocked(downstream, upstream); cycle != nil {
-			panic(fmt.Sprintf(
-				"%s: Dag %q: an edge from task %q to task %q would close a cycle: %s",
-				where, d.dagID, upstream.taskID, downstream.taskID,
-				strings.Join(append(cycle, downstream.taskID), " -> "),
-			))
-		}
 		upstream.downstreams = append(upstream.downstreams, downstream)
 		downstream.upstreams = append(downstream.upstreams, upstream)
 	}
 	d.edgeLabels[key] = label
 }
 
-// pathLocked returns the task_ids on a path from task from to task to, following the edges
-// downstream, and nil when there is none. The caller holds d.mu.
-func (d *DagRef) pathLocked(from, to *TaskRef) []string {
-	visited := map[*TaskRef]bool{from: true}
-	var walk func(task *TaskRef, path []string) []string
-	walk = func(task *TaskRef, path []string) []string {
-		path = append(path, task.taskID)
-		if task == to {
-			return slices.Clone(path)
-		}
+// cycleLocked returns the task_ids on a cycle of the Dag, closed by the task it starts from
+// again, and nil when the Dag is acyclic. The caller holds d.mu. Registration calls it once, so
+// building a Dag walks the graph once rather than once per edge.
+func (d *DagRef) cycleLocked() []string {
+	const (
+		unvisited = iota
+		onPath
+		settled
+	)
+	state := make(map[*TaskRef]int, len(d.tasks))
+	var path []*TaskRef
+	// walk is (non-tailrec-eligible) recursive, so a Dag whose dependencies nest deeper than the
+	// stack takes would overflow it. Airflow's own Dag serialization recurses over a Dag too.
+	var walk func(task *TaskRef) []string
+	walk = func(task *TaskRef) []string {
+		state[task] = onPath
+		path = append(path, task)
 		for _, downstream := range task.downstreams {
-			if visited[downstream] {
-				continue
-			}
-			visited[downstream] = true
-			if found := walk(downstream, path); found != nil {
-				return found
+			switch state[downstream] {
+			case onPath:
+				// The cycle is the path from downstream onwards, closed by downstream again.
+				return append(taskIDs(path[slices.Index(path, downstream):]), downstream.taskID)
+			case unvisited:
+				if cycle := walk(downstream); cycle != nil {
+					return cycle
+				}
 			}
 		}
+		path = path[:len(path)-1]
+		state[task] = settled
 		return nil
 	}
-	return walk(from, nil)
+	for _, task := range d.tasks {
+		if state[task] == unvisited {
+			if cycle := walk(task); cycle != nil {
+				return cycle
+			}
+		}
+	}
+	return nil
+}
+
+func taskIDs(tasks []*TaskRef) []string {
+	ids := make([]string, len(tasks))
+	for i, task := range tasks {
+		ids[i] = task.taskID
+	}
+	return ids
 }

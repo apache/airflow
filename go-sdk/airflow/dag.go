@@ -281,16 +281,17 @@ func (d *DagRef) addTask(method string, fn any, opts []TaskOption, ifRef *IfRef)
 	d.tasksByID[taskID] = task
 	d.tasks = append(d.tasks, task)
 	// Inputs passes a task once per parameter it fills, so the same task can arrive twice. The
-	// edge is one either way. The task is new, so every edge to it is too: it carries no label
-	// to settle, and nothing downstream of it for an edge to close a cycle through.
+	// edge is one either way, and the task is new, so no edge to it carries a label to settle.
 	for _, upstream := range upstreams {
-		d.addEdgeLocked(upstream, task, "", "airflow.DagRef.Task")
+		d.addEdgeLocked(upstream, task, "")
 	}
 	return task
 }
 
 // markRegistered marks d as registered, which stops any further change to d. It panics instead
-// when a condition from If has no task from Then.
+// when a condition from If has no task from Then, or when the edges of d close a cycle. The Dag
+// is whole by then, so one walk of the graph answers for every edge its tasks declared, and a Dag
+// that fails a check stays unregistered and can still be corrected.
 func (d *DagRef) markRegistered() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -303,6 +304,12 @@ func (d *DagRef) markRegistered() {
 				task.taskID, d.dagID,
 			))
 		}
+	}
+	if cycle := d.cycleLocked(); cycle != nil {
+		panic(fmt.Sprintf(
+			"airflow.BundleRef.Register: the task dependencies of Dag %q contain a cycle: %s",
+			d.dagID, strings.Join(cycle, " -> "),
+		))
 	}
 	d.registered = true
 }
