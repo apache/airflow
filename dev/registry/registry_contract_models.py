@@ -113,6 +113,8 @@ class ModuleContract(BaseModel):
     provider_name: str | None = None
     supports_durable_execution: bool = False
     supports_deferrable: bool = False
+    # Only set for classes a how-to guide documents in a section of their own.
+    guide_url: str | None = None
 
 
 class ModulesCatalogContract(BaseModel):

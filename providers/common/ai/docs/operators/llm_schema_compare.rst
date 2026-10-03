@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_schema_compare:
 
-Detect schema drift: ``LLMSchemaCompareOperator``
-=================================================
+Detect schema drift: ``LLMSchemaCompareOperator`` and ``@task.llm_schema_compare``
+==================================================================================
 
 .. note::
 
