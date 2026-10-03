@@ -389,7 +389,9 @@ class CloudSQLHook(GoogleBaseHook):
             # The decorator retries HttpError, not CloudSQLImportError, so don't wrap the 409.
             if is_operation_in_progress_exception(ex):
                 raise
-            raise CloudSQLImportError(f"Importing instance {instance} failed: {ex.content.decode('utf-8')}")
+            raise CloudSQLImportError(
+                f"Importing instance {instance} failed: {ex.content.decode('utf-8', errors='replace')}"
+            )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: dict, project_id: str) -> None:
@@ -411,7 +413,9 @@ class CloudSQLHook(GoogleBaseHook):
         try:
             self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         except HttpError as ex:
-            raise CloudSQLImportError(f"Importing instance {instance} failed: {ex.content.decode('utf-8')}")
+            raise CloudSQLImportError(
+                f"Importing instance {instance} failed: {ex.content.decode('utf-8', errors='replace')}"
+            )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def clone_instance(self, instance: str, body: dict, project_id: str) -> None:

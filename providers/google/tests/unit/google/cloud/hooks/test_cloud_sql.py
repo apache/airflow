@@ -225,6 +225,22 @@ class TestGcpSqlHookDefaultProjectId:
             project_id="example-project", operation_name="operation_id"
         )
 
+    @pytest.mark.parametrize("failing_step", ["submit", "polling"])
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook._wait_for_operation_to_complete")
+    def test_instance_import_error_with_non_utf8_body(
+        self, wait_for_operation_to_complete, get_conn, failing_step
+    ):
+        error = HttpError(resp=httplib2.Response({"status": 400}), content=b"bad \xff body")
+        execute_method = get_conn.return_value.instances.return_value.import_.return_value.execute
+        if failing_step == "submit":
+            execute_method.side_effect = error
+        else:
+            execute_method.return_value = {"name": "operation_id"}
+            wait_for_operation_to_complete.side_effect = error
+        with pytest.raises(CloudSQLImportError, match="Importing instance instance failed: bad � body"):
+            self.cloudsql_hook.import_instance(project_id="example-project", instance="instance", body={})
+
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id",
         return_value=(mock.MagicMock(), "example-project"),
