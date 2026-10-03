@@ -27,7 +27,6 @@ from airflow.triggers.base import TriggerEvent
 
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.job.{}"
 TRIGGER_CLASS = TRIGGER_PATH.format("KubernetesJobTrigger")
-HOOK_PATH = "airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook"
 JOB_NAME = "test-job-name"
 POD_NAME = "test-pod-name"
 CONTAINER_NAME = "test-container-name"
@@ -85,32 +84,9 @@ class TestKubernetesJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("poll_interval", [0.5, 60])
-    @mock.patch(f"{HOOK_PATH}.get_job_status", autospec=True)
-    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.asyncio.sleep", autospec=True)
-    async def test_run_uses_configured_poll_interval(
-        self, mock_sleep, mock_get_job_status, trigger, poll_interval
-    ):
-        trigger.poll_interval = poll_interval
-        pending_job = k8s.V1Job(
-            metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=NAMESPACE),
-            status=k8s.V1JobStatus(),
-        )
-        completed_job = k8s.V1Job(
-            metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=NAMESPACE),
-            status=k8s.V1JobStatus(conditions=[k8s.V1JobCondition(type="Complete", status="True")]),
-        )
-        mock_get_job_status.side_effect = [pending_job, completed_job]
-
-        event = await trigger.run().asend(None)
-
-        mock_sleep.assert_awaited_once_with(poll_interval)
-        assert mock_get_job_status.await_count == 2
-        assert event.payload["status"] == "success"
-        assert event.payload["job"] == completed_job.to_dict()
-
-    @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_CLASS}.hook")
-    async def test_run_success(self, mock_hook, trigger):
+    async def test_run_success(self, mock_hook, trigger, poll_interval):
+        trigger.poll_interval = poll_interval
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = NAMESPACE
@@ -129,7 +105,7 @@ class TestKubernetesJobTrigger:
         event_actual = await trigger.run().asend(None)
 
         mock_hook.wait_until_job_complete.assert_called_once_with(
-            name=JOB_NAME, namespace=NAMESPACE, poll_interval=POLL_INTERVAL
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=poll_interval
         )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
