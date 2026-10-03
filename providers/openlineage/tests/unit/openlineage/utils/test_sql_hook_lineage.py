@@ -128,7 +128,7 @@ class TestEmitLineageFromSqlExtras:
         self.mock_build.assert_called_once()
         call = self.mock_build.call_args
         assert call.kwargs["task_instance"] is mock_ti
-        assert call.kwargs["job_name"] == "dag_id.task_id.query.1"
+        assert call.kwargs["job_name"] == "dag_id.task_id.hll_query.1"
         assert call.kwargs["is_successful"] is True
         assert call.kwargs["inputs"] == parsed_inputs
         assert call.kwargs["outputs"] == parsed_outputs
@@ -160,8 +160,8 @@ class TestEmitLineageFromSqlExtras:
 
         assert self.mock_build.call_count == 2
         first, second = self.mock_build.call_args_list
-        assert first.kwargs["job_name"] == "dag_id.task_id.query.1"
-        assert second.kwargs["job_name"] == "dag_id.task_id.query.2"
+        assert first.kwargs["job_name"] == "dag_id.task_id.hll_query.1"
+        assert second.kwargs["job_name"] == "dag_id.task_id.hll_query.2"
 
         adapter = self.mock_listener.return_value.adapter
         assert adapter.emit.call_args_list == [

@@ -662,7 +662,10 @@ def test_get_openlineage_database_specific_lineage_with_single_query_id(mock_emi
     hook = DatabricksSqlHook()
     hook.query_ids = ["query1"]
     hook.get_connection = mock.MagicMock()
-    hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+    hook.get_openlineage_database_info = lambda x: mock.MagicMock(
+        authority="auth", scheme="scheme", database="mydb"
+    )
+    hook.get_openlineage_default_schema = lambda: "myschema"
 
     ti = mock.MagicMock()
 
@@ -674,6 +677,8 @@ def test_get_openlineage_database_specific_lineage_with_single_query_id(mock_emi
             "query_source_namespace": "scheme://auth",
             "task_instance": ti,
             "query_for_extra_metadata": True,
+            "default_database": "mydb",
+            "default_schema": "myschema",
         }
     )
     assert result == OperatorLineage(
@@ -686,7 +691,10 @@ def test_get_openlineage_database_specific_lineage_with_multiple_query_ids(mock_
     hook = DatabricksSqlHook()
     hook.query_ids = ["query1", "query2"]
     hook.get_connection = mock.MagicMock()
-    hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+    hook.get_openlineage_database_info = lambda x: mock.MagicMock(
+        authority="auth", scheme="scheme", database="mydb"
+    )
+    hook.get_openlineage_default_schema = lambda: "myschema"
 
     ti = mock.MagicMock()
 
@@ -698,6 +706,8 @@ def test_get_openlineage_database_specific_lineage_with_multiple_query_ids(mock_
             "query_source_namespace": "scheme://auth",
             "task_instance": ti,
             "query_for_extra_metadata": True,
+            "default_database": "mydb",
+            "default_schema": "myschema",
         }
     )
     assert result is None
@@ -711,7 +721,7 @@ def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider
     hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
 
     expected_err = (
-        "OpenLineage provider version `1.99.0` is lower than required `2.5.0`, "
+        "OpenLineage provider version `1.99.0` is lower than required `2.16.0`, "
         "skipping function `emit_openlineage_events_for_databricks_queries` execution"
     )
     with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):

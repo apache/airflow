@@ -26,9 +26,6 @@ from airflow.providers.common.compat.openlineage.check import require_openlineag
 from airflow.providers.common.compat.sdk import timezone
 
 if TYPE_CHECKING:
-    from openlineage.client.event_v2 import RunEvent
-    from openlineage.client.facet_v2 import JobFacet
-
     from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
     from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 
@@ -108,54 +105,6 @@ def fix_snowflake_sqlalchemy_uri(uri: str) -> str:
     return urlunparse((parts.scheme, hostname, parts.path, parts.params, parts.query, parts.fragment))
 
 
-def _get_parent_run_facet(task_instance):
-    """
-    Retrieve the ParentRunFacet associated with a specific Airflow task instance.
-
-    This facet helps link OpenLineage events of child jobs - such as queries executed within
-    external systems (e.g., Snowflake) by the Airflow task - to the original Airflow task execution.
-    Establishing this connection enables better lineage tracking and observability.
-    """
-    from openlineage.client.facet_v2 import parent_run
-
-    from airflow.providers.openlineage.plugins.macros import (
-        lineage_job_name,
-        lineage_job_namespace,
-        lineage_root_job_name,
-        lineage_root_run_id,
-        lineage_run_id,
-    )
-
-    parent_run_id = lineage_run_id(task_instance)
-    parent_job_name = lineage_job_name(task_instance)
-    parent_job_namespace = lineage_job_namespace()
-
-    root_parent_run_id = lineage_root_run_id(task_instance)
-    rot_parent_job_name = lineage_root_job_name(task_instance)
-
-    try:  # Added in OL provider 2.9.0, try to use it if possible
-        from airflow.providers.openlineage.plugins.macros import lineage_root_job_namespace
-
-        root_parent_job_namespace = lineage_root_job_namespace(task_instance)
-    except ImportError:
-        root_parent_job_namespace = lineage_job_namespace()
-
-    return parent_run.ParentRunFacet(
-        run=parent_run.Run(runId=parent_run_id),
-        job=parent_run.Job(
-            namespace=parent_job_namespace,
-            name=parent_job_name,
-        ),
-        root=parent_run.Root(
-            run=parent_run.RootRun(runId=root_parent_run_id),
-            job=parent_run.RootJob(
-                name=rot_parent_job_name,
-                namespace=root_parent_job_namespace,
-            ),
-        ),
-    )
-
-
 def _run_single_query_with_hook(hook: SnowflakeHook, sql: str) -> list[dict]:
     """Execute a query against Snowflake without adding extra logging or instrumentation."""
     with closing(hook.get_conn()) as conn:
@@ -189,12 +138,20 @@ def _process_data_from_api(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _get_queries_details_from_snowflake(
-    hook: SnowflakeHook | SnowflakeSqlApiHook, query_ids: list[str]
+    hook: SnowflakeHook | SnowflakeSqlApiHook,
+    query_ids: list[str],
+    task_start_time: datetime.datetime | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Retrieve execution details for specific queries from Snowflake's query history."""
     if not query_ids:
         return {}
     query_condition = f"IN {tuple(query_ids)}" if len(query_ids) > 1 else f"= '{query_ids[0]}'"
+    # QUERY_HISTORY() defaults to scanning the last 7 days (`END_TIME_RANGE_START`/`END_TIME_RANGE_END`
+    # default to now / now - 10080 minutes), which is a needlessly expensive account-wide scan when we
+    # already know roughly when these queries ran. Bound it to the task's own execution window instead,
+    # with a small buffer on both sides for clock skew between Airflow and Snowflake.
+    range_start = (task_start_time or timezone.utcnow()) - datetime.timedelta(minutes=5)
+    range_end = timezone.utcnow() + datetime.timedelta(minutes=5)
     # https://docs.snowflake.com/en/sql-reference/account-usage#differences-between-account-usage-and-information-schema
     # INFORMATION_SCHEMA.QUERY_HISTORY has no latency, so it's better than ACCOUNT_USAGE.QUERY_HISTORY
     # https://docs.snowflake.com/en/sql-reference/functions/query_history
@@ -204,7 +161,11 @@ def _get_queries_details_from_snowflake(
         "SELECT "
         "QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
         "FROM "
-        "table(snowflake.information_schema.query_history()) "
+        "table(snowflake.information_schema.query_history("
+        f"end_time_range_start=>to_timestamp_tz('{range_start.isoformat()}'), "
+        f"end_time_range_end=>to_timestamp_tz('{range_end.isoformat()}'), "
+        "result_limit=>10000"
+        ")) "
         f"WHERE "
         f"QUERY_ID {query_condition}"
         f";"
@@ -230,44 +191,15 @@ def _get_queries_details_from_snowflake(
     return {row["QUERY_ID"]: row for row in result} if result else {}
 
 
-def _create_snowflake_event_pair(
-    job_namespace: str,
-    job_name: str,
-    start_time: datetime.datetime,
-    end_time: datetime.datetime,
-    is_successful: bool,
-    run_facets: dict | None = None,
-    job_facets: dict | None = None,
-) -> tuple[RunEvent, RunEvent]:
-    """Create a pair of OpenLineage RunEvents representing the start and end of a Snowflake job execution."""
-    from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
-    from openlineage.client.uuid import generate_new_uuid
-
-    run = Run(runId=str(generate_new_uuid()), facets=run_facets or {})
-    job = Job(namespace=job_namespace, name=job_name, facets=job_facets or {})
-
-    start = RunEvent(
-        eventType=RunState.START,
-        eventTime=start_time.isoformat(),
-        run=run,
-        job=job,
-    )
-    end = RunEvent(
-        eventType=RunState.COMPLETE if is_successful else RunState.FAIL,
-        eventTime=end_time.isoformat(),
-        run=run,
-        job=job,
-    )
-    return start, end
-
-
-@require_openlineage_version(provider_min_version="2.5.0")
+@require_openlineage_version(provider_min_version="2.16.0")
 def emit_openlineage_events_for_snowflake_queries(
     task_instance,
     hook: SnowflakeHook | SnowflakeSqlApiHook | None = None,
     query_ids: list[str] | None = None,
     query_source_namespace: str | None = None,
     query_for_extra_metadata: bool = False,
+    default_database: str | None = None,
+    default_schema: str | None = None,
     additional_run_facets: dict | None = None,
     additional_job_facets: dict | None = None,
 ) -> None:
@@ -294,19 +226,17 @@ def emit_openlineage_events_for_snowflake_queries(
         can be `None` only if hook is provided.
         query_for_extra_metadata: Whether to query Snowflake for additional metadata about queries.
         Must be `False` if `hook` is not provided.
+        default_database: Default database used to qualify table references parsed out of each query's
+        text that don't already carry their own database qualifier. Callers with a hook typically pass
+        `hook.get_openlineage_database_info(connection).database`.
+        default_schema: Default schema used to qualify table references parsed out of each query's text
+        that don't already carry their own schema qualifier. Callers with a hook typically pass
+        `hook.get_openlineage_default_schema()`.
         additional_run_facets: Additional run facets to include in OpenLineage events.
         additional_job_facets: Additional job facets to include in OpenLineage events.
     """
-    from openlineage.client.facet_v2 import job_type_job
-
-    from airflow.providers.common.compat.openlineage.facet import (
-        ErrorMessageRunFacet,
-        ExternalQueryRunFacet,
-        RunFacet,
-        SQLJobFacet,
-    )
-    from airflow.providers.openlineage.conf import namespace
-    from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
+    from airflow.providers.common.compat.openlineage.facet import SQLJobFacet
+    from airflow.providers.openlineage.api import emit_query_lineage
 
     log.info("OpenLineage will emit events for Snowflake queries.")
 
@@ -337,7 +267,9 @@ def emit_openlineage_events_for_snowflake_queries(
 
     if query_for_extra_metadata and hook:
         log.debug("Retrieving metadata for %s queries from Snowflake.", len(query_ids))
-        snowflake_metadata = _get_queries_details_from_snowflake(hook, query_ids)
+        snowflake_metadata = _get_queries_details_from_snowflake(
+            hook, query_ids, task_start_time=getattr(task_instance, "start_date", None)
+        )
     else:
         log.debug("`query_for_extra_metadata` is False. No extra metadata fill be fetched from Snowflake.")
         snowflake_metadata = {}
@@ -352,18 +284,6 @@ def emit_openlineage_events_for_snowflake_queries(
     )
     default_state = "success" if default_state == "running" else default_state
 
-    common_run_facets = {"parent": _get_parent_run_facet(task_instance)}
-    common_job_facets: dict[str, JobFacet] = {
-        "jobType": job_type_job.JobTypeJobFacet(
-            jobType="QUERY",
-            integration="SNOWFLAKE",
-            processingType="BATCH",
-        )
-    }
-    additional_run_facets = additional_run_facets or {}
-    additional_job_facets = additional_job_facets or {}
-
-    events: list[RunEvent] = []
     for counter, query_id in enumerate(query_ids, 1):
         query_metadata = snowflake_metadata.get(query_id, {})
         log.debug(
@@ -373,36 +293,33 @@ def emit_openlineage_events_for_snowflake_queries(
             query_metadata if query_metadata else "not found",
         )
 
-        query_specific_run_facets: dict[str, RunFacet] = {
-            "externalQuery": ExternalQueryRunFacet(externalQueryId=query_id, source=query_source_namespace)
-        }
-        if query_metadata.get("ERROR_MESSAGE"):
-            query_specific_run_facets["error"] = ErrorMessageRunFacet(
-                message=f"{query_metadata.get('ERROR_CODE')} : {query_metadata['ERROR_MESSAGE']}",
-                programmingLanguage="SQL",
-            )
-
-        query_specific_job_facets = {}
+        query_job_facets = dict(additional_job_facets or {})
         if query_metadata.get("QUERY_TEXT"):
-            query_specific_job_facets["sql"] = SQLJobFacet(query=query_metadata["QUERY_TEXT"])
+            query_job_facets["sql"] = SQLJobFacet(query=query_metadata["QUERY_TEXT"])
 
-        log.debug("Creating OpenLineage event pair for query ID: %s", query_id)
-        event_batch = _create_snowflake_event_pair(
-            job_namespace=namespace(),
-            job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{counter}",
+        error_message = None
+        if query_metadata.get("ERROR_MESSAGE"):
+            error_message = f"{query_metadata.get('ERROR_CODE')} : {query_metadata['ERROR_MESSAGE']}"
+
+        log.debug("Emitting OpenLineage event pair for query ID: %s", query_id)
+        emit_query_lineage(
+            query_id=query_id,
+            query_source_namespace=query_source_namespace,
+            # Not forwarding query_text: that would additionally parse it into input/output datasets,
+            # which is a bigger behavior change than attaching the raw SQL text as a job facet below.
+            query_text=None,
             start_time=query_metadata.get("START_TIME", default_event_time),
             end_time=query_metadata.get("END_TIME", default_event_time),
             # `EXECUTION_STATUS` can be `success`, `fail` or `incident` (Snowflake outage, so still failure)
             is_successful=query_metadata.get("EXECUTION_STATUS", default_state).lower() == "success",
-            run_facets={**query_specific_run_facets, **common_run_facets, **additional_run_facets},
-            job_facets={**query_specific_job_facets, **common_job_facets, **additional_job_facets},
+            error_message=error_message,
+            default_database=default_database,
+            default_schema=default_schema,
+            job_name=f"{task_instance.dag_id}.{task_instance.task_id}.query.{counter}",
+            task_instance=task_instance,
+            additional_run_facets=additional_run_facets,
+            additional_job_facets=query_job_facets,
         )
-        events.extend(event_batch)
-
-    log.debug("Generated %s OpenLineage events; emitting now.", len(events))
-    adapter = get_openlineage_listener().adapter
-    for event in events:
-        adapter.emit(event)
 
     log.info("OpenLineage has successfully finished processing information about Snowflake queries.")
     return
