@@ -195,11 +195,22 @@ func (f *taskFunction) validateFn(
 			fnType.Out(0).Kind(),
 		)
 	}
-	if !isError(fnType.Out(fnType.NumOut() - 1)) {
+	last := fnType.Out(fnType.NumOut() - 1)
+	if !isError(last) {
 		return fmt.Errorf(
 			"expected task function %s last return value to return error but found %v",
 			f.fullName,
-			fnType.Out(fnType.NumOut()-1).Kind(),
+			last.Kind(),
+		)
+	}
+	// The last result must be error itself, not just a type that implements error. A nil *MyErr,
+	// for example, becomes a non-nil error when call converts it. The task would then fail even
+	// though the function returned nil.
+	if last != errorType {
+		return fmt.Errorf(
+			"task function %s must declare its last result as error, not %s",
+			f.fullName,
+			last,
 		)
 	}
 

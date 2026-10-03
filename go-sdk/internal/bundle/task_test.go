@@ -49,6 +49,19 @@ func TestTaskSuite(t *testing.T) {
 	suite.Run(t, &TaskSuite{})
 }
 
+type taskError struct{}
+
+func (*taskError) Error() string { return "task error" }
+
+type errno int
+
+func (errno) Error() string { return "errno" }
+
+type codedError interface {
+	error
+	Code() int
+}
+
 func (s *TaskSuite) TestReturnValidation() {
 	cases := map[string]struct {
 		fn          any
@@ -65,6 +78,18 @@ func (s *TaskSuite) TestReturnValidation() {
 		"invalid-ret": {
 			func(contexttest.Context) (c chan int) { return },
 			`func\d+ last return value to return error but found chan`,
+		},
+		"pointer-error-ret": {
+			func(contexttest.Context) (int, *taskError) { return 0, nil },
+			`func\d+ must declare its last result as error, not \*bundle\.taskError$`,
+		},
+		"value-error-ret": {
+			func(contexttest.Context) errno { return 0 },
+			`func\d+ must declare its last result as error, not bundle\.errno$`,
+		},
+		"interface-error-ret": {
+			func(contexttest.Context) (int, codedError) { return 0, nil },
+			`func\d+ must declare its last result as error, not bundle\.codedError$`,
 		},
 	}
 
