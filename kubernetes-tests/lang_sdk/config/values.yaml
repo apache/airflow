@@ -22,8 +22,10 @@
 executor: KubernetesExecutor
 
 # A global AWS connection pointing at the in-cluster localstack S3, used by the
-# dag-processor (to pull the Python stub Dag bundle) and by the artifact
-# init-containers. Sourced from the secret the breeze command creates.
+# dag-processor (to pull the Python stub Dag bundle and the Java task handler bundle) and
+# by the default task pods. The lang-SDK pod templates and the dag-processor's
+# stage-go-bundle init container set it themselves. Sourced from the secret the breeze
+# command creates.
 extraEnv: |
   - name: AIRFLOW_CONN_AWS_LOCALSTACK
     valueFrom:
@@ -51,12 +53,17 @@ scheduler:
 # config.dag_processor.dag_bundle_config_list directly -- the chart renders the config from this and
 # it is the recommended, drift-safe path.
 #
-# go-task-handlers / java-task-handlers are the coordinators' task_handler_bundle_name bundles: an
-# init container stages each artifact bucket into these paths (stage_artifacts.py), in the worker
-# pods and in the dag-processor pod. The dag-processor runs the Go binary and the Java jar to check
-# the stub tasks of lang_sdk_combined.py against the task handlers they register, so it runs on the
-# Java worker image (breeze sets images.airflow to it, and pins the task pods' default image back to
-# the plain prod image), and finds no Dag files in these bundles.
+# go-task-handlers / java-task-handlers are the coordinators' task_handler_bundle_name bundles. The
+# dag-processor runs the Go binary and the Java jar to check the stub tasks of lang_sdk_combined.py
+# against the task handlers they register, so it runs on the Java worker image (breeze sets
+# images.airflow to it, and pins the task pods' default image back to the plain prod image), and
+# finds no Dag files in these bundles.
+#
+# java-task-handlers is the java-artifacts bucket itself, as an S3DagBundle: the dag-processor
+# refreshes it, and the Java task pod downloads it when the task starts. go-task-handlers is a
+# LocalDagBundle over an emptyDir that an init container fills from the go-artifacts bucket
+# (stage_artifacts.py), in the dag-processor pod and in the Go task pods, because an S3 download
+# drops the executable bit that the Go coordinator requires.
 dagProcessor:
   dagBundleConfigList:
     - name: dags-folder
@@ -72,11 +79,12 @@ dagProcessor:
       kwargs:
         path: "/opt/airflow/artifacts/go-artifacts"
     - name: java-task-handlers
-      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
       kwargs:
-        path: "/opt/airflow/artifacts/java-artifacts"
-  # The same staging as the worker pod templates' init containers. The chart renders these values
-  # as templates, so the image is the dag-processor's own.
+        bucket_name: "java-artifacts"
+        aws_conn_id: "aws_localstack"
+  # The same staging as the Go pod template's init container. The chart renders these values as
+  # templates, so the image is the dag-processor's own.
   extraInitContainers:
     - name: stage-go-bundle
       image: '{{ template "airflow_image" . }}'
@@ -87,8 +95,6 @@ dagProcessor:
           value: /opt/airflow
         - name: ARTIFACT_BUNDLE_NAME
           value: go-artifacts
-        - name: STAGE_CHMOD_EXEC
-          value: "true"
         - name: AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH
           value: /opt/airflow/artifacts
         - name: AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST
@@ -96,33 +102,6 @@ dagProcessor:
             [{"name": "go-artifacts",
               "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle",
               "kwargs": {"bucket_name": "go-artifacts", "aws_conn_id": "aws_localstack"}}]
-        - name: AIRFLOW_CONN_AWS_LOCALSTACK
-          valueFrom:
-            secretKeyRef:
-              name: lang-sdk-aws-conn
-              key: uri
-      volumeMounts:
-        - name: lang-sdk-artifacts
-          mountPath: /opt/airflow/artifacts
-        - name: lang-sdk-scripts
-          readOnly: true
-          mountPath: /opt/airflow/lang_sdk
-    - name: stage-java-jar
-      image: '{{ template "airflow_image" . }}'
-      imagePullPolicy: IfNotPresent
-      command: ["python", "/opt/airflow/lang_sdk/stage_artifacts.py"]
-      env:
-        - name: AIRFLOW_HOME
-          value: /opt/airflow
-        - name: ARTIFACT_BUNDLE_NAME
-          value: java-artifacts
-        - name: AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH
-          value: /opt/airflow/artifacts
-        - name: AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST
-          value: >-
-            [{"name": "java-artifacts",
-              "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle",
-              "kwargs": {"bucket_name": "java-artifacts", "aws_conn_id": "aws_localstack"}}]
         - name: AIRFLOW_CONN_AWS_LOCALSTACK
           valueFrom:
             secretKeyRef:
@@ -148,7 +127,7 @@ dagProcessor:
 config:
   # Route the golang/java queues to their coordinators, each carrying an
   # extra.pod_template_file (per-coordinator pod templates) so the worker pod is
-  # launched from a coordinator-specific template that stages the artifact and,
+  # launched from a coordinator-specific template that stages the Go artifact and,
   # for Java, runs on the JVM-bearing image. The java-sdk extra takes that image from
   # images.airflow, which breeze sets to --java-image, so the Java task pods run on the
   # image the Airflow components run on. The chart renders config values with tpl.

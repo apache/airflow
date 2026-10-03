@@ -27,36 +27,47 @@ End-to-end test that one Dag mixing **Python + Go + Java** tasks runs to success
 ## How it fits together
 
 ```
-                    localstack (S3)                     scheduler (KubernetesExecutor)
-   go-artifacts ─┐   ┌ dags bucket ── S3DagBundle ──► dag-processor parses lang_sdk_combined.py
-   java-artifacts┘   │                                and checks its stub tasks against the
-                     │                                Go binary / Java jar (staged as below)
-                     │                                         │ task on queue golang/java
-                     │                                         ▼
-   stub Dag ─────────┘                       reads [sdk] coordinators[key].extra.pod_template_file
-                                                              │
-                          worker pod (from that pod template):
-                          initContainer  stage_artifacts.py  ── S3DagBundle.initialize() ──►
-                              pulls go-artifacts / java-artifacts bucket into the shared
-                              emptyDir = go-task-handlers / java-task-handlers LocalDagBundle
-                          base container  supervisor → coordinator forks the Go binary / Java jar
+   localstack (S3)
+   dags ───────────── S3DagBundle lang-sdk-dags ───────┐
+   java-artifacts ─── S3DagBundle java-task-handlers ──┤
+   go-artifacts ───── stage_artifacts.py ► emptyDir ───┤
+                                                       ▼
+                dag-processor parses lang_sdk_combined.py, checks its stub tasks against
+                the Go binary / Java jar and binds each stub task to the artifact that
+                registers its handler
+                                                       │
+                scheduler (KubernetesExecutor): a task on queue golang/java is sent with its
+                bound artifact, and the pod comes from
+                [sdk] coordinators[key].extra.pod_template_file
+                                                       │
+                task pod (from that pod template):
+                  golang: initContainer stage_artifacts.py ── S3DagBundle.initialize() ──►
+                          pulls the go-artifacts bucket into the shared emptyDir =
+                          go-task-handlers LocalDagBundle
+                  java:   the base container downloads the java-task-handlers S3DagBundle
+                  base container  supervisor → coordinator forks the bound Go binary / Java jar
 ```
 
-Key point: each coordinator's `task_handler_bundle_name` names a `LocalDagBundle` over the
-shared `emptyDir`, registered in `dagProcessor.dagBundleConfigList`. The init container fills it
-by running `stage_artifacts.py`, which reuses the **DagBundle interface**
-(`DagBundlesManager().get_bundle(name).initialize()` — the download half of
-`task_runner.parse`) to pull the artifact from its S3 bucket, then restores the Go binary's
-execute bit, which the S3 download drops and the coordinator requires.
+Key point: the Java task handler bundle is the `java-artifacts` bucket itself. `java-task-handlers`
+is an `S3DagBundle` in `dagProcessor.dagBundleConfigList`: the dag-processor refreshes it, and the
+Java task pod downloads it when the task starts, with the connection from
+`AIRFLOW_CONN_AWS_LOCALSTACK` on its `base` container. The Go task handler bundle cannot be read
+that way, because an S3 download drops the execute bit that the coordinator requires. So
+`go-task-handlers` names a `LocalDagBundle` over a shared `emptyDir`, and an init container fills it
+by running `stage_artifacts.py`. It reuses the **DagBundle interface**
+(`DagBundlesManager().get_bundle(name).initialize()`, the download half of `task_runner.parse`) to
+pull the binary from its S3 bucket, then restores its execute bit.
 
-The dag-processor pod stages both buckets the same way (`dagProcessor.extraInitContainers`),
-because it runs the Go binary and the Java jar to check the stub tasks of `lang_sdk_combined.py`
-against the task handlers they register. A stub task without a handler fails the Dag file's import.
-The dag-processor needs a JRE for the jar, and the chart sets one image for every Airflow component,
-so `setup-lang-sdk-test` runs the Airflow components on the Java worker image. The Java coordinator's
-`extra` takes its image from the same chart value, so `--java-image` also reaches the Java task pods.
-The other task pods keep the plain prod image: the setup pins `[kubernetes_executor]
-worker_container_repository` and `worker_container_tag` to it.
+The dag-processor pod stages the Go bucket the same way (`dagProcessor.extraInitContainers`) and
+reads the Java bucket as an S3 bundle, because it runs the Go binary and the Java jar to check the
+stub tasks of `lang_sdk_combined.py` against the task handlers they register. A stub task without a
+handler fails the Dag file's import. Running `setup-lang-sdk-test` again uploads new artifacts: the
+dag-processor reads a new Java jar when it refreshes its bundles, and restages the Go binary only
+when its pod restarts. The dag-processor needs a JRE for the jar, and the chart sets one image for
+every Airflow component, so `setup-lang-sdk-test` runs the Airflow components on the Java worker
+image. The Java coordinator's `extra` takes its image from the same chart value, so `--java-image`
+also reaches the Java task pods. The other task pods keep the plain prod image: the setup pins
+`[kubernetes_executor] worker_container_repository` and `worker_container_tag` to it.
 
 ## Components
 
@@ -65,14 +76,15 @@ worker_container_repository` and `worker_container_tag` to it.
 | `dags/lang_sdk_combined.py` | Python stub Dag (`dag_id=lang_sdk_combined`); uploaded to the `dags` bucket. |
 | `go_example/` | Go bundle sources (own module, `replace` onto `../../../go-sdk`): `go_extract` / `go_transform` under `lang_sdk_combined`. |
 | `java_example/` | Java bundle sources (standalone Gradle build, SDK from mavenLocal): `java_extract` / `java_transform` under `lang_sdk_combined`. |
-| `stage_artifacts.py` | Init-container entrypoint; stages an artifact bucket via DagBundle. |
+| `stage_artifacts.py` | Init-container entrypoint; stages the Go artifact bucket via DagBundle and restores the execute bit. |
 | `pod_templates/lang_sdk_golang.yaml` | `golang` queue worker pod: prod image + go-artifacts init container. |
-| `pod_templates/lang_sdk_java.yaml` | `java` queue worker pod: JVM image + java-artifacts init container. |
+| `pod_templates/lang_sdk_java.yaml` | `java` queue worker pod: JVM image; the coordinator downloads the java-artifacts S3 bundle. |
 | `manifests/localstack.yaml` | In-cluster S3 (localstack). |
-| `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, stub-Dag S3 bundle, artifact Dag bundles, dag-processor artifact init containers, AWS conn, scheduler pod-template mount. |
+| `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, stub-Dag S3 bundle, artifact Dag bundles, dag-processor Go init container, AWS conn, scheduler pod-template mount. |
 
 The Go binary, Java jar, and stub Dag share one object store (localstack) but live in
-**separate buckets** (`go-artifacts`, `java-artifacts`, `dags`).
+**separate buckets** (`go-artifacts`, `java-artifacts`, `dags`), and `java-artifacts` is itself the Java
+task handler bundle.
 
 ## Which SDK sources get built
 

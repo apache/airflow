@@ -15,18 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Init-container entrypoint that stages a lang-SDK artifact bundle into a worker pod.
+Init-container entrypoint that stages the Go bundle into a pod.
 
 This reuses the **DagBundle** machinery as the interface to the object store: it
 runs the same ``get_bundle(name).initialize()`` download step that
 :func:`airflow.sdk.execution_time.task_runner.parse` performs (minus the DAG
-parse), so the Go binary / Java jar stored in an S3 (localstack) bucket is pulled
+parse), so the Go binary stored in an S3 (localstack) bucket is pulled
 into ``bundle.path`` = ``{dag_bundle_storage_path}/{name}``.
 
-That path is the ``emptyDir`` shared with the worker container, where it is registered
-as the ``LocalDagBundle`` the coordinator's ``task_handler_bundle_name`` names. The
-coordinator does not name the S3 bundle directly because its download drops the Go
-binary's execute bit, which the coordinator requires; Java is staged the same way.
+That path is the ``emptyDir`` shared with the task container, where it is registered
+as the ``LocalDagBundle`` the Go coordinator's ``task_handler_bundle_name`` names. The
+coordinator does not name the S3 bundle directly because its download drops the
+binary's execute bit, which the coordinator requires, so every staged file gets the
+bit back. The Java jar needs no such step and is read from its S3 bundle directly.
 
 Configuration is read from the environment (set by the pod template):
 
@@ -34,8 +35,6 @@ Configuration is read from the environment (set by the pod template):
   dag_bundle_config_list`` to initialize.
 * ``AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST`` -- registers that S3 bundle.
 * ``AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH`` -- the shared ``emptyDir``.
-* ``STAGE_CHMOD_EXEC`` -- ``"true"`` for Go (the packed binary needs the execute
-  bit, which an S3 download does not preserve); unset/false for Java jars.
 """
 
 from __future__ import annotations
@@ -50,8 +49,8 @@ import structlog
 log = structlog.get_logger(logger_name=__name__)
 
 
-def stage_artifacts(bundle_name: str, *, make_executable: bool) -> Path:
-    """Initialize *bundle_name* via the DagBundle manager and return its local path."""
+def stage_artifacts(bundle_name: str) -> Path:
+    """Initialize *bundle_name* via the DagBundle manager, make its files executable, return its path."""
     from airflow.dag_processing.bundles.manager import DagBundlesManager
 
     bundle = DagBundlesManager().get_bundle(name=bundle_name)
@@ -59,16 +58,14 @@ def stage_artifacts(bundle_name: str, *, make_executable: bool) -> Path:
     root = Path(bundle.path)
 
     staged = sorted(p for p in root.rglob("*") if p.is_file())
-    if make_executable:
-        for p in staged:
-            p.chmod(p.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    for p in staged:
+        p.chmod(p.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
     log.info(
         "Staged artifact bundle",
         bundle=bundle_name,
         path=str(root),
         files=[str(p.relative_to(root)) for p in staged],
-        made_executable=make_executable,
     )
     return root
 
@@ -80,8 +77,7 @@ def main() -> None:
         log.error("ARTIFACT_BUNDLE_NAME is required")
         sys.exit(2)
 
-    make_executable = os.environ.get("STAGE_CHMOD_EXEC", "").lower() == "true"
-    root = stage_artifacts(bundle_name, make_executable=make_executable)
+    root = stage_artifacts(bundle_name)
 
     if not any(root.rglob("*")):
         log.error("Artifact bundle is empty after staging", bundle=bundle_name, path=str(root))
