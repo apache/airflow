@@ -45,9 +45,12 @@ from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
+    LONG_RUNNING_TEST_PROVIDERS,
+    PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS,
     SelectiveChecks,
     _find_test_helper_importers,
     _get_test_list_as_json,
+    _get_test_type_description,
     _imports_module,
     _split_list,
 )
@@ -544,7 +547,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {
                                 "description": "amazon...google",
                                 "test_types": "Providers[amazon] "
-                                "Providers[common.compat,common.sql,fab,microsoft.azure,openlineage,pgvector,postgres] "
+                                "Providers[cncf.kubernetes,common.compat,common.sql,fab,microsoft.azure,openlineage,pgvector,postgres] "
                                 "Providers[google]",
                             }
                         ]
@@ -964,7 +967,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                             {
                                 "description": "amazon...google",
                                 "test_types": "Providers[amazon] "
-                                "Providers[common.compat,common.sql,microsoft.azure,openlineage,pgvector,postgres] "
+                                "Providers[cncf.kubernetes,common.compat,common.sql,microsoft.azure,openlineage,pgvector,postgres] "
                                 "Providers[google]",
                             }
                         ]
@@ -1004,7 +1007,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         [
                             {
                                 "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,common.compat,dbt.cloud,dingding,discord,http,informatica,pagerduty] Providers[google]",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,cncf.kubernetes,common.compat,dbt.cloud,dingding,discord,http,informatica,pagerduty] Providers[google]",
                             }
                         ]
                     ),
@@ -1283,7 +1286,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     [
                         {
                             "description": "common.compat,common.io,openl",
-                            "test_types": "Providers[common.compat,common.io,openlineage]",
+                            "test_types": "Providers[cncf.kubernetes,common.compat,common.io,openlineage]",
                         }
                     ]
                 ),
@@ -1385,7 +1388,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "full-tests-needed": "false",
                     "run-unit-tests": "true",
                     "providers-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
+                        [
+                            {
+                                "description": "common.compat,fab",
+                                "test_types": "Providers[cncf.kubernetes,common.compat,fab]",
+                            }
+                        ]
                     ),
                 },
                 id="Only the tests importing a test helper should run when it changes",
@@ -4483,3 +4491,87 @@ def test_suspended_provider_check_ignores_test_helper_importers(
         default_branch="main",
     )
     assert selective_checks.selected_providers_list_as_string is None
+
+
+@pytest.mark.parametrize(
+    ("providers_to_test", "changed_providers", "suspended", "expected"),
+    [
+        pytest.param(
+            ["common.compat", "edge3"],
+            {"edge3"},
+            set(),
+            ["cncf.kubernetes", "common.compat", "edge3"],
+            id="changed provider runs after the leaking one in the shared canary process",
+        ),
+        pytest.param(
+            ["apache.beam", "common.compat"],
+            {"apache.beam"},
+            set(),
+            ["apache.beam", "common.compat"],
+            id="only a dependent runs after the leaking one",
+        ),
+        pytest.param(
+            ["apache.beam"],
+            {"apache.beam"},
+            set(),
+            ["apache.beam"],
+            id="changed provider runs before the leaking one",
+        ),
+        pytest.param(
+            ["cncf.kubernetes", "edge3"],
+            {"edge3"},
+            set(),
+            ["cncf.kubernetes", "edge3"],
+            id="leaking provider already selected",
+        ),
+        pytest.param(
+            ["amazon", "common.compat"],
+            {"amazon"},
+            set(),
+            ["amazon", "common.compat"],
+            id="long running providers run in their own process",
+        ),
+        pytest.param(
+            ["amazon", "edge3"],
+            {"amazon", "edge3"},
+            set(),
+            ["amazon", "cncf.kubernetes", "edge3"],
+            id="only shared-process providers decide",
+        ),
+        pytest.param(
+            ["edge3"],
+            {"edge3"},
+            {"cncf.kubernetes"},
+            ["edge3"],
+            id="suspended leaking provider is not added",
+        ),
+    ],
+)
+def test_add_providers_sharing_test_process_state(providers_to_test, changed_providers, suspended, expected):
+    assert (
+        SelectiveChecks._add_providers_sharing_test_process_state(
+            providers_to_test, changed_providers=changed_providers, suspended=suspended
+        )
+        == expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("test_types", "expected"),
+    [
+        pytest.param(
+            ["Providers[cncf.kubernetes,common.compat,edge3]"], "common.compat,edge3", id="stripped"
+        ),
+        pytest.param(["Providers[cncf.kubernetes]"], "cncf.kubernetes", id="only the leaking provider"),
+        pytest.param(["Providers[-amazon,google]"], "-amazon,google", id="excluded"),
+        pytest.param(["Providers[amazon]", "Providers[cncf.kubernetes,edge3]"], "amazon...edge3", id="range"),
+    ],
+)
+def test_get_test_type_description_names_selected_providers(test_types, expected):
+    assert _get_test_type_description(test_types) == expected
+
+
+def test_providers_with_test_side_effects_are_shared_process_providers():
+    for provider in PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS:
+        assert provider in get_available_distributions()
+        assert provider not in LONG_RUNNING_TEST_PROVIDERS

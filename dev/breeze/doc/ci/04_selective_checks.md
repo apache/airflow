@@ -224,6 +224,14 @@ When unit tests run, selective checks narrow *which* test types execute, separat
   selects the test files that import it (directly or through other helpers) as if those files had
   changed. Suspended providers are excluded (and
   a PR that touches one fails unless it carries the `allow suspended provider changes` label).
+  Providers whose DB tests leave process-global state behind (`PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS`,
+  currently `cncf.kubernetes`) are added to the `Providers[...]` test type when a provider whose own files
+  changed sorts after them: on canary the DB tests of `Providers[-amazon,celery,google,standard]` run in
+  one pytest process with provider test folders in sorted order, so the changed provider's tests run after
+  the leaked state is in place. Running them together in the PR surfaces a test that depends on clean
+  state in the PR instead of after merge; a new leak added on the `cncf.kubernetes` side is not caught
+  this way. Dependents pulled in only for coverage do not trigger this. The individually-listed test types
+  run each provider on its own and are not widened, and the job description names the selected providers.
 
 The same matched-file approach drives the **prek hook skip list** (`skip_prek_hooks`): each mypy /
 compile / lint hook is skipped when nothing in its area changed. See
@@ -451,6 +459,10 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     of affected providers (but not recursively - only direct dependencies are added)
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
+  * if a provider whose own files changed sorts after a provider with process-global DB-test side effects
+    (`PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS`, currently `cncf.kubernetes`), the side-effect
+    provider is added to the same `Providers[...]` test type, because the two share one pytest process on
+    canary and the changed tests must pass after it
 * `Java SDK E2E tests` (the `java_sdk` mode of the deployed-stack tests, exposed as the
   `run-java-sdk-e2e-tests` output) run when the Java SDK sources (`java-sdk/`, excluding `.md`), the
   Java test-fixture bundle (`airflow-e2e-tests/java-test-bundle/`), the Java e2e suite or its Docker
