@@ -318,23 +318,14 @@ class BuilderProcessor : AbstractProcessor() {
   }
 
   /**
-   * Maps a data parameter's declared type to its twin-input type. Numeric
-   * parameters accept any numeric upstream (`Arg<? extends Number>`, widened
-   * at run time); `Object`, raw `Map`, and raw `List` parameters accept any
-   * upstream (`Arg<?>`, decoded loosely at run time); everything else accepts
-   * covariant matches of the declared type (`Arg<? extends T>`).
+   * Maps a data parameter's declared type to its wiring-view input type,
+   * `Arg<? extends T>` of the boxed type. A numeric parameter therefore takes
+   * only its own type, so javac rejects wiring that could lose a value, such
+   * as a `double` upstream into a `long` parameter. An `Object` parameter
+   * takes any upstream, including a `void` task's handle, whose value is null.
    */
-  private fun inType(paramType: TypeMirror): TypeName {
-    val boxed = TypeName.get(paramType).boxIfPossible()
-    val argument =
-      when {
-        isNumeric(paramType) -> WildcardTypeName.subtypeOf(TypeName.get(Number::class.java))
-        else -> WildcardTypeName.subtypeOf(boxed)
-      }
-    return ParameterizedTypeName.get(ARG_TYPE, argument)
-  }
-
-  private fun isNumeric(t: TypeMirror): Boolean = t.kind in NUMERIC_KINDS || TypeName.get(t) in BOXED_NUMERICS
+  private fun inType(paramType: TypeMirror): TypeName =
+    ParameterizedTypeName.get(ARG_TYPE, WildcardTypeName.subtypeOf(TypeName.get(paramType).boxIfPossible()))
 
   private fun collectTasks(el: TypeElement): List<TaskDeclaration> {
     val declarations = mutableListOf<TaskDeclaration>()
@@ -739,13 +730,6 @@ private val RESERVED_VIEW_NAMES =
 
 private val DAG_STRUCTURAL_ATTRIBUTES = setOf("id", "to")
 private val TASK_STRUCTURAL_ATTRIBUTES = setOf("id")
-
-private val NUMERIC_KINDS =
-  setOf(TypeKind.BYTE, TypeKind.SHORT, TypeKind.INT, TypeKind.LONG, TypeKind.FLOAT, TypeKind.DOUBLE)
-
-private val BOXED_NUMERICS: Set<TypeName> =
-  setOf(TypeName.BYTE, TypeName.SHORT, TypeName.INT, TypeName.LONG, TypeName.FLOAT, TypeName.DOUBLE)
-    .mapTo(mutableSetOf()) { it.box() }
 
 private fun TypeName.boxIfPossible(): TypeName = if (this == TypeName.VOID || isPrimitive) box() else this
 

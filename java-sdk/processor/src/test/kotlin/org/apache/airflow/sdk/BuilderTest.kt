@@ -135,7 +135,6 @@ class BuilderTest {
          package org.apache.airflow.example;
 
          import java.lang.Integer;
-         import java.lang.Number;
          import java.lang.Void;
          import org.apache.airflow.sdk.Arg;
          import org.apache.airflow.sdk.Deps;
@@ -159,7 +158,7 @@ class BuilderTest {
              return Refs.node(new TaskDef("t2", TestExampleBuilder.T2.class));
            }
 
-           default TaskRef<Void> t3(Arg<? extends Number> value) {
+           default TaskRef<Void> t3(Arg<? extends Integer> value) {
              return Refs.call(new TaskDef("t3", TestExampleBuilder.T3.class), value);
            }
          }
@@ -317,7 +316,7 @@ class BuilderTest {
           public long pn() { return 1L; }
 
           @Builder.Task
-          public void t(String text, Object anything, List<String> items, Integer boxed) {}
+          public void t(String text, Object anything, List<String> items, Long boxed) {}
 
           @Builder.Deps
           static class Wiring implements TestExampleDeps {
@@ -338,7 +337,6 @@ class BuilderTest {
          package org.apache.airflow.example;
 
          import java.lang.Long;
-         import java.lang.Number;
          import java.lang.String;
          import java.lang.Void;
          import java.util.List;
@@ -373,7 +371,7 @@ class BuilderTest {
            }
 
            default TaskRef<Void> t(Arg<? extends String> text, Arg<?> anything,
-               Arg<? extends List<String>> items, Arg<? extends Number> boxed) {
+               Arg<? extends List<String>> items, Arg<? extends Long> boxed) {
              return Refs.call(new TaskDef("t", TestExampleBuilder.T.class), text, anything, items, boxed);
            }
          }
@@ -919,6 +917,33 @@ class BuilderTest {
           @Builder.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { t(ps()); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("incompatible types")
+  }
+
+  @Test
+  @DisplayName("reject wiring a numeric upstream into a narrower numeric parameter")
+  fun rejectLossyNumericWiring() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public double ratio() { return 2.7; }
+
+          @Builder.Task
+          public void load(long rows) {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { load(ratio()); }
           }
         }
       """,
