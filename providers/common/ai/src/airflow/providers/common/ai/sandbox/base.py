@@ -131,6 +131,8 @@ def _check_export_deadline(path: str, deadline: float, max_bytes: int) -> None:
 
 
 def _validate_positive_finite(value: float, name: str) -> None:
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a positive finite number, got {value!r}.")
     if not math.isfinite(value) or value <= 0:
         raise ValueError(f"{name} must be a positive finite number, got {value!r}.")
 

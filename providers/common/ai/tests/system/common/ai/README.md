@@ -66,3 +66,20 @@ pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_tools
 The test requests the default deny-all egress policy, so the OpenSandbox server
 must have its egress sidecar configured. It also applies a 15-minute server-side
 sandbox lifetime.
+
+## Boat
+
+Install the Boat extra and export a short-lived API key into the task process:
+
+```console
+pip install "apache-airflow-providers-common-ai[boat]"
+export BOAT_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_boat.py
+```
+
+With `boat_conn_id=None`, the backend reads this key lazily in the worker process; it is not copied
+into `SandboxSpec.env` or exposed inside the sandbox. The test passes a separate non-secret marker
+through `SandboxSpec.env` and verifies it from a sandbox command, exercises successful and
+non-zero command exits plus write/read/list operations, and requests open egress
+(`SandboxSpec(block_network=False)`) because Boat cannot enforce a deny-all network policy.
+A 15-minute server-side TTL is the cleanup backstop if worker-side teardown cannot run.
