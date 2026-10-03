@@ -21,6 +21,7 @@ import os
 import re
 import socket
 from collections.abc import Callable, Iterable
+from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from .base_stats_logger import NoStatsLogger
@@ -102,11 +103,42 @@ def initialize(
     factory: Callable[[], StatsLogger | NoStatsLogger],
     export_legacy_names: bool,
 ) -> None:
-    """Initialize the stats module with a backend factory and legacy name configuration."""
+    """
+    Explicitly initialize the stats module with a backend factory and legacy name configuration.
+
+    This is an eager alternative to the lazy self-configuration in :func:`_self_configure` — call
+    sites use it so that a metrics misconfiguration surfaces immediately at component startup
+    (where it can be caught and logged) rather than on the first metric emission. It only affects
+    *this* module object; see :func:`_self_configure` for how the other copies of this
+    symlinked file end up configured too.
+    """
     global _factory, _backend, _export_legacy_names
     _factory = factory
     _backend = None
     _export_legacy_names = export_legacy_names
+
+
+def _self_configure() -> Callable[[], StatsLogger | NoStatsLogger]:
+    """
+    Lazily build this module copy's own factory from its own distribution's configuration.
+
+    This file is symlinked into several distributions (``airflow._shared...``,
+    ``airflow.sdk._shared...``), and each copy has its own globals. Each copy configures
+    itself on first use from ``<root>.configuration`` and
+    ``<root>.observability.metrics.stats_utils``. An explicit ``initialize()`` call takes
+    priority.
+    """
+    global _factory, _export_legacy_names
+    root, _, _ = __name__.partition("._shared")
+    try:
+        stats_utils = import_module(f"{root}.observability.metrics.stats_utils")
+        conf = import_module(f"{root}.configuration").conf
+        _factory = stats_utils.get_stats_factory()
+        _export_legacy_names = conf.getboolean("metrics", "legacy_names_on")
+    except Exception as e:
+        log.warning("Could not self-configure Stats for '%s': %s, using NoStatsLogger instead.", root, e)
+        _factory = NoStatsLogger
+    return _factory
 
 
 def _get_backend() -> StatsLogger | NoStatsLogger:
@@ -114,7 +146,7 @@ def _get_backend() -> StatsLogger | NoStatsLogger:
     global _backend
 
     if _backend is None:
-        factory = _factory if _factory is not None else NoStatsLogger
+        factory = _factory if _factory is not None else _self_configure()
         try:
             _backend = factory()
         except (socket.gaierror, ImportError) as e:
