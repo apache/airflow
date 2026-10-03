@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 import boto3
@@ -69,7 +69,7 @@ def verify_dlq_activity(dlq_queue_name: str):
     cloudwatch = boto3.client("cloudwatch")
     # Try for up to 10 attempts (5 minutes total)
     for attempt in range(10):
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         start_time = end_time - timedelta(minutes=5)
         received_response = cloudwatch.get_metric_statistics(
             Namespace="AWS/SQS",
