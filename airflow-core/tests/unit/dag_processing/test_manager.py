@@ -274,14 +274,15 @@ def _statement_breakdown(counts: Counter[tuple[str, str]]) -> str:
     return "\n".join(f"  {n:>3}  {op.upper():<6} {table}" for (op, table), n in sorted(counts.items()))
 
 
-# Per persistence call, and per Dag in the file. A call leaves the serialized Dag alone while the
-# content is unchanged; once the hash has moved and [core] min_serialized_dag_update_interval has
+# These @daily fixtures use two run-info statements per file, independent of Dag count. A call
+# leaves the serialized Dag alone while the content is unchanged; once the hash has moved and
+# [core] min_serialized_dag_update_interval has
 # lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call. The
 # per-call price is a file that parsed cleanly: one reporting import errors also looks up whichever
 # of them are already recorded.
-FIXED_PER_CALL = 9
-UNCHANGED_PER_DAG = 3
-REWRITE_PER_DAG = 5
+FIXED_PER_CALL = 11
+UNCHANGED_PER_DAG = 1
+REWRITE_PER_DAG = 3
 # A file that failed to parse and so defines no Dags. Two of the five are import_error SELECTs: the
 # bounded lookup, and the listener re-reading the row the update beside it already had.
 IMPORT_ERROR_PER_CALL = 5
