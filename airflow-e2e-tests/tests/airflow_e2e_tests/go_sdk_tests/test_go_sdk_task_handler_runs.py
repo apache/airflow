@@ -27,6 +27,8 @@ artifact the worker started, and the task log names it too.
 
 * Two Dags are generated when ``go_test_dags.py`` is parsed, with the Dag ids in ``E2E_GO_DYNAMIC_DAG_IDS``.
 * ``go_split_artifacts`` has its two tasks in two different artifacts of one Dag bundle.
+* ``go_unbound_stub`` is on a queue the scheduler and the worker route to a Lang-SDK coordinator but the Dag
+  processor does not, so its stub task is never bound and reaches the worker without an artifact.
 
 All the Dags are triggered at once by the module-scoped ``runs`` fixture.
 """
@@ -36,8 +38,10 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from http import HTTPStatus
 
 import pytest
+import requests
 
 from airflow_e2e_tests.constants import GO_TEST_TASK_HANDLER_BUNDLE
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
@@ -53,6 +57,15 @@ _GO_TASK_TIMEOUT = 300
 _LOG_FETCH_TIMEOUT = 60
 
 _SPLIT_DAG_ID = "go_split_artifacts"
+_UNBOUND_DAG_ID = "go_unbound_stub"
+
+# What a stub task that was queued without an artifact fails with: the task, its Dag file and its queue.
+_UNBOUND_REASON = (
+    "Task 'unbound' of Dag 'go_unbound_stub' has no task handler artifact, and its Dag file "
+    "'go_unbound_stub.py' is not an artifact that ExecutableCoordinator runs. "
+    "Queue 'golang-unbound' routes it to a Lang-SDK coordinator"
+)
+_CANNOT_RUN_EVENT = "Cannot run the task's Lang-SDK artifact"
 
 
 @dataclass
@@ -88,7 +101,7 @@ def runs(go_dynamic_dag_ids) -> dict[str, _Run]:
     logical_date = datetime.now(timezone.utc).isoformat()
     run_ids = {
         dag_id: client.trigger_dag(dag_id, json={"logical_date": logical_date})["dag_run_id"]
-        for dag_id in [*go_dynamic_dag_ids, _SPLIT_DAG_ID]
+        for dag_id in [*go_dynamic_dag_ids, _SPLIT_DAG_ID, _UNBOUND_DAG_ID]
     }
     runs = {}
     for dag_id, run_id in run_ids.items():
@@ -133,3 +146,33 @@ def test_each_stub_task_runs_the_artifact_it_is_bound_to(runs):
         assert run.xcom(task_id) == {"artifact": artifact}
         record = get_running_artifact_record(run.log_records(task_id))
         assert (record["bundle_name"], record["path"]) == (GO_TEST_TASK_HANDLER_BUNDLE, artifact), record
+
+
+def test_an_unbound_stub_task_fails_with_the_reason_in_its_task_log(runs):
+    """
+    A stub task queued without an artifact fails in the task runtime, and each try says why in its task log.
+
+    The Dag processor does not route the task's queue, so it never bound the task, although ``handlers_a``
+    registers a handler for it. Nothing searches for that handler: the worker starts no artifact, and the
+    first try is retried once. The reason is the try's state reason as well.
+    """
+    run = runs[_UNBOUND_DAG_ID]
+    assert run.state == "failed", f"{_UNBOUND_DAG_ID} ended {run.state!r}; tasks: {run.ti_attrs}"
+    task_instance = run.ti_attrs["unbound"]
+    assert task_instance["state"] == "failed", task_instance
+    assert task_instance["try_number"] == 2, task_instance
+    assert str(task_instance["state_reason"]).startswith(_UNBOUND_REASON), task_instance
+
+    for try_number in (1, 2):
+        records = run.log_records("unbound", try_number)
+        errors = [record for record in records if record.get("event") == _CANNOT_RUN_EVENT]
+        assert len(errors) == 1, (
+            f"Try {try_number} logged {len(errors)} errors; events: {[r.get('event') for r in records]}"
+        )
+        assert errors[0].get("level") == "error", errors[0]
+        assert str(errors[0].get("reason")).startswith(_UNBOUND_REASON), errors[0]
+        assert "Running a Lang-SDK artifact" not in {record.get("event") for record in records}
+
+    with pytest.raises(requests.HTTPError) as excinfo:
+        run.xcom("unbound")
+    assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND
