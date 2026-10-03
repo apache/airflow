@@ -1651,6 +1651,148 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run go e2e tests when ExecutableCoordinator changes",
         ),
         pytest.param(
+            ("airflow-core/src/airflow/dag_processing/task_handler_resolution.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run the Lang-SDK e2e tests when a task handler module of the Dag processor changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/coordinators/_bundle_metadata.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run the Lang-SDK e2e tests when a module directly under coordinators changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/e2e_test_utils/lang_sdk.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run the Lang-SDK e2e tests when the shared e2e harness changes",
+        ),
+        pytest.param(
+            ("airflow-core/tests/unit/dag_processing/test_task_handler_processor_ts.py",),
+            {
+                "run-go-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "true",
+                "run-java-sdk-e2e-tests": "false",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run only the TypeScript e2e tests when its real probe test changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/go-test-bundle/handlers/handlers.go",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "false",
+                "run-java-sdk-e2e-tests": "false",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run only the Go e2e tests when the Go test bundle changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/models/lang_sdk_task_handler.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run the Lang-SDK e2e tests when the task handler binding model changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/execution_time/coordinator.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run the Lang-SDK e2e tests when the task runtime's coordinator changes",
+        ),
+        pytest.param(
+            ("airflow-core/tests/unit/dag_processing/fake_task_handler_runtime.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run the Lang-SDK e2e tests when the helpers of the real probe tests change",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/conftest.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run the Lang-SDK e2e tests when the e2e conftest changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/constants.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run the Lang-SDK e2e tests when the e2e constants change",
+        ),
+        pytest.param(
+            ("airflow-core/tests/unit/dag_processing/test_task_handler_processor_go.py",),
+            {
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "false",
+                "run-java-sdk-e2e-tests": "false",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run only the Go e2e tests when its real probe test changes",
+        ),
+        pytest.param(
+            ("airflow-core/tests/unit/dag_processing/test_task_handler_processor_java.py",),
+            {
+                "run-go-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run only the Java e2e tests when its real probe test changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/processor.py",),
+            {
+                "run-go-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "false",
+                "run-java-sdk-e2e-tests": "false",
+                "full-tests-needed": "false",
+            },
+            id="Skip the Lang-SDK e2e tests for a Dag processor module that is not about task handlers",
+        ),
+        pytest.param(
             ("providers/openlineage/src/airflow/providers/openlineage/plugins/adapter.py",),
             {
                 "run-openlineage-e2e-tests": "true",

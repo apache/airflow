@@ -40,6 +40,7 @@ from unit.dag_processing.fake_task_handler_runtime import (
     LOCAL_BUNDLE,
     get_stub_task_ids,
     parse_dag_file,
+    require_toolchain,
     sort_bindings,
     task_handler_config,
 )
@@ -87,8 +88,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def example_bundle(tmp_path_factory) -> Path:
     """Pack ``ts-sdk/example`` from a copy of the SDK sources, so the checkout gets no build output."""
-    if (problem := _get_toolchain_problem()) is not None:
-        pytest.skip(problem)
+    require_toolchain(_get_toolchain_problem())
     sdk = tmp_path_factory.mktemp("ts-sdk") / "ts-sdk"
     shutil.copytree(TS_SDK_PATH, sdk, ignore=shutil.ignore_patterns("node_modules", "dist", ".pnpm-store"))
     env = {**os.environ, "CI": "true", "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"}

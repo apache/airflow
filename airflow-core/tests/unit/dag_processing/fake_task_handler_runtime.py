@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import attrs
+import pytest
 import structlog
 from pydantic import TypeAdapter
 
@@ -99,6 +100,21 @@ def fake_coordinator(**kwargs: Any) -> Iterator[None]:
             yield
     finally:
         reset_coordinator_manager()
+
+
+def require_toolchain(problem: str | None) -> None:
+    """
+    Fail a real-probe test whose toolchain is missing on a CI run, and skip it elsewhere.
+
+    The real-probe tests run where ``AIRFLOW_LANG_SDK_REAL_PROBE_TESTS`` is set, which on CI is the e2e job of
+    a Lang SDK, and that job sets up the toolchain. A missing one there is a broken job, which must not pass
+    as a skip. *problem* says what is missing, or is ``None`` when nothing is.
+    """
+    if problem is None:
+        return
+    if os.environ.get("CI"):
+        pytest.fail(problem, pytrace=False)
+    pytest.skip(problem)
 
 
 FAKE_COORDINATOR = f"{__name__}.FakeCoordinator"

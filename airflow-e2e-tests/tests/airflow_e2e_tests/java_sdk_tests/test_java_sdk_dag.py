@@ -76,7 +76,9 @@ from typing import TYPE_CHECKING
 import pytest
 import requests
 
+from airflow_e2e_tests.constants import JAVA_SDK_TASK_HANDLER_BUNDLE
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
+from airflow_e2e_tests.e2e_test_utils.lang_sdk import RUNNING_ARTIFACT_EVENT, get_running_artifact_record
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -218,6 +220,19 @@ class TestJavaSDKAnnotationExample:
                 f"  dag state  : {annotation_example_run.state!r}\n"
                 f"  all tasks  : {annotation_example_run.ti_states}"
             )
+
+    def test_extract_runs_its_bound_jar(self, annotation_example_run: _CompletedRun):
+        """
+        The worker logs the JAR it runs for a stub task, and the JAR is in the Dag bundle of the task's
+        coordinator.
+        """
+        extract_ti = annotation_example_run.get_task_instance("extract")
+        _, records = annotation_example_run.wait_for_log_record(
+            "extract", extract_ti.get("try_number", 1), lambda r: r.get("event") == RUNNING_ARTIFACT_EVENT
+        )
+        record = get_running_artifact_record(records)
+        assert record["bundle_name"] == JAVA_SDK_TASK_HANDLER_BUNDLE, record
+        assert str(record["path"]).endswith(".jar"), record
 
     def test_transform_xcom_is_numeric_timestamp(self, annotation_example_run: _CompletedRun):
         """The value returned by the Java 'transform' task must be a positive integer."""
