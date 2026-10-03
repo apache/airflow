@@ -31,7 +31,14 @@ import {
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
 import { getCurrentModuleSource } from "./module-source.js";
-import type { TaskFunction } from "./task.js";
+import {
+  isTriggerDagRunTask,
+  triggerDagRun,
+  type TriggerDagRunOptions,
+  type TriggerDagRunSpec,
+  type TriggerDagRunTask,
+} from "./trigger-dag-run.js";
+import { getClient, type TaskFunction } from "./task.js";
 
 /** Internal: whether `value` is an object literal, not an array or a class instance. */
 export function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -227,6 +234,8 @@ export interface TaskGroupRef extends Node {
     handler: (args: TArgs) => TReturn | Promise<TReturn>,
     options?: TaskOptions,
   ): TaskFactory<TArgs, TReturn>;
+  /** Trigger another Dag's run from this group; its id carries the group prefix. */
+  triggerDagRun(spec: TriggerDagRunSpec, taskSpec?: TaskSpec): TaskRef;
   /** Nest a group inside this one. */
   taskGroup(groupId: string, options?: TaskGroupOptions): TaskGroupRef;
   before(...downstream: readonly Node[]): TaskGroupRef;
@@ -401,12 +410,77 @@ export type TaskFactory<TArgs extends object | void = void, TReturn = unknown> =
  */
 export type TaskOptions = TaskSpec;
 
-/** Per-task record a Dag retains: the reference, the handler, and its spec. */
+/**
+ * What `dag.if(condition)` returns: name the task the condition runs.
+ *
+ * ```ts
+ * dag.if(gated).then(loaded).else(reportedEmpty);
+ * ```
+ *
+ * `then` is required, `else` optional. A one-sided condition follows nothing
+ * when it is false, skipping only its own branch rather than the whole
+ * downstream closure the way `ShortCircuitOperator` does — decision 3 of
+ * `airflow-core/adr/lang-sdk/0008-control-flow-constructs.md`.
+ */
+export interface Condition {
+  then(taskRef: TaskRef): ConditionElse;
+}
+
+/** What `.then(...)` returns: the other side, which a one-sided condition omits. */
+export interface ConditionElse {
+  else(taskRef: TaskRef): void;
+}
+
+/**
+ * What `dag.switch(decider)` returns: name each task the decider chooses
+ * between.
+ *
+ * ```ts
+ * dag.switch(picked).case(publishDaily).case(publishWeekly);
+ * ```
+ *
+ * Chainable, so the cases read as a list. There is no default case, and a
+ * branch with no case at all is rejected when the Dag is read.
+ */
+export interface Branch {
+  case(taskRef: TaskRef): Branch;
+}
+
+/** Per-task record a Dag retains: the reference, what runs it, and its spec.
+ *
+ *  Exactly one of `fn` and `trigger` is set: a task has either a handler, or
+ *  the options of a `triggerDagRun(...)` the runtime carries out itself. */
 export interface TaskRecord {
   readonly task: TaskRef;
-  readonly fn: TaskFunction;
+  readonly fn?: TaskFunction;
+  /** What a `triggerDagRun(...)` task triggers, when it has no handler. */
+  readonly trigger?: TriggerDagRunTask;
   readonly spec: TaskSpec;
+  /**
+   * Whether this task decides which of its downstream tasks to skip.
+   *
+   * Serialized as `_can_skip_downstream`, which is what makes Airflow consult
+   * the task's `skipmixin_key` XCom when a skipped downstream is cleared.
+   */
+  readonly canSkipDownstream?: boolean;
 }
+
+/** The branches a condition chooses between, filled in as the chain is written. */
+interface ConditionRecord {
+  whenTrue?: TaskRef;
+  whenFalse?: TaskRef;
+}
+
+/**
+ * The XCom a task deciding skips leaves behind, so clearing a skipped task
+ * re-skips it rather than running it.
+ *
+ * `NotPreviouslySkippedDep` reads this key off each upstream that declares
+ * `_can_skip_downstream`, and skips a task named under `skipped`. Mirrors
+ * `SkipMixin.skip` in `task-sdk/src/airflow/sdk/bases/skipmixin.py`.
+ */
+const SKIPMIXIN_XCOM_KEY = "skipmixin_key";
+const SKIPMIXIN_SKIPPED = "skipped";
 
 /**
  * Internal: what one call to a task factory recorded, by argument name.
@@ -468,6 +542,10 @@ export class Dag {
   // insertion-ordered so the serialized Dag reads as written.
   readonly #orderEdges = new Map<string, OrderEdge>();
   readonly #definedIn: string | undefined;
+  // Which tasks decide a branch, so one task cannot decide twice and a
+  // condition with no branch named is reported when the Dag is read.
+  readonly #conditions = new Map<string, ConditionRecord>();
+  readonly #branches = new Map<string, readonly TaskRef[]>();
   // Keyed by full group ID; a group's own record holds what it declares, so
   // the tree is reconstructed by walking from the roots.
   readonly #groups = new Map<string, MutableTaskGroupRecord>();
@@ -541,6 +619,259 @@ export class Dag {
   }
 
   /**
+   * Make an existing task a condition, and name the task each outcome runs —
+   * TypeScript's `if`/`else`, spelled as the Dag's own control flow rather
+   * than after an operator class.
+   *
+   * ```ts
+   * const gated = dag.task("has_rows", async ({ rows }: { rows: number }) => rows > 0)({
+   *   rows: extracted,
+   * });
+   *
+   * dag.if(gated).then(loaded).else(reportedEmpty);
+   * ```
+   *
+   * The condition is an ordinary task whose handler returns a boolean, so the
+   * compiler checks the type and nothing depends on its id or its function
+   * name. It becomes a branch: the side not taken is skipped when the run
+   * reaches it, and stays skipped if it is cleared later.
+   *
+   * A guarded task takes no argument for the control edge — a condition's
+   * boolean is a signal, not data.
+   */
+  if(condition: TaskRef<boolean>): Condition {
+    const taskId = this.#beginBranch(condition, "dag.if");
+    const branches: ConditionRecord = {};
+    this.#conditions.set(taskId, branches);
+    this.#wrapDecider(taskId, async (held: unknown) => {
+      if (typeof held !== "boolean") {
+        throw new Error(
+          `Condition "${taskId}" of Dag "${this.dagId}" returned ${describeValue(held)} ` +
+            "rather than a boolean, so there is no branch to take",
+        );
+      }
+      // The side not taken. A one-sided condition that holds skips nothing.
+      const skipped = held ? branches.whenFalse : branches.whenTrue;
+      return { skip: skipped ? [skipped.taskId] : [], result: held };
+    });
+
+    const named = new Set<"then" | "else">();
+    const name = (side: "then" | "else", taskRef: TaskRef): void => {
+      // `await` on a thenable calls `then(resolve, reject)`. This object only
+      // ever takes a task reference, so saying why beats "not a task".
+      if (typeof taskRef === "function") {
+        throw new Error(
+          `dag.if(...) of Dag "${this.dagId}" was awaited. It builds a branch rather than ` +
+            "doing work, so there is nothing to wait for; drop the await",
+        );
+      }
+      if (named.has(side)) {
+        throw new Error(
+          `Condition "${taskId}" of Dag "${this.dagId}" already has a "${side}" branch; ` +
+            "a condition names each side once",
+        );
+      }
+      this.#validateOwnNode(taskRef, `the "${side}" branch of "${taskId}"`);
+      if (side === "else" && taskRef === branches.whenTrue) {
+        throw new Error(
+          `Both branches of Dag "${this.dagId}" condition "${taskId}" are ` +
+            `"${taskRef.taskId}", so the condition decides nothing; drop the else branch`,
+        );
+      }
+      named.add(side);
+      if (side === "then") branches.whenTrue = taskRef;
+      else branches.whenFalse = taskRef;
+      // The control edge carries no value, so it is an ordinary order-only
+      // edge; what makes it a branch is the skip, which only exists at run time.
+      condition.before(taskRef);
+    };
+
+    const elseStep: ConditionElse = {
+      else: (taskRef) => name("else", taskRef),
+    };
+    return {
+      then: (taskRef) => {
+        name("then", taskRef);
+        return elseStep;
+      },
+    };
+  }
+
+  /**
+   * Check that `condition` is a task of this Dag that no other construct has
+   * already claimed, and return its id.
+   */
+  #beginBranch(condition: TaskRef, verb: string): string {
+    if (this.#finalized) {
+      throw new Error(
+        `${verb}(...) cannot be used on Dag "${this.dagId}" after the Dag was read; ` +
+          "declare every branch while the module is loading",
+      );
+    }
+    this.#validateOwnNode(condition, `the condition given to ${verb}`);
+    const taskId = condition.taskId;
+    // A trigger task returns nothing, so there is no decision to read.
+    if (this.#tasks.get(taskId)!.fn === undefined) {
+      throw new Error(
+        `Task "${taskId}" of Dag "${this.dagId}" is a triggerDagRun task, so it cannot decide a ` +
+          `branch; give ${verb}(...) a task with a TypeScript handler`,
+      );
+    }
+    if (this.#conditions.has(taskId) || this.#branches.has(taskId)) {
+      throw new Error(
+        `Task "${taskId}" of Dag "${this.dagId}" already decides a branch; ` +
+          "one task decides one way",
+      );
+    }
+    return taskId;
+  }
+
+  /**
+   * Replace a task's handler with one that also sends the skip its decision
+   * implies.
+   *
+   * The decision is read when the task runs, so the branches it chooses
+   * between can still be named after this call — which is what lets the chain
+   * read `dag.if(gate).then(a).else(b)`.
+   */
+  #wrapDecider(
+    taskId: string,
+    decide: (returned: unknown) => Promise<{ skip: string[]; result: unknown }>,
+  ): void {
+    const record = this.#tasks.get(taskId)!;
+    const inner = record.fn!;
+    const wrapped: TaskFunction = async (args) => {
+      const { skip, result } = await decide(await inner(args as never));
+      if (skip.length > 0) {
+        const client = getClient();
+        // Written before the skip so a downstream cleared later is re-skipped
+        // by `NotPreviouslySkippedDep` rather than run, which is what Python's
+        // SkipMixin does. Keyed on the task, so its own id is not needed here.
+        await client.setXCom({ key: SKIPMIXIN_XCOM_KEY, value: { [SKIPMIXIN_SKIPPED]: skip } });
+        await client.skipDownstreamTasks(skip);
+      }
+      return result;
+    };
+    this.#tasks.set(taskId, { ...record, canSkipDownstream: true, fn: wrapped });
+  }
+
+  /**
+   * Make an existing task a multi-way branch, and name the tasks it chooses
+   * between — TypeScript's `switch`/`case`.
+   *
+   * ```ts
+   * const decider = dag.task("pick_path", async ({ rows }: { rows: number }) =>
+   *   rows > 1000 ? handleLong : handleShort,
+   * );
+   * const picked = decider({ rows: extracted });
+   *
+   * dag.switch(picked).case(handleLong).case(handleShort);
+   * ```
+   *
+   * The decider is an ordinary task whose handler returns one of the case
+   * references the Dag already handed back, so the compiler checks the
+   * candidate exists and renaming a handler cannot silently rewire a Dag. The
+   * task's own value on the wire is the chosen task's id, which is what a
+   * downstream task reads back from its XCom.
+   *
+   * **There is no default case.** A decider that returns a reference outside
+   * the declared cases fails the task, the way Python's `skip_all_except`
+   * raises on a task id the Dag does not hold.
+   *
+   * **Exactly one case is selected.** Python's branch callable may return a
+   * list of task ids; a single-reference return cannot express that, and no
+   * Lang SDK offers it for now. A Dag that needs several paths together puts
+   * them behind one task, or gates each with its own condition.
+   */
+  switch(decider: TaskRef<TaskRef>): Branch {
+    const taskId = this.#beginBranch(decider, "dag.switch");
+    const candidates: TaskRef[] = [];
+    this.#branches.set(taskId, candidates);
+    this.#wrapDecider(taskId, async (chosen: unknown) => {
+      const known = candidates.map((ref) => ref.taskId);
+      if (!candidates.includes(chosen as TaskRef)) {
+        throw new Error(
+          `Task "${taskId}" of Dag "${this.dagId}" chose ` +
+            `${isTaskRef(chosen) ? `"${chosen.taskId}"` : describeValue(chosen)}, ` +
+            `which is not one of its cases: ${known.join(", ")}`,
+        );
+      }
+      const picked = (chosen as TaskRef).taskId;
+      // The task_id is what a branch puts on the wire, so it is also what a
+      // downstream task reads back from this one's XCom.
+      return { skip: known.filter((id) => id !== picked), result: picked };
+    });
+
+    const branch: Branch = {
+      case: (taskRef) => {
+        this.#validateOwnNode(taskRef, `a case of "${taskId}"`);
+        // Two cases naming one task cannot be told apart by a decision, and one
+        // of them would always be skipped alongside itself.
+        if (candidates.some((candidate) => candidate.taskId === taskRef.taskId)) {
+          throw new Error(
+            `Dag "${this.dagId}" branch "${taskId}" lists "${taskRef.taskId}" twice; ` +
+              "each case names a different task",
+          );
+        }
+        candidates.push(taskRef);
+        decider.before(taskRef);
+        return branch;
+      },
+    };
+    return branch;
+  }
+
+  /**
+   * Trigger another Dag's run, as a task of this Dag.
+   *
+   * ```ts
+   * const trigger = dag.triggerDagRun({
+   *   taskId: "trigger_downstream",
+   *   dagId: "downstream_etl",
+   *   waitForCompletion: true,
+   * });
+   * trigger.after(loaded);
+   * ```
+   *
+   * The task wraps no TypeScript function. This runtime runs it the way
+   * Python runs `TriggerDagRunOperator`: it triggers the run, and with
+   * `waitForCompletion` polls the run's state, or with `deferrable` defers to
+   * `DagStateTrigger`, which the Python triggerer runs, and resumes when the
+   * run finishes. Like every task of this Dag it inherits the Dag's queue.
+   *
+   * There is nothing to call: a task with no TypeScript arguments has nothing
+   * for a factory call to supply, so this returns the reference directly.
+   *
+   * Values are sent as written. There is no Jinja rendering, so `{{ ds }}` in
+   * `conf` reaches the triggered run as that literal string.
+   */
+  triggerDagRun(spec: TriggerDagRunSpec, taskSpec: TaskSpec = {}): TaskRef {
+    return this.#addTriggerDagRun(undefined, spec, taskSpec);
+  }
+
+  #addTriggerDagRun(
+    groupId: string | undefined,
+    spec: TriggerDagRunSpec,
+    taskSpec: TaskSpec,
+  ): TaskRef {
+    const { taskId, ...options } = isPlainRecord(spec)
+      ? (spec as TriggerDagRunSpec & { taskId?: unknown })
+      : ({} as TriggerDagRunSpec & { taskId?: unknown });
+    if (typeof taskId !== "string" || taskId.length === 0) {
+      throw new Error(
+        `A triggerDagRun task of Dag "${this.dagId}" has no taskId; name it with ` +
+          'dag.triggerDagRun({ taskId: "trigger_downstream", dagId: "..." })',
+      );
+    }
+    return this.#addTask(
+      groupId,
+      taskId,
+      triggerDagRun(options as TriggerDagRunOptions),
+      taskSpec,
+    )();
+  }
+
+  /**
    * Declare a task group of this Dag.
    *
    * The group prefixes the id of everything declared in it, unless
@@ -559,13 +890,14 @@ export class Dag {
   #addTask<TArgs extends object | void, TReturn>(
     groupId: string | undefined,
     taskIdOrHandler: string | ((args: TArgs) => TReturn | Promise<TReturn>),
-    handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | TaskOptions,
+    handlerOrOptions?:
+      ((args: TArgs) => TReturn | Promise<TReturn>) | TriggerDagRunTask | TaskOptions,
     maybeOptions?: TaskOptions,
   ): TaskFactory<TArgs, TReturn> {
     const idGiven = typeof taskIdOrHandler === "string";
-    const handler = (idGiven ? handlerOrOptions : taskIdOrHandler) as (
-      args: TArgs,
-    ) => TReturn | Promise<TReturn>;
+    const body = idGiven ? handlerOrOptions : taskIdOrHandler;
+    const trigger = isTriggerDagRunTask(body) ? body : undefined;
+    const handler = body as (args: TArgs) => TReturn | Promise<TReturn>;
     const given = idGiven ? maybeOptions : (handlerOrOptions as TaskOptions | undefined);
     // Defaulted only when absent: an explicit `null` is a bad spec, not an
     // omitted one, and #taskSpecOf is what reports it.
@@ -576,12 +908,12 @@ export class Dag {
     // wins and the spec's is dropped without a word.
     if (idGiven && specTaskId !== undefined) {
       throw new Error(
-        `Task "${taskIdOrHandler}" of Dag "${this.dagId}" also carries taskId "${specTaskId}" in ` +
-          "its spec; give the id once, either positionally or in the spec",
+        `Task "${taskIdOrHandler as string}" of Dag "${this.dagId}" also carries taskId ` +
+          `"${specTaskId}" in its spec; give the id once, either positionally or in the spec`,
       );
     }
     const defaulted = idGiven ? undefined : (specTaskId ?? readFunctionName(handler));
-    const declared = idGiven ? taskIdOrHandler : defaulted;
+    const declared = idGiven ? (taskIdOrHandler as string) : defaulted;
     if (declared === undefined) {
       throw new Error(
         `A task of Dag "${this.dagId}" has no id: its handler has no name to take one from. ` +
@@ -608,12 +940,12 @@ export class Dag {
       );
     }
     const taskId = this.#childId(groupId, declared);
-    if (typeof handler !== "function") {
+    if (trigger === undefined && typeof handler !== "function") {
       throw new Error(`handler for Dag "${this.dagId}" task "${taskId}" must be a function`);
     }
     // TypeScript already says so, but a plain-JavaScript author lands here
     // with the argument list Python would take.
-    if (handler.length > 1) {
+    if (trigger === undefined && handler.length > 1) {
       throw new Error(
         `Handler for Dag "${this.dagId}" task "${taskId}" declares ${handler.length} parameters; ` +
           "a handler takes one object of named arguments — async ({ rows, region }) => ...",
@@ -635,7 +967,7 @@ export class Dag {
       task,
       // The runtime dispatches every handler through one instantiation, as it
       // does a registered TaskHandler.
-      fn: handler as unknown as TaskFunction,
+      ...(trigger ? { trigger } : { fn: handler as unknown as TaskFunction }),
       spec: freezeSpec(spec, () => `The spec for Dag "${this.dagId}" task "${taskId}"`),
     });
     return ((...inputs: unknown[]) => {
@@ -772,6 +1104,8 @@ export class Dag {
         handlerOrOptions?: ((args: TArgs) => TReturn | Promise<TReturn>) | TaskOptions,
         maybeOptions?: TaskOptions,
       ) => this.#addTask<TArgs, TReturn>(groupId, taskIdOrHandler, handlerOrOptions, maybeOptions),
+      triggerDagRun: (spec: TriggerDagRunSpec, taskSpec: TaskSpec = {}) =>
+        this.#addTriggerDagRun(groupId, spec, taskSpec),
       taskGroup: (childId: string, options?: TaskGroupOptions) =>
         this.#addGroup(groupId, childId, options),
       before: (...downstream) => {
@@ -814,7 +1148,7 @@ export class Dag {
     // The argument is the one that can be foreign: the receiver is a node this
     // Dag handed out, since it is what carries the method.
     const other = verb === "before" ? downstream : upstream;
-    this.#validateOwnNode(other, verb);
+    this.#validateOwnNode(other, `${verb}()`);
     const upstreamId = nodeId(upstream);
     const downstreamId = nodeId(downstream);
     if (upstreamId === downstreamId) {
@@ -833,17 +1167,17 @@ export class Dag {
     }
   }
 
-  #validateOwnNode(node: Node, verb: string): void {
+  #validateOwnNode(node: Node, label: string): void {
     const id = nodeId(node);
     if (id === undefined) {
       throw new Error(
-        `${verb}() on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
+        `${label} on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
           "not arbitrary values",
       );
     }
     if (node.dagId !== this.dagId) {
       throw new Error(
-        `${verb}() cannot draw an edge to Dag "${node.dagId}" node "${id}" from Dag ` +
+        `${label} cannot reach Dag "${node.dagId}" node "${id}" from Dag ` +
           `"${this.dagId}"; an edge joins two nodes of one Dag`,
       );
     }
@@ -853,7 +1187,7 @@ export class Dag {
     // the edge at this Dag's own group of that name.
     if (isTaskRef(node) ? this.#tasks.get(id)?.task !== node : this.#groupRefs.get(id) !== node) {
       throw new Error(
-        `${verb}() was given a reference to "${id}" that this Dag did not hand out; ` +
+        `${label} was given a reference to "${id}" that this Dag did not hand out; ` +
           `it comes from another Dag object with the same ID, or ${DUPLICATE_COPY_HINT}`,
       );
     }
@@ -938,6 +1272,22 @@ export class Dag {
 
   #finalize(): void {
     if (this.#finalized) return;
+    for (const [taskId, branches] of this.#conditions) {
+      if (branches.whenTrue === undefined) {
+        throw new Error(
+          `Condition "${taskId}" of Dag "${this.dagId}" names no branch, so it decides nothing; ` +
+            "give it one with dag.if(condition).then(task)",
+        );
+      }
+    }
+    for (const [taskId, cases] of this.#branches) {
+      if (cases.length === 0) {
+        throw new Error(
+          `Branch "${taskId}" of Dag "${this.dagId}" has no cases, so it decides nothing; ` +
+            "give it the tasks to choose between with dag.switch(decider).case(task)",
+        );
+      }
+    }
     for (const taskId of this.#tasks.keys()) {
       if (!this.#inputs.has(taskId)) {
         throw new Error(
@@ -968,6 +1318,14 @@ const GROUP_ID_MAX_LENGTH = 200;
  * `keepNames`, so the name survives minification; a bundler that drops names
  * leaves the empty string, which is why the empty string is not an id.
  */
+/** A value as an error message names it: its type, or the literal when short. */
+function describeValue(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "object") return Array.isArray(value) ? "an array" : "an object";
+  return `the ${typeof value} ${JSON.stringify(value)}`;
+}
+
 function readFunctionName(handler: unknown): string | undefined {
   if (typeof handler !== "function") return undefined;
   const { name } = handler as { name?: unknown };
