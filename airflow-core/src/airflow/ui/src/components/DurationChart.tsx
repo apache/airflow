@@ -217,8 +217,19 @@ export const DurationChart = ({
                     runId: entry.dag_run_id,
                     taskId: entry.task_id,
                   });
+                  const query = new URLSearchParams({
+                    region_id: entry.region_id,
+                    region_index: String(entry.region_index),
+                    try_number: String(entry.try_number),
+                  });
 
-                  void Promise.resolve(navigate(baseUrl));
+                  void Promise.resolve(
+                    navigate(
+                      entry.region_id === "00000000-0000-0000-0000-000000000000"
+                        ? baseUrl
+                        : `${baseUrl}?${query}`,
+                    ),
+                  );
                   break;
                 }
                 default:

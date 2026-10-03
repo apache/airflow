@@ -29,32 +29,51 @@ import {
   MdSyncAlt,
 } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { ProgressBar } from "src/system-components";
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import type { NavTab } from "src/layouts/Details/NavTabs";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
-import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
+import { type TabItem, useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
+import { useTaskInstanceView } from "src/hooks/useTaskInstanceView";
 import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
-import { getDefaultTaskInstanceTabPath } from "src/utils/links";
+import { getDefaultTaskInstanceTabPath, getTaskInstanceLink } from "src/utils/links";
 
-import { Header } from "./Header";
+import { Header, HistoryHeader } from "./Header";
 
 export const TaskInstance = () => {
   const { t: translate } = useTranslation(["dag", "common", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const coordinates = useTaskInstanceCoordinates();
+  const { error, historical, historicalTaskInstance, isLoading, liveTaskInstance, taskInstance } =
+    useTaskInstanceView();
+  const isRegional =
+    coordinates.regionId !== undefined && coordinates.regionId !== "00000000-0000-0000-0000-000000000000";
   const tryNumber = searchParams.get(SearchParamsKeys.TRY_NUMBER);
-  const trySearch =
-    tryNumber === null
-      ? undefined
-      : new URLSearchParams({ [SearchParamsKeys.TRY_NUMBER]: tryNumber }).toString();
+  const coordinateSearch = new URLSearchParams();
+
+  if (coordinates.regionId !== undefined) {
+    coordinateSearch.set(SearchParamsKeys.REGION_ID, coordinates.regionId);
+  }
+  if (coordinates.regionIndex !== undefined) {
+    coordinateSearch.set(SearchParamsKeys.REGION_INDEX, String(coordinates.regionIndex));
+  }
+  const tryParams = new URLSearchParams(coordinateSearch);
+
+  if (tryNumber !== null) {
+    tryParams.set(SearchParamsKeys.TRY_NUMBER, tryNumber);
+  }
+  const trySearch = tryParams.toString() || undefined;
 
   useDocumentTitle(taskId);
 
@@ -66,7 +85,7 @@ export const TaskInstance = () => {
   const [defaultTab] = useDefaultTaskInstanceTab();
   const logsTabValue = getDefaultTaskInstanceTabPath(defaultTab) === "" ? "" : "logs";
 
-  const tabs = [
+  const tabs: Array<NavTab & TabItem> = [
     {
       icon: <MdReorder />,
       label: translate("tabs.logs"),
@@ -97,36 +116,26 @@ export const TaskInstance = () => {
   const refetchInterval = useAutoRefresh({ dagId });
   const parsedMapIndex = parseInt(mapIndex, 10);
 
-  const {
-    data: taskInstance,
-    error,
-    isLoading,
-  } = useTaskInstanceServiceGetMappedTaskInstance(
-    {
-      dagId,
-      dagRunId: runId,
-      mapIndex: parsedMapIndex,
-      taskId,
-    },
-    undefined,
-    {
-      enabled: !isNaN(parsedMapIndex),
-      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
-      staleTime: 0,
-    },
-  );
-
-  const { summariesByRunId } = useGridTiSummariesStream({ dagId, runIds: runId ? [runId] : [] });
+  const { summariesByRunId } = useGridTiSummariesStream({
+    dagId,
+    runIds: !historical && runId ? [runId] : [],
+  });
   const gridTISummaries = summariesByRunId.get(runId);
 
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
   const taskCount = Object.entries(taskInstanceSummary?.child_states ?? {})
     .map(([_state, count]) => count)
     .reduce((sum, val) => sum + val, 0);
+  const scopedTabs = tabs
+    .filter((tab) => !historical || ["details", logsTabValue].includes(tab.value))
+    .map((tab) => ({
+      ...tab,
+      search: tab.search ?? (coordinateSearch.toString() || undefined),
+    }));
   const newTabs =
-    taskInstance && taskInstance.map_index > -1
+    taskInstance && taskInstance.map_index > -1 && !isRegional && !historical
       ? [
-          ...tabs.slice(0, 1),
+          ...scopedTabs.slice(0, 1),
           {
             icon: <MdOutlineTask />,
             label: translate("tabs.mappedTaskInstances_other", {
@@ -134,19 +143,36 @@ export const TaskInstance = () => {
             }),
             value: "task_instances",
           },
-          ...tabs.slice(1),
+          ...scopedTabs.slice(1),
         ]
-      : tabs;
+      : scopedTabs;
 
-  const { tabs: requiredActionTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
-    autoRedirect: true,
-    refetchInterval: isStatePending(taskInstance?.state) && refetchInterval,
-  });
+  const { tabs: requiredActionTabs } = useRequiredActionTabs(
+    { ...coordinates, dagId, dagRunId: runId, mapIndex: parsedMapIndex, taskId },
+    newTabs,
+    {
+      autoRedirect: true,
+      enabled: !historical,
+      refetchInterval: isStatePending(taskInstance?.state) && refetchInterval,
+    },
+  );
 
   const { tabs: displayTabs } = useHITLReviewTabs({ dagId, dagRunId: runId, taskId }, requiredActionTabs, {
+    ...coordinates,
+    enabled: !historical,
     mapIndex: parsedMapIndex,
     refetchInterval: isStatePending(taskInstance?.state) && refetchInterval,
   });
+
+  const taskPath = getTaskInstanceLink({ dagId, dagRunId: runId, mapIndex: parsedMapIndex, taskId });
+
+  if (isLoading) {
+    return <ProgressBar size="xs" />;
+  }
+
+  if (historical && ![`${taskPath}/details`, `${taskPath}/logs`, taskPath].includes(location.pathname)) {
+    return <Navigate replace to={{ pathname: `${taskPath}/logs`, search: searchParams.toString() }} />;
+  }
 
   return (
     <ReactFlowProvider>
@@ -155,8 +181,12 @@ export const TaskInstance = () => {
           <Heading p={2} size="lg">
             {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
           </Heading>
+        ) : historicalTaskInstance === undefined ? (
+          liveTaskInstance === undefined ? undefined : (
+            <Header taskInstance={liveTaskInstance} />
+          )
         ) : (
-          <Header taskInstance={taskInstance} />
+          <HistoryHeader taskInstance={historicalTaskInstance} />
         )}
       </DetailsLayout>
     </ReactFlowProvider>

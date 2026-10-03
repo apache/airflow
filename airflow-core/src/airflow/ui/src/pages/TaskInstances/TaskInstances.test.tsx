@@ -116,6 +116,7 @@ const mappedTaskInstance = {
   dag_id: "example_dag",
   dag_run_id: "manual__2026-06-07T00:00:00+00:00",
   map_index: 1,
+  region_id: "00000000-0000-0000-0000-000000000000",
   rendered_map_index: "1",
   start_date: null,
   state: "queued",

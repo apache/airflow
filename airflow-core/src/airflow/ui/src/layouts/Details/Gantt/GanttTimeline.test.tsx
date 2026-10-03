@@ -19,7 +19,7 @@
 import type { PropsWithChildren, RefObject } from "react";
 import { createRef } from "react";
 
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ROW_HEIGHT } from "src/layouts/Details/Grid/constants";
@@ -70,7 +70,6 @@ const makeScrollRef = (): RefObject<HTMLDivElement | null> => {
 const defaultProps = {
   dagId: "test_dag",
   flatNodes: [BASE_NODE],
-  ganttDataItems: [] as Array<GanttDataItem>,
   gridSummaries: [],
   maxMs: MAX_MS,
   minMs: MIN_MS,
@@ -82,6 +81,75 @@ const defaultProps = {
 describe("GanttTimeline segment bars", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it.each([0, 3])("shows loop iteration %s in the hovered bar's tooltip", async (iteration) => {
+    const segment: GanttDataItem = {
+      regionId: "11111111-1111-1111-1111-111111111111",
+      regionIndex: iteration,
+      state: "success",
+      taskId: "task_1",
+      taskInstanceId: "retained-execution",
+      tryNumber: 1,
+      x: [MIN_MS, MAX_MS],
+      y: "task_1",
+    };
+
+    render(
+      <GanttTimeline {...defaultProps} rowSegments={[[segment]]} scrollContainerRef={makeScrollRef()} />,
+      { wrapper: TestWrapper },
+    );
+
+    fireEvent.pointerMove(screen.getByRole("link"), { pointerType: "mouse" });
+
+    expect(await screen.findByText(`taskInstance.iteration: ${iteration}`)).toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      name: "ordinary task",
+      node: BASE_NODE,
+      regionId: "00000000-0000-0000-0000-000000000000",
+      regionIndex: -1,
+    },
+    {
+      name: "legacy mapped slot",
+      node: BASE_NODE,
+      regionId: "00000000-0000-0000-0000-000000000000",
+      regionIndex: 2,
+    },
+    {
+      name: "mapped aggregate",
+      node: { ...BASE_NODE, is_mapped: true },
+      regionId: "mapping",
+      regionIndex: 2,
+    },
+    { name: "group aggregate", node: { ...BASE_NODE, isGroup: true }, regionId: "loop", regionIndex: 2 },
+  ])("does not label $name as one loop iteration", async ({ node, regionId, regionIndex }) => {
+    const segment: GanttDataItem = {
+      regionId,
+      regionIndex,
+      state: "success",
+      taskId: "task_1",
+      tryNumber: 1,
+      x: [MIN_MS, MAX_MS],
+      y: "task_1",
+    };
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        flatNodes={[node]}
+        rowSegments={[[segment]]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    fireEvent.pointerMove(screen.getByRole("link"), { pointerType: "mouse" });
+
+    expect(await screen.findByText("taskId: task_1")).toBeInTheDocument();
+    expect(screen.queryByText(/taskInstance.iteration/u)).not.toBeInTheDocument();
   });
 
   it("renders a single execution bar when only start_date is present", () => {
@@ -98,7 +166,6 @@ describe("GanttTimeline segment bars", () => {
     render(
       <GanttTimeline
         {...defaultProps}
-        ganttDataItems={[executionSegment]}
         rowSegments={[[executionSegment]]}
         scrollContainerRef={makeScrollRef()}
       />,
@@ -131,12 +198,7 @@ describe("GanttTimeline segment bars", () => {
     const segments = [queuedSegment, executionSegment];
 
     render(
-      <GanttTimeline
-        {...defaultProps}
-        ganttDataItems={segments}
-        rowSegments={[segments]}
-        scrollContainerRef={makeScrollRef()}
-      />,
+      <GanttTimeline {...defaultProps} rowSegments={[segments]} scrollContainerRef={makeScrollRef()} />,
       { wrapper: TestWrapper },
     );
 
@@ -174,12 +236,7 @@ describe("GanttTimeline segment bars", () => {
     const segments = [scheduledSegment, queuedSegment, executionSegment];
 
     render(
-      <GanttTimeline
-        {...defaultProps}
-        ganttDataItems={segments}
-        rowSegments={[segments]}
-        scrollContainerRef={makeScrollRef()}
-      />,
+      <GanttTimeline {...defaultProps} rowSegments={[segments]} scrollContainerRef={makeScrollRef()} />,
       { wrapper: TestWrapper },
     );
 
@@ -224,7 +281,6 @@ describe("GanttTimeline segment bars", () => {
       <GanttTimeline
         {...defaultProps}
         flatNodes={[BASE_NODE, node2]}
-        ganttDataItems={[t1Scheduled, t1Exec, t2Exec]}
         rowSegments={[[t1Scheduled, t1Exec], [t2Exec]]}
         scrollContainerRef={makeScrollRef()}
       />,
@@ -240,7 +296,6 @@ describe("GanttTimeline segment bars", () => {
       <GanttTimeline
         {...defaultProps}
         flatNodes={[BASE_NODE]}
-        ganttDataItems={[]}
         rowSegments={[[]]}
         scrollContainerRef={makeScrollRef()}
       />,
@@ -312,12 +367,7 @@ describe("GanttTimeline segment bars", () => {
     const segments = [scheduledSegment, queuedSegment, executionSegment];
 
     render(
-      <GanttTimeline
-        {...defaultProps}
-        ganttDataItems={segments}
-        rowSegments={[segments]}
-        scrollContainerRef={makeScrollRef()}
-      />,
+      <GanttTimeline {...defaultProps} rowSegments={[segments]} scrollContainerRef={makeScrollRef()} />,
       { wrapper: TestWrapper },
     );
 
@@ -361,7 +411,6 @@ describe("GanttTimeline segment bars", () => {
       <GanttTimeline
         {...defaultProps}
         flatNodes={[groupNode, BASE_NODE]}
-        ganttDataItems={[groupSegment, leafSegment]}
         rowSegments={[[groupSegment], [leafSegment]]}
         scrollContainerRef={makeScrollRef()}
       />,

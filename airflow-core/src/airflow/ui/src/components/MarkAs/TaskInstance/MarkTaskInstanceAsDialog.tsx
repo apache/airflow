@@ -45,13 +45,15 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const dagRunId = taskInstance.dag_run_id;
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
+  const isRegional =
+    Boolean(taskInstance.region_id) && taskInstance.region_id !== "00000000-0000-0000-0000-000000000000";
   const { t: translate } = useTranslation();
 
   const [markTaskInstanceDefaultOptions] = useMarkTaskInstanceDefaultOptions();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(markTaskInstanceDefaultOptions);
 
-  const past = selectedOptions.includes("past");
-  const future = selectedOptions.includes("future");
+  const past = !isRegional && selectedOptions.includes("past");
+  const future = !isRegional && selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
 
@@ -84,6 +86,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
       refetchOnMount: "always",
     },
     requestBody: {
+      ...(isRegional ? { region_id: taskInstance.region_id, region_index: taskInstance.region_index } : {}),
       include_downstream: downstream,
       include_future: future,
       include_past: past,
@@ -110,6 +113,9 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
               dagRunId,
               mapIndex,
               requestBody: {
+                ...(isRegional
+                  ? { region_id: taskInstance.region_id, region_index: taskInstance.region_index }
+                  : {}),
                 include_downstream: downstream,
                 include_future: future,
                 include_past: past,
@@ -149,12 +155,12 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
           onChange={setSelectedOptions}
           options={[
             {
-              disabled: taskInstance.logical_date === null,
+              disabled: isRegional || taskInstance.logical_date === null,
               label: translate("dags:runAndTaskActions.options.past"),
               value: "past",
             },
             {
-              disabled: taskInstance.logical_date === null,
+              disabled: isRegional || taskInstance.logical_date === null,
               label: translate("dags:runAndTaskActions.options.future"),
               value: "future",
             },

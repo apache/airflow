@@ -20,6 +20,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
+  useDagRunServiceGetExecutionKey,
+  useTaskInstanceServiceGetMappedTaskInstanceKey,
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
   UseGanttServiceGetGanttDataKeyFn,
@@ -113,6 +115,8 @@ export const useClearTaskInstances = ({
     ];
 
     const queryKeys = [
+      [useDagRunServiceGetExecutionKey, { dagId, dagRunId }],
+      [useTaskInstanceServiceGetMappedTaskInstanceKey, { dagId, dagRunId }],
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],

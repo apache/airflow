@@ -17,30 +17,33 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
+import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
 import { Wrapper } from "src/utils/Wrapper";
 
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 
+const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
+
 vi.mock("src/queries/usePatchTaskInstance", () => ({
   usePatchTaskInstance: () => ({
     isPending: false,
-    mutate: vi.fn(),
+    mutate,
   }),
 }));
 
 vi.mock("src/queries/usePatchTaskInstanceDryRun", () => ({
-  usePatchTaskInstanceDryRun: () => ({
+  usePatchTaskInstanceDryRun: vi.fn(() => ({
     data: {
       task_instances: [],
       total_entries: 0,
     },
     isPending: false,
-  }),
+  })),
 }));
 
 const taskInstance: TaskInstanceResponse = {
@@ -83,6 +86,37 @@ const taskInstance: TaskInstanceResponse = {
 };
 
 describe("MarkTaskInstanceAsDialog", () => {
+  it("marks an exact regional execution and disables cross-run scope", () => {
+    const regional = {
+      ...taskInstance,
+      map_index: -1,
+      region_id: "11111111-1111-4111-8111-111111111111",
+      region_index: 3,
+    };
+
+    render(<MarkTaskInstanceAsDialog onClose={vi.fn()} open state="success" taskInstance={regional} />, {
+      wrapper: Wrapper,
+    });
+    expect(screen.getByRole("button", { name: /past/iu })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /future/iu })).toBeDisabled();
+    expect(vi.mocked(usePatchTaskInstanceDryRun).mock.lastCall?.[0]).toMatchObject({
+      requestBody: {
+        include_future: false,
+        include_past: false,
+        region_id: regional.region_id,
+        region_index: 3,
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /confirm/iu }));
+    expect(mutate.mock.lastCall?.[0]).toMatchObject({
+      requestBody: {
+        include_future: false,
+        include_past: false,
+        region_id: regional.region_id,
+        region_index: 3,
+      },
+    });
+  });
   it("does not select downstream by default", () => {
     render(<MarkTaskInstanceAsDialog onClose={vi.fn()} open state="success" taskInstance={taskInstance} />, {
       wrapper: Wrapper,

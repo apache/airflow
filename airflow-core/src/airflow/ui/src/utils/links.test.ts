@@ -30,6 +30,21 @@ import {
 } from "./links";
 
 describe("getTaskInstanceLink", () => {
+  it("links a regional task DTO by exact region and try while preserving public map position", () => {
+    const task = {
+      dag_id: "dag",
+      dag_run_id: "run",
+      map_index: -1,
+      region_id: "11111111-1111-4111-8111-111111111111",
+      region_index: 3,
+      task_id: "body.work",
+      try_number: 2,
+    } as TaskInstanceResponse;
+
+    expect(getTaskInstanceLink(task, "logs")).toBe(
+      "/dags/dag/runs/run/tasks/body.work/logs?region_id=11111111-1111-4111-8111-111111111111&region_index=3&try_number=2",
+    );
+  });
   const testCases = [
     // Individual parameters tests
     {
@@ -60,6 +75,7 @@ describe("getTaskInstanceLink", () => {
         dag_id: "my_dag",
         dag_run_id: "run_123",
         map_index: -1,
+        region_id: "00000000-0000-0000-0000-000000000000",
         task_id: "task_1",
       } as TaskInstanceResponse,
     },
@@ -70,6 +86,7 @@ describe("getTaskInstanceLink", () => {
         dag_id: "my_dag",
         dag_run_id: "run_123",
         map_index: 5,
+        region_id: "00000000-0000-0000-0000-000000000000",
         task_id: "task_1",
       } as TaskInstanceResponse,
     },
@@ -80,6 +97,7 @@ describe("getTaskInstanceLink", () => {
         dag_id: "test_dag",
         dag_run_id: "test_run",
         map_index: 0,
+        region_id: "00000000-0000-0000-0000-000000000000",
         task_id: "mapped_task",
       } as TaskInstanceResponse,
     },

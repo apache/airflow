@@ -46,12 +46,16 @@ export const useUpdateHITLDetail = ({
   dagRunId,
   mapIndex,
   onSuccess,
+  regionId,
+  regionIndex,
   taskId,
 }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number | undefined;
   onSuccess?: () => void;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
 }) => {
   const queryClient = useQueryClient();
@@ -105,6 +109,8 @@ export const useUpdateHITLDetail = ({
         dagId,
         dagRunId,
         mapIndex: mapIndexValue,
+        regionId,
+        regionIndex,
         requestBody,
         taskId,
       });

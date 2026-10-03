@@ -68,6 +68,25 @@
     "upcomingCount_one": "{{count}} Upcoming Deadline",
     "upcomingCount_other": "{{count}} Upcoming Deadlines"
   },
+  "execution": {
+    "clearAffected_one": "{{count}} execution will be cleared.",
+    "clearAffected_other": "{{count}} executions will be cleared.",
+    "clearDownstream": "Clear downstream tasks",
+    "clearLater": "Clear later loop iterations",
+    "clearNote": "Reason for clearing (optional)",
+    "clearSelected": "Clear selected executions",
+    "clearTitle": "Clear selected executions",
+    "clearWhole": "Clear whole mapped expansions",
+    "iteration": "{{node}} · Iteration {{index}}",
+    "mapped_one": "{{task}} ({{count}} mapped task on this page)",
+    "mapped_other": "{{task}} ({{count}} mapped tasks on this page)",
+    "nextPage": "Next page",
+    "page": "Showing {{start}}–{{end}} of {{total}} executions",
+    "previousPage": "Previous page",
+    "runTasks": "Run tasks",
+    "select": "Select {{task}}",
+    "title": "Execution"
+  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {

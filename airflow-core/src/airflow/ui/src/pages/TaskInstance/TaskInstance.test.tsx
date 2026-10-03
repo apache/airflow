@@ -69,6 +69,9 @@ vi.mock("./Header", () => ({
       {taskInstance.task_id}:{taskInstance.state ?? "none"}:{taskInstance.try_number}
     </div>
   ),
+  HistoryHeader: ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => (
+    <div>{taskInstance.id}</div>
+  ),
 }));
 
 const DAG_ID = "test_dag";
@@ -122,6 +125,124 @@ const Location = () => {
 };
 
 describe("TaskInstance", () => {
+  it("opens an exact retained try without a live coordinate", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const regionId = "11111111-1111-4111-8111-111111111111";
+
+    vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockRejectedValue({ status: 404 });
+    const history = vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "success", 2),
+      id: "retained-id",
+      region_id: regionId,
+      region_index: 3,
+    });
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/logs?region_id=${regionId}&region_index=3&try_number=2`,
+        ]}
+      >
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+    expect(await screen.findByText("retained-id")).toBeVisible();
+    expect(history).toHaveBeenCalledWith(
+      expect.objectContaining({ regionId, regionIndex: 3, taskTryNumber: 2 }),
+    );
+    expect(screen.queryByRole("link", { name: "tabs.storage" })).not.toBeInTheDocument();
+  });
+  it.each(["logs", "xcom"])(
+    "opens a retained execution from %s without showing its current replacement or exposing live-only tabs",
+    async (tab) => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const regionId = "11111111-1111-4111-8111-111111111111";
+
+      vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+        ...buildTaskInstance(TASK_A, "running", 3),
+        id: "current-id",
+      });
+      const history = vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+        ...buildTaskInstance(TASK_A, "success", 2),
+        id: "retained-id",
+        region_id: regionId,
+        region_index: 3,
+      });
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/${tab}?region_id=${regionId}&region_index=3&try_number=2`,
+          ]}
+        >
+          <Location />
+          <Routes>
+            <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+              <Route element={<div />} path="*" />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+        { wrapper: createWrapper(queryClient) },
+      );
+
+      expect(await screen.findByText("retained-id")).toBeVisible();
+      expect(screen.getByTestId("location").textContent).toContain(`/tasks/${TASK_A}/logs?`);
+      expect(history).toHaveBeenCalledWith(
+        expect.objectContaining({ regionId, regionIndex: 3, taskTryNumber: 2 }),
+      );
+      expect(screen.queryByText("current-id")).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "tabs.storage" })).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "tabs.details" })).toHaveAttribute(
+        "href",
+        expect.stringContaining(`region_id=${regionId}`),
+      );
+    },
+  );
+  it.each(["11111111-1111-4111-8111-111111111111", "00000000-0000-0000-0000-000000000000"])(
+    "resolves coordinate %s and preserves it across task tabs",
+    async (regionId) => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const fetch = vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+        ...buildTaskInstance(TASK_A, "success", 2),
+        region_id: regionId,
+        region_index: 3,
+      });
+
+      vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+        ...buildTaskInstance(TASK_A, "success", 2),
+        region_id: regionId,
+        region_index: 3,
+      });
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/logs?region_id=${regionId}&region_index=3&try_number=2`,
+          ]}
+        >
+          <Location />
+          <Routes>
+            <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+              <Route element={<div />} path="*" />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+        { wrapper: createWrapper(queryClient) },
+      );
+      expect(await screen.findByText(`${TASK_A}:success:2`)).toBeTruthy();
+      expect(fetch).toHaveBeenCalledWith(expect.objectContaining({ mapIndex: -1, regionId, regionIndex: 3 }));
+      expect(screen.getByRole("link", { name: "tabs.auditLog" })).toBeVisible();
+      fireEvent.click(screen.getByRole("link", { name: "tabs.details" }));
+      expect(screen.getByTestId("location").textContent).toContain(`region_id=${regionId}`);
+      expect(screen.getByTestId("location").textContent).toContain("region_index=3");
+    },
+  );
+
   it.each(["", "?try_number=1&log_level=error"])(
     "keeps the selected try across task tabs with %s",
     async (search) => {

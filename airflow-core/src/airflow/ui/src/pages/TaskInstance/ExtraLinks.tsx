@@ -23,6 +23,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { getSafeExternalUrl } from "src/utils/links";
 
 type ExtraLinksProps = {
@@ -43,11 +44,13 @@ export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams] = useSearchParams();
+  const coordinates = useTaskInstanceCoordinates();
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const tryNumber = tryNumberParam === null ? undefined : parseInt(tryNumberParam, 10);
 
   const { data } = useTaskInstanceServiceGetExtraLinks(
     {
+      ...coordinates,
       dagId,
       dagRunId: runId,
       mapIndex: parseInt(mapIndex, 10),

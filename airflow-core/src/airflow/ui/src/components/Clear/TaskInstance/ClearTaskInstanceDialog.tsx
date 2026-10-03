@@ -41,6 +41,7 @@ import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { ClearExecutionDialog } from "./ClearExecutionDialog";
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
 import { getRunOnLatestVersionState } from "./runOnLatestVersion";
 
@@ -399,4 +400,27 @@ const ClearTaskInstanceDialog = (props: Props) => {
   );
 };
 
-export default ClearTaskInstanceDialog;
+const ScopedClearTaskInstanceDialog = (props: Props) => {
+  const { allMapped } = props;
+
+  if (allMapped) {
+    return <ClearTaskInstanceDialog {...props} />;
+  }
+  const { onClose, open, taskInstance } = props;
+
+  if (taskInstance.region_id !== "00000000-0000-0000-0000-000000000000") {
+    return (
+      <ClearExecutionDialog
+        dagId={taskInstance.dag_id}
+        executions={[taskInstance]}
+        onClose={onClose}
+        open={open}
+        runId={taskInstance.dag_run_id}
+      />
+    );
+  }
+
+  return <ClearTaskInstanceDialog {...props} />;
+};
+
+export default ScopedClearTaskInstanceDialog;

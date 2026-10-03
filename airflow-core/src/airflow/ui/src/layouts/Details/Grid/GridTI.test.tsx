@@ -81,6 +81,17 @@ const renderGridTI = (
   );
 
 describe("GridTI", () => {
+  it("drops another execution's exact region when following an aggregate cell", () => {
+    renderGridTI(
+      `/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task?region_id=11111111-1111-4111-8111-111111111111&region_index=3&try_number=2&log_level=error`,
+      { taskId: "other_task" },
+    );
+    const link = screen.getByRole("link");
+
+    expect(link).toHaveAttribute("href", expect.stringContaining("log_level=error"));
+    expect(link).not.toHaveAttribute("href", expect.stringContaining("region_"));
+    expect(link).not.toHaveAttribute("href", expect.stringContaining("try_number="));
+  });
   beforeEach(() => {
     colorModeMock.mockReturnValue({ colorMode: "light" });
   });

@@ -22,7 +22,7 @@ import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { useEventLogServiceGetEventLogs } from "openapi/queries";
+import { useEventLogServiceGetEventLogs, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import type { EventLogResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
@@ -35,6 +35,7 @@ import Time from "src/components/Time";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 
@@ -183,7 +184,23 @@ const {
 
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
-  const { dagId, runId, taskId } = useParams();
+  const { dagId, mapIndex = "-1", runId, taskId } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
+  const regional =
+    taskId !== undefined &&
+    coordinates.regionId !== undefined &&
+    coordinates.regionId !== "00000000-0000-0000-0000-000000000000";
+  const { data: selectedTask } = useTaskInstanceServiceGetMappedTaskInstance(
+    {
+      ...coordinates,
+      dagId: dagId ?? "",
+      dagRunId: runId ?? "",
+      mapIndex: Number(mapIndex),
+      taskId: taskId ?? "",
+    },
+    undefined,
+    { enabled: regional },
+  );
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
@@ -255,18 +272,20 @@ export const Events = () => {
       ...dagIdArg,
       ...eventArg,
       limit: pagination.pageSize,
-      mapIndex: mapIndexNumber,
+      mapIndex: regional ? undefined : mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      taskInstanceId: regional ? selectedTask?.id : undefined,
       ...ownerArg,
       runId: runId ?? undefined,
       ...runIdArg,
       taskId: taskId ?? undefined,
       ...taskIdArg,
       teams: teams.length > 0 ? teams : undefined,
-      tryNumber: tryNumberNumber,
+      tryNumber: regional ? undefined : tryNumberNumber,
     },
     undefined,
+    { enabled: !regional || selectedTask !== undefined },
   );
 
   const eventLogs = data?.event_logs ?? [];

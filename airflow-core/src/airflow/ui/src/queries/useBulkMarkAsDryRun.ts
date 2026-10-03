@@ -64,6 +64,9 @@ export const useBulkMarkAsDryRun = (
           dagRunId: ti.dag_run_id,
           mapIndex: ti.map_index,
           requestBody: {
+            ...(ti.region_id && ti.region_id !== "00000000-0000-0000-0000-000000000000"
+              ? { region_id: ti.region_id, region_index: ti.region_index }
+              : {}),
             include_downstream: options.includeDownstream,
             include_future: options.includeFuture,
             include_past: options.includePast,
@@ -78,6 +81,7 @@ export const useBulkMarkAsDryRun = (
         ti.dag_run_id,
         ti.task_id,
         ti.map_index,
+        ti.id,
         {
           include_downstream: options.includeDownstream,
           include_future: options.includeFuture,
@@ -98,7 +102,7 @@ export const useBulkMarkAsDryRun = (
 
     for (const result of results) {
       for (const ti of result.data?.task_instances ?? []) {
-        const key = `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
+        const key = ti.id;
 
         if (!seen.has(key)) {
           seen.add(key);
