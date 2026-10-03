@@ -43,7 +43,9 @@ from http import HTTPStatus
 import pytest
 import requests
 
+from airflow_e2e_tests.constants import TS_SDK_BUNDLE_FILE, TS_SDK_TASK_HANDLER_BUNDLE
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
+from airflow_e2e_tests.e2e_test_utils.lang_sdk import get_running_artifact_record
 
 # Coordinator startup only needs to launch node with the prebuilt bundle;
 # allow room for scheduling and the Python upstream task.
@@ -86,6 +88,18 @@ class _CompletedRun:
                 return text
             time.sleep(3)
 
+    def log_records(self, task_id: str, try_number: int = 1) -> list[dict]:
+        """Fetch the structured task-log records, retrying until present."""
+        deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
+        while True:
+            resp = self.client.get_task_logs(
+                dag_id=self.dag_id, run_id=self.run_id, task_id=task_id, try_number=try_number
+            )
+            records = [entry for entry in resp.get("content", []) if isinstance(entry, dict)]
+            if records or time.monotonic() > deadline:
+                return records
+            time.sleep(3)
+
 
 def _trigger_and_wait(dag_id: str) -> _CompletedRun:
     client = AirflowClient()
@@ -107,6 +121,12 @@ def completed_run() -> _CompletedRun:
 def completed_taskflow_run() -> _CompletedRun:
     """Trigger ``typescript_taskflow_example`` once, from the same bundle."""
     return _trigger_and_wait(_TASKFLOW_DAG_ID)
+
+
+def test_build_message_runs_its_bound_bundle(completed_run: _CompletedRun):
+    """The worker runs the bundle the Dag processor bound the stub task to, whatever the bundle is named."""
+    record = get_running_artifact_record(completed_run.log_records("build_message"))
+    assert (record["bundle_name"], record["path"]) == (TS_SDK_TASK_HANDLER_BUNDLE, TS_SDK_BUNDLE_FILE), record
 
 
 def test_dag_run_succeeded(completed_run: _CompletedRun):

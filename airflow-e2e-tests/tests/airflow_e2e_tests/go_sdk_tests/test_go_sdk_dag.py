@@ -72,7 +72,9 @@ from datetime import datetime, timezone
 
 import pytest
 
+from airflow_e2e_tests.constants import GO_SDK_BUNDLE_NAME, GO_SDK_TASK_HANDLER_BUNDLE
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
+from airflow_e2e_tests.e2e_test_utils.lang_sdk import get_running_artifact_record
 
 # The Go extract task sleeps ~20 s + coordinator startup; allow plenty of room.
 _GO_TASK_TIMEOUT = 600
@@ -133,6 +135,13 @@ def completed_run() -> _CompletedRun:
     ti_attrs = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
     ti_states = {task_id: ti.get("state") for task_id, ti in ti_attrs.items()}
     return _CompletedRun(client=client, run_id=run_id, state=state, ti_states=ti_states, ti_attrs=ti_attrs)
+
+
+def test_extract_runs_its_bound_artifact(completed_run: _CompletedRun):
+    """The worker logs the artifact it runs for a stub task, the one the Dag processor bound it to."""
+    completed_run.logs("extract")
+    record = get_running_artifact_record(completed_run.log_records("extract"))
+    assert (record["bundle_name"], record["path"]) == (GO_SDK_TASK_HANDLER_BUNDLE, GO_SDK_BUNDLE_NAME), record
 
 
 def test_task_states(completed_run: _CompletedRun):

@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING
 from airflow_e2e_tests.constants import DAGS_BUNDLE_NAME
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping
+    from collections.abc import Collection, Iterable, Mapping
     from pathlib import Path
 
     from testcontainers.compose import DockerCompose
@@ -42,6 +42,11 @@ if TYPE_CHECKING:
 
 # How long to wait before asking again, in seconds.
 _POLL_INTERVAL = 5
+
+# The record in a task log that says which artifact the worker runs for a stub task, and what it calls an
+# artifact that its workload names.
+RUNNING_ARTIFACT_EVENT = "Running a Lang-SDK artifact"
+_ARTIFACT_ORIGIN = "Task handler artifact"
 
 
 @dataclass(frozen=True)
@@ -297,3 +302,21 @@ def _get_parse_marker(
         if error["filename"] == relative_fileloc
     ]
     return dag["last_parsed_time"], error_times[0] if error_times else None
+
+
+def get_running_artifact_record(records: Iterable[dict]) -> dict:
+    """
+    Return the record that the worker logged before it ran the artifact a stub task was bound to.
+
+    :param records: The structured records of one try of the task log.
+    """
+    records = list(records)
+    running = [record for record in records if record.get("event") == RUNNING_ARTIFACT_EVENT]
+    assert len(running) == 1, (
+        f"Expected one {RUNNING_ARTIFACT_EVENT!r} record in the task log, found {len(running)}. "
+        f"Events: {[record.get('event') for record in records]}"
+    )
+    assert running[0].get("origin") == _ARTIFACT_ORIGIN, (
+        f"The worker ran a file that was not the bound artifact: {running[0]}"
+    )
+    return running[0]
