@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Annotated, cast
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import delete, select
 from sqlalchemy.engine import CursorResult
 
@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryPoolNamePatternSearch,
     QueryPoolNamePrefixPatternSearch,
     SortParam,
+    update_mask_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
@@ -141,7 +142,7 @@ def patch_pool(
     pool_name: str,
     patch_body: PoolPatchBody,
     session: SessionDep,
-    update_mask: list[str] | None = Query(None),
+    update_mask: Annotated[list[str] | None, Depends(update_mask_param_factory(PoolPatchBody))] = None,
 ) -> PoolResponse:
     """Update a Pool."""
     if patch_body.name and patch_body.name != pool_name:
