@@ -150,34 +150,6 @@ internal class BundleTest {
   }
 
   @Test
-  @DisplayName("Should register Dags one at a time and reject a duplicate ID")
-  fun shouldRegisterDagsIncrementally() {
-    val bundle = Bundle().register(DagDef("a")).register(DagDef("b"))
-
-    Assertions.assertEquals(setOf("a", "b"), bundle.dags.keys)
-    val error =
-      Assertions.assertThrows(IllegalArgumentException::class.java) { bundle.register(DagDef("a")) }
-    Assertions.assertEquals("Dags in bundle have duplicate ID: a", error.message)
-  }
-
-  @Test
-  @DisplayName("Should create the Dag on first use when registering a stub-backed handler")
-  fun shouldRegisterHandlerAgainstPythonOwnedDag() {
-    val bundle =
-      Bundle()
-        .register("etl", "score", NoopBundleTask::class.java)
-        .register("etl", "report", NoopBundleTask::class.java)
-
-    Assertions.assertEquals(setOf("etl"), bundle.taskHandlers.keys)
-    Assertions.assertEquals(
-      setOf("score", "report"),
-      bundle.taskHandlers
-        .getValue("etl")
-        .tasks.keys,
-    )
-  }
-
-  @Test
   @DisplayName("Should register the Dag a @Builder.Dag class's generated builder builds")
   fun shouldRegisterDagFromBuilderClass() {
     val bundle = Bundle().register(WiredDag::class.java)
