@@ -54,9 +54,9 @@ from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaise
 if TYPE_CHECKING:
     import pathlib
     from collections.abc import Sequence
+    from typing import Self
 
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client

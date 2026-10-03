@@ -23,7 +23,7 @@ import inspect
 import json
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 from uuid import UUID
@@ -86,8 +86,9 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.log import amask_secret, mask_secret
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from pydantic.types import JsonValue
-    from typing_extensions import Self
 
     from airflow.sdk import Variable
     from airflow.sdk._shared.state import TaskScope
@@ -639,7 +640,7 @@ class TaskStateStoreAccessor:
             raise ValueError("Cannot set value as None")
 
         # expires_at is always resolved on the worker in UTC before being sent.
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         if retention is NEVER_EXPIRE:
             expires_at = None
         elif retention is not None:

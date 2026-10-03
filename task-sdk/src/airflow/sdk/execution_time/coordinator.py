@@ -54,9 +54,9 @@ from airflow.sdk.configuration import conf
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping
     from os import PathLike
+    from typing import Self
 
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance

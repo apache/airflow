@@ -37,9 +37,9 @@ from airflow.sdk.coordinators.node._bundle_reader import read_bundle
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import Self
 
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
 

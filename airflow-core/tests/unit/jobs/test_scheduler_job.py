@@ -15061,13 +15061,13 @@ class TestReapStaleConnectionTests:
             StartOfDayMapper(),
             "2024-03-15T10:30:00",
             "2024-03-15",
-            datetime.datetime(2024, 3, 15, 0, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2024, 3, 15, 0, 0, 0, tzinfo=datetime.UTC),
         ),
         (
             RollupMapper(upstream_mapper=StartOfHourMapper(), window=HourWindow()),
             "2024-01-01T00:00:00",
             "2024-01-01T00",
-            datetime.datetime(2024, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2024, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
         ),
         (
             IdentityMapper(),
@@ -15139,7 +15139,7 @@ def _make_runner() -> SchedulerJobRunner:
     )
 
 
-_CARRIED_DATE = datetime.datetime(2026, 5, 20, 1, 0, 0, tzinfo=datetime.timezone.utc)
+_CARRIED_DATE = datetime.datetime(2026, 5, 20, 1, 0, 0, tzinfo=datetime.UTC)
 
 
 @pytest.mark.parametrize(
@@ -15161,7 +15161,7 @@ _CARRIED_DATE = datetime.datetime(2026, 5, 20, 1, 0, 0, tzinfo=datetime.timezone
             [CoreStartOfDayMapper(timezone="America/New_York")],
             "2024-03-15",
             None,
-            datetime.datetime(2024, 3, 15, 4, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2024, 3, 15, 4, 0, 0, tzinfo=datetime.UTC),
             id="non-utc-uses-mapper-timezone",
         ),
         # Key cannot be decoded by the mapper's format → caught → None, and the carried
@@ -15172,7 +15172,7 @@ _CARRIED_DATE = datetime.datetime(2026, 5, 20, 1, 0, 0, tzinfo=datetime.timezone
             [CoreFanOutMapper(upstream_mapper=CoreStartOfWeekMapper(), window=CoreWeekWindow())],
             "2024-01-16",
             None,
-            datetime.datetime(2024, 1, 16, 0, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2024, 1, 16, 0, 0, 0, tzinfo=datetime.UTC),
             id="fanout-uses-downstream-mapper",
         ),
         # Two temporal mappers resolving the same instant → that single anchor.
@@ -15180,7 +15180,7 @@ _CARRIED_DATE = datetime.datetime(2026, 5, 20, 1, 0, 0, tzinfo=datetime.timezone
             [CoreStartOfDayMapper(), CoreStartOfDayMapper()],
             "2024-03-15",
             None,
-            datetime.datetime(2024, 3, 15, 0, 0, 0, tzinfo=datetime.timezone.utc),
+            datetime.datetime(2024, 3, 15, 0, 0, 0, tzinfo=datetime.UTC),
             id="agreeing-mappers-anchor",
         ),
         # Same key, UTC midnight (00:00Z) vs NY midnight (04:00Z) — distinct instants → None,
