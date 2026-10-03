@@ -498,7 +498,10 @@ doing it immediately in the code they can add a comment ``# use next version``
 to the line of ``pyproject.toml`` file of the provider that refers to the provider, which next version
 should be used. This comment will be picked up by the``update-providers-next-version`` command and the
 version of the dependent provider will be updated to the next version and comment will be
-removed.
+removed. Pins of a provider whose current version already has a final release tag are left untouched,
+because the "next version" of that provider is then a future release. When only release candidate
+tags exist the pin is still updated with a warning: revert that update if the provider is in vote
+rather than re-cut in this release.
 
 ```shell script
 breeze release-management update-providers-next-version

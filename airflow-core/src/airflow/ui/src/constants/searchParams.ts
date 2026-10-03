@@ -17,6 +17,7 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  ADVANCED_SEARCH = "advanced_search",
   AFTER = "after",
   ASSET_EVENT_DATE_RANGE = "asset_event_date_range",
   BEFORE = "before",
@@ -31,7 +32,9 @@ export enum SearchParamsKeys {
   CREATED_AT_LTE = "created_at_lte",
   CREATED_AT_RANGE = "created_at_range",
   CURSOR = "cursor",
+  DAG_BUNDLE = "dag_bundle",
   DAG_DISPLAY_NAME_PATTERN = "dag_display_name_pattern",
+  DAG_FOLDER = "dag_folder",
   DAG_ID = "dag_id",
   DAG_ID_PATTERN = "dag_id_pattern",
   DAG_RUN_STATE = "dag_run_state",

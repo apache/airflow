@@ -83,6 +83,7 @@ When Multi-Team mode is enabled, the following resources can be scoped to specif
 - **Connections**: Team members can only access connections owned by their team or global connections
 - **Pools**: Pools can be assigned to teams
 - **XComs**: Tasks can only access XComs of Dags in their own team (plus, for reads, global Dags)
+- **Plugins**: A plugin can declare the team that owns it, scoping what it contributes to that team
 
 Resources without a team assignment are considered **global** and accessible to all teams.
 
@@ -108,6 +109,20 @@ Secrets Backends are supported on a case by case basis.
 
 When a task requests a Variable or Connection, the secrets backend will return a team-specific value, if any. The
 backend will automatically resolve the correct value based on the requesting task's team.
+
+Plugins
+"""""""
+
+A plugin declares the team that owns it by setting ``team_name`` in its own code. Airflow then offers its
+API endpoints, UI views, macros, operator extra links and scheduling classes (timetables, partition mappers,
+deadline references, etc) to that team only. A plugin that leaves ``team_name`` unset is global, as every
+plugin written before this feature is.
+
+Listeners are deployment-wide: every listener receives events for all teams, and choosing which listeners run
+is the Deployment Manager's responsibility.
+
+See :ref:`plugins-multi-team` for what each plugin attribute does, and for the cases where the scoping is
+logical rather than enforceable.
 
 Auth Manager
 """"""""""""
@@ -1147,7 +1162,6 @@ Multi-Team mode is currently an experimental feature in preview. It is not yet f
 
 - Some UI elements may not be fully team-aware
 - Command and Secrets based lookup for team based configuration
-- Plugin support
 
 Global Uniqueness of Identifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

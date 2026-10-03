@@ -6750,7 +6750,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "adlfs", specifier = ">=2023.10.0" },
+    { name = "adlfs", specifier = ">=2026.5.0" },
     { name = "aiohttp", specifier = ">=3.14.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
@@ -6763,7 +6763,7 @@ requires-dist = [
     { name = "azure-ai-projects", specifier = ">=2.2.0" },
     { name = "azure-batch", specifier = ">=15.0.0" },
     { name = "azure-cosmos", specifier = ">=4.15.0" },
-    { name = "azure-datalake-store", specifier = ">=0.0.45,<1" },
+    { name = "azure-datalake-store", specifier = ">=1.0.1" },
     { name = "azure-identity", specifier = ">=1.25.3" },
     { name = "azure-keyvault-secrets", specifier = ">=4.10.0" },
     { name = "azure-kusto-data", specifier = ">=4.1.0,!=5.0.0" },
@@ -6783,7 +6783,7 @@ requires-dist = [
     { name = "azure-synapse-spark", specifier = ">=0.7.0" },
     { name = "microsoft-kiota-abstractions", specifier = ">=1.9.4,<2.0.0" },
     { name = "microsoft-kiota-authentication-azure", specifier = ">=1.9.4,<2.0.0" },
-    { name = "microsoft-kiota-http", specifier = ">=1.9.4,<2.0.0" },
+    { name = "microsoft-kiota-http", specifier = ">=1.9.4,<1.13.0" },
     { name = "microsoft-kiota-serialization-json", specifier = ">=1.9.4" },
     { name = "microsoft-kiota-serialization-text", specifier = ">=1.9.4" },
     { name = "msal-extensions", specifier = ">=1.3.0" },
@@ -10162,16 +10162,15 @@ wheels = [
 
 [[package]]
 name = "azure-datalake-store"
-version = "0.0.53"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
-    { name = "msal" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/ff/61369d06422b5ac48067215ff404841342651b14a89b46c8d8e1507c8f17/azure-datalake-store-0.0.53.tar.gz", hash = "sha256:05b6de62ee3f2a0a6e6941e6933b792b800c3e7f6ffce2fc324bc19875757393", size = 71430, upload-time = "2023-05-10T21:17:05.665Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/58/41042543710a3a0be3bd1b7851c790a3087cdbf4c8eb14efcd7a0a910ea7/azure_datalake_store-1.0.1.tar.gz", hash = "sha256:5364d4445aab154a1c7cb10215629c3ce46ce5c7aaaf16071890c03fae53a035", size = 69462, upload-time = "2025-06-11T15:43:07.211Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/2a/75f56b14f115189155cf12e46b366ad1fe3357af5a1a7c09f7446662d617/azure_datalake_store-0.0.53-py2.py3-none-any.whl", hash = "sha256:a30c902a6e360aa47d7f69f086b426729784e71c536f330b691647a51dc42b2b", size = 55308, upload-time = "2023-05-10T21:17:02.629Z" },
+    { url = "https://files.pythonhosted.org/packages/75/bd/9cc9f114dbf90717dac49f1f7365156a9a005ef7016df2d4eb28d6442b90/azure_datalake_store-1.0.1-py2.py3-none-any.whl", hash = "sha256:3772a2a247aaf9f5fa4b0f2cc0a0225072960cc245cfc8130588babb2b9fe705", size = 53141, upload-time = "2025-06-03T23:23:46.377Z" },
 ]
 
 [[package]]
@@ -17648,7 +17647,7 @@ wheels = [
 
 [[package]]
 name = "microsoft-kiota-http"
-version = "1.14.0"
+version = "1.12.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -17656,9 +17655,9 @@ dependencies = [
     { name = "opentelemetry-api" },
     { name = "opentelemetry-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/93/8b/6a222510f5121794c6e223001c3a504fb6a2b289329c6f526fd9461842a9/microsoft_kiota_http-1.14.0.tar.gz", hash = "sha256:40f2a72570eb3bd09c3b7134bcc476cb0c19478077712770d0844b11078b83e0", size = 24603, upload-time = "2026-09-21T15:24:32.234Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/6b/efb612761dd1f24e2018951591ac75bc7fe740413cec149ee3222be58743/microsoft_kiota_http-1.12.3.tar.gz", hash = "sha256:42a441de951c5f2d5e292663238018ea0b9e01e7c20715d58f14c44040b42f58", size = 22552, upload-time = "2026-09-11T18:42:38.858Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2e/3f/e4a59b46a39637f21f4d3c578cd4954b644390a85b4b408ae5c11f9d9e5e/microsoft_kiota_http-1.14.0-py3-none-any.whl", hash = "sha256:00de0a14b776e4ba23d87ae08f7c596f7335e3a96f293e800962c168fa271df7", size = 35702, upload-time = "2026-09-21T15:24:39.964Z" },
+    { url = "https://files.pythonhosted.org/packages/81/55/9e95bda1d3a9d9827d7e5d779952a7b677e81b28acfefca0036ccf681dab/microsoft_kiota_http-1.12.3-py3-none-any.whl", hash = "sha256:362d82292016de0641cadcecea8055ca0cfda06390448ce7347a352bd582f006", size = 32074, upload-time = "2026-09-11T18:42:46.425Z" },
 ]
 
 [[package]]

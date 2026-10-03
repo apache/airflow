@@ -43,7 +43,7 @@ from airflow.providers.edge3.models.types import (
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.helpers import prune_dict
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if AIRFLOW_V_3_4_PLUS:
@@ -422,10 +422,7 @@ class EdgeExecutor(BaseExecutor):
         )
         self.log.info("Revoked task instance %s from EdgeExecutor", ti.key)
 
-    @provide_session
-    def try_adopt_task_instances(
-        self, tis: Sequence[TaskInstance], *, session: Session = NEW_SESSION
-    ) -> Sequence[TaskInstance]:
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Adopt the task instances whose job is still in flight in the edge_job table.
 
@@ -435,10 +432,14 @@ class EdgeExecutor(BaseExecutor):
 
         :return: any TaskInstances that were unable to be adopted
         """
-        tracked_keys = self._get_tracked_job_keys(
-            session,
-            states=(TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING, TaskInstanceState.RUNNING),
-        )
+        # The scheduler calls this without passing a session, while its own scoped session still holds
+        # ``tis``. A scoped session here would be that same session, and create_session() would commit
+        # and close it on exit, which detaches ``tis`` before the scheduler reads them again.
+        with create_session(scoped=False) as session:
+            tracked_keys = self._get_tracked_job_keys(
+                session,
+                states=(TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING, TaskInstanceState.RUNNING),
+            )
         self.running.update(ti.key for ti in tis if ti.key in tracked_keys)
         return [ti for ti in tis if ti.key not in tracked_keys]
 

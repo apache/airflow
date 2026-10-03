@@ -23,6 +23,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useDags = ({
   advancedSearch = false,
+  bundleName,
   dagDisplayNamePattern,
   dagIdPattern,
   dagRunsLimit,
@@ -37,6 +38,7 @@ export const useDags = ({
   owners,
   paused,
   pendingHitl,
+  relativeFilelocPrefix,
   schedulingState,
   tags,
   tagsMatchMode,
@@ -44,6 +46,7 @@ export const useDags = ({
   timetableType,
 }: {
   advancedSearch?: boolean;
+  bundleName?: string;
   dagDisplayNamePattern?: string;
   dagIdPattern?: string;
   dagRunsLimit: number;
@@ -58,6 +61,7 @@ export const useDags = ({
   owners?: Array<string>;
   paused?: boolean;
   pendingHitl?: boolean;
+  relativeFilelocPrefix?: string;
   schedulingState?: DagSchedulingState;
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
@@ -71,6 +75,7 @@ export const useDags = ({
       ...(advancedSearch
         ? { dagDisplayNamePattern, dagIdPattern }
         : { dagDisplayNamePrefixPattern: dagDisplayNamePattern, dagIdPrefixPattern: dagIdPattern }),
+      bundleName,
       dagRunsLimit,
       dagRunState,
       dagRunStateWithinHours,
@@ -83,6 +88,7 @@ export const useDags = ({
       orderBy,
       owners,
       paused,
+      relativeFilelocPrefix,
       schedulingState,
       tags,
       tagsMatchMode,

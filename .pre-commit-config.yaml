@@ -348,6 +348,25 @@ repos:
         #   prek run sync-java-sdk-dag-schema --hook-stage manual
         stages: ['manual']
         files: ^java-sdk/sdk/schema/dag-schema\.json$
+      - id: sync-go-sdk-schemas
+        name: Sync Go SDK vendored schemas with the distributions that own them
+        description: "Copy airflow-core's Dag schema and task-sdk's supervisor schema when go-sdk's vendored copies drift"
+        entry: ./scripts/ci/prek/sync_go_sdk_schemas.py
+        language: python
+        pass_filenames: false
+        # Re-vendoring is a go-sdk maintainer's deliberate step after a schema change on
+        # the Python side, not something every commit should do, so this is manual only,
+        # the way sync-java-sdk-dag-schema above is:
+        #   prek run sync-go-sdk-schemas --hook-stage manual
+        # Running it on every commit would make a change to a Python schema fail the PR
+        # of whoever made it, which is the coupling vendoring is here to remove.
+        stages: ['manual']
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^go-sdk/schema/.*\.json$|
+          ^scripts/ci/prek/sync_go_sdk_schemas\.py$
       - id: check-go-sdk-generated-drift
         name: Check Go SDK generated files against the schemas they generate from
         description: "Regenerate the Dag specs and the coordinator-protocol models, and fail when a committed file differs"
@@ -355,10 +374,12 @@ repos:
         # golang so prek provisions the toolchain the generators need, the way the
         # other checks that shell out to `go` in go-sdk get theirs.
         language: golang
+        # The vendored schemas, not the Python originals: sync-go-sdk-schemas above is
+        # what ties those to the copies, as a manual step. This one runs on every commit,
+        # because a refreshed copy that nothing regenerated from is the drift that matters.
         files: >
           (?x)
-          ^airflow-core/src/airflow/serialization/schema\.json$|
-          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^go-sdk/schema/.*\.json$|
           ^go-sdk/airflow/spec\.gen\.go$|
           ^go-sdk/airflow/spec\.go$|
           ^go-sdk/internal/genspec/.*\.go$|

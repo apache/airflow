@@ -40,8 +40,8 @@ func TestTriggerDagRunIsATask(t *testing.T) {
 		ResetDagRun:           true,
 		WaitForCompletion:     true,
 		PokeInterval:          ptr(30 * time.Second),
-		AllowedStates:         []string{"success", "failed"},
-		FailedStates:          []string{"queued", "running"},
+		AllowedStates:         []DagRunState{DagRunStateSuccess, DagRunStateFailed},
+		FailedStates:          []DagRunState{DagRunStateQueued, DagRunStateRunning},
 		SkipWhenAlreadyExists: true,
 		FailWhenDagIsPaused:   true,
 		Note:                  "triggered by etl",
@@ -71,8 +71,8 @@ func TestTriggerDagRunKeepsNilApartFromZero(t *testing.T) {
 		DagID:         "downstream_etl",
 		Conf:          map[string]any{},
 		PokeInterval:  ptr(time.Duration(0)),
-		AllowedStates: []string{},
-		FailedStates:  []string{},
+		AllowedStates: []DagRunState{},
+		FailedStates:  []DagRunState{},
 		Deferrable:    ptr(false),
 	}
 	task = dag.Task(TriggerDagRun(zero), TaskSpec{TaskID: "zero"})
@@ -87,6 +87,7 @@ func TestTriggerDagRunNeedsATaskID(t *testing.T) {
 
 	assert.PanicsWithValue(t, want, func() { Dag("etl").Task(trigger) })
 	assert.PanicsWithValue(t, want, func() { Dag("etl").Task(trigger, TaskSpec{}) })
+	assert.PanicsWithValue(t, want, func() { Dag("etl").Task(trigger, Inputs(), Inputs()) })
 }
 
 // buildNestedConf returns a conf in which maps nest depth levels deep. encoding/json decodes at
@@ -129,7 +130,7 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 		{
 			name: "unknown state in AllowedStates",
 			trigger: TriggerDagRun(TriggerDagRunSpec{
-				DagID: "downstream_etl", AllowedStates: []string{"success", "SUCCESS"},
+				DagID: "downstream_etl", AllowedStates: []DagRunState{DagRunStateSuccess, "SUCCESS"},
 			}),
 			want: `airflow.TriggerDagRunSpec.AllowedStates has "SUCCESS", which is not a Dag ` +
 				`run state; use one of ["queued" "running" "success" "failed"]`,
@@ -137,7 +138,7 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 		{
 			name: "unknown state in FailedStates",
 			trigger: TriggerDagRun(TriggerDagRunSpec{
-				DagID: "downstream_etl", FailedStates: []string{"skipped"},
+				DagID: "downstream_etl", FailedStates: []DagRunState{"skipped"},
 			}),
 			want: `airflow.TriggerDagRunSpec.FailedStates has "skipped", which is not a Dag ` +
 				`run state; use one of ["queued" "running" "success" "failed"]`,
@@ -174,8 +175,8 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 
 func TestTriggerDagRunCopiesTheSpec(t *testing.T) {
 	nested := map[string]any{"table": "rows"}
-	allowed := []string{"success"}
-	failed := []string{"failed"}
+	allowed := []DagRunState{DagRunStateSuccess}
+	failed := []DagRunState{DagRunStateFailed}
 	poke := 30 * time.Second
 	deferrable := true
 	spec := TriggerDagRunSpec{
@@ -191,8 +192,8 @@ func TestTriggerDagRunCopiesTheSpec(t *testing.T) {
 
 	nested["table"] = "changed"
 	spec.Conf["added"] = true
-	allowed[0] = "running"
-	failed[0] = "queued"
+	allowed[0] = DagRunStateRunning
+	failed[0] = DagRunStateQueued
 	poke = time.Minute
 	deferrable = false
 
@@ -204,8 +205,8 @@ func TestTriggerDagRunCopiesTheSpec(t *testing.T) {
 		},
 		stored.Conf,
 	)
-	assert.Equal(t, []string{"success"}, stored.AllowedStates)
-	assert.Equal(t, []string{"failed"}, stored.FailedStates)
+	assert.Equal(t, []DagRunState{DagRunStateSuccess}, stored.AllowedStates)
+	assert.Equal(t, []DagRunState{DagRunStateFailed}, stored.FailedStates)
 	assert.Equal(t, 30*time.Second, *stored.PokeInterval)
 	assert.True(t, *stored.Deferrable)
 }
@@ -249,6 +250,9 @@ func TestTriggerDagRunTakesNoInputs(t *testing.T) {
 	})
 	assert.PanicsWithValue(t, want, func() {
 		dag.Task(trigger, TaskSpec{TaskID: "trigger_downstream"}, Inputs())
+	})
+	assert.PanicsWithValue(t, want, func() {
+		dag.Task(trigger, TaskSpec{TaskID: "trigger_downstream"}, Inputs(extracted), Inputs())
 	})
 	assert.NotPanics(t,
 		func() { dag.Task(trigger, TaskSpec{TaskID: "trigger_downstream"}) },

@@ -410,7 +410,7 @@ export const UseDagServiceGetDagTagsKeyFn = ({ limit, offset, orderBy, tagNamePa
 export type DagServiceGetDagsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagsUi>>;
 export type DagServiceGetDagsUiQueryResult<TData = DagServiceGetDagsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagsUiKey = "DagServiceGetDagsUi";
-export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }: {
+export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -433,12 +433,13 @@ export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundl
   orderBy?: string[];
   owners?: string[];
   paused?: boolean;
+  relativeFilelocPrefix?: string;
   schedulingState?: DagSchedulingState;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
   teams?: string[];
   timetableType?: string[];
-} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }])];
+} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }])];
 export type DagServiceGetDagTimetableTypesUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagTimetableTypesUi>>;
 export type DagServiceGetDagTimetableTypesUiQueryResult<TData = DagServiceGetDagTimetableTypesUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagTimetableTypesUiKey = "DagServiceGetDagTimetableTypesUi";
@@ -447,6 +448,10 @@ export const UseDagServiceGetDagTimetableTypesUiKeyFn = ({ limit, offset, timeta
   offset?: number;
   timetableTypePrefixPattern?: string;
 } = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagTimetableTypesUiKey, ...(queryKey ?? [{ limit, offset, timetableTypePrefixPattern }])];
+export type DagServiceGetDagFoldersDefaultResponse = Awaited<ReturnType<typeof DagService.getDagFolders>>;
+export type DagServiceGetDagFoldersQueryResult<TData = DagServiceGetDagFoldersDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagFoldersKey = "DagServiceGetDagFolders";
+export const UseDagServiceGetDagFoldersKeyFn = (queryKey?: Array<unknown>) => [useDagServiceGetDagFoldersKey, ...(queryKey ?? [])];
 export type DagServiceGetLatestRunInfoDefaultResponse = Awaited<ReturnType<typeof DagService.getLatestRunInfo>>;
 export type DagServiceGetLatestRunInfoQueryResult<TData = DagServiceGetLatestRunInfoDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetLatestRunInfoKey = "DagServiceGetLatestRunInfo";

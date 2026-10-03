@@ -26,8 +26,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// coreSchemaPath is the schema genspec normalizes, reached from this package.
-const coreSchemaPath = "../../../airflow-core/src/airflow/serialization/schema.json"
+// coreSchemaPath is the schema genspec normalizes: go-sdk's vendored copy of
+// airflow-core's, so this test runs in a standalone checkout as well.
+const coreSchemaPath = "../../schema/dag-schema.json"
 
 func schemaFrom(t *testing.T, body string) map[string]any {
 	t.Helper()
