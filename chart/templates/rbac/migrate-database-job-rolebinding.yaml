@@ -17,35 +17,36 @@
  under the License.
 */}}
 
-#############################################
-## Airflow Migrate Database Job ServiceAccount
 ##############################################
-{{- if .Values.migrateDatabaseJob.serviceAccount.create }}
-apiVersion: v1
-kind: ServiceAccount
-automountServiceAccountToken: {{ .Values.migrateDatabaseJob.serviceAccount.automountServiceAccountToken }}
+## Airflow Migrate Database Job Role Binding
+##############################################
+{{- if and .Values.rbac.create .Values.migrateDatabaseJob.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
 metadata:
-  name: {{ include "migrateDatabaseJob.serviceAccountName" . }}
+  name: {{ include "airflow.fullname" . }}-migrate-database-job-rolebinding
+  namespace: "{{ .Release.Namespace }}"
   labels:
     tier: airflow
     component: run-airflow-migrations
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or .Values.labels .Values.migrateDatabaseJob.labels }}
-      {{- mustMerge .Values.migrateDatabaseJob.labels .Values.labels | toYaml | nindent 4 }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- $annotations := dict }}
   {{- if .Values.migrateDatabaseJob.useHelmHooks }}
-    {{- $_ := set $annotations "helm.sh/hook" "post-install,pre-upgrade" }}
-    {{- $_ := set $annotations "helm.sh/hook-weight" "-5" }}
-    {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
-  {{- end }}
-  {{- with .Values.migrateDatabaseJob.serviceAccount.annotations }}
-    {{- $annotations = merge $annotations . }}
-  {{- end }}
-  {{- if $annotations }}
   annotations:
-    {{- include "airflow.tplDict" (dict "values" $annotations "context" $) | nindent 4 }}
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
   {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "airflow.fullname" . }}-migrate-database-job-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "migrateDatabaseJob.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
 {{- end }}
