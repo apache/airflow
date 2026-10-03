@@ -59,10 +59,8 @@ def get_dependency_groups(pyproject_toml_path: Path) -> list[str]:
     """
     Get the dependency groups from pyproject.toml
     """
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
+    import tomllib
+
     airflow_core_toml_dict = tomllib.loads(pyproject_toml_path.read_text())
     return airflow_core_toml_dict["dependency-groups"].keys()
 

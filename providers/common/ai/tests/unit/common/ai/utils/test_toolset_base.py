@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import threading
 import time
 import traceback
@@ -162,7 +161,6 @@ class TestMasking:
         assert caught.value.metadata == {"reason": "***"}
         assert "failed" not in caplog.text
 
-    @pytest.mark.skipif(sys.version_info < (3, 11), reason="ExceptionGroup is built in from Python 3.11")
     def test_masks_the_exceptions_inside_an_exception_group(self, registered_secret):
         cause = ConnectionError(f"socket closed by {registered_secret}")
         inner = ValueError(f"login failed for {registered_secret}")
