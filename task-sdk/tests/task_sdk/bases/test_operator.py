@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
+import os
 import uuid
 import warnings
 from datetime import date, datetime, timedelta, timezone
@@ -1308,3 +1309,69 @@ class TestEventLoop:
                 pass
 
         assert not running.is_closed()
+
+
+class TestTaskConcurrency:
+    """
+    ``task_concurrency`` is read by ``.iterate()`` only and rejected when passed anywhere else.
+
+    ``default_args`` never set it: Airflow 2 used the name for what is now ``max_active_tis_per_dag``,
+    and a DAG that still carries it in its ``default_args`` parsed on Airflow 3 before iterated tasks
+    existed, so it must keep parsing.
+    """
+
+    @pytest.fixture
+    def airflow2_default_args(self):
+        return {"task_concurrency": 1}
+
+    def test_direct_instantiation_rejects_it(self):
+        with DAG("test_dag"):
+            with pytest.raises(TypeError, match="which is now max_active_tis_per_dag"):
+                MockOperator(task_id="op", task_concurrency=2)
+
+    def test_expand_rejects_it(self):
+        with DAG("test_dag"):
+            with pytest.raises(TypeError, match="which is now max_active_tis_per_dag"):
+                MockOperator.partial(task_id="op", task_concurrency=2).expand(arg1=["a", "b"])
+
+    def test_iterate_reads_it(self):
+        with DAG("test_dag"):
+            iterated = MockOperator.partial(task_id="op", task_concurrency=2).iterate(arg1=["a", "b"])
+
+        assert iterated.max_workers == 2
+
+    def test_dag_default_args_do_not_reject_an_operator(self, airflow2_default_args):
+        with DAG("test_dag", default_args=airflow2_default_args):
+            op = MockOperator(task_id="op")
+
+        assert "task_concurrency" not in op._BaseOperator__init_kwargs
+
+    def test_task_default_args_do_not_reject_an_operator(self, airflow2_default_args):
+        with DAG("test_dag"):
+            MockOperator(task_id="op", default_args=airflow2_default_args)
+
+    def test_dag_default_args_do_not_reject_a_task_call(self, airflow2_default_args):
+        with DAG("test_dag", default_args=airflow2_default_args):
+
+            @task_decorator
+            def add_one(x):
+                return x + 1
+
+            add_one(1)
+
+    def test_dag_default_args_do_not_reject_expand(self, airflow2_default_args):
+        with DAG("test_dag", default_args=airflow2_default_args):
+            mapped = MockOperator.partial(task_id="op").expand(arg1=["a", "b"])
+
+        assert "task_concurrency" not in mapped.partial_kwargs
+
+    def test_dag_default_args_do_not_set_it_for_iterate(self, airflow2_default_args):
+        with DAG("test_dag", default_args=airflow2_default_args):
+            iterated = MockOperator.partial(task_id="op").iterate(arg1=["a", "b"])
+
+        assert iterated.max_workers == (os.cpu_count() or 1)
+
+    def test_iterate_does_not_take_it_as_an_iterated_argument(self):
+        with DAG("test_dag"):
+            with pytest.raises(TypeError, match="unexpected keyword argument 'task_concurrency'"):
+                MockOperator.partial(task_id="op").iterate(arg1=["a"], task_concurrency=[1, 2])
