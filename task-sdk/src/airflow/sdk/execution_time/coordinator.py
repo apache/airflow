@@ -289,8 +289,8 @@ class CoordinatorManager:
         """
         Return the coordinator configured under *key* in ``[sdk] coordinators``, building it on first use.
 
-        :raises InvalidCoordinatorError: when *key* is not configured, or its coordinator cannot be
-            imported or built.
+        :raises InvalidCoordinatorError: when *key* is not configured, or its class cannot be imported or
+            called with its kwargs. Other errors from building the coordinator propagate.
         """
         with contextlib.suppress(KeyError):
             return self._created_coordinators[key]

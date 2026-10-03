@@ -85,7 +85,7 @@ class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
         Return the coordinator that parses this importer's files in its Dag bundle.
 
         :raises InvalidCoordinatorError: when no single coordinator can parse them, or the one that can
-            cannot be built.
+            cannot be imported or called with its kwargs. Other errors from building it propagate.
         """
         manager = get_coordinator_manager()
         key = manager.get_dag_parsing_coordinator_key(self.coordinator_classpath, self.bundle_name)
