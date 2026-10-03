@@ -17,11 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
-from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
+from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook, oauth_cb
 
 from unit.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
@@ -395,6 +397,36 @@ class TestManagedKafkaWithDefaultProjectIdHook:
         mock_client.return_value.cluster_path.assert_called_once_with(
             TEST_PROJECT_ID, TEST_LOCATION, TEST_CLUSTER_ID
         )
+
+
+class TestOauthCallback:
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook"), autospec=True)
+    def test_uses_configured_gcp_connection(self, mock_hook):
+        config_str = json.dumps({"gcp_conn_id": TEST_GCP_CONN_ID})
+        expected_token = ("token", 1_700_000_900.0)
+        mock_hook.return_value.get_confluent_token.return_value = expected_token
+
+        assert oauth_cb(config_str) == expected_token
+        assert mock_hook.mock_calls == [
+            mock.call(gcp_conn_id=TEST_GCP_CONN_ID),
+            mock.call().get_confluent_token(config_str),
+        ]
+
+    @pytest.mark.parametrize(
+        ("config_str", "error"),
+        [
+            ("invalid", "Invalid JSON in config_str"),
+            ("[]", "config_str must contain a JSON object"),
+            ("", "Missing 'gcp_conn_id' in config_str"),
+            ('{"gcp_conn_id":null}', "Missing 'gcp_conn_id' in config_str"),
+        ],
+    )
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook"), autospec=True)
+    def test_rejects_invalid_config(self, mock_hook, config_str, error):
+        with pytest.raises(ValueError, match=error):
+            oauth_cb(config_str)
+
+        assert mock_hook.mock_calls == []
 
 
 class TestManagedKafkaWithoutDefaultProjectIdHook:
