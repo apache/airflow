@@ -34,6 +34,7 @@ from airflow.sdk.execution_time.comms import (
     VariableKeysResult,
     VariableResult,
 )
+from airflow.sdk.execution_time.context import _VARIABLE_KEYS_PAGE_SIZE
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -155,8 +156,6 @@ class TestVariableKeys:
 
     def test_keys_paginates_when_results_exceed_page_size(self, mock_supervisor_comms):
         # Simulate two full pages followed by a short page (signals end).
-        from airflow.sdk.execution_time.context import _VARIABLE_KEYS_PAGE_SIZE
-
         page1 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE)]
         page2 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE, _VARIABLE_KEYS_PAGE_SIZE * 2)]
         page3 = ["last_key"]
@@ -202,6 +201,139 @@ class TestVariableKeys:
 
         with pytest.raises(TypeError, match="Unexpected response type"):
             list(results)
+
+
+class TestAsyncVariables:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("deserialize_json", "value", "expected_value"),
+        [
+            pytest.param(False, "my_value", "my_value", id="simple-value"),
+            pytest.param(
+                True,
+                '{"key": "value", "number": 42, "flag": true}',
+                {"key": "value", "number": 42, "flag": True},
+                id="deser-object-value",
+            ),
+        ],
+    )
+    async def test_avar_get(self, deserialize_json, value, expected_value, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = VariableResult(key="my_key", value=value)
+
+        var = await Variable.aget(key="my_key", deserialize_json=deserialize_json)
+        assert var == expected_value
+
+    @pytest.mark.asyncio
+    @patch("airflow.sdk.definitions.variable.amask_secret")
+    async def test_avar_get_returns_default_when_not_found(self, mock_amask_secret, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.VARIABLE_NOT_FOUND, detail={"message": "Variable my_key not found"}
+        )
+
+        var = await Variable.aget(key="my_key", default="default_value")
+
+        assert var == "default_value"
+        mock_amask_secret.assert_awaited_once_with("default_value", name="my_key")
+
+    @pytest.mark.asyncio
+    async def test_avar_get_raises_when_not_found_without_default(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.VARIABLE_NOT_FOUND, detail={"message": "Variable my_key not found"}
+        )
+
+        with pytest.raises(AirflowRuntimeError) as exc_info:
+            await Variable.aget(key="my_key")
+
+        assert exc_info.value.error.error == ErrorType.VARIABLE_NOT_FOUND
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("key", "value", "description", "serialize_json"),
+        [
+            pytest.param("key", "value", "description", False, id="simple-value"),
+            pytest.param(
+                "key2",
+                {"hi": "there", "hello": 42, "flag": True},
+                "description2",
+                True,
+                id="serialize-json-value",
+            ),
+        ],
+    )
+    async def test_avar_set(self, key, value, description, serialize_json, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = None
+
+        await Variable.aset(key=key, value=value, description=description, serialize_json=serialize_json)
+
+        expected_value = value
+        if serialize_json:
+            expected_value = json.dumps(value, indent=2)
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            PutVariable(key=key, value=expected_value, description=description)
+        )
+
+    @pytest.mark.asyncio
+    async def test_avar_delete(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = None
+
+        await Variable.adelete(key="my_key")
+
+        mock_supervisor_comms.asend.assert_called_once_with(DeleteVariable(key="my_key"))
+
+
+class TestAsyncVariableKeys:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("prefix", "keys"),
+        [
+            pytest.param(None, ["prod_db", "prod_api", "dev_debug"], id="all"),
+            pytest.param("prod_", ["prod_db", "prod_api"], id="with-prefix"),
+            pytest.param("nonexistent_", [], id="empty-result"),
+        ],
+    )
+    async def test_akeys(self, prefix, keys, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = VariableKeysResult(keys=keys, total_entries=len(keys))
+
+        results = await Variable.akeys(prefix=prefix)
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            GetVariableKeys(prefix=prefix, limit=1000, offset=0)
+        )
+        assert list(results) == keys
+
+    @pytest.mark.asyncio
+    async def test_akeys_paginates_when_results_exceed_page_size(self, mock_supervisor_comms):
+        page1 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE)]
+        page2 = [f"k{i}" for i in range(_VARIABLE_KEYS_PAGE_SIZE, _VARIABLE_KEYS_PAGE_SIZE * 2)]
+        page3 = ["last_key"]
+        total = _VARIABLE_KEYS_PAGE_SIZE * 2 + 1
+        mock_supervisor_comms.asend.side_effect = [
+            VariableKeysResult(keys=page1, total_entries=total),
+            VariableKeysResult(keys=page2, total_entries=total),
+            VariableKeysResult(keys=page3, total_entries=total),
+        ]
+
+        results = await Variable.akeys(prefix=None)
+
+        assert results == page1 + page2 + page3
+        assert mock_supervisor_comms.asend.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_akeys_raises_on_error_response(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "boom"}
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            await Variable.akeys(prefix="x_")
+
+    @pytest.mark.asyncio
+    async def test_akeys_raises_on_unexpected_response_type(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = VariableResult(key="x", value="y")
+
+        with pytest.raises(TypeError, match="Unexpected response type"):
+            await Variable.akeys(prefix="x_")
 
 
 class TestVariableFromSecrets:
