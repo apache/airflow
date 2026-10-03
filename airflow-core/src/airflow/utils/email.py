@@ -251,6 +251,22 @@ def send_mime_email(
             airflow_conn = Connection.get_connection_from_secrets(conn_id)
             smtp_user = airflow_conn.login
             smtp_password = airflow_conn.password
+            # Prefer values set on the connection, falling back to the ``smtp`` config
+            # values above when the connection does not provide them. Extra keys and their
+            # negation mirror the smtp provider's SmtpHook so both paths behave the same.
+            extra = airflow_conn.extra_dejson
+            if airflow_conn.host:
+                smtp_host = airflow_conn.host
+            if airflow_conn.port:
+                smtp_port = airflow_conn.port
+            if "disable_tls" in extra:
+                smtp_starttls = not bool(extra["disable_tls"])
+            if "disable_ssl" in extra:
+                smtp_ssl = not bool(extra["disable_ssl"])
+            if "retry_limit" in extra:
+                smtp_retry_limit = int(extra["retry_limit"])
+            if "timeout" in extra:
+                smtp_timeout = int(extra["timeout"])
         except AirflowException:
             pass
     if smtp_user is None or smtp_password is None:

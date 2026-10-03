@@ -257,6 +257,47 @@ class TestEmailSmtp:
         mock_smtp.return_value.sendmail.assert_called_once_with("from", "to", msg.as_string())
         assert mock_smtp.return_value.quit.called
 
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_conn_id_uses_connection_transport_settings(self, mock_smtp, monkeypatch):
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_SMTP_TEST_CONN",
+            json.dumps(
+                {
+                    "conn_type": "smtp",
+                    "login": "test-user",
+                    "password": "test-password",
+                    "host": "conn-host",
+                    "port": 2525,
+                    "extra": {
+                        "disable_tls": True,
+                        "disable_ssl": True,
+                        "timeout": 99,
+                        "retry_limit": 0,
+                    },
+                }
+            ),
+        )
+        email.send_mime_email("from", "to", MIMEMultipart(), dryrun=False, conn_id="smtp_test_conn")
+        mock_smtp.assert_called_once_with(host="conn-host", port=2525, timeout=99)
+        assert not mock_smtp.return_value.starttls.called
+        mock_smtp.return_value.login.assert_called_once_with("test-user", "test-password")
+
+    @mock.patch("smtplib.SMTP")
+    def test_send_mime_conn_id_falls_back_to_config_for_unset_fields(self, mock_smtp, monkeypatch):
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_SMTP_TEST_CONN",
+            json.dumps(
+                {"conn_type": "smtp", "login": "test-user", "password": "test-password", "host": "conn-host"}
+            ),
+        )
+        email.send_mime_email("from", "to", MIMEMultipart(), dryrun=False, conn_id="smtp_test_conn")
+        mock_smtp.assert_called_once_with(
+            host="conn-host",
+            port=conf.getint("smtp", "SMTP_PORT"),
+            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+        )
+        assert mock_smtp.return_value.starttls.called
+
     @mock.patch("smtplib.SMTP_SSL")
     @mock.patch("smtplib.SMTP")
     def test_send_mime_ssl_none_context(self, mock_smtp, mock_smtp_ssl):
