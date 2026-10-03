@@ -145,6 +145,8 @@ internal class SerdeTest {
         .config("retries", 2)
         .config("queue", "q")
         .config("retry_delay", Duration.ofMinutes(10))
+        .config("email_on_failure", false)
+        .config("email_on_retry", false)
     val transformDef =
       TaskDef("transform", SerdeNoopTask::class.java)
         .dependsOn(extractDef)
@@ -166,6 +168,8 @@ internal class SerdeTest {
     assertEquals("q", extract["queue"])
     assertEquals(600.0, extract["retry_delay"])
     assertEquals(listOf("transform"), extract["downstream_task_ids"])
+    assertFalse("email_on_failure" in extract)
+    assertFalse("email_on_retry" in extract)
 
     val transform = taskData(serialized, 1)
     assertEquals("transform", transform["task_id"])

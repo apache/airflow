@@ -38,6 +38,10 @@ import java.time.OffsetDateTime
 
 private val defaultsMapper = ObjectMapper()
 
+// Python drops both unless the operator names an email recipient. A Java task
+// has no email field to name one, so they are never written.
+private val OMITTED_TASK_KEYS = setOf("email_on_failure", "email_on_retry")
+
 /**
  * Processes a [DagFileParseRequest] by serialising every Dag registered on
  * [bundle] to DagSerialization v3 and returning the result as a
@@ -131,7 +135,7 @@ private fun serializeTask(
   // Python BaseSerialization's "omit hard-coded default" behavior. Operator
   // fields are stored unwrapped, so the __type encoding is stripped.
   def.configValues.forEach { (key, value) ->
-    if (!matchesSchemaDefault(SchemaFields.TASK[key], value)) {
+    if (key !in OMITTED_TASK_KEYS && !matchesSchemaDefault(SchemaFields.TASK[key], value)) {
       data[key] = unwrapTypeEncoding(serializeValue(value))
     }
   }
