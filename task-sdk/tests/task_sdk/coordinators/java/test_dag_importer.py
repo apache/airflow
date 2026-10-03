@@ -24,6 +24,7 @@ from unittest.mock import patch
 import pytest
 from task_sdk.coordinators.java._jar_test_utils import SCHEMA_VERSION, make_jar
 
+from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.coordinators.java import JavaCoordinator
 from airflow.sdk.coordinators.java._dag_importer import JavaDagImporter, _find_source_entry
 from airflow.sdk.importers import FilesystemDagDefinition, get_importer_registry, reset_importer_registry
@@ -39,10 +40,24 @@ SOURCES_INDEX = "META-INF/airflow/sources.json"
 ENTRYPOINT = "com/example/Dags.java"
 REPORTS = "com/example/dags/Reports.kt"
 LONG_MAIN_CLASS = "org.apache.airflow.example.nativedag.generated.VeryLongNativeDagBundleBuilder"
+JAVA_COORDINATOR = "airflow.sdk.coordinators.java.JavaCoordinator"
 
 
-def _importer(main_class: str = "") -> JavaDagImporter:
-    return JavaDagImporter(coordinator=JavaCoordinator(main_class=main_class))
+class _JavaCoordinatorSubclass(JavaCoordinator):
+    pass
+
+
+def _importer() -> JavaDagImporter:
+    return JavaDagImporter(bundle_name="dags-folder")
+
+
+def _coordinators(*kwargs: dict, mapping: dict[str, str] | None = None) -> dict[tuple[str, str], str]:
+    """Config with one JavaCoordinator per *kwargs*, keyed "java-0", "java-1" and so on."""
+    specs = {f"java-{i}": {"classpath": JAVA_COORDINATOR, "kwargs": kw} for i, kw in enumerate(kwargs)}
+    config = {("sdk", "coordinators"): json.dumps(specs)}
+    if mapping is not None:
+        config[("sdk", "dag_bundle_to_coordinator")] = json.dumps(mapping)
+    return config
 
 
 def _definition(path) -> FilesystemDagDefinition:
@@ -55,6 +70,13 @@ class _Bundle:
         self.name = "dags-folder"
 
 
+@pytest.fixture(autouse=True)
+def _clean_registry():
+    reset_importer_registry()
+    yield
+    reset_importer_registry()
+
+
 class TestJavaDagImporter:
     def test_claims_jar_files(self):
         importer = _importer()
@@ -62,14 +84,6 @@ class TestJavaDagImporter:
         assert importer.supported_extensions == [".jar"]
         assert importer.can_handle("dags/app.jar")
         assert not importer.can_handle("dags/app.zip")
-
-    def test_coordinator_hands_out_an_importer_bound_to_it(self):
-        coordinator = JavaCoordinator()
-
-        importer = coordinator.get_dag_importer()
-
-        assert isinstance(importer, JavaDagImporter)
-        assert importer.coordinator is coordinator
 
     @pytest.mark.parametrize(
         ("attributes", "pin", "expected"),
@@ -91,13 +105,52 @@ class TestJavaDagImporter:
     def test_might_contain_dag(self, tmp_path, attributes, pin, expected):
         jar = make_jar(tmp_path / "app.jar", attributes=attributes, entries={"a.class": b""})
 
-        assert _importer(pin).might_contain_dag(_definition(jar), safe_mode=True) is expected
+        with conf_vars(_coordinators({"main_class": pin})):
+            assert _importer().might_contain_dag(_definition(jar), safe_mode=True) is expected
 
     def test_keeps_a_jar_it_cannot_read(self, tmp_path):
         jar = tmp_path / "partial.jar"
         jar.write_bytes(b"PK\x03\x04 truncated")
 
         assert _importer().might_contain_dag(_definition(jar), safe_mode=True) is True
+
+    @pytest.mark.parametrize(("mapped", "expected"), [("java-1", True), ("java-0", False)])
+    def test_filters_by_the_main_class_of_the_coordinator_mapped_to_its_bundle(
+        self, tmp_path, mapped, expected
+    ):
+        jar = make_jar(tmp_path / "app.jar", attributes={"Main-Class": MAIN_CLASS})
+        coordinators = _coordinators(
+            {"main_class": "com.example.Other"}, {"main_class": MAIN_CLASS}, mapping={"dags-folder": mapped}
+        )
+
+        with conf_vars(coordinators):
+            assert _importer().might_contain_dag(_definition(jar), safe_mode=True) is expected
+
+    @pytest.mark.parametrize(
+        "config",
+        [
+            pytest.param(_coordinators({}, {}), id="several-and-no-entry"),
+            pytest.param(
+                _coordinators({}, {}, mapping={"dags-folder": "gone"}), id="entry-names-no-coordinator"
+            ),
+            pytest.param({("sdk", "coordinators"): "{}"}, id="no-coordinator"),
+            pytest.param(
+                {
+                    ("sdk", "coordinators"): json.dumps({"java": {"classpath": "no.such.Coordinator"}}),
+                },
+                id="coordinator-that-cannot-be-loaded",
+            ),
+        ],
+    )
+    def test_keeps_a_jar_when_no_coordinator_can_parse_its_bundle(self, tmp_path, config):
+        jar = make_jar(tmp_path / "app.jar", attributes={"Main-Class": MAIN_CLASS})
+        bare = make_jar(tmp_path / "dep.jar", entries={"dep/Dep.class": b""})
+
+        with conf_vars(config):
+            importer = _importer()
+
+            assert importer.might_contain_dag(_definition(jar), safe_mode=True) is True
+            assert importer.might_contain_dag(_definition(bare), safe_mode=True) is False
 
     @pytest.mark.parametrize("safe_mode", [True, False])
     def test_lists_only_executable_jars(self, tmp_path, safe_mode):
@@ -109,7 +162,8 @@ class TestJavaDagImporter:
             attributes={"Airflow-Supervisor-Schema-Version": SCHEMA_VERSION},
         )
 
-        listed = list(_importer().list_dag_definitions(_Bundle(tmp_path), safe_mode=safe_mode))
+        with conf_vars(_coordinators({})):
+            listed = list(_importer().list_dag_definitions(_Bundle(tmp_path), safe_mode=safe_mode))
 
         assert [d.path for d in listed] == [app]
 
@@ -216,35 +270,28 @@ class TestGetSourceCode:
 
 
 class TestRegistry:
-    @pytest.fixture(autouse=True)
-    def _clean_registry(self):
-        reset_importer_registry()
-        yield
-        reset_importer_registry()
-
-    def _coordinators(self, kwargs: dict) -> dict[tuple[str, str], str]:
-        spec = {"java": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator", "kwargs": kwargs}}
-        return {("sdk", "coordinators"): json.dumps(spec)}
-
-    def test_a_bundle_backed_coordinator_registers_its_importer(self):
-        with conf_vars(self._coordinators({})):
-            importer = get_importer_registry("dags-folder").get_importer("dags/app.jar")
-
-        assert isinstance(importer, JavaDagImporter)
-
-    def test_a_named_bundle_coordinator_registers_only_in_its_bundle(self):
+    def test_a_java_coordinator_registers_the_importer_in_every_bundle(self):
         bundles = [
             {"name": name, "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}}
             for name in ("dags-folder", "java-jars")
         ]
-        with conf_vars(
-            {
-                **self._coordinators({"dag_bundle_name": "java-jars"}),
-                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundles),
-            }
-        ):
+        coordinators = _coordinators({"task_handler_bundle_name": "java-jars"})
+        with conf_vars({**coordinators, ("dag_processor", "dag_bundle_config_list"): json.dumps(bundles)}):
             in_named = get_importer_registry("java-jars").get_importer("java-jars/app.jar")
             in_other = get_importer_registry("dags-folder").get_importer("dags/app.jar")
 
         assert isinstance(in_named, JavaDagImporter)
-        assert in_other is None
+        assert isinstance(in_other, JavaDagImporter)
+        assert in_other.bundle_name == "dags-folder"
+
+    def test_without_a_java_coordinator_no_jar_is_claimed(self):
+        with conf_vars({("sdk", "coordinators"): "{}"}):
+            assert get_importer_registry("dags-folder").get_importer("dags/app.jar") is None
+            assert find_claiming_importer("dags/app.jar", "dags-folder") is None
+
+    def test_a_subclass_of_the_java_coordinator_registers_the_importer(self):
+        subclass = {"java": {"classpath": f"{__name__}._JavaCoordinatorSubclass"}}
+        with conf_vars({("sdk", "coordinators"): json.dumps(subclass)}):
+            claiming = find_claiming_importer("dags/app.jar", "dags-folder")
+
+        assert isinstance(claiming, JavaDagImporter)

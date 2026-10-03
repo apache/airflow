@@ -286,6 +286,15 @@ the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever 
 it is rejected if the name is missing there. The Dag processor still receives ``sales_pipeline.py`` through
 the separate Dag delivery process.
 
+A Dag processor with this ``[sdk]`` configuration also parses the executable JARs of every Dag bundle,
+and needs a JDK to do so (see :ref:`java-sdk/native-dag-parsing`).
+The ``java-task-handlers`` bundle only holds the JARs that the Python Dag's tasks run,
+so keep the Dag processor from parsing it by listing ``*`` in its ``.airflowignore``:
+
+.. code-block:: bash
+
+    echo '*' > /opt/airflow/jars/sales-pipeline/.airflowignore
+
 After Airflow has parsed the Dag, trigger it from the UI or command line:
 
 .. code-block:: bash

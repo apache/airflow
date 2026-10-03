@@ -28,7 +28,6 @@ from airflow.sdk.coordinators.java._jar_manifest import MAIN_CLASS, SOURCES, rea
 from airflow.sdk.importers.base import DagSourceCode
 
 if TYPE_CHECKING:
-    from airflow.sdk.coordinators.java.coordinator import JavaCoordinator
     from airflow.sdk.importers.base import DagDefinition
 
 _SOURCES_DIR: Final = "META-INF/airflow/sources/"
@@ -42,22 +41,23 @@ _SOURCE_TOO_LARGE: Final = "// This Dag source file is over 1 MiB, so it is not 
 
 class JavaDagImporter(CoordinatorDagImporter):
     """
-    Parse the native Dags of Java bundle JARs with the coordinator's JVM.
+    Claim the native Dags of Java bundle JARs.
 
-    Only a JAR whose manifest sets ``Main-Class`` (matching the coordinator's ``main_class`` if set) is
-    parsed.
+    A :class:`~airflow.sdk.coordinators.java.JavaCoordinator` parses them. Only a JAR whose manifest sets
+    ``Main-Class`` (matching the coordinator's ``main_class`` if set) is parsed.
     """
 
+    coordinator_classpath: ClassVar[str] = "airflow.sdk.coordinators.java.JavaCoordinator"
     artifact_suffix: ClassVar[str] = ".jar"
     supported_extensions = [".jar"]
-    coordinator: JavaCoordinator
 
     def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
         """
-        Return whether the JAR sets ``Main-Class``, matching the coordinator's ``main_class`` if that is set.
+        Return whether the JAR sets ``Main-Class``, matching the parsing coordinator's ``main_class`` if set.
 
         ``safe_mode`` does not apply, because a JAR without ``Main-Class`` cannot run at all. A JAR that
-        cannot be read is kept, so that parsing it reports the error.
+        cannot be read is kept, so that parsing it reports the error. So is every JAR when no coordinator
+        can parse the bundle, so that each parse reports why.
         """
         try:
             with definition.as_file() as path, zipfile.ZipFile(path) as zf:
@@ -66,7 +66,11 @@ class JavaDagImporter(CoordinatorDagImporter):
             return True
         if not (main_class := attributes.get(MAIN_CLASS)):
             return False
-        return not self.coordinator.main_class or main_class == self.coordinator.main_class
+        try:
+            wanted = self.get_parsing_coordinator().main_class
+        except Exception:
+            return True
+        return not wanted or main_class == wanted
 
     def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
         """Return the entrypoint source the JAR embeds, or a notice when it embeds none."""
