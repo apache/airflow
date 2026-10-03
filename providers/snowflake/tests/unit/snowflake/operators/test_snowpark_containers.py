@@ -17,14 +17,26 @@
 from __future__ import annotations
 
 import itertools
+import warnings
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
+from snowflake.connector.errors import ProgrammingError
 
 from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.providers.snowflake.operators.snowpark_containers import SnowparkContainerJobOperator
+from airflow.providers.snowflake.operators.snowpark_containers import (
+    _DURABLE_UNSET,
+    SnowparkContainerJobOperator,
+    _warn_and_disable_durable_pre_3_3,
+)
 from airflow.providers.snowflake.triggers.snowpark_containers import SnowparkContainerJobTrigger
+from airflow.providers.snowflake.utils.snowpark_containers import (
+    NOT_FOUND_STATUS,
+    OBJECT_NOT_EXIST_ERROR_CODE,
+)
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 TASK_ID = "test_spcs_job"
 COMPUTE_POOL = "test_pool"
@@ -35,6 +47,7 @@ SPEC_TEXT = "spec:\n  containers:\n  - name: main\n    image: /db/schema/repo/im
 JOB_NAME = "TEST_JOB"
 SNOWFLAKE_CONN_ID = "snowflake_default"
 MOCK_HOOK_PATH = "airflow.providers.snowflake.operators.snowpark_containers.SnowflakeHook"
+SUBMIT_RESPONSE = [f"Started Snowpark Container Services Job '{JOB_NAME}'."]
 
 
 def _make_operator(**kwargs):
@@ -47,6 +60,13 @@ def _make_operator(**kwargs):
     }
     defaults.update(kwargs)
     return SnowparkContainerJobOperator(**defaults)
+
+
+def _context(task_store=None):
+    ctx = {"ti": mock.MagicMock(stats_tags={})}
+    if task_store is not None:
+        ctx["task_state_store"] = task_store
+    return ctx
 
 
 class TestSnowparkContainerJobOperator:
@@ -141,38 +161,42 @@ class TestSnowparkContainerJobOperator:
         assert "external_access_integrations" in op.template_fields
         assert hasattr(op, "external_access_integrations")
 
+    def test_external_id_key(self):
+        assert _make_operator().external_id_key == "snowpark_container_job_name"
+
     @mock.patch(MOCK_HOOK_PATH)
     def test_submit_job_parses_job_name(self, mock_hook_cls):
         mock_hook = mock_hook_cls.return_value
-        mock_hook.run.return_value = ["Started Snowpark Container Services Job 'TEST_JOB'."]
+        mock_hook.run.return_value = SUBMIT_RESPONSE
         op = _make_operator()
-        result = op._submit_job()
+        result = op.submit_job(None)
         assert result == JOB_NAME
 
     @pytest.mark.parametrize(
         "status",
-        ("DONE", "FAILED", "CANCELLED", "INTERNAL_ERROR"),
+        ("FAILED", "CANCELLED", "INTERNAL_ERROR"),
     )
+    @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     @mock.patch(MOCK_HOOK_PATH)
-    def test_poll_returns_terminal_status(self, mock_hook_cls, status):
+    def test_poll_raises_on_terminal_failure(self, mock_hook_cls, mock_log, status):
         mock_hook = mock_hook_cls.return_value
         mock_hook.run.return_value = {"status": status}
         op = _make_operator(poll_interval=0)
-        op.job_name = JOB_NAME
-        assert op._poll_for_status() == status
+        with pytest.raises(RuntimeError, match="finished with status"):
+            op.poll_until_complete(JOB_NAME, None)
 
     @mock.patch(MOCK_HOOK_PATH)
     def test_poll_raises_on_unexpected_status(self, mock_hook_cls):
         mock_hook = mock_hook_cls.return_value
         mock_hook.run.return_value = {"status": "UNKNOWN"}
         op = _make_operator(poll_interval=0)
-        op.job_name = JOB_NAME
         with pytest.raises(RuntimeError, match="unexpected status"):
-            op._poll_for_status()
+            op.poll_until_complete(JOB_NAME, None)
 
+    @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
     @mock.patch("time.sleep")
     @mock.patch(MOCK_HOOK_PATH)
-    def test_poll_waits_through_pending_then_done(self, mock_hook_cls, mock_sleep):
+    def test_poll_waits_through_pending_then_done(self, mock_hook_cls, mock_sleep, mock_handle):
         mock_hook = mock_hook_cls.return_value
         mock_hook.run.side_effect = [
             {"status": "PENDING"},
@@ -180,9 +204,9 @@ class TestSnowparkContainerJobOperator:
             {"status": "DONE"},
         ]
         op = _make_operator(poll_interval=5)
-        op.job_name = JOB_NAME
-        assert op._poll_for_status() == "DONE"
+        op.poll_until_complete(JOB_NAME, None)
         assert mock_sleep.call_count == 2
+        mock_handle.assert_called_once_with(status="DONE")
 
     @pytest.mark.parametrize(
         ("drop_on_completion", "drops"),
@@ -202,7 +226,7 @@ class TestSnowparkContainerJobOperator:
         op.job_name = JOB_NAME
 
         with pytest.raises(TimeoutError, match="did not reach a terminal status"):
-            op._poll_for_status()
+            op.poll_until_complete(JOB_NAME, None)
 
         mock_log.assert_called_once_with("RUNNING")
         drop_call = mock.call(f"DROP SERVICE IF EXISTS {JOB_NAME}")
@@ -292,66 +316,64 @@ class TestSnowparkContainerJobOperator:
         mock_hook.run.return_value = ["unexpected response"]
         op = _make_operator()
         with pytest.raises(IndexError):
-            op._submit_job()
+            op.submit_job(None)
 
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=None)
-    def test_execute_raises_when_job_name_not_returned(self, mock_submit):
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_submit_job_raises_when_job_name_empty(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.return_value = ["Started Snowpark Container Services Job ''."]
         op = _make_operator()
         with pytest.raises(RuntimeError, match="Job name was not returned"):
-            op.execute(context=None)
+            op.submit_job(None)
 
     @mock.patch(MOCK_HOOK_PATH)
     def test_execute_no_wait(self, mock_hook_cls):
         mock_hook = mock_hook_cls.return_value
-        mock_hook.run.return_value = ["Started Snowpark Container Services Job 'TEST_JOB'."]
+        mock_hook.run.return_value = SUBMIT_RESPONSE
         op = _make_operator(wait_for_completion=False)
         result = op.execute(context=None)
         assert result == JOB_NAME
         assert mock_hook.run.call_count == 1
 
-    @mock.patch(MOCK_HOOK_PATH)
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
-    @mock.patch.object(SnowparkContainerJobOperator, "_poll_for_status", return_value="DONE")
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
-    def test_execute_wait_success(self, mock_submit, mock_poll, mock_log, mock_hook_cls):
-        op = _make_operator()
+    @mock.patch.object(SnowparkContainerJobOperator, "poll_until_complete")
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_execute_wait_success(self, mock_hook_cls, mock_submit, mock_poll, mock_log):
+        op = _make_operator(durable=False)
         result = op.execute(context=None)
         mock_submit.assert_called_once()
         mock_poll.assert_called_once()
         mock_log.assert_called_once_with("DONE")
         assert result == JOB_NAME
 
-    @mock.patch(MOCK_HOOK_PATH)
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
-    @mock.patch.object(SnowparkContainerJobOperator, "_poll_for_status", return_value="FAILED")
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
-    def test_execute_wait_failure_raises(self, mock_submit, mock_poll, mock_log, mock_hook_cls):
-        op = _make_operator()
-        with pytest.raises(RuntimeError, match="FAILED"):
-            op.execute(context=None)
-        mock_log.assert_called_once_with("FAILED")
-
-    @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
-    @mock.patch.object(SnowparkContainerJobOperator, "_poll_for_status", return_value="DONE")
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
     @mock.patch(MOCK_HOOK_PATH)
-    def test_execute_drops_service_on_completion(self, mock_hook_cls, mock_submit, mock_poll, mock_log):
+    def test_execute_drops_service_on_completion(self, mock_hook_cls, mock_submit, mock_log):
         mock_hook = mock_hook_cls.return_value
-        op = _make_operator(drop_on_completion=True)
+        mock_hook.run.side_effect = [
+            {"status": "DONE"},
+            None,
+        ]
+        op = _make_operator(drop_on_completion=True, poll_interval=0, durable=False)
         op.execute(context=None)
-        mock_hook.run.assert_called_once_with(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+        assert mock.call(f"DROP SERVICE IF EXISTS {JOB_NAME}") in mock_hook.run.call_args_list
 
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
-    @mock.patch.object(SnowparkContainerJobOperator, "_poll_for_status", return_value="DONE")
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
     @mock.patch(MOCK_HOOK_PATH)
-    def test_execute_skips_drop_when_disabled(self, mock_hook_cls, mock_submit, mock_poll, mock_log):
+    def test_execute_skips_drop_when_disabled(self, mock_hook_cls, mock_submit, mock_log):
         mock_hook = mock_hook_cls.return_value
-        op = _make_operator(drop_on_completion=False)
+        mock_hook.run.side_effect = [
+            {"status": "DONE"},
+        ]
+        op = _make_operator(drop_on_completion=False, poll_interval=0, durable=False)
         op.execute(context=None)
-        mock_hook.run.assert_not_called()
+        drop_call = mock.call(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+        assert drop_call not in mock_hook.run.call_args_list
 
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
     def test_execute_defers_when_deferrable(self, mock_submit):
         op = _make_operator(deferrable=True)
         with pytest.raises(TaskDeferred) as exc:
@@ -360,7 +382,7 @@ class TestSnowparkContainerJobOperator:
         assert exc.value.trigger.job_name == JOB_NAME
         assert exc.value.method_name == "execute_complete"
 
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
     def test_execute_defer_without_execution_timeout(self, mock_submit):
         op = _make_operator(deferrable=True, timeout=100, poll_interval=10)
         with pytest.raises(TaskDeferred) as exc:
@@ -368,7 +390,7 @@ class TestSnowparkContainerJobOperator:
         assert exc.value.trigger.execution_deadline is None
         assert exc.value.timeout == timedelta(seconds=100 + 10 + 60)
 
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
     def test_execute_defer_uses_execution_timeout_for_deadline_and_buffer(self, mock_submit, time_machine):
         time_machine.move_to(1000, tick=False)
         context = {"ti": mock.Mock(start_date=datetime.fromtimestamp(1000, tz=timezone.utc))}
@@ -449,3 +471,214 @@ class TestSnowparkContainerJobOperator:
             )
         mock_log.assert_called_once_with("timeout")
         mock_hook.run.assert_not_called()
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
+)
+class TestSnowparkContainerJobOperatorDurable:
+    @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_job_name_persists_to_task_state_store_on_fresh_submit(
+        self, mock_hook_cls, mock_submit_job, mock_handle
+    ):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.return_value = {"status": "DONE"}
+
+        op = _make_operator(poll_interval=0)
+        task_store = mock.MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = None
+
+        op.execute(context=_context(task_store=task_store))
+
+        task_store.get.assert_called_once_with(op.external_id_key)
+        task_store.set.assert_called_once_with(op.external_id_key, JOB_NAME)
+        mock_handle.assert_called_once_with(status="DONE")
+
+    @mock.patch("time.sleep")
+    @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job")
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_reconnects_to_running_job_without_resubmitting(
+        self, mock_hook_cls, mock_submit_job, mock_handle, mock_sleep
+    ):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.side_effect = [
+            {"status": "RUNNING"},
+            {"status": "DONE"},
+        ]
+
+        op = _make_operator(poll_interval=5)
+        task_store = mock.MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = JOB_NAME
+
+        result = op.execute(context=_context(task_store=task_store))
+
+        task_store.get.assert_called_once_with(op.external_id_key)
+        task_store.set.assert_not_called()
+        mock_submit_job.assert_not_called()
+        mock_handle.assert_called_once_with(status="DONE")
+        assert result == JOB_NAME
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
+    @mock.patch.object(SnowparkContainerJobOperator, "poll_until_complete")
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job")
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_already_succeeded_completes_without_polling(
+        self, mock_hook_cls, mock_submit_job, mock_poll_until_complete, mock_handle
+    ):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.side_effect = [{"status": "DONE"}]
+
+        op = _make_operator(poll_interval=5)
+        task_store = mock.MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = JOB_NAME
+
+        op.execute(context=_context(task_store=task_store))
+
+        task_store.get.assert_called_once_with(op.external_id_key)
+        mock_submit_job.assert_not_called()
+        mock_poll_until_complete.assert_not_called()
+        mock_handle.assert_called_once_with(status="DONE")
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
+    @mock.patch.object(SnowparkContainerJobOperator, "poll_until_complete")
+    @mock.patch.object(SnowparkContainerJobOperator, "get_job_status")
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job")
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_resubmits_when_stored_job_in_terminal_error(
+        self, mock_hook_cls, mock_submit_job, mock_get_job_status, mock_poll_until_complete, mock_handle
+    ):
+        mock_get_job_status.return_value = "FAILED"
+        mock_submit_job.return_value = f"{JOB_NAME}_2"
+
+        op = _make_operator(poll_interval=0)
+        task_store = mock.MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = JOB_NAME
+
+        op.execute(context=_context(task_store=task_store))
+
+        task_store.get.assert_called_once_with(op.external_id_key)
+        mock_submit_job.assert_called_once()
+        task_store.set.assert_called_once_with(op.external_id_key, f"{JOB_NAME}_2")
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
+    @mock.patch.object(SnowparkContainerJobOperator, "poll_until_complete")
+    @mock.patch.object(SnowparkContainerJobOperator, "_describe_status")
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job")
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_resubmits_when_stored_job_not_exist(
+        self, mock_hook_cls, mock_submit_job, mock_describe_status, mock_poll_until_complete, mock_handle
+    ):
+        mock_describe_status.side_effect = ProgrammingError(
+            msg="test job does not exist", errno=OBJECT_NOT_EXIST_ERROR_CODE
+        )
+        mock_submit_job.return_value = f"{JOB_NAME}_2"
+
+        op = _make_operator(poll_interval=0)
+        task_store = mock.MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = JOB_NAME
+
+        op.execute(context=_context(task_store=task_store))
+
+        task_store.get.assert_called_once_with(op.external_id_key)
+        mock_submit_job.assert_called_once()
+        task_store.set.assert_called_once_with(op.external_id_key, f"{JOB_NAME}_2")
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
+    @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_durable_false_never_touches_task_state_store(self, mock_hook_cls, mock_submit_job, mock_handle):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.return_value = {"status": "DONE"}
+
+        task_store = mock.MagicMock(spec_set=["get", "set"])
+        op = _make_operator(durable=False)
+
+        op.execute(context=_context(task_store=task_store))
+
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_deferrable_does_not_persist_to_task_state_store(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.return_value = SUBMIT_RESPONSE
+
+        op = _make_operator(deferrable=True)
+        task_store = mock.MagicMock(spec_set=["get", "set"])
+
+        with pytest.raises(TaskDeferred):
+            op.execute(context=_context(task_store=task_store))
+
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_no_wait_does_not_persist_to_task_state_store(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.return_value = SUBMIT_RESPONSE
+
+        op = _make_operator(wait_for_completion=False)
+        task_store = mock.MagicMock(spec_set=["get", "set"])
+
+        result = op.execute(context=_context(task_store=task_store))
+
+        assert result == JOB_NAME
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_describe_status")
+    def test_get_job_status_returns_status(self, mock_describe_status):
+        mock_describe_status.return_value = "DONE"
+        op = _make_operator()
+        status = op.get_job_status(context=None, external_id="test job")
+        assert status == "DONE"
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_describe_status")
+    def test_get_job_status_returns_not_found_when_service_missing(self, mock_describe_status):
+        mock_describe_status.side_effect = ProgrammingError(
+            msg="test job does not exist", errno=OBJECT_NOT_EXIST_ERROR_CODE
+        )
+        op = _make_operator()
+        status = op.get_job_status(context=None, external_id="test job")
+        assert status == NOT_FOUND_STATUS
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_describe_status")
+    def test_get_job_status_reraises_other_programming_errors(self, mock_describe_status):
+        mock_describe_status.side_effect = ProgrammingError(msg="syntax error", errno=1003)
+        op = _make_operator()
+        with pytest.raises(ProgrammingError, match="syntax error"):
+            op.get_job_status(context=None, external_id="test job")
+
+    def test_is_job_active_and_is_job_succeeded(self):
+        op = _make_operator()
+        assert op.is_job_active("RUNNING") is True
+        assert op.is_job_active("DONE") is False
+
+        assert op.is_job_succeeded("DONE") is True
+        assert op.is_job_succeeded("FAILED") is False
+
+    def test_default_args_durable_reaches_operator(self):
+        op = _make_operator(default_args={"durable": False})
+        assert op.durable is False
+
+    def test_durable_false_direct_kwarg_reaches_operator(self):
+        op = _make_operator(durable=False)
+        assert op.durable is False
+
+
+class TestWarnAndDisableDurableAirflowPre3_3:
+    def test_no_warning_when_unset(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
+        assert result is False
+        assert caught == []
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_warns_and_disables_when_explicitly_set(self, value):
+        with pytest.warns(UserWarning, match="durable.*no effect"):
+            result = _warn_and_disable_durable_pre_3_3(value)
+        assert result is False
