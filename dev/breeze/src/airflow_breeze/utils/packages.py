@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from enum import Enum
@@ -531,8 +532,6 @@ def get_provider_yaml(provider_id: str) -> Path:
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
-    import tomllib
-
     toml_content = pyproject_toml_file_path.read_text()
     syntax = Syntax(toml_content, "toml", theme="ansi_dark", line_numbers=True)
     try:

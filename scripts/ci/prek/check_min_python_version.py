@@ -29,7 +29,7 @@ import sys
 from common_prek_utils import console
 
 # update this version when we switch to a newer version of Python
-required_version = tuple(map(int, "3.10".split(".")))
+required_version = tuple(map(int, "3.11".split(".")))
 required_version_str = f"{required_version[0]}.{required_version[1]}"
 global_version = tuple(
     map(

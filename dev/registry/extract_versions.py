@@ -42,14 +42,11 @@ import json
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+import tomllib
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-if sys.version_info >= (3, 11):
-    import tomllib  # Python 3.11+ stdlib
-else:  # pragma: no cover -- Python 3.10 fallback
-    import tomli as tomllib
 from registry_contract_models import validate_provider_version_metadata
 from registry_tools.uri_schemes import collect_uri_schemes
 
@@ -466,7 +463,7 @@ def extract_version_data(
         {
             "provider_id": provider_id,
             "version": version,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "requires_python": pyproject_data["requires_python"],
             "dependencies": pyproject_data["dependencies"],
             "optional_extras": pyproject_data["optional_extras"],

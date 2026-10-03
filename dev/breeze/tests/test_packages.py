@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import tomllib
 from collections.abc import Iterable
 from pathlib import Path
 from unittest import mock
@@ -493,10 +494,6 @@ def test_apply_version_suffix_to_provider_pyproject_toml(
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of provider.
     """
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     from unittest.mock import patch
 
     # Get the original provider details
@@ -583,10 +580,6 @@ def test_apply_version_suffix_to_non_provider_pyproject_tomls(
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of non-provider.
     """
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     distribution_paths = [AIRFLOW_ROOT_PATH / distribution for distribution in distributions]
     original_pyproject_toml_paths = [path / "pyproject.toml" for path in distribution_paths]
     original_contents = [path.read_text() for path in original_pyproject_toml_paths]

@@ -32,14 +32,10 @@ from __future__ import annotations
 
 import re
 import sys
+import tomllib
 
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
 from tabulate import tabulate
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
 
 EXTRA_PACKAGES_REF_FILE = AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "extra-packages-ref.rst"
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"

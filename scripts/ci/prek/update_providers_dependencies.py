@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tomllib
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -65,10 +66,6 @@ ALL_PROVIDER_FILES: list[Path] = []
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     return tomllib.loads(pyproject_toml_file_path.read_text(encoding="utf-8"))
 
 

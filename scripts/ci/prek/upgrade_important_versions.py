@@ -1060,7 +1060,7 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
     Resolve the full transitive dependency list for hatchling using uv pip compile.
 
     When with_gitpython is True, also includes GitPython and its transitive dependencies (gitdb, smmap).
-    Returns a sorted list of pinned requirement strings, with tomli carrying its python_version marker.
+    Returns a sorted list of pinned requirement strings.
     """
     packages = ["hatchling"]
     if with_gitpython:
@@ -1097,7 +1097,6 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
             "pathspec": "pathspec",
             "pluggy": "pluggy",
             "trove_classifiers": "trove-classifiers",
-            "tomli": "tomli",
             "virtualenv": "virtualenv",
             "distlib": "distlib",
             "filelock": "filelock",
@@ -1105,13 +1104,7 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
             "typing_extensions": "typing-extensions",
         }
         canonical = CANONICAL_NAMES.get(pkg_name_lower, pkg_spec.split("==")[0])
-        if pkg_name_lower == "tomli":
-            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
-        elif pkg_name_lower == "typing_extensions":
-            # typing_extensions is built-in from Python 3.11+
-            requires.append(f"{canonical}=={pkg_version}; python_version < '3.11'")
-        else:
-            requires.append(f"{canonical}=={pkg_version}")
+        requires.append(f"{canonical}=={pkg_version}")
 
     return sorted(requires, key=lambda r: r.split("==")[0].lower())
 
