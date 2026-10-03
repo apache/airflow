@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, HStack, Text, Link } from "@chakra-ui/react";
+import { Skeleton, Button, HStack, Text, Link } from "@chakra-ui/react";
+import { FiAlertCircle } from "react-icons/fi";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 
-import { ClipboardIconButton, ClipboardRoot } from "src/system-components";
+import { ClipboardIconButton, ClipboardRoot, Popover } from "src/system-components";
 
+import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
 import RenderedJsonField from "src/components/RenderedJsonField";
 
 import { urlRegex } from "src/constants/urlRegex";
@@ -67,7 +69,7 @@ const renderTextWithLinks = (text: string) => {
 };
 
 export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKey }: XComEntryProps) => {
-  const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
+  const { data, error, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
     dagId,
     dagRunId: runId,
     deserialize: true,
@@ -76,6 +78,47 @@ export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKe
     taskId,
     xcomKey,
   });
+
+  if (Boolean(error)) {
+    const apiError = error as Partial<ExpandedApiError>;
+    const detail = apiError.body?.detail;
+    const summary = typeof detail === "string" ? detail : apiError.message;
+
+    return (
+      <Popover.Root lazyMount unmountOnExit>
+        <Popover.Trigger asChild>
+          <Button
+            color="fg.error"
+            data-testid="xcom-entry-error"
+            fontSize="sm"
+            gap={1}
+            justifyContent="flex-start"
+            maxW="min(15rem, 40vw)"
+            minW={0}
+            px={0}
+            size="xs"
+            variant="plain"
+          >
+            <FiAlertCircle aria-hidden="true" />
+            {apiError.status === undefined ? undefined : (
+              <Text as="span" flexShrink={0}>
+                {apiError.status}
+              </Text>
+            )}
+            <Text as="span" minW={0} truncate>
+              {summary}
+            </Text>
+          </Button>
+        </Popover.Trigger>
+        <Popover.Content aria-label={summary} maxW="calc(100vw - 2rem)">
+          <Popover.Body maxH="60vh" overflowY="auto">
+            <ErrorAlert error={error} />
+          </Popover.Body>
+        </Popover.Content>
+      </Popover.Root>
+    );
+  }
+
   // When deserialize=true, the API returns a stringified representation
   // so we don't need to JSON.stringify it again
   const xcomValue = data?.value;
