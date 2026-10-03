@@ -480,8 +480,8 @@ function install_rustup() {
         -o /tmp/rustup-init
     echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
     chmod +x /tmp/rustup-init
-    # Only rustc and cargo are needed, to build wheels from source. The default profile also adds
-    # rust-docs (~750 MB in ~65k files), clippy and rustfmt, which every CI job then has to load.
+    # Building wheels from source needs only rustc and cargo. The default profile also adds
+    # rust-docs, clippy and rustfmt, which add tens of thousands of files to the image.
     /tmp/rustup-init -y --profile minimal --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
     rm -f /tmp/rustup-init
 }
