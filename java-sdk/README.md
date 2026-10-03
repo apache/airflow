@@ -119,7 +119,10 @@ Now `cd example` into the example project, and
 
   Set these, and make the bundle directory available, for the Dag processor
   as well as the worker: the Dag processor checks the stub tasks against the
-  task handlers the JARs register. The API server does not need them.
+  task handlers the JARs register. The scheduler needs the settings too, to
+  send each stub task the artifact the Dag processor bound it to, but not the
+  bundle directory or a JRE. A scheduler that rejects the settings logs a
+  warning and sends no artifacts. The API server does not need them.
   `task_handler_bundle_name` is used only by mixed-language Dags, to locate
   the task handlers for the `@task.stub` tasks of a Python Dag; Dags defined
   natively in a language SDK do not use it.

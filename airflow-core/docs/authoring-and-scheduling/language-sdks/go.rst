@@ -218,7 +218,9 @@ There is no separate Go worker to run: the Airflow worker forks the bundle binar
   system and CPU architecture. The API server does not need any of it. Register the Dag bundle in
   ``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker
   and the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config
-  is read it is rejected if the name is missing there.
+  is read it is rejected if the name is missing there. The scheduler reads the ``[sdk]`` config too, to
+  send each stub task the artifact the Dag processor bound it to; for that it needs no bundle files or
+  runtime. A scheduler that rejects the config logs a warning and sends no artifacts.
 
 Writing tasks
 -------------

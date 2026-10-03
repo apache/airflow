@@ -283,8 +283,10 @@ Dag processor checks the stub tasks of ``sales_pipeline.py`` against the task ha
 it runs them too. The API server does not need any of it. Register the Dag bundle in
 ``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker and
 the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read
-it is rejected if the name is missing there. The Dag processor still receives ``sales_pipeline.py`` through
-the separate Dag delivery process.
+it is rejected if the name is missing there. The scheduler reads the ``[sdk]`` config too, to send each stub
+task the artifact the Dag processor bound it to; for that it needs no JARs or JRE. A scheduler that rejects
+the config logs a warning and sends no artifacts. The Dag processor still receives ``sales_pipeline.py``
+through the separate Dag delivery process.
 
 After Airflow has parsed the Dag, trigger it from the UI or command line:
 
@@ -1106,9 +1108,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
   The ``[sdk]`` configuration is read at startup, so changes to ``coordinators`` or
   ``queue_to_coordinator`` (for example adding ``jvm_args``) only take effect after you restart the
-  components that read it: the workers (the scheduler with ``LocalExecutor``), the Dag processor, or
-  ``airflow standalone``. A rebuilt bundle JAR, by contrast, is picked up on the next task launch without a
-  restart, because a fresh JVM is spawned per task instance.
+  components that read it: the workers, the scheduler, the Dag processor, or ``airflow standalone``. A
+  rebuilt bundle JAR, by contrast, is picked up on the next task launch without a restart, because a fresh
+  JVM is spawned per task instance.
 
 .. _java-sdk/java-executable:
 

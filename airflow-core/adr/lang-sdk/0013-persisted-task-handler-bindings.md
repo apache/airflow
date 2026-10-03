@@ -331,12 +331,11 @@ class StartupDetails(BaseModel):
     ...
 ```
 
-An artifact in a named bundle needs that bundle's own `BundleInfo`, since it is a second, independent bundle. An artifact in the task's own Dag bundle has `bundle_info=None` instead, because a copy of the Dag's `BundleInfo` would send its `version_data`, which can be a whole object manifest, a second time on every workload.
+The scheduler always names the artifact's bundle, by name only: it sends no version and no `version_data`, which for the Dag's own bundle can be a whole object manifest. A reference that leaves `bundle_info` unset names the task's own Dag bundle as well, and the worker reads it the same way.
 
-The task's own bundle is read at the version the run uses: its pinned version, or the version current when the task starts if the run is not pinned. For a pinned run, the artifact then matches the Dag code the run is pinned to. A named bundle carries no version, since artifact rows record none, so it resolves to the version current when the task starts. Either way the resolved version is pinned for the whole task. The scheduler decides "own bundle" by name, so a coordinator whose `task_handler_bundle_name` names the Dag's own bundle also reads it at the version the run uses.
+The task's own bundle is read at the version the run uses: its pinned version, or the version current when the task starts if the run is not pinned. For a pinned run, the artifact then matches the Dag code the run is pinned to. A named bundle carries no version, since artifact rows record none, so it resolves to the version current when the task starts. Either way the resolved version is pinned for the whole task. The worker decides "own bundle" by name, so an artifact held by the Dag's own bundle is read at the version the run uses, whether the coordinator's `task_handler_bundle_name` names that bundle or leaves it unset.
 
-`None` means "this task needs no Lang-SDK artifact" (an ordinary Python task). It never means
-"unknown": a stub task that failed to resolve is not queued at all (see "Failure handling").
+A workload without a reference names no artifact. That is the case for a Python task, a stub task on a queue no coordinator serves, a task of a Dag defined in a Lang SDK, a stub task with no recorded binding, and any stub task queued by a scheduler that lacks or cannot read the `[sdk]` configuration or its task handler Dag bundles. The scheduler never fails a task for a missing binding (see "Failure handling").
 
 ### Flow 1) Dag processing: the write path
 
@@ -466,38 +465,39 @@ cache; they are reclaimed by orphan sweep, never by a per-file reconcile.
 ### Flow 2) Scheduling: the read path
 
 ```
-SchedulerJobRunner._executable_task_instances_to_queued        [reads DB]
+SchedulerJobRunner._critical_section_enqueue_task_instances    [reads DB]
   │
-  ├── SELECT TI JOIN dag_run JOIN dag  … WHERE DR.state=RUNNING
-  │                                       AND TI.state=SCHEDULED …
-  │   .options(selectinload(TI.dag_model))
-  │   .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version)
-  │                                  .load_only(DagVersion.version_data))
-  │   .options(<the task-handler binding>)                                   ← new
+  ├── _select_task_instances_to_queue(…)
+  │     the selected TIs are QUEUED, then made transient
   │
-  │   the binding MUST be loaded here, before make_transient below.
-  │   a lazy load on a transient object returns None silently instead of
-  │   raising DetachedInstanceError, so a late read yields a workload with
-  │   no artifact and no error.
+  ├── get_task_handler_artifact_refs(queued_tis, session=session)           ← new
+  │     keep the TIs whose queue [sdk] queue_to_coordinator routes to a coordinator
+  │     none, or no [sdk]?   → no query
+  │     otherwise one SELECT, for every executor and every TI:
+  │       lang_sdk_task_handler JOIN lang_sdk_task_handler_artifact
+  │       WHERE (dag_id, task_id) IN (…)                      no row locks
+  │     → {(dag_id, task_id): TaskHandlerArtifactRef(BundleInfo(name=artifact bundle), rel_path)}
   │
-  ├── make_transient(ti) for every returned TI
   ▼
 SchedulerJobRunner._enqueue_task_instances_with_queued_state   [no further DB reads on ti]
   └── for ti in task_instances:
         dag_run finished?        → set_state(None); continue     (existing)
         no dag_version_id?       → warn; continue                (existing)
-        is_stub and no binding?  → FAIL the TI with the reason   ← new
-                                   never queue it
         │
-        └── ExecuteTask.make(ti, task_handler_artifact=TaskHandlerArtifactRef(...))
+        └── ExecuteTask.make(ti, task_handler_artifact=<the TI's entry, or None>)
               dag_rel_path            ← ti.dag_model.relative_fileloc   (existing)
-              bundle_info             ← Dag bundle, pinned to the run    (existing)
-              task_handler_artifact   ← artifact bundle + rel_path       ← new
+              bundle_info             ← the Dag bundle at the run's bundle_version,
+                                        unset for a run that is not pinned   (existing)
+              task_handler_artifact   ← artifact bundle name + rel_path      ← new
               │
               └── executor.queue_workload(workload)
 ```
 
-A stub task with no binding is **failed with its reason**, not skipped.
+The read follows the selection, so it covers only the task instances that were queued, once per scheduling loop. It needs only columns the selected task instances already hold (`dag_id`, `task_id`, `queue`), so there is no relationship to load and nothing to detach.
+
+The scheduler never fails a task for a missing binding. A routed task without one, such as a Python task, a task of a Dag defined in a Lang SDK, a task of another coordinator, or a stub task the Dag processor has not bound yet, is queued without a reference. A stub task on a queue no coordinator serves is not looked up at all.
+
+The scheduler needs the same `[sdk]` configuration as the Dag processor, including the Dag bundles its coordinators name in `task_handler_bundle_name` in `[dag_processor] dag_bundle_config_list`. When it cannot read that configuration, it logs a warning on each scheduling loop that queues a task and queues every task without a reference.
 
 ### Flow 3) Task execution
 
@@ -511,9 +511,11 @@ executor worker process
               │     unchanged: execution still routes on queue
               │
               └── coordinator.execute_task(what=ti, …, task_handler_artifact=…)
-                    ├── bundle = initialize(task_handler_artifact.bundle_info
-                    │                       or the task's bundle_info)   ← the artifact's bundle
-                    │                                                      (the task's own, or a named one)
+                    ├── bundle = initialize(the task's bundle_info when the reference has no bundle_info,
+                    │                       or names the task's own bundle without a version;
+                    │                       otherwise the reference's bundle_info)
+                    │                                             ← the artifact's bundle
+                    │                                               (the task's own, or a named one)
                     │   pinned and held under BundleVersionLock for the whole task
                     ├── bundle.path / rel_path is not a file in it?  → fail the task
                     │
@@ -584,8 +586,7 @@ already expresses "do not reconcile", so this needs no additional mechanism. The
 
 **A name mismatch under named binding.** A passed argument no param takes, or a param no argument fills, is a warning in the Dag file's parse log; the stub task is still bound.
 
-**A stub task has no binding at all.** The scheduler fails it with the reason rather than queueing a
-workload that would die on the worker at `ValueError("dag_path is required")`, far from the cause.
+**A stub task has no binding at all.** The scheduler queues it without a reference and never fails a task. The binding can be missing for ordinary reasons: the Dag processor has not parsed the file since an upgrade, or a newer parse left the task unbound.
 
 **Two artifacts claim one `(dag_id, task_id)`.** An import error against the Python file (the
 definition whose author can act) naming both artifact paths, since the fix is in the deployment.
@@ -601,14 +602,18 @@ definition whose author can act) naming both artifact paths, since the fix is in
 - Two new tables and one migration. `lang_sdk_task_handler` is reconciled on every parse of a file
   that owns rows in it; `lang_sdk_task_handler_artifact` is a cache with no per-file eviction.
 - `ExecuteTask` and `StartupDetails` each grow one optional `TaskHandlerArtifactRef`. On the coordinator
-  path the worker initializes the artifact's bundle, the task's own or a named one, in place of the Dag bundle, not in addition to it. Workload payloads grow by an artifact path, plus a bundle name for a named bundle.
+  path the worker initializes the artifact's bundle, the task's own or a named one, in place of the Dag bundle, not in addition to it. Workload payloads grow by an artifact path and a bundle name.
 - `DagFileParseRequest` gains a field and `DagFileParsingResult` two, and `ToSDKTaskHandlerProcessor`
   becomes a fifth union the supervisor-schema registry introspects. Both messages already appear in
   the generated schemas of all three SDKs, so the snapshot is regenerated and the two prek hooks guarding it run.
 - Every Lang SDK runtime must answer `TaskHandlerParseRequest`.
 - A stub task on a queue absent from `queue_to_coordinator` is left to a worker outside Airflow's coordinators:
-  the parse neither checks nor binds it. Without `queue_to_coordinator` nothing is checked, so
-  Python-only deployments are unchanged.
+  the parse neither checks nor binds it, and the scheduler does not look it up. Without `queue_to_coordinator`
+  nothing is checked, so Python-only deployments are unchanged.
+- The scheduler reads `[sdk]` and needs the task handler Dag bundles in `[dag_processor] dag_bundle_config_list`,
+  but not the artifacts or a language runtime. Without `queue_to_coordinator`, scheduling is unchanged and costs
+  no query. With it, a scheduling loop that queues a task on a routed queue costs one query, whatever the number
+  of tasks or executors.
 - A coordinator serving stub tasks must list and probe its artifacts, since a stub task it cannot bind cannot
   run.
 - An artifact whose probe fails, or that the parse runs out of time for, has no recorded answer, so every Dag

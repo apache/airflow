@@ -17,14 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import sqlalchemy as sa
+import structlog
 import uuid6
-from sqlalchemy import BigInteger, ForeignKeyConstraint, Index, String, UniqueConstraint, Uuid
+from sqlalchemy import BigInteger, ForeignKeyConstraint, Index, String, UniqueConstraint, Uuid, select, tuple_
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from airflow._shared.timezones import timezone
@@ -34,6 +35,12 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.engine.default import DefaultExecutionContext
+    from sqlalchemy.orm import Session
+
+    from airflow.executors.workloads import TaskHandlerArtifactRef
+    from airflow.models.taskinstance import TaskInstance
+
+log = structlog.get_logger(__name__)
 
 
 def compute_fileloc_hash(relative_fileloc: str) -> str:
@@ -127,3 +134,53 @@ class LangSDKTaskHandler(Base):
     def _sync_dag_relative_fileloc_hash(self, key: str, dag_relative_fileloc: str) -> str:
         self.dag_relative_fileloc_hash = compute_fileloc_hash(dag_relative_fileloc)
         return dag_relative_fileloc
+
+
+def get_task_handler_artifact_refs(
+    task_instances: Iterable[TaskInstance], *, session: Session
+) -> dict[tuple[str, str], TaskHandlerArtifactRef]:
+    """
+    Return the artifact the Dag processor bound each stub task instance to, keyed by ``(dag_id, task_id)``.
+
+    Only task instances on a queue that ``[sdk] queue_to_coordinator`` routes to a coordinator are looked up,
+    in one query. A task instance without a binding, or on any other queue, has no entry. An ``[sdk]``
+    configuration that cannot be loaded is logged as a warning and gives no entry for any task instance.
+    """
+    from airflow.executors.workloads import BundleInfo, TaskHandlerArtifactRef
+    from airflow.sdk.execution_time.coordinator import get_coordinator_manager  # noqa: SDK001
+
+    tis = list(task_instances)
+    if not tis:
+        return {}
+    # The worker routes a task on the same queue fallback, so both sides agree on which tasks are routed.
+    candidates = [((ti.dag_id, ti.task_id), ti.queue or "default") for ti in tis]
+    # Any failure to read the configuration, such as a value of the wrong JSON type, must not stop the
+    # scheduler loop.
+    try:
+        manager = get_coordinator_manager()
+        keys = {key for key, queue in candidates if manager.get_coordinator_key(queue) is not None}
+    except Exception:
+        log.warning(
+            "Cannot read the [sdk] coordinator configuration, so no task handler artifact is sent",
+            exc_info=True,
+        )
+        return {}
+    if not keys:
+        return {}
+
+    rows = session.execute(
+        select(
+            LangSDKTaskHandler.dag_id,
+            LangSDKTaskHandler.task_id,
+            LangSDKTaskHandlerArtifact.bundle_name,
+            LangSDKTaskHandlerArtifact.relative_fileloc,
+        )
+        .join(LangSDKTaskHandlerArtifact, LangSDKTaskHandlerArtifact.id == LangSDKTaskHandler.artifact_id)
+        .where(tuple_(LangSDKTaskHandler.dag_id, LangSDKTaskHandler.task_id).in_(sorted(keys)))
+    )
+    return {
+        (dag_id, task_id): TaskHandlerArtifactRef(
+            bundle_info=BundleInfo(name=bundle_name), rel_path=relative_fileloc
+        )
+        for dag_id, task_id, bundle_name, relative_fileloc in rows
+    }

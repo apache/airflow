@@ -1449,6 +1449,7 @@ class DAG:
                         from airflow.executors import workloads
                         from airflow.executors.base_executor import ExecutorLoader
                         from airflow.executors.workloads import BundleInfo
+                        from airflow.models.lang_sdk_task_handler import get_task_handler_artifact_refs
 
                         workload = workloads.ExecuteTask.make(
                             ti,
@@ -1459,6 +1460,10 @@ class DAG:
                             # local file system. If it turns out to be a feature people want, we could
                             # plumb the Bundle to use as a parameter to dag.test
                             bundle_info=BundleInfo(name="dags-folder"),
+                            # A stub task gets a reference only if a Dag processor bound it to an artifact.
+                            task_handler_artifact=get_task_handler_artifact_refs([ti], session=session).get(
+                                (ti.dag_id, ti.task_id)
+                            ),
                         )
                         executor.queue_workload(workload, session=session)
                         ti.state = TaskInstanceState.QUEUED

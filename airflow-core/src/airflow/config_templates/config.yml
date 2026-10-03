@@ -2202,7 +2202,14 @@ sdk:
         The Dag processor needs this option too, with the language runtime the
         coordinator starts and the files of that Dag bundle, because it checks
         the stub tasks of each Python Dag against the task handlers those files
-        register. The API server does not need it.
+        register.
+
+        The scheduler needs this option too, to send each stub task the artifact
+        the Dag processor bound it to. It needs the Dag bundles named by
+        ``task_handler_bundle_name`` in ``[dag_processor] dag_bundle_config_list``,
+        but not the language runtime or the files of those bundles. A scheduler
+        that cannot read this option logs a warning and sends no artifacts. The
+        API server does not need it.
 
         An entry may also carry an optional ``extra`` object for additional
         information associated with the coordinator that the coordinator itself
@@ -2245,6 +2252,10 @@ sdk:
         instance based on its queue.  An entry in this mapping is needed if
         tasks of a queue should be handled by a custom coordinator instead of
         the default Python task-running mechanism.
+
+        The Dag processor and the scheduler read it too: the Dag processor binds
+        each stub task on a routed queue to its artifact, and the scheduler sends
+        the task that artifact.
       version_added: 3.3.0
       type: string
       example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
