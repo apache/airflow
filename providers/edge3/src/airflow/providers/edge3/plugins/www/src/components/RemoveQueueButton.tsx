@@ -27,7 +27,7 @@ import {
   VStack,
   For,
 } from "@chakra-ui/react";
-import { useUiServiceRemoveWorkerQueue } from "openapi/queries";
+import { useRemoveWorkerQueue } from "openapi/queries";
 import type { Worker } from "openapi/requests/types.gen";
 import { useState } from "react";
 import { LuListMinus } from "react-icons/lu";
@@ -41,7 +41,7 @@ export const RemoveQueueButton = ({ onQueueUpdate, worker }: RemoveQueueButtonPr
   const { onClose, onOpen, open } = useDisclosure();
   const [selectedQueue, setSelectedQueue] = useState<string>("");
 
-  const removeQueueMutation = useUiServiceRemoveWorkerQueue({
+  const removeQueueMutation = useRemoveWorkerQueue(undefined, {
     onError: (error) => {
       onQueueUpdate({
         description: `Unable to remove queue from worker ${worker.worker_name}: ${error}`,
@@ -71,8 +71,10 @@ export const RemoveQueueButton = ({ onQueueUpdate, worker }: RemoveQueueButtonPr
     }
 
     removeQueueMutation.mutate({
-      queueName: selectedQueue,
-      workerName: worker.worker_name,
+      path: {
+        queue_name: selectedQueue,
+        worker_name: worker.worker_name,
+      },
     });
   };
 
