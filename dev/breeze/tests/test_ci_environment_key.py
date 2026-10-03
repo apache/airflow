@@ -83,7 +83,6 @@ def test_implementation_and_tests_do_not_invalidate_key(checkout, path):
     assert fingerprint(checkout) == before
 
 
-@pytest.mark.parametrize("operation", ["add", "delete", "rename"])
 def test_unstaged_metadata_deletion_invalidates_key(checkout):
     before = fingerprint(checkout)
     (checkout / "providers/example/provider.yaml").unlink()
@@ -92,6 +91,7 @@ def test_unstaged_metadata_deletion_invalidates_key(checkout):
     assert after["inputs"]["files"]["providers/example/provider.yaml"] == "missing"
 
 
+@pytest.mark.parametrize("operation", ["add", "delete", "rename"])
 def test_metadata_membership_invalidates_key(checkout, operation):
     before = fingerprint(checkout)
     path = "providers/example/provider.yaml"
