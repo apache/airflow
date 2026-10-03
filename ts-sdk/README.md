@@ -98,11 +98,10 @@ coordinators = {
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-The task's own Dag bundle is searched recursively for `*.min.mjs` bundles built with `airflow-ts-pack`
-(see [Packing bundles](#packing-bundles)), which embeds the Airflow metadata in the bundle itself. Set
-`dag_bundle_name` only when you configure more than one `NodeCoordinator`, for example one per Node.js version.
-Each one must then name its own Dag bundle from `[dag_processor] dag_bundle_config_list`, so Dag processing
-knows which one starts Node.js to parse a bundle.
+The stub Dag's own Dag bundle is searched recursively for `*.min.mjs` bundles built with `airflow-ts-pack`
+(see [Packing bundles](#packing-bundles)), which embeds the Airflow metadata in the bundle itself. To keep
+the `*.min.mjs` bundles in a separate Dag bundle, set `dag_bundle_name` to a bundle configured in
+`[dag_processor] dag_bundle_config_list`.
 
 TypeScript entrypoint:
 

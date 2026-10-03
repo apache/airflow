@@ -207,11 +207,7 @@ then register the coordinator and route the queue to it in ``airflow.cfg`` (or t
     }
     queue_to_coordinator = {"golang": "go"}
 
-``dag_bundle_name`` is only needed when you configure more than one ``ExecutableCoordinator``. Each one must
-then name its own Dag bundle, so Dag processing knows which one runs an executable bundle to parse it. With a
-single ``ExecutableCoordinator``, as here, it is optional: omit it and the coordinator finds executable bundles
-in the task's own Dag bundle. ``queue_to_coordinator`` routes stub tasks with ``queue="golang"`` to this Go
-coordinator. See :ref:`go-sdk/coordinator-config` for the full list of accepted ``kwargs``.
+``dag_bundle_name`` names the Dag bundle the coordinator scans for executable bundles. Omit it to ship the executable bundles in the same Dag bundle as the Python stub Dag. ``queue_to_coordinator`` routes stub tasks with ``queue="golang"`` to this Go coordinator. See :ref:`go-sdk/coordinator-config` for the full list of accepted ``kwargs``.
 
 There is no separate Go worker to run: the Airflow worker forks the bundle binary once per task instance.
 
@@ -525,8 +521,7 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - ``dag_bundle_name``
      - *(auto: task's own bundle)*
      - Name of a configured Dag bundle to load executable bundles from. It must name a bundle in
-       ``[dag_processor] dag_bundle_config_list``. Only needed when more than one
-       ``ExecutableCoordinator`` is configured.
+       ``[dag_processor] dag_bundle_config_list``.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the bundle subprocess to connect after launch. Increase this if your
@@ -537,11 +532,9 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   **Locating bundles.** Executable bundles always live in a Dag bundle:
 
   * Leave ``dag_bundle_name`` unset (the default) to load bundles from the **task's own** Dag bundle,
-    pinned to the version the run was created with. This is all you need with a single
-    ``ExecutableCoordinator``.
-  * With more than one ``ExecutableCoordinator``, set ``dag_bundle_name`` on each to a different Dag
-    bundle, so Dag processing knows which one runs an executable bundle to parse it. The task uses the
-    version that Dag bundle is on when it starts, pinned for the whole task.
+    pinned to the version the run was created with.
+  * Set ``dag_bundle_name`` to load bundles from a separate Dag bundle. The task uses the version that Dag
+    bundle is on when it starts, pinned for the whole task.
 
 .. _go-sdk/limitations:
 
