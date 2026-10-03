@@ -481,25 +481,25 @@ class TestSSHHook:
             )
 
     def test_ssh_connection(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         with hook.get_conn() as client:
             (_, stdout, _) = client.exec_command("ls")
             assert stdout.read() is not None
 
     def test_ssh_connection_no_connection_id(self):
-        hook = SSHHook(remote_host="localhost")
+        hook = SSHHook(remote_host="localhost", no_host_key_check=True)
         assert hook.ssh_conn_id is None
         with hook.get_conn() as client:
             (_, stdout, _) = client.exec_command("ls")
             assert stdout.read() is not None
 
     def test_ssh_connection_old_cm(self):
-        with SSHHook(ssh_conn_id="ssh_default").get_conn() as client:
+        with SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True).get_conn() as client:
             (_, stdout, _) = client.exec_command("ls")
             assert stdout.read() is not None
 
     def test_tunnel(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
 
         import socket
         import subprocess
@@ -712,6 +712,54 @@ class TestSSHHook:
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.set_missing_host_key_policy.called is True
 
+    def test_constructor_no_host_key_check_overrides_unrelated_extras(self):
+        """An explicit constructor value survives a connection whose extras omit host key settings."""
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA, no_host_key_check=True)
+        assert hook.no_host_key_check is True
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection")
+    def test_constructor_no_host_key_check_overrides_empty_extras(self, get_connection):
+        """An empty ``extra`` must not discard the constructor value."""
+        get_connection.return_value = Connection(
+            conn_id="ssh_empty_extra", host="localhost", conn_type="ssh", extra="{}"
+        )
+        hook = SSHHook(ssh_conn_id="ssh_empty_extra", no_host_key_check=True)
+        assert hook.no_host_key_check is True
+
+    def test_constructor_no_host_key_check_overrides_connection_extra(self):
+        """The constructor wins over a connection extra that sets the opposite value."""
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_EXTRA, no_host_key_check=False)
+        assert hook.no_host_key_check is False
+
+    def test_constructor_no_host_key_check_false_resolves_conflicting_extras(self):
+        """An explicit ``False`` makes a connection setting both ``host_key`` and the skip flag usable."""
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE, no_host_key_check=False
+        )
+        assert hook.no_host_key_check is False
+        assert hook.host_key is not None
+
+    def test_constructor_no_host_key_check_true_rejects_connection_host_key(self):
+        """Skipping the check is rejected whichever source asks for it while a host key is configured."""
+        with pytest.raises(ValueError, match="Must check host key when provided"):
+            SSHHook(
+                ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE, no_host_key_check=True
+            )
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_no_host_key_check_defaults_to_false(self, ssh_client):
+        """A connection that does not set ``no_host_key_check`` still verifies the host key."""
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_NO_EXTRA)
+        assert hook.no_host_key_check is False
+        with hook.get_conn():
+            assert ssh_client.return_value.load_system_host_keys.called is True
+            installed = [
+                call.args[0]
+                for call in ssh_client.return_value.set_missing_host_key_policy.call_args_list
+                if call.args
+            ]
+            assert not any(isinstance(policy, paramiko.AutoAddPolicy) for policy in installed)
+
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_conn_retry_attempts_defaults_to_three(self, ssh_client):
         hook = SSHHook(ssh_conn_id="ssh_default")
@@ -898,6 +946,7 @@ class TestSSHHook:
     def test_exec_ssh_client_command(self):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
+            no_host_key_check=True,
             conn_timeout=30,
             banner_timeout=100,
         )
@@ -914,6 +963,7 @@ class TestSSHHook:
     def test_command_timeout_success(self):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
+            no_host_key_check=True,
             conn_timeout=30,
             cmd_timeout=2,
             banner_timeout=100,
@@ -974,6 +1024,7 @@ class TestSSHHook:
     def test_command_timeout_not_set(self, monkeypatch):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
+            no_host_key_check=True,
             conn_timeout=30,
             cmd_timeout=None,
             banner_timeout=100,
@@ -1030,7 +1081,7 @@ class TestSSHHook:
                 assert ssh_mock.return_value.load_host_keys.called is False
 
     def test_connection_success(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         status, msg = hook.test_connection()
         assert status is True
         assert msg == "Connection successfully tested"
@@ -1043,14 +1094,14 @@ class TestSSHHook:
         assert msg == "Test failure case"
 
     def test_ssh_connection_client_is_reused_if_open(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         client1 = hook.get_conn()
         client2 = hook.get_conn()
         assert client1 is client2
         assert client2.get_transport().is_active()
 
     def test_ssh_connection_client_is_recreated_if_closed(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         client1 = hook.get_conn()
         client1.close()
         client2 = hook.get_conn()
@@ -1058,7 +1109,7 @@ class TestSSHHook:
         assert client2.get_transport().is_active()
 
     def test_ssh_connection_client_is_recreated_if_transport_closed(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         client1 = hook.get_conn()
         client1.get_transport().close()
         client2 = hook.get_conn()
