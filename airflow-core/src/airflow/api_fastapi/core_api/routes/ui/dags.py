@@ -22,7 +22,7 @@ from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import false, func, literal, select, union_all
+from sqlalchemy import and_, false, func, literal, select, union_all
 from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -519,45 +519,63 @@ def get_recent_task_instance_state_counts(
 
     # Ascending run_after: if two runs of one Dag are passed, the newer one wins below.
     requested_runs = session.execute(
-        select(DagRun.dag_id, DagRun.run_id)
+        select(DagRun.id, DagRun.dag_id, DagRun.run_id)
         .where(DagRun.id.in_(set(dag_run_ids)), DagRun.dag_id.in_(permitted_dag_ids))
         .order_by(DagRun.run_after)
     ).all()
     latest_run_id_by_dag: dict[str, str] = {row.dag_id: row.run_id for row in requested_runs}
+    latest_run_pk_by_dag: dict[str, int] = {row.dag_id: row.id for row in requested_runs}
 
     if latest_run_id_by_dag:
-        # Served by the partial idx_dag_run_running_dags index on (state, dag_id).
-        running_runs = session.execute(
-            select(DagRun.dag_id, DagRun.run_id)
-            .where(DagRun.state == DagRunState.RUNNING, DagRun.dag_id.in_(latest_run_id_by_dag))
-            .order_by(DagRun.run_after)
-        ).all()
-        run_ids_by_dag: dict[str, list[str]] = {}
-        for row in running_runs:
-            run_ids_by_dag.setdefault(row.dag_id, []).append(row.run_id)
-        for dag_id, run_id in latest_run_id_by_dag.items():
-            run_ids_by_dag.setdefault(dag_id, [run_id])
-
-        # Each branch filters on (dag_id, run_id) equality, which the ti_dag_run index
-        # covers. The task instances counted are bounded by the Dag's task structure times
-        # its active runs, so the per-state counts are exact (no cap needed here, unlike the
+        # One statement picks the counted runs and counts their task instances: every running
+        # run of the requested Dags (found through the partial idx_dag_run_running_dags index),
+        # plus the requested latest run of each Dag with none running. Counting one UNION ALL
+        # branch per run instead grows with the running runs and stops scaling at a few dozen
+        # per Dag. The task instances counted are bounded by the Dag's task structure times its
+        # running runs, so the per-state counts are exact (no cap needed here, unlike the
         # cross-run counts in get_dag_run_state_counts).
-        ti_branches = [
-            select(literal(dag_id).label("dag_id"), TaskInstance.state.label("state"))
-            .where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id)
-            .subquery()
-            for dag_id, run_ids in run_ids_by_dag.items()
-            for run_id in run_ids
-        ]
-        tis_union = union_all(*(select(branch) for branch in ti_branches)).subquery()
-        counts_by_dag: dict[str, dict[str, int]] = {dag_id: {} for dag_id in run_ids_by_dag}
-        for row in session.execute(
-            select(tis_union.c.dag_id, tis_union.c.state, func.count().label("cnt")).group_by(
-                tis_union.c.dag_id, tis_union.c.state
+        running_runs = (
+            select(DagRun.dag_id, DagRun.run_id, DagRun.run_after)
+            .where(DagRun.state == DagRunState.RUNNING, DagRun.dag_id.in_(latest_run_id_by_dag))
+            .cte("running_runs")
+        )
+        counted_runs = union_all(
+            select(running_runs.c.dag_id, running_runs.c.run_id, running_runs.c.run_after),
+            select(DagRun.dag_id, DagRun.run_id, DagRun.run_after).where(
+                DagRun.id.in_(latest_run_pk_by_dag.values()),
+                DagRun.dag_id.not_in(select(running_runs.c.dag_id)),
+            ),
+        ).subquery("counted_runs")
+        # Outer join so a counted run without task instances still lists its run id.
+        counts = session.execute(
+            select(
+                counted_runs.c.dag_id,
+                counted_runs.c.run_id,
+                TaskInstance.state,
+                func.count(TaskInstance.id).label("cnt"),
             )
-        ):
-            state_key = row.state if row.state is not None else "no_status"
-            counts_by_dag[row.dag_id][state_key] = row.cnt
+            .select_from(counted_runs)
+            .outerjoin(
+                TaskInstance,
+                and_(
+                    TaskInstance.dag_id == counted_runs.c.dag_id,
+                    TaskInstance.run_id == counted_runs.c.run_id,
+                ),
+            )
+            .group_by(
+                counted_runs.c.dag_id, counted_runs.c.run_after, counted_runs.c.run_id, TaskInstance.state
+            )
+            .order_by(counted_runs.c.run_after, counted_runs.c.run_id)
+        )
+        counts_by_dag: dict[str, dict[str, int]] = {dag_id: {} for dag_id in latest_run_id_by_dag}
+        run_ids_by_dag: dict[str, list[str]] = {}
+        for row in counts:
+            run_ids = run_ids_by_dag.setdefault(row.dag_id, [])
+            if not run_ids or run_ids[-1] != row.run_id:
+                run_ids.append(row.run_id)
+            if row.cnt:
+                state_key = row.state if row.state is not None else "no_status"
+                counts_by_dag[row.dag_id][state_key] = counts_by_dag[row.dag_id].get(state_key, 0) + row.cnt
 
         dags = [
             DAGRecentTaskInstanceStateCountsResponse(

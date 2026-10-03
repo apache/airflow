@@ -22,7 +22,7 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -33,6 +33,7 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.hitl import HITLDetail
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.timezone import utcnow
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -962,6 +963,17 @@ class TestGetRecentTaskInstanceStateCounts(TestPublicDagEndpoint):
                 "run_ids": ["latest_run"],
                 "state_counts": {"success": 1, "failed": 1, "running": 1, "no_status": 1},
             }
+        ]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_lists_a_counted_run_without_task_instances(self, test_client, session):
+        session.execute(delete(TI).where(TI.run_id == "latest_run"))
+        session.commit()
+
+        response = test_client.get(RECENT_TI_COUNTS_ENDPOINT, params={"dag_run_ids": [self.latest_run_id]})
+        assert response.status_code == 200
+        assert response.json()["dags"] == [
+            {"dag_id": TI_COUNTS_DAG_ID, "run_ids": ["latest_run"], "state_counts": {}},
         ]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
