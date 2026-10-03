@@ -17,7 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+from sqlalchemy.exc import OperationalError
 
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
@@ -27,6 +30,18 @@ from airflow.utils.session import create_session
 from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 
 pytestmark = pytest.mark.db_test
+
+
+def _flaky_once(real_scalar, calls):
+    """Wrap ``session.scalar`` so the first call raises a transient DBAPI error."""
+
+    def scalar(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise OperationalError("SELECT 1", {}, Exception("server closed the connection unexpectedly"))
+        return real_scalar(*args, **kwargs)
+
+    return scalar
 
 
 class TestMetastoreBackendSessionSafety:
@@ -108,3 +123,45 @@ class TestMetastoreBackendSessionSafety:
         # Attributes should still be accessible
         assert conn.conn_id == "test_conn"
         assert conn.host == "localhost"
+
+
+class TestMetastoreBackendTransientDBErrors:
+    """A transient DB error must be retried, not reported as a missing secret.
+
+    Both ``Connection.get_connection_from_secrets`` and ``Variable.get_variable_from_secrets``
+    swallow every exception from a backend and fall through to the next one, so without a
+    retry a momentary DB blip is indistinguishable from "the secret does not exist".
+    """
+
+    def setup_method(self) -> None:
+        clear_db_connections()
+        clear_db_variables()
+
+    def teardown_method(self) -> None:
+        clear_db_connections()
+        clear_db_variables()
+
+    def test_get_connection_retries_transient_db_error(self):
+        with create_session() as session:
+            session.add(Connection(conn_id="target_conn", conn_type="mysql", host="localhost"))
+            session.commit()
+
+        with create_session() as session:
+            calls: list[int] = []
+            with mock.patch.object(session, "scalar", side_effect=_flaky_once(session.scalar, calls)):
+                conn = MetastoreBackend().get_connection("target_conn", session=session)
+
+        assert len(calls) == 2
+        assert conn is not None
+        assert conn.conn_id == "target_conn"
+
+    def test_get_variable_retries_transient_db_error(self):
+        Variable.set(key="test_key", value="test_value")
+
+        with create_session() as session:
+            calls: list[int] = []
+            with mock.patch.object(session, "scalar", side_effect=_flaky_once(session.scalar, calls)):
+                value = MetastoreBackend().get_variable("test_key", session=session)
+
+        assert len(calls) == 2
+        assert value == "test_value"
