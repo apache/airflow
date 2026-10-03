@@ -28,8 +28,7 @@ The same file also holds `TestNativeTypeScriptDagOnKubernetes`, which runs a Dag
 file at all**: the Dag processor asks the packed TypeScript bundle to parse itself. It is skipped
 unless `RUN_TS_SDK_NATIVE_DAG_K8S_TESTS` is set, because this setup does not let the Dag processor
 parse the bundle yet: `bundle.min.mjs` is uploaded only to the `ts-artifacts` bucket, which only
-worker pods stage, the `ts-sdk` coordinator's `dag_bundle_name` limits it to that bundle, and the
-Dag processor image has no Node.
+worker pods stage, and the Dag processor image has no Node.
 
 ## How it fits together
 
