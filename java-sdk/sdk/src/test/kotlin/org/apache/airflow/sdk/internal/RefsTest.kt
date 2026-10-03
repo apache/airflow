@@ -112,4 +112,47 @@ internal class RefsTest {
       error.message,
     )
   }
+
+  @Test
+  @DisplayName("Should reject a raw null argument, pointing to lit(null)")
+  fun shouldRejectRawNullArgument() {
+    val error =
+      assertThrows(IllegalArgumentException::class.java) {
+        Refs.record(DagDef("d"), listOf("t")) {
+          Refs.call<Unit>(TaskDef("t", NoopRefTask::class.java), Arg.lit(1), null)
+        }
+      }
+
+    assertEquals("Argument 2 of task 't' is null; wrap a null constant as lit(null)", error.message)
+  }
+
+  @Test
+  @DisplayName("Should reject a task wired a second time with arguments")
+  fun shouldRejectTaskWiredTwiceWithArguments() {
+    val error =
+      assertThrows(IllegalArgumentException::class.java) {
+        Refs.record(DagDef("d"), listOf("t")) {
+          Refs.node<Unit>(TaskDef("t", NoopRefTask::class.java))
+          Refs.call<Unit>(TaskDef("t", NoopRefTask::class.java), Arg.lit(1))
+        }
+      }
+
+    assertEquals(
+      "Task 't' is wired more than once with arguments; call it once and reuse the handle it returned",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should refuse to record a Dag while another is being recorded")
+  fun shouldRefuseNestedRecording() {
+    val error =
+      assertThrows(IllegalStateException::class.java) {
+        Refs.record(DagDef("outer"), emptyList()) {
+          Refs.record(DagDef("inner"), emptyList()) {}
+        }
+      }
+
+    assertEquals("Dag wiring is already being recorded on this thread", error.message)
+  }
 }

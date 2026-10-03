@@ -88,26 +88,34 @@ object Refs {
    *
    * @return The handle representing this task, memoized by [TaskDef.id] so a result
    *    held in a local and reused refers to one node.
+   * @throws IllegalArgumentException if an argument is a raw Java `null`
+   *    rather than `lit(null)`.
    */
   @JvmStatic
   @Suppress("UNCHECKED_CAST", "SpreadOperator")
   fun <T> call(
     def: TaskDef,
-    vararg args: Arg<*>,
+    vararg args: Arg<*>?,
   ): TaskRef<T> {
+    val inputs =
+      args.mapIndexed { i, arg ->
+        requireNotNull(arg) {
+          "Argument ${i + 1} of task '${def.id}' is null; wrap a null constant as lit(null)"
+        }
+      }
     val active =
       checkNotNull(recording.get()) {
         "Task '${def.id}' was wired outside a @Builder.Deps class; the wiring view's methods " +
           "only record while the generated builder is running depends()"
       }
     active.byTaskId[def.id]?.let { existing ->
-      require(args.isEmpty()) {
+      require(inputs.isEmpty()) {
         "Task '${def.id}' is wired more than once with arguments; call it once and reuse the handle it returned"
       }
       return existing as TaskRef<T>
     }
-    args.filterIsInstance<TaskRef<*>>().forEach { def.dependsOn(it.def) }
-    def.inputs += args
+    inputs.filterIsInstance<TaskRef<*>>().forEach { def.dependsOn(it.def) }
+    def.inputs += inputs
     active.dag.addTask(def)
     return TaskRef<T>(def).also { active.byTaskId[def.id] = it }
   }
