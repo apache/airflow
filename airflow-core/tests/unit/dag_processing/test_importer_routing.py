@@ -37,6 +37,13 @@ def test_get_claiming_importer_returns_the_importer_that_claims_the_file(tmp_pat
     assert others == [None, None]
 
 
+def test_get_claiming_importer_claims_a_file_that_several_coordinators_could_parse(tmp_path):
+    with fake_coordinator("first", "second"):
+        importer = get_claiming_importer(tmp_path / "dags.native", "testing")
+
+    assert isinstance(importer, FakeCoordinatorDagImporter)
+
+
 @mock.patch(
     "airflow.sdk.coordinators._dag_importer.COORDINATOR_DAG_IMPORTERS", ("nonexistent.module.Importer",)
 )
