@@ -71,7 +71,7 @@ class BaseAzureServiceBusHook(BaseHook):
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
 
@@ -79,7 +79,7 @@ class BaseAzureServiceBusHook(BaseHook):
             "fully_qualified_namespace": StringField(
                 lazy_gettext("Fully Qualified Namespace"), widget=BS3TextFieldWidget()
             ),
-            "credential": PasswordField(lazy_gettext("Credential"), widget=BS3TextFieldWidget()),
+            "credential": PasswordField(lazy_gettext("Credential"), widget=BS3PasswordFieldWidget()),
         }
 
     @classmethod

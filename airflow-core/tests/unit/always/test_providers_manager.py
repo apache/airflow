@@ -263,6 +263,42 @@ class TestProviderManager:
             # widgets loaded from YAML metadata only
             assert len(connections_form_widgets) == yaml_widgets
 
+    def test_sensitive_connection_fields_are_redactable(self):
+        """
+        Every connection field a provider declares as sensitive must be in the redaction allowlist.
+
+        Providers already state which fields are secret; this asserts ``DEFAULT_SENSITIVE_FIELDS``
+        never drifts apart from them.
+        """
+        pytest.importorskip("flask_appbuilder", reason="connection form widgets need flask_appbuilder")
+
+        from airflow._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS
+        from airflow._shared.secrets_masker.secrets_masker import SecretsMasker
+
+        # Check the shipped defaults rather than the process-wide masker, whose
+        # sensitive_variables_fields is only populated once settings have been configured.
+        masker = SecretsMasker()
+        masker.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
+
+        # "config" is too generic a field name to add to the allowlist; apprise's
+        # "config" field is handled separately.
+        allowed_unredacted = {("config", "apache-airflow-providers-apprise")}
+
+        provider_manager = ProvidersManager()
+        missing = sorted(
+            {
+                (widget.field_name, widget.package_name)
+                for widget in provider_manager.connection_form_widgets.values()
+                if widget.is_sensitive and not masker.should_hide_value_for_key(widget.field_name)
+            }
+            - allowed_unredacted
+        )
+        assert not missing, (
+            "These connection fields are declared sensitive by their provider but are not "
+            "redacted. Add each name (or a substring of it) to DEFAULT_SENSITIVE_FIELDS in "
+            f"shared/secrets_masker: {missing}"
+        )
+
     def test_field_behaviours(self, yaml_ui_metadata_counts):
         _, yaml_behaviours = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
