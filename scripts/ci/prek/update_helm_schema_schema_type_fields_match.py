@@ -85,7 +85,9 @@ def main() -> int:
     with open(_VALUES_SCHEMA_SCHEMA_FILE, encoding="utf-8") as schema_file:
         schema = json.loads(schema_file.read())
 
-    schema["definitions"]["leafs"]["if"]["oneOf"] = _get_one_of_for_schema(field_types)
+    schema["$defs"]["leaf"]["properties"]["properties"]["additionalProperties"]["if"]["oneOf"] = (
+        _get_one_of_for_schema(field_types)
+    )
 
     with open(_VALUES_SCHEMA_SCHEMA_FILE, "w", encoding="utf-8") as schema_file:
         json.dump(schema, schema_file, indent=4)
