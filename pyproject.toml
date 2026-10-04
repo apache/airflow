@@ -1299,6 +1299,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/salesforce/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/samba/src",
     "$MYPY_CONFIG_FILE_DIR/providers/samba/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/search/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/search/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/segment/src",
     "$MYPY_CONFIG_FILE_DIR/providers/segment/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/sendgrid/src",
@@ -1583,6 +1585,7 @@ apache-airflow-providers-qdrant = false
 apache-airflow-providers-redis = false
 apache-airflow-providers-salesforce = false
 apache-airflow-providers-samba = false
+apache-airflow-providers-search = false
 apache-airflow-providers-segment = false
 apache-airflow-providers-sendgrid = false
 apache-airflow-providers-sftp = false
@@ -1784,6 +1787,7 @@ apache-airflow-providers-qdrant = false
 apache-airflow-providers-redis = false
 apache-airflow-providers-salesforce = false
 apache-airflow-providers-samba = false
+apache-airflow-providers-search = false
 apache-airflow-providers-segment = false
 apache-airflow-providers-sendgrid = false
 apache-airflow-providers-sftp = false
@@ -1956,6 +1960,7 @@ apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-redis = { workspace = true }
 apache-airflow-providers-salesforce = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
+apache-airflow-providers-search = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-sendgrid = { workspace = true }
 apache-airflow-providers-sftp = { workspace = true }
@@ -2102,6 +2107,7 @@ members = [
     "providers/redis",
     "providers/salesforce",
     "providers/samba",
+    "providers/search",
     "providers/segment",
     "providers/sendgrid",
     "providers/sftp",
