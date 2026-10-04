@@ -59,8 +59,8 @@ if [[ "${name}" == "docker" ]]; then
         "info --format "*) echo "${DAEMON_FINGERPRINT}" ;;
         "images --quiet --filter label=org.apache.airflow.image=airflow-ci") printf '%b' "${CI_IMAGES:-}" ;;
         "images --quiet") printf '%b' "${ALL_IMAGES:-}" ;;
-        "images --all --quiet") printf '%b' "${ALL_IMAGES:-}" ;;
-        "ps --all --quiet") printf '%b' "${CONTAINERS:-}" ;;
+        "images --all --quiet") printf '%b' "${ALL_IMAGES:-}"; exit "${IMAGES_EXIT:-0}" ;;
+        "ps --all --quiet") printf '%b' "${CONTAINERS:-}"; exit "${CONTAINERS_EXIT:-0}" ;;
         "run "*) exit "${RUN_EXIT:-0}" ;;
     esac
 fi
@@ -204,6 +204,14 @@ def test_unsupported_storage_does_not_modify_daemon(fake_tools, snapshot, mode, 
 def test_existing_container_prevents_restore(fake_tools, snapshot):
     result = run_script({**fake_tools, "CONTAINERS": "container1"}, "restore", str(snapshot))
     assert result.returncode == 3
+    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
+
+
+@pytest.mark.parametrize("failure", [{"IMAGES_EXIT": "1"}, {"CONTAINERS_EXIT": "1"}])
+def test_failed_daemon_inventory_does_not_modify_store(fake_tools, snapshot, failure):
+    result = run_script({**fake_tools, **failure}, "restore", str(snapshot))
+
+    assert result.returncode != 0
     assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
 
 

@@ -98,7 +98,7 @@ function create_snapshot() {
 function restore_snapshot() {
     local snapshot_file="${1}"
     local -a meta
-    local image_id snapshot_fingerprint daemon
+    local image_id snapshot_fingerprint daemon existing_images existing_containers
     if [[ ! -f "${snapshot_file}" || ! -f "${snapshot_file}.meta" ]]; then
         echo "No snapshot at ${snapshot_file}"
         exit 2
@@ -120,7 +120,9 @@ function restore_snapshot() {
         echo "The snapshot was written by '${snapshot_fingerprint}', this daemon is '${daemon}'"
         exit 3
     fi
-    if [[ -n "$(docker images --all --quiet)" || -n "$(docker ps --all --quiet)" ]]; then
+    existing_images="$(docker images --all --quiet)"
+    existing_containers="$(docker ps --all --quiet)"
+    if [[ -n "${existing_images}" || -n "${existing_containers}" ]]; then
         echo "The daemon already holds images, which restoring the snapshot would drop"
         exit 3
     fi
