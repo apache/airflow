@@ -40,7 +40,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytestmark = pytest.mark.skipif(
     not AIRFLOW_V_3_2_PLUS,
