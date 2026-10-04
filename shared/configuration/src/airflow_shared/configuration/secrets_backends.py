@@ -32,6 +32,10 @@ ENVIRONMENT_VARIABLE_BACKEND_PATH = "airflow.secrets.environment_variables.Envir
 EXECUTION_API_BACKEND_PATH = "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
 METASTORE_BACKEND_PATH = "airflow.secrets.metastore.MetastoreBackend"
 
+# Server components (scheduler, API server, Dag processor) use this search path. Callers passing any
+# other list are treated as running in worker mode, so core and the Task SDK must share this definition.
+SERVER_DEFAULT_SECRETS_SEARCH_PATH = (ENVIRONMENT_VARIABLE_BACKEND_PATH, METASTORE_BACKEND_PATH)
+
 
 class Backend(enum.Enum):
     """Known secrets backends."""
