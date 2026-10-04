@@ -75,6 +75,12 @@ func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
 			return nil, fmt.Errorf("decoding StartupDetails: %w", err)
 		}
 		return &msg, nil
+	case genmodels.TypeTaskHandlerParseRequest:
+		var msg genmodels.TaskHandlerParseRequest
+		if err := msgpack.Unmarshal(raw, &msg); err != nil {
+			return nil, fmt.Errorf("decoding TaskHandlerParseRequest: %w", err)
+		}
+		return &msg, nil
 	case genmodels.TypeDagFileParseRequest:
 		var msg genmodels.DagFileParseRequest
 		if err := msgpack.Unmarshal(raw, &msg); err != nil {

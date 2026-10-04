@@ -58,7 +58,8 @@ type DagRef struct {
 // panic once the Dag is registered.
 //
 // [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
-// --airflow-metadata manifest and cannot run their tasks.
+// --airflow-metadata manifest and cannot run their tasks. Their tasks are never task handlers, so
+// the reply to the Dag processor's task handler parse leaves them out too.
 func Dag(dagID string, spec ...DagSpec) *DagRef {
 	if len(spec) > 1 {
 		panic(fmt.Sprintf(
