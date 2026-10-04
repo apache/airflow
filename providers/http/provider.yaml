@@ -105,6 +105,7 @@ operators:
 sensors:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
+      - airflow.providers.http.sensors.external_task
       - airflow.providers.http.sensors.http
 
 hooks:
@@ -118,6 +119,7 @@ notifications:
 triggers:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
+      - airflow.providers.http.triggers.external_task
       - airflow.providers.http.triggers.http
 
 connection-types:

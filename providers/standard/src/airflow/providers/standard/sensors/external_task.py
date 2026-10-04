@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
+    from airflow.triggers.base import BaseTrigger
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -352,28 +353,14 @@ class ExternalTaskSensor(BaseSensorOperator):
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
 
         self._has_checked_existence = True
-        ti = context["ti"]
 
         def _get_count(states: list[str]) -> int:
             if self.external_task_ids:
-                return ti.get_ti_count(
-                    dag_id=self.external_dag_id,
-                    task_ids=list(self.external_task_ids),
-                    logical_dates=list(dttm_filter),
-                    states=states,
-                )
+                return self._get_ti_count(context, dttm_filter, states)
             if self.external_task_group_id:
-                run_id_task_state_map = ti.get_task_states(
-                    dag_id=self.external_dag_id,
-                    task_group_id=self.external_task_group_id,
-                    logical_dates=list(dttm_filter),
-                )
+                run_id_task_state_map = self._get_task_group_states(context, dttm_filter)
                 return _get_count_by_matched_states(run_id_task_state_map, states)
-            return ti.get_dr_count(
-                dag_id=self.external_dag_id,
-                logical_dates=list(dttm_filter),
-                states=states,
-            )
+            return self._get_dr_count(context, dttm_filter, states)
 
         if self.failed_states:
             count = _get_count(self.failed_states)
@@ -388,6 +375,41 @@ class ExternalTaskSensor(BaseSensorOperator):
         count = _get_count(self.allowed_states)
         count_allowed = self._calculate_count(count, dttm_filter)
         return count_allowed == len(dttm_filter)
+
+    def _get_dr_count(
+        self, context: Context, logical_dates: Sequence[datetime.datetime], states: list[str]
+    ) -> int:
+        """Count the external Dag runs with any of the logical dates and states."""
+        return context["ti"].get_dr_count(
+            dag_id=self.external_dag_id,
+            logical_dates=list(logical_dates),
+            states=states,
+        )
+
+    def _get_ti_count(
+        self, context: Context, logical_dates: Sequence[datetime.datetime], states: list[str]
+    ) -> int:
+        """Count the external task instances with any of the logical dates and states."""
+        if TYPE_CHECKING:
+            assert self.external_task_ids
+        return context["ti"].get_ti_count(
+            dag_id=self.external_dag_id,
+            task_ids=list(self.external_task_ids),
+            logical_dates=list(logical_dates),
+            states=states,
+        )
+
+    def _get_task_group_states(
+        self, context: Context, logical_dates: Sequence[datetime.datetime]
+    ) -> dict[str, dict[str, typing.Any]]:
+        """Get the states of the external task group's task instances by run ID and task key."""
+        if TYPE_CHECKING:
+            assert self.external_task_group_id
+        return context["ti"].get_task_states(
+            dag_id=self.external_dag_id,
+            task_group_id=self.external_task_group_id,
+            logical_dates=list(logical_dates),
+        )
 
     def _calculate_count(self, count: int, dttm_filter: Sequence[datetime.datetime]) -> float | int:
         """Calculate the normalized count based on the type of check."""
@@ -476,19 +498,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             if AIRFLOW_V_3_0_PLUS:
                 self.defer(
                     timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
-                    trigger=WorkflowTrigger(
-                        external_dag_id=self.external_dag_id,
-                        external_task_group_id=self.external_task_group_id,
-                        external_task_ids=self.external_task_ids,
-                        allowed_states=self.allowed_states,
-                        failed_states=self.failed_states,
-                        skipped_states=self.skipped_states,
-                        poke_interval=self.poke_interval,
-                        soft_fail=self.soft_fail,
-                        logical_dates=list(dttm_filter),
-                        run_ids=None,
-                        execution_dates=None,
-                    ),
+                    trigger=self._get_trigger(context, dttm_filter),
                     method_name="execute_complete",
                 )
             else:
@@ -516,6 +526,22 @@ class ExternalTaskSensor(BaseSensorOperator):
                     ),
                     method_name="execute_complete",
                 )
+
+    def _get_trigger(self, context: Context, logical_dates: Sequence[datetime.datetime]) -> BaseTrigger:
+        """Create the trigger to defer to in deferrable mode."""
+        return WorkflowTrigger(
+            external_dag_id=self.external_dag_id,
+            external_task_group_id=self.external_task_group_id,
+            external_task_ids=self.external_task_ids,
+            allowed_states=self.allowed_states,
+            failed_states=self.failed_states,
+            skipped_states=self.skipped_states,
+            poke_interval=self.poke_interval,
+            soft_fail=self.soft_fail,
+            logical_dates=list(logical_dates),
+            run_ids=None,
+            execution_dates=None,
+        )
 
     def execute_complete(self, context: Context, event: dict[str, typing.Any] | None = None) -> None:
         """Execute when the trigger fires - return immediately."""

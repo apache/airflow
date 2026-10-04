@@ -99,7 +99,7 @@ class WorkflowTrigger(BaseTrigger):
         else:
             data["execution_dates"] = self.execution_dates
 
-        return "airflow.providers.standard.triggers.external_task.WorkflowTrigger", data
+        return f"{type(self).__module__}.{type(self).__qualname__}", data
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically tasks, task group or dag status."""
@@ -132,36 +132,56 @@ class WorkflowTrigger(BaseTrigger):
 
     async def _get_count_af_3(self, states: Collection[str] | None) -> int:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         if self.external_task_ids:
-            count = await sync_to_async(RuntimeTaskInstance.get_ti_count)(
-                dag_id=self.external_dag_id,
-                task_ids=list(self.external_task_ids),
-                logical_dates=self.logical_dates,
-                run_ids=self.run_ids,
-                states=list(states) if states else None,
-            )
+            count = await self._get_ti_count(states)
             return int(count / len(self.external_task_ids))
         if self.external_task_group_id:
-            run_id_task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
-                dag_id=self.external_dag_id,
-                task_group_id=self.external_task_group_id,
-                logical_dates=self.logical_dates,
-                run_ids=self.run_ids,
-            )
+            run_id_task_state_map = await self._get_task_group_states()
             count = await sync_to_async(_get_count_by_matched_states)(
                 run_id_task_state_map=run_id_task_state_map,
                 states=states or [],
             )
             return count
-        count = await sync_to_async(RuntimeTaskInstance.get_dr_count)(
+        return await self._get_dr_count(states)
+
+    async def _get_dr_count(self, states: Collection[str] | None) -> int:
+        """Count the external Dag runs with any of the run IDs or logical dates and states."""
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        return await sync_to_async(RuntimeTaskInstance.get_dr_count)(
             dag_id=self.external_dag_id,
             logical_dates=self.logical_dates,
             run_ids=self.run_ids,
             states=list(states) if states else None,
         )
-        return count
+
+    async def _get_ti_count(self, states: Collection[str] | None) -> int:
+        """Count the external task instances with any of the run IDs or logical dates and states."""
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        if typing.TYPE_CHECKING:
+            assert self.external_task_ids
+        return await sync_to_async(RuntimeTaskInstance.get_ti_count)(
+            dag_id=self.external_dag_id,
+            task_ids=list(self.external_task_ids),
+            logical_dates=self.logical_dates,
+            run_ids=self.run_ids,
+            states=list(states) if states else None,
+        )
+
+    async def _get_task_group_states(self) -> dict[str, dict[str, typing.Any]]:
+        """Get the states of the external task group's task instances by run ID and task key."""
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        if typing.TYPE_CHECKING:
+            assert self.external_task_group_id
+        return await sync_to_async(RuntimeTaskInstance.get_task_states)(
+            dag_id=self.external_dag_id,
+            task_group_id=self.external_task_group_id,
+            logical_dates=self.logical_dates,
+            run_ids=self.run_ids,
+        )
 
     @sync_to_async
     def _get_count(self, states: Collection[str] | None) -> int:
