@@ -68,11 +68,7 @@ const createColumns = (translate: TFunction): Array<ColumnDef<AssetResponse>> =>
       const assetEvent = original.last_asset_event;
       const timestamp = assetEvent?.timestamp;
 
-      if (timestamp === null || timestamp === undefined) {
-        return undefined;
-      }
-
-      return <Time datetime={timestamp} />;
+      return timestamp === null || timestamp === undefined ? undefined : <Time datetime={timestamp} />;
     },
     header: () => translate("lastAssetEvent"),
   },
