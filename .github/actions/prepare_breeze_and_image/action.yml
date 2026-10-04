@@ -97,6 +97,7 @@ runs:
         inputs.image-type == 'ci' && inputs.image-stash-ref == ''
     - name: "Check CI image snapshot compatibility ${{ inputs.platform }}:${{ inputs.python }}"
       id: snapshot-preflight
+      continue-on-error: true
       env:
         PLATFORM: ${{ inputs.platform }}
         PYTHON: ${{ inputs.python }}

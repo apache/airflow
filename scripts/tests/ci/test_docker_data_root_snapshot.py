@@ -22,6 +22,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 SCRIPT = Path(__file__).resolve().parents[2] / "ci" / "docker_data_root_snapshot.sh"
 FINGERPRINT = "28.5.2 overlay2 x86_64 /var/lib/docker"
@@ -59,8 +60,8 @@ if [[ "${name}" == "docker" ]]; then
         "info --format "*) echo "${DAEMON_FINGERPRINT}" ;;
         "images --quiet --filter label=org.apache.airflow.image=airflow-ci") printf '%b' "${CI_IMAGES:-}" ;;
         "images --quiet") printf '%b' "${ALL_IMAGES:-}" ;;
-        "images --all --quiet") printf '%b' "${ALL_IMAGES:-}" ;;
-        "ps --all --quiet") printf '%b' "${CONTAINERS:-}" ;;
+        "images --all --quiet") printf '%b' "${ALL_IMAGES:-}"; exit "${IMAGES_EXIT:-0}" ;;
+        "ps --all --quiet") printf '%b' "${CONTAINERS:-}"; exit "${CONTAINERS_EXIT:-0}" ;;
         "run "*) exit "${RUN_EXIT:-0}" ;;
     esac
 fi
@@ -122,12 +123,36 @@ def test_preflight_checks_metadata_without_touching_snapshot_or_daemon(fake_tool
     assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
 
 
+def test_incompatible_preflight_preserves_action_fallback(fake_tools, snapshot):
+    action_file = SCRIPT.parents[2] / ".github/actions/prepare_breeze_and_image/action.yml"
+    steps = yaml.safe_load(action_file.read_text())["runs"]["steps"]
+    preflight = next(step for step in steps if step.get("id") == "snapshot-preflight")
+    download = next(step for step in steps if step.get("id") == "restore-snapshot")
+    stash = next(step for step in steps if "stash/restore@" in step.get("uses", ""))
+    load = next(step for step in steps if step["name"].startswith("Load "))
+
+    result = run_script({**fake_tools, "CHECKOUT_SHA": "revision2"}, "preflight", f"{snapshot}.meta")
+
+    assert result.returncode == 3
+    # A failed optional check must not trigger GitHub's implicit success() gate for later steps.
+    assert preflight["continue-on-error"] is True
+    assert download["if"] == "steps.snapshot-preflight.outcome == 'success'"
+    assert stash["if"] == load["if"] == "steps.snapshot.outputs.restored != 'true'"
+
+
 @pytest.mark.parametrize(
     ("env", "metadata", "expected_exit"),
     [
         pytest.param({}, "invalid\n", 3, id="malformed"),
         pytest.param({"CHECKOUT_SHA": "revision2"}, None, 3, id="stale-checkout"),
-        pytest.param({"DAEMON_FINGERPRINT": "29.0.0 overlay2 x86_64 /var/lib/docker"}, None, 3, id="other-daemon"),
+        pytest.param(
+            {"DAEMON_FINGERPRINT": "29.0.0 overlay2 x86_64 /var/lib/docker"}, None, 3, id="other-daemon"
+        ),
+        pytest.param({"ALL_IMAGES": "def456"}, None, 3, id="daemon-holds-images"),
+        pytest.param({"CONTAINERS": "container1"}, None, 3, id="daemon-holds-containers"),
+        pytest.param(
+            {"DAEMON_FINGERPRINT": "28.5.2 btrfs x86_64 /var/lib/docker"}, None, 3, id="unsupported-driver"
+        ),
     ],
 )
 def test_preflight_rejects_untrusted_metadata(fake_tools, snapshot, env, metadata, expected_exit):
@@ -230,6 +255,16 @@ def test_unsupported_storage_does_not_modify_daemon(fake_tools, snapshot, mode, 
 def test_existing_container_prevents_restore(fake_tools, snapshot):
     result = run_script({**fake_tools, "CONTAINERS": "container1"}, "restore", str(snapshot))
     assert result.returncode == 3
+    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
+
+
+@pytest.mark.parametrize("mode", ["restore", "preflight"])
+@pytest.mark.parametrize("failure", [{"IMAGES_EXIT": "1"}, {"CONTAINERS_EXIT": "1"}])
+def test_failed_daemon_inventory_does_not_modify_store(fake_tools, snapshot, failure, mode):
+    path = f"{snapshot}.meta" if mode == "preflight" else str(snapshot)
+    result = run_script({**fake_tools, **failure}, mode, path)
+
+    assert result.returncode != 0
     assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
 
 

@@ -100,7 +100,7 @@ function create_snapshot() {
 function validate_metadata() {
     local metadata_file="${1}"
     local -a meta
-    local snapshot_fingerprint daemon
+    local snapshot_fingerprint daemon existing_images existing_containers
     if [[ ! -f "${metadata_file}" ]]; then
         echo "No snapshot metadata at ${metadata_file}"
         exit 2
@@ -121,7 +121,9 @@ function validate_metadata() {
         echo "The snapshot was written by '${snapshot_fingerprint}', this daemon is '${daemon}'"
         exit 3
     fi
-    if [[ -n "$(docker images --all --quiet)" || -n "$(docker ps --all --quiet)" ]]; then
+    existing_images="$(docker images --all --quiet)"
+    existing_containers="$(docker ps --all --quiet)"
+    if [[ -n "${existing_images}" || -n "${existing_containers}" ]]; then
         echo "The daemon already holds images, which restoring the snapshot would drop"
         exit 3
     fi
