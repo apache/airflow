@@ -228,6 +228,17 @@ class TestBundleFind:
         bundle = _Bundle.find([root_a, root_b], "beta_dag")
         assert bundle.path == target.resolve()
 
+    def test_picks_the_first_bundle_in_sorted_path_order(self, tmp_path, monkeypatch):
+        _build_bundle(tmp_path / "b_bundle", dag_ids=["tutorial_dag"])
+        (tmp_path / "a").mkdir()
+        expected = _build_bundle(tmp_path / "a" / "nested", dag_ids=["tutorial_dag"])
+        _build_bundle(tmp_path / "c_bundle", dag_ids=["tutorial_dag"])
+        # Directory order depends on the filesystem, so list every directory in reverse sorted order.
+        iterdir = Path.iterdir
+        monkeypatch.setattr(Path, "iterdir", lambda self: iter(sorted(iterdir(self), reverse=True)))
+
+        assert _Bundle.find([tmp_path], "tutorial_dag").path == expected.resolve()
+
     def test_skips_non_bundle_files(self, tmp_path):
         (tmp_path / "README.md").write_text("not a bundle")
         _make_executable(tmp_path / "stray_executable")

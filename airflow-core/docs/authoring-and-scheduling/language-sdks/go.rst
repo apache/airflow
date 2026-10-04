@@ -502,8 +502,9 @@ Deploying
 Copy or mount the packed bundle into the Dag bundle named by the coordinator's ``task_handler_bundle_name``.
 The :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` scans that Dag bundle recursively,
 matches the incoming ``dag_id`` against each bundle's manifest, verifies the bundle's integrity hash, and
-launches the matching bundle. Bundles are identified by the trailer magic, not by filename (no extension on
-Linux/macOS, ``.exe`` on Windows), so the file name on the worker is irrelevant.
+launches the matching bundle. If multiple usable bundles declare the same Dag, the first in sorted path order
+wins. Bundles are identified by the trailer magic, not by filename (no extension on Linux/macOS, ``.exe`` on
+Windows), so the file name on the worker is irrelevant.
 
 Only files with the executable bit set are considered, so the packed bundles need a Dag bundle that keeps
 it. A ``LocalDagBundle`` over a directory you manage does; object-store Dag bundles such as ``S3DagBundle``
