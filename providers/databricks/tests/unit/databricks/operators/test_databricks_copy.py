@@ -21,13 +21,18 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
+from airflow.providers.databricks.assets.databricks import UnityTableIdentity
+from airflow.providers.databricks.operators.databricks_sql import (
+    DatabricksCopyIntoAssetOperator,
+    DatabricksCopyIntoOperator,
+)
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 DATE = "2017-04-20"
@@ -525,3 +530,142 @@ def test_get_openlineage_facets():
         "externalQuery": ExternalQueryRunFacet(externalQueryId="query_id", source="scheme://host")
     }
     assert result.job_facets == {"sql": SQLJobFacet(query=op._sql)}
+
+
+USERS_TABLE = UnityTableIdentity(
+    host="https://my-workspace.cloud.databricks.com/", catalog="main", schema="default", table="users"
+)
+USERS_URI = "databricks://my-workspace.cloud.databricks.com/main/default/users"
+
+
+def run_copy_into(op, context=None):
+    with mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as hook_cls:
+        if context is not None:
+            op.render_template_fields(context)
+        op.execute(context)
+    return hook_cls.return_value.run
+
+
+def test_asset_operator_declares_unity_table_outlet():
+    op = DatabricksCopyIntoAssetOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="main.default.users",
+        unity_table=USERS_TABLE,
+    )
+    assert op.outlets == [Asset(uri=USERS_URI)]
+
+
+@pytest.mark.parametrize(
+    "outlets",
+    (
+        pytest.param([], id="empty"),
+        pytest.param(
+            [Asset(uri=USERS_URI), Asset(uri="s3://my-bucket/manifests/users")],
+            id="unity-asset-plus-extra",
+        ),
+    ),
+)
+def test_asset_operator_keeps_explicit_outlets(outlets):
+    op = DatabricksCopyIntoAssetOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="main.default.users",
+        unity_table=USERS_TABLE,
+        outlets=outlets,
+    )
+    assert op.outlets == outlets
+
+
+def test_asset_operator_runs_templated_table_name_that_renders_to_unity_table():
+    op = DatabricksCopyIntoAssetOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="{{ params.catalog }}.default.{{ params.table }}",
+        unity_table=USERS_TABLE,
+    )
+    run = run_copy_into(op, {"params": {"catalog": "main", "table": "users"}})
+    run.assert_called_once_with(
+        f"COPY INTO main.default.users\nFROM '{COPY_FILE_LOCATION}'\nFILEFORMAT = JSON"
+    )
+
+
+@pytest.mark.parametrize(
+    ("table_name", "catalog", "schema"),
+    (
+        pytest.param("main.default.users", "other_catalog", "other_schema", id="three-part"),
+        pytest.param("default.users", "main", None, id="two-part"),
+        pytest.param("users", "main", "default", id="one-part"),
+    ),
+)
+def test_asset_operator_resolves_table_name_with_session_catalog_and_schema(table_name, catalog, schema):
+    op = DatabricksCopyIntoAssetOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name=table_name,
+        catalog=catalog,
+        schema=schema,
+        unity_table=USERS_TABLE,
+    )
+    run = run_copy_into(op)
+    run.assert_called_once_with(f"COPY INTO {table_name}\nFROM '{COPY_FILE_LOCATION}'\nFILEFORMAT = JSON")
+
+
+@pytest.mark.parametrize(
+    ("table_name", "catalog", "schema"),
+    (
+        pytest.param("main.default.orders", None, None, id="other-table"),
+        pytest.param("default.users", None, None, id="two-part-without-catalog"),
+        pytest.param("users", "main", None, id="one-part-without-schema"),
+        pytest.param("users", "dev", "default", id="session-catalog-differs"),
+        pytest.param("x.main.default.users", None, None, id="four-part"),
+    ),
+)
+def test_asset_operator_mismatch_raises_before_sql(table_name, catalog, schema):
+    op = DatabricksCopyIntoAssetOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name=table_name,
+        catalog=catalog,
+        schema=schema,
+        unity_table=USERS_TABLE,
+    )
+    with mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as hook_cls:
+        with pytest.raises(ValueError, match="does not match unity_table"):
+            op.execute(None)
+    assert hook_cls.return_value.run.call_args_list == []
+    assert op._sql is None
+
+
+def test_asset_operator_volume_is_copy_source_and_table_is_outlet():
+    op = DatabricksCopyIntoAssetOperator(
+        task_id=TASK_ID,
+        file_location="/Volumes/main/default/landing/users.csv",
+        file_format="CSV",
+        table_name="main.default.users",
+        unity_table=USERS_TABLE,
+    )
+    run = run_copy_into(op)
+    assert op.outlets == [Asset(uri=USERS_URI)]
+    run.assert_called_once_with(
+        "COPY INTO main.default.users\nFROM '/Volumes/main/default/landing/users.csv'\nFILEFORMAT = CSV"
+    )
+
+
+def test_base_copy_into_operator_has_no_outlets_and_runs_any_table():
+    op = DatabricksCopyIntoOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="main.default.orders",
+    )
+    run = run_copy_into(op)
+    assert op.outlets == []
+    run.assert_called_once_with(
+        f"COPY INTO main.default.orders\nFROM '{COPY_FILE_LOCATION}'\nFILEFORMAT = JSON"
+    )
