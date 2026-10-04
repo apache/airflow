@@ -23,6 +23,7 @@ from functools import cached_property
 from unittest.mock import Mock
 
 import pytest
+import yaml
 
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, GithubEvents
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -59,7 +60,7 @@ def _selective_checks(files: tuple[str, ...], default_branch: str = "main") -> S
 
 def _mock_selective_checks(**flags: object) -> Mock:
     sc = Mock(spec=SelectiveChecks)
-    for flag in (*FLAG_COMMANDS, "run_unit_tests", "docs_build"):
+    for flag in (*FLAG_COMMANDS, *PREK_JOBS, "run_unit_tests", "docs_build"):
         setattr(sc, flag, False)
     sc.skip_providers_tests = True
     sc.shared_distributions_as_json = "[]"
@@ -110,7 +111,7 @@ def test_every_selective_checks_run_flag_is_classified():
     classified = (
         set(FLAG_COMMANDS)
         | NOT_RUNNABLE_LOCALLY
-        | PREK_JOBS
+        | set(PREK_JOBS)
         | {"run_unit_tests", "docs_build"}
         | NOT_A_CI_JOB
     )
@@ -135,10 +136,9 @@ def test_unit_test_commands_use_the_same_flags_as_the_ci_script(group: str):
 
 
 def test_empty_diff_lists_nothing():
-    assert (
-        build_local_verification_plan(_selective_checks(()), (), "main", full_tests_needed=False)["items"]
-        == []
-    )
+    plan = build_local_verification_plan(_selective_checks(()), (), "main", full_tests_needed=False)
+    assert plan["items"] == []
+    assert plan["manual_prek_hooks"] == []
 
 
 @pytest.mark.parametrize("full", [False, True])
@@ -151,6 +151,30 @@ def test_prek_jobs_are_not_listed(full: bool):
     assert all(getattr(sc, flag) for flag in PREK_JOBS)
     plan = build_local_verification_plan(sc, files, "main", full_tests_needed=False, full=full)
     assert not any("prek" in item["command"] for item in plan["items"])
+    assert plan["manual_prek_hooks"] == ["mypy-providers", "migration-round-trip"]
+
+
+@pytest.mark.parametrize("hook", sorted(PREK_JOBS.values()))
+def test_prek_job_hooks_are_not_installed_by_default(hook: str):
+    stages = [
+        entry.get("stages", ["pre-commit"])
+        for config in [
+            AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml",
+            *AIRFLOW_ROOT_PATH.glob("*/.pre-commit-config.yaml"),
+        ]
+        for repo in yaml.safe_load(config.read_text()).get("repos", [])
+        for entry in repo.get("hooks", [])
+        if entry.get("id") == hook
+    ]
+    assert stages, f"{hook} is not defined in any .pre-commit-config.yaml"
+    assert all("pre-commit" not in hook_stages for hook_stages in stages)
+
+
+def test_full_plan_skips_shared_distributions_when_there_are_none():
+    plan = build_local_verification_plan(
+        _mock_selective_checks(), (), "main", full_tests_needed=False, full=True
+    )
+    assert [item["command"] for item in plan["items"]] == ["cd dev/breeze && uv run --locked pytest"]
 
 
 def test_release_branch_drops_providers_tests():

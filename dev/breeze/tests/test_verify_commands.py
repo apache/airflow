@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from subprocess import CompletedProcess
@@ -33,6 +34,28 @@ from airflow_breeze.commands.verify_commands import (
 )
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _default_base_ref() -> str:
+    return "main"
+
+
+def _no_merged_commits_missing(base_ref: str) -> bool:
+    return False
+
+
+@pytest.fixture(autouse=True)
+def _no_git_lookups_against_the_checkout():
+    """Keep CLI tests independent of the developer's remotes; tests that need these patch them again."""
+    # Plain functions rather than mocks, so tests can still patch these with autospec=True.
+    with (
+        patch("airflow_breeze.commands.verify_commands.find_default_base_ref", new=_default_base_ref),
+        patch(
+            "airflow_breeze.commands.verify_commands.has_merged_commits_missing_from",
+            new=_no_merged_commits_missing,
+        ),
+    ):
+        yield
 
 
 @patch(
@@ -54,6 +77,7 @@ def test_json_output_keeps_stdout_parseable(mock_files, monkeypatch):
         "full_tests_needed",
         "changed_files",
         "items",
+        "manual_prek_hooks",
     }
     assert payload["changed_files"] == ["airflow-core/docs/index.rst"]
     assert payload["items"] == [
@@ -98,7 +122,19 @@ def test_static_checks_are_left_to_prek(mock_files, args: list[str]):
     assert result.exit_code == 0
     output = " ".join(result.output.split())
     assert "Static checks are not listed. Run prek as usual." in output
-    assert "prek run" not in output
+    assert "prek run --stage manual mypy-providers --from-ref main" in output
+    assert "migration-round-trip" not in output
+
+
+@patch(
+    "airflow_breeze.commands.verify_commands.get_changed_files_against",
+    autospec=True,
+    return_value=("airflow-core/docs/index.rst",),
+)
+def test_no_manual_prek_hint_when_no_hook_is_triggered(mock_files):
+    result = CliRunner().invoke(verify, [], catch_exceptions=False)
+    assert result.exit_code == 0
+    assert "--stage manual" not in " ".join(result.output.split())
 
 
 @pytest.mark.parametrize(
@@ -220,7 +256,21 @@ def test_verify_compares_with_the_default_base_ref(found, compared_with: str, wa
 
 def _git(repo, *args: str) -> None:
     subprocess.run(
-        ["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=repo, check=True, capture_output=True
+        [
+            "git",
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            f"core.hooksPath={os.devnull}",
+            *args,
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
     )
 
 

@@ -163,6 +163,12 @@ def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool):
     console.print(
         "\n[info]Static checks are not listed. Run prek as usual. It picks the hooks for the changed files.[/]"
     )
+    if result["manual_prek_hooks"]:
+        console.print(
+            "\n[warning]CI also runs these prek hooks, which a default prek install does not run:[/]"
+        )
+        for hook in result["manual_prek_hooks"]:
+            console.print(escape(f"prek run --stage manual {hook} --from-ref {base_ref}"), soft_wrap=True)
     if result["full_tests_needed"] and not full:
         console.print(
             "\n[warning]CI also runs the full suite for this change because it touches CI tooling or "

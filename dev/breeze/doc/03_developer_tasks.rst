@@ -342,8 +342,12 @@ Each row says what kind of check it is, whether it runs on the host or needs Doc
 CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
 (breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
 check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
-Static checks are not listed either, including the ``mypy-providers`` and ``migration-round-trip``
-jobs: ``prek`` already picks the hooks to run for the changed files, so run it as usual.
+Static checks are not listed either: ``prek`` already picks the hooks to run for the changed files,
+so run it as usual. The exception is the ``mypy-providers`` and ``migration-round-trip`` hooks,
+which CI runs but a default ``prek install`` does not (they are ``pre-push`` or ``manual`` stage
+hooks). When the change triggers them, ``breeze verify`` prints the
+``prek run --stage manual <hook> --from-ref <base>`` command to run each one, and ``--json``
+lists them under ``manual_prek_hooks``.
 Use ``--json`` for machine-readable output with the same fields.
 
 When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
