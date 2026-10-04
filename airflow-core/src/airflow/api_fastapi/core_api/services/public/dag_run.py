@@ -54,13 +54,18 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     ClearPartitionsBody,
     DagRunMutableStates,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
+from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse, TaskInstanceResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.task_coordinates import task_coordinate_response
 from airflow.api_fastapi.core_api.services.public.task_instances import _emit_state_listener_hooks
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.renderedtifields import load_legacy_rendered_fields
-from airflow.models.task_coordinates import enclosing_loop, public_map_index_expression
+from airflow.models.task_coordinates import (
+    TaskCoordinateResolver,
+    enclosing_loop,
+    public_map_index_expression,
+)
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.session import create_session_async
@@ -132,7 +137,8 @@ def dry_run_clear_dag_run(
         )
     task_instances = list(session.scalars(ti_query))
     load_legacy_rendered_fields(task_instances, session=session)
-    return task_instances
+    resolver = TaskCoordinateResolver(dag_bag, session)
+    return [task_coordinate_response(TaskInstanceResponse, ti, resolver) for ti in task_instances]
 
 
 def perform_clear_dag_run(

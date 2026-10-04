@@ -110,7 +110,7 @@ from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.dynamic_region import SENTINEL_REGION_ID
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, regional_expression
 from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
@@ -1545,10 +1545,37 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return len(event_buffer)
 
         # Check state of finished tasks
+        candidates = session.execute(
+            select(TI.id, TI.dag_id, TI.run_id, regional_expression(TI)).where(
+                TI.working_set.is_(True), TI.id.in_([key.id for key in tis_with_right_state])
+            )
+        ).all()
+        locked_runs: set[tuple[str, str]] = set()
+        if regional_runs := {(dag_id, run_id) for _, dag_id, run_id, regional in candidates if regional}:
+            run_query = (
+                select(DagRun.dag_id, DagRun.run_id)
+                .where(tuple_(DagRun.dag_id, DagRun.run_id).in_(regional_runs))
+                .order_by(DagRun.dag_id, DagRun.run_id)
+            )
+            locked_runs = {
+                (dag_id, run_id)
+                for dag_id, run_id in session.execute(
+                    with_row_locks(run_query, of=DagRun, session=session, skip_locked=True)
+                )
+            }
+        available_ids = []
+        num_requeued = 0
+        for ti_id, dag_id, run_id, regional in candidates:
+            if not regional or (dag_id, run_id) in locked_runs:
+                available_ids.append(ti_id)
+            else:
+                key = TaskInstanceUuid(ti_id)
+                executor.event_buffer.setdefault(key, event_buffer.pop(key))
+                num_requeued += 1
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
-            .where(TI.id.in_([key.id for key in tis_with_right_state]))
+            .where(TI.id.in_(available_ids))
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
             .options(alias_loader)
@@ -1778,15 +1805,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
-        for task_id in tis_with_right_state:
-            if task_id in event_buffer:
-                cls.logger().warning(
-                    "Discarding executor event for task instance %s (coordinates=%s): no matching task instance was "
-                    "returned; it may no longer exist or may be locked by another scheduler",
-                    task_id,
-                    event_coordinates.get(task_id),
+        unprocessed_keys = [key for key in tis_with_right_state if key in event_buffer]
+        if unprocessed_keys:
+            # The lock query skips rows another transaction holds; only rows that are still live are retried.
+            live_ids = set(
+                session.scalars(
+                    select(TI.id).where(
+                        TI.working_set.is_(True), TI.id.in_([key.id for key in unprocessed_keys])
+                    )
                 )
-        cls._emit_executor_events_batch_metrics(num_events)
+            )
+            for key in unprocessed_keys:
+                if key.id in live_ids:
+                    executor.event_buffer.setdefault(key, event_buffer.pop(key))
+                    num_requeued += 1
+                else:
+                    cls.logger().warning(
+                        "Discarding executor event for task instance %s (coordinates=%s): the task instance "
+                        "no longer exists or is no longer current",
+                        key,
+                        event_coordinates.get(key),
+                    )
+        cls._emit_executor_events_batch_metrics(num_events - num_requeued)
         return len(event_buffer)
 
     def _execute(self) -> int | None:
@@ -3904,6 +3944,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             .where(TI.queued_by_job_id == self.job.id)
         )
+        run_query = (
+            select(DagRun.dag_id, DagRun.run_id)
+            .where(
+                tuple_(DagRun.dag_id, DagRun.run_id).in_(
+                    query.where(regional_expression(TI)).with_only_columns(TI.dag_id, TI.run_id).distinct()
+                )
+            )
+            .order_by(DagRun.dag_id, DagRun.run_id)
+        )
+        locked_runs = list(
+            session.execute(with_row_locks(run_query, of=DagRun, session=session, skip_locked=True))
+        )
+        query = query.where(or_(~regional_expression(TI), tuple_(TI.dag_id, TI.run_id).in_(locked_runs)))
         # Lock the rows (FOR UPDATE, of=TI so the FOR UPDATE isn't applied to the joined dag_model)
         # so a worker can't commit a terminal state on the same TI between this scan and the
         # handle_failure() in the purge that follows in the same transaction. skip_locked keeps HA

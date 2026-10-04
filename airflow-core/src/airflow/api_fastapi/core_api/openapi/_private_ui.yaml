@@ -4975,6 +4975,13 @@ components:
         map_index:
           type: integer
           title: Map Index
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
         logical_date:
           anyOf:
           - type: string

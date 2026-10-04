@@ -808,6 +808,115 @@ class TestSchedulerJob:
             == 2
         )
 
+    def test_executor_terminal_event_survives_locked_row(self, dag_maker, session):
+        if session.bind.dialect.name == "sqlite":
+            pytest.skip("SQLite has no row locks")
+        with dag_maker(serialized=True):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = State.RUNNING
+        session.flush()
+        clear_task_instances([ti], session=session)
+        session.commit()
+        archiving_id = ti.id
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[TaskInstanceUuid(archiving_id)] = State.SUCCESS, "terminated"
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+
+        def process():
+            with create_session(scoped=False) as other:
+                runner._process_executor_events(executor=executor, session=other)
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            with create_session(scoped=False) as locker:
+                locker.scalar(
+                    select(TaskInstance.id).where(TaskInstance.id == archiving_id).with_for_update()
+                )
+                future = pool.submit(process)
+                try:
+                    future.result(timeout=5)
+                    assert executor.event_buffer == {
+                        TaskInstanceUuid(archiving_id): (State.SUCCESS, "terminated")
+                    }
+                    session.refresh(ti)
+                    assert ti.state == State.RESTARTING
+                finally:
+                    locker.rollback()
+
+        runner._process_executor_events(executor=executor, session=session)
+
+        assert not executor.event_buffer
+        session.refresh(ti)
+        assert (ti.working_set, ti.archived_reason) == (None, "retry")
+        successor = session.scalars(
+            select(TaskInstance).where(TaskInstance.dag_id == dr.dag_id, TaskInstance.working_set.is_(True))
+        ).one()
+        assert successor.state is None
+        executor.event_buffer[TaskInstanceUuid(archiving_id)] = State.SUCCESS, "duplicate"
+        runner._process_executor_events(executor=executor, session=session)
+        assert not executor.event_buffer
+
+    @pytest.mark.parametrize(
+        ("region_index", "requeued"),
+        [pytest.param(-1, False, id="unmapped"), pytest.param(0, True, id="regional")],
+    )
+    def test_executor_event_waits_for_a_locked_dagrun_only_for_regional_task_instances(
+        self, dag_maker, session, region_index, requeued
+    ):
+        if session.bind.dialect.name == "sqlite":
+            pytest.skip("SQLite has no row locks")
+        with dag_maker(serialized=True):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = State.RUNNING
+        ti.region_index = region_index
+        session.commit()
+        key = TaskInstanceUuid(ti.id)
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[key] = State.RUNNING, "external-id"
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+
+        with create_session(scoped=False) as locker:
+            locker.scalar(select(DagRun.id).where(DagRun.id == dr.id).with_for_update())
+            with create_session(scoped=False) as other:
+                runner._process_executor_events(executor=executor, session=other)
+            locker.rollback()
+
+        assert (key in executor.event_buffer) is requeued
+
+    @pytest.mark.parametrize(
+        ("region_index", "waits"),
+        [pytest.param(-1, False, id="unmapped"), pytest.param(0, True, id="regional")],
+    )
+    @pytest.mark.parametrize("state", [State.RUNNING, State.RESTARTING])
+    def test_heartbeat_scan_waits_for_a_locked_dagrun_only_for_regional_task_instances(
+        self, dag_maker, session, state, region_index, waits
+    ):
+        if session.bind.dialect.name == "sqlite":
+            pytest.skip("SQLite has no row locks")
+        with dag_maker(serialized=True):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        runner = SchedulerJobRunner(Job(), executors=[MockExecutor(do_update=False)])
+        session.add(runner.job)
+        session.flush()
+        ti.state = state
+        ti.region_index = region_index
+        ti.last_heartbeat_at = DEFAULT_DATE
+        ti.queued_by_job_id = runner.job.id
+        session.commit()
+
+        with create_session(scoped=False) as locker:
+            locker.scalar(select(DagRun.id).where(DagRun.id == dr.id).with_for_update())
+            found = runner._find_task_instances_without_heartbeats(session=session)
+            assert [row.id for row in found] == ([] if waits else [ti.id])
+        session.commit()
+
+        assert [row.id for row in runner._find_task_instances_without_heartbeats(session=session)] == [ti.id]
+
     @pytest.mark.parametrize("event_state", [State.QUEUED, State.RUNNING])
     def test_restarting_waits_for_terminal_executor_event(self, dag_maker, session, event_state):
         with dag_maker(dag_id="restart_waits_for_termination"):
@@ -892,17 +1001,16 @@ class TestSchedulerJob:
                 for record in caplog.records
             )
 
-    @pytest.mark.parametrize("event_state", [State.SUCCESS, State.UP_FOR_RETRY])
-    def test_executor_event_diagnostic_distinguishes_locked_row_from_nonprocessable_state(
-        self, dag_maker, session, mocker, caplog, event_state
+    def test_executor_event_with_nonprocessable_state_is_not_queried(
+        self, dag_maker, session, mocker, caplog
     ):
-        with dag_maker(dag_id="locked_executor_event"):
+        with dag_maker(dag_id="nonprocessable_executor_event"):
             EmptyOperator(task_id="task")
         ti = dag_maker.create_dagrun().get_task_instance("task", session=session)
         executor = MockExecutor(do_update=False)
         executor._register_task(ti)
-        executor.event_buffer[TaskInstanceUuid(ti.id)] = event_state, None
-        scalars = mocker.patch.object(session, "scalars", autospec=True, return_value=iter(()))
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = State.UP_FOR_RETRY, None
+        scalars = mocker.patch.object(session, "scalars", autospec=True)
         runner = SchedulerJobRunner(Job(), executors=[executor])
 
         runner._process_executor_events(executor=executor, session=session)
@@ -913,16 +1021,54 @@ class TestSchedulerJob:
             and str(ti.key) in record.message
             for record in caplog.records
         )
-        assert any(
-            "Discarding executor event" in record.message
-            and "no matching task instance was returned" in record.message
-            and "may be locked by another scheduler" in record.message
-            for record in caplog.records
-        ) == (event_state == State.SUCCESS)
-        if event_state == State.SUCCESS:
-            scalars.assert_called_once()
+        assert not any("Discarding executor event" in record.message for record in caplog.records)
+        scalars.assert_not_called()
+
+    @pytest.mark.parametrize("ti_fate", ["live", "missing", "archived"])
+    def test_executor_event_for_unreturned_task_instance_is_requeued_only_when_live(
+        self, dag_maker, session, mocker, caplog, ti_fate
+    ):
+        with dag_maker(dag_id="unreturned_executor_event"):
+            EmptyOperator(task_id="task")
+        ti = dag_maker.create_dagrun().get_task_instance("task", session=session)
+        ti.state = State.RUNNING
+        session.commit()
+        ti_id = ti.id
+        key = TaskInstanceUuid(ti_id)
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[key] = State.RUNNING, "external-id"
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+        real_scalars = session.scalars
+
+        def skip_locked_row(*args, **kwargs):
+            if scalars.call_count > 1:
+                return real_scalars(*args, **kwargs)
+            match ti_fate:
+                case "missing":
+                    session.execute(delete(TaskInstance).where(TaskInstance.id == ti_id))
+                case "archived":
+                    session.execute(
+                        update(TaskInstance).where(TaskInstance.id == ti_id).values(working_set=None)
+                    )
+            return iter(())
+
+        scalars = mocker.patch.object(session, "scalars", autospec=True, side_effect=skip_locked_row)
+
+        returned = runner._process_executor_events(executor=executor, session=session)
+
+        discarded = any("Discarding executor event" in record.message for record in caplog.records)
+        if ti_fate == "live":
+            assert returned == 0
+            assert executor.event_buffer == {key: (State.RUNNING, "external-id")}
+            assert not discarded
+
+            runner._process_executor_events(executor=executor, session=session)
+
+            assert not executor.event_buffer
+            assert ti.external_executor_id == "external-id"
         else:
-            scalars.assert_not_called()
+            assert not executor.event_buffer
+            assert discarded
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")

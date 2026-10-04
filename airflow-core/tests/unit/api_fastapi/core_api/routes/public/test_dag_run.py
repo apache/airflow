@@ -2257,6 +2257,36 @@ class TestClearDagRun:
         assert logs == 0
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_dry_run_reports_loop_coordinates(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        with dag_maker("dry_run_loop", serialized=True):
+            loop = create_loop(body, max_iterations=3)
+        run = dag_maker.create_dagrun(run_id="dry_run_loop_run")
+        region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        later = TaskInstance(
+            task=dag_maker.dag.get_task("body.work"),
+            run_id=run.run_id,
+            dag_version_id=run.created_dag_version_id,
+            region_id=region.id,
+            region_index=1,
+        )
+        later.state = State.SUCCESS
+        session.add(later)
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/clear", json={"dry_run": True, "only_failed": False}
+        )
+
+        assert response.status_code == 200, response.text
+        work = [row for row in response.json()["task_instances"] if row["task_id"] == "body.work"]
+        assert {row["region_index"] for row in work} == {0, 1}
+        assert {row["map_index"] for row in work} == {-1}
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_dry_run_response_has_full_task_instance_fields(self, test_client):
         """Regression test: dry-run response must include all TaskInstanceResponse fields.
 

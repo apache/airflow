@@ -35,7 +35,7 @@ from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import JsonValue, ValidationError
-from sqlalchemy import and_, func, or_, tuple_, union, update
+from sqlalchemy import and_, exists, func, or_, tuple_, union, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, contains_eager, joinedload
@@ -97,7 +97,7 @@ from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun as DR, InvalidLoopDecision
-from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError, regional_expression
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.task_coordinates import (
@@ -424,6 +424,18 @@ def ti_update_state(
     if isinstance(ti_patch_payload, TITerminalStatePayload) and (
         ti_patch_payload.state == TerminalStateNonSuccess.SERVER_TERMINATED
     ):
+        if session.scalar(select(regional_expression(TI)).where(TI.id == task_instance_id)):
+            session.execute(
+                select(DR.id)
+                .where(
+                    exists().where(
+                        TI.id == task_instance_id,
+                        TI.dag_id == DR.dag_id,
+                        TI.run_id == DR.run_id,
+                    )
+                )
+                .with_for_update()
+            ).all()
         ti = session.scalar(
             select(TI)
             .where(TI.id == task_instance_id)

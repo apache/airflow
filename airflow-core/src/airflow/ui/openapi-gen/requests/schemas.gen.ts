@@ -1910,6 +1910,29 @@ export const $BulkTaskInstanceBody = {
                 }
             ]
         },
+        region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Id'
+        },
+        region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Index'
+        },
         note: {
             anyOf: [
                 {
@@ -2447,6 +2470,38 @@ export const $ClearTaskInstancesBody = {
             ],
             title: 'Task Group Id',
             description: "Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are."
+        },
+        task_instance_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    type: 'array',
+                    minItems: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Ids',
+            description: 'Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.'
+        },
+        whole_expansion_ids: {
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            type: 'array',
+            title: 'Whole Expansion Ids',
+            description: 'Selected execution IDs whose entire mapped expansion should be cleared.'
+        },
+        include_later_loop_iterations: {
+            type: 'boolean',
+            title: 'Include Later Loop Iterations',
+            description: 'Clear later iterations when the selection includes a loop gate.',
+            default: true
         },
         dag_run_id: {
             anyOf: [
@@ -6793,6 +6848,29 @@ export const $PatchTaskInstanceBody = {
                 }
             ]
         },
+        region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Id'
+        },
+        region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Index'
+        },
         note: {
             anyOf: [
                 {
@@ -7954,6 +8032,15 @@ export const $TaskInstanceResponse = {
         map_index: {
             type: 'integer',
             title: 'Map Index'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
         },
         logical_date: {
             anyOf: [

@@ -45,7 +45,7 @@ from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import clear_task_instances
+from airflow.models.taskinstance import clear_task_instances_for_runs
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
@@ -235,7 +235,12 @@ def _bulk_clear_runs(
         tis = session.scalars(ti_query).all()
         if not tis:
             continue
-        clear_task_instances(list(tis), session=session)
+        clear_task_instances_for_runs(
+            tis,
+            session=session,
+            later_loop_iterations=not state_filter,
+            whole_task_keys=() if state_filter else {(ti.dag_id, ti.run_id, ti.task_id) for ti in tis},
+        )
         session.flush()
         cleared += len(tis)
 
