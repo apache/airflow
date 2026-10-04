@@ -409,6 +409,38 @@ class TestWorkflowTrigger:
             "soft_fail": False,
         }
 
+    def test_serialization_of_subclass(self):
+        classpath, _ = _WorkflowTriggerSubclass(external_dag_id=self.DAG_ID).serialize()
+
+        assert classpath == f"{__name__}._WorkflowTriggerSubclass"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("kwargs", "method", "return_value"),
+        [
+            ({}, "_get_dr_count", 1),
+            ({"external_task_ids": ["t1", "t2"]}, "_get_ti_count", 2),
+            ({"external_task_group_id": "g"}, "_get_task_group_states", {"run_id": {"g.t1": "success"}}),
+        ],
+        ids=["dag", "tasks", "task_group"],
+    )
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance", autospec=True)
+    async def test_run_uses_overridable_state_access(self, mock_ti, kwargs, method, return_value):
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID, run_ids=[self.RUN_ID], allowed_states=["success"], **kwargs
+        )
+
+        with mock.patch.object(WorkflowTrigger, method, autospec=True, return_value=return_value) as m:
+            event = await anext(aiter(trigger.run()))
+
+        assert event == TriggerEvent({"status": "success"})
+        m.assert_awaited_once()
+        assert not mock_ti.method_calls
+
+
+class _WorkflowTriggerSubclass(WorkflowTrigger):
+    pass
+
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
 class TestWorkflowTriggerAF2:

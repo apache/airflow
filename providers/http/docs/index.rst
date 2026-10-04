@@ -112,6 +112,25 @@ PIP package                                 Version required
 ``pydantic``                                ``>=2.11.0``
 ==========================================  ======================================
 
+Optional cross provider package dependencies
+--------------------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-http[standard]
+
+
+========================================================================================================  ============
+Dependent package                                                                                         Extra
+========================================================================================================  ============
+`apache-airflow-providers-standard <https://airflow.apache.org/docs/apache-airflow-providers-standard>`_  ``standard``
+========================================================================================================  ============
+
 Optional dependencies
 ---------------------
 
@@ -123,11 +142,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-http[srv]
 
 
-=======  ====================
-Extra    Dependencies
-=======  ====================
-``srv``  ``dnspython>=2.0.0``
-=======  ====================
+============  =============================================
+Extra         Dependencies
+============  =============================================
+``srv``       ``dnspython>=2.0.0``
+``standard``  ``apache-airflow-providers-standard>=1.19.0``
+============  =============================================
 
 Downloading official packages
 -----------------------------

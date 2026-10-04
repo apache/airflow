@@ -44,7 +44,10 @@ def get_provider_info():
         "sensors": [
             {
                 "integration-name": "Hypertext Transfer Protocol (HTTP)",
-                "python-modules": ["airflow.providers.http.sensors.http"],
+                "python-modules": [
+                    "airflow.providers.http.sensors.external_task",
+                    "airflow.providers.http.sensors.http",
+                ],
             }
         ],
         "hooks": [
@@ -57,7 +60,10 @@ def get_provider_info():
         "triggers": [
             {
                 "integration-name": "Hypertext Transfer Protocol (HTTP)",
-                "python-modules": ["airflow.providers.http.triggers.http"],
+                "python-modules": [
+                    "airflow.providers.http.triggers.external_task",
+                    "airflow.providers.http.triggers.http",
+                ],
             }
         ],
         "connection-types": [
