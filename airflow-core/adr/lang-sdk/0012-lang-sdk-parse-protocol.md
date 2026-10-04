@@ -43,7 +43,7 @@ parse_dag                                      parse_task_handler
   parent process                                 parent process
      │  DagFileParseRequest                          │  TaskHandlerParseRequest
      ▼     (ToDagProcessor)                          ▼     (ToSDKTaskHandlerProcessor)
-  coordinator    (raw byte forward)               coordinator    (raw byte forward)
+  coordinator    (execs the runtime)              coordinator    (execs the runtime)
      ▼                                               ▼
   runtime                                         runtime
      │  DagFileParsingResult                          │  TaskHandlerParsingResult
@@ -51,8 +51,9 @@ parse_dag                                      parse_task_handler
   parent process                                 parent process
 ```
 
-Both verbs are byte forwarders: the coordinator spawns the runtime, wires `fd 0` to the comm socket, and never decodes the payload. The process that spawned the parse decodes the
-reply. They stay two methods, not one `parse(request)`, because a coordinator can serve handlers without serving native Dag parsing. Appendix A has the longer argument.
+Neither verb forwards bytes: in a child of the process that asked, the coordinator builds the command and execs the runtime, which connects back to that process.
+The coordinator never decodes the payload, and the process that spawned the parse decodes the reply. They stay two methods, not one `parse(request)`,
+because a coordinator can serve handlers without serving native Dag parsing. Appendix A has the longer argument.
 
 ### The reply travels on `ToManager`
 
@@ -74,8 +75,9 @@ ToManager                  = DagFileParsingResult | TaskHandlerParsingResult    
 connections, variables and XComs do not depend on which parse it was asked for.
 
 `ToManager` is named for the process that usually holds the other end, but the role it describes is "whoever spawned this parse". The Dag processor manager fills it for
-`DagFileProcessorProcess`; a Dag-parsing child fills it for the two processes below, relaying anything that is not a parsing result up its own `ToManager` channel unchanged. That
-relay is only type-safe because both hops speak the same pair, which is the reason not to mint a separate `ToCoordinator`.
+`DagFileProcessorProcess` and `LangSDKDagFileProcessorProcess`; a Dag-parsing child fills it for `LangSDKTaskHandlerProcessorProcess`,
+relaying each request that needs a client up its own `ToManager` channel unchanged.
+That relay is only type-safe because both hops speak the same pair, which is the reason not to mint a separate `ToCoordinator`.
 
 ### Message shapes
 
@@ -118,53 +120,58 @@ schema snapshot. A handler declaration carries no Dag, so it code-generates and 
 
 ```
 WatchedSubprocess
-  └── BaseParsingProcess                       socket lifecycle · ToManager decoding · Get* handling
+  └── BaseDagFileProcessorProcess              socket lifecycle · ToManager decoding · Get* handling
         │                                      · log forwarding under dag_processor.*
-        ├── DagFileProcessorProcess                                   (shipped, now a subclass)
-        │     │   target = _parse_file_entrypoint
-        │     │   DagFileParseRequest → DagFileParsingResult
-        │     │
-        │     └── LangSDKDagFileProcessorProcess                      (new — ADR-0010)
-        │           target = _parse_lang_sdk_dag_entrypoint
-        │             └── coordinator.parse_dag() — spawn runtime, forward fd 0 ⇄ comm socket
-        │           same request and result types as its base class
+        ├── DagFileProcessorProcess                                   (shipped)
+        │     target = _parse_file_entrypoint
+        │     DagFileParseRequest → DagFileParsingResult
         │
-        └── SDKTaskHandlerProcessorProcess                            (new — ADR-0011)
-              target = _parse_task_handler_entrypoint
-                └── coordinator.parse_task_handler() — same forwarding
+        ├── LangSDKDagFileProcessorProcess                            (new, ADR-0010)
+        │     target = _start_runtime_entrypoint
+        │       └── coordinator.parse_dag(): exec the runtime, which connects back
+        │     DagFileParseRequest → DagFileParsingResult
+        │
+        └── LangSDKTaskHandlerProcessorProcess                        (new, ADR-0011)
+              target = _start_task_handler_runtime_entrypoint
+                └── coordinator.parse_task_handler(): the same exec
               TaskHandlerParseRequest → TaskHandlerParsingResult
 ```
 
-`BaseParsingProcess` is `DagFileProcessorProcess` minus the Dag-specific request and result: the comm socket, the `ToManager` decode, the `Get*` dispatch, and the
-`task.` → `dag_processor.` log-forwarder rename. The subclasses supply the first message they send, the result they collect, and the target the child runs.
+`BaseDagFileProcessorProcess` holds what every parse process shares: the comm socket, the `ToManager` decode, the `Get*` dispatch,
+and the `task.` → `dag_processor.` log-forwarder rename. Each subclass supplies the first message it sends, the result it collects, and the target its child runs.
 
-`LangSDKDagFileProcessorProcess` differs from its base in the target callable alone. Everything else — the request, the result, the socket, the logging — is inherited, because a
-native Lang-SDK Dag answers the same question a Python file does.
+The two Lang-SDK processes have one shape.
+Their child finds the coordinator, reports the runtime's schema version and execs the runtime, which connects back to two sockets the process owns and answers the request itself.
 
-Answering `Get*` needs a `Client`, which only the manager holds. `BaseParsingProcess` therefore resolves a request one of two ways: directly against `self.client` when the manager
-is the parent, or by relaying it up `SUPERVISOR_COMMS` when a Dag-parsing child is.
+Answering `Get*` needs a `Client`, which only the manager holds. A process with a client answers directly, and one without answers with an error.
+The exception is `LangSDKTaskHandlerProcessorProcess`: it runs in a Dag-parsing child, so it relays each such request up `SUPERVISOR_COMMS`.
 
 ### Coordinator interface
 
 ```
 BaseCoordinator                          execution_time/coordinator.py
-  ├── execute_task                       (shipped)
-  ├── parse_dag                          (new — native Dags, ADR-0010)
-  └── parse_task_handler                 (new — handlers, ADR-0011)
+  └── execute_task                       (shipped)
         │
 SubprocessCoordinator                    coordinators/_subprocess.py
-  implements all three; each resolves (command, subprocess_schema_version)
-  from a hook and owns the socket lifecycle:
+  implements the three verbs; each resolves (command, subprocess_schema_version)
+  from a command builder, and execute_task also owns the socket lifecycle:
+  ├── execute_task                        (shipped)
+  ├── parse_dag                           (new, native Dags, ADR-0010)
+  ├── parse_task_handler                  (new, handlers, ADR-0011)
   ├── _build_execute_task_command         (shipped)
   ├── _build_parse_dag_command            (new)
-  └── _build_parse_task_handler_command   (new)
+  ├── _build_parse_task_handler_command   (new)
+  └── _find_task_handler_artifact         (new, called by the Dag processor: the artifact a stub task of a Dag runs, found as execute_task finds it)
         │
 JavaCoordinator · ExecutableCoordinator · NodeCoordinator
-  supply the three commands; no socket or protocol code
+  supply the hooks; no socket or protocol code
 ```
 
-Names follow the shipped `execute_task` / `_build_execute_task_command` pair and supersede ADR-0004's `run_dag_parsing` / `dag_parsing_cmd`. Each hook returns its own
+Names follow the shipped `execute_task` / `_build_execute_task_command` pair and supersede ADR-0004's `run_dag_parsing` / `dag_parsing_cmd`. Each command builder returns its own
 `subprocess_schema_version`, so handler parsing negotiates the schema the same way task execution does.
+
+Only a `SubprocessCoordinator` can parse, so `BaseCoordinator` gains no parse verb.
+`parse_task_handler` refuses a runtime whose schema version is older than `TASK_HANDLER_PARSING_SCHEMA_VERSION`, since it cannot answer the request.
 
 ## Consequences
 
@@ -176,9 +183,14 @@ Names follow the shipped `execute_task` / `_build_execute_task_command` pair and
   already holds.
 - Nothing in the protocol distinguishes a coordinator-backed parse from a Python one. A runtime's `Get*` request is answered by the same handlers that answer a Python parser's,
   through however many relay hops lie between it and the manager.
-- `DagFileProcessorProcess` becomes a subclass. Its public surface does not move, but the shipped `_handle_request` and socket code shifts to `BaseParsingProcess`.
+- `DagFileProcessorProcess` becomes a subclass. Its public surface does not move, but the shipped `_handle_request` and socket code shifts to `BaseDagFileProcessorProcess`.
 - Neither verb is reached through ADR-0004's `can_handle_dag_file` scan. `parse_dag` is reached through the importer registered for the artifact's extension
   ([ADR-0010](0010-native-dag-processing.md)); `parse_task_handler` through `queue → coordinator` ([ADR-0011](0011-mixed-language-dag-processing.md)).
+- Where the Dag processor starts its children with exec instead of fork (the default on macOS),
+  a probe started from a Dag-parsing child inherits that child's ORM-blocking environment and dies at `import airflow`,
+  so the check logs a warning and its stub tasks stay unchecked.
+- The parent death signal reaches only the exec'd runtime, so a runtime must exec and leave no children: what it starts survives an abrupt kill of the Dag-parsing child,
+  though normal exits and timeouts kill what it leaves in its process group.
 - Terms track Language SDK spec `1.0`. A spec rename of `TaskHandler` lands here too.
 
 ## References
@@ -201,9 +213,9 @@ The two verbs differ in what they ask for and in which command starts the runtim
 distinction: a coordinator can serve mixed-language handlers with no interest in native Dag parsing, and an absent method states that better than a runtime rejection does.
 
 The reply direction does not need the same split. An earlier draft gave handler parsing its own `ToRuntime` / `ToCoordinator` pair on the theory that the runtime was answering the
-coordinator rather than the manager. It is not: the coordinator forwards bytes in both directions and decodes nothing, so the peer at the far end of the socket is whichever process
-spawned the parse. Giving that peer two unions to decode would mean two `CommsDecoder` configurations, two relay paths for the identical `Get*` traffic, and two registry entries for
-bodies that never differ. Reusing `ToManager` leaves one reply union with one new member.
+coordinator rather than the manager. It is not: the runtime connects back to whichever process spawned the parse, and the coordinator decodes nothing.
+Giving that peer two unions to decode would mean two `CommsDecoder` configurations, two relay paths for the identical `Get*` traffic,
+and two registry entries for bodies that never differ. Reusing `ToManager` leaves one reply union with one new member.
 
 A boolean on `DagFileParseRequest` was the other alternative. It cannot work: a `DagRef` and a `TaskHandlerRef` are different payloads, not two subsets of one, so the flag would
 select between shapes the result type cannot both hold.
@@ -238,6 +250,6 @@ under one name, so a member reached twice is not a clash.
 
 Two prek hooks guard the generated snapshot. The rule for a new body is documented in `task-sdk/src/airflow/sdk/execution_time/schema/AGENTS.md`.
 
-Artifact roots are resolved per mode by `_init_root_source`, but published through `_get_scan_roots()`, which is scoped to an active task and raises outside one. Both parse-side
-commands need those roots with no `TaskInstance` in hand, so the scope that publishes them has to open for a parse as well as for a task. [ADR-0010](0010-native-dag-processing.md)
-covers the modes themselves.
+Command builders read artifact roots through `_get_scan_roots()`, which raises outside the scope `_set_scan_roots` opens.
+`execute_task` opens it with the roots it resolves for its mode, and `parse_dag` and `parse_task_handler` with the root of the Dag bundle that holds the file,
+so both parse-side commands get roots with no `TaskInstance` in hand. [ADR-0010](0010-native-dag-processing.md) covers the modes themselves.
