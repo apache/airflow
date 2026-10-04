@@ -236,39 +236,38 @@ total, not once each.
 **Dag-parsing child → coordinator subprocess.** Introduced here. The child spawns the runtime and
 forwards bytes in both directions, decoding nothing; the process that spawned the parse decodes the
 reply. `ToSDKTaskHandlerProcessor` is a new parent-to-child union differing from `ToDagProcessor` in
-one member, and `ToManager` gains `SDKTaskHandlerParsingResult`.
+one member, and `ToManager` gains `TaskHandlerParsingResult`.
 
 ```python
-class SDKTaskHandlerParseRequest(BaseModel):  # parent -> runtime, on ToSDKTaskHandlerProcessor
+class TaskHandlerParseRequest(BaseModel):  # parent -> runtime, on ToSDKTaskHandlerProcessor
     file: str  # the candidate artifact being probed
-    dag_ids: list[str]  # every Dag in this file with stub tasks routed here
     bundle_path: Path
     bundle_name: str
-    type: Literal["SDKTaskHandlerParseRequest"]
+    type: Literal["TaskHandlerParseRequest"]
 
 
-class SDKTaskHandlerParsingResult(BaseModel):  # runtime -> parent, on ToManager
+class TaskHandlerParsingResult(BaseModel):  # runtime -> parent, on ToManager
     fileloc: str
     task_handlers: dict[str, list[TaskHandlerDeclaration]]  # dag_id -> declarations
     import_errors: dict[str, str] | None = None
     warnings: list | None = None
-    type: Literal["SDKTaskHandlerParsingResult"]
+    type: Literal["TaskHandlerParsingResult"]
 
 
 class TaskHandlerDeclaration(BaseModel):
     task_id: str
-    params: list[TaskHandlerParam]  # ordered; arg bindings are positional
+    binding: Literal["positional", "named"]  # how arguments bind to params
+    params: list[TaskHandlerParam] | None  # ordered; None: the runtime cannot list them
 
 
 class TaskHandlerParam(BaseModel):
-    name: str
-    value_schema: JSONSchema | None = None
-    required: bool  # the handler declares no default
+    name: str | None  # None: the runtime has no name for this positional parameter
+    value_schema: ArgValueSchema | None = None
+    exact_name: bool = False  # match as spelled, not case-insensitively with underscores ignored
 ```
 
-A `dag_id` the artifact registers nothing for is **omitted** from `task_handlers` rather than returned
-empty, so a probe that matches nothing is distinguishable from a probe that matched a Dag with zero
-tasks.
+`task_handlers` maps every `dag_id` the artifact registers a task handler for,
+and is `{}` when it registers none.
 
 **Dag-parsing child → manager.** [`DagFileParsingResult`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/airflow-core/src/airflow/dag_processing/processor.py#L133-L145) gains the resolved
 bindings.
@@ -391,8 +390,8 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │          target=_parse_task_handler_entrypoint,
         │          coordinator=JavaCoordinator("jdk-17"),
         │          path=<candidate>)
-        │        ──SDKTaskHandlerParseRequest(file=…, dag_ids=["etl"])──▶ runtime
-        │        ◀─SDKTaskHandlerParsingResult(task_handlers={"etl": […]})── runtime
+        │        ──TaskHandlerParseRequest(file=…)──▶ runtime
+        │        ◀─TaskHandlerParsingResult(task_handlers={"etl": […]})── runtime
         │        Get* from the runtime is relayed up ToManager unchanged
         │
         ├─7─ VALIDATE per dag_id, unioned across coordinators
@@ -575,7 +574,7 @@ definition whose author can act) naming both artifact paths, since the fix is in
 - `DagFileParseRequest` and `DagFileParsingResult` each gain a field, and `ToSDKTaskHandlerProcessor`
   becomes a fifth union the supervisor-schema registry introspects. Both messages already appear in
   the generated schemas of all three SDKs, so the snapshot is regenerated and the two prek hooks guarding it run.
-- Every Lang SDK runtime must answer `SDKTaskHandlerParseRequest`.
+- Every Lang SDK runtime must answer `TaskHandlerParseRequest`.
 - A misrouted queue becomes an import error at Dag-parsing stage instead of a runtime failure. Today a stub task on a
   queue absent from `queue_to_coordinator` silently falls back to the Python coordinator
   ([`for_queue`](https://github.com/apache/airflow/blob/79991cd4db0c9346a28b23c453377f6df0c6b4ed/task-sdk/src/airflow/sdk/execution_time/coordinator.py#L280-L284)) and dies in
