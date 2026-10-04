@@ -51,6 +51,7 @@ from sqlalchemy.sql.visitors import cloned_traverse
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base, TaskInstanceDependencies
+from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
@@ -315,6 +316,8 @@ class _XComOperations:
         task_ids: str | Iterable[str] | None = None,
         dag_ids: str | Iterable[str] | None = None,
         map_indexes: int | Iterable[int] | None = None,
+        region_id: UUID | None = SENTINEL_REGION_ID,
+        producer_ids: Select | None = None,
         include_prior_dates: bool = False,
         limit: int | None = None,
         try_number: int | None = None,
@@ -324,6 +327,10 @@ class _XComOperations:
 
         This function returns an SQLAlchemy query of full XCom objects. If you
         just want one stored value, use :meth:`get_one` instead.
+
+        ``region_id`` is the exact producer region (the legacy sentinel by default); pass ``None`` to
+        enumerate across regions. ``producer_ids`` replaces the coordinate filters with attempts already
+        resolved by :func:`~airflow.models.dynamic_region.resolve_current_producers`.
 
         Use :func:`xcom_entity` for columns added to the returned statement.
 
@@ -347,17 +354,21 @@ class _XComOperations:
             raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
-        statement = build_xcom_read_query(
-            producer_ids=select_producers(
+        if producer_ids is None:
+            if include_prior_dates and region_id not in (None, SENTINEL_REGION_ID):
+                raise ValueError(
+                    "Prior-run lookup requires producer coordinates resolved separately for each run"
+                )
+            producer_ids = select_producers(
                 run_id=run_id,
                 task_ids=task_ids,
                 dag_ids=dag_ids,
                 map_indexes=map_indexes,
+                region_id=region_id,
                 include_prior_dates=include_prior_dates,
                 try_number=try_number,
-            ),
-            key=key,
-        )
+            )
+        statement = build_xcom_read_query(producer_ids=producer_ids, key=key)
         entity = xcom_entity(statement)
         statement = statement.order_by(entity.logical_date.desc(), entity.timestamp.desc())
         if limit:
@@ -578,6 +589,7 @@ def select_producers(
     dag_ids=None,
     task_ids=None,
     map_indexes=None,
+    region_id=SENTINEL_REGION_ID,
     include_prior_dates=False,
     try_number=None,
 ):
@@ -585,6 +597,8 @@ def select_producers(
     from airflow.models.taskinstance import TaskInstance
 
     query = select(TaskInstance.id)
+    if region_id is not None:
+        query = query.where(TaskInstance.region_id == region_id)
     if try_number is not None:
         query = query.where(TaskInstance.try_number == try_number)
     for column, value in ((TaskInstance.dag_id, dag_ids), (TaskInstance.task_id, task_ids)):
