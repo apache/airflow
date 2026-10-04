@@ -100,6 +100,8 @@ const (
 	TypeTICount                     = "TICount"
 	TypeTaskBreadcrumbsResult       = "TaskBreadcrumbsResult"
 	TypeTaskCallbackRequest         = "TaskCallbackRequest"
+	TypeTaskHandlerParseRequest     = "TaskHandlerParseRequest"
+	TypeTaskHandlerParsingResult    = "TaskHandlerParsingResult"
 	TypeTaskRescheduleStartDate     = "TaskRescheduleStartDate"
 	TypeTaskState                   = "TaskState"
 	TypeTaskStateStoreResult        = "TaskStateStoreResult"
@@ -349,6 +351,12 @@ func EnsureType(m any) any {
 		return b
 	case TaskCallbackRequest:
 		b.Type = TypeTaskCallbackRequest
+		return b
+	case TaskHandlerParseRequest:
+		b.Type = TypeTaskHandlerParseRequest
+		return b
+	case TaskHandlerParsingResult:
+		b.Type = TypeTaskHandlerParsingResult
 		return b
 	case TaskRescheduleStartDate:
 		b.Type = TypeTaskRescheduleStartDate
