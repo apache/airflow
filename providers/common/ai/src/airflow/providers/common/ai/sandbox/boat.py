@@ -380,7 +380,7 @@ class BoatSandboxBackend(SandboxBackend):
             command = f"{exports}; {command}"
         command = (
             "tmp_dir=$(mktemp -d); trap 'rm -rf \"$tmp_dir\"' EXIT; "
-            f'({command}) >"$tmp_dir/stdout" 2>"$tmp_dir/stderr" & '
+            f'(\n{command}\n) >"$tmp_dir/stdout" 2>"$tmp_dir/stderr" & '
             'command_pid=$!; wait "$command_pid"; command_status=$?; '
             'cat "$tmp_dir/stdout"; cat "$tmp_dir/stderr" >&2; exit "$command_status"'
         )
@@ -518,6 +518,7 @@ class BoatSandboxBackend(SandboxBackend):
                 )
                 response_data.read()
                 if response_data.status == 404:
+                    self._sandbox_env.pop(sandbox, None)
                     return
                 if not 200 <= response_data.status <= 299:
                     raise ApiException.from_response(http_resp=response_data, body=None, data=None)

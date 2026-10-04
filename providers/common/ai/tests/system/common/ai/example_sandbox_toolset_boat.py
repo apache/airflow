@@ -111,12 +111,31 @@ def example_sandbox_toolset_boat():
             if "[exit code: 3]" not in failed or "to-stderr" not in failed:
                 raise RuntimeError(f"Unexpected failure result: {failed!r}")
 
-            if len(returns) == 4:
+            command_cases = [
+                ("echo comment-ok # trailing comment", "comment-ok"),
+                ("cat <<'EOF'\nheredoc-ok\nEOF", "heredoc-ok"),
+                ("sleep 20 & echo background-ok", "background-ok"),
+            ]
+            for index, (command, expected) in enumerate(command_cases, start=4):
+                if len(returns) == index:
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                tool_name="run_command",
+                                args={"command": command, "timeout_seconds": 10},
+                                tool_call_id=f"command-{index}",
+                            )
+                        ]
+                    )
+                if expected not in str(returns[index]):
+                    raise RuntimeError(f"Unexpected command result: {returns[index]!r}")
+
+            if len(returns) == 7:
                 return ModelResponse(
                     parts=[ToolCallPart(tool_name="list_directory", args={"path": "/tmp"}, tool_call_id="ls")]
                 )
-            if "airflow_sandbox_e2e" not in str(returns[4]):
-                raise RuntimeError(f"Unexpected listing: {returns[4]!r}")
+            if "airflow_sandbox_e2e" not in str(returns[7]):
+                raise RuntimeError(f"Unexpected listing: {returns[7]!r}")
 
             return ModelResponse(parts=[TextPart(content="sandbox boundary e2e passed")])
 

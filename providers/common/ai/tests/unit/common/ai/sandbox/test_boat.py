@@ -19,6 +19,7 @@ from __future__ import annotations
 import base64
 import builtins
 import json
+import subprocess
 from types import SimpleNamespace
 from unittest import mock
 
@@ -314,6 +315,28 @@ class TestCreate:
 
 
 class TestRunCommand:
+    @pytest.mark.parametrize(
+        ("command", "stdout", "stderr", "exit_code"),
+        [
+            ("echo hi # trailing comment", "hi\n", "", 0),
+            ("cat <<'EOF'\nheredoc-ok\nEOF", "heredoc-ok\n", "", 0),
+            ("echo failure >&2; exit 3", "", "failure\n", 3),
+            ('printf "%s" "$SPEC_MARKER"', "kept", "", 0),
+        ],
+    )
+    def test_wrapper_preserves_shell_syntax_and_results(self, command, stdout, stderr, exit_code):
+        backend, api = _backend_with_api()
+        backend._sandbox_env["bx_1"] = {"SPEC_MARKER": "kept"}
+        api.command.return_value = _command_response()
+
+        backend.run_command("bx_1", command, timeout=5, max_output_bytes=1024)
+        wrapped = api.command.call_args.args[1].command
+        result = subprocess.run(
+            ["bash", "-c", wrapped], capture_output=True, text=True, timeout=5, check=False
+        )
+
+        assert (result.stdout, result.stderr, result.returncode) == (stdout, stderr, exit_code)
+
     def test_forwards_command_and_bounds_output(self):
         backend, api = _backend_with_api()
         api.command.return_value = _command_response(
@@ -428,8 +451,20 @@ class TestFiles:
 
 
 class TestDestroy:
+    @pytest.mark.parametrize("status", [202, 404])
+    def test_delete_clears_retained_environment(self, status):
+        backend, api = _backend_with_api()
+        backend._sandbox_env["bx_1"] = {"SPEC_MARKER": "kept"}
+        api.api_client.param_serialize.return_value = ()
+        api.api_client.call_api.return_value = SimpleNamespace(status=status, read=lambda: None)
+
+        backend.destroy("bx_1")
+
+        assert "bx_1" not in backend._sandbox_env
+
     def test_delete_is_idempotent_for_missing_sandboxes(self):
         backend, api = _backend_with_api()
+        backend._sandbox_env["bx_1"] = {"SPEC_MARKER": "kept"}
         api.api_client.param_serialize.return_value = (
             "DELETE",
             "https://example/sandboxes/bx_1",
@@ -442,6 +477,7 @@ class TestDestroy:
         backend.destroy("bx_1")
 
         assert api.api_client.call_api.called
+        assert "bx_1" not in backend._sandbox_env
 
     def test_delete_targets_the_sandbox_route_with_the_confirm_header(self):
         backend, api = _backend_with_api()
