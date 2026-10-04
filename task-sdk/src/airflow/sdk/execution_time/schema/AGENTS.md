@@ -62,8 +62,15 @@ home — `ToTask` / `ToSupervisor` in `comms.py`, or `ToManager` /
 is the *only* registration step; `registered_models_by_name()` picks it
 up automatically the next time the snapshot hook runs.
 
-No `VersionChange` entry is required on the first introduction — the
-head shape *is* the schema for the new body.
+No `VersionChange` entry is required on the first introduction: a
+lang-SDK pinned to an older version never sends the new body, so there
+is nothing to strip on the way down. Only changes to bodies that
+already existed at an earlier dated version need one.
+
+`check-supervisor-schemas-versions` still fails locally on a commit
+that changes the snapshot without touching anything under `versions/`.
+CI's `--all-files` run passes, because it hands the hook the
+`versions/` files too.
 
 ### Adding a field to a registered body
 
