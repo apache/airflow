@@ -34,6 +34,8 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     StartupDetails,
     VariableResult,
+    XComResult,
+    _decode_msgpack_ext,
     _RequestFrame,
     _ResponseFrame,
 )
@@ -65,6 +67,51 @@ class TestCommsModels:
 
 class TestCommsDecoder:
     """Test the communication between the subprocess and the "supervisor"."""
+
+    @pytest.mark.parametrize(
+        "value",
+        [-(2**63) - 1, 2**64, -(2**4096), 2**4096],
+        ids=["negative", "positive", "huge-negative", "huge-positive"],
+    )
+    def test_receive_large_integers(self, socket_pair, value):
+        reader, writer = socket_pair
+        payload = {"nested": [value, {"value": value}], "string": str(value), "bool": True}
+        message = XComResult(key="large", value=payload)
+        writer.sendall(_ResponseFrame(id=0, body=message.model_dump()).as_bytes())
+
+        received = CommsDecoder(socket=reader)._get_response()
+
+        assert isinstance(received, XComResult)
+        assert received.value == payload
+        assert type(received.value["nested"][0]) is int
+        assert type(received.value["bool"]) is bool
+
+    @pytest.mark.parametrize("field", ["body", "error"])
+    def test_large_integers_preserve_other_message_types(self, field):
+        value = {
+            "large": 2**64,
+            "tuple": (-(2**63) - 1,),
+            "integer_key": {1: 2**64},
+            "model": MaskSecret(value=2**64),
+            "date": timezone.datetime(2024, 1, 1),
+            "bytes": b"unchanged",
+            "extension": msgspec.msgpack.Ext(1, b"unchanged"),
+        }
+        frame = _ResponseFrame(id=1, **{field: value})
+        wire = frame.as_bytes()
+        decoded = msgspec.msgpack.decode(wire[4:], type=_ResponseFrame, ext_hook=_decode_msgpack_ext)
+
+        assert int.from_bytes(wire[:4], "big") == len(wire) - 4
+        assert getattr(decoded, field) == {
+            **value,
+            "tuple": [-(2**63) - 1],
+            "model": {"value": 2**64},
+        }
+        assert getattr(frame, field) is value
+
+    def test_large_integer_extension_can_be_disabled(self):
+        with pytest.raises(OverflowError, match="can't serialize ints"):
+            _ResponseFrame(id=0, body={"value": 2**64}).as_bytes(allow_large_ints=False)
 
     @pytest.mark.usefixtures("disable_capturing")
     def test_recv_StartupDetails(self, socket_pair):

@@ -775,6 +775,7 @@ class WatchedSubprocess:
     socket handling, process monitoring, and request handling.
     """
 
+    _supports_large_ints: ClassVar[bool] = True
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[Any]] | None] = None
     _shared_request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[_ClientSubprocess]]] = dict(
         [
@@ -1106,7 +1107,11 @@ class WatchedSubprocess:
         else:
             err_resp = self._serialize_response(error) if error else None
             frame = _ResponseFrame(id=request_id, error=err_resp)
-        self.stdin.sendall(frame.as_bytes())
+        self.stdin.sendall(
+            frame.as_bytes(
+                allow_large_ints=self._supports_large_ints and self._subprocess_schema_version is None
+            )
+        )
 
     def _deserialize_request(self, body: dict[str, Any] | None) -> dict[str, Any] | None:
         if self._subprocess_schema_version is None or body is None:
@@ -2722,7 +2727,7 @@ def length_prefixed_frame_reader(
     buffer: memoryview | None = None
     # position in the buffer to store next read
     pos = 0
-    decoder = msgspec.msgpack.Decoder[_RequestFrame](_RequestFrame)
+    decoder = msgspec.msgpack.Decoder[_RequestFrame](_RequestFrame, ext_hook=comms._decode_msgpack_ext)
 
     # We need to start up the generator to get it to the point it's at waiting on the yield
     next(gen)
