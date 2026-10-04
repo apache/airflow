@@ -419,9 +419,10 @@ jobs:
         continue-on-error: true
         env:
           PLATFORM: ${{ inputs.platform }}
-        run: >
-          ./scripts/ci/docker_data_root_snapshot.sh create
-          "/mnt/ci-image-snapshot-${PLATFORM//\//_}-${PYTHON_MAJOR_MINOR_VERSION}.tar.zst"
+        # Execute the immutable workflow blob, rather than files a configurable checkout leaves.
+        run: |
+          git show "${GITHUB_SHA}:scripts/ci/docker_data_root_snapshot.sh" | bash -s -- create \
+            "/mnt/ci-image-snapshot-${PLATFORM//\//_}-${PYTHON_MAJOR_MINOR_VERSION}.tar.zst"
         shell: bash
         if: steps.snapshot-checkout.outcome == 'success'
       - name: "Upload CI image snapshot ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
