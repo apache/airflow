@@ -303,6 +303,44 @@ class TestCommandFactory:
                         assert arg.kwargs.get("default") == test_arg[1].get("default")
                         assert arg.kwargs["type"] == test_arg[1]["type"]
 
+    def test_command_factory_builds_nested_subgroup(self, tmp_path):
+        """Methods matching a declared suffix collapse into a nested GroupCommand."""
+        temp_file = self._save_temp_operations_py(
+            tmp_path=tmp_path,
+            file_content="""
+                class TaskInstancesOperations(BaseOperations):
+                    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse:
+                        ...
+                    def list_state_store(self, dag_id: str, dag_run_id: str, task_id: str) -> TaskStateStoreCollectionResponse:
+                        ...
+                    def get_state_store(self, dag_id: str, dag_run_id: str, task_id: str, key: str) -> TaskStateStoreResponse:
+                        ...
+            """,
+        )
+
+        command_factory = CommandFactory(file_path=str(temp_file))
+        taskinstances = next(g for g in command_factory.group_commands if g.name == "taskinstances")
+        subcommand_by_name = {c.name: c for c in taskinstances.subcommands}
+
+        assert isinstance(subcommand_by_name["list"], ActionCommand)
+
+        state_store = subcommand_by_name["state-store"]
+        assert isinstance(state_store, GroupCommand)
+        assert state_store.help == "Manage the state store of a task instance"
+        assert sorted(c.name for c in state_store.subcommands) == ["get", "list"]
+        assert all(isinstance(c, ActionCommand) for c in state_store.subcommands)
+
+    def test_find_subgroup_suffix(self):
+        """Suffix match is scoped to the declaring operations class."""
+        command_factory = CommandFactory()
+
+        assert (
+            command_factory._find_subgroup_suffix("TaskInstancesOperations", "list_state_store")
+            == "state_store"
+        )
+        assert command_factory._find_subgroup_suffix("TaskInstancesOperations", "list") is None
+        assert command_factory._find_subgroup_suffix("DagsOperations", "list_state_store") is None
+
     def test_command_factory_optional_bool_uses_boolean_optional_action(self, tmp_path):
         """Optional bool parameters should support --flag and --no-flag forms."""
         temp_file = self._save_temp_operations_py(
@@ -489,10 +527,21 @@ class TestCommandFactory:
         """``_get_func`` always prints through ``args.output``, so every generated command must declare it."""
         command_factory = CommandFactory()
 
+        def iter_action_commands(commands, prefix):
+            """Yield (qualified_name, ActionCommand) for leaves, descending into nested subgroups."""
+            for command in commands:
+                name = f"{prefix}{command.name}"
+                if isinstance(command, GroupCommand):
+                    yield from iter_action_commands(command.subcommands, prefix=f"{name} ")
+                else:
+                    yield name, command
+
         missing = [
-            f"{group_command.name} {sub_command.name}"
+            name
             for group_command in command_factory.group_commands
-            for sub_command in group_command.subcommands
+            for name, sub_command in iter_action_commands(
+                group_command.subcommands, prefix=f"{group_command.name} "
+            )
             if ARG_OUTPUT not in sub_command.args
         ]
 
@@ -915,6 +964,7 @@ class TestCliConfigMethods:
             ("taskinstances", "list", "List all task instances for a given Dag run"),
             ("taskinstances", "get", "Get a task instance for a given Dag run"),
             ("taskinstances", "get-dependencies", "Get unmet scheduler dependencies for a task instance"),
+            ("taskinstances", "state-store", "Manage the state store of a task instance"),
             ("tasks", "clear", "Clear task instances of a Dag by its ID"),
         ],
     )
@@ -1084,3 +1134,13 @@ class TestCliConfigMethods:
         rows = json.loads(capsys.readouterr().out)
         assert [row["dag_run_id"] for row in rows] == ["manual_run"]
         assert rows[0]["conf"] == ["a", "b"]
+
+    def test_parser_resolves_nested_subcommand(self):
+        """The parser descends into the state-store subgroup, binds the func, and keeps the auth token."""
+        args = cli_parser.get_parser().parse_args(
+            ["taskinstances", "state-store", "list", "my_dag", "my_run", "my_task"]
+        )
+
+        assert callable(args.func)
+        assert args.dag_id == "my_dag"
+        assert hasattr(args, "api_token")
