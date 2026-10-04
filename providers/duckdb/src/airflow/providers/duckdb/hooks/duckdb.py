@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -40,6 +42,14 @@ IN_MEMORY_DATABASE = ":memory:"
 # DuckDB has no bind-parameter form for extension names or PRAGMA-style identifiers, so anything
 # interpolated into those statements is validated against this instead.
 _IDENTIFIER = re.compile(r"\A[A-Za-z_][A-Za-z0-9_]*\Z")
+
+
+def _fallback_home_directory() -> str | None:
+    """Return a usable ``home_directory`` for DuckDB, or ``None`` when the environment already has one."""
+    home = os.environ.get("HOME")
+    if home and os.path.isdir(home):
+        return None
+    return tempfile.gettempdir()
 
 
 class DuckDBHook(DbApiHook):
@@ -84,6 +94,10 @@ class DuckDBHook(DbApiHook):
     :param threads: number of threads DuckDB may use. Defaults to the cores DuckDB detects, which is
         subject to the same container caveat as ``memory_limit``.
     :param temp_directory: directory DuckDB spills to when a query exceeds ``memory_limit``.
+    :param home_directory: directory DuckDB treats as the user's home, which is where it puts its
+        default extension directory. Defaults to the environment's home directory, falling back to the
+        temp directory when the environment has none. Serverless runtimes often leave ``HOME`` empty,
+        which otherwise fails with ``IO Error: Can't find the home directory at ''``.
     :param read_only: open the database read-only. Not valid for an in-memory database.
     :param settings: additional DuckDB configuration options, passed through verbatim.
 
@@ -117,6 +131,7 @@ class DuckDBHook(DbApiHook):
         memory_limit: str | None = None,
         threads: int | None = None,
         temp_directory: str | None = None,
+        home_directory: str | None = None,
         read_only: bool | None = None,
         settings: dict[str, Any] | None = None,
         **kwargs,
@@ -136,6 +151,7 @@ class DuckDBHook(DbApiHook):
         self._memory_limit = memory_limit
         self._threads = threads
         self._temp_directory = temp_directory
+        self._home_directory = home_directory
         self._read_only = read_only
         self._settings = settings
 
@@ -175,6 +191,10 @@ class DuckDBHook(DbApiHook):
     @property
     def temp_directory(self) -> str | None:
         return self.resolve_parameter("temp_directory", self._temp_directory)
+
+    @property
+    def home_directory(self) -> str | None:
+        return self.resolve_parameter("home_directory", self._home_directory)
 
     @property
     def read_only(self) -> bool:
@@ -275,6 +295,7 @@ class DuckDBHook(DbApiHook):
             ("memory_limit", self.memory_limit),
             ("threads", self.threads),
             ("temp_directory", self.temp_directory),
+            ("home_directory", self.home_directory or _fallback_home_directory()),
         ):
             if value is not None:
                 config[key] = value

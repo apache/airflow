@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from unittest import mock
 
 import duckdb
@@ -235,6 +236,34 @@ class TestDuckDBHookConnectConfig:
             assert config["memory_limit"] == "1GB"
             assert config["threads"] == 8
 
+    def test_home_directory_is_passed_through(self, mock_get_connection):
+        config = DuckDBHook(home_directory="/opt/duckdb-home").get_connect_config()
+        assert config["home_directory"] == "/opt/duckdb-home"
+
+    def test_an_explicit_home_directory_wins_over_the_fallback(self, mock_get_connection, monkeypatch):
+        monkeypatch.setenv("HOME", "")
+        config = DuckDBHook(home_directory="/opt/duckdb-home").get_connect_config()
+        assert config["home_directory"] == "/opt/duckdb-home"
+
+    @pytest.mark.parametrize("home", ["", "/nonexistent-home-directory"], ids=["empty", "missing"])
+    def test_home_directory_falls_back_to_temp_without_a_usable_home(
+        self, mock_get_connection, monkeypatch, home
+    ):
+        monkeypatch.setenv("HOME", home)
+        config = DuckDBHook().get_connect_config()
+        assert config["home_directory"] == tempfile.gettempdir()
+
+    def test_home_directory_is_left_to_duckdb_when_the_environment_has_one(
+        self, mock_get_connection, monkeypatch, tmp_path
+    ):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        assert "home_directory" not in DuckDBHook().get_connect_config()
+
+    def test_home_directory_is_actually_applied_to_the_database(self, mock_get_connection, tmp_path):
+        """DuckDB has to accept ``home_directory`` at connect time, not only via ``SET``."""
+        with DuckDBHook(home_directory=str(tmp_path)).get_conn() as conn:
+            assert conn.execute("SELECT current_setting('home_directory')").fetchone() == (str(tmp_path),)
+
     def test_resource_limits_are_actually_applied_to_the_database(self, mock_get_connection):
         # DuckDB reports memory_limit back in binary units, so ask for binary units to compare.
         with DuckDBHook(memory_limit="512MiB", threads=2).get_conn() as conn:
@@ -309,6 +338,9 @@ class TestDuckDBHookConnectionExtraResolution:
             pytest.param("threads", 7, lambda h: h.threads, 7, id="threads"),
             pytest.param(
                 "temp_directory", "/tmp/spill", lambda h: h.temp_directory, "/tmp/spill", id="temp_directory"
+            ),
+            pytest.param(
+                "home_directory", "/tmp/home", lambda h: h.home_directory, "/tmp/home", id="home_directory"
             ),
             pytest.param("read_only", True, lambda h: h.read_only, True, id="read_only"),
             pytest.param("settings", {"threads": 9}, lambda h: h.settings, {"threads": 9}, id="settings"),
