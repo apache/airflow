@@ -15,10 +15,10 @@ models stay in their semantic homes:
   `ToTask` and `ToSupervisor` discriminated unions in
   `airflow.sdk.execution_time.comms`.
 - Dag-processing channel (manager ↔ parser-supervisor): the
-  `ToManager` and `ToDagProcessor` discriminated unions in
-  `airflow.dag_processing.processor`.
+  `ToManager`, `ToDagProcessor` and `ToSDKTaskHandlerProcessor`
+  discriminated unions in `airflow.dag_processing.processor`.
 
-`registered_models_by_name()` introspects those four unions on first
+`registered_models_by_name()` introspects those five unions on first
 call, so the snapshot the prek hook commits to `schema.json` always
 matches the exact set of classes `CommsDecoder` actually decodes
 against — there is no hand-maintained list to keep in sync. The
@@ -58,9 +58,9 @@ version bump, and vice versa.
 
 Append the class to the relevant discriminated union in its semantic
 home — `ToTask` / `ToSupervisor` in `comms.py`, or `ToManager` /
-`ToDagProcessor` in `processor.py`. That is the *only* registration
-step; `registered_models_by_name()` picks it up automatically the next
-time the snapshot hook runs.
+`ToDagProcessor` / `ToSDKTaskHandlerProcessor` in `processor.py`. That
+is the *only* registration step; `registered_models_by_name()` picks it
+up automatically the next time the snapshot hook runs.
 
 No `VersionChange` entry is required on the first introduction — the
 head shape *is* the schema for the new body.

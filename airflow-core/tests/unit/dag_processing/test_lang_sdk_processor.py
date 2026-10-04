@@ -44,7 +44,12 @@ from airflow.dag_processing.lang_sdk_processor import (
     LangSDKRuntimeSchemaVersion,
     _get_import_timeout,
 )
-from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult
+from airflow.dag_processing.processor import (
+    DagFileParseRequest,
+    DagFileParsingResult,
+    TaskHandlerDeclaration,
+    TaskHandlerParsingResult,
+)
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.sdk import DAG, BaseOperator, task
@@ -721,6 +726,30 @@ def test_an_invalid_message_after_the_parse_result_keeps_it(mock_send_msg, mock_
         "Ignoring an invalid message from the Lang-SDK runtime after its parse result", error=ANY
     )
     mock_kill_runtime.assert_called_once_with(proc)
+
+
+@patch.object(LangSDKDagFileProcessorProcess, "_kill_runtime", autospec=True)
+@patch.object(LangSDKDagFileProcessorProcess, "send_msg", autospec=True)
+def test_a_task_handler_parsing_result_is_an_unhandled_request(mock_send_msg, mock_kill_runtime):
+    proc = _make_process()
+    result = TaskHandlerParsingResult(
+        fileloc="/b/handlers.jar",
+        task_handlers={"etl": [TaskHandlerDeclaration(task_id="extract", binding="positional", params=None)]},
+    )
+    runtime, conn = socket.socketpair()
+    with runtime, conn:
+        proc._register_comm(conn)
+        read_frame, _ = proc.selector.register.call_args.args[2]
+        runtime.sendall(_RequestFrame(id=1, body=result.model_dump(mode="json")).as_bytes())
+        assert read_frame(conn)
+
+    assert proc.parsing_result is None
+    mock_kill_runtime.assert_not_called()
+    assert mock_send_msg.call_args.kwargs["request_id"] == 1
+    assert mock_send_msg.call_args.kwargs["error"].detail == {
+        "status_code": 400,
+        "message": "Unhandled request",
+    }
 
 
 @patch.object(LangSDKDagFileProcessorProcess, "send_msg", autospec=True)
