@@ -1363,6 +1363,11 @@ class TestSparkSubmitHook:
                 ["{'password': 'a b'}"],
                 "{'password': '******'}",
             ),
+            # A quote followed by punctuation inside the value must not close it early.
+            (
+                ["spark-submit", "--password='Pa'$$w0rd'", "--next"],
+                "spark-submit --password='******' --next",
+            ),
             (
                 "spark-submit --password=hunter2",
                 "spark-submit --password=******",
@@ -1413,6 +1418,7 @@ class TestSparkSubmitHook:
         [
             pytest.param("secret" * 20_000, id="repeated-keywords"),
             pytest.param("a=" + "secret" * 20_000, id="equals-before-repeated-keywords"),
+            pytest.param("password='x'," * 20_000, id="repeated-closed-quoted-values"),
         ],
     )
     def test_masks_passwords_stays_fast_on_repeated_keywords(self, token: str) -> None:

@@ -58,11 +58,8 @@ _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
 _SENSITIVE_KEYWORD_RE = re.compile(r"secret|password", re.IGNORECASE)
 _WHITESPACE_RE = re.compile(r"\s")
 _NON_WHITESPACE_RE = re.compile(r"\S")
-# Where a quoted value may stop at the latest: the quote followed by a non-word character
-# (whitespace, comma, bracket, brace, etc.) or end of string, or a newline.  This covers
-# Python-repr and dict-shaped log lines such as Config(password="x", user=y) or
-# {'password': 'a b'} where the closing quote is followed by punctuation rather than a space.
-_QUOTED_VALUE_LIMIT_RE = {quote: re.compile(rf"\n|{re.escape(quote)}(?=\W|$)") for quote in ("'", '"')}
+# Where a quoted value may stop at the latest: the quote followed by whitespace, or a newline.
+_QUOTED_VALUE_LIMIT_RE = {quote: re.compile(rf"\n|{quote}(?=\s)") for quote in ("'", '"')}
 
 
 def _mask_sensitive_values(text: str) -> str:
@@ -79,8 +76,7 @@ def _mask_sensitive_values(text: str) -> str:
     - The key starts where scanning resumed within the current token and ends at the first ``=``
       after the keyword, or at the whitespace ending the token.
     - A value opening with a quote extends to the last matching quote before either that quote
-      followed by a non-word character (whitespace, comma, bracket, etc.) or a newline;
-      the value is then masked between the quotes.
+      followed by whitespace or a newline; the value is then masked between the quotes.
     - Any other value, including an unterminated quoted one, is masked up to the next whitespace.
     """
     length = len(text)
