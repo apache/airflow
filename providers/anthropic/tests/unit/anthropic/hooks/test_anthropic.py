@@ -45,7 +45,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
 
 pytest.importorskip("anthropic")
 
-from anthropic import BadRequestError
+from anthropic import AsyncAnthropic, BadRequestError, WorkloadIdentityCredentials
 from anthropic.types import BetaMonetaryAmount
 from anthropic.types.beta import BetaManagedAgentsServerToolUsage, BetaManagedAgentsSessionUsage
 from anthropic.types.beta.beta_managed_agents_cache_creation_usage import (
@@ -833,6 +833,145 @@ class TestAnthropicHookGetConn:
         mock_get_connection.return_value = _conn(password=None)
         AnthropicHook().get_conn()
         mock_anthropic.assert_called_once_with(base_url=None)
+
+
+WIF_EXTRA = {
+    "workload_identity": {
+        "identity_token_file": "/var/run/secrets/anthropic.com/token",
+        "federation_rule_id": "fdrl_x",
+        "organization_id": "org_x",
+        "service_account_id": "svac_x",
+    }
+}
+
+
+@pytest.mark.asyncio
+@mock.patch.object(AnthropicHook, "get_connection", autospec=True)
+@mock.patch(f"{HOOK_PATH}.get_async_connection", autospec=True)
+class TestAnthropicHookGetAsyncConn:
+    @pytest.mark.parametrize(
+        ("password", "host", "extra", "async_name", "sync_name", "expected_kwargs"),
+        [
+            pytest.param(
+                "sk-ant",
+                "https://gw.example",
+                {},
+                "AsyncAnthropic",
+                "Anthropic",
+                {"api_key": "sk-ant", "base_url": "https://gw.example"},
+                id="anthropic",
+            ),
+            pytest.param(
+                "from-password",
+                None,
+                {"anthropic_client_kwargs": {"api_key": "from-extra", "max_retries": 5}},
+                "AsyncAnthropic",
+                "Anthropic",
+                {"api_key": "from-extra", "base_url": None, "max_retries": 5},
+                id="anthropic-client-kwargs",
+            ),
+            pytest.param(
+                None,
+                None,
+                {},
+                "AsyncAnthropic",
+                "Anthropic",
+                {"base_url": None},
+                id="anthropic-sdk-resolves-credentials",
+            ),
+            pytest.param(
+                None,
+                None,
+                {"platform": "bedrock", "aws_region": "us-east-1"},
+                "AsyncAnthropicBedrock",
+                "AnthropicBedrock",
+                {"aws_region": "us-east-1"},
+                id="bedrock",
+            ),
+            pytest.param(
+                None,
+                None,
+                {"platform": "vertex", "project_id": "p1", "region": "us-central1"},
+                "AsyncAnthropicVertex",
+                "AnthropicVertex",
+                {"project_id": "p1", "region": "us-central1"},
+                id="vertex",
+            ),
+            pytest.param(
+                None,
+                None,
+                {"platform": "AWS", "aws_region": "us-east-1"},
+                "AsyncAnthropicAWS",
+                "AnthropicAWS",
+                {"aws_region": "us-east-1"},
+                id="aws",
+            ),
+            pytest.param(
+                "azkey",
+                None,
+                {"platform": "foundry", "resource": "r1"},
+                "AsyncAnthropicFoundry",
+                "AnthropicFoundry",
+                {"api_key": "azkey", "resource": "r1"},
+                id="foundry",
+            ),
+        ],
+    )
+    async def test_builds_the_async_client_for_each_platform(
+        self,
+        mock_get_async_connection,
+        mock_get_connection,
+        password,
+        host,
+        extra,
+        async_name,
+        sync_name,
+        expected_kwargs,
+    ):
+        mock_get_async_connection.return_value = _conn(password=password, host=host, extra=extra)
+
+        with (
+            mock.patch(f"{HOOK_PATH}.{async_name}", autospec=True) as mock_async_client,
+            mock.patch(f"{HOOK_PATH}.{sync_name}", autospec=True) as mock_sync_client,
+        ):
+            client = await AnthropicHook().get_async_conn()
+
+        mock_async_client.assert_called_once_with(**expected_kwargs)
+        assert client is mock_async_client.return_value
+        mock_sync_client.assert_not_called()
+        mock_get_connection.assert_not_called()
+
+    async def test_looks_up_the_connection_once_and_asynchronously(
+        self, mock_get_async_connection, mock_get_connection
+    ):
+        mock_get_async_connection.return_value = _conn(extra={"model": "claude-from-conn"})
+        hook = AnthropicHook(conn_id="my_anthropic")
+
+        with mock.patch(f"{HOOK_PATH}.AsyncAnthropic", autospec=True):
+            await hook.get_async_conn()
+            await hook.get_async_conn()
+
+        # Through the hook, so a subclass's own connection lookup is honoured.
+        mock_get_async_connection.assert_awaited_once_with("my_anthropic", hook=hook)
+        # Later reads, such as the model default, use the same connection.
+        assert hook.default_model == "claude-from-conn"
+        mock_get_connection.assert_not_called()
+
+    async def test_async_client_accepts_the_workload_identity_credential(
+        self, mock_get_async_connection, mock_get_connection
+    ):
+        # Unmocked SDK classes: the async client takes the same synchronous WIF credential
+        # the sync client does (the SDK runs its token exchange in a worker thread). Building
+        # the client reads no token file and exchanges nothing, so no file or network is needed.
+        mock_get_async_connection.return_value = _conn(password=None, extra=WIF_EXTRA)
+
+        client = await AnthropicHook().get_async_conn()
+
+        try:
+            assert isinstance(client, AsyncAnthropic)
+            assert isinstance(client.credentials, WorkloadIdentityCredentials)
+        finally:
+            await client.close()
 
 
 class TestAnthropicHookFeatures:

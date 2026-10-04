@@ -2446,6 +2446,12 @@ export const $ClearTaskInstancesBody = {
             title: 'Prevent Running Task',
             default: false
         },
+        keep_task_state: {
+            type: 'boolean',
+            title: 'Keep Task State',
+            description: 'Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.',
+            default: false
+        },
         note: {
             anyOf: [
                 {
@@ -9848,6 +9854,11 @@ export const $CalendarTimeRangeResponse = {
         count: {
             type: 'integer',
             title: 'Count'
+        },
+        is_backfill: {
+            type: 'boolean',
+            title: 'Is Backfill',
+            default: false
         }
     },
     type: 'object',
@@ -10540,6 +10551,43 @@ export const $DAGsRunStateCountsCollectionResponse = {
     required: ['dags', 'state_count_limit'],
     title: 'DAGsRunStateCountsCollectionResponse',
     description: 'Collection of per-Dag DagRun-state counts for the Dag list page.'
+} as const;
+
+export const $DagFolderCollectionResponse = {
+    properties: {
+        folders: {
+            items: {
+                '$ref': '#/components/schemas/DagFolderResponse'
+            },
+            type: 'array',
+            title: 'Folders'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['folders', 'total_entries'],
+    title: 'DagFolderCollectionResponse',
+    description: 'Collection of distinct Dag folders, each scoped to the bundle it belongs to.'
+} as const;
+
+export const $DagFolderResponse = {
+    properties: {
+        bundle_name: {
+            type: 'string',
+            title: 'Bundle Name'
+        },
+        folder: {
+            type: 'string',
+            title: 'Folder'
+        }
+    },
+    type: 'object',
+    required: ['bundle_name', 'folder'],
+    title: 'DagFolderResponse',
+    description: 'A distinct Dag folder (directory of ``relative_fileloc``) within a bundle.'
 } as const;
 
 export const $DagRunStatsResponse = {

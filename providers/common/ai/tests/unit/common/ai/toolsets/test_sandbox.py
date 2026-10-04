@@ -17,13 +17,18 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 import time_machine
+from pydantic_ai import Agent
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import ValidationError
 
@@ -41,8 +46,10 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxTerminalError,
     encode_network_policy,
 )
+from airflow.providers.common.ai.tools import ToolCallError
 from airflow.providers.common.ai.toolsets import sandbox as sandbox_module
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
+from airflow.providers.common.compat.sdk import ObjectStoragePath
 
 from unit.common.ai.sandbox.fake_tags import InMemoryTagStore
 
@@ -73,6 +80,12 @@ class _RecordingBackend(SandboxBackend):
         self.create_error = create_error
         self.read_payload = b""
         self.read_error: Exception | None = None
+        # What the agent left in each sandbox, for export_file to hand back.
+        self.files: dict[str, bytes] = {}
+        # (sandbox, path, max_bytes, whether the sandbox was already destroyed)
+        self.exported: list[tuple[str, str, int, bool]] = []
+        # Paths whose copy writes some bytes and then fails, as a copy cut off partway does.
+        self.fail_partway: set[str] = set()
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:
         self.created.append(spec)
@@ -98,6 +111,16 @@ class _RecordingBackend(SandboxBackend):
 
     def list_directory(self, sandbox, path):
         return list(self.entries)
+
+    def export_file(self, sandbox, path, dest, *, max_bytes):
+        self.exported.append((sandbox, path, max_bytes, sandbox in self.destroyed))
+        if path not in self.files:
+            raise SandboxError(f"{path!r} does not exist in the sandbox, or is not readable.")
+        if path in self.fail_partway:
+            dest.write(self.files[path][:1])
+            raise SandboxError(f"the sandbox stopped sending {path!r}")
+        dest.write(self.files[path])
+        return len(self.files[path])
 
     def destroy(self, sandbox):
         self.destroyed.append(sandbox)
@@ -151,6 +174,7 @@ class TestInit:
             "max_output_lines",
             "max_output_bytes",
             "max_read_bytes",
+            "max_export_bytes",
         ],
     )
     def test_rejects_non_positive_bounds(self, field, bad):
@@ -295,6 +319,19 @@ class TestNetworkNote:
 
 
 class TestRunCommand:
+    @pytest.mark.asyncio
+    @pytest.mark.enable_redact
+    async def test_output_is_masked_before_it_is_truncated(self, registered_secret):
+        """Cut first, a secret split at the cut would no longer match and would leak in part."""
+        output = "x" * 40 + registered_secret + "y" * 40
+        backend = _RecordingBackend(run_result=SandboxExecResult(exit_code=0, stdout=output, stderr=""))
+        ts = SandboxToolset(backend, max_output_bytes=60)
+
+        async with ts:
+            result = await _call(ts, "run_command", {"command": "x"})
+
+        assert registered_secret[len(registered_secret) // 2 :] not in result
+
     @pytest.mark.asyncio
     async def test_labels_streams_and_reports_a_nonzero_exit(self):
         backend = _RecordingBackend(run_result=SandboxExecResult(exit_code=3, stdout="hi\n", stderr="bad\n"))
@@ -533,12 +570,9 @@ class TestErrorMapping:
         ts = SandboxToolset(backend)
 
         async with ts:
-            with pytest.raises(
-                SandboxTerminalError, match="Could not provision.*image pull timed out"
-            ) as caught:
+            with pytest.raises(SandboxTerminalError, match="Could not provision.*image pull timed out"):
                 await _call(ts, "run_command", {"command": "x"})
 
-        assert isinstance(caught.value.__cause__, SandboxError)
         assert backend.destroyed == [], "nothing was provisioned, so nothing is destroyed"
 
     @pytest.mark.asyncio
@@ -676,8 +710,6 @@ class TestLifecycle:
         class SlowBackend(_RecordingBackend):
             def create(self, *, spec=None):
                 started.set()
-                import time
-
                 time.sleep(0.2)
                 return super().create(spec=spec)
 
@@ -694,6 +726,36 @@ class TestLifecycle:
         with pytest.raises(asyncio.CancelledError):
             await task
 
+        assert backend.destroyed == ["box-1"]
+
+    def test_first_calls_from_threads_with_their_own_loops_share_one_sandbox(self):
+        """A native framework may make its first tool calls from several threads at once."""
+        both_waiting = threading.Barrier(2)
+
+        class SlowBackend(_RecordingBackend):
+            def create(self, *, spec=None):
+                time.sleep(0.2)
+                return super().create(spec=spec)
+
+        backend = SlowBackend()
+        errors: list[BaseException] = []
+
+        def first_call():
+            both_waiting.wait()
+            try:
+                asyncio.run(_call(ts, "run_command", {"command": "x"}))
+            except BaseException as e:
+                errors.append(e)
+
+        with SandboxToolset(backend) as ts:
+            threads = [threading.Thread(target=first_call) for _ in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        assert errors == []
+        assert [command[0] for command in backend.commands] == ["box-1", "box-1"]
         assert backend.destroyed == ["box-1"]
 
 
@@ -733,6 +795,280 @@ class TestForRun:
         forked = await CustomToolset(_RecordingBackend()).for_run(_ctx())
 
         assert isinstance(forked, CustomToolset)
+
+
+class TestExports:
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"exports": {"": "file:///tmp/x"}}, "neither may be empty"),
+            ({"exports": {"out.bin": ""}}, "neither may be empty"),
+            ({"export_conn_id": "aws"}, "export_conn_id only applies together with exports"),
+        ],
+    )
+    def test_constructor_refuses_a_shape_that_cannot_work(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            SandboxToolset(_RecordingBackend(), **kwargs)
+
+    def test_an_attached_sandbox_cannot_export(self):
+        # The task that owns an attached sandbox reads out what the agent left.
+        with pytest.raises(ValueError, match="exports cannot be combined with attach_to"):
+            SandboxToolset(_AttachableRecordingBackend(), attach_to="sb-1", exports={"a": "file:///tmp/a"})
+
+    @pytest.mark.asyncio
+    async def test_a_finished_run_copies_each_file_out_before_the_sandbox_is_destroyed(self, tmp_path):
+        backend = _RecordingBackend()
+        backend.files = {"out/report.parquet": b"PAR1...", "chart.png": b"\x89PNG"}
+        ts = SandboxToolset(
+            backend,
+            exports={
+                "out/report.parquet": f"file://{tmp_path}/report.parquet",
+                "chart.png": f"file://{tmp_path}/chart.png",
+            },
+            max_export_bytes=1234,
+        )
+
+        async with ts:
+            await _call(ts, "run_command", {"command": "make report"})
+
+        assert backend.exported == [
+            ("box-1", "out/report.parquet", 1234, False),
+            ("box-1", "chart.png", 1234, False),
+        ]
+        assert backend.destroyed == ["box-1"]
+        assert (tmp_path / "report.parquet").read_bytes() == b"PAR1..."
+        assert (tmp_path / "chart.png").read_bytes() == b"\x89PNG"
+        assert sorted(f.name for f in tmp_path.iterdir()) == ["chart.png", "report.parquet"]
+
+    @pytest.mark.asyncio
+    async def test_a_failed_run_exports_nothing_and_still_destroys_the_sandbox(self, tmp_path):
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"half done"}
+        ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+
+        async def run_that_fails():
+            async with ts:
+                await _call(ts, "run_command", {"command": "x"})
+                raise RuntimeError("agent blew up")
+
+        with pytest.raises(RuntimeError, match="agent blew up"):
+            await run_that_fails()
+
+        assert backend.exported == []
+        assert backend.destroyed == ["box-1"]
+        assert not (tmp_path / "out.bin").exists()
+
+    @pytest.mark.asyncio
+    async def test_a_file_that_cannot_be_exported_fails_the_task(self, tmp_path):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+
+        with pytest.raises(SandboxTerminalError, match="Could not export 'out.bin' from sandbox box-1"):
+            async with ts:
+                await _call(ts, "run_command", {"command": "forgot to write it"})
+
+        assert backend.destroyed == ["box-1"]
+        assert list(tmp_path.iterdir()) == []
+
+    @pytest.mark.asyncio
+    async def test_a_copy_that_fails_partway_leaves_the_destination_as_it_was(self, tmp_path):
+        (tmp_path / "out.bin").write_bytes(b"ORIGINAL")
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"new contents"}
+        backend.fail_partway = {"out.bin"}
+        ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+
+        with pytest.raises(SandboxTerminalError, match="stopped sending"):
+            async with ts:
+                await _call(ts, "run_command", {"command": "x"})
+
+        assert (tmp_path / "out.bin").read_bytes() == b"ORIGINAL"
+        assert [f.name for f in tmp_path.iterdir()] == ["out.bin"]
+
+    @pytest.mark.asyncio
+    async def test_for_run_carries_the_export_connection_across(self):
+        base = SandboxToolset(
+            _RecordingBackend(), exports={"out.bin": "s3://b/out.bin"}, export_conn_id="reports"
+        )
+
+        forked = await base.for_run(_ctx())
+
+        with patch.object(sandbox_module, "ObjectStoragePath", autospec=True) as path_cls:
+            forked._export_target("s3://b/out.bin")
+
+        path_cls.assert_called_once_with("s3://b/out.bin", conn_id="reports")
+
+    @pytest.mark.asyncio
+    async def test_a_failed_export_changes_none_of_the_destinations(self, tmp_path):
+        # Nothing is moved into place until every file has been copied, so a consumer
+        # that runs whatever the outcome never finds half of a set.
+        (tmp_path / "first.bin").write_bytes(b"ORIGINAL")
+        backend = _RecordingBackend()
+        backend.files = {"first.bin": b"one"}
+        ts = SandboxToolset(
+            backend,
+            exports={
+                "first.bin": f"file://{tmp_path}/first.bin",
+                "second.bin": f"file://{tmp_path}/second.bin",
+            },
+        )
+
+        with pytest.raises(SandboxTerminalError, match="Could not export 'second.bin'"):
+            async with ts:
+                await _call(ts, "run_command", {"command": "x"})
+
+        assert (tmp_path / "first.bin").read_bytes() == b"ORIGINAL"
+        assert [f.name for f in tmp_path.iterdir()] == ["first.bin"]
+
+    @pytest.mark.asyncio
+    async def test_a_publish_that_fails_names_what_is_already_in_place(self, tmp_path):
+        backend = _RecordingBackend()
+        backend.files = {"first.bin": b"one", "second.bin": b"two"}
+        ts = SandboxToolset(
+            backend,
+            exports={
+                "first.bin": f"file://{tmp_path}/first.bin",
+                "second.bin": f"file://{tmp_path}/second.bin",
+            },
+        )
+        move = ObjectStoragePath.move
+
+        def fail_the_second(self, path, **kwargs):
+            if str(path).endswith("second.bin"):
+                raise OSError("permission denied")
+            return move(self, path, **kwargs)
+
+        with patch.object(ObjectStoragePath, "move", autospec=True, side_effect=fail_the_second):
+            with pytest.raises(
+                SandboxTerminalError, match=r"second\.bin: permission denied.*Already in place: .*first\.bin"
+            ):
+                async with ts:
+                    await _call(ts, "run_command", {"command": "x"})
+
+        assert sorted(f.name for f in tmp_path.iterdir()) == ["first.bin"]
+
+    @pytest.mark.asyncio
+    async def test_a_copy_that_cannot_be_removed_is_named_in_the_error(self, tmp_path, caplog):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+
+        with patch.object(ObjectStoragePath, "unlink", autospec=True, side_effect=OSError("denied")):
+            with pytest.raises(
+                SandboxTerminalError, match=r"Left behind, to delete by hand: .*out\.bin\.\w+\.partial"
+            ):
+                async with ts:
+                    await _call(ts, "run_command", {"command": "x"})
+
+        assert "Could not remove" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_a_local_destination_gets_its_directories(self, tmp_path):
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"payload"}
+        ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/run-1/nested/out.bin"})
+
+        async with ts:
+            await _call(ts, "run_command", {"command": "x"})
+
+        assert (tmp_path / "run-1" / "nested" / "out.bin").read_bytes() == b"payload"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("rendered", [None, "", "None", "relative/out.bin"])
+    async def test_a_destination_that_is_not_a_url_fails_before_the_run(self, rendered):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend, exports={"out.bin": "{{ var.value.dest }}"})
+        # What the templater writes after construction.
+        ts._exports = {"out.bin": rendered}
+
+        with pytest.raises(SandboxTerminalError, match="not a storage URL"):
+            async with ts:
+                pass
+
+        assert backend.created == []
+
+    def test_the_connection_is_not_passed_when_none_is_set(self):
+        # An explicit conn_id=None discards a connection named in the URL on Airflow 3.0/3.1.
+        ts = SandboxToolset(_RecordingBackend(), exports={"out.bin": "s3://conn@bucket/out.bin"})
+
+        with patch.object(sandbox_module, "ObjectStoragePath", autospec=True) as path_cls:
+            ts._export_target("s3://conn@bucket/out.bin")
+
+        path_cls.assert_called_once_with("s3://conn@bucket/out.bin")
+
+    @pytest.mark.asyncio
+    async def test_a_teardown_failure_after_a_good_export_does_not_fail_the_task(self, tmp_path, caplog):
+        backend = _RecordingBackend(destroy_error=RuntimeError("daemon went away"))
+        backend.files = {"out.bin": b"payload"}
+        ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+
+        async with ts:
+            await _call(ts, "run_command", {"command": "x"})
+
+        assert (tmp_path / "out.bin").read_bytes() == b"payload"
+        assert "Failed to destroy sandbox box-1" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_a_run_that_never_used_its_sandbox_cannot_deliver_its_files(self, tmp_path):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+
+        with pytest.raises(SandboxTerminalError, match="no sandbox standing.*'out.bin'"):
+            async with ts:
+                pass
+
+        assert backend.created == []
+
+    @pytest.mark.asyncio
+    async def test_the_model_is_told_which_files_are_collected(self):
+        with_exports = SandboxToolset(_RecordingBackend(), exports={"out/report.csv": "file:///tmp/r.csv"})
+        without = SandboxToolset(_RecordingBackend())
+
+        exported = (await with_exports.get_tools(_ctx()))["run_command"].tool_def.description
+        plain = (await without.get_tools(_ctx()))["run_command"].tool_def.description
+
+        assert "copied out of the sandbox" in exported
+        assert "out/report.csv" in exported
+        assert "copied out" not in plain
+
+    @pytest.mark.asyncio
+    async def test_for_run_carries_the_exports_across(self, tmp_path):
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"payload"}
+        base = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"}, max_export_bytes=99)
+
+        forked = await base.for_run(_ctx())
+        async with forked:
+            await _call(forked, "run_command", {"command": "x"})
+
+        assert backend.exported == [("box-1", "out.bin", 99, False)]
+        assert (tmp_path / "out.bin").read_bytes() == b"payload"
+
+    def test_a_with_block_exports_for_a_native_agent(self, tmp_path):
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"payload"}
+
+        with SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"}) as sandbox:
+            run_command = {tool.name: tool for tool in sandbox.airflow_tools()}["run_command"]
+            asyncio.run(run_command.call({"command": "ls"}))
+
+        assert (tmp_path / "out.bin").read_bytes() == b"payload"
+        assert backend.destroyed == ["box-1"]
+
+    def test_a_native_agent_that_raises_exports_nothing(self, tmp_path):
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"payload"}
+
+        def native_run_that_fails():
+            with SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"}) as sandbox:
+                run_command = {tool.name: tool for tool in sandbox.airflow_tools()}["run_command"]
+                asyncio.run(run_command.call({"command": "ls"}))
+                raise RuntimeError("native agent failed")
+
+        with pytest.raises(RuntimeError, match="native agent failed"):
+            native_run_that_fails()
+
+        assert backend.exported == []
+        assert backend.destroyed == ["box-1"]
 
 
 class TestAttachMode:
@@ -885,7 +1221,7 @@ class TestAttachMode:
         backend = _AttachableRecordingBackend(tags=_owned())
         ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
 
-        with pytest.raises(SandboxTerminalError, match="Not attached to sandbox 'sb-1'"):
+        with pytest.raises(SandboxTerminalError, match="not open"):
             await _call(ts, "run_command", {"command": "ls"})
 
         assert backend.created == []
@@ -956,6 +1292,24 @@ class TestAttachMode:
         with pytest.raises(SandboxTerminalError, match="stopped while running a command"):
             async with ts:
                 await _call(ts, "run_command", {"command": "x"})
+
+        assert backend.created == []
+
+    @pytest.mark.asyncio
+    async def test_a_call_after_the_sandbox_stopped_does_not_provision_a_replacement(self):
+        backend = _AttachableRecordingBackend(
+            tags=_owned(),
+            run_result=SandboxExecResult(
+                exit_code=-1, stdout="", stderr="", timed_out=True, sandbox_terminated=True
+            ),
+        )
+        ts = SandboxToolset(backend, attach_to="sb-1", owner="me")
+
+        async with ts:
+            with pytest.raises(SandboxTerminalError, match="stopped while running a command"):
+                await _call(ts, "run_command", {"command": "x"})
+            with pytest.raises(SandboxTerminalError, match="the sandbox ended"):
+                await _call(ts, "run_command", {"command": "y"})
 
         assert backend.created == []
 
@@ -1067,3 +1421,155 @@ class TestAttachMode:
         assert backend.created == []
         assert backend.destroyed == []
         assert HOLDER_TAG not in backend.tags["sb-1"]
+
+
+class TestOutsideAnAgentRun:
+    """Native frameworks call the tools directly, so the toolset has to own its sandbox's life."""
+
+    def test_a_block_that_ends_while_the_sandbox_is_created_still_destroys_it(self):
+        """A task timeout ends the block on the main thread while a framework thread provisions."""
+        creating = threading.Event()
+
+        class SlowBackend(_RecordingBackend):
+            def create(self, *, spec=None):
+                creating.set()
+                time.sleep(0.2)
+                return super().create(spec=spec)
+
+        backend = SlowBackend()
+        errors: list[BaseException] = []
+
+        def first_call():
+            try:
+                asyncio.run(_call(ts, "run_command", {"command": "x"}))
+            except BaseException as e:
+                errors.append(e)
+
+        with SandboxToolset(backend) as ts:
+            worker = threading.Thread(target=first_call)
+            worker.start()
+            creating.wait(5)
+        worker.join()
+
+        assert backend.destroyed == ["box-1"]
+        assert backend.commands == []
+        assert [type(e) for e in errors] == [SandboxTerminalError]
+
+    @pytest.mark.asyncio
+    async def test_a_call_before_entering_is_refused_and_provisions_nothing(self):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend)
+
+        with pytest.raises(SandboxTerminalError, match="not open"):
+            await _call(ts, "run_command", {"command": "ls"})
+
+        assert backend.created == []
+
+    @pytest.mark.asyncio
+    async def test_a_call_after_exiting_is_refused(self):
+        backend = _RecordingBackend()
+        ts = SandboxToolset(backend)
+        async with ts:
+            await _call(ts, "run_command", {"command": "ls"})
+
+        with pytest.raises(SandboxTerminalError, match="not open"):
+            await _call(ts, "run_command", {"command": "ls"})
+
+        assert backend.created == [SandboxSpec()]
+
+    def test_a_with_block_destroys_the_sandbox_its_tools_provisioned(self):
+        backend = _RecordingBackend()
+
+        with SandboxToolset(backend) as sandbox:
+            run_command = {tool.name: tool for tool in sandbox.airflow_tools()}["run_command"]
+            result = asyncio.run(run_command.call({"command": "ls"}))
+
+        assert not result.is_error
+        assert backend.destroyed == ["box-1"]
+
+    def test_a_call_outside_the_block_ends_a_native_agent_run(self):
+        run_command = {tool.name: tool for tool in SandboxToolset(_RecordingBackend()).airflow_tools()}[
+            "run_command"
+        ]
+
+        with pytest.raises(ToolCallError, match="not open"):
+            asyncio.run(run_command.call({"command": "ls"}))
+
+
+class TestInsideAPydanticAIRun:
+    @staticmethod
+    def _model_calling(tool: str):
+        def model(messages, info):
+            if any(isinstance(p, ToolReturnPart) for m in messages for p in m.parts):
+                return ModelResponse(parts=[TextPart("done")])
+            return ModelResponse(parts=[ToolCallPart(tool, {"command": "ls"}, tool_call_id="c")])
+
+        return FunctionModel(model)
+
+    def test_a_successful_run_exports_its_files(self, tmp_path):
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"payload"}
+        sandbox = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+
+        Agent(self._model_calling("box_run_command"), toolsets=[sandbox.prefixed("box")]).run_sync("go")
+
+        assert backend.exported == [("box-1", "out.bin", 1024**3, False)]
+        assert (tmp_path / "out.bin").read_bytes() == b"payload"
+
+    def test_a_run_started_inside_an_except_block_still_exports(self, tmp_path):
+        # The exception already being handled when the run began is not the run failing.
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"payload"}
+        sandbox = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+        agent = Agent(self._model_calling("run_command"), toolsets=[sandbox])
+
+        try:
+            raise KeyError("cache miss")
+        except KeyError:
+            result = agent.run_sync("go")
+
+        assert result.output == "done"
+        assert (tmp_path / "out.bin").read_bytes() == b"payload"
+
+    def test_an_agent_held_open_exports_from_its_run_and_not_again_at_exit(self, tmp_path):
+        # ``async with agent`` enters the toolset the author built; runs use copies of it.
+        backend = _RecordingBackend()
+        backend.files = {"out.bin": b"payload"}
+        sandbox = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+        agent = Agent(self._model_calling("run_command"), toolsets=[sandbox])
+
+        async def held_open():
+            async with agent:
+                await agent.run("go")
+
+        asyncio.run(held_open())
+
+        assert backend.exported == [("box-1", "out.bin", 1024**3, False)]
+        assert (tmp_path / "out.bin").read_bytes() == b"payload"
+
+    def test_a_failed_run_exports_nothing(self, tmp_path):
+        # pydantic-ai closes its toolsets through an exit stack that passes them no
+        # exception, so the toolset has to find the failure itself.
+        backend = _RecordingBackend(run_error=SandboxTerminalError("credentials rejected"))
+        backend.files = {"out.bin": b"payload"}
+        sandbox = SandboxToolset(backend, exports={"out.bin": f"file://{tmp_path}/out.bin"})
+
+        with pytest.raises(SandboxTerminalError, match="credentials rejected"):
+            Agent(self._model_calling("run_command"), toolsets=[sandbox]).run_sync("go")
+
+        assert backend.exported == []
+        assert backend.destroyed == ["box-1"]
+        assert not (tmp_path / "out.bin").exists()
+
+    def test_the_run_opens_the_sandbox_and_destroys_it_when_it_ends(self):
+        backend = _RecordingBackend()
+
+        def model(messages, info):
+            if any(isinstance(p, ToolReturnPart) for m in messages for p in m.parts):
+                return ModelResponse(parts=[TextPart("done")])
+            return ModelResponse(parts=[ToolCallPart("run_command", {"command": "ls"}, tool_call_id="c")])
+
+        Agent(FunctionModel(model), toolsets=[SandboxToolset(backend)]).run_sync("go")
+
+        assert backend.created == [SandboxSpec()]
+        assert backend.destroyed == ["box-1"]

@@ -195,7 +195,15 @@ DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0", "v1.35.0"]
+ALLOWED_KUBERNETES_VERSIONS = [
+    "v1.31.12",
+    "v1.32.11",
+    "v1.33.12",
+    "v1.34.11",
+    "v1.35.8",
+    "v1.36.4",
+    "v1.37.0",
+]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -801,7 +809,7 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.31.0"
+KIND_VERSION = "v0.33.0"
 HELM_VERSION = "v3.19.0"
 SKAFFOLD_VERSION = "v2.17.0"
 
@@ -862,7 +870,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.1",
-        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica common.ai modal opensearch",
+        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica modal opensearch",
         "run-unit-tests": "true",
     },
     {

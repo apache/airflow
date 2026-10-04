@@ -78,13 +78,12 @@ def logout(
     for token_str in collect_request_tokens(request, bearer_credentials):
         auth_manager.revoke_token(token_str)
 
-    logout_url = auth_manager.get_url_logout()
-    if logout_url:
-        return RedirectResponse(logout_url)
-
+    # The local session cookie is cleared on every path, including the redirect to an external
+    # logout URL: revocation above is recorded server side and can fail, so it must not be the
+    # only thing that ends the browser's session.
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     cookie_path = get_cookie_path()
-    response = RedirectResponse(auth_manager.get_url_login())
+    response = RedirectResponse(auth_manager.get_url_logout() or auth_manager.get_url_login())
     response.delete_cookie(
         key=COOKIE_NAME_JWT_TOKEN,
         path=cookie_path,

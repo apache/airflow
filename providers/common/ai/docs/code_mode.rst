@@ -81,10 +81,9 @@ Requires the ``code-mode`` extra::
     :start-after: [START howto_operator_agent_code_mode]
     :end-before: [END howto_operator_agent_code_mode]
 
-Unlike passing a capability through ``agent_params`` (see
-:ref:`capabilities-passthrough`), ``code_mode`` is a plain boolean and is
-serialization-safe: the ``CodeMode`` capability is built at execution time, not
-stored on the serialized operator.
+``code_mode=True`` is the same as adding ``CodeMode()`` at the end of ``capabilities=`` (see
+:ref:`capabilities`), except that the operator builds the capability when the task runs, so the
+Dag file does not import ``pydantic_ai_harness``.
 
 .. note::
 

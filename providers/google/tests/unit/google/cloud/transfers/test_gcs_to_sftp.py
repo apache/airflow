@@ -468,6 +468,78 @@ class TestGoogleCloudStorageToSFTPOperator:
         sftp_hook_mock.return_value.create_directory.assert_not_called()
 
     @pytest.mark.parametrize(
+        ("move_object", "expected_deleted"),
+        [
+            pytest.param(False, [], id="copy"),
+            pytest.param(True, ["data/empty/", "data/folder/", "data/folder/file.txt"], id="move"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook", autospec=True)
+    def test_folder_markers_are_created_as_directories(
+        self, sftp_hook_mock, gcs_hook_mock, move_object, expected_deleted
+    ):
+        gcs_hook = gcs_hook_mock.return_value
+        sftp_hook = sftp_hook_mock.return_value
+        gcs_hook.list.return_value = ["data/empty/", "data/folder/", "data/folder/file.txt"]
+        operator = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="data/*",
+            destination_path=DESTINATION_SFTP,
+            create_intermediate_dirs=True,
+            move_object=move_object,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        operator.execute(None)
+
+        sftp_hook.create_directory.assert_any_call(os.path.join(DESTINATION_SFTP, "data", "empty"))
+        sftp_hook.store_file.assert_called_once_with(
+            os.path.join(DESTINATION_SFTP, "data", "folder", "file.txt"), mock.ANY
+        )
+        gcs_hook.download.assert_called_once_with(
+            bucket_name=TEST_BUCKET, object_name="data/folder/file.txt", filename=mock.ANY
+        )
+        assert gcs_hook.delete.call_args_list == [mock.call(TEST_BUCKET, obj) for obj in expected_deleted]
+
+    @pytest.mark.parametrize(
+        ("move_object", "expected_deleted"),
+        [
+            pytest.param(False, [], id="copy"),
+            pytest.param(True, ["data/folder/file.txt"], id="move"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook", autospec=True)
+    def test_folder_markers_are_skipped_without_intermediate_dirs(
+        self, sftp_hook_mock, gcs_hook_mock, move_object, expected_deleted
+    ):
+        gcs_hook = gcs_hook_mock.return_value
+        sftp_hook = sftp_hook_mock.return_value
+        gcs_hook.list.return_value = ["data/empty/", "data/folder/", "data/folder/file.txt"]
+        operator = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="data/*",
+            destination_path=DESTINATION_SFTP,
+            create_intermediate_dirs=False,
+            move_object=move_object,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        operator.execute(None)
+
+        sftp_hook.create_directory.assert_not_called()
+        sftp_hook.store_file.assert_called_once_with(
+            os.path.join(DESTINATION_SFTP, "data", "folder", "file.txt"), mock.ANY
+        )
+        gcs_hook.download.assert_called_once_with(
+            bucket_name=TEST_BUCKET, object_name="data/folder/file.txt", filename=mock.ANY
+        )
+        assert gcs_hook.delete.call_args_list == [mock.call(TEST_BUCKET, obj) for obj in expected_deleted]
+
+    @pytest.mark.parametrize(
         "source_object",
         [
             pytest.param("incoming/../../../../etc/passwd", id="dotdot-segments"),

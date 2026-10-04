@@ -229,6 +229,8 @@ class AbstractDagImporter(ABC, Generic[DefT]):
     :meth:`.list_dag_definitions` yields definitions of :class:`DagDefinition`
     subtypes, and those same objects are fed back to :meth:`import_definition`,
     so a concrete importer only ever deals with its own definition type.
+
+    .. note:: |experimental|
     """
 
     @abstractmethod
@@ -243,11 +245,13 @@ class AbstractDagImporter(ABC, Generic[DefT]):
         safe_mode: bool = True,
     ) -> Iterator[DefT | DagImportError]:
         """
-        List DAG definitions in a bundle that this importer can handle (identity-only discovery).
+        List Dag definitions in a bundle that this importer can handle.
 
-        A yielded :class:`DagImportError` reports a discovery-time failure (e.g. an unreadable
-        container) for the caller to forward to a :class:`DagImportResult`; it is not a source
-        to import.
+        Apply :meth:`might_contain_dag` to each definition before yielding it; nothing
+        applies it after listing. A definition that cannot be read is yielded as a
+        :class:`DagImportError` rather than raised, so the rest of the bundle is still
+        listed. A yielded :class:`DagImportError` reports a discovery-time failure for the
+        caller to forward to a :class:`DagImportResult`; it is not a source to import.
         """
 
     @abstractmethod
@@ -264,11 +268,12 @@ class AbstractDagImporter(ABC, Generic[DefT]):
 
     def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
         """
-        Cheap, optional pre-check for whether a discovered definition may contain a DAG.
+        Cheap, optional pre-check for whether a definition may contain a Dag.
 
         The default returns True (keep the definition): an importer that can only tell by
-        attempting the import leaves this as-is. Importers with a cheap content heuristic
-        override it, so obvious non-DAG sources are dropped during discovery.
+        attempting the import leaves this as-is. An importer with a cheap content heuristic
+        overrides it and applies it in :meth:`list_dag_definitions`, so obvious non-Dag
+        sources never get a parse process.
         """
         return True
 
@@ -499,10 +504,7 @@ class DagImporterRegistry:
         it, such as the members of an archive. A :class:`DagImportError` item is a
         discovery-time failure rather than a source to import.
         """
-        # A spec registered for several extensions appears once per extension, and
-        # materialising it drops all of them, so take one pending spec at a time.
-        while self._extension_specs:
-            self._materialise_spec(next(iter(self._extension_specs.values())))
+        self.warm_importers()
 
         for importer in self._ordered_importers:
             for item in importer.list_dag_definitions(bundle, safe_mode=safe_mode):
@@ -514,6 +516,18 @@ class DagImporterRegistry:
                 ):
                     continue
                 yield importer, item
+
+    def warm_importers(self) -> None:
+        """
+        Instantiate every configured importer that has not been instantiated yet.
+
+        The Dag processor calls this before freezing its heap, so forked parse processes
+        share the importers instead of building them.
+        """
+        # A spec registered for several extensions appears once per extension, and
+        # materialising it drops all of them, so take one pending spec at a time.
+        while self._extension_specs:
+            self._materialise_spec(next(iter(self._extension_specs.values())))
 
     def _materialise_spec(self, spec: _ImporterSpec) -> AbstractDagImporter[Any]:
         """Instantiate a configured spec and take over every extension it was registered for."""

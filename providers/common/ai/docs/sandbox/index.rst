@@ -229,9 +229,8 @@ actual isolation. Choose the smallest boundary that fits, then configure it.
      - ``SandboxToolset``
    * - Produce a large artifact for a downstream task
      - A ``@task`` driving a backend directly when the Dag knows the job. When
-       the agent has to produce it, a ``@task`` provisions the sandbox, the agent
-       attaches, and a ``@task`` reads the file out; see
-       :ref:`A sandbox another task owns <sandbox-attach>`.
+       the agent has to produce it, ``SandboxToolset(exports=...)`` copies the file
+       to object storage when the run ends; see :ref:`sandbox-results`.
    * - A whole task's worth of untrusted work isolated, with no agent involved
      - ``KubernetesPodOperator``
    * - Airflow's own credentials kept away from the agent
@@ -437,6 +436,40 @@ worker for Modal. Work runs in a per-run microVM on the worker host with
 ``sbx``, or off the worker entirely in Modal's infrastructure. Its tool calls
 act as barriers, as they do for the other
 routes that build their own tools; see :ref:`toolset-call-barriers`.
+
+.. _sandbox-other-frameworks:
+
+With another agent framework
+----------------------------
+
+A Strands or Google ADK agent can use the same sandbox through ``AirflowTools``
+(see :doc:`../frameworks/index`). Outside a Pydantic AI run nothing ends the run for the
+toolset, so the task owns the sandbox's life: open the toolset with ``with`` (or
+``async with``) around the agent, and the sandbox it provisions is destroyed when the
+block ends, however the agent finishes:
+
+.. code-block:: python
+
+    from strands import Agent
+
+    from airflow.providers.common.ai.sandbox.modal import ModalSandboxBackend
+    from airflow.providers.common.ai.tools.strands import AirflowTools
+    from airflow.providers.common.ai.toolsets import SandboxToolset, SQLToolset
+    from airflow.sdk import task
+
+    warehouse = SQLToolset("warehouse", allowed_tables=["ledger"])
+
+
+    @task
+    def reconcile() -> str:
+        with SandboxToolset(ModalSandboxBackend()) as sandbox:
+            agent = Agent(plugins=[AirflowTools(warehouse, sandbox)])
+            return str(agent("Reconcile the September ledger against the warehouse."))
+
+A tool call made before the block or after it is refused rather than provisioning a
+sandbox nothing would destroy. The toolset's own error rules hold as well: a command
+that fails is output the model reads, and a sandbox that cannot be provisioned ends the
+agent run so the task fails.
 
 .. _sandbox-limitations:
 

@@ -23,22 +23,26 @@ import multiprocessing
 import time
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Literal, cast
+from uuid import UUID
 
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from kubernetes_asyncio import client as async_client
 from urllib3.exceptions import ReadTimeoutError
 
+from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     ALL_NAMESPACES,
     POD_EXECUTOR_DONE_KEY,
     POD_REVOKED_KEY,
+    TASK_INSTANCE_ID_ANNOTATION,
     FailureDetails,
     KubernetesJob,
     KubernetesResults,
     KubernetesWatch,
+    task_instance_id_from_pod,
 )
 from airflow.providers.cncf.kubernetes.kube_client import get_async_kube_client, get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
@@ -52,10 +56,15 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
+if hasattr(BaseExecutor, "get_task_key"):
+    from airflow.executors.workloads.types import TaskInstanceUuid
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from kubernetes.client import Configuration, models as k8s
+
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class ResourceVersion:
@@ -80,6 +89,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         resource_version: str | None,
         scheduler_job_id: str,
         kube_config: Configuration,
+        supports_task_instance_uuid: bool = False,
     ):
         super().__init__()
         self.namespace = namespace
@@ -87,6 +97,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.watcher_queue = watcher_queue
         self.resource_version = resource_version
         self.kube_config = kube_config
+        self.supports_task_instance_uuid = supports_task_instance_uuid
 
     def run(self) -> None:
         """Perform watching."""
@@ -172,6 +183,13 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 "run_id": annotations.get("run_id"),
                 "try_number": annotations["try_number"],
             }
+            if TASK_INSTANCE_ID_ANNOTATION in annotations:
+                task_instance_related_annotations[TASK_INSTANCE_ID_ANNOTATION] = annotations[
+                    TASK_INSTANCE_ID_ANNOTATION
+                ]
+            elif self.supports_task_instance_uuid:
+                if identity := task_instance_id_from_pod(task):
+                    task_instance_related_annotations[TASK_INSTANCE_ID_ANNOTATION] = str(identity)
             map_index = annotations.get("map_index")
             if map_index is not None:
                 task_instance_related_annotations["map_index"] = map_index
@@ -480,11 +498,13 @@ class AirflowKubernetesScheduler(LoggingMixin):
         kube_client: client.CoreV1Api,
         scheduler_job_id: str,
         team_name: str | None = None,
+        supports_task_instance_uuid: bool = False,
     ):
         super().__init__()
         self.log.debug("Creating Kubernetes executor")
         self.kube_config = kube_config
         self.result_queue = result_queue
+        self.supports_task_instance_uuid = supports_task_instance_uuid
         self.namespace = self.kube_config.kube_namespace
         self.log.debug("Kubernetes using namespace %s", self.namespace)
         self.kube_client = kube_client
@@ -542,6 +562,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             resource_version=resource_version,
             scheduler_job_id=self.scheduler_job_id,
             kube_config=self.kube_config,
+            supports_task_instance_uuid=self.supports_task_instance_uuid,
         )
         watcher.start()
         return watcher
@@ -596,12 +617,13 @@ class AirflowKubernetesScheduler(LoggingMixin):
         pod_template_file = next_job.pod_template_file
         kube_image = next_job.kube_image or self.kube_config.kube_image
 
-        dag_id, task_id, run_id, try_number, map_index = key
+        coordinates = cast("TaskInstanceKey", key)
         if len(command) == 1:
             from airflow.executors.workloads import ExecuteTask
 
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
+                coordinates = workload.ti.key
                 command = workload_to_command_args(workload)
             else:
                 raise ValueError(
@@ -610,6 +632,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         elif command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
+        dag_id, task_id, run_id, try_number, map_index = coordinates
         base_worker_pod = get_base_pod_from_template(pod_template_file, self.kube_config)
 
         if not base_worker_pod:
@@ -633,6 +656,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,
         )
+        if self.supports_task_instance_uuid and isinstance(key, TaskInstanceUuid):
+            pod.metadata.annotations[TASK_INSTANCE_ID_ANNOTATION] = str(key)
         # Reconcile the pod generated by the Operator and the Pod
         # generated by the .cfg file
         self.log.info(
@@ -833,7 +858,15 @@ class AirflowKubernetesScheduler(LoggingMixin):
             task.state,
             annotations_for_logging_task_metadata(task.annotations),
         )
-        key = annotations_to_key(annotations=task.annotations)
+        key: TaskInstanceUuid | TaskInstanceKey | None
+        if self.supports_task_instance_uuid and TASK_INSTANCE_ID_ANNOTATION in task.annotations:
+            try:
+                key = TaskInstanceUuid(UUID(task.annotations[TASK_INSTANCE_ID_ANNOTATION]))
+            except ValueError:
+                self.log.warning("Ignoring pod %s with invalid task instance UUID", task.pod_name)
+                return
+        else:
+            key = annotations_to_key(annotations=task.annotations)
         if key:
             self.log.debug("finishing job %s - %s (%s)", key, task.state, task.pod_name)
             self.result_queue.put(

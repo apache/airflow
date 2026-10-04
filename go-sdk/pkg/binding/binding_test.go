@@ -752,6 +752,33 @@ func (s *BindingSuite) TestAnalyzeLoneStructClassification() {
 	s.Equal(1, scalarPlan.numData)
 }
 
+func (s *BindingSuite) TestAnalyzePositionalBindsWholeValues() {
+	resolve := func(fn any, args ...Arg) []reflect.Value {
+		plan, err := AnalyzePositional(reflect.TypeOf(fn), "testFn")
+		s.Require().NoError(err)
+		values, err := plan.Resolve(runtimeCtx(), slog.Default(), &fakeXComClient{}, args)
+		s.Require().NoError(err)
+		return values[1:]
+	}
+
+	// The argument has the same name as the arg tag of Region, so a plan from Analyze would
+	// decode the whole value into that one field.
+	values := resolve(
+		func(contexttest.Context, reportInput) error { return nil },
+		LiteralArg{Name: "region", Value: map[string]any{"Ratio": 0.5, "Region": "eu"}},
+	)
+	s.Equal(reportInput{Ratio: 0.5, Region: "eu"}, values[0].Interface())
+
+	// Analyze rejects a struct with arg tags next to another data parameter.
+	values = resolve(
+		func(contexttest.Context, combineInput, string) error { return nil },
+		LiteralArg{Name: "input", Value: map[string]any{"Name": "widget", "Count": 2}},
+		LiteralArg{Name: "label", Value: "daily"},
+	)
+	s.Equal(combineInput{Name: "widget", Count: 2}, values[0].Interface())
+	s.Equal("daily", values[1].Interface())
+}
+
 func (s *BindingSuite) TestAnalyzeMultipleStructsAreFlat() {
 	plan := analyze(
 		s,

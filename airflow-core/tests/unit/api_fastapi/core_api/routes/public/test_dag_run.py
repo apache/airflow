@@ -24,8 +24,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from fastapi.testclient import TestClient
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
@@ -35,7 +34,7 @@ from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.exceptions import ParamValidationError
-from airflow.models import DagModel, DagRun, Log
+from airflow.models import DagModel, DagRun, DagTag, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.taskinstance import TaskInstance
@@ -43,7 +42,6 @@ from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, Param, result, task
-from airflow.settings import _configure_async_session
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
@@ -335,6 +333,19 @@ def get_dag_run_dict(run: DagRun):
     }
 
 
+def _attach_tags_to_dag(session, dag_id: str, tag_names: list[str]) -> None:
+    """Assign Dag tags for tag-filter tests."""
+    for tag_name in tag_names:
+        session.add(DagTag(dag_id=dag_id, name=tag_name))
+    session.commit()
+
+
+def _detach_tags_from_dag(session, dag_id: str) -> None:
+    """Undo :func:`_attach_tags_to_dag`."""
+    session.execute(delete(DagTag).where(DagTag.dag_id == dag_id))
+    session.commit()
+
+
 class TestGetDagRun:
     @pytest.mark.parametrize(
         ("dag_id", "run_id", "state", "run_type", "triggered_by", "dag_run_note"),
@@ -471,6 +482,45 @@ class TestGetDagRuns:
             response = test_client.get("/dags/~/dagRuns", params={"teams": ["nonexistent-team"]})
             assert response.status_code == 200
             assert response.json()["total_entries"] == 0
+
+    def test_get_dag_runs_filtered_by_tag(self, test_client, session):
+        _attach_tags_to_dag(session, DAG1_ID, ["tag-filter-only"])
+        try:
+            response = test_client.get("/dags/~/dagRuns", params={"tags": ["tag-filter-only"]})
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG1_ID}
+
+            # A tag with no Dags returns nothing.
+            response = test_client.get("/dags/~/dagRuns", params={"tags": ["nonexistent-tag"]})
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
+        finally:
+            _detach_tags_from_dag(session, DAG1_ID)
+
+    def test_get_dag_runs_filtered_by_tags_match_mode(self, test_client, session):
+        _attach_tags_to_dag(session, DAG1_ID, ["tag-filter-a"])
+        _attach_tags_to_dag(session, DAG2_ID, ["tag-filter-a", "tag-filter-b"])
+        try:
+            response = test_client.get(
+                "/dags/~/dagRuns",
+                params={"tags": ["tag-filter-a", "tag-filter-b"], "tags_match_mode": "any"},
+            )
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 4
+
+            response = test_client.get(
+                "/dags/~/dagRuns",
+                params={"tags": ["tag-filter-a", "tag-filter-b"], "tags_match_mode": "all"},
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG2_ID}
+        finally:
+            _detach_tags_from_dag(session, DAG1_ID)
+            _detach_tags_from_dag(session, DAG2_ID)
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
@@ -2513,24 +2563,17 @@ class TestBulkClearDagRuns:
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.post(
-                "/dags/~/clearDagRuns",
-                json={
-                    "dry_run": False,
-                    "dag_runs": [
-                        {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
-                        {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
-                    ],
-                },
-            )
+        response = test_client.post(
+            "/dags/~/clearDagRuns",
+            json={
+                "dry_run": False,
+                "dag_runs": [
+                    {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                    {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                ],
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 403
         # The batched auth check rejects the whole request, so the authorized Dag's run is not cleared either.
@@ -4362,16 +4405,6 @@ class TestResolveRunOnLatestVersion:
 
 
 class TestWaitDagRun:
-    # The way we init async engine does not work well with FastAPI app init.
-    # Creating the engine implicitly creates an event loop, which Airflow does
-    # once for the entire process; creating the FastAPI app also does, but our
-    # test setup does it once for each test. I don't know how to properly fix
-    # this without rewriting how Airflow does db; re-configuring the db for each
-    # test at least makes the tests run correctly.
-    @pytest.fixture(autouse=True)
-    def reconfigure_async_db_engine(self):
-        _configure_async_session()
-
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
@@ -4861,28 +4894,21 @@ class TestBulkDagRuns:
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.patch(
-                self.WILDCARD_ENDPOINT,
-                json={
-                    "actions": [
-                        {
-                            "action": "delete",
-                            "entities": [
-                                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
-                                {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
-                            ],
-                        }
-                    ]
-                },
-            )
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                            {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                        ],
+                    }
+                ]
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 403
         session.expire_all()

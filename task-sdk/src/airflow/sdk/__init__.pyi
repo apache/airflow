@@ -112,6 +112,7 @@ from airflow.sdk.definitions.retry_policy import (
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
+    AssetAndTimeSchedule,
     AssetOrTimeSchedule,
     PartitionedAssetTimetable,
     PartitionedAtRuntime,
@@ -143,6 +144,7 @@ __all__ = [
     "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
+    "AssetAndTimeSchedule",
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
