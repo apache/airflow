@@ -999,9 +999,27 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
     def read(self, _relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         self.log.info("Reading log %s from Opensearch", log_id)
-        response = self._os_read(log_id, 0, ti)
-        if response is not None and response.hits:
-            logs_by_host = self._group_logs_by_host(response)
+        responses = []
+        offset = 0
+
+        while True:
+            response = self._os_read(log_id, offset, ti)
+            if response is None or not response.hits:
+                break
+
+            responses.append(response)
+
+            next_offset = attrgetter(self.offset_field)(response[-1])
+            if next_offset == offset:
+                break
+            offset = next_offset
+
+        if responses:
+            grouped_logs = defaultdict(list)
+            for response in responses:
+                for host, hits in self._group_logs_by_host(response).items():
+                    grouped_logs[host].extend(hits)
+            logs_by_host = grouped_logs
         else:
             logs_by_host = None
 
