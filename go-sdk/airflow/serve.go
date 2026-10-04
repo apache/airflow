@@ -57,8 +57,8 @@ const (
 // The command-line flags of the executable decide what Serve does.
 // With --airflow-metadata it prints the bundle's manifest and returns, which is how
 // airflow-go-pack reads the Dag and task ids of the registered task handlers.
-// With --comm and --logs, which the Airflow supervisor passes, it runs one task over the
-// coordinator protocol.
+// With --comm and --logs, which Airflow passes, it speaks the coordinator protocol: it either
+// runs one task, or tells the Dag processor every task handler registered with [TaskHandler].
 //
 // main must exit with a non-zero status when Serve returns an error, because the exit status
 // is how the supervisor learns that the task failed:

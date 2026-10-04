@@ -39,10 +39,10 @@ import (
 // serialising the full send-then-read round trip behind a single mutex, and
 // guarantees the response a caller receives matches the request it sent.
 //
-// The supervisor's initial StartupDetails frame arrives unsolicited, before
-// any client request is in flight, and is read synchronously via
-// ReadMessage; ReadMessage must not be called after the dispatcher has been
-// started.
+// The supervisor's initial frame, StartupDetails or TaskHandlerParseRequest,
+// arrives unsolicited, before any client request is in flight, and is read
+// synchronously via ReadMessage; ReadMessage must not be called after the
+// dispatcher has been started.
 type CoordinatorComm struct {
 	reader io.Reader
 	writer io.Writer

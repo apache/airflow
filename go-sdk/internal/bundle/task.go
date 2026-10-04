@@ -26,6 +26,7 @@ import (
 	"runtime"
 
 	"github.com/apache/airflow/go-sdk/pkg/binding"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
@@ -35,6 +36,9 @@ import (
 // and airflow.DagRef.If wrap a plain Go function into a Task.
 type Task interface {
 	Execute(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
+	// Declare describes the parameters the task binds, for the Dag processor to check the
+	// Python stub task against.
+	Declare(taskID string) genmodels.TaskHandlerDeclaration
 }
 
 // Bundle looks up a registered task by dag_id and task_id. The coordinator
@@ -55,6 +59,13 @@ type TaskHandlerInfo struct {
 // without running a task.
 type EnumerableBundle interface {
 	ListTaskHandlers() []TaskHandlerInfo
+}
+
+// Registry is what a bundle binary serves: a task run looks its handler up, and a task
+// handler parse lists the handlers.
+type Registry interface {
+	Bundle
+	EnumerableBundle
 }
 
 type taskFunction struct {
@@ -127,6 +138,10 @@ func (f *taskFunction) Execute(
 		return err
 	}
 	return f.call(ctx, sdkClient, reflectArgs, logger, branch)
+}
+
+func (f *taskFunction) Declare(taskID string) genmodels.TaskHandlerDeclaration {
+	return f.plan.Declare(taskID)
 }
 
 func clientFrom(ctx context.Context) (sdk.Client, error) {
