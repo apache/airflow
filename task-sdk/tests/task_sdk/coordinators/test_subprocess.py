@@ -1591,6 +1591,32 @@ class TestParseTaskHandler:
     @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.getppid", autospec=True, side_effect=[4242, 1])
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
+    def test_does_not_exec_once_the_parent_has_exited(
+        self, mock_execvpe, mock_getppid, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        coordinator = _TaskHandlerParsingCoordinator(command=["runtime"])
+        steps = MagicMock()
+        steps.attach_mock(mock_getppid, "getppid")
+        steps.attach_mock(mock_death_signal, "death_signal")
+
+        with pytest.raises(RuntimeError, match="The process that started the runtime has exited"):
+            coordinator.parse_task_handler(
+                path=tmp_path / "handlers.artifact",
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=steps.report,
+            )
+
+        # The parent is read before the death signal is set, so an exit in between is seen.
+        assert steps.mock_calls == [call.getppid(), call.report(None), call.death_signal(), call.getppid()]
+        mock_execvpe.assert_not_called()
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
     def test_rejects_an_unknown_schema_version_before_reporting(
         self, mock_execvpe, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
