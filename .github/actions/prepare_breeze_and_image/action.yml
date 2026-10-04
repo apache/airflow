@@ -49,10 +49,6 @@ inputs:
       other than the branch tip is stashed under a key of its own by ci-image-build.yml.
     required: false
     default: ""
-  restore-snapshot:
-    description: 'Whether to attempt the optional snapshot from this workflow run'
-    required: false
-    default: 'true'
 outputs:
   host-python-version:
     description: Python version used in host
@@ -93,7 +89,7 @@ runs:
         path: "/mnt/"
       id: restore-snapshot
       if: >
-        github.event_name == 'pull_request' && inputs.restore-snapshot == 'true' &&
+        github.event_name == 'pull_request' &&
         inputs.image-type == 'ci' && inputs.image-stash-ref == ''
     # Falls back to the image stash below whenever the snapshot does not fit this runner's daemon.
     - name: "Unpack CI image snapshot ${{ inputs.platform }}:${{ inputs.python }}"
