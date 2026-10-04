@@ -25,6 +25,7 @@ import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 export const BackfillsFilters = () => {
   const searchParamKeys: Array<FilterableSearchParamsKeys> = [
+    SearchParamsKeys.ACTIVE,
     SearchParamsKeys.FROM_RANGE,
     SearchParamsKeys.TO_RANGE,
     SearchParamsKeys.CREATED_AT_RANGE,
