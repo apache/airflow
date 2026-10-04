@@ -458,3 +458,15 @@ jobs:
           compression-level: '0'
           retention-days: '2'
         if: steps.snapshot-export.outcome == 'success'
+      - name: "Upload CI image snapshot metadata ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: >-
+            ci-image-snapshot-meta-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{
+            inputs.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
+          path: "/mnt/ci-image-snapshot-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst.meta"
+          if-no-files-found: 'error'
+          compression-level: '9'
+          retention-days: '2'
+        if: steps.snapshot-export.outcome == 'success'

@@ -26,6 +26,8 @@
 #   docker_data_root_snapshot.sh restore SNAPSHOT_FILE
 #       Restores the image. Incompatible snapshots leave the daemon untouched. Failed
 #       materialization cleans partial image state and restarts Docker for the normal stash path.
+#   docker_data_root_snapshot.sh preflight METADATA_FILE
+#       Checks compatibility without requiring the multi-gigabyte snapshot archive.
 set -euo pipefail
 
 DATA_ROOT="/var/lib/docker"
@@ -95,15 +97,15 @@ function create_snapshot() {
     start_daemon
 }
 
-function restore_snapshot() {
-    local snapshot_file="${1}"
+function validate_metadata() {
+    local metadata_file="${1}"
     local -a meta
-    local image_id snapshot_fingerprint daemon
-    if [[ ! -f "${snapshot_file}" || ! -f "${snapshot_file}.meta" ]]; then
-        echo "No snapshot at ${snapshot_file}"
+    local snapshot_fingerprint daemon
+    if [[ ! -f "${metadata_file}" ]]; then
+        echo "No snapshot metadata at ${metadata_file}"
         exit 2
     fi
-    read -r -a meta < "${snapshot_file}.meta"
+    read -r -a meta < "${metadata_file}"
     if [[ ${#meta[@]} != 6 ]]; then
         echo "Invalid snapshot metadata"
         exit 3
@@ -112,7 +114,6 @@ function restore_snapshot() {
         echo "Snapshot belongs to a different checkout revision"
         exit 3
     fi
-    image_id="${meta[4]}"
     snapshot_fingerprint="${meta[*]:0:4}"
     daemon="$(daemon_fingerprint)"
     check_supported_daemon "${daemon}"
@@ -124,6 +125,23 @@ function restore_snapshot() {
         echo "The daemon already holds images, which restoring the snapshot would drop"
         exit 3
     fi
+}
+
+function preflight_snapshot() {
+    validate_metadata "${1}"
+}
+
+function restore_snapshot() {
+    local snapshot_file="${1}"
+    local -a meta
+    local image_id
+    if [[ ! -f "${snapshot_file}" || ! -f "${snapshot_file}.meta" ]]; then
+        echo "No snapshot at ${snapshot_file}"
+        exit 2
+    fi
+    validate_metadata "${snapshot_file}.meta"
+    read -r -a meta < "${snapshot_file}.meta"
+    image_id="${meta[4]}"
     stop_daemon
     RESTORE_IN_PROGRESS=true
     remove_image_store
@@ -145,8 +163,11 @@ case "${1:-}" in
     restore)
         restore_snapshot "${2}"
         ;;
+    preflight)
+        preflight_snapshot "${2}"
+        ;;
     *)
-        echo "Usage: ${0} create|restore SNAPSHOT_FILE" >&2
+        echo "Usage: ${0} create|preflight|restore FILE" >&2
         exit 1
         ;;
 esac

@@ -114,6 +114,32 @@ def test_restore_unpacks_snapshot_into_stopped_daemon(fake_tools, snapshot):
     assert not snapshot.exists()
 
 
+def test_preflight_checks_metadata_without_touching_snapshot_or_daemon(fake_tools, snapshot):
+    result = run_script(fake_tools, "preflight", f"{snapshot}.meta")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert snapshot.exists()
+    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
+
+
+@pytest.mark.parametrize(
+    ("env", "metadata", "expected_exit"),
+    [
+        pytest.param({}, "invalid\n", 3, id="malformed"),
+        pytest.param({"CHECKOUT_SHA": "revision2"}, None, 3, id="stale-checkout"),
+        pytest.param({"DAEMON_FINGERPRINT": "29.0.0 overlay2 x86_64 /var/lib/docker"}, None, 3, id="other-daemon"),
+    ],
+)
+def test_preflight_rejects_untrusted_metadata(fake_tools, snapshot, env, metadata, expected_exit):
+    if metadata is not None:
+        Path(f"{snapshot}.meta").write_text(metadata)
+
+    result = run_script({**fake_tools, **env}, "preflight", f"{snapshot}.meta")
+
+    assert result.returncode == expected_exit
+    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
+
+
 @pytest.mark.parametrize(
     ("env", "remove_meta", "expected_exit"),
     [
