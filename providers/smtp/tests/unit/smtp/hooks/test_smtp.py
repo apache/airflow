@@ -758,6 +758,9 @@ class TestSmtpHookAsync:
     async def test_discards_failed_setup(self, mock_get_connection, failed_step, cleanup_fails):
         failed_client = mock.create_autospec(aiosmtplib.SMTP, instance=True)
         healthy_client = mock.create_autospec(aiosmtplib.SMTP, instance=True)
+        for client in (failed_client, healthy_client):
+            client.auth_login = AsyncMock()
+            client.auth_xoauth2 = AsyncMock()
         setup_error = OSError("setup failed")
         getattr(failed_client, failed_step).side_effect = setup_error
         if cleanup_fails:
