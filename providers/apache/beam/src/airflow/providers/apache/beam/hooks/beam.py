@@ -124,7 +124,7 @@ def process_fd(
     fd,
     log: Logger,
     process_line_callback: Callable[[str], None] | None = None,
-    is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+    is_dataflow_job_id_exist_callback: Callable[..., bool] | None = None,
 ):
     """
     Print output to logs.
@@ -155,7 +155,7 @@ def run_beam_command(
     log: Logger,
     process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
-    is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+    is_dataflow_job_id_exist_callback: Callable[..., bool] | None = None,
 ) -> None:
     """
     Run pipeline command in subprocess.
@@ -176,13 +176,22 @@ def run_beam_command(
         stderr=subprocess.PIPE,
         close_fds=True,
     )
+
+    if hasattr(os, "set_blocking") and proc.stdout and proc.stderr:
+        os.set_blocking(proc.stdout.fileno(), False)
+        os.set_blocking(proc.stderr.fileno(), False)
+
     # Waits for Apache Beam pipeline to complete.
     log.info("Start waiting for Apache Beam process to complete.")
     reads = [fd for fd in (proc.stderr, proc.stdout) if fd is not None]
     while True:
         # Wait for at least one available fd.
         readable_fds, _, _ = select.select(reads, [], [], 5)
-        if readable_fds is None:
+        if not readable_fds:
+            if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback(
+                checking_by_job_name=True
+            ):
+                return
             log.info("Waiting for Apache Beam process to complete.")
             continue
 
@@ -227,7 +236,7 @@ class BeamHook(BaseHook):
         command_prefix: list[str],
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
-        is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        is_dataflow_job_id_exist_callback: Callable[..., bool] | None = None,
     ) -> None:
         cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
@@ -249,7 +258,7 @@ class BeamHook(BaseHook):
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
         process_line_callback: Callable[[str], None] | None = None,
-        is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        is_dataflow_job_id_exist_callback: Callable[..., bool] | None = None,
     ):
         """
         Start Apache Beam python pipeline.
@@ -327,7 +336,7 @@ class BeamHook(BaseHook):
         jar: str,
         job_class: str | None = None,
         process_line_callback: Callable[[str], None] | None = None,
-        is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        is_dataflow_job_id_exist_callback: Callable[..., bool] | None = None,
     ) -> None:
         """
         Start Apache Beam Java pipeline.
