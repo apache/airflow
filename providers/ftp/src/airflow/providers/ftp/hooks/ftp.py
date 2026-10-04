@@ -21,6 +21,7 @@ import datetime
 import ftplib  # nosec: B402
 import logging
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Any, cast
 
 from airflow.providers.common.compat.sdk import BaseHook
@@ -327,13 +328,19 @@ class FTPSHook(FTPHook):
             params.password = cast("str", params.password)
             params.login = cast("str", params.login)
             if encoding:
-                self.conn = ftplib.FTP_TLS(
+                conn = ftplib.FTP_TLS(
                     params.host, params.login, params.password, context=context, encoding=encoding
                 )  # nosec: B321
             else:
-                self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
-            self.conn.set_pasv(pasv)
-            # Without prot_p() ftplib transfers file payloads over cleartext sockets even though the control connection is TLS.
-            self.conn.prot_p()
+                conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
+            try:
+                conn.set_pasv(pasv)
+                # Without prot_p() file payloads use cleartext despite TLS on the control connection.
+                conn.prot_p()
+            except BaseException:
+                with suppress(Exception):
+                    conn.close()
+                raise
+            self.conn = conn
 
         return self.conn
