@@ -316,6 +316,61 @@ If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be
 Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers``
 as the short hand operator.
 
+Finding out what CI will run for your change
+--------------------------------------------
+
+``breeze verify`` reads the files changed against the target branch (the merge-base of
+``--base-ref`` and ``HEAD``, plus untracked files), runs the same selective-checks logic CI uses
+and lists the commands to run locally for the change. Nothing is executed. The only non-zero exit
+is a usage error such as a base ref git cannot resolve.
+
+By default ``--base-ref`` is ``main`` on the git remote that points at apache/airflow (``upstream``
+if several do), the same base GitHub compares a PR with. A local ``main`` that is behind the
+``main`` your branch has merged would count every merged-in commit as your change. Without such a
+remote, ``breeze verify`` falls back to the local ``main`` branch and says so. It also warns when
+the branch has merged commits the base does not have, for example after GitHub's "Update branch"
+when the remote was not fetched since. With ``--json`` the warnings go to stderr.
+
+.. code-block:: bash
+
+     breeze verify
+     breeze verify --json
+     breeze verify --full
+     breeze verify --base-ref main
+
+Each row says what kind of check it is, whether it runs on the host or needs Docker and the
+CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
+(breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
+check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
+Static checks are not listed either: ``prek`` already picks the hooks to run for the changed files,
+so run it as usual. The exception is the ``mypy-providers`` and ``migration-round-trip`` hooks,
+which CI runs but a default ``prek install`` does not (they are ``pre-push`` or ``manual`` stage
+hooks). When the change triggers them, ``breeze verify`` prints the
+``prek run --stage manual <hook> --from-ref <base>`` command to run each one, and ``--json``
+lists them under ``manual_prek_hooks``.
+Use ``--json`` for machine-readable output with the same fields.
+
+When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
+The default list leaves that expansion out and only shows what the changed files match themselves,
+with a note that CI will run more. ``--full`` lists everything CI runs for the default matrix cell
+(default Python, sqlite), apart from static checks.
+
+Even ``--full`` is not the full CI matrix. Other Python versions, Postgres and MySQL,
+lowest-dependency runs, Kubernetes, Helm, e2e suites, the provider compatibility matrix and ARM
+runners only run in CI. Two more caveats. Selective checks compare ``pyproject.toml`` contents
+between ``HEAD`` and ``HEAD^`` only, so dependency changes that are uncommitted or in earlier
+commits of your branch are not detected as such (test selection is unaffected, only the
+dependency-bump checks are). Packaging steps CI runs around some tests (building and
+twine-checking the Task SDK and airflow-ctl wheels, regenerating the Python API client from its
+own repository) are not listed.
+
+These are all available flags of ``verify`` command:
+
+.. image:: ./images/output_verify.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_verify.svg
+  :width: 100%
+  :alt: Breeze verify
+
 Running static checks
 ---------------------
 

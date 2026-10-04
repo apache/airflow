@@ -253,3 +253,11 @@ func (c *CoordinatorClient) PushXCom(
 	_, err := c.comm.Communicate(ctx, msg)
 	return err
 }
+
+// skipDownstreamTasks asks the supervisor to mark the tasks with the given task_ids as skipped
+// in the Dag run of the running task. Airflow does not change a task instance that is running,
+// has succeeded or has failed.
+func (c *CoordinatorClient) skipDownstreamTasks(ctx context.Context, taskIDs []string) error {
+	_, err := c.comm.Communicate(ctx, genmodels.SkipDownstreamTasks{Tasks: taskIDs})
+	return err
+}
