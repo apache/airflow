@@ -61,9 +61,14 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
     if args.bundle_name:
         cli_utils.validate_dag_bundle_arg(args.bundle_name)
+    processor_class = DagFileProcessorManager
+    if args.executor_parsing:
+        from airflow.dag_processing.executor_manager import ExecutorDagFileProcessorManager
+
+        processor_class = ExecutorDagFileProcessorManager
     return DagProcessorJobRunner(
         job=Job(bundle_names=args.bundle_name, team_names=_get_team_names(args.bundle_name)),
-        processor=DagFileProcessorManager(
+        processor=processor_class(
             max_runs=args.num_runs,
             bundle_names_to_parse=args.bundle_name,
         ),

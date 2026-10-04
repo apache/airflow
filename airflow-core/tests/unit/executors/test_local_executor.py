@@ -31,6 +31,7 @@ from uuid6 import uuid7
 
 import airflow.executors.local_executor as local_executor_module
 from airflow._shared.timezones import timezone
+from airflow.dag_processing.executor_manager import ExecutorDagFileProcess
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, ExecutorConf, get_execution_api_server_url
 from airflow.executors.local_executor import LocalExecutor, _run_worker
@@ -109,6 +110,16 @@ def _write_large_results_to_queue(result_queue, activity_queue, unread_messages,
 def _make_workload(kind):
     if kind == "task":
         return _make_task_workload()
+    if kind == "parsing":
+        return workloads.ParseDagFile(
+            workload_id=uuid7(),
+            bundle_info=BundleInfo(name="bundle"),
+            bundle_path=Path("."),
+            relative_path="test.py",
+            log_path="parser.log",
+            control_dir=Path("."),
+            timeout=10,
+        )
     if kind == "callback":
         return workloads.ExecuteCallback(
             callback=CallbackDTO(
@@ -621,13 +632,15 @@ class TestLocalExecutorBookkeeping:
         metrics = {call.args[0]: call.kwargs["value"] for call in gauge.call_args_list[-3:]}
         assert metrics == {"executor.open_slots": 0, "executor.queued_tasks": 1, "executor.running_tasks": 1}
 
-    @pytest.mark.parametrize("kind", ["task", "callback", "connection"])
+    @pytest.mark.parametrize("kind", ["task", "callback", "connection", "parsing"])
     @pytest.mark.parametrize("succeeded", [True, False])
     def test_start_retains_slot_and_terminal_clears_pid(
         self, kind, succeeded, local_executor_with_mock_worker
     ):
         executor, proc = local_executor_with_mock_worker
         workload = _make_workload(kind)
+        if kind == "parsing":
+            executor.supported_workload_types |= {WorkloadType.PARSE_DAG_FILE}
         key = executor.get_workload_key(workload)
         executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
         executor.heartbeat()
@@ -899,7 +912,7 @@ class TestLocalExecutorBookkeeping:
             executor.end()
 
     @pytest.mark.parametrize("start_method", ["fork", "spawn"])
-    @pytest.mark.parametrize("kind", ["task", "callback", "connection"])
+    @pytest.mark.parametrize("kind", ["task", "callback", "connection", "parsing"])
     @pytest.mark.execution_timeout(30)
     def test_actual_worker_death_after_start_releases_slot(self, start_method, kind, mocker, tmp_path):
         ctx = multiprocessing.get_context(start_method)
@@ -914,6 +927,8 @@ class TestLocalExecutorBookkeeping:
         mocker.patch.object(local_executor_module, "SimpleQueue", new=ctx.SimpleQueue)
         mocker.patch.object(local_executor_module, "_run_worker", new=_run_blocking_worker)
         executor = LocalExecutor(parallelism=1)
+        if kind == "parsing":
+            executor.supported_workload_types |= {WorkloadType.PARSE_DAG_FILE}
         executor.start()
         workload = _make_workload(kind)
         marker = tmp_path / "entered"
@@ -945,6 +960,75 @@ class TestLocalExecutorBookkeeping:
         finally:
             executor.terminate()
             executor.end()
+
+
+class TestLocalExecutorParsingSupport:
+    @pytest.fixture
+    def parsing_workload(self, tmp_path):
+        workload = _make_workload("parsing")
+        workload.control_dir = tmp_path
+        return workload
+
+    @pytest.mark.parametrize("started", [False, True])
+    def test_cancellation_retains_dispatch_until_worker_finishes(
+        self, local_executor_with_mock_worker, parsing_workload, started
+    ):
+        executor, proc = local_executor_with_mock_worker
+        executor.supported_workload_types |= {WorkloadType.PARSE_DAG_FILE}
+        executor.queue_workload(parsing_workload, session=mock.create_autospec(Session, instance=True))
+        executor.heartbeat()
+        key = parsing_workload.key
+        if started:
+            executor.result_queue.put((proc.pid, key, None, None))
+            executor.sync()
+
+        ExecutorDagFileProcess(parsing_workload, executor).kill(signal.SIGTERM)
+
+        assert parsing_workload.cancel_path.exists()
+        assert key in executor.running
+        assert executor.slots_available == 0
+        if not started:
+            executor.result_queue.put((proc.pid, key, None, None))
+        executor.result_queue.put((proc.pid, key, parsing_workload.success_state, None))
+        executor.sync()
+
+        assert executor.event_buffer[key] == (parsing_workload.success_state, None)
+        assert executor.slots_available == 1
+        assert not executor._worker_tasks
+        assert not executor._dispatch_counts
+
+    def test_failure_preserves_worker_diagnostics(self, local_executor_with_mock_worker, parsing_workload):
+        executor, proc = local_executor_with_mock_worker
+        executor.supported_workload_types |= {WorkloadType.PARSE_DAG_FILE}
+        executor.queue_workload(parsing_workload, session=mock.create_autospec(Session, instance=True))
+        executor.heartbeat()
+        key = parsing_workload.key
+        executor.result_queue.put((proc.pid, key, None, None))
+        executor.result_queue.put(
+            (proc.pid, key, parsing_workload.failure_state, RuntimeError("parser failed"))
+        )
+
+        executor.sync()
+
+        state, error = executor.get_event_buffer()[key]
+        assert state == parsing_workload.failure_state
+        assert isinstance(error, RuntimeError)
+        assert error.args == ("parser failed",)
+        assert executor.slots_available == 1
+
+    def test_failed_delivery_restores_unread_count(self, local_executor_with_mock_worker, parsing_workload):
+        executor, _ = local_executor_with_mock_worker
+        executor.supported_workload_types |= {WorkloadType.PARSE_DAG_FILE}
+        executor.queue_workload(parsing_workload, session=mock.create_autospec(Session, instance=True))
+        with (
+            mock.patch.object(executor.activity_queue, "put", autospec=True, side_effect=OSError("closed")),
+            pytest.raises(OSError, match="closed"),
+        ):
+            executor._process_workloads([parsing_workload])
+        assert executor._unread_messages.value == 0
+        assert not executor.running
+        assert not executor._dispatch_counts
+        assert executor.executor_queues[parsing_workload.type][parsing_workload.key] == parsing_workload
 
 
 class TestLocalExecutorConnectionTestSupport:

@@ -93,6 +93,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
+    from airflow.dag_processing.executor_manager import ExecutorDagFileProcess
     from airflow.sdk.api.client import Client
 
 
@@ -262,7 +263,9 @@ class DagFileProcessorManager(LoggingMixin):
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
-    _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
+    _processors: dict[DagFileInfo, DagFileProcessorProcess | ExecutorDagFileProcess] = attrs.field(
+        factory=dict, init=False
+    )
 
     _parsing_start_time: float | None = attrs.field(default=None, init=False)
     _num_run: int = attrs.field(default=0, init=False)
@@ -1277,7 +1280,7 @@ class DagFileProcessorManager(LoggingMixin):
     def handle_parsing_result(
         self,
         file: DagFileInfo,
-        proc: DagFileProcessorProcess,
+        proc: DagFileProcessorProcess | ExecutorDagFileProcess,
         *,
         session: Session = NEW_SESSION,
     ) -> None:
@@ -1461,7 +1464,7 @@ class DagFileProcessorManager(LoggingMixin):
         client.base_url = "http://in-process.invalid./"
         return client
 
-    def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
+    def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess | ExecutorDagFileProcess:
         id = uuid7()
 
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
@@ -1783,7 +1786,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def end(self):
         """Kill all child processes on exit since we don't want to leave them as orphaned."""
-        pids_to_kill = [p.pid for p in self._processors.values()]
+        pids_to_kill = [p.pid for p in self._processors.values() if p.pid is not None]
         if pids_to_kill:
             kill_child_processes_by_pids(pids_to_kill)
 

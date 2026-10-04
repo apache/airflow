@@ -38,6 +38,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.callback import ExecuteCallback
 from airflow.executors.workloads.connection_test import TestConnection
+from airflow.executors.workloads.parsing import ParseDagFile
 from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
 from airflow.executors.workloads.types import TaskInstanceUuid, state_class_for_key
 from airflow.models import Log
@@ -927,6 +928,10 @@ class BaseExecutor(LoggingMixin):
                 server=server,
                 team_name=workload.team_name,
             )
+        if isinstance(workload, ParseDagFile):
+            from airflow.dag_processing.executor_worker import supervise_dag_parse
+
+            return supervise_dag_parse(workload)
         raise ValueError(f"Unknown workload type: {type(workload).__name__}")
 
     @classmethod
