@@ -36,10 +36,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     OnFinishAction,
     OnKillAction,
     PodLaunchTimeoutException,
-    PodNotFoundException,
     PodPhase,
-    PodPreemptedException,
-    raise_for_missing_pod,
 )
 from airflow.providers.cncf.kubernetes.version_compat import (
     AIRFLOW_V_3_0_PLUS,
@@ -236,18 +233,6 @@ class KubernetesPodTrigger(BaseTrigger):
             self._fired_event = True
             yield event
             return
-        except PodPreemptedException as e:
-            self._fired_event = True
-            yield TriggerEvent(
-                {
-                    "name": self.pod_name,
-                    "namespace": self.pod_namespace,
-                    "status": "preempted",
-                    "message": str(e),
-                    **self.trigger_kwargs,
-                }
-            )
-            return
         except PodLaunchTimeoutException as e:
             message = self._format_exception_description(e)
             self._fired_event = True
@@ -341,7 +326,7 @@ class KubernetesPodTrigger(BaseTrigger):
 
     async def _wait_for_pod_start(self) -> ContainerState:
         """Loops until pod phase leaves ``PENDING`` If timeout is reached, throws error."""
-        pod = await self._get_pod(observed_running=False)
+        pod = await self._get_pod()
         # Start event stream in background
         events_task = asyncio.create_task(self.pod_manager.watch_pod_events(pod, self.startup_check_interval))
 
@@ -352,7 +337,6 @@ class KubernetesPodTrigger(BaseTrigger):
                 schedule_timeout=self.schedule_timeout,
                 startup_timeout=self.startup_timeout,
                 check_interval=self.startup_check_interval,
-                base_container_name=self.base_container_name,
             )
         finally:
             # Stop watching events
@@ -360,7 +344,7 @@ class KubernetesPodTrigger(BaseTrigger):
             with contextlib.suppress(asyncio.CancelledError):
                 await events_task
 
-        return self.define_pod_container_state(await self._get_pod(observed_running=True))
+        return self.define_pod_container_state(await self._get_pod())
 
     async def _wait_for_container_completion(self) -> TriggerEvent:
         """
@@ -396,7 +380,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         **self.trigger_kwargs,
                     }
                 )
-            pod = await self._get_pod(observed_running=True)
+            pod = await self._get_pod()
             pod_container_state = self.define_pod_container_state(pod)
             if pod_container_state == ContainerState.TERMINATED:
                 return TriggerEvent(
@@ -431,23 +415,10 @@ class KubernetesPodTrigger(BaseTrigger):
             self.log.debug("Sleeping for %s seconds.", self.poll_interval)
             await asyncio.sleep(self.poll_interval)
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_exponential(),
-        retry=tenacity.retry_if_not_exception_type((PodNotFoundException, PodPreemptedException)),
-        reraise=True,
-    )
-    async def _get_pod(self, *, observed_running: bool = False) -> V1Pod:
+    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
+    async def _get_pod(self) -> V1Pod:
         """Get the pod from Kubernetes with retries."""
-        try:
-            pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
-        except Exception as exc:
-            raise_for_missing_pod(
-                exc,
-                namespace=self.pod_namespace,
-                name=self.pod_name,
-                observed_running=observed_running,
-            )
+        pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
         # Due to AsyncKubernetesHook overriding get_pod, we need to cast the return
         # value to kubernetes_asyncio.V1Pod, because it's perceived as different type
         return cast("V1Pod", pod)

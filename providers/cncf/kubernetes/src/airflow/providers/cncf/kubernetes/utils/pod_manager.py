@@ -29,7 +29,7 @@ from collections.abc import Callable, Generator, Iterable
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Literal, NoReturn, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import pendulum
 from kubernetes import client, watch
@@ -145,6 +145,23 @@ def log_pod_event(
         pod_manager.log.info("The Pod has an Event: %s from %s", event.message, involved_object.field_path)
 
 
+def _base_container_may_have_run(pod: V1Pod, base_container_name: str) -> bool:
+    """Return whether this pod's phase or base container shows the workload may have started."""
+    status = getattr(pod, "status", None)
+    if getattr(status, "phase", None) in (PodPhase.RUNNING, PodPhase.SUCCEEDED, PodPhase.FAILED):
+        return True
+    container_statuses = getattr(status, "container_statuses", None)
+    if not isinstance(container_statuses, list):
+        return False
+    for container_status in container_statuses:
+        if getattr(container_status, "name", None) != base_container_name:
+            continue
+        state = getattr(container_status, "state", None)
+        if getattr(state, "running", None) is not None or getattr(state, "terminated", None) is not None:
+            return True
+    return False
+
+
 async def await_pod_start(
     pod_manager: PodManager | AsyncPodManager,
     pod: V1Pod,
@@ -163,29 +180,21 @@ async def await_pod_start(
     :param schedule_timeout: Maximum time (in seconds) to wait for the pod to be scheduled.
     :param startup_timeout: Maximum time (in seconds) to wait for the pod to start running after being scheduled.
     :param check_interval: Interval (in seconds) between status checks.
-    :param base_container_name: Container whose start means user code may have run.
+    :param base_container_name: Container whose start means the workload may have run.
     """
     pod_manager.log.info("::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout)
     pod_was_scheduled = False
     start_check_time = time.time()
     is_async = isinstance(pod_manager, AsyncPodManager)
-    last_seen: V1Pod | None = None
+    # Read by KubernetesPodOperator to decide whether a 404 may launch a replacement.
+    setattr(pod_manager, "_startup_observed_started", False)
     while True:
-        try:
-            if is_async:
-                remote_pod = await pod_manager.read_pod(pod)
-            else:
-                remote_pod = pod_manager.read_pod(pod)
-        except Exception as exc:
-            pod_manager.stop_watching_events = True
-            pod_manager.log.info("::endgroup::")
-            raise_for_missing_pod(
-                exc,
-                namespace=pod.metadata.namespace if pod.metadata else None,
-                name=pod.metadata.name if pod.metadata else None,
-                observed_running=pod_observed_running(last_seen, base_container_name=base_container_name),
-            )
-        last_seen = remote_pod
+        if is_async:
+            remote_pod = await pod_manager.read_pod(pod)
+        else:
+            remote_pod = pod_manager.read_pod(pod)
+        if _base_container_may_have_run(remote_pod, base_container_name):
+            setattr(pod_manager, "_startup_observed_started", True)
         pod_status = remote_pod.status
 
         if pod_status.phase == PodPhase.FAILED and pod_status.container_statuses is None:
@@ -301,60 +310,6 @@ class PodLaunchTimeoutException(AirflowException):
 
 class PodNotFoundException(AirflowException):
     """Expected pod does not exist in kube-api."""
-
-
-class PodPreemptedException(AirflowException):
-    """Pod disappeared before it was observed running, so launching a replacement is safe."""
-
-
-_STARTED_POD_PHASES = frozenset({PodPhase.RUNNING, PodPhase.SUCCEEDED, PodPhase.FAILED})
-
-
-def pod_observed_running(pod: V1Pod | None, *, base_container_name: str = "base") -> bool:
-    """Return whether this pod may already have executed its base container."""
-    status = getattr(pod, "status", None)
-    if status is None:
-        return False
-    if getattr(status, "phase", None) in _STARTED_POD_PHASES:
-        return True
-    container_statuses = getattr(status, "container_statuses", None)
-    if not isinstance(container_statuses, list):
-        return False
-    for container_status in container_statuses:
-        if getattr(container_status, "name", None) != base_container_name:
-            continue
-        state = getattr(container_status, "state", None)
-        if state is not None and (
-            getattr(state, "running", None) is not None or getattr(state, "terminated", None) is not None
-        ):
-            return True
-    return False
-
-
-def is_pod_not_found(exc: BaseException) -> bool:
-    """Return whether ``exc`` is a Kubernetes API 404 for a missing pod."""
-    if type(exc).__name__ != "ApiException":
-        return False
-    return str(getattr(exc, "status", "")) == "404"
-
-
-def raise_for_missing_pod(
-    exc: BaseException,
-    *,
-    namespace: str | None,
-    name: str | None,
-    observed_running: bool,
-) -> NoReturn:
-    """Translate a pod 404 into a relaunchable or terminal error. Other errors propagate."""
-    if is_pod_not_found(exc):
-        qualified_name = f"{namespace}/{name}"
-        if observed_running:
-            raise PodNotFoundException(
-                f"Pod {qualified_name} was not found after it had reached Running. "
-                "Not relaunching, to avoid running the workload twice."
-            ) from exc
-        raise PodPreemptedException(f"Pod {qualified_name} was not found before it reached Running.") from exc
-    raise exc
 
 
 class PodCommandException(AirflowException):
@@ -541,7 +496,7 @@ class PodManager(LoggingMixin):
         :param startup_timeout: Timeout (in seconds) for startup of the pod
             (if pod is pending for too long after being scheduled, fails task)
         :param check_interval: Interval (in seconds) between checks
-        :param base_container_name: Container whose start means user code may have run.
+        :param base_container_name: Container whose start means the workload may have run.
         :return:
         """
         await await_pod_start(
@@ -870,15 +825,7 @@ class PodManager(LoggingMixin):
             Defaults to 1s.
         """
         while True:
-            try:
-                remote_pod = self.read_pod(pod)
-            except Exception as exc:
-                raise_for_missing_pod(
-                    exc,
-                    namespace=pod.metadata.namespace if pod.metadata else None,
-                    name=pod.metadata.name if pod.metadata else None,
-                    observed_running=True,
-                )
+            remote_pod = self.read_pod(pod)
             terminated = container_is_completed(remote_pod, container_name)
             if terminated:
                 break
@@ -902,15 +849,7 @@ class PodManager(LoggingMixin):
         :return: V1Pod
         """
         while True:
-            try:
-                remote_pod = self.read_pod(pod)
-            except Exception as exc:
-                raise_for_missing_pod(
-                    exc,
-                    namespace=pod.metadata.namespace if pod.metadata else None,
-                    name=pod.metadata.name if pod.metadata else None,
-                    observed_running=True,
-                )
+            remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
             if (istio_enabled or do_xcom_push) and container_is_completed(remote_pod, container_name):
@@ -1298,12 +1237,7 @@ class AsyncPodManager(LoggingMixin):
                     resource_version = event.metadata.resource_version
 
     async def await_pod_start(
-        self,
-        pod: V1Pod,
-        schedule_timeout: int = 120,
-        startup_timeout: int = 120,
-        check_interval: float = 1,
-        base_container_name: str = "base",
+        self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: float = 1
     ) -> None:
         """
         Wait for the pod to reach phase other than ``Pending``.
@@ -1314,7 +1248,6 @@ class AsyncPodManager(LoggingMixin):
         :param startup_timeout: Timeout (in seconds) for startup of the pod
             (if pod is pending for too long after being scheduled, fails task)
         :param check_interval: Interval (in seconds) between checks
-        :param base_container_name: Container whose start means user code may have run.
         :return:
         """
         await await_pod_start(
@@ -1323,7 +1256,6 @@ class AsyncPodManager(LoggingMixin):
             schedule_timeout=schedule_timeout,
             startup_timeout=startup_timeout,
             check_interval=check_interval,
-            base_container_name=base_container_name,
         )
 
     async def fetch_container_logs_before_current_sec(
