@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.TaskDef
+import org.apache.airflow.sdk.TaskGroupRef
 import org.apache.airflow.sdk.execution.comm.DagFileParseRequest
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.SchemaFields
@@ -80,6 +81,7 @@ internal fun serializeDag(
   fileloc: String,
   relativeFileloc: String,
 ): Map<String, Any?> {
+  dag.expandGroupEdges()
   val downstream = linkedMapOf<String, MutableList<String>>()
   dag.tasks.forEach { (taskId, def) ->
     def.upstreams.forEach { upstream ->
@@ -96,7 +98,7 @@ internal fun serializeDag(
       "timetable" to serializeTimetable(dag.dagConfig["schedule"] as String?),
       "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId]) },
       "dag_dependencies" to emptyList<Any?>(),
-      "task_group" to serializeTaskGroup(dag.tasks.keys),
+      "task_group" to serializeTaskGroups(dag),
       "edge_info" to emptyMap<String, Any?>(),
       "params" to emptyList<Any?>(),
       "deadline" to null,
@@ -205,20 +207,42 @@ private fun serializeTimetable(schedule: String?): Map<String, Any?> =
       )
   }
 
-/** Creates the flat root task group containing all task IDs. */
-private fun serializeTaskGroup(taskIds: Collection<String>): Map<String, Any?> =
+/**
+ * Serializes the Dag's task groups as Python's `TaskGroupSerialization` does:
+ * a root group holding the tasks in no group and the top-level groups, each
+ * group nesting its own tasks and groups.
+ */
+private fun serializeTaskGroups(dag: DagDef): Map<String, Any?> {
+  val grouped = dag.groups.values.flatMapTo(mutableSetOf()) { it.taskIds }
+  return taskGroupObject(
+    null,
+    dag.tasks.keys.filterNot { it in grouped },
+    dag.groups.values.filterNot { '.' in it.id },
+  )
+}
+
+/** One group object: the root when [group] is null, otherwise a nested one. */
+private fun taskGroupObject(
+  group: TaskGroupRef?,
+  taskIds: List<String>,
+  children: List<TaskGroupRef>,
+): Map<String, Any?> =
   mapOf(
-    "_group_id" to null,
+    // The local segment: Python's TaskGroup stores the ID it was given, and
+    // rebuilds the full one from where the group sits in the tree.
+    "_group_id" to group?.id?.substringAfterLast('.'),
     "group_display_name" to "",
     "prefix_group_id" to true,
     "tooltip" to "",
     "ui_color" to "CornflowerBlue",
     "ui_fgcolor" to "#000",
-    "children" to taskIds.associateWith { listOf("operator", it) },
-    "upstream_group_ids" to emptyList<Any?>(),
-    "downstream_group_ids" to emptyList<Any?>(),
-    "upstream_task_ids" to emptyList<Any?>(),
-    "downstream_task_ids" to emptyList<Any?>(),
+    "children" to
+      taskIds.associateWith { listOf("operator", it) } +
+      children.associate { it.id to listOf("taskgroup", taskGroupObject(it, it.taskIds, it.children)) },
+    "upstream_group_ids" to group?.upstreamGroupIds.orEmpty().sorted(),
+    "downstream_group_ids" to group?.downstreamGroupIds.orEmpty().sorted(),
+    "upstream_task_ids" to group?.upstreamTaskIds.orEmpty().sorted(),
+    "downstream_task_ids" to group?.downstreamTaskIds.orEmpty().sorted(),
   )
 
 /**

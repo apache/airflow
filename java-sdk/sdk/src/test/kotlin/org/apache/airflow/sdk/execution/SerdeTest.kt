@@ -185,6 +185,55 @@ internal class SerdeTest {
   }
 
   @Test
+  @DisplayName("Should serialize nested task groups with their own edges")
+  fun shouldSerializeTaskGroups() {
+    val dag = DagDef("d")
+    val extract = dag.task<Unit>("extract", SerdeNoopTask::class.java)
+    val staging = dag.taskGroup("staging")
+    staging.task<Unit>("stage", SerdeNoopTask::class.java)
+    staging.taskGroup("checks").task<Unit>("nulls", SerdeNoopTask::class.java)
+    extract.before(staging)
+
+    val root = serializeDag(dag, "", ".")["task_group"] as Map<*, *>
+
+    val group = { name: String, children: Map<String, Any?>, upstreamTasks: List<String> ->
+      mapOf(
+        "_group_id" to name,
+        "group_display_name" to "",
+        "prefix_group_id" to true,
+        "tooltip" to "",
+        "ui_color" to "CornflowerBlue",
+        "ui_fgcolor" to "#000",
+        "children" to children,
+        "upstream_group_ids" to emptyList<String>(),
+        "downstream_group_ids" to emptyList<String>(),
+        "upstream_task_ids" to upstreamTasks,
+        "downstream_task_ids" to emptyList<String>(),
+      )
+    }
+    val checks = group("checks", mapOf("staging.checks.nulls" to listOf("operator", "staging.checks.nulls")), emptyList())
+    assertEquals(
+      mapOf(
+        "extract" to listOf("operator", "extract"),
+        "staging" to
+          listOf(
+            "taskgroup",
+            group(
+              "staging",
+              mapOf(
+                "staging.stage" to listOf("operator", "staging.stage"),
+                "staging.checks" to listOf("taskgroup", checks),
+              ),
+              listOf("extract"),
+            ),
+          ),
+      ),
+      root["children"],
+    )
+    assertEquals(null, root["_group_id"])
+  }
+
+  @Test
   @DisplayName("Should serialize wiring-registered dags with their data-flow edges")
   fun shouldSerializeWiredDag() {
     val dag = DagDef("d")

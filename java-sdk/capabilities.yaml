@@ -111,7 +111,8 @@ capabilities:
   dag-test:
     supported: false
   task-group:
-    supported: false
+    supported: true
+    since: "3.3"
   dynamic-task-mapping:
     supported: false
   asset-inlets-outlets:
