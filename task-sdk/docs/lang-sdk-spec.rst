@@ -168,3 +168,29 @@ wrote. How ``fn`` reaches ``Context`` and ``Client`` is each SDK's own choice â€
 getters that read the scope opened at step 6 â€” and all this spec asks is that ``fn`` receives the
 same pair the SDK built at step 3. The terminal state at step 7 is one of ``SucceedTask``,
 ``RetryTask``, or ``TaskState``, and it is reported exactly once.
+
+Task handler parse lifecycle
+----------------------------
+
+To check a Python Dag's ``@task.stub`` tasks, the Dag processor starts the process that a task of the
+Dag would run and asks it for its ``TaskHandler`` registrations:
+
+.. mermaid::
+
+    sequenceDiagram
+        participant D as Dag processor
+        participant R as SDK process
+
+        R->>R: 1. process start
+        D->>R: 2. send TaskHandlerParseRequest
+        R->>R: 3. declare every registered TaskHandler,<br/>keyed by dag_id, in registration order
+        R->>D: 4. send one TaskHandlerParsingResult
+        D->>R: 5. reply to it
+        R->>R: 6. exit
+
+No ``fn`` runs: the answer comes from the registrations alone, and the tasks of a native ``Dag`` are
+never declared. It must depend only on the artifact, never on the request. A declaration states whether
+the stub task's arguments bind to the handler's parameters by position or by name, and which values each
+parameter accepts. An SDK that cannot list a handler's parameters sends ``null`` for them, and then only
+the handler's presence is checked. An artifact that registers no ``TaskHandler`` answers with an empty
+mapping.
