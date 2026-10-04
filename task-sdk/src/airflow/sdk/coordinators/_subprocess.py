@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -515,7 +516,7 @@ class SubprocessCoordinator(BaseCoordinator):
     failure — is handled here.
 
     A subclass that also answers task handler parse requests implements
-    :meth:`_build_parse_task_handler_command`.
+    :meth:`_find_task_handler_artifact` and :meth:`_build_parse_task_handler_command`.
 
     :param task_startup_timeout: Maximum time the coordinator waits for the
         subprocess to connect to both servers, in seconds. The default is 10
@@ -638,6 +639,18 @@ class SubprocessCoordinator(BaseCoordinator):
                 signal.signal(sig, signal.SIG_DFL)
         _set_close_on_exec_above_stderr()
         os.execvpe(argv[0], argv, _build_runtime_env())
+
+    def _find_task_handler_artifact(self, *, bundle_path: pathlib.Path, dag_id: str) -> ResolvedBundle:
+        """
+        Return the artifact that a stub task of *dag_id* runs, found the way :meth:`execute_task` finds it.
+
+        *bundle_path* is the root of the Dag bundle that holds the artifacts.
+
+        :raises FileNotFoundError: when a task of *dag_id* would find no artifact it can run.
+        :raises ValueError: when the artifact found uses a supervisor schema version this Task SDK
+            does not know.
+        """
+        raise NotImplementedError(f"{type(self).__name__} does not parse task handlers")
 
     def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         """

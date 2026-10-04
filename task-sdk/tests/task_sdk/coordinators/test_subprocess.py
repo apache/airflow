@@ -1549,6 +1549,14 @@ def _is_running(process: psutil.Process) -> bool:
 
 
 class TestParseTaskHandler:
+    def test_find_task_handler_artifact_default_raises(self, tmp_path):
+        coordinator = _StubSubprocessCoordinator(command=["x"])
+
+        with pytest.raises(
+            NotImplementedError, match="_StubSubprocessCoordinator does not parse task handlers"
+        ):
+            coordinator._find_task_handler_artifact(bundle_path=tmp_path, dag_id="dag")
+
     def test_build_parse_task_handler_command_default_raises(self, tmp_path):
         coordinator = _StubSubprocessCoordinator(command=["x"])
 
