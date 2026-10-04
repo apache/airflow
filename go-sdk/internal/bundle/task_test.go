@@ -293,8 +293,6 @@ func runBranch(task Task, client *branchClient, ti, canSkip bool) error {
 	return task.Execute(ctx, slog.New(logging.NewTeeLogger()), nil)
 }
 
-const clearCall = "PushXCom decide skipmixin_key map[skipped:[]]"
-
 func (s *TaskSuite) TestBranchFunctionSkipsTheTasksThatFindSkippedReturns() {
 	var got any
 	task, err := NewPositionalBranchFunction(
@@ -311,7 +309,6 @@ func (s *TaskSuite) TestBranchFunctionSkipsTheTasksThatFindSkippedReturns() {
 
 	s.Equal(true, got)
 	s.Equal([]string{
-		clearCall,
 		"PushXCom decide return_value true",
 		"PushXCom decide skipmixin_key map[skipped:[load report]]",
 		"SkipDownstreamTasks [load report]",
@@ -330,20 +327,13 @@ func (s *TaskSuite) TestBranchFunctionWithNothingToSkip() {
 			client := &branchClient{}
 			s.Require().NoError(runBranch(task, client, true, true))
 
-			s.Equal([]string{clearCall, "PushXCom decide return_value true"}, client.calls)
-			s.Equal(
-				map[string][]string{"skipped": {}},
-				client.values["skipmixin_key"],
-				"the list must not be nil",
-			)
+			s.Equal([]string{"PushXCom decide return_value true"}, client.calls)
 		})
 	}
 }
 
-// An earlier try of the task may have left a list of skipped tasks in the XCom. A try that fails
-// before it skips anything still replaces that list with an empty list, whether fn returns an
-// error or panics.
-func (s *TaskSuite) TestBranchFunctionClearsTheListOfAnEarlierTry() {
+// A try that fails neither records nor skips any task, whether fn returns an error or panics.
+func (s *TaskSuite) TestBranchFunctionThatFailsSkipsNothing() {
 	cases := map[string]func(contexttest.Context) (bool, error){
 		"error": func(contexttest.Context) (bool, error) { return false, errors.New("no table") },
 		"panic": func(contexttest.Context) (bool, error) { panic("no table") },
@@ -357,21 +347,15 @@ func (s *TaskSuite) TestBranchFunctionClearsTheListOfAnEarlierTry() {
 			})
 			s.Require().NoError(err)
 
-			client := &branchClient{values: map[string]any{
-				"skipmixin_key": map[string][]string{"skipped": {"load"}},
-			}}
+			client := &branchClient{}
 			func() {
 				defer func() { _ = recover() }()
 				s.Error(runBranch(task, client, true, true))
 			}()
 
 			s.False(called)
-			s.Equal(
-				map[string][]string{"skipped": {}},
-				client.values["skipmixin_key"],
-				"a try that skipped nothing must not leave the list of an earlier try",
-			)
 			for _, call := range client.calls {
+				s.NotContains(call, "skipmixin_key")
 				s.NotContains(call, "SkipDownstreamTasks")
 			}
 		})
@@ -397,13 +381,6 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			canSkip: true,
 			wantErr: "task runtime context is missing",
 		},
-		"clearing the skipmixin_key XCom fails": {
-			client:    &branchClient{failOn: clearCall},
-			withTI:    true,
-			canSkip:   true,
-			wantErr:   "clearing the skipmixin_key XCom: xcom refused",
-			wantCalls: []string{clearCall},
-		},
 		"recording the skipped tasks fails": {
 			client: &branchClient{
 				failOn: "PushXCom decide skipmixin_key map[skipped:[load]]",
@@ -413,7 +390,6 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			wantErr: "recording the skipped tasks in the skipmixin_key XCom: xcom refused",
 			wantRun: true,
 			wantCalls: []string{
-				clearCall,
 				"PushXCom decide return_value false",
 				"PushXCom decide skipmixin_key map[skipped:[load]]",
 			},
@@ -425,7 +401,6 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			wantErr: `skipping the downstream tasks ["load"]: supervisor refused`,
 			wantRun: true,
 			wantCalls: []string{
-				clearCall,
 				"PushXCom decide return_value false",
 				"PushXCom decide skipmixin_key map[skipped:[load]]",
 				"SkipDownstreamTasks [load]",

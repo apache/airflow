@@ -254,6 +254,24 @@ func (c *CoordinatorClient) PushXCom(
 	return err
 }
 
+// deleteXCom asks the supervisor to delete the XCom of ti with the given key. Like PushXCom, it
+// leaves map_index out for an unmapped task instance, and the Execution API then deletes the XCom
+// with map_index -1.
+func (c *CoordinatorClient) deleteXCom(ctx context.Context, ti sdk.TaskInstance, key string) error {
+	msg := genmodels.DeleteXCom{
+		Key:    key,
+		DagID:  ti.DagID,
+		TaskID: ti.TaskID,
+		RunID:  ti.RunID,
+	}
+	if ti.MapIndex != nil && *ti.MapIndex != -1 {
+		msg.MapIndex = ti.MapIndex
+	}
+
+	_, err := c.comm.Communicate(ctx, msg)
+	return err
+}
+
 // skipDownstreamTasks asks the supervisor to mark the tasks with the given task_ids as skipped
 // in the Dag run of the running task. Airflow does not change a task instance that is running,
 // has succeeded or has failed.
