@@ -138,12 +138,11 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         │  │    ├── in the child: _build_parse_task_handler_command()            │
         │  │    │                 coordinator.parse_task_handler() — spawn JVM   │
         │  │    │                                                                │
-        │  │    │   ──TaskHandlerParseRequest(file=analytics.jar,                │
-        │  │    │                             dag_ids=["etl"])─────▶ JVM         │
+        │  │    │   ──TaskHandlerParseRequest(file=analytics.jar)─────▶ JVM      │
         │  │    │                            (ToSDKTaskHandlerProcessor)         │
         │  │    │                                                                │
-        │  │    │      JVM answers from its own TaskHandler registrations        │
-        │  │    │      whose dagId is one of the requested ids                   │
+        │  │    │      JVM answers with every TaskHandler registration           │
+        │  │    │      in the artifact, or {} when there is none                 │
         │  │    │                                                                │
         │  │    │   ◀─TaskHandlerParsingResult(task_handlers={                   │
         │  │    │        "etl": [extract, transform, load]})─────── JVM          │
@@ -186,7 +185,7 @@ Resolution goes through the coordinator registry, not the filesystem, so the Pyt
 | Caller                                     | Coordinator call                                     | What comes back                          | Action                                           |
 |--------------------------------------------|------------------------------------------------------|------------------------------------------|--------------------------------------------------|
 | `_parse_file` → `PythonDagImporter`        | — (the Python file is parsed in process)             | its own parsed Dags                      | PERSIST                                          |
-| `_parse_file`, per (coordinator, artifact) | `parse_task_handler`, scoped to that group's dag_ids | `TaskHandlerParsingResult`               | VALIDATE only — not a Dag, so nothing to persist |
+| `_parse_file`, per (coordinator, artifact) | `parse_task_handler`, for every handler it registers | `TaskHandlerParsingResult`               | VALIDATE only — not a Dag, so nothing to persist |
 | `_parse_file` → `JavaDagImporter`          | `parse_dag`                                          | `DagFileParsingResult`, native Dags only | PERSIST                                          |
 
 There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` — and nothing reading a `DagImporter`'s results — ever sees one.
