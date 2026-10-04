@@ -49,7 +49,11 @@ from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.elasticsearch._compat import apply_compat_with
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
-from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from airflow.providers.elasticsearch.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -224,6 +228,29 @@ def _render_log_id(log_id_template: str, ti: TaskInstance | TaskInstanceKey, try
         try_number=try_number,
         map_index=getattr(ti, "map_index", ""),
     )
+
+
+def _get_ti_id_fields(ti: TaskInstance | TaskInstanceKey) -> dict[str, str]:
+    # Airflow 2 task instances have no id.
+    return {"ti_id": str(ti_id)} if (ti_id := getattr(ti, "id", None)) else {}
+
+
+def _build_log_query(log_id: str, ti: TaskInstance) -> list[dict[str, Any]]:
+    log_id_match = {"match_phrase": {"log_id": log_id}}
+    # Before 3.4 a cleared task instance gets a new id, which can differ from the id its logs were written under.
+    if not AIRFLOW_V_3_4_PLUS:
+        return [log_id_match]
+    return [
+        {
+            "bool": {
+                "should": [
+                    {"match_phrase": {"ti_id": str(ti.id)}},
+                    {"bool": {"must": [log_id_match], "must_not": {"exists": {"field": "ti_id"}}}},
+                ],
+                "minimum_should_match": 1,
+            }
+        }
+    ]
 
 
 def _clean_date(value: datetime | None) -> str:
@@ -554,6 +581,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     ),
                     "try_number": str(ti.try_number),
                     "log_id": _render_log_id(self.log_id_template, ti, ti.try_number),
+                    **_get_ti_id_fields(ti),
                 },
             )
 
@@ -761,21 +789,24 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             local_loc = self.base_log_folder.joinpath(path)
 
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
+        ti_id_fields = _get_ti_id_fields(ti)  # type: ignore[arg-type]
         if local_loc.is_file() and self.write_stdout:
             # Intentionally construct the log_id and offset field
 
-            log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
+            log_lines = self._parse_raw_log(local_loc.read_text(), log_id, ti_id_fields)
             for line in log_lines:
                 sys.stdout.write(json.dumps(line) + "\n")
                 sys.stdout.flush()
 
         if local_loc.is_file() and self.write_to_es:
-            log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
+            log_lines = self._parse_raw_log(local_loc.read_text(), log_id, ti_id_fields)
             success = self._write_to_es(log_lines)
             if success and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
 
-    def _parse_raw_log(self, log: str, log_id: str) -> list[dict[str, Any]]:
+    def _parse_raw_log(
+        self, log: str, log_id: str, extra_fields: dict[str, str] | None = None
+    ) -> list[dict[str, Any]]:
         logs = log.split("\n")
         parsed_logs = []
         offset = 1
@@ -801,6 +832,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             log_dict.update(
                 {
                     "log_id": log_id,
+                    **(extra_fields or {}),
                     self.offset_field: offset,
                 }
             )
@@ -883,7 +915,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         query: dict[Any, Any] = {
             "bool": {
                 "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
-                "must": [{"match_phrase": {"log_id": log_id}}],
+                "must": _build_log_query(log_id, ti),
             }
         }
 

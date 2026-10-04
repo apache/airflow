@@ -46,7 +46,7 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_4_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -82,6 +82,7 @@ LABEL_TASK_ID = "task_id"
 LABEL_DAG_ID = "dag_id"
 LABEL_LOGICAL_DATE = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
 LABEL_TRY_NUMBER = "try_number"
+LABEL_TI_ID = "ti_id"
 
 
 @attrs.define(kw_only=True)
@@ -209,6 +210,8 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             if ti:
                 labels.update(_task_instance_to_labels(ti))
             else:
+                if ti_id := event.get("ti_id"):
+                    labels[LABEL_TI_ID] = str(ti_id)
                 if dag_id := event.get("dag_id"):
                     labels[LABEL_DAG_ID] = str(dag_id)
                 if task_id := event.get("task_id"):
@@ -269,8 +272,18 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
         for key, value in self.resource.labels.items():
             log_filters.append(f"resource.labels.{escape_label_key(key)}={escape_label_value(value)}")
 
-        for key, value in ti_labels.items():
-            log_filters.append(f"labels.{escape_label_key(key)}={escape_label_value(value)}")
+        label_conditions = {
+            key: f"labels.{escape_label_key(key)}={escape_label_value(value)}"
+            for key, value in ti_labels.items()
+        }
+        ti_id_condition = label_conditions.pop(LABEL_TI_ID, None)
+        # Before 3.4 a cleared task instance gets a new id, which can differ from the id its logs were written under.
+        if ti_id_condition and AIRFLOW_V_3_4_PLUS:
+            # Entries written before the ``ti_id`` label existed are matched by the other labels.
+            legacy_conditions = [*label_conditions.values(), f"NOT labels.{LABEL_TI_ID}:*"]
+            log_filters.append(f"({ti_id_condition} OR ({' AND '.join(legacy_conditions)}))")
+        else:
+            log_filters.extend(label_conditions.values())
         return "\n".join(log_filters)
 
     def read_logs(
@@ -317,7 +330,7 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
 
 def _task_instance_to_labels(ti) -> dict[str, str]:
     """Convert a task instance to Cloud Logging labels."""
-    return {
+    labels = {
         LABEL_TASK_ID: ti.task_id,
         LABEL_DAG_ID: ti.dag_id,
         LABEL_LOGICAL_DATE: str(ti.logical_date.isoformat())
@@ -325,6 +338,10 @@ def _task_instance_to_labels(ti) -> dict[str, str]:
         else str(ti.execution_date.isoformat()),
         LABEL_TRY_NUMBER: str(ti.try_number),
     }
+    # Airflow 2 task instances have no id.
+    if ti_id := getattr(ti, "id", None):
+        labels[LABEL_TI_ID] = str(ti_id)
+    return labels
 
 
 class CloudLoggingTaskHandler(logging.Handler):
@@ -472,6 +489,7 @@ class CloudLoggingTaskHandler(logging.Handler):
             ti_labels[LABEL_TRY_NUMBER] = str(try_number)
         else:
             del ti_labels[LABEL_TRY_NUMBER]
+            ti_labels.pop(LABEL_TI_ID, None)
 
         log_filter = self.io.prepare_log_filter(ti_labels)
         next_page_token = metadata.get("next_page_token", None)
