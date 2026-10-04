@@ -23,12 +23,14 @@ import os
 import selectors
 import signal
 import time
+from contextlib import suppress
 from pathlib import Path
 from socket import MSG_DONTWAIT, socket
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, cast, get_args
 
 import attrs
 import msgspec
+import psutil
 from pydantic import BaseModel, Field, TypeAdapter
 from uuid6 import uuid7
 
@@ -157,7 +159,8 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
     runtime. The runtime connects back to two listeners this process owns and answers the
     ``TaskHandlerParseRequest`` itself, so the request is sent once it has connected. A failed start,
     a missing result, an invalid frame or message, or a timeout is an import error on the result,
-    keyed by the artifact's path in its Dag bundle.
+    keyed by the artifact's path in its Dag bundle. Processes the runtime leaves in its process group
+    are killed when it exits or the probe times out, but not when the Dag-parsing child is killed abruptly.
 
     The probe has no API client: each request of the runtime that needs one is relayed up the supervisor
     channel of the process this runs in, as in a Dag-parsing child, or gets an error when there is none.
@@ -189,6 +192,7 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
     _schema_version_reported: bool = attrs.field(default=False, init=False)
     _parsing_result_monotonic: float | None = attrs.field(default=None, init=False)
     _unverified_connections: list[tuple[socket, _Channel]] = attrs.field(factory=list, init=False)
+    _group_killed: bool = attrs.field(default=False, init=False)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -492,10 +496,17 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
         self._verify_connections()
         if (
             self._parsing_result_monotonic is not None
-            and self._exit_code is None
             and time.monotonic() - self._parsing_result_monotonic > _EXIT_GRACE_PERIOD
         ):
-            self.process_log.warning("The Lang-SDK runtime did not exit after its parse result; killing it")
+            if self._exit_code is None:
+                self.process_log.warning(
+                    "The Lang-SDK runtime did not exit after its parse result; killing it"
+                )
+            elif not self._group_killed:
+                self.process_log.warning(
+                    "The Lang-SDK runtime left processes holding its output after its parse result; "
+                    "killing them"
+                )
             self._kill_runtime()
         if (
             self._import_timeout is not None
@@ -532,16 +543,34 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
         stall the caller's loop; ``is_ready`` sees it exit later.
         """
         if self._exit_code is not None:
+            self._kill_leftovers()
             return
         try:
             self._signal_subprocess(signal.SIGKILL)
+            self._group_killed = True
             self._exit_code = self._process.wait(timeout=_EXIT_GRACE_PERIOD)
         except (self._process.ProcessNotFound, ProcessLookupError):
             self._exit_code = -1
         except self._process.TimeoutExpired:
             self.process_log.warning("The Lang-SDK runtime did not exit after SIGKILL", pid=self.pid)
 
+    def _kill_leftovers(self) -> None:
+        """
+        Kill the processes an exited runtime left in its process group, which can keep its sockets open.
+
+        The group is killed once, and not when another process has reused the runtime's pid, since the
+        group could then be that process's.
+        """
+        if self._exit_code is None or self._group_killed or not self._new_process_group:
+            return
+        self._group_killed = True
+        if psutil.pid_exists(self.pid):
+            return
+        with suppress(ProcessLookupError, PermissionError):
+            os.killpg(self.pid, signal.SIGKILL)
+
     def close(self) -> None:
         # A listener has nothing to drain, and cleanup would call its accept handler forever.
         self._close_listeners()
+        self._kill_leftovers()
         super().close()
