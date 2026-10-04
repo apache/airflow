@@ -32,6 +32,7 @@ import yaml
 from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.coordinators._subprocess import TASK_HANDLER_PARSING_SCHEMA_VERSION
 from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_MAGIC,
     FOOTER_SIZE,
@@ -418,6 +419,137 @@ class TestBuildExecuteTaskCommand:
             pytest.raises(FileNotFoundError, match="cannot find executable bundle"),
         ):
             coordinator._build_execute_task_command(what=ti)
+
+
+class TestFindTaskHandlerArtifact:
+    def test_finds_the_bundle_a_task_of_the_dag_runs(self, tmp_path):
+        _build_bundle(tmp_path / "a_other", dag_ids=["other_dag"])
+        _build_bundle(tmp_path / "b_bundle", dag_ids=["tutorial_dag"])
+        _build_bundle(tmp_path / "c_bundle", dag_ids=["tutorial_dag"])
+        coordinator = ExecutableCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
+
+        artifact = coordinator._find_task_handler_artifact(bundle_path=tmp_path, dag_id="tutorial_dag")
+
+        assert [str(artifact.path)] == command
+        assert artifact.schema_version == schema_version
+
+    def test_resolves_a_symlinked_bundle_root(self, tmp_path):
+        nested = tmp_path / "real" / "team-a"
+        nested.mkdir(parents=True)
+        target = _build_bundle(nested / "etl", dag_ids=["tutorial_dag"])
+        root = tmp_path / "bundle"
+        try:
+            root.symlink_to(tmp_path / "real", target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not supported on this platform")
+
+        artifact = ExecutableCoordinator()._find_task_handler_artifact(
+            bundle_path=root, dag_id="tutorial_dag"
+        )
+
+        assert artifact.path == target.resolve()
+        assert artifact.path.relative_to(root.resolve()) == Path("team-a", "etl")
+
+    @pytest.mark.parametrize(
+        ("dag_ids", "schema_version", "message"),
+        [
+            pytest.param(
+                ["other_dag"],
+                "2026-06-16",
+                "cannot find executable bundle containing",
+                id="no-bundle-lists-the-dag",
+            ),
+            pytest.param(
+                ["tutorial_dag"],
+                "1999-01-01",
+                "matching bundles were rejected",
+                id="unknown-schema-version",
+            ),
+        ],
+    )
+    def test_raises_file_not_found_when_no_bundle_can_run_the_dag(
+        self, tmp_path, dag_ids, schema_version, message
+    ):
+        metadata = _make_metadata(dag_ids)
+        metadata["sdk"]["supervisor_schema_version"] = schema_version
+        _build_bundle(tmp_path / "etl", metadata=metadata)
+
+        with pytest.raises(FileNotFoundError, match=message):
+            ExecutableCoordinator()._find_task_handler_artifact(bundle_path=tmp_path, dag_id="tutorial_dag")
+
+
+class TestBuildParseTaskHandlerCommand:
+    def test_returns_the_bundle_and_its_schema_version(self, tmp_path):
+        # The Dag processor names the artifact, so the Dag ids in its metadata play no part.
+        bundle = _build_bundle(tmp_path / "etl", dag_ids=["other_dag"])
+
+        command, schema_version = ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+
+        assert command == [str(bundle.resolve())]
+        assert schema_version == "2026-06-16"
+
+    def test_returns_an_absolute_path(self, tmp_path, monkeypatch):
+        _build_bundle(tmp_path / "etl")
+        monkeypatch.chdir(tmp_path)
+
+        command, _ = ExecutableCoordinator()._build_parse_task_handler_command(path=Path("etl"))
+
+        assert command == [str((tmp_path / "etl").resolve())]
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            pytest.param(_make_executable, id="no-trailer"),
+            pytest.param(
+                lambda path: _build_bundle(path, binary_sha256=b"\x00" * 32), id="binary-digest-mismatch"
+            ),
+        ],
+    )
+    def test_rejects_a_file_that_is_not_a_valid_bundle(self, tmp_path, build):
+        bundle = build(tmp_path / "etl")
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+            ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+
+    def test_rejects_a_bundle_without_a_schema_version(self, tmp_path):
+        metadata = _make_metadata(["etl"])
+        del metadata["sdk"]["supervisor_schema_version"]
+        bundle = _build_bundle(tmp_path / "etl", metadata=metadata)
+
+        with pytest.raises(ValueError, match="supervisor_schema_version"):
+            ExecutableCoordinator()._build_parse_task_handler_command(path=bundle)
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch(
+        "airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec failed")
+    )
+    def test_the_probe_execs_what_a_task_of_the_dag_runs(
+        self, mock_execvpe, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        metadata = _make_metadata(["tutorial_dag"])
+        metadata["sdk"]["supervisor_schema_version"] = TASK_HANDLER_PARSING_SCHEMA_VERSION
+        _build_bundle(tmp_path / "etl", metadata=metadata)
+        coordinator = ExecutableCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, _ = coordinator._build_execute_task_command(what=_make_ti())
+        artifact = coordinator._find_task_handler_artifact(bundle_path=tmp_path, dag_id="tutorial_dag")
+
+        with pytest.raises(OSError, match="exec failed"):
+            coordinator.parse_task_handler(
+                path=artifact.path,
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=lambda schema_version: None,
+            )
+
+        mock_execvpe.assert_called_once_with(
+            command[0], [*command, "--comm=127.0.0.1:1001", "--logs=127.0.0.1:1002"], mock.ANY
+        )
 
 
 @pytest.fixture

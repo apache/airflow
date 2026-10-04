@@ -310,7 +310,8 @@ class ExecutableCoordinator(SubprocessCoordinator):
         the task's own Dag bundle is used. Only files with the executable bit set
         are considered. The Dag bundle is searched recursively, in sorted path
         order, and the first executable bundle that declares the task instance's
-        Dag runs.
+        Dag runs. That bundle also answers a task handler parse request with the
+        task handlers it registers.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
@@ -319,3 +320,23 @@ class ExecutableCoordinator(SubprocessCoordinator):
         roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version
+
+    def _find_task_handler_artifact(self, *, bundle_path: pathlib.Path, dag_id: str) -> ResolvedBundle:
+        """
+        Return the executable bundle a task of *dag_id* runs, with symlinks in its path resolved.
+
+        Compute its path in the Dag bundle relative to ``bundle_path.resolve()``, since *bundle_path*
+        may contain symlinks. A bundle with a supervisor schema version this Task SDK does not know
+        is skipped like any unusable bundle, so it leads to ``FileNotFoundError``, never ``ValueError``.
+        """
+        return _Bundle.find([bundle_path], dag_id)
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        # The trailer and binary hash check that a task's bundle gets.
+        if (metadata := _read_bundle_metadata(path)) is None:
+            raise ValueError(
+                f"{path} is not a valid executable bundle: it cannot be read, has no AFBNDL01 "
+                "trailer, or its binary digest or metadata is invalid"
+            )
+        # Absolute, as for a task, so exec never searches PATH for it.
+        return [os.fspath(path.resolve())], extract_supervisor_schema_version(metadata)
