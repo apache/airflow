@@ -38,6 +38,7 @@ def test_dependency_context_preserves_manifests_without_source(tmp_path, with_lo
         (source / "uv.lock").write_text("version = 1\n")
 
     stage = DOCKERFILE.read_text().split("as dependency-manifests\n", 1)[1].split("\nFROM ", 1)[0]
+    assert 'SHELL ["/bin/bash"' in stage
     command = stage.split("RUN --mount=type=bind,target=/source \\\n", 1)[1]
     command = command.replace("/dependency-manifests", '"${MANIFESTS}"').replace("/source", '"${SOURCE}"')
     subprocess.run(
@@ -60,6 +61,33 @@ def test_dependency_context_preserves_manifests_without_source(tmp_path, with_lo
     } == expected
     for relative in expected:
         assert (destination / relative).read_bytes() == (source / relative).read_bytes()
+
+
+@pytest.mark.parametrize("executable", ["find", "cp"])
+def test_dependency_context_fails_when_manifest_extraction_command_fails(tmp_path, executable):
+    source = tmp_path / "source"
+    destination = tmp_path / "manifests"
+    (source / "provider").mkdir(parents=True)
+    (source / "provider" / "pyproject.toml").write_text("project = {}\n")
+    fake_executable = tmp_path / executable
+    fake_executable.write_text("#!/bin/sh\nexit 1\n")
+    fake_executable.chmod(0o755)
+
+    stage = DOCKERFILE.read_text().split("as dependency-manifests\n", 1)[1].split("\nFROM ", 1)[0]
+    command = stage.split("RUN --mount=type=bind,target=/source \\\n", 1)[1]
+    command = command.replace("/dependency-manifests", '"${MANIFESTS}"').replace("/source", '"${SOURCE}"')
+    result = subprocess.run(
+        ["bash", "-e", "-o", "pipefail", "-c", command],
+        env={
+            **os.environ,
+            "PATH": f"{tmp_path}{os.pathsep}{os.environ['PATH']}",
+            "SOURCE": str(source),
+            "MANIFESTS": str(destination),
+        },
+        cwd=source,
+        check=False,
+    )
+    assert result.returncode != 0
 
 
 @pytest.mark.parametrize("upgrade", ["", "fresh-resolution"])

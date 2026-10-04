@@ -1715,13 +1715,16 @@ FROM ${BASE_IMAGE} as dependency-manifests
 WORKDIR /source
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 RUN --mount=type=bind,target=/source \
+    manifest_list="$(mktemp)" && \
+    trap 'rm -f "${manifest_list}"' EXIT && \
+    find . -name pyproject.toml -type f -print0 > "${manifest_list}" && \
     mkdir -p /dependency-manifests && \
     while IFS= read -r -d '' manifest; do \
         relative_path="${manifest#./}"; \
-        mkdir -p "/dependency-manifests/$(dirname "${relative_path}")"; \
-        cp "${manifest}" "/dependency-manifests/${relative_path}"; \
-    done < <(find . -name pyproject.toml -type f -print0) && \
-    if [ -f uv.lock ]; then cp uv.lock /dependency-manifests/; fi
+        mkdir -p "/dependency-manifests/$(dirname "${relative_path}")" || exit 1; \
+        cp "${manifest}" "/dependency-manifests/${relative_path}" || exit 1; \
+    done < "${manifest_list}" && \
+    if [ -f uv.lock ]; then cp uv.lock /dependency-manifests/ || exit 1; fi
 
 FROM ${BASE_IMAGE} as main
 
@@ -1930,8 +1933,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.2.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.12.10
-ARG AIRFLOW_PREK_VERSION="0.5.2"
+ARG AIRFLOW_UV_VERSION=0.12.18
+ARG AIRFLOW_PREK_VERSION="0.5.3"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
