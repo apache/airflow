@@ -211,7 +211,9 @@ def _send_a_start_message(request, comms) -> None:
     _send_a_frame(comms, LangSDKRuntimeSchemaVersion(schema_version=None).model_dump())
 
 
-def _run(tmp_path, *, coordinator: str = "fake", **spec) -> TaskHandlerParsingResult:
+def _run(
+    tmp_path, *, coordinator: str = "fake", deadline: float | None = None, **spec
+) -> TaskHandlerParsingResult:
     return LangSDKTaskHandlerProcessorProcess.run(
         coordinator=coordinator,
         path=write_artifact(tmp_path / "etl.artifact", **spec),
@@ -219,6 +221,7 @@ def _run(tmp_path, *, coordinator: str = "fake", **spec) -> TaskHandlerParsingRe
         bundle_name="task-handlers",
         artifact_rel_path="etl.artifact",
         logger=structlog.get_logger(),
+        deadline=deadline,
     )
 
 
@@ -861,6 +864,85 @@ class TestRun:
             "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} within 1.0s, "
             "the limit set by [core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
         }
+
+    @pytest.mark.execution_timeout(30)
+    @pytest.mark.parametrize("reported", [False, True], ids=["before-the-schema-version", "after-it"])
+    @patch.object(
+        LangSDKTaskHandlerProcessorProcess,
+        "close",
+        autospec=True,
+        side_effect=LangSDKTaskHandlerProcessorProcess.close,
+    )
+    @patch.object(FakeCoordinator, "parse_task_handler", autospec=True)
+    def test_a_probe_past_its_deadline_is_killed(
+        self, mock_parse_task_handler, mock_close, tmp_path, reported
+    ):
+        if reported:
+            mock_parse_task_handler.side_effect = play_runtime(
+                lambda request, comms: _block_until_killed(comms)
+            )
+        else:
+            mock_parse_task_handler.side_effect = lambda self, **kwargs: threading.Event().wait()
+
+        result = _run(tmp_path, deadline=time.monotonic() + 1)
+
+        assert result.import_errors == {
+            "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} by its deadline"
+        }
+        [proc] = [c.args[0] for c in mock_close.call_args_list]
+        assert proc._exit_code == -signal.SIGKILL
+
+    @pytest.mark.execution_timeout(30)
+    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=60)
+    def test_the_deadline_holds_after_the_runtime_exits(self, mock_timeout, tmp_path):
+        pid_file = tmp_path / "leftover.pid"
+        # The runtime exits, and the process it leaves outside its process group keeps its output open.
+        try:
+            with patch.object(
+                LangSDKTaskHandlerProcessorProcess,
+                "close",
+                autospec=True,
+                side_effect=LangSDKTaskHandlerProcessorProcess.close,
+            ) as mock_close:
+                result = _run(
+                    tmp_path,
+                    deadline=time.monotonic() + 1,
+                    argv=[sys.executable, "-c", _LEAVE_A_CHILD_OUTSIDE_THE_GROUP, os.fspath(pid_file)],
+                )
+        finally:
+            if pid_file.exists():
+                with contextlib.suppress(ProcessLookupError):
+                    os.kill(int(pid_file.read_text()), signal.SIGKILL)
+        [proc] = [c.args[0] for c in mock_close.call_args_list]
+
+        assert result.import_errors == {
+            "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} by its deadline"
+        }
+        assert proc._exit_code == 0
+        assert not proc._open_sockets
+
+    @pytest.mark.execution_timeout(30)
+    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
+    def test_the_import_timeout_applies_when_it_ends_before_the_deadline(self, mock_timeout, tmp_path):
+        result = _run(tmp_path, deadline=time.monotonic() + 30, argv=["/bin/sh", "-c", "exec sleep 60"])
+
+        assert result.import_errors == {
+            "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} within 1.0s, "
+            "the limit set by [core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
+        }
+
+    @pytest.mark.execution_timeout(30)
+    @patch.object(FakeCoordinator, "parse_task_handler", autospec=True)
+    def test_an_answer_received_before_the_deadline_is_kept(self, mock_parse_task_handler, tmp_path):
+        def reply(request, comms):
+            comms.send(_reply_with(import_errors={"etl.artifact": "handler registry failed"})(request, comms))
+            _block_until_killed(comms)
+
+        mock_parse_task_handler.side_effect = play_runtime(reply)
+
+        result = _run(tmp_path, deadline=time.monotonic() + 1)
+
+        assert result.import_errors == {"etl.artifact": "handler registry failed"}
 
     @pytest.mark.execution_timeout(30)
     @conf_vars({("dag_processor", "dag_file_processor_timeout"): "1"})
