@@ -29,7 +29,7 @@ DOCKERFILE = Path(__file__).parents[3] / "Dockerfile.ci"
 def test_dependency_context_preserves_manifests_without_source(tmp_path, with_lock):
     source = tmp_path / "checkout with spaces"
     destination = tmp_path / "manifests"
-    for directory in ("", "task-sdk", "providers/example", "shared/example"):
+    for directory in ("", "task-sdk", "providers/example", "shared/example", "providers/example with spaces"):
         member = source / directory
         member.mkdir(parents=True, exist_ok=True)
         (member / "pyproject.toml").write_text(f"# manifest for {directory}\n")
@@ -50,6 +50,7 @@ def test_dependency_context_preserves_manifests_without_source(tmp_path, with_lo
         "pyproject.toml",
         "task-sdk/pyproject.toml",
         "providers/example/pyproject.toml",
+        "providers/example with spaces/pyproject.toml",
         "shared/example/pyproject.toml",
     }
     if with_lock:
