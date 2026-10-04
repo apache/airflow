@@ -3515,6 +3515,10 @@ export type ListBackfillsUiData = {
     createdAtLt?: string | null;
     createdAtLte?: string | null;
     dagId?: string | null;
+    durationGt?: number | null;
+    durationGte?: number | null;
+    durationLt?: number | null;
+    durationLte?: number | null;
     fromDateGt?: string | null;
     fromDateGte?: string | null;
     fromDateLt?: string | null;

@@ -279,6 +279,10 @@ export const prefetchUseBackfillServiceListBackfillDagRuns = (queryClient: Query
 * @param data.maxActiveRunsGt
 * @param data.maxActiveRunsLte
 * @param data.maxActiveRunsLt
+* @param data.durationGte
+* @param data.durationGt
+* @param data.durationLte
+* @param data.durationLt
 * @param data.reprocessBehavior
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
 * @param data.dagId
@@ -286,7 +290,7 @@ export const prefetchUseBackfillServiceListBackfillDagRuns = (queryClient: Query
 * @returns BackfillCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseBackfillServiceListBackfillsUi = (queryClient: QueryClient, { active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
+export const prefetchUseBackfillServiceListBackfillsUi = (queryClient: QueryClient, { active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
   active?: boolean;
   completedAtGt?: string;
   completedAtGte?: string;
@@ -297,6 +301,10 @@ export const prefetchUseBackfillServiceListBackfillsUi = (queryClient: QueryClie
   createdAtLt?: string;
   createdAtLte?: string;
   dagId?: string;
+  durationGt?: number;
+  durationGte?: number;
+  durationLt?: number;
+  durationLte?: number;
   fromDateGt?: string;
   fromDateGte?: string;
   fromDateLt?: string;
@@ -313,7 +321,7 @@ export const prefetchUseBackfillServiceListBackfillsUi = (queryClient: QueryClie
   toDateGte?: string;
   toDateLt?: string;
   toDateLte?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }), queryFn: () => BackfillService.listBackfillsUi({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }), queryFn: () => BackfillService.listBackfillsUi({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }) });
 /**
 * Get Connection
 * Get a connection entry.
