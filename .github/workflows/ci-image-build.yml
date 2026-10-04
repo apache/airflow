@@ -402,41 +402,18 @@ jobs:
       - name: "Check disk space after build"
         run: df -H
 
-  # Run checkout code in a separate job with no branch-cache publications. This optional
-  # producer hands the snapshot only to consumers of the same workflow run.
-  snapshot-ci-images:
-    name: "Snapshot CI ${{ inputs.platform }} image ${{ matrix.python-version }}"
-    needs: build-ci-images
-    if: >
-      github.event_name == 'pull_request' &&
-      inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
-      (inputs.checkout-ref == '' || inputs.checkout-ref == github.sha)
-    continue-on-error: true
-    timeout-minutes: 20
-    runs-on: ${{ fromJSON(inputs.runners) }}
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ${{ fromJSON(inputs.python-versions) }}
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: "Checkout sources"
+      # All branch caches are published before checkout code snapshots and prunes Docker.
+      - name: "Checkout workflow commit for optional snapshot"
+        id: snapshot-checkout
+        continue-on-error: true
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: "Prepare authoritative CI image"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: ${{ inputs.platform }}
-          python: ${{ matrix.python-version }}
-          use-uv: ${{ inputs.use-uv }}
-          make-mnt-writeable-and-cleanup: 'true'
-          restore-snapshot: 'false'
+        if: >
+          github.event_name == 'pull_request' &&
+          inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
+          (inputs.checkout-ref == '' || inputs.checkout-ref == github.sha)
       - name: "Snapshot CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         id: snapshot-export
         continue-on-error: true
@@ -446,6 +423,7 @@ jobs:
           ./scripts/ci/docker_data_root_snapshot.sh create
           "/mnt/ci-image-snapshot-${PLATFORM//\//_}-${PYTHON_MAJOR_MINOR_VERSION}.tar.zst"
         shell: bash
+        if: steps.snapshot-checkout.outcome == 'success'
       - name: "Upload CI image snapshot ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
