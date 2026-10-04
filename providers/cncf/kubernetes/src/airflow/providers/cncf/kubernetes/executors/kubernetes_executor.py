@@ -869,18 +869,27 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.debug("TI key not in running, ignoring duplicate completion event: %s", key)
                 return
 
-        if self.kube_config.delete_worker_pods:
-            if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
-                self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
-                self.log.info(
-                    "Deleted pod associated with the TI %s. Pod name: %s. Namespace: %s",
-                    key,
-                    pod_name,
-                    namespace,
-                )
-        else:
-            self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
-            self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
+        # The key was removed from self.running above; if a pod API call fails, sync()
+        # re-queues the result for a retry, so the key must be restored here or the
+        # retry would look like a duplicate completion and the pod would never be
+        # cleaned up (nor the terminal event reported).
+        try:
+            if self.kube_config.delete_worker_pods:
+                if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
+                    self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
+                    self.log.info(
+                        "Deleted pod associated with the TI %s. Pod name: %s. Namespace: %s",
+                        key,
+                        pod_name,
+                        namespace,
+                    )
+            else:
+                self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
+                self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
+        except Exception:
+            if not adopted_completed_pod:
+                self.running.add(key)
+            raise
 
         if (
             attempt is not None
