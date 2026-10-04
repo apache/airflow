@@ -28,10 +28,24 @@ from cadwyn import (
 )
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    PreviousTIResponse,
+    TaskInstance,
     TerminalStateNonSuccess,
     TIRunContext,
     TITerminalStatePayload,
 )
+
+
+class AddTaskInstanceRegionCoordinates(VersionChange):
+    """Carry task execution coordinates independently of public mapped position, omitting them outside a region."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(TaskInstance).field("region_id").didnt_exist,
+        schema(TaskInstance).field("region_index").didnt_exist,
+        schema(PreviousTIResponse).field("region_id").didnt_exist,
+        schema(PreviousTIResponse).field("region_index").didnt_exist,
+    )
 
 
 class AddStoppedTaskReport(VersionChange):

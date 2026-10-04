@@ -410,6 +410,17 @@
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
         "group_display_name": {"type": "string" },
         "is_mapped": { "type": "boolean" },
+        "loop": {
+          "type": "object",
+          "required": ["max_iterations", "has_until", "terminal_task_id", "gate_task_id"],
+          "properties": {
+            "max_iterations": { "type": "integer", "minimum": 1 },
+            "has_until": { "type": "boolean" },
+            "terminal_task_id": { "type": "string" },
+            "gate_task_id": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },
         "tooltip": { "type": "string" },

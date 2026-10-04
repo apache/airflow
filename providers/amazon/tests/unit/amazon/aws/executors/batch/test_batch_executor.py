@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import logging
 import os
 from unittest import mock
 from unittest.mock import patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import yaml
@@ -1009,6 +1010,8 @@ class TestAwsBatchExecutor:
             task.run_id = "test_run"
             task.hostname = "host"
             task.map_index = -1
+            task.region_id = UUID(int=0)
+            task.region_index = -1
             task.pool_slots = 1
             task.priority_weight = 1
             task.context_carrier = {}
@@ -1033,7 +1036,31 @@ class TestAwsBatchExecutor:
                     "2024-01-01",
                 ]
 
-        not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
+        with contextlib.ExitStack() as stack:
+            # Newer Airflow versions look up the task log address through the task instance's session, which
+            # the mocks do not have. Older versions have no such lookup: the import fails, nothing is patched.
+            with contextlib.suppress(ImportError):
+                from airflow.utils.log.task_log_address import TaskLogContext
+
+                stack.enter_context(
+                    mock.patch("airflow.executors.workloads.task.object_session", autospec=True)
+                )
+                stack.enter_context(
+                    mock.patch(
+                        "airflow.utils.log.task_log_address.prepare_task_log_contexts",
+                        autospec=True,
+                        side_effect=lambda tis, **_: {
+                            ti.id: TaskLogContext(
+                                filename_template="{dag_id}/{run_id}/{task_id}/{try_number}.log",
+                                logical_date="",
+                                data_interval_start="",
+                                data_interval_end="",
+                            )
+                            for ti in tis
+                        },
+                    )
+                )
+            not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
         mock_executor.batch.describe_jobs.assert_called_once()
         # Two of the three tasks should be adopted.

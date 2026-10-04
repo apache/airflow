@@ -55,6 +55,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
 from airflow.sdk.definitions._internal.expandinput import MappedArgument
+from airflow.sdk.definitions._internal.loop import LoopTaskGroup  # noqa: SDK001
 from airflow.sdk.definitions.asset import (
     AssetAliasEvent,
     AssetAliasUniqueKey,
@@ -87,7 +88,11 @@ from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
-from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
+from airflow.serialization.definitions.taskgroup import (
+    SerializedLoopTaskGroup,
+    SerializedMappedTaskGroup,
+    SerializedTaskGroup,
+)
 from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.serialization.encoders import (
     coerce_to_core_timetable,
@@ -2258,6 +2263,14 @@ class TaskGroupSerialization(BaseSerialization):
         if task_group.doc_md is not None:
             encoded["doc_md"] = task_group.doc_md
 
+        if isinstance(task_group, LoopTaskGroup):
+            encoded["loop"] = {
+                "max_iterations": task_group.max_iterations,
+                "has_until": task_group.has_until,
+                "terminal_task_id": task_group.terminal_task_id,
+                "gate_task_id": task_group.gate_task_id,
+            }
+
         if isinstance(task_group, MappedTaskGroup):
             encoded["expand_input"] = encode_expand_input(task_group._expand_input)
             encoded["is_mapped"] = True
@@ -2281,7 +2294,12 @@ class TaskGroupSerialization(BaseSerialization):
         kwargs["doc_md"] = cls.deserialize(encoded_group.get("doc_md"))
         kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
 
-        if not encoded_group.get("is_mapped"):
+        group: SerializedTaskGroup
+        if "loop" in encoded_group:
+            group = SerializedLoopTaskGroup(
+                group_id=group_id, parent_group=parent_group, dag=dag, **encoded_group["loop"], **kwargs
+            )
+        elif not encoded_group.get("is_mapped"):
             group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
         else:
             xi = encoded_group["expand_input"]

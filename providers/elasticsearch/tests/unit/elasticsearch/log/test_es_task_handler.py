@@ -556,6 +556,12 @@ class TestElasticsearchTaskHandler:
     def test_render_log_id(self, ti):
         assert _render_log_id(self.es_task_handler.log_id_template, ti, 1) == self.LOG_ID
 
+    def test_render_log_id_uses_the_stored_region_index_of_a_loop_pass(self):
+        public = _MockTI(map_index=-1)
+        public.region_index = 3
+        assert _render_log_id("{map_index}", public, 1) == "3"
+        assert _render_log_id("{map_index}", _MockTI(map_index=4), 1) == "4"
+
     def test_clean_date(self):
         clean_logical_date = _clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"

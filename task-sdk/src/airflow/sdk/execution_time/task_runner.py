@@ -33,6 +33,7 @@ from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn, cast
 from urllib.parse import quote
+from uuid import UUID
 
 import attrs
 import lazy_object_proxy
@@ -250,6 +251,12 @@ class RuntimeTaskInstance(TaskInstance):
 
     sentry_integration: str = ""
 
+    def model_post_init(self, context: Any) -> None:
+        if self.region_id is None:
+            self.region_id = UUID(int=0)
+        if self.region_index is None:
+            self.region_index = self.map_index
+
     @property
     def stats_tags(self) -> dict[str, str]:
         """Metric tags for this task instance, including dag tags and team_name when available."""
@@ -327,7 +334,8 @@ class RuntimeTaskInstance(TaskInstance):
                         dag_id=self.dag_id,
                         run_id=self.run_id,
                         task_id=self.task_id,
-                        map_index=self.map_index if self.map_index is not None else -1,
+                        map_index=self.region_index if self.region_index is not None else -1,
+                        region_id=self.region_id or UUID(int=0),
                     ),
                 ),
             }
