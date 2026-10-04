@@ -1034,6 +1034,7 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert response.status_code == 200
         extra = _last_audit_extra(session, "update_xcom_entry")
         assert extra["value"] == "***"
+        assert extra["xcom_key"] == TEST_XCOM_KEY
         assert "xcom-payload-canary" not in json.dumps(extra)
 
     @conf_vars({("core", "multi_team"): "True"})

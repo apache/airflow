@@ -259,7 +259,9 @@ def action_logging(event: str | None = None):
         elif "connection" in event_name:
             extra_fields = _mask_connection_fields(request_body or extra_fields)
         elif "xcom" in event_name:
-            extra_fields = _mask_xcom_fields(request_body or extra_fields)
+            # Unlike Variables and Connections, an XCom update names its target only in the path
+            # (``xcom_key``) and query, so the body is merged into that context, not swapped for it.
+            extra_fields = _mask_xcom_fields({**extra_fields, **masked_body_json})
         elif has_json_body:
             extra_fields = {**extra_fields, **masked_body_json}
 
