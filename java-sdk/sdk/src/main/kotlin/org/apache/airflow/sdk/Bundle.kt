@@ -196,6 +196,7 @@ class Bundle(
 // recursive and could blow up with deep dependency chains. I kept the recursive implementation
 // for readability since the scenario is unlikely; feel free to rewrite if it blows up for you.
 private fun checkNoCycle(dag: DagDef) {
+  val expansion = dag.expandGroupEdges()
   val visiting = mutableSetOf<String>()
   val done = mutableSetOf<String>()
 
@@ -204,10 +205,11 @@ private fun checkNoCycle(dag: DagDef) {
     require(visiting.add(def.id)) {
       "Task dependencies in Dag '${dag.id}' contain a cycle involving task '${def.id}'"
     }
-    def.upstreams.forEach(::visit)
+    expansion.upstreamsOf(def).forEach { dag.tasks[it]?.let(::visit) }
     visiting -= def.id
     done += def.id
   }
+
   dag.tasks.values.forEach(::visit)
 }
 

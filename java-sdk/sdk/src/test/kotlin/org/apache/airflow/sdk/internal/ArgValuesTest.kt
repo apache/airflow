@@ -141,7 +141,7 @@ internal class ArgValuesTest {
       .distinct()
       .forEach { dag.addTask(it) }
     val def = TaskDef("consumer", NoopArgTask::class.java)
-    Refs.record(dag, listOf("consumer")) { Refs.call<Unit>(def, *inputs.toTypedArray()) }
+    Refs.record(dag, listOf("consumer"), emptyList()) { Refs.call<Unit>("", def, *inputs.toTypedArray()) }
     return contextWithoutTaskDef().also { it.taskDef = def }
   }
 
