@@ -43,7 +43,7 @@ pytestmark = pytest.mark.db_test
 
 
 class TestLogTaskInstanceReproduction:
-    def test_coordinate_join_selects_only_current_task_instance(self, dag_maker, session):
+    def test_log_stays_attached_to_try_that_emitted_it(self, dag_maker, session):
         with dag_maker("log_attempt_history", session=session):
             EmptyOperator(task_id="task")
         run = dag_maker.create_dagrun()
@@ -52,22 +52,25 @@ class TestLogTaskInstanceReproduction:
         ti = session.merge(ti)
         session.flush()
         log = Log(event="attempt_event", task_instance=ti)
-        session.add(log)
+        legacy = Log(event="attempt_event", task_instance=ti.key)
+        session.add_all([log, legacy])
         session.flush()
-        log_id = log.id
-        old_id = ti.id
+        log_id, legacy_id, old_id = log.id, legacy.id, ti.id
+        assert log.task_instance_id == old_id
+        assert legacy.task_instance_id is None
         successor = ti.prepare_db_for_next_try(session)
         successor_id = successor.id
         session.commit()
         session.expunge_all()
 
-        rows = session.execute(
-            select(Log).where(Log.id == log_id).options(joinedload(Log.task_instance))
+        rows = session.scalars(
+            select(Log).where(Log.id.in_([log_id, legacy_id])).options(joinedload(Log.task_instance))
         ).all()
 
-        assert len(rows) == 1
-        assert rows[0][0].task_instance.id == successor_id
-        assert rows[0][0].task_instance.id != old_id
+        by_id = {row.id: row for row in rows}
+        assert successor_id != old_id
+        assert by_id[log_id].task_instance.id == old_id
+        assert by_id[legacy_id].task_instance is None
 
     def test_log_task_instance_raises_without_joinedload(self, dag_maker, session):
         """Accessing Log.task_instance without joinedload should raise."""

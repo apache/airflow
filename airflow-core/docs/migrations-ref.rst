@@ -39,7 +39,11 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``7f8c9a2d410e`` (head) | ``54a27b6f9d01`` | ``3.4.0``         | Rename the stored map index to region_index and add the      |
+| ``a5d7b9c13e40`` (head) | ``c3e7a9182f64`` | ``3.4.0``         | Preserve exact task execution attribution in asset state.    |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``c3e7a9182f64``        | ``7f8c9a2d410e`` | ``3.4.0``         | Attribute log and asset events to exact task tries.          |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``7f8c9a2d410e``        | ``54a27b6f9d01`` | ``3.4.0``         | Rename the stored map index to region_index and add the      |
 |                         |                  |                   | dynamic region slot key.                                     |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``54a27b6f9d01``        | ``e7c2a91bd540`` | ``3.4.0``         | Add dynamic region storage.                                  |

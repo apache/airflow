@@ -1925,8 +1925,9 @@ class TestTIUpdateState:
         )
         session.commit()
 
+        emitting_id = ti.id
         response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
+            f"/execution/task-instances/{emitting_id}/state",
             json=payload,
         )
 
@@ -1935,7 +1936,7 @@ class TestTIUpdateState:
         logs = session.scalars(select(Log).where(Log.dag_id == ti.dag_id)).all()
         assert len(logs) == 1
         assert logs[0].event == expected_event
-        assert logs[0].task_instance_id == ti.id
+        assert logs[0].task_instance_id == emitting_id
         assert logs[0].task_id == ti.task_id
         assert logs[0].dag_id == ti.dag_id
         assert logs[0].run_id == ti.run_id

@@ -44,6 +44,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
     asset_alias_asset_event_association_table,
 )
+from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container, prune_dict
@@ -340,11 +341,21 @@ class AssetManager(LoggingMixin):
             "partition_key": partition_key,
         }
         if task_instance:
+            # TaskInstance imports the asset manager.
+            from airflow.models.task_coordinates import public_map_index_expression
+
+            source_map_index = task_instance.region_index
+            if task_instance.region_id != SENTINEL_REGION_ID:
+                model = type(task_instance)
+                source_map_index = session.execute(
+                    select(public_map_index_expression(model)).where(model.id == task_instance.id)
+                ).scalar_one()
             event_kwargs.update(
                 source_task_id=task_instance.task_id,
                 source_dag_id=task_instance.dag_id,
                 source_run_id=task_instance.run_id,
-                source_map_index=task_instance.map_index,
+                source_map_index=source_map_index,
+                source_task_instance_id=task_instance.id,
             )
 
         asset_event = AssetEvent(**event_kwargs)

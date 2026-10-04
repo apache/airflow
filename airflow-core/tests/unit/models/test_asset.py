@@ -20,6 +20,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select, update
 
+from airflow.assets.manager import AssetManager
 from airflow.models.asset import (
     AssetAliasModel,
     AssetEvent,
@@ -33,6 +34,8 @@ from airflow.models.asset import (
     remove_references_to_deleted_dags,
 )
 from airflow.models.dag import DagModel
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, AssetAlias
 from airflow.serialization.definitions.assets import SerializedAssetAlias
@@ -41,6 +44,69 @@ from airflow.utils.state import TaskInstanceState
 from tests_common.test_utils.dag import sync_dags_to_db
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.mark.parametrize("kind", ["sentinel", "root_map", "loop", "nested_map"])
+def test_asset_event_keeps_exact_producer_identity_after_clear(dag_maker, session, kind):
+    asset = Asset(name="producer_identity", uri="test://producer_identity")
+    with dag_maker():
+        EmptyOperator(task_id="producer", outlets=[asset])
+    run = dag_maker.create_dagrun()
+    ti = run.task_instances[0]
+    if kind != "sentinel":
+        parent = None
+        if kind == "nested_map":
+            parent = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+            session.add(parent)
+            session.flush()
+        region = DynamicRegion(
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            node_id="producer" if kind in {"root_map", "nested_map"} else "loop",
+            parent_region_id=parent.id if parent else None,
+            parent_region_index=2 if parent else None,
+        )
+        session.add(region)
+        session.flush()
+        ti.region_id, ti.region_index = region.id, 3
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    event = AssetManager.register_asset_change(task_instance=ti, asset=asset, session=session)
+    assert event.source_task_instance_id == ti.id
+    assert event.source_map_index == (3 if kind in {"root_map", "nested_map"} else -1)
+    session.expire(event, ["source_task_instance"])
+    assert event.source_task_instance.id == ti.id
+    original_id = ti.id
+
+    clear_task_instances([ti], session=session)
+    session.flush()
+    successor = session.scalars(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.run_id == ti.run_id,
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.region_id == ti.region_id,
+            TaskInstance.region_index == ti.region_index,
+            TaskInstance.working_set.is_(True),
+        )
+    ).one()
+    assert successor.id != original_id
+    session.expire(event, ["source_task_instance"])
+    assert event.source_task_instance_id == original_id
+    assert event.source_task_instance.id == original_id
+    assert event.source_task_instance.working_set is None
+
+    legacy = AssetEvent(
+        asset_id=event.asset_id,
+        source_dag_id=ti.dag_id,
+        source_run_id=ti.run_id,
+        source_task_id=ti.task_id,
+        source_map_index=event.source_map_index,
+    )
+    session.add(legacy)
+    session.flush()
+    assert legacy.source_task_instance is None
 
 
 @pytest.fixture(autouse=True)
@@ -59,7 +125,7 @@ def test_asset_alias_from_serialized():
     assert asset_alias_model.group == "test_group"
 
 
-def test_source_task_instance_resolves_only_current_coordinate_row(dag_maker, session):
+def test_source_task_instance_follows_attributed_task_instance_not_coordinates(dag_maker, session):
     with dag_maker("asset_attempt_history", session=session):
         EmptyOperator(task_id="task")
     run = dag_maker.create_dagrun()
@@ -75,18 +141,25 @@ def test_source_task_instance_resolves_only_current_coordinate_row(dag_maker, se
         source_run_id=ti.run_id,
         source_task_id=ti.task_id,
         source_map_index=ti.map_index,
+        source_task_instance_id=ti.id,
     )
-    session.add(event)
+    coordinate_only = AssetEvent(
+        asset_id=asset.id,
+        source_dag_id=ti.dag_id,
+        source_run_id=ti.run_id,
+        source_task_id=ti.task_id,
+        source_map_index=ti.map_index,
+    )
+    session.add_all([event, coordinate_only])
     session.flush()
-    event_id = event.id
-    old_id = ti.id
+    event_id, coordinate_only_id, old_id = event.id, coordinate_only.id, ti.id
     successor = ti.prepare_db_for_next_try(session)
-    successor_id = successor.id
     session.commit()
     session.expire_all()
 
-    assert session.get(AssetEvent, event_id).source_task_instance.id == successor_id
-    assert successor_id != old_id
+    assert successor.id != old_id
+    assert session.get(AssetEvent, event_id).source_task_instance.id == old_id
+    assert session.get(AssetEvent, coordinate_only_id).source_task_instance is None
 
 
 class TestAssetAliasModel:

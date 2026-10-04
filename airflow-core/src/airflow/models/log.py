@@ -73,8 +73,8 @@ class Log(Base):
     task_instance: Mapped[TaskInstance | None] = relationship(
         "TaskInstance",
         viewonly=True,
-        foreign_keys=[dag_id, task_id, run_id, map_index],
-        primaryjoin="and_(Log.dag_id == TaskInstance.dag_id, Log.task_id == TaskInstance.task_id, Log.run_id == TaskInstance.run_id, Log.map_index == TaskInstance.region_index, TaskInstance.working_set.is_(True))",
+        foreign_keys=[task_instance_id],
+        primaryjoin="Log.task_instance_id == TaskInstance.id",
         lazy="raise",
     )
 
@@ -82,6 +82,7 @@ class Log(Base):
         Index("idx_log_dttm", dttm),
         Index("idx_log_event", event),
         Index("idx_log_task_instance", dag_id, task_id, run_id, map_index, try_number),
+        Index("idx_log_task_instance_id", task_instance_id),
         Index("idx_log_team_name", team_name),
     )
 

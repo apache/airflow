@@ -219,12 +219,12 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
             if ti.state == TaskInstanceState.RUNNING:
                 log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
                 msg = "Forcing task to fail due to dag's `fail_fast` setting."
-                session.add(Log(event="fail task", extra=msg, task_instance=ti.key))
+                session.add(Log(event="fail task", extra=msg, task_instance=ti))
                 ti.error(session=session)
             else:
                 log.info("Setting task %s to SKIPPED due to dag's `fail_fast` setting.", ti.task_id)
                 msg = "Skipping task due to dag's `fail_fast` setting."
-                session.add(Log(event="skip task", extra=msg, task_instance=ti.key))
+                session.add(Log(event="skip task", extra=msg, task_instance=ti))
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
             log.info("Not skipping teardown task '%s'", ti.task_id)

@@ -193,6 +193,10 @@ export type AssetStateStoreLastUpdatedBy = {
     run_id?: string | null;
     task_id?: string | null;
     map_index?: number | null;
+    task_instance_id?: string | null;
+    region_id?: string | null;
+    region_index?: number | null;
+    try_number?: number | null;
 };
 
 /**
@@ -3340,6 +3344,7 @@ export type GetAssetEventsData = {
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
     sourceTaskId?: string | null;
+    sourceTaskInstanceId?: string | null;
     timestampGt?: string | null;
     timestampGte?: string | null;
     timestampLt?: string | null;
@@ -4226,6 +4231,7 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    taskInstanceId?: string | null;
     teams?: Array<(string)>;
     tryNumber?: number | null;
 };

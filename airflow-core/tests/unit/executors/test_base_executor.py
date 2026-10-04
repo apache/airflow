@@ -161,6 +161,16 @@ def test_get_event_buffer_releases_metadata_for_discarded_tasks():
     assert executor._task_coordinates == {}
 
 
+def test_log_task_event_preserves_archived_identity_without_coordinates():
+    executor = BaseExecutor()
+    archived_id = uuid4()
+
+    executor.log_task_event(event="failed", extra="late executor event", ti_key=TaskInstanceUuid(archived_id))
+
+    assert executor._task_event_logs[0].task_instance_id == archived_id
+    assert executor._task_event_logs[0].dag_id is None
+
+
 def test_log_task_event_branches_on_key_type():
     executor = BaseExecutor()
     ti_key = TaskInstanceUuid(uuid4())
@@ -175,6 +185,7 @@ def test_log_task_event_branches_on_key_type():
     executor.log_task_event(event="task_event", extra="extra", ti_key=ti_key)
     assert len(executor._task_event_logs) == 1
     log = executor._task_event_logs[0]
+    assert log.task_instance_id == ti_key.id
     assert (log.dag_id, log.task_id, log.run_id, log.try_number) == ("my_dag", "my_task", "run", 1)
 
     callback_key = CallbackKey(id=str(UUID("00000000-0000-0000-0000-000000000001")))

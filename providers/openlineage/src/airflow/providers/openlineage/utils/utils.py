@@ -21,10 +21,11 @@ import datetime
 import json
 import logging
 from collections.abc import Callable
-from contextlib import suppress
+from contextlib import nullcontext, suppress
 from functools import wraps
 from importlib import metadata
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import attrs
 from openlineage.client.facet_v2 import (
@@ -74,6 +75,7 @@ from airflow.providers.openlineage.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
     get_base_airflow_version_tuple,
 )
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -664,6 +666,26 @@ def get_dag_documentation(dag: DAG | SerializedDAG | None) -> tuple[str | None, 
     return None, None
 
 
+def get_task_instance_map_index(task_instance: TaskInstance | RuntimeTaskInstance) -> int:
+    if AIRFLOW_V_3_4_PLUS and isinstance(task_instance, TaskInstance):
+        if task_instance.region_id.int == 0:
+            return task_instance.region_index
+
+        from sqlalchemy import select
+        from sqlalchemy.orm import object_session
+
+        from airflow.models.dynamic_region import DynamicRegion
+        from airflow.utils.session import create_session
+
+        session = object_session(task_instance)
+        with nullcontext(session) if session is not None else create_session() as session:
+            region_node_id = session.scalar(
+                select(DynamicRegion.node_id).where(DynamicRegion.id == task_instance.region_id)
+            )
+        return task_instance.region_index if region_node_id == task_instance.task_id else -1
+    return getattr(task_instance, "map_index", -1)
+
+
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
@@ -671,8 +693,13 @@ def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]
         "AirflowMappedTaskRunFacet is deprecated and will be removed. "
         "Use information from AirflowRunFacet instead."
     )
-    if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
-        return {"airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(task_instance)}
+    if (map_index := get_task_instance_map_index(task_instance)) != -1 and task_instance.task is not None:
+        return {
+            "airflow_mappedTask": AirflowMappedTaskRunFacet(
+                mapIndex=map_index,
+                operatorClass=get_fully_qualified_class_name(task_instance.task),
+            )
+        }
     return {}
 
 
@@ -1117,15 +1144,17 @@ class TaskInstanceInfo(InfoJsonEncodable):
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
         "note": lambda ti: safe_getattr(ti, "note", None),  # From manual state changes only
-        "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
-        "rendered_map_index": lambda ti: (
-            getattr(ti, "rendered_map_index", None) if getattr(ti, "map_index", -1) != -1 else None
-        ),
         "dag_bundle_version": lambda ti: (
             ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
         ),
         "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
+
+    def _extend_fields(self) -> None:
+        map_index = get_task_instance_map_index(self.obj)
+        self.map_index = map_index if map_index != -1 else None
+        self.rendered_map_index = getattr(self.obj, "rendered_map_index", None) if map_index != -1 else None
+        self._fields.extend(("map_index", "rendered_map_index"))
 
 
 class AssetInfo(InfoJsonEncodable):
@@ -1466,6 +1495,14 @@ def is_dag_run_asset_triggered(
     return dag_run.run_type == DagRunType.DATASET_TRIGGERED  # type: ignore[attr-defined]  # This attr is available on AF2, but mypy can't see it
 
 
+def get_regional_task_instance_run_id(task_instance: TaskInstance | RuntimeTaskInstance) -> str | None:
+    if AIRFLOW_V_3_4_PLUS:
+        region_id = getattr(task_instance, "region_id", None)
+        if isinstance(region_id, UUID) and region_id.int != 0:
+            return str(task_instance.id)
+    return None
+
+
 def build_task_instance_ol_run_id(
     dag_id: str,
     task_id: str,
@@ -1597,12 +1634,15 @@ def _extract_ol_info_from_asset_event(asset_event: AssetEvent) -> dict[str, str]
         A dictionary containing `job_name`, `job_namespace`, and optionally
         `run_id`, or `None` if insufficient information is available.
     """
-    # First check for TaskInstance
-    if ti := asset_event.source_task_instance:
+    ti = asset_event.source_task_instance
+    if ti:
         result = {
             "job_name": get_job_name(ti),
             "job_namespace": conf.namespace(),
         }
+        if run_id := get_regional_task_instance_run_id(ti):
+            result["run_id"] = run_id
+            return result
         source_dr = asset_event.source_dag_run
         if source_dr:
             logical_date = source_dr.logical_date  # Get logical date from DagRun for OL run_id generation
@@ -1614,7 +1654,7 @@ def _extract_ol_info_from_asset_event(asset_event: AssetEvent) -> dict[str, str]
                     task_id=ti.task_id,
                     try_number=ti.try_number,
                     logical_date=logical_date,
-                    map_index=ti.map_index,
+                    map_index=get_task_instance_map_index(ti),
                 )
         return result
 

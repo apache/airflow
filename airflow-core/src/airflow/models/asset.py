@@ -20,6 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -854,6 +855,7 @@ class AssetEvent(Base):
     source_task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    source_task_instance_id: Mapped[UUID | None] = mapped_column(sa.Uuid(), nullable=True)
     source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="-1")
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
@@ -861,6 +863,7 @@ class AssetEvent(Base):
     __tablename__ = "asset_event"
     __table_args__ = (
         Index("idx_asset_id_timestamp", asset_id, timestamp),
+        Index("idx_asset_event_source_ti", source_task_instance_id),
         Index("idx_asset_event_asset_id_partition_key", asset_id, partition_key),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
@@ -879,13 +882,7 @@ class AssetEvent(Base):
 
     source_task_instance = relationship(
         "TaskInstance",
-        primaryjoin="""and_(
-            AssetEvent.source_dag_id == foreign(TaskInstance.dag_id),
-            AssetEvent.source_run_id == foreign(TaskInstance.run_id),
-            AssetEvent.source_task_id == foreign(TaskInstance.task_id),
-            AssetEvent.source_map_index == foreign(TaskInstance.region_index),
-            TaskInstance.working_set.is_(True),
-        )""",
+        primaryjoin="foreign(AssetEvent.source_task_instance_id) == TaskInstance.id",
         viewonly=True,
         lazy="select",
         uselist=False,
