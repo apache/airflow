@@ -48,6 +48,7 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
+from airflow.dag_processing.processor import TaskHandlerParseRequest
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.execution_time.comms import TaskState
 from airflow.sdk.execution_time.schema import (
@@ -335,6 +336,11 @@ class TestResolveBodyClass:
     def test_extra_fields_in_body_do_not_affect_resolution(self, mock_registry):
         body = {"type": "_LangSdkRequest", "ti_id": "t1", "field_a": 7}
         assert resolve_body_class(body) is _LangSdkRequest
+
+
+class TestRealRegistry:
+    def test_resolves_task_handler_parse_request(self):
+        assert resolve_body_class({"type": "TaskHandlerParseRequest"}) is TaskHandlerParseRequest
 
 
 class TestLazyCadwynImport:
