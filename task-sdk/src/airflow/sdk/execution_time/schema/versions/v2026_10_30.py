@@ -29,8 +29,60 @@ from __future__ import annotations
 from cadwyn import VersionChange, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
-from airflow.sdk.api.datamodels._generated import TIRunContext
-from airflow.sdk.execution_time.comms import TaskState
+from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstance, TIRunContext
+from airflow.sdk.execution_time.comms import (
+    DeleteXCom,
+    GetPreviousTI,
+    GetTaskBreadcrumbs,
+    GetTaskStates,
+    GetTICount,
+    GetXCom,
+    GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
+    SetXCom,
+    TaskState,
+)
+
+
+class AddRegionSelectors(VersionChange):
+    """Carry explicit coordinates in XCom and task instance requests."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(GetTICount).field("region_id").didnt_exist,
+        schema(GetTICount).field("region_index").didnt_exist,
+        schema(GetTaskStates).field("region_id").didnt_exist,
+        schema(GetTaskStates).field("region_index").didnt_exist,
+        schema(GetPreviousTI).field("region_id").didnt_exist,
+        schema(GetPreviousTI).field("region_index").didnt_exist,
+        schema(GetTaskBreadcrumbs).field("region_id").didnt_exist,
+        schema(GetTaskBreadcrumbs).field("region_index").didnt_exist,
+        schema(GetXCom).field("region_id").didnt_exist,
+        schema(GetXCom).field("region_index").didnt_exist,
+        schema(GetXComCount).field("region_id").didnt_exist,
+        schema(GetXComCount).field("region_index").didnt_exist,
+        schema(GetXComSequenceItem).field("region_id").didnt_exist,
+        schema(GetXComSequenceItem).field("region_index").didnt_exist,
+        schema(GetXComSequenceSlice).field("region_id").didnt_exist,
+        schema(GetXComSequenceSlice).field("region_index").didnt_exist,
+        schema(SetXCom).field("region_id").didnt_exist,
+        schema(SetXCom).field("region_index").didnt_exist,
+        schema(DeleteXCom).field("region_id").didnt_exist,
+        schema(DeleteXCom).field("region_index").didnt_exist,
+    )
+
+
+class AddTaskInstanceRegionCoordinates(VersionChange):
+    """Carry task coordinates in supervisor startup and previous-instance messages."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(TaskInstance).field("region_id").didnt_exist,
+        schema(TaskInstance).field("region_index").didnt_exist,
+        schema(PreviousTIResponse).field("region_id").didnt_exist,
+        schema(PreviousTIResponse).field("region_index").didnt_exist,
+    )
 
 
 class AddArgBindingsToSupervisorTIRunContext(VersionChange):

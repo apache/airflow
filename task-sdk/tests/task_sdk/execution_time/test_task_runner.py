@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import call, patch
+from uuid import UUID
 
 import attrs
 import pandas as pd
@@ -51,6 +52,7 @@ from airflow._shared.observability.traces import (
 )
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.listeners import hookimpl
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
@@ -221,7 +223,17 @@ class CustomOperator(BaseOperator):
         print(f"Hello World {task_id}!")
 
 
-def test_parse(test_dags_dir: Path, make_ti_context):
+@pytest.mark.parametrize(
+    "coordinates",
+    [
+        {},
+        {"region_id": None, "region_index": None},
+        {"region_id": UUID(int=0), "region_index": -1},
+        {"region_id": uuid7(), "region_index": 7},
+    ],
+)
+@pytest.mark.parametrize("map_index", [-1, 3])
+def test_parse(test_dags_dir: Path, make_ti_context, coordinates, map_index):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
         ti=TaskInstance(
@@ -232,6 +244,8 @@ def test_parse(test_dags_dir: Path, make_ti_context):
             try_number=1,
             dag_version_id=uuid7(),
             queue="default",
+            map_index=map_index,
+            **coordinates,
         ),
         dag_rel_path="super_basic.py",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -258,6 +272,11 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 
     assert ti.task
     assert ti.task.dag
+    assert ti.region_id == (coordinates.get("region_id") or UUID(int=0))
+    assert ti.region_index == (
+        coordinates["region_index"] if coordinates.get("region_index") is not None else map_index
+    )
+    assert ti.map_index == map_index
 
 
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
@@ -726,14 +745,17 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
     mock_ti.task_id = "my_task"
     mock_ti.run_id = "test_run"
     mock_ti.try_number = 1
-    mock_ti.map_index = -1
+    mock_ti.region_id = UUID(int=0)
+    mock_ti.region_index = -1
     mock_ti.queued_dttm = None
     mock_ti.start_date = timezone.utcnow()
     mock_ti.dag_run.context_carrier = dag_run_carrier
     mock_ti.context_carrier = ti_carrier
     api_tracer = provider.get_tracer("airflow.api_fastapi.execution_api.routes.task_instances")
+    resolver = mock.create_autospec(TaskCoordinateResolver, instance=True)
+    resolver.public_map_index.return_value = -1
     with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.tracer", api_tracer):
-        _emit_task_span(mock_ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(mock_ti, TaskInstanceState.SUCCESS, resolver=resolver)
 
     finished = in_mem_exporter.get_finished_spans()
 

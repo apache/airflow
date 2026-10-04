@@ -75,6 +75,20 @@ type DagSpec struct {
 	Tags []string
 }
 
+type TaskGroupLoop struct {
+	// GateTaskID corresponds to the JSON schema field "gate_task_id".
+	GateTaskID string
+
+	// HasUntil corresponds to the JSON schema field "has_until".
+	HasUntil bool
+
+	// MaxIterations corresponds to the JSON schema field "max_iterations".
+	MaxIterations int
+
+	// TerminalTaskID corresponds to the JSON schema field "terminal_task_id".
+	TerminalTaskID string
+}
+
 // TaskGroupSpec holds the attributes of a task group other than its group_id.
 // DagRef.TaskGroup and TaskGroupRef.TaskGroup take at most one per group.
 type TaskGroupSpec struct {
@@ -83,6 +97,9 @@ type TaskGroupSpec struct {
 
 	// GroupDisplayName corresponds to the JSON schema field "group_display_name".
 	GroupDisplayName string
+
+	// Loop corresponds to the JSON schema field "loop".
+	Loop TaskGroupLoop
 
 	// PrefixGroupID says whether the group_id prefixes the IDs of the tasks and
 	// groups added through the group, as in "transform.cleanRows". When PrefixGroupID

@@ -32,10 +32,16 @@ from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
+from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import LegacyTaskDataOwner
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, XComModelV1, XComModelV2, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -44,6 +50,170 @@ from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.mark.parametrize("suffix", ["", "/item/0", "/item/-1", "/slice"])
+def test_regional_mapped_xcom_reads_resolve_live_producers_before_slicing(client, dag_maker, session, suffix):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    dr = dag_maker.create_dagrun()
+    first = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped")
+    session.add(first)
+    session.flush()
+    replacement = DynamicRegion(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped", forked_from_region_id=first.id
+    )
+    session.add(replacement)
+    session.flush()
+    tis = sorted(dr.task_instances, key=lambda ti: ti.region_index)
+    tis[0].region_id = first.id
+    tis[1].region_id = replacement.id
+    superseded = TaskInstance(
+        tis[0].task, tis[0].dag_version_id, run_id=dr.run_id, map_index=1, region_id=first.id
+    )
+    session.add(superseded)
+    session.flush()
+    for ti, value in [(tis[0], "zero"), (superseded, "archived"), (tis[1], "one")]:
+        XComModel.set_for_attempt(
+            task_instance_id=ti.id, key="key", value=value, serialize=False, session=session
+        )
+    superseded.archive(reason="test", session=session)
+    session.commit()
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/mapped/key"
+
+    assert client.head(url).headers["Content-Range"] == "map_indexes 2"
+    response = client.get(url + suffix, params={"map_index": 0} if not suffix else {})
+    assert response.status_code == 200
+    expected = {
+        "": {"key": "key", "value": "zero"},
+        "/item/0": "zero",
+        "/item/-1": "one",
+        "/slice": ["zero", "one"],
+    }
+    assert response.json() == expected[suffix]
+
+
+def test_xcom_write_coordinates_must_match_the_calling_task_instance(
+    client, create_task_instance, authenticate_as, session
+):
+    ti = create_task_instance()
+    region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop")
+    session.add(region)
+    session.commit()
+    authenticate_as(ti)
+    url = f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/key"
+    other = {"region_id": str(region.id), "region_index": -1}
+    own = {"region_id": str(ti.region_id), "region_index": ti.region_index}
+
+    assert client.post(url, params=other, json="regional").status_code == 404
+    assert client.delete(url, params=other).status_code == 404
+    assert client.post(url, params=own, json="legacy").status_code == 201
+    assert client.get(url, params=own).json() == {"key": "key", "value": "legacy"}
+    assert client.get(url, params=other).status_code == 404
+    assert client.delete(url, params=own).status_code == 200
+
+
+@pytest.fixture
+def loop_xcoms(client, dag_maker, session):
+    @task_group
+    def body():
+        EmptyOperator(task_id="producer") >> EmptyOperator(task_id="consumer")
+
+    with dag_maker(serialized=True) as dag:
+        EmptyOperator(task_id="outside") >> create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    first = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+    session.add(first)
+    session.flush()
+    replacement = DynamicRegion(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", forked_from_region_id=first.id
+    )
+    session.add(replacement)
+    session.flush()
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    producer, consumer = tis["body.producer"], tis["body.consumer"]
+    producer.region_id, producer.region_index = first.id, 2
+    consumer.region_id, consumer.region_index = replacement.id, 2
+    previous = TaskInstance(
+        task=dag.get_task(producer.task_id), run_id=dr.run_id, dag_version_id=producer.dag_version_id
+    )
+    previous.region_id, previous.region_index = first.id, 1
+    session.add(previous)
+    session.flush()
+    for ti, value in [(producer, "current"), (previous, "previous"), (tis["outside"], "outside")]:
+        XComModel.set_for_attempt(
+            task_instance_id=ti.id, key="key", value=value, serialize=False, session=session
+        )
+    session.commit()
+    exec_app = client.app.routes[-1].app
+    old_auth = exec_app.dependency_overrides[require_auth]
+    exec_app.dependency_overrides[require_auth] = lambda: TIToken(
+        id=consumer.id, claims=TIClaims(scope="execution")
+    )
+    yield dr, producer, consumer, previous
+    exec_app.dependency_overrides[require_auth] = old_auth
+
+
+def test_loop_xcom_omission_uses_consumer_pass_and_retained_region(client, loop_xcoms):
+    dr, producer, consumer, previous = loop_xcoms
+    base = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}"
+
+    assert client.get(f"{base}/{producer.task_id}/key").json() == {"key": "key", "value": "current"}
+    assert client.get(
+        f"{base}/{producer.task_id}/key", params={"region_id": str(previous.region_id), "region_index": 1}
+    ).json() == {"key": "key", "value": "previous"}
+    assert client.post(f"{base}/{consumer.task_id}/key", json="consumer").status_code == 201
+    assert client.get(
+        f"{base}/{consumer.task_id}/key", params={"region_id": str(consumer.region_id), "region_index": 2}
+    ).json() == {"key": "key", "value": "consumer"}
+
+
+def test_loop_prior_dates_requires_explicit_iteration_but_allows_outside_producer(client, loop_xcoms):
+    dr, producer, _, _ = loop_xcoms
+    base = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}"
+
+    response = client.get(f"{base}/{producer.task_id}/key", params={"include_prior_dates": True})
+    assert response.status_code == 400
+    assert "explicit target run" in response.json()["detail"]
+    assert client.get(f"{base}/outside/key", params={"include_prior_dates": True}).json() == {
+        "key": "key",
+        "value": "outside",
+    }
+
+
+@pytest.mark.parametrize("current_regional", [False, True])
+@pytest.mark.parametrize("removed_from_pinned_dag", [False, True])
+def test_prior_dates_resolves_mapped_region_separately_for_each_run(
+    client, dag_maker, session, mocker, current_regional, removed_from_pinned_dag
+):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1]])
+    old = dag_maker.create_dagrun(run_id="old", logical_date=timezone.datetime(2026, 1, 1))
+    current = dag_maker.create_dagrun(run_id="current", logical_date=timezone.datetime(2026, 1, 2))
+    for dr in (old, current):
+        if dr is current and not current_regional:
+            continue
+        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped")
+        session.add(region)
+        session.flush()
+        dr.task_instances[0].region_id = region.id
+    producer = old.task_instances[0]
+    XComModel.set_for_attempt(
+        task_instance_id=producer.id, key="key", value="old", serialize=False, session=session
+    )
+    session.commit()
+    if removed_from_pinned_dag:
+        mocker.patch.object(
+            TaskCoordinateResolver, "get_task", autospec=True, side_effect=TaskNotFound("removed")
+        )
+
+    response = client.get(
+        f"/execution/xcoms/{current.dag_id}/{current.run_id}/mapped/key",
+        params={"map_index": 0, "include_prior_dates": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"key": "key", "value": "old"}
 
 
 @pytest.fixture(autouse=True)

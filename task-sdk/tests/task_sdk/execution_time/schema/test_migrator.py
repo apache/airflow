@@ -31,6 +31,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from typing import Literal
+from uuid import UUID
 
 import pytest
 from cadwyn import (
@@ -49,7 +50,21 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
 )
 
 from airflow.sdk import TaskInstanceState
-from airflow.sdk.execution_time.comms import TaskState
+from airflow.sdk.api.datamodels._generated import PreviousTIResponse
+from airflow.sdk.execution_time.comms import (
+    DeleteXCom,
+    GetPreviousTI,
+    GetTaskBreadcrumbs,
+    GetTaskStates,
+    GetTICount,
+    GetXCom,
+    GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
+    PreviousTIResult,
+    SetXCom,
+    TaskState,
+)
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
@@ -64,6 +79,61 @@ class _MockBody(BaseModel):
     ti_id: str
     queue_capacity: int | None = None
     sentry_trace_id: str | None = None
+
+
+@pytest.mark.parametrize(
+    ("model", "extra"),
+    [
+        (GetXCom, {}),
+        (GetXComCount, {}),
+        (GetXComSequenceItem, {"offset": 0}),
+        (GetXComSequenceSlice, {"start": None, "stop": None, "step": None}),
+        (SetXCom, {"value": "value"}),
+        (DeleteXCom, {}),
+        (GetTICount, {}),
+        (GetTaskStates, {}),
+        (GetPreviousTI, {}),
+        (GetTaskBreadcrumbs, {}),
+    ],
+)
+def test_region_selectors_are_versioned_and_legacy_messages_remain_unscoped(model, extra):
+    real_migrator = get_schema_version_migrator()
+    msg = model(
+        dag_id="dag", run_id="run", task_id="task", key="key", region_id=UUID(int=0), region_index=-1, **extra
+    )
+
+    legacy = real_migrator.downgrade(msg, "2026-06-16").model_dump()
+    assert "region_id" not in legacy
+    assert "region_index" not in legacy
+    upgraded = real_migrator.upgrade(legacy, model, "2026-06-16")
+    assert upgraded["region_id"] is None
+    assert upgraded["region_index"] is None
+    current = real_migrator.downgrade(msg, "2026-10-30").model_dump()
+    assert current["region_id"] == UUID(int=0)
+    assert current["region_index"] == -1
+
+
+@pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+def test_previous_ti_response_coordinates_follow_supervisor_version(version):
+    message = PreviousTIResult(
+        task_instance=PreviousTIResponse(
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            try_number=1,
+            map_index=-1,
+            region_id=UUID(int=1),
+            region_index=3,
+        )
+    )
+    result = get_schema_version_migrator().downgrade(message, version).model_dump()["task_instance"]
+    assert result["map_index"] == -1
+    if version == "2026-06-16":
+        assert "region_id" not in result
+        assert "region_index" not in result
+    else:
+        assert result["region_id"] == UUID(int=1)
+        assert result["region_index"] == 3
 
 
 class _IntroduceQueueCapacity(VersionChange):
@@ -405,6 +475,9 @@ class TestRealBundleArgBindingsDowngrade:
                 run_id="r",
                 try_number=1,
                 dag_version_id=uuid.uuid4(),
+                region_id=uuid.uuid4(),
+                region_index=7,
+                map_index=-1,
             ),
             dag_rel_path="d.py",
             bundle_info=BundleInfo(name="b", version=None),
@@ -453,6 +526,17 @@ class TestRealBundleArgBindingsDowngrade:
     def test_downgrade_strips_arg_bindings_for_previous_version(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
         assert "arg_bindings" not in out["ti_context"]
+
+    @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+    def test_task_coordinates_follow_supervisor_version(self, real_migrator, startup_details, version):
+        ti = real_migrator.downgrade(startup_details, version).model_dump()["ti"]
+        assert ti["map_index"] == -1
+        if version == "2026-06-16":
+            assert "region_id" not in ti
+            assert "region_index" not in ti
+        else:
+            assert ti["region_id"] == startup_details.ti.region_id
+            assert ti["region_index"] == 7
 
     def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
         from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding

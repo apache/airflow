@@ -54,11 +54,16 @@ from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.log import Log
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
@@ -167,7 +172,114 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
     validator.avalidated_claims.assert_awaited()
 
 
+@pytest.fixture
+def loop_reader_tis(dag_maker, session):
+    @task_group
+    def body():
+        EmptyOperator(task_id="task")
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+    session.add(region)
+    session.flush()
+    current = next(ti for ti in dr.task_instances if ti.task_id == "body.task")
+    current.region_id, current.region_index, current.state = region.id, 2, State.SUCCESS
+    previous = TaskInstance(
+        task=dag.get_task(current.task_id), run_id=dr.run_id, dag_version_id=current.dag_version_id
+    )
+    previous.region_id, previous.region_index, previous.state = region.id, 1, State.FAILED
+    session.add(previous)
+    session.commit()
+    return current, previous
+
+
+def test_execution_count_uses_public_index_and_exact_region_scope(client, loop_reader_tis):
+    current, _ = loop_reader_tis
+    params = {"dag_id": current.dag_id, "task_ids": [current.task_id], "map_index": -1}
+    url = "/execution/task-instances/count"
+    assert client.get(url, params=params).json() == 2
+    assert (
+        client.get(url, params={**params, "region_id": str(current.region_id), "region_index": 2}).json() == 1
+    )
+
+
+@pytest.mark.parametrize("endpoint", ["states", "previous"])
+def test_execution_reader_rejects_loop_collision_and_accepts_exact_scope(client, loop_reader_tis, endpoint):
+    current, _ = loop_reader_tis
+    params = {"dag_id": current.dag_id, "task_ids": [current.task_id], "map_index": -1}
+    url = "/execution/task-instances/states"
+    if endpoint == "previous":
+        url = f"/execution/task-instances/previous/{current.dag_id}/{current.task_id}"
+        params = {"map_index": -1}
+    assert client.get(url, params=params).status_code == 409
+    response = client.get(url, params={**params, "region_id": str(current.region_id), "region_index": 2})
+    assert response.status_code == 200
+    if endpoint == "states":
+        assert response.json() == {"task_states": {current.run_id: {current.task_id: "success"}}}
+    else:
+        assert response.json()["map_index"] == -1
+        assert response.json()["region_index"] == 2
+
+
+def test_execution_breadcrumbs_keep_regional_identity_separate_from_map_index(client, loop_reader_tis):
+    current, _ = loop_reader_tis
+    response = client.get(
+        "/execution/task-instances/breadcrumbs", params={"dag_id": current.dag_id, "run_id": current.run_id}
+    )
+    assert response.status_code == 200
+    breadcrumbs = response.json()["breadcrumbs"]
+    assert len(breadcrumbs) == 2
+    assert [row["map_index"] for row in breadcrumbs] == [-1, -1]
+    assert {row["region_index"] for row in breadcrumbs} == {1, 2}
+
+
+def test_previous_ti_full_coordinates_override_default_public_index(client, dag_maker, session):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[0], [1], [2]])
+    dr = dag_maker.create_dagrun()
+    region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped")
+    session.add(region)
+    session.flush()
+    for ti in dr.task_instances:
+        ti.region_id = region.id
+    session.commit()
+
+    response = client.get(
+        f"/execution/task-instances/previous/{dr.dag_id}/mapped",
+        params={"region_id": str(region.id), "region_index": 2},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["map_index"] == 2
+    assert response.json()["region_index"] == 2
+
+
 class TestTIRunState:
+    @pytest.mark.parametrize("regional", [False, True])
+    def test_startup_xcom_cleanup_keys_belong_to_the_starting_try(
+        self, client, session, create_task_instance, regional
+    ):
+        ti = create_task_instance(state=State.QUEUED, session=session)
+        region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop")
+        session.add(region)
+        session.flush()
+        if regional:
+            ti.region_id, ti.region_index = region.id, 2
+        sibling = TaskInstance(ti.task, ti.dag_version_id, run_id=ti.run_id, map_index=ti.map_index)
+        sibling.region_id = region.id if not regional else UUID(int=0)
+        session.add(sibling)
+        session.flush()
+        for candidate, key in [(ti, "own"), (sibling, "sibling")]:
+            XComModel.set_for_attempt(task_instance_id=candidate.id, key=key, value="value", session=session)
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        assert response.json()["xcom_keys_to_clear"] == ["own"]
+
     @pytest.mark.parametrize("matching_worker", [True, False])
     def test_restarting_start_distinguishes_original_worker(
         self, client, session, create_task_instance, matching_worker
@@ -3064,17 +3176,32 @@ class TestTIUpdateState:
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_ti_update_state_to_success_clears_task_state(self, client, session, create_task_instance):
+    @pytest.mark.parametrize("regional", [False, True])
+    def test_ti_update_state_to_success_clears_task_state(
+        self, client, session, create_task_instance, regional
+    ):
         """When clear_on_success=True, task_state rows are deleted after TI transitions to SUCCESS."""
         ti = create_task_instance(
             task_id="test_clear_on_success",
             start_date=DEFAULT_START_DATE,
             state=State.RUNNING,
         )
+        if regional:
+            region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop")
+            session.add(region)
+            session.flush()
+            ti.region_id = region.id
+            ti.region_index = 2
         session.commit()
 
         backend = MetastoreBackend()
-        scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+        scope = TaskScope(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.region_index,
+            region_id=ti.region_id,
+        )
         backend.set(scope, "job_id", "app_1234", session=session)
         backend.set(scope, "checkpoint", "step_3", session=session)
         session.commit()
@@ -3152,6 +3279,37 @@ class TestTIUpdateState:
 
 
 class TestTISkipDownstream:
+    def test_skip_downstream_selects_consumer_loop_pass(self, client, session, dag_maker):
+        @task_group
+        def body():
+            EmptyOperator(task_id="branch") >> EmptyOperator(task_id="target")
+
+        with dag_maker(serialized=True) as dag:
+            create_loop(body, max_iterations=3)
+        dr = dag_maker.create_dagrun()
+        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+        session.add(region)
+        session.flush()
+        tis = {ti.task_id: ti for ti in dr.task_instances}
+        caller, target = tis["body.branch"], tis["body.target"]
+        caller.region_id, caller.region_index = region.id, 2
+        target.region_id, target.region_index = region.id, 2
+        previous = TaskInstance(
+            task=dag.get_task(target.task_id), run_id=dr.run_id, dag_version_id=target.dag_version_id
+        )
+        previous.region_id, previous.region_index = region.id, 1
+        session.add(previous)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{caller.id}/skip-downstream", json={"tasks": [[target.task_id, -1]]}
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert target.state == State.SKIPPED
+        assert previous.state is None
+
     def setup_method(self):
         clear_db_runs()
 
@@ -5288,6 +5446,7 @@ class TestEmitTaskSpan:
 
     @pytest.fixture(autouse=True)
     def sdk_tracer_provider(self):
+        self.resolver = mock.create_autospec(TaskCoordinateResolver, instance=True)
         self.exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
         provider.add_span_processor(SimpleSpanProcessor(self.exporter))
@@ -5326,6 +5485,24 @@ class TestEmitTaskSpan:
         assert span.attributes["airflow.task_instance.id"] == str(retiring_id)
         assert span.attributes["airflow.task_instance.try_number"] == 3
 
+    def test_loop_span_keeps_public_index_and_exact_region(self, client, session, loop_reader_tis):
+        ti, _ = loop_reader_tis
+        ti.state = State.RUNNING
+        ti.dag_run.context_carrier, ti.context_carrier = self._make_carriers()
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204, response.text
+        span = next(span for span in self.exporter.get_finished_spans() if "body.task" in span.name)
+        assert span.name == "task_run.body.task"
+        assert span.attributes["airflow.task_instance.map_index"] == -1
+        assert span.attributes["airflow.task_instance.region_id"] == str(ti.region_id)
+        assert span.attributes["airflow.task_instance.region_index"] == 2
+
     def _make_ti(self, task_id="my_task", map_index=-1, queued_dttm=None, start_date=None):
         dr_carrier, ti_carrier = self._make_carriers()
         ti = mock.MagicMock()
@@ -5334,7 +5511,9 @@ class TestEmitTaskSpan:
         ti.task_id = task_id
         ti.run_id = "test_run"
         ti.try_number = 1
-        ti.map_index = map_index
+        ti.region_id = UUID(int=0)
+        ti.region_index = map_index
+        self.resolver.public_map_index.return_value = map_index
         ti.queued_dttm = queued_dttm
         ti.start_date = start_date or DEFAULT_START_DATE
         ti.dag_run.context_carrier = dr_carrier
@@ -5342,14 +5521,14 @@ class TestEmitTaskSpan:
         return ti
 
     def test_emit_task_span_success_sets_ok_status(self):
-        _emit_task_span(self._make_ti(), TaskInstanceState.SUCCESS)
+        _emit_task_span(self._make_ti(), TaskInstanceState.SUCCESS, resolver=self.resolver)
 
         spans = self.exporter.get_finished_spans()
         assert len(spans) == 1
         assert spans[0].status.status_code == StatusCode.OK
 
     def test_emit_task_span_failed_sets_error_status(self):
-        _emit_task_span(self._make_ti(), TaskInstanceState.FAILED)
+        _emit_task_span(self._make_ti(), TaskInstanceState.FAILED, resolver=self.resolver)
 
         spans = self.exporter.get_finished_spans()
         assert len(spans) == 1
@@ -5357,7 +5536,7 @@ class TestEmitTaskSpan:
 
     def test_emit_task_span_sets_attributes(self):
         ti = self._make_ti(task_id="my_task", map_index=2)
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
 
         attrs = self.exporter.get_finished_spans()[0].attributes
         assert attrs["airflow.dag_id"] == "test_dag"
@@ -5372,25 +5551,29 @@ class TestEmitTaskSpan:
         assert isinstance(attrs["airflow.task_instance.id"], str)
 
     def test_emit_task_span_name_unmapped(self):
-        _emit_task_span(self._make_ti(task_id="my_task", map_index=-1), TaskInstanceState.SUCCESS)
+        _emit_task_span(
+            self._make_ti(task_id="my_task", map_index=-1), TaskInstanceState.SUCCESS, resolver=self.resolver
+        )
         assert self.exporter.get_finished_spans()[0].name == "task_run.my_task"
 
     def test_emit_task_span_name_mapped(self):
-        _emit_task_span(self._make_ti(task_id="my_task", map_index=3), TaskInstanceState.SUCCESS)
+        _emit_task_span(
+            self._make_ti(task_id="my_task", map_index=3), TaskInstanceState.SUCCESS, resolver=self.resolver
+        )
         assert self.exporter.get_finished_spans()[0].name == "task_run.my_task[3]"
 
     def test_emit_task_span_start_time_uses_queued_dttm(self):
         queued_dttm = timezone.parse("2024-01-01T10:00:00Z")
         start_date = timezone.parse("2024-01-01T10:05:00Z")
         ti = self._make_ti(queued_dttm=queued_dttm, start_date=start_date)
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
 
         assert self.exporter.get_finished_spans()[0].start_time == int(queued_dttm.timestamp() * 1e9)
 
     def test_emit_task_span_start_time_falls_back_to_start_date(self):
         start_date = timezone.parse("2024-01-01T10:05:00Z")
         ti = self._make_ti(queued_dttm=None, start_date=start_date)
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
 
         assert self.exporter.get_finished_spans()[0].start_time == int(start_date.timestamp() * 1e9)
 
@@ -5401,7 +5584,7 @@ class TestEmitTaskSpan:
         }
         ti.context_carrier = None
 
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
         assert len(self.exporter.get_finished_spans()) == 0
 
     def test_emit_task_span_skips_if_no_dagrun_carrier(self):
@@ -5409,7 +5592,7 @@ class TestEmitTaskSpan:
         ti.dag_run.context_carrier = None
         ti.context_carrier = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
 
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
         assert len(self.exporter.get_finished_spans()) == 0
 
     @pytest.mark.parametrize(
@@ -5425,5 +5608,5 @@ class TestEmitTaskSpan:
         ti.dag_run.context_carrier = {
             "traceparent": f"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{trace_flag}"
         }
-        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
         assert len(self.exporter.get_finished_spans()) == expected_spans

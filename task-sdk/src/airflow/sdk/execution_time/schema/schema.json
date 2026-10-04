@@ -1736,6 +1736,31 @@
     },
     "DeleteXCom": {
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2463,6 +2488,31 @@
     "GetPreviousTI": {
       "description": "Request to get previous task instance.",
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "dag_id": {
           "title": "Dag Id",
           "type": "string"
@@ -2516,6 +2566,31 @@
     },
     "GetTICount": {
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "dag_id": {
           "title": "Dag Id",
           "type": "string"
@@ -2620,6 +2695,31 @@
     },
     "GetTaskBreadcrumbs": {
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "dag_id": {
           "title": "Dag Id",
           "type": "string"
@@ -2694,6 +2794,31 @@
     },
     "GetTaskStates": {
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "dag_id": {
           "title": "Dag Id",
           "type": "string"
@@ -2836,6 +2961,31 @@
     },
     "GetXCom": {
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2888,6 +3038,31 @@
     "GetXComCount": {
       "description": "Get the number of (mapped) XCom values available.",
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2922,6 +3097,31 @@
     },
     "GetXComSequenceItem": {
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2961,6 +3161,31 @@
     },
     "GetXComSequenceSlice": {
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -3442,6 +3667,31 @@
           "default": -1,
           "title": "Map Index"
         },
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "duration": {
           "anyOf": [
             {
@@ -3806,6 +4056,31 @@
     },
     "SetXCom": {
       "properties": {
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -5245,6 +5520,31 @@
           "default": -1,
           "title": "Map Index",
           "type": "integer"
+        },
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
         },
         "hostname": {
           "anyOf": [

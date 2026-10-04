@@ -35,6 +35,7 @@ from airflow.exceptions import AirflowConfigException, DagRunNotFound, NotMapped
 from airflow.models import TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, get_or_create_dagrun
+from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
@@ -242,11 +243,22 @@ def _get_ti(
 
 
 def _get_template_context(ti: TaskInstance, task: SdkOperator) -> Context:
-    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+        DagRun,
+        TaskInstance,
+        TIRunContext,
+        task_instance_to_runtime,
+    )
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
     runtime_ti = RuntimeTaskInstance.model_construct(
-        **TaskInstance.model_validate(ti, from_attributes=True).model_dump(exclude_unset=True),
+        **task_instance_to_runtime(
+            ti,
+            model=TaskInstance,
+            map_index=ti.region_index
+            if ti.region_id == SENTINEL_REGION_ID or task.get_needs_expansion()
+            else -1,
+        ).model_dump(exclude_unset=True),
         task=task,
         _ti_context_from_server=TIRunContext(
             dag_run=DagRun.model_validate(ti.dag_run, from_attributes=True),

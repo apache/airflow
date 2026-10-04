@@ -72,6 +72,7 @@ from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel, XComModelV2
@@ -79,9 +80,10 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
+from airflow.sdk import DAG, Asset, BaseHook, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
@@ -235,6 +237,34 @@ def test_is_needed(session):
     session.add(trigger_orm)
     session.commit()
     assert triggerer_job_runner.is_needed() is True
+
+
+def test_build_trigger_workloads_preserves_region_and_projects_public_map_index(
+    session, supervisor_builder, dag_maker
+):
+    @task_group
+    def body():
+        EmptyOperator(task_id="task")
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+    run = dag_maker.create_dagrun()
+    ti = run.task_instances[0]
+    trigger = Trigger.from_object(TimeDeltaTrigger(datetime.timedelta(days=7)))
+    session.add(trigger)
+    session.flush()
+    ti.trigger_id = trigger.id
+    region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id)
+    session.add(region)
+    session.flush()
+    ti.region_id, ti.region_index = region.id, 2
+    session.commit()
+
+    (workload,) = supervisor_builder().build_trigger_workloads({trigger.id})
+
+    assert workload.ti.map_index == -1
+    assert workload.ti.region_index == 2
+    assert workload.ti.region_id == region.id
 
 
 def test_capacity_decode():
@@ -690,9 +720,12 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     trigger.task_instance.dag_version_id = uuid.uuid4()
     trigger.task_instance.task_id = "t"
     trigger.task_instance.trigger_timeout = None
+    trigger.task_instance.region_id = uuid.UUID(int=0)
+    trigger.task_instance.region_index = -1
 
     mocker.patch(
-        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        "airflow.jobs.triggerer_job_runner.task_instance_to_runtime",
+        autospec=True,
         return_value=mocker.Mock(spec=TaskInstanceDTO),
     )
 
@@ -731,6 +764,8 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
     trigger.task_instance.dag_version_id = bumped_ti_version
     trigger.task_instance.task_id = "t"
     trigger.task_instance.trigger_timeout = None
+    trigger.task_instance.region_id = uuid.UUID(int=0)
+    trigger.task_instance.region_index = -1
 
     dag_run = mocker.Mock(spec=DagRun)
     dag_run.dag_id = "test_dag"
@@ -744,7 +779,8 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
         DagVersion, "get_latest_version", return_value=mocker.Mock(spec=DagVersion, id=latest_version)
     )
     mocker.patch(
-        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        "airflow.jobs.triggerer_job_runner.task_instance_to_runtime",
+        autospec=True,
         return_value=mocker.Mock(spec=TaskInstanceDTO),
     )
 

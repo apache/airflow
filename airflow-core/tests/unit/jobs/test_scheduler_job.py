@@ -1016,6 +1016,34 @@ class TestSchedulerJob:
             },
         )
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
+    def test_process_executor_events_callback_for_removed_mapped_task(
+        self, mock_task_callback, dag_maker, session
+    ):
+        dag_id = "executor_event_removed_mapped"
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/", serialized=True):
+            BashOperator.partial(
+                task_id="mapped", bash_command="true", on_failure_callback=lambda x: print("hi")
+            ).expand(env=[{"a": "1"}, {"a": "2"}])
+        dr = dag_maker.create_dagrun()
+        ti = next(ti for ti in dr.task_instances if ti.region_index == 1)
+        ti_id = ti.id
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/", serialized=True):
+            EmptyOperator(task_id="other")
+        ti.dag_version_id = DagVersion.get_latest_version(dag_id, session=session).id
+        ti.state = State.QUEUED
+        dr.bundle_version = "pinned-bundle-version"
+        session.commit()
+        executor = MockExecutor(do_update=False)
+        job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        executor.event_buffer[TaskInstanceUuid(ti_id)] = State.FAILED, None
+
+        job_runner._process_executor_events(executor=executor, session=session)
+
+        session.expire_all()
+        assert session.get(TaskInstance, ti_id).state == State.FAILED
+        assert mock_task_callback.call_args.kwargs["ti"].map_index == 1
+
     def test_process_executor_events_drains_connection_test_events(self, dag_maker, session):
         """Connection-test events in the event_buffer are drained without being treated as callbacks."""
         executor = MockExecutor(do_update=False)
@@ -10395,6 +10423,36 @@ class TestSchedulerJob:
         request = mock_executors[0].send_callback.call_args[0][0]
         assert isinstance(request, TaskCallbackRequest)
         assert request.bundle_version is None
+
+    def test_stuck_in_queued_failure_callback_for_removed_mapped_task(
+        self, dag_maker, session, mock_executors
+    ):
+        dag_id = "stuck_removed_mapped"
+        with dag_maker(dag_id=dag_id, serialized=True):
+            BashOperator.partial(
+                task_id="mapped", bash_command="true", on_failure_callback=lambda x: print("hi")
+            ).expand(env=[{"a": "1"}, {"a": "2"}])
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = next(ti for ti in dr.task_instances if ti.region_index == 1)
+        ti_id = ti.id
+        with dag_maker(dag_id=dag_id, serialized=True):
+            EmptyOperator(task_id="other")
+        ti.dag_version_id = DagVersion.get_latest_version(dag_id, session=session).id
+        ti.state = State.QUEUED
+        ti.queued_dttm = timezone.utcnow()
+        dr.bundle_version = "pinned-bundle-version"
+        session.commit()
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._task_queued_timeout = -300
+        scheduler._num_stuck_queued_retries = 0
+
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        session.expire_all()
+        assert session.get(TaskInstance, ti_id).state == State.FAILED
+        request = mock_executors[0].send_callback.call_args[0][0]
+        assert request.ti.map_index == 1
 
     def test_scheduler_passes_context_from_server_on_task_failure(self, dag_maker, session):
         """Test that scheduler passes context_from_server when handling task failures."""

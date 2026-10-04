@@ -941,6 +941,8 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
 
 
 class GetXCom(BaseModel):
+    region_id: UUID | None = None
+    region_index: int | None = None
     key: str
     dag_id: str
     run_id: str
@@ -953,6 +955,8 @@ class GetXCom(BaseModel):
 class GetXComCount(BaseModel):
     """Get the number of (mapped) XCom values available."""
 
+    region_id: UUID | None = None
+    region_index: int | None = None
     key: str
     dag_id: str
     run_id: str
@@ -961,6 +965,8 @@ class GetXComCount(BaseModel):
 
 
 class GetXComSequenceItem(BaseModel):
+    region_id: UUID | None = None
+    region_index: int | None = None
     key: str
     dag_id: str
     run_id: str
@@ -970,6 +976,8 @@ class GetXComSequenceItem(BaseModel):
 
 
 class GetXComSequenceSlice(BaseModel):
+    region_id: UUID | None = None
+    region_index: int | None = None
     key: str
     dag_id: str
     run_id: str
@@ -982,6 +990,8 @@ class GetXComSequenceSlice(BaseModel):
 
 
 class SetXCom(BaseModel):
+    region_id: UUID | None = None
+    region_index: int | None = None
     key: str
     value: JsonValue
     dag_id: str
@@ -994,6 +1004,8 @@ class SetXCom(BaseModel):
 
 
 class DeleteXCom(BaseModel):
+    region_id: UUID | None = None
+    region_index: int | None = None
     key: str
     dag_id: str
     run_id: str
@@ -1159,6 +1171,8 @@ class GetPreviousDagRun(BaseModel):
 class GetPreviousTI(BaseModel):
     """Request to get previous task instance."""
 
+    region_id: UUID | None = None
+    region_index: int | None = None
     dag_id: str
     task_id: str
     logical_date: AwareDatetime | None = None
@@ -1224,6 +1238,8 @@ class GetTaskRescheduleStartDate(BaseModel):
 
 
 class GetTICount(BaseModel):
+    region_id: UUID | None = None
+    region_index: int | None = None
     dag_id: str
     map_index: int | None = None
     task_ids: list[str] | None = None
@@ -1235,6 +1251,8 @@ class GetTICount(BaseModel):
 
 
 class GetTaskStates(BaseModel):
+    region_id: UUID | None = None
+    region_index: int | None = None
     dag_id: str
     map_index: int | None = None
     task_ids: list[str] | None = None
@@ -1245,6 +1263,8 @@ class GetTaskStates(BaseModel):
 
 
 class GetTaskBreadcrumbs(BaseModel):
+    region_id: UUID | None = None
+    region_index: int | None = None
     dag_id: str
     run_id: str
     type: Literal["GetTaskBreadcrumbs"] = "GetTaskBreadcrumbs"

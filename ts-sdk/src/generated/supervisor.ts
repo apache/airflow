@@ -190,6 +190,8 @@ export type RunId3 = string;
 export type TryNumber = number;
 export type DagVersionId = string;
 export type MapIndex = number;
+export type RegionId = string | null;
+export type RegionIndex = number | null;
 export type Hostname = string | null;
 export type ContextCarrier = {
   [k: string]: unknown;
@@ -337,6 +339,8 @@ export type Key3 = string;
 export type Type23 = "DeleteTaskStateStore";
 export type Key4 = string;
 export type Type24 = "DeleteVariable";
+export type RegionId1 = string | null;
+export type RegionIndex1 = number | null;
 export type Key5 = string;
 export type DagId6 = string;
 export type RunId5 = string;
@@ -436,11 +440,15 @@ export type DagId11 = string;
 export type LogicalDate3 = string;
 export type State3 = string | null;
 export type Type41 = "GetPreviousDagRun";
+export type RegionId2 = string | null;
+export type RegionIndex2 = number | null;
 export type DagId12 = string;
 export type TaskId3 = string;
 export type LogicalDate4 = string | null;
 export type MapIndex2 = number;
 export type Type42 = "GetPreviousTI";
+export type RegionId3 = string | null;
+export type RegionIndex3 = number | null;
 export type DagId13 = string;
 export type MapIndex3 = number | null;
 export type TaskIds = string[] | null;
@@ -449,6 +457,8 @@ export type LogicalDates1 = string[] | null;
 export type RunIds1 = string[] | null;
 export type States1 = string[] | null;
 export type Type43 = "GetTICount";
+export type RegionId4 = string | null;
+export type RegionIndex4 = number | null;
 export type DagId14 = string;
 export type RunId8 = string;
 export type Type44 = "GetTaskBreadcrumbs";
@@ -458,6 +468,8 @@ export type Type45 = "GetTaskRescheduleStartDate";
 export type TiId6 = string;
 export type Key8 = string;
 export type Type46 = "GetTaskStateStore";
+export type RegionId5 = string | null;
+export type RegionIndex5 = number | null;
 export type DagId15 = string;
 export type MapIndex4 = number | null;
 export type TaskIds1 = string[] | null;
@@ -471,6 +483,8 @@ export type Prefix = string | null;
 export type Limit2 = number;
 export type Offset = number;
 export type Type49 = "GetVariableKeys";
+export type RegionId6 = string | null;
+export type RegionIndex6 = number | null;
 export type Key10 = string;
 export type DagId16 = string;
 export type RunId9 = string;
@@ -478,17 +492,23 @@ export type TaskId4 = string;
 export type MapIndex5 = number | null;
 export type IncludePriorDates = boolean;
 export type Type50 = "GetXCom";
+export type RegionId7 = string | null;
+export type RegionIndex7 = number | null;
 export type Key11 = string;
 export type DagId17 = string;
 export type RunId10 = string;
 export type TaskId5 = string;
 export type Type51 = "GetXComCount";
+export type RegionId8 = string | null;
+export type RegionIndex8 = number | null;
 export type Key12 = string;
 export type DagId18 = string;
 export type RunId11 = string;
 export type TaskId6 = string;
 export type Offset1 = number;
 export type Type52 = "GetXComSequenceItem";
+export type RegionId9 = string | null;
+export type RegionIndex9 = number | null;
 export type Key13 = string;
 export type DagId19 = string;
 export type RunId12 = string;
@@ -533,6 +553,8 @@ export type EndDate4 = string | null;
 export type State4 = string | null;
 export type TryNumber2 = number;
 export type MapIndex6 = number | null;
+export type RegionId10 = string | null;
+export type RegionIndex10 = number | null;
 export type Duration = number | null;
 export type Type60 = "PreviousTIResult";
 export type Key14 = string;
@@ -565,6 +587,8 @@ export type TiId8 = string;
 export type Key17 = string;
 export type ExpiresAt = string | null;
 export type Type70 = "SetTaskStateStore";
+export type RegionId11 = string | null;
+export type RegionIndex11 = number | null;
 export type Key18 = string;
 export type DagId21 = string;
 export type RunId14 = string;
@@ -982,6 +1006,8 @@ export interface TaskInstance {
   try_number: TryNumber;
   dag_version_id: DagVersionId;
   map_index?: MapIndex;
+  region_id?: RegionId;
+  region_index?: RegionIndex;
   hostname?: Hostname;
   context_carrier?: ContextCarrier;
   queue?: Queue;
@@ -1253,6 +1279,8 @@ export interface DeleteVariable {
  * via the `definition` "DeleteXCom".
  */
 export interface DeleteXCom {
+  region_id?: RegionId1;
+  region_index?: RegionIndex1;
   key: Key5;
   dag_id: DagId6;
   run_id: RunId5;
@@ -1422,6 +1450,8 @@ export interface GetPreviousDagRun {
  * via the `definition` "GetPreviousTI".
  */
 export interface GetPreviousTI {
+  region_id?: RegionId2;
+  region_index?: RegionIndex2;
   dag_id: DagId12;
   task_id: TaskId3;
   logical_date?: LogicalDate4;
@@ -1434,6 +1464,8 @@ export interface GetPreviousTI {
  * via the `definition` "GetTICount".
  */
 export interface GetTICount {
+  region_id?: RegionId3;
+  region_index?: RegionIndex3;
   dag_id: DagId13;
   map_index?: MapIndex3;
   task_ids?: TaskIds;
@@ -1448,6 +1480,8 @@ export interface GetTICount {
  * via the `definition` "GetTaskBreadcrumbs".
  */
 export interface GetTaskBreadcrumbs {
+  region_id?: RegionId4;
+  region_index?: RegionIndex4;
   dag_id: DagId14;
   run_id: RunId8;
   type?: Type44;
@@ -1475,6 +1509,8 @@ export interface GetTaskStateStore {
  * via the `definition` "GetTaskStates".
  */
 export interface GetTaskStates {
+  region_id?: RegionId5;
+  region_index?: RegionIndex5;
   dag_id: DagId15;
   map_index?: MapIndex4;
   task_ids?: TaskIds1;
@@ -1506,6 +1542,8 @@ export interface GetVariableKeys {
  * via the `definition` "GetXCom".
  */
 export interface GetXCom {
+  region_id?: RegionId6;
+  region_index?: RegionIndex6;
   key: Key10;
   dag_id: DagId16;
   run_id: RunId9;
@@ -1521,6 +1559,8 @@ export interface GetXCom {
  * via the `definition` "GetXComCount".
  */
 export interface GetXComCount {
+  region_id?: RegionId7;
+  region_index?: RegionIndex7;
   key: Key11;
   dag_id: DagId17;
   run_id: RunId10;
@@ -1532,6 +1572,8 @@ export interface GetXComCount {
  * via the `definition` "GetXComSequenceItem".
  */
 export interface GetXComSequenceItem {
+  region_id?: RegionId8;
+  region_index?: RegionIndex8;
   key: Key12;
   dag_id: DagId18;
   run_id: RunId11;
@@ -1544,6 +1586,8 @@ export interface GetXComSequenceItem {
  * via the `definition` "GetXComSequenceSlice".
  */
 export interface GetXComSequenceSlice {
+  region_id?: RegionId9;
+  region_index?: RegionIndex9;
   key: Key13;
   dag_id: DagId19;
   run_id: RunId12;
@@ -1637,6 +1681,8 @@ export interface PreviousTIResponse {
   state?: State4;
   try_number: TryNumber2;
   map_index?: MapIndex6;
+  region_id?: RegionId10;
+  region_index?: RegionIndex10;
   duration?: Duration;
 }
 /**
@@ -1759,6 +1805,8 @@ export interface SetTaskStateStore {
  * via the `definition` "SetXCom".
  */
 export interface SetXCom {
+  region_id?: RegionId11;
+  region_index?: RegionIndex11;
   key: Key18;
   value: JsonValue;
   dag_id: DagId21;

@@ -249,6 +249,15 @@ def _log_and_trace_retry(retry_state) -> None:
         )
 
 
+def _region_params(region_id: uuid.UUID | None, region_index: int | None) -> dict[str, str | int]:
+    params: dict[str, str | int] = {}
+    if region_id is not None:
+        params["region_id"] = str(region_id)
+    if region_index is not None:
+        params["region_index"] = region_index
+    return params
+
+
 class TaskInstanceOperations:
     __slots__ = ("client",)
 
@@ -402,6 +411,9 @@ class TaskInstanceOperations:
         logical_dates: list[datetime] | None = None,
         run_ids: list[str] | None = None,
         states: list[str] | None = None,
+        *,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> TICount:
         """Get count of task instances matching the given criteria."""
         params: dict[str, Any]
@@ -420,6 +432,7 @@ class TaskInstanceOperations:
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
 
+        params.update(_region_params(region_id, region_index))
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
 
@@ -430,6 +443,9 @@ class TaskInstanceOperations:
         logical_date: datetime | None = None,
         map_index: int = -1,
         state: TaskInstanceState | str | None = None,
+        *,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> PreviousTIResult:
         """
         Get the previous task instance matching the given criteria.
@@ -446,6 +462,7 @@ class TaskInstanceOperations:
         if state:
             params["state"] = state.value if isinstance(state, TaskInstanceState) else state
 
+        params.update(_region_params(region_id, region_index))
         resp = self.client.get(f"task-instances/previous/{dag_id}/{task_id}", params=params)
         return PreviousTIResult(task_instance=resp.json())
 
@@ -457,6 +474,9 @@ class TaskInstanceOperations:
         task_group_id: str | None = None,
         logical_dates: list[datetime] | None = None,
         run_ids: list[str] | None = None,
+        *,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> TaskStatesResponse:
         """Get task states given criteria."""
         params: dict[str, Any]
@@ -474,11 +494,19 @@ class TaskInstanceOperations:
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
 
+        params.update(_region_params(region_id, region_index))
         resp = self.client.get("task-instances/states", params=params)
         return TaskStatesResponse.model_validate_json(resp.read())
 
-    def get_task_breakcrumbs(self, dag_id: str, run_id: str) -> TaskBreadcrumbsResponse:
-        params = {"dag_id": dag_id, "run_id": run_id}
+    def get_task_breakcrumbs(
+        self,
+        dag_id: str,
+        run_id: str,
+        *,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
+    ) -> TaskBreadcrumbsResponse:
+        params = {"dag_id": dag_id, "run_id": run_id, **_region_params(region_id, region_index)}
         resp = self.client.get("task-instances/breadcrumbs", params=params)
         return TaskBreadcrumbsResponse.model_validate_json(resp.read())
 
@@ -596,9 +624,20 @@ class XComOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> XComCountResponse:
+    def head(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        *,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
+    ) -> XComCountResponse:
         """Get the number of mapped XCom values."""
-        resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
+        resp = self.client.head(
+            f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=_region_params(region_id, region_index)
+        )
 
         # content_range: str | None
         if not (content_range := resp.headers["Content-Range"]) or not content_range.startswith(
@@ -615,9 +654,12 @@ class XComOperations:
         key: str,
         map_index: int | None = None,
         include_prior_dates: bool = False,
+        *,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
-        params = {}
+        params = _region_params(region_id, region_index)
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
         if include_prior_dates:
@@ -654,9 +696,11 @@ class XComOperations:
         *,
         dag_result: bool = False,
         mapped_length: int | None = None,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
-        params: dict[str, Any] = {}
+        params = _region_params(region_id, region_index)
         if dag_result:
             params["dag_result"] = dag_result
         if map_index is not None and map_index >= 0:
@@ -676,12 +720,14 @@ class XComOperations:
         task_id: str,
         key: str,
         map_index: int | None = None,
+        *,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> OKResponse:
         """Delete a XCom with given key via the API server."""
+        params = _region_params(region_id, region_index)
         if map_index is not None and map_index >= 0:
-            params = {"map_index": map_index}
-        else:
-            params = {}
+            params["map_index"] = map_index
         self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
@@ -695,9 +741,15 @@ class XComOperations:
         task_id: str,
         key: str,
         offset: int,
+        *,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> XComSequenceIndexResponse | ErrorResponse:
         try:
-            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}")
+            resp = self.client.get(
+                f"xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}",
+                params=_region_params(region_id, region_index),
+            )
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
                 log.error(
@@ -733,8 +785,11 @@ class XComOperations:
         stop: int | None,
         step: int | None,
         include_prior_dates: bool = False,
+        *,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> XComSequenceSliceResponse:
-        params = {}
+        params = _region_params(region_id, region_index)
         if start is not None:
             params["start"] = start
         if stop is not None:

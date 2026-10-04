@@ -41,6 +41,7 @@ from sqlalchemy import (
     delete,
     event,
     func,
+    or_,
     select,
     union_all,
 )
@@ -51,7 +52,7 @@ from sqlalchemy.sql.visitors import cloned_traverse
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base, TaskInstanceDependencies
-from airflow.models.dynamic_region import SENTINEL_REGION_ID
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
@@ -317,6 +318,7 @@ class _XComOperations:
         dag_ids: str | Iterable[str] | None = None,
         map_indexes: int | Iterable[int] | None = None,
         region_id: UUID | None = SENTINEL_REGION_ID,
+        include_node_regions: bool = False,
         producer_ids: Select | None = None,
         include_prior_dates: bool = False,
         limit: int | None = None,
@@ -329,8 +331,10 @@ class _XComOperations:
         just want one stored value, use :meth:`get_one` instead.
 
         ``region_id`` is the exact producer region (the legacy sentinel by default); pass ``None`` to
-        enumerate across regions. ``producer_ids`` replaces the coordinate filters with attempts already
-        resolved by :func:`~airflow.models.dynamic_region.resolve_current_producers`.
+        enumerate across regions. ``include_node_regions`` widens it to the top-level region each
+        producer task owns, which is where its mapped instances live. ``producer_ids`` replaces the
+        coordinate filters with attempts already resolved by
+        :func:`~airflow.models.dynamic_region.resolve_current_producers`.
 
         Use :func:`xcom_entity` for columns added to the returned statement.
 
@@ -365,6 +369,7 @@ class _XComOperations:
                 dag_ids=dag_ids,
                 map_indexes=map_indexes,
                 region_id=region_id,
+                include_node_regions=include_node_regions,
                 include_prior_dates=include_prior_dates,
                 try_number=try_number,
             )
@@ -590,6 +595,7 @@ def select_producers(
     task_ids=None,
     map_indexes=None,
     region_id=SENTINEL_REGION_ID,
+    include_node_regions=False,
     include_prior_dates=False,
     try_number=None,
 ):
@@ -598,7 +604,19 @@ def select_producers(
 
     query = select(TaskInstance.id)
     if region_id is not None:
-        query = query.where(TaskInstance.region_id == region_id)
+        region_filter = TaskInstance.region_id == region_id
+        if include_node_regions:
+            region_filter = or_(
+                region_filter,
+                select(DynamicRegion.id)
+                .where(
+                    DynamicRegion.id == TaskInstance.region_id,
+                    DynamicRegion.node_id == TaskInstance.task_id,
+                    DynamicRegion.parent_region_id.is_(None),
+                )
+                .exists(),
+            )
+        query = query.where(region_filter)
     if try_number is not None:
         query = query.where(TaskInstance.try_number == try_number)
     for column, value in ((TaskInstance.dag_id, dag_ids), (TaskInstance.task_id, task_ids)):

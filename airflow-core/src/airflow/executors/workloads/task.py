@@ -22,8 +22,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
+from sqlalchemy.orm import object_session
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance, task_instance_to_runtime
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo, WorkloadType
 from airflow.utils.state import TaskInstanceState
 
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.utils.log.task_log_address import TaskLogContext
 
 
 class TaskInstanceDTO(TaskInstance):
@@ -100,11 +102,14 @@ class ExecuteTask(BaseDagBundleWorkload):
         generator: JWTGenerator | None = None,
         bundle_info: BundleInfo | None = None,
         sentry_integration: str = "",
+        log_context: TaskLogContext | None = None,
     ) -> ExecuteTask:
         """Create an ExecuteTask workload from a TaskInstance ORM model."""
-        from airflow.utils.helpers import log_filename_template_renderer
+        from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
 
-        ser_ti = TaskInstanceDTO.model_validate(ti, from_attributes=True)
+        if log_context is None:
+            log_context = prepare_task_log_contexts([ti], session=object_session(ti))[ti.id]
+        ser_ti = task_instance_to_runtime(ti, model=TaskInstanceDTO, map_index=log_context.map_index)
         if not bundle_info:
             from airflow.models.dag_version import _resolve_version_data
 
@@ -117,7 +122,7 @@ class ExecuteTask(BaseDagBundleWorkload):
                 # keeps the shipped hash and manifest consistent so versioned bundles stay reproducible.
                 version_data=_resolve_version_data(ti.dag_run.created_dag_version, ti.dag_run.bundle_version),
             )
-        fname = log_filename_template_renderer()(ti=ti)
+        fname = render_task_log_filename(ti, ti.try_number, context=log_context)
 
         return cls(
             ti=ser_ti,

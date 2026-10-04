@@ -57,7 +57,12 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun as DRDataModel,
+    TaskInstance as TIDataModel,
+    TIRunContext,
+    task_instance_to_runtime,
+)
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
@@ -108,6 +113,7 @@ from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
@@ -121,6 +127,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_log_address import prepare_task_log_contexts
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -1230,6 +1237,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return ""
             return sentry_integration
 
+        log_contexts = prepare_task_log_contexts(
+            [
+                ti
+                for ti in task_instances
+                if ti.dag_version_id and ti.dag_run.state not in State.finished_dr_states
+            ],
+            session=session,
+        )
         # actually enqueue them
         for ti in task_instances:
             if ti.dag_run.state in State.finished_dr_states:
@@ -1255,6 +1270,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti,
                 generator=executor.jwt_generator,
                 sentry_integration=_get_sentry_integration(executor),
+                log_context=log_contexts[ti.id],
             )
             executor.queue_workload(workload, session=session)
 
@@ -1469,6 +1485,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         executors as well.
         """
         event_buffer, event_coordinates = executor._drain_events_with_task_ids()
+        coordinates = TaskCoordinateResolver(scheduler_dag_bag, session)
         num_events = len(event_buffer)
         tis_with_right_state: list[TaskInstanceUuid] = []
         callback_keys_with_events: list[CallbackKey] = []
@@ -1690,7 +1707,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         bundle_name=_bundle_name,
                         bundle_version=_bundle_version,
                         version_data=_version_data,
-                        ti=ti,
+                        ti=task_instance_to_runtime(
+                            ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
+                        ),
                         msg=msg,
                         task_callback_type=(
                             TaskInstanceState.UP_FOR_RETRY
@@ -1730,7 +1749,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         bundle_name=_email_bundle_name,
                         bundle_version=_email_bundle_version,
                         version_data=_email_version_data,
-                        ti=ti,
+                        ti=task_instance_to_runtime(
+                            ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
+                        ),
                         msg=msg,
                         email_type="retry" if ti.is_eligible_to_retry() else "failure",
                         context_from_server=TIRunContext(
@@ -3332,6 +3353,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Otherwise, fail it.
         """
+        coordinates = TaskCoordinateResolver(self.scheduler_dag_bag, session)
         num_times_stuck = self._get_num_times_stuck_in_queued(ti, session=session)
         if num_times_stuck < self._num_stuck_queued_retries:
             self.log.info("Task stuck in queued; will try to requeue. task_instance=%s", ti)
@@ -3394,7 +3416,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             bundle_name=_stuck_bundle_name,
                             bundle_version=_stuck_bundle_version,
                             version_data=_stuck_version_data,
-                            ti=ti,
+                            ti=task_instance_to_runtime(
+                                ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
+                            ),
                             msg=msg,
                             context_from_server=TIRunContext(
                                 dag_run=ti.dag_run,
@@ -3874,6 +3898,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _purge_task_instances_without_heartbeats(
         self, task_instances_without_heartbeats: list[TI], *, session: Session
     ) -> None:
+        coordinates = TaskCoordinateResolver(self.scheduler_dag_bag, session)
         if self._multi_team:
             unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
             dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
@@ -3959,7 +3984,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     bundle_name=bundle_name,
                     bundle_version=bundle_version,
                     version_data=version_data,
-                    ti=ti,
+                    ti=task_instance_to_runtime(
+                        ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
+                    ),
                     msg=msg,
                     task_callback_type=task_callback_type,
                     context_from_server=context_from_server,
@@ -3976,7 +4003,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             bundle_name=bundle_name,
                             bundle_version=bundle_version,
                             version_data=version_data,
-                            ti=ti,
+                            ti=task_instance_to_runtime(
+                                ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
+                            ),
                             msg=msg,
                             email_type=(
                                 "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"

@@ -33,6 +33,7 @@ from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn, cast
 from urllib.parse import quote
+from uuid import UUID
 
 import attrs
 import lazy_object_proxy
@@ -248,6 +249,12 @@ class RuntimeTaskInstance(TaskInstance):
     rendered_map_index: str | None = None
 
     sentry_integration: str = ""
+
+    def model_post_init(self, context: Any) -> None:
+        if self.region_id is None:
+            self.region_id = UUID(int=0)
+        if self.region_index is None:
+            self.region_index = self.map_index
 
     @property
     def stats_tags(self) -> dict[str, str]:

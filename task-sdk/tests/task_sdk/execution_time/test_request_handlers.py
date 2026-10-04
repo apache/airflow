@@ -16,9 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock
+from uuid import UUID, uuid4
 
+import httpx
 import pytest
+import structlog
+from task_sdk import make_client
 
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
@@ -29,27 +34,106 @@ from airflow.sdk.execution_time.comms import (
     ClearAssetStateStoreByUri,
     DeleteAssetStateStoreByName,
     DeleteAssetStateStoreByUri,
+    DeleteXCom,
     ErrorResponse,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
+    GetPreviousTI,
+    GetTaskBreadcrumbs,
+    GetTaskStates,
+    GetTICount,
+    GetXCom,
+    GetXComCount,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetXCom,
 )
 from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_name,
     handle_clear_asset_state_store_by_uri,
     handle_delete_asset_state_store_by_name,
     handle_delete_asset_state_store_by_uri,
+    handle_delete_xcom,
     handle_get_asset_state_store_by_name,
     handle_get_asset_state_store_by_uri,
+    handle_get_previous_ti,
+    handle_get_task_states,
+    handle_get_ti_count,
+    handle_get_xcom,
+    handle_get_xcom_count,
+    handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
     handle_set_asset_state_store_by_name,
     handle_set_asset_state_store_by_uri,
+    handle_set_xcom,
 )
+from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
 
 @pytest.fixture
 def client():
     return MagicMock(spec=sdk_client.Client)
+
+
+@pytest.fixture
+def client_ssl_cache():
+    sdk_client.Client._get_ssl_context_cached.cache_clear()
+    yield
+    sdk_client.Client._get_ssl_context_cached.cache_clear()
+
+
+@pytest.mark.parametrize(
+    ("message", "handler", "extra", "response"),
+    [
+        (GetXCom, handle_get_xcom, {}, {"key": "key", "value": "result"}),
+        (GetXComCount, handle_get_xcom_count, {}, None),
+        (GetXComSequenceItem, handle_get_xcom_sequence_item, {"offset": 0}, "result"),
+        (
+            GetXComSequenceSlice,
+            handle_get_xcom_sequence_slice,
+            {"start": 0, "stop": 2, "step": 1},
+            ["result"],
+        ),
+        (SetXCom, handle_set_xcom, {"value": "result"}, None),
+        (DeleteXCom, handle_delete_xcom, {}, None),
+        (GetTICount, handle_get_ti_count, {}, 1),
+        (GetTaskStates, handle_get_task_states, {}, {"task_states": {}}),
+        (GetPreviousTI, handle_get_previous_ti, {}, None),
+        (
+            GetTaskBreadcrumbs,
+            lambda client, msg: ActivitySubprocess._handle_get_task_breadcrumbs(
+                MagicMock(spec=ActivitySubprocess, client=client), msg, structlog.get_logger(), 1
+            ),
+            {},
+            {"breadcrumbs": []},
+        ),
+    ],
+)
+@pytest.mark.parametrize("coordinates", [None, (UUID(int=0), -1), (uuid4(), 2)])
+def test_region_selectors_survive_comms_and_http_transport(
+    message, handler, extra, response, coordinates, client_ssl_cache
+):
+    selectors = {} if coordinates is None else {"region_id": coordinates[0], "region_index": coordinates[1]}
+    msg = message(dag_id="dag", run_id="run", task_id="task", key="key", **extra, **selectors)
+    decoded = message.model_validate_json(msg.model_dump_json())
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, content=json.dumps(response), headers={"Content-Range": "map_indexes 1"})
+
+    handler(make_client(transport=httpx.MockTransport(respond)), decoded)
+
+    assert len(requests) == 1
+    params = requests[0].url.params
+    if coordinates is None:
+        assert "region_id" not in params
+        assert "region_index" not in params
+    else:
+        assert params["region_id"] == str(coordinates[0])
+        assert params["region_index"] == str(coordinates[1])
 
 
 def test_get_asset_state_store_by_name_wraps_response_as_result(client):

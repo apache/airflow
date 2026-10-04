@@ -53,7 +53,7 @@ pytestmark = pytest.mark.db_test
 
 def test_custom_openapi_includes_extra_schemas(client):
     """Test to ensure that extra schemas are correctly included in the OpenAPI schema."""
-    response = client.get("/execution/openapi.json?version=2025-04-28")
+    response = client.get(f"/execution/openapi.json?version={bundle.version_values[0]}")
     assert response.status_code == 200
 
     openapi_schema = response.json()

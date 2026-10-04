@@ -736,6 +736,12 @@ type DeleteXCom struct {
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex interface{} `msgpack:"map_index,omitempty"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1015,6 +1021,12 @@ type GetPreviousTI struct {
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex *int `msgpack:"map_index,omitempty"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// State corresponds to the JSON schema field "state".
 	State interface{} `msgpack:"state,omitempty"`
 
@@ -1035,6 +1047,12 @@ type GetTICount struct {
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex interface{} `msgpack:"map_index,omitempty"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// RunIds corresponds to the JSON schema field "run_ids".
 	RunIds *RunIds `msgpack:"run_ids,omitempty"`
 
@@ -1054,6 +1072,12 @@ type GetTICount struct {
 type GetTaskBreadcrumbs struct {
 	// DagID corresponds to the JSON schema field "dag_id".
 	DagID string `msgpack:"dag_id"`
+
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
 
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
@@ -1093,6 +1117,12 @@ type GetTaskStates struct {
 
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex interface{} `msgpack:"map_index,omitempty"`
+
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
 
 	// RunIds corresponds to the JSON schema field "run_ids".
 	RunIds *RunIds `msgpack:"run_ids,omitempty"`
@@ -1142,6 +1172,12 @@ type GetXCom struct {
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex interface{} `msgpack:"map_index,omitempty"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1159,6 +1195,12 @@ type GetXComCount struct {
 
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
+
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
 
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
@@ -1180,6 +1222,12 @@ type GetXComSequenceItem struct {
 	// Offset corresponds to the JSON schema field "offset".
 	Offset int `msgpack:"offset"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1199,6 +1247,12 @@ type GetXComSequenceSlice struct {
 
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
+
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
 
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
@@ -1377,6 +1431,12 @@ type PreviousTIResponse struct {
 	// MapIndex corresponds to the JSON schema field "map_index".
 	MapIndex interface{} `msgpack:"map_index,omitempty"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1547,6 +1607,12 @@ type SetXCom struct {
 
 	// MappedLength corresponds to the JSON schema field "mapped_length".
 	MappedLength interface{} `msgpack:"mapped_length,omitempty"`
+
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
 
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
@@ -1739,6 +1805,12 @@ type TaskInstance struct {
 	// Queue corresponds to the JSON schema field "queue".
 	Queue string `msgpack:"queue,omitempty"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1882,6 +1954,16 @@ type UpdateHITLDetail struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type ValidateInletsAndOutlets struct {
+	// TIID corresponds to the JSON schema field "ti_id".
+	TIID string `msgpack:"ti_id"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
+type Warnings []interface{}
+
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
 	// Key corresponds to the JSON schema field "key".
@@ -1891,17 +1973,7 @@ type VariableResponse struct {
 	Value interface{} `msgpack:"value"`
 }
 
-type Warnings []interface{}
-
 type VersionData map[string]interface{}
-
-type ValidateInletsAndOutlets struct {
-	// TIID corresponds to the JSON schema field "ti_id".
-	TIID string `msgpack:"ti_id"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-}
 
 type VariableKeysResult struct {
 	// Keys corresponds to the JSON schema field "keys".
