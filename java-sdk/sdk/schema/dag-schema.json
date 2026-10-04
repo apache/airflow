@@ -331,6 +331,7 @@
         "executor": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
         "do_xcom_push": { "type": "boolean", "default": true },
+        "returns_dag_result": { "type": "boolean", "default": false },
         "email_on_failure": { "type": "boolean", "default": true },
         "email_on_retry": { "type": "boolean", "default": true },
         "ui_color": { "type": "string", "default": "#fff" },

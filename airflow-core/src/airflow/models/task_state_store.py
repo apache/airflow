@@ -21,7 +21,7 @@ from uuid import UUID
 
 from sqlalchemy import ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import Mapped, mapped_column, synonym
+from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, Base, StringID
@@ -33,7 +33,7 @@ class TaskStateStoreModel(Base):
     """
     Persists key/value state for a task within a single DAG run.
 
-    Scoped to (dag_run_id, task_id, region_id, map_index). Retries of the same task share
+    Scoped to (dag_run_id, task_id, region_id, region_index). Retries of the same task share
     the same rows — that is the point. Different DAG runs have different dag_run_id
     values so they get independent namespaces automatically.
     """
@@ -44,8 +44,7 @@ class TaskStateStoreModel(Base):
 
     dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False)
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
-    region_index = synonym("map_index")
+    region_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
     region_id: Mapped[UUID] = mapped_column(
         CompactUUID(),
         nullable=False,
@@ -67,7 +66,7 @@ class TaskStateStoreModel(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "dag_run_id", "task_id", "region_id", "map_index", "key", name="task_state_store_uq"
+            "dag_run_id", "task_id", "region_id", "region_index", "key", name="task_state_store_uq"
         ),
         ForeignKeyConstraint(
             ["dag_run_id"],
@@ -75,6 +74,6 @@ class TaskStateStoreModel(Base):
             name="task_state_store_dag_run_fkey",
             ondelete="CASCADE",
         ),
-        Index("idx_task_state_store_lookup", "dag_id", "run_id", "task_id", "map_index"),
+        Index("idx_task_state_store_lookup", "dag_id", "run_id", "task_id", "region_index"),
         Index("idx_task_state_store_expires_at", "expires_at"),
     )

@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import contextlib
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import attr
+from sqlalchemy import select
 
 from airflow.exceptions import TaskNotFound
 from airflow.utils.state import State
@@ -29,6 +31,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagrun import DagRun
+    from airflow.models.task_coordinates import TaskCoordinateResolver
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -85,12 +88,12 @@ class DepContext:
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""
 
-    upstream_task_id_counts: dict[tuple[str, str, frozenset[str]], list[tuple[str, int]]] = attr.ib(
+    upstream_task_id_counts: dict[tuple[str, str, frozenset[str | UUID]], list[tuple[str, int]]] = attr.ib(
         factory=dict, repr=False
     )
     """
     Per-pass memo of the trigger-rule upstream task-instance counts, keyed by
-    ``(dag_id, run_id, frozenset of direct-upstream task_ids)``.
+    ``(dag_id, run_id, frozenset of direct-upstream task ids or region ids)``.
 
     Only populated for the "simple" case where the count-query predicate is exactly
     ``task_id IN (upstream_ids)`` and is therefore identical for every downstream sharing the same
@@ -106,6 +109,73 @@ class DepContext:
     every ``UP_FOR_RESCHEDULE`` task instance. With ``init=False`` those instances would each get a
     fresh empty dict, so they would neither read the memo nor warm it for anything else.
     """
+    regional_runs: dict[tuple[str, str], bool] = attr.ib(factory=dict, repr=False)
+    producer_tis: dict[tuple[str, str, UUID | None, UUID, int, str], tuple[TaskInstance, ...]] = attr.ib(
+        factory=dict, repr=False
+    )
+    coordinate_resolvers: dict[Session, TaskCoordinateResolver] = attr.ib(factory=dict, repr=False)
+    dynamic_dags: dict[int, bool] = attr.ib(factory=dict, repr=False)
+
+    def has_regions(self, ti: TaskInstance, *, session: Session) -> bool:
+        from airflow.models.dynamic_region import DynamicRegion
+
+        key = ti.dag_id, ti.run_id
+        if key not in self.regional_runs:
+            self.regional_runs[key] = self._dag_can_have_regions(ti) and bool(
+                session.scalar(
+                    select(
+                        select(DynamicRegion.id)
+                        .where(
+                            DynamicRegion.dag_id == ti.dag_id,
+                            DynamicRegion.run_id == ti.run_id,
+                        )
+                        .exists()
+                    )
+                )
+            )
+        return self.regional_runs[key]
+
+    def _dag_can_have_regions(self, ti: TaskInstance) -> bool:
+        from airflow.models.task_coordinates import enclosing_loop
+
+        dag = getattr(ti.task, "dag", None)
+        if dag is None:
+            return True
+        if id(dag) not in self.dynamic_dags:
+            # Outside a loop every task has one live expansion, so the region-free predicates are exact.
+            self.dynamic_dags[id(dag)] = any(
+                enclosing_loop(task) is not None for task in dag.task_dict.values()
+            )
+        return self.dynamic_dags[id(dag)]
+
+    def coordinate_resolver(self, ti: TaskInstance, *, session: Session) -> TaskCoordinateResolver:
+        from airflow.models.task_coordinates import TaskCoordinateResolver
+
+        if session not in self.coordinate_resolvers:
+            self.coordinate_resolvers[session] = TaskCoordinateResolver.for_dag(None, session)
+        resolver = self.coordinate_resolvers[session]
+        resolver.adopt_dag(getattr(ti.task, "dag", None))
+        return resolver
+
+    def upstream_tis(self, ti: TaskInstance, task_id: str, *, session: Session) -> tuple[TaskInstance, ...]:
+        resolver = self.coordinate_resolver(ti, session=session)
+        task = resolver.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+        key = (
+            ti.dag_id,
+            ti.run_id,
+            ti.dag_version_id,
+            ti.region_id,
+            -1 if task.get_needs_expansion() else ti.region_index,
+            task_id,
+        )
+        if key not in self.producer_tis:
+            self.producer_tis[key] = resolver.resolve(
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=task_id,
+                caller=ti,
+            )
+        return self.producer_tis[key]
 
     mapped_group_skip_decisions: dict[
         tuple[str, str, str | None], dict[int, list[tuple[str, bool, dict]]]
@@ -144,3 +214,5 @@ class DepContext:
         later in the same pass recomputes the count instead of reading a stale one.
         """
         self.upstream_task_id_counts.clear()
+        self.producer_tis.clear()
+        self.regional_runs.clear()

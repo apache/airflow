@@ -181,7 +181,7 @@ def loop_reader_tis(dag_maker, session):
     with dag_maker(serialized=True) as dag:
         create_loop(body, max_iterations=3)
     dr = dag_maker.create_dagrun()
-    region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+    region = DynamicRegion.get_or_create(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session)
     session.add(region)
     session.flush()
     current = next(ti for ti in dr.task_instances if ti.task_id == "body.task")
@@ -403,7 +403,9 @@ class TestTIRunState:
         self, client, session, create_task_instance, regional
     ):
         ti = create_task_instance(state=State.QUEUED, session=session)
-        region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop")
+        region = DynamicRegion.get_or_create(
+            dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop", session=session
+        )
         session.add(region)
         session.flush()
         if regional:
@@ -2329,7 +2331,7 @@ class TestTIUpdateState:
                             dag_id="dag",
                             run_id="run",
                             task_id="task",
-                            map_index=-1,
+                            region_index=-1,
                             try_number=1,
                             max_tries=0,
                             start_date=None,
@@ -3328,7 +3330,9 @@ class TestTIUpdateState:
             state=State.RUNNING,
         )
         if regional:
-            region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop")
+            region = DynamicRegion.get_or_create(
+                dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop", session=session
+            )
             session.add(region)
             session.flush()
             ti.region_id = region.id
@@ -3428,7 +3432,9 @@ class TestTISkipDownstream:
         with dag_maker(serialized=True) as dag:
             create_loop(body, max_iterations=3)
         dr = dag_maker.create_dagrun()
-        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+        region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
+        )
         session.add(region)
         session.flush()
         tis = {ti.task_id: ti for ti in dr.task_instances}

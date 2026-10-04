@@ -60,7 +60,7 @@ def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFie
             TaskInstance.dag_id,
             TaskInstance.run_id,
             TaskInstance.task_id,
-            TaskInstance.map_index,
+            TaskInstance.region_index.label("map_index"),
         ).where(TaskInstance.id == token.id)
     ).one_or_none()
     if row is None:

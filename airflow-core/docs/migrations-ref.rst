@@ -39,7 +39,10 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``54a27b6f9d01`` (head) | ``e7c2a91bd540`` | ``3.4.0``         | Add dynamic region storage.                                  |
+| ``7f8c9a2d410e`` (head) | ``54a27b6f9d01`` | ``3.4.0``         | Rename the stored map index to region_index and add the      |
+|                         |                  |                   | dynamic region slot key.                                     |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``54a27b6f9d01``        | ``e7c2a91bd540`` | ``3.4.0``         | Add dynamic region storage.                                  |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``e7c2a91bd540``        | ``90e4d18ccadf`` | ``3.4.0``         | Unify task attempt ownership without rewriting legacy XCom   |
 |                         |                  |                   | data.                                                        |

@@ -24,7 +24,6 @@ import pytest
 from sqlalchemy import event
 
 from airflow.configuration import conf
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance
@@ -32,6 +31,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.task_log_address import (
     TaskLogContext,
@@ -48,7 +48,7 @@ from tests_common.test_utils.asserts import assert_queries_count
     [(-1, "", "attempt=3.log"), (0, "", "map_index=0/attempt=3.log"), (-1, "pass=2", "pass=2/attempt=3.log")],
 )
 def test_default_template_preserves_exact_filename(map_index, token, suffix):
-    ti = SimpleNamespace(dag_id="dag", run_id="run", task_id="task", map_index=map_index, try_number=3)
+    ti = SimpleNamespace(dag_id="dag", run_id="run", task_id="task", region_index=map_index, try_number=3)
     context = TaskLogContext(conf.get("logging", "log_filename_template"), "", "", "", token, map_index)
 
     assert render_task_log_filename(ti, 3, context=context) == f"dag_id=dag/run_id=run/task_id=task/{suffix}"
@@ -141,7 +141,7 @@ def test_batched_loop_contexts_and_archived_tries_keep_original_addresses(dag_ma
         create_loop(body, max_iterations=3)
     run = dag_maker.create_dagrun()
     ti = next(ti for ti in run.task_instances if ti.task_id == "body.work")
-    first = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="body")
+    first = DynamicRegion.get_or_create(dag_id=run.dag_id, run_id=run.run_id, node_id="body", session=session)
     session.add(first)
     session.flush()
     ti.region_id, ti.region_index, ti.try_number = first.id, 1, 1
@@ -217,32 +217,33 @@ def test_mapped_log_context_projects_expansion_position(dag_maker, session, insi
     ti = next(ti for ti in run.task_instances if ti.task_id == "body.mapped")
     parent_id = None
     if inside_loop:
-        parent = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="body")
-        session.add(parent)
-        session.flush()
-        parent_id = parent.id
+        parent_id = DynamicRegion.get_or_create(
+            dag_id=run.dag_id, run_id=run.run_id, node_id="body", session=session
+        ).id
+    predecessor = DynamicRegion.get_or_create(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        node_id=ti.task_id,
+        parent_region_id=parent_id,
+        parent_region_index=2 if inside_loop else None,
+        session=session,
+    )
     expansion = DynamicRegion(
         dag_id=run.dag_id,
         run_id=run.run_id,
         node_id=ti.task_id,
         parent_region_id=parent_id,
         parent_region_index=2 if inside_loop else None,
+        forked_from_region_id=predecessor.id,
     )
     session.add(expansion)
-    session.flush()
-    predecessor = DynamicRegion(
-        dag_id=run.dag_id,
-        run_id=run.run_id,
-        node_id=ti.task_id,
-        parent_region_id=parent_id,
-        parent_region_index=2 if inside_loop else None,
-    )
-    session.add(predecessor)
-    session.flush()
-    expansion.forked_from_region_id = predecessor.id
     session.add_all(
-        DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="unrelated") for _ in range(20)
+        DynamicRegion.get_or_create(
+            dag_id=run.dag_id, run_id=run.run_id, node_id=f"unrelated_{index}", session=session
+        )
+        for index in range(20)
     )
+    session.flush()
     ti.region_id, ti.region_index = expansion.id, 0
     session.flush()
     expected_regions = {expansion.id, predecessor.id}
@@ -271,35 +272,93 @@ def test_mapped_log_context_projects_expansion_position(dag_maker, session, insi
         assert path.endswith("task_id=body.mapped/map_index=0/attempt=1.log")
 
 
+def _add_nested_expansion(run, session, task_id: str):
+    loop_region = DynamicRegion.get_or_create(
+        dag_id=run.dag_id, run_id=run.run_id, node_id="body", session=session
+    )
+    return DynamicRegion.get_or_create(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        node_id=task_id,
+        parent_region_id=loop_region.id,
+        parent_region_index=2,
+        session=session,
+    )
+
+
 @pytest.mark.db_test
-def test_log_context_falls_back_to_stored_regions_when_the_pinned_dag_lost_the_nodes(dag_maker, session):
+@pytest.mark.parametrize("attach_dag", [True, False])
+def test_mapped_log_contexts_outside_loops_never_deserialize_the_dag(dag_maker, session, attach_dag):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    run = dag_maker.create_dagrun()
+    tis = run.task_instances
+    dag = DBDagBag().get_dag_for_run(run, session=session)
+    for ti in tis:
+        ti.task = dag.get_task(ti.task_id) if attach_dag else None
+
+    with mock.patch.object(
+        DagSerialization, "from_dict", autospec=True, side_effect=DagSerialization.from_dict
+    ) as read:
+        prepare_task_log_contexts(tis, session=session)
+
+    assert read.call_count == 0
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(("attach_dag", "expected_reads"), [(True, 0), (False, 1)])
+def test_mapped_log_contexts_inside_a_loop_deserialize_the_dag_at_most_once(
+    dag_maker, session, attach_dag, expected_reads
+):
     @task_group(group_id="body")
     def body():
         PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
 
-    with dag_maker("loop_dag", serialized=True):
+    with dag_maker(serialized=True):
+        create_loop(body, max_iterations=3)
+    run = dag_maker.create_dagrun()
+    tis = [ti for ti in run.task_instances if ti.task_id == "body.mapped"]
+    expansion = _add_nested_expansion(run, session, "body.mapped")
+    for index, ti in enumerate(tis):
+        ti.region_id, ti.region_index = expansion.id, index
+    session.flush()
+    dag = DBDagBag().get_dag_for_run(run, session=session)
+    for ti in tis:
+        ti.task = dag.get_task(ti.task_id) if attach_dag else None
+
+    with mock.patch.object(
+        DagSerialization, "from_dict", autospec=True, side_effect=DagSerialization.from_dict
+    ) as read:
+        prepare_task_log_contexts(tis, session=session)
+
+    assert read.call_count == expected_reads
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("pinned_dag", ["missing", "without_the_nodes"])
+def test_log_context_falls_back_to_stored_regions_when_the_pinned_dag_lost_the_nodes(
+    dag_maker, session, pinned_dag
+):
+    @task_group(group_id="body")
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+
+    with dag_maker(serialized=True):
         create_loop(body, max_iterations=3)
     run = dag_maker.create_dagrun()
     ti = next(ti for ti in run.task_instances if ti.task_id == "body.mapped")
-    loop_region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="body")
-    session.add(loop_region)
-    session.flush()
-    expansion = DynamicRegion(
-        dag_id=run.dag_id,
-        run_id=run.run_id,
-        node_id=ti.task_id,
-        parent_region_id=loop_region.id,
-        parent_region_index=2,
-    )
-    session.add(expansion)
-    with dag_maker("replacement_dag", serialized=True):
-        EmptyOperator(task_id="unrelated")
-    ti.dag_version_id = DagVersion.get_latest_version("replacement_dag", session=session).id
+    expansion = _add_nested_expansion(run, session, ti.task_id)
     ti.region_id, ti.region_index = expansion.id, 0
     session.flush()
     ti.task = None
+    stale_dag = (
+        None
+        if pinned_dag == "missing"
+        else SimpleNamespace(task_group=SimpleNamespace(get_task_group_dict=dict), tasks=[])
+    )
 
-    context = prepare_task_log_contexts([ti], session=session)[ti.id]
+    with mock.patch.object(DBDagBag, "get_dag", autospec=True, return_value=stale_dag):
+        context = prepare_task_log_contexts([ti], session=session)[ti.id]
 
     assert context.log_position == "pass=2/map=0"
     assert context.map_index == 0

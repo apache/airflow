@@ -88,7 +88,7 @@ from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.dynamic_region import SENTINEL_REGION_ID
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion, public_region_filter
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.tasklog import LogTemplate
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
@@ -973,7 +973,7 @@ class DagRun(Base, LoggingMixin):
                 TI.dag_id == dag_id,
                 TI.run_id == run_id,
             )
-            .order_by(TI.task_id, TI.map_index)
+            .order_by(TI.task_id, TI.region_id, TI.region_index)
         )
 
         if state:
@@ -1063,13 +1063,14 @@ class DagRun(Base, LoggingMixin):
         task_id: str,
         *,
         map_index: int = -1,
-        region_id: UUID = SENTINEL_REGION_ID,
+        region_id: UUID | None = None,
         session: Session = NEW_SESSION,
     ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 
         :param task_id: the task id
+        :param region_id: the exact region; by default the task instance addressed by its public ``map_index``
         :param session: Sqlalchemy ORM Session
         """
         return DagRun.fetch_task_instance(
@@ -1089,7 +1090,7 @@ class DagRun(Base, LoggingMixin):
         task_id: str,
         *,
         map_index: int = -1,
-        region_id: UUID = SENTINEL_REGION_ID,
+        region_id: UUID | None = None,
         session: Session = NEW_SESSION,
     ) -> TI | None:
         """
@@ -1100,11 +1101,15 @@ class DagRun(Base, LoggingMixin):
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
-        return session.scalars(
-            select(TI).filter_by(
-                dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index, region_id=region_id
-            )
-        ).one_or_none()
+        query = select(TI).filter_by(
+            dag_id=dag_id, run_id=dag_run_id, task_id=task_id, region_index=map_index
+        )
+        query = query.where(
+            public_region_filter(TI, dag_ids=dag_id, run_ids=dag_run_id, task_ids=task_id)
+            if region_id is None
+            else TI.region_id == region_id
+        )
+        return session.scalars(query).one_or_none()
 
     def get_dag(self) -> SerializedDAG:
         """
@@ -1532,10 +1537,9 @@ class DagRun(Base, LoggingMixin):
             task_instance_to_runtime,
         )
         from airflow.models.dag_version import DagVersion
-        from airflow.models.dagbag import DBDagBag
         from airflow.models.task_coordinates import TaskCoordinateResolver
 
-        coordinates = TaskCoordinateResolver(DBDagBag(), session)
+        coordinates = TaskCoordinateResolver.for_dag(self.dag, session)
 
         if relevant_ti.dag_version_id is not None:
             return task_instance_to_runtime(
@@ -1717,10 +1721,7 @@ class DagRun(Base, LoggingMixin):
             """
             Try to expand the ti, if needed.
 
-            If the ti needs expansion, newly created task instances are
-            returned as well as the original ti.
-            The original ti is also modified in-place and assigned the
-            ``map_index`` of 0.
+            Expansion replaces the placeholder with newly created task instances.
 
             If the ti does not need expansion, either because the task is not
             mapped, or has already been expanded, *None* is returned.
@@ -1730,7 +1731,7 @@ class DagRun(Base, LoggingMixin):
             if TYPE_CHECKING:
                 assert ti.task
 
-            if ti.map_index >= 0:  # Already expanded, we're good.
+            if ti.region_index >= 0:  # Already expanded, we're good.
                 return None
 
             if is_mapped(ti.task):
@@ -1764,7 +1765,7 @@ class DagRun(Base, LoggingMixin):
             # expanded before executed. Also see _revise_map_indexes_if_mapped
             # docstring for additional information.
             new_tis = None
-            if schedulable.map_index < 0:
+            if schedulable.region_index < 0:
                 new_tis = _expand_mapped_task_if_needed(schedulable)
                 if new_tis is not None:
                     additional_tis.extend(new_tis)
@@ -1779,9 +1780,7 @@ class DagRun(Base, LoggingMixin):
                 expansion_key = (schedulable.task.task_id, schedulable.region_id)
                 if expansion_key not in revised_expansion_keys:
                     revised_tis = self._revise_map_indexes_if_mapped(
-                        schedulable.task,
-                        dag_version_id=schedulable.dag_version_id,
-                        region_id=schedulable.region_id,
+                        schedulable,
                         session=session,
                     )
                     ready_tis.extend(revised_tis)
@@ -1930,12 +1929,81 @@ class DagRun(Base, LoggingMixin):
         )
 
         # Create the missing tasks, including mapped tasks
-        tis_to_create = self._create_tasks(
-            (task for task in dag.task_dict.values() if task_filter(task)),
-            task_creator,
-            session=session,
+        missing_tasks = [task for task in dag.task_dict.values() if task_filter(task)]
+        tis_to_create = list(
+            self._create_tasks(
+                missing_tasks,
+                task_creator,
+                session=session,
+                expand_literals=True,
+            )
         )
         self._create_task_instances(self.dag_id, tis_to_create, created_counts, hook_is_noop, session=session)
+        empty_literal_tasks = [
+            task.task_id for task in missing_tasks if self._get_literal_expansion_count(task) == 0
+        ]
+        if empty_literal_tasks:
+            session.execute(
+                update(TI)
+                .where(
+                    TI.working_set.is_(True),
+                    TI.dag_id == self.dag_id,
+                    TI.run_id == self.run_id,
+                    TI.task_id.in_(empty_literal_tasks),
+                    TI.region_index == -1,
+                )
+                .values(state=TaskInstanceState.SKIPPED)
+                .execution_options(synchronize_session=False)
+            )
+
+    @staticmethod
+    def _get_literal_expansion_count(task: Operator) -> int | None:
+        """Return how many instances a task whose inputs are all literals expands to, else None."""
+        from airflow.models.expandinput import NotFullyPopulated
+
+        try:
+            return task.get_parse_time_mapped_ti_count()
+        except (NotMapped, NotFullyPopulated):
+            return None
+
+    def _return_unmapped_instance_to_sentinel(self, ti: TI, *, session: Session) -> bool:
+        """
+        Undo the placement of an unfinished instance whose task is no longer mapped.
+
+        A mapped task's placeholder lives in the task's own region. When a later Dag version stops mapping the
+        task, nothing else would move the placeholder back, and a plain task is looked up in the sentinel region.
+        Returns whether the instance was marked removed.
+
+        A mapped task only turns plain mid-run when the run's definition is replaced: an unversioned bundle
+        was reparsed, or a clear re-pinned the run to the latest version. Runs pinned to a versioned bundle
+        never reach this.
+        """
+        if ti.region_id == SENTINEL_REGION_ID or (
+            ti.state is not None
+            and ti.state not in State.unfinished
+            and ti.state != TaskInstanceState.REMOVED
+        ):
+            return False
+        region = session.get(DynamicRegion, ti.region_id)
+        if region is None or region.node_id != ti.task_id or region.parent_region_id is not None:
+            return False
+        sentinel_slot_taken = session.scalar(
+            select(TI.id)
+            .where(
+                TI.dag_id == ti.dag_id,
+                TI.run_id == ti.run_id,
+                TI.task_id == ti.task_id,
+                TI.region_id == SENTINEL_REGION_ID,
+                TI.region_index == -1,
+                TI.working_set.is_(True),
+            )
+            .limit(1)
+        )
+        if ti.region_index >= 0 or sentinel_slot_taken is not None:
+            ti.state = TaskInstanceState.REMOVED
+            return True
+        ti.region_id = SENTINEL_REGION_ID
+        return False
 
     def _check_for_removed_or_restored_tasks(
         self, dag: SerializedDAG, ti_mutation_hook, *, session: Session
@@ -1951,10 +2019,12 @@ class DagRun(Base, LoggingMixin):
 
         """
         from airflow.models.expandinput import NotFullyPopulated
+        from airflow.models.task_coordinates import TaskCoordinateResolver
         from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
         tis = self.get_task_instances(session=session)
-        expanded_task_ids = {ti.task_id for ti in tis if ti.map_index >= 0}
+        expanded_task_ids = {ti.task_id for ti in tis if ti.region_index >= 0}
+        coordinates = TaskCoordinateResolver.for_dag(dag, session)
 
         # check for removed or restored tasks
         task_ids = set()
@@ -1975,17 +2045,24 @@ class DagRun(Base, LoggingMixin):
                     ti.state = TaskInstanceState.REMOVED
                 continue
 
+            ti.task = task
             try:
                 num_mapped_tis = task.get_parse_time_mapped_ti_count()
             except NotMapped:
-                pass
+                if self._return_unmapped_instance_to_sentinel(ti, session=session):
+                    continue
             except NotFullyPopulated:
                 # What if it is _now_ dynamically mapped, but wasn't before?
                 try:
-                    total_length = get_mapped_ti_count(task, self.run_id, session=session)
+                    total_length = get_mapped_ti_count(
+                        task,
+                        self.run_id,
+                        session=session,
+                        producer_contexts=coordinates.producer_contexts(ti),
+                    )
                 except NotFullyPopulated:
                     # Not all upstreams finished, so we can't tell what should be here. Remove everything.
-                    if ti.map_index >= 0:
+                    if ti.region_index >= 0:
                         self.log.debug(
                             "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
                         )
@@ -1993,7 +2070,7 @@ class DagRun(Base, LoggingMixin):
                         continue
                 else:
                     # Upstreams finished, check there aren't any extras
-                    if ti.map_index >= total_length:
+                    if ti.region_index >= total_length:
                         self.log.debug(
                             "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
                             ti,
@@ -2003,7 +2080,7 @@ class DagRun(Base, LoggingMixin):
                         continue
             else:
                 # Check if the number of mapped literals has changed, and we need to mark this TI as removed.
-                if ti.map_index >= num_mapped_tis:
+                if ti.region_index >= num_mapped_tis:
                     self.log.debug(
                         "Removing task '%s' as the map_index is longer than the literal mapping list (%s)",
                         ti,
@@ -2012,7 +2089,7 @@ class DagRun(Base, LoggingMixin):
                     ti.state = TaskInstanceState.REMOVED
                     continue
                 # A sole unmapped instance must remain available for scheduler expansion.
-                if ti.map_index < 0 and ti.task_id in expanded_task_ids:
+                if ti.region_index < 0 and ti.task_id in expanded_task_ids:
                     self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = TaskInstanceState.REMOVED
                     continue
@@ -2035,7 +2112,7 @@ class DagRun(Base, LoggingMixin):
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True],
         dag_version_id: UUID,
-    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]: ...
+    ) -> Callable[[Operator, Iterable[int], UUID], Iterator[dict[str, Any]]]: ...
 
     @overload
     def _get_task_creator(
@@ -2044,7 +2121,7 @@ class DagRun(Base, LoggingMixin):
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
         dag_version_id: UUID,
-    ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
+    ) -> Callable[[Operator, Iterable[int], UUID], Iterator[TI]]: ...
 
     def _get_task_creator(
         self,
@@ -2052,7 +2129,7 @@ class DagRun(Base, LoggingMixin):
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True, False],
         dag_version_id: UUID,
-    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]:
+    ) -> Callable[[Operator, Iterable[int], UUID], Iterator[dict[str, Any]] | Iterator[TI]]:
         """
         Get the task creator function.
 
@@ -2065,13 +2142,16 @@ class DagRun(Base, LoggingMixin):
         """
         if hook_is_noop:
 
-            def create_ti_mapping(task: Operator, indexes: Iterable[int]) -> Iterator[dict[str, Any]]:
+            def create_ti_mapping(
+                task: Operator, indexes: Iterable[int], region_id: UUID
+            ) -> Iterator[dict[str, Any]]:
                 created_counts[task.task_type] += 1
-                for map_index in indexes:
+                for region_index in indexes:
                     yield TI.insert_mapping(
                         self.run_id,
                         task,
-                        map_index=map_index,
+                        region_index=region_index,
+                        region_id=region_id,
                         dag_version_id=dag_version_id,
                         dag_run=self,
                     )
@@ -2080,9 +2160,15 @@ class DagRun(Base, LoggingMixin):
 
         else:
 
-            def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
-                for map_index in indexes:
-                    ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=dag_version_id)
+            def create_ti(task: Operator, indexes: Iterable[int], region_id: UUID) -> Iterator[TI]:
+                for region_index in indexes:
+                    ti = TI(
+                        task,
+                        run_id=self.run_id,
+                        region_index=region_index,
+                        region_id=region_id,
+                        dag_version_id=dag_version_id,
+                    )
                     ti_mutation_hook(ti, dag_run=self)
                     if ti.operator:
                         created_counts[ti.operator] += 1
@@ -2094,38 +2180,45 @@ class DagRun(Base, LoggingMixin):
     def _create_tasks(
         self,
         tasks: Iterable[Operator],
-        task_creator: Callable[[Operator, Iterable[int]], CreatedTasks],
+        task_creator: Callable[[Operator, Iterable[int], UUID], CreatedTasks],
         *,
         session: Session,
+        parent_region: tuple[UUID, int] | None = None,
+        expand_literals: bool = False,
     ) -> CreatedTasks:
         """
-        Create missing tasks -- and expand any MappedOperator that _only_ have literals as input.
+        Create ordinary tasks and a region-owned placeholder for each mapped task.
 
         :param tasks: Tasks to create jobs for in the DAG run
         :param task_creator: Function to create task instances
+        :param expand_literals: Create the slots of a task whose inputs are all literals right away,
+            so its placeholder is never expanded one task at a time.
         """
-        from airflow.models.expandinput import NotFullyPopulated
-        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
-
-        map_indexes: Iterable[int]
+        tasks = list(tasks)
+        regions = DynamicRegion.get_or_create_many(
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            node_ids=[task.task_id for task in tasks if task.get_needs_expansion()],
+            parent_region_id=parent_region[0] if parent_region else None,
+            parent_region_index=parent_region[1] if parent_region else None,
+            session=session,
+        )
         for task in tasks:
-            try:
-                count = get_mapped_ti_count(task, self.run_id, session=session)
-            except (NotMapped, NotFullyPopulated):
-                map_indexes = (-1,)
+            indexes: Iterable[int]
+            if task.task_id in regions:
+                region_id, indexes = regions[task.task_id].id, (-1,)
+                if expand_literals and (count := self._get_literal_expansion_count(task)):
+                    indexes = range(count)
+            elif parent_region:
+                region_id, indexes = parent_region[0], (parent_region[1],)
             else:
-                if count:
-                    map_indexes = range(count)
-                else:
-                    # Make sure to always create at least one ti; this will be
-                    # marked as REMOVED later at runtime.
-                    map_indexes = (-1,)
-            yield from task_creator(task, map_indexes)
+                region_id, indexes = SENTINEL_REGION_ID, (-1,)
+            yield from task_creator(task, indexes, region_id)
 
     def _create_task_instances(
         self,
         dag_id: str,
-        tasks: Iterator[dict[str, Any]] | Iterator[TI],
+        tasks: Iterable[dict[str, Any]] | Iterable[TI],
         created_counts: dict[str, int],
         hook_is_noop: bool,
         *,
@@ -2174,11 +2267,9 @@ class DagRun(Base, LoggingMixin):
 
     def _revise_map_indexes_if_mapped(
         self,
-        task: Operator,
+        ti: TI,
         *,
-        dag_version_id: UUID | None,
         session: Session,
-        region_id: UUID = SENTINEL_REGION_ID,
     ) -> list[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
@@ -2189,17 +2280,30 @@ class DagRun(Base, LoggingMixin):
         for more details.
         """
         from airflow.models.expandinput import NotFullyPopulated
+        from airflow.models.task_coordinates import TaskCoordinateResolver
         from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
+        task = ti.task
+        if task is None:
+            raise ValueError(f"Task definition is required to revise {ti}")
+        if not task.get_needs_expansion():
+            return []
+        region_id = ti.region_id
+        dag_version_id = ti.dag_version_id
         try:
-            total_length = get_mapped_ti_count(task, self.run_id, session=session)
+            total_length = get_mapped_ti_count(
+                task,
+                self.run_id,
+                session=session,
+                producer_contexts=TaskCoordinateResolver.for_dag(self.dag, session).producer_contexts(ti),
+            )
         except NotMapped:
             return []  # Not a mapped task, don't need to do anything.
         except NotFullyPopulated:
             return []  # Upstreams not ready, don't need to revise this yet.
 
         query = session.scalars(
-            select(TI.map_index).where(
+            select(TI.region_index).where(
                 TI.dag_id == self.dag_id,
                 TI.task_id == task.task_id,
                 TI.run_id == self.run_id,
@@ -2216,8 +2320,8 @@ class DagRun(Base, LoggingMixin):
                     TI.dag_id == self.dag_id,
                     TI.task_id == task.task_id,
                     TI.run_id == self.run_id,
+                    TI.region_index.in_(removed_indexes),
                     TI.region_id == region_id,
-                    TI.map_index.in_(removed_indexes),
                 )
                 .values(state=TaskInstanceState.REMOVED)
             )
@@ -2240,7 +2344,7 @@ class DagRun(Base, LoggingMixin):
             ti = TI(
                 task,
                 run_id=self.run_id,
-                map_index=index,
+                region_index=index,
                 region_id=region_id,
                 state=None,
                 dag_version_id=dag_version_id,

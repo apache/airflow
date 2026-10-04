@@ -939,7 +939,9 @@ class SerializedDagModel(Base):
             data = json.loads(self.data)
         else:
             raise ValueError("invalid or missing serialized DAG data")
-        return DagSerialization.from_dict(data)
+        dag = DagSerialization.from_dict(data)
+        dag.dag_version_id = self.dag_version_id
+        return dag
 
     @classmethod
     @provide_session

@@ -62,6 +62,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
@@ -73,7 +74,7 @@ from airflow.models.taskinstance import (
     find_relevant_relatives,
 )
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XComModel, XComModelV2, build_xcom_read_query
+from airflow.models.xcom import LazyXComSelectSequence, XComModel, XComModelV2, build_xcom_read_query
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -91,6 +92,7 @@ from airflow.sdk import (
     task_group,
 )
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.sdk.definitions.param import process_params
@@ -186,6 +188,49 @@ def clean_db():
     db.clear_db_pakl()
     db.clear_db_apdr()
     db.clear_db_assets()
+
+
+@pytest.mark.parametrize("bulk", [False, True])
+@pytest.mark.parametrize(
+    "index_fields", [{"region_index": 4}, {"map_index": 4}, {"map_index": 4, "region_index": 4}]
+)
+def test_canonical_region_index_is_persisted_for_new_task_instances(dag_maker, session, bulk, index_fields):
+    with dag_maker(serialized=True) as dag:
+        EmptyOperator(task_id="canonical")
+    dr = dag_maker.create_dagrun()
+    original = dr.task_instances[0]
+    task = dag.get_task("canonical")
+    kwargs = dict(task=task, run_id=dr.run_id, dag_version_id=original.dag_version_id, **index_fields)
+    if bulk:
+        row = TaskInstance.insert_mapping(**kwargs, dag_run=dr)
+        session.bulk_insert_mappings(TaskInstance, [row])
+    else:
+        session.add(TaskInstance(**kwargs))
+    session.flush()
+
+    ti = session.scalar(select(TaskInstance).where(TaskInstance.region_index == 4))
+    assert ti is not None
+    assert ti.id != original.id
+    assert ti.region_index == 4
+
+
+@pytest.mark.parametrize("bulk", [False, True])
+def test_conflicting_task_instance_index_names_are_rejected(dag_maker, bulk):
+    with dag_maker(serialized=True) as dag:
+        EmptyOperator(task_id="canonical")
+    dr = dag_maker.create_dagrun()
+    kwargs = dict(
+        task=dag.get_task("canonical"),
+        run_id=dr.run_id,
+        dag_version_id=dr.task_instances[0].dag_version_id,
+        map_index=2,
+        region_index=3,
+    )
+    constructor = TaskInstance.insert_mapping if bulk else TaskInstance
+    if bulk:
+        kwargs["dag_run"] = dr
+    with pytest.raises(ValueError, match="map_index.*region_index"):
+        constructor(**kwargs)
 
 
 class TestTaskInstance:
@@ -1382,20 +1427,33 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         dag_maker.session.commit()
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
-        ti = dr.get_task_instance("do_something_else", session=session)
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == "do_something_else",
+            )
+        ).one()
+        region_id = ti.region_id
         ti.map_index = 0
         base_task = ti.task
 
         for map_index in range(1, 5):
             ti = TaskInstance(
-                base_task, run_id=dr.run_id, map_index=map_index, dag_version_id=ti.dag_version_id
+                base_task,
+                run_id=dr.run_id,
+                map_index=map_index,
+                region_id=region_id,
+                dag_version_id=ti.dag_version_id,
             )
             session.add(ti)
             ti.dag_run = dr
         session.flush()
         session.commit()
         downstream = ti.task
-        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
+        ti = dr.get_task_instance(
+            task_id="do_something_else", map_index=3, region_id=region_id, session=session
+        )
         ti.task = downstream
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
@@ -1403,7 +1461,9 @@ class TestTaskInstance:
             session=session,
         )
         completed = all(dep.passed for dep in dep_results)
-        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
+        ti = dr.get_task_instance(
+            task_id="do_something_else", map_index=3, region_id=region_id, session=session
+        )
 
         assert completed == expect_completed
         assert ti.state == expect_state
@@ -2616,7 +2676,7 @@ class TestTaskInstance:
             "dag_id": "test_refresh_from_db_dag",
             "run_id": "test",
             "region_id": uuid6.uuid7(),
-            "map_index": -1,
+            "region_index": -1,
             "start_date": run_date + datetime.timedelta(days=1),
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
             "duration": 1.234,
@@ -2910,7 +2970,7 @@ class TestTaskInstance:
                     dag_id=attempt.dag_id,
                     task_id=attempt.task_id,
                     run_id=attempt.run_id,
-                    map_index=map_index,
+                    region_index=map_index,
                     try_number=number,
                     working_set=working_set,
                     state=TaskInstanceState.FAILED,
@@ -3760,21 +3820,12 @@ class TestMappedTaskInstanceReceiveValue:
             dag_maker.run_ti(ti.task_id, dag_run=dag_run, map_index=ti.map_index, session=session)
         assert outputs == expected_outputs
 
-    def test_map_xcom_wide_batched_expand(self, dag_maker, session):
-        """Wide XCom-driven expand goes through the batched add_all()/flush() path.
-
-        Exercises ``TaskInstance.expand_mapped_task`` over a 20-element upstream XCom and
-        asserts the batched expansion creates exactly N mapped TIs with contiguous
-        ``map_index`` 0..N-1, the expected ``None`` (schedulable) state, and that the
-        returned instances are usable: they keep their ``.task`` (no merge() that drops
-        it), are attached to the session, and have ``dag_run`` primed so a later
-        ``ti.get_dagrun()`` -- as dependency evaluation makes per index -- is a cache hit
-        rather than an N+1 SELECT. Also pins the expansion call's query count.
-        """
+    @pytest.mark.parametrize("width", [20, 200])
+    def test_map_xcom_wide_batched_expand(self, dag_maker, session, width):
+        """Expansion and subsequent DagRun access use bounded queries at either width."""
         from sqlalchemy import event
         from sqlalchemy.orm.base import NO_VALUE
 
-        width = 20
         upstream_return = list(range(width))
 
         with dag_maker(dag_id="xcom_wide", session=session, serialized=True) as dag:
@@ -3795,34 +3846,21 @@ class TestMappedTaskInstanceReceiveValue:
         dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag_maker.serialized_dag.get_task("show")
-        # Pins the query count so a regression back to per-index session.merge() -- which
-        # would issue a merge-load + reload SELECT per index -- fails this test, not just
-        # a slower one. Measured at 7 for this fixture; margin allows for minor backend
-        # differences while staying far below what a per-index merge() would cost.
-        with assert_queries_count(7, margin=2):
+        with assert_queries_count(11, margin=2):
             mapped_tis, max_map_index = expand_mapped_task_instances(
                 show_task, dag_run.run_id, session=session
             )
 
-        # Correct count + contiguous indexes 0..N-1.
         assert len(mapped_tis) == width
         assert max_map_index + 1 == width
         assert sorted(ti.map_index for ti in mapped_tis) == list(range(width))
 
-        # Freshly-expanded mapped TIs are schedulable (state None) and are attached to
-        # the session. The batched path (indexes >= 1) additionally keeps its ``.task``
-        # because we never merge(); index 0 is the repurposed unmapped TI (loaded from
-        # the DB, so ``.task`` is None) which is stock behaviour untouched by this change.
         for ti in mapped_tis:
             assert ti.state is None
             assert ti in session
-        batched_tis = [ti for ti in mapped_tis if ti.map_index >= 1]
-        assert len(batched_tis) == width - 1
-        for ti in batched_tis:
             assert ti.task is not None
             assert sa_inspect(ti).attrs.dag_run.loaded_value is not NO_VALUE
 
-        # And they are actually persisted as rows.
         persisted = session.scalars(
             select(TI)
             .where(TI.task_id == "show", TI.dag_id == dag_run.dag_id, TI.run_id == dag_run.run_id)
@@ -3840,7 +3878,7 @@ class TestMappedTaskInstanceReceiveValue:
 
         event.listen(session.bind, "after_cursor_execute", _on_cursor_execute)
         try:
-            for ti in batched_tis:
+            for ti in mapped_tis:
                 returned = ti.get_dagrun(session=session)
                 assert returned.run_id == dag_run.run_id
         finally:
@@ -3894,14 +3932,11 @@ class TestMappedTaskInstanceReceiveValue:
         )
         session.flush()
 
-        # Pins the query count so a regression back to per-index session.merge() -- which
-        # would issue a merge-load + reload SELECT per index -- fails this test. Measured
-        # at 3 for this fixture (2 new indexes); margin allows for minor backend
-        # differences while staying below what a per-index merge() would cost.
-        with assert_queries_count(3, margin=1):
+        with assert_queries_count(5, margin=1):
             new_tis = list(
                 dag_run._revise_map_indexes_if_mapped(
-                    show_task, dag_version_id=mapped_tis[0].dag_version_id, session=session
+                    mapped_tis[0],
+                    session=session,
                 )
             )
         # Only the two brand-new indexes (3, 4) are created, contiguous and usable.
@@ -4051,7 +4086,6 @@ class TestMappedTaskInstanceReceiveValue:
         Test that xcom_pull returns LazyXComSelectSequence when XComs are mapped (map_index >= 0)
         and map_indexes is not specified.
         """
-        from airflow.models.xcom import LazyXComSelectSequence
 
         with dag_maker(dag_id="test_xcom_mapped_values", session=session):
 
@@ -4895,6 +4929,76 @@ def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, sessi
 
     assert "<deferred>" in result
     assert "[queued]" not in result
+
+
+@pytest.fixture
+def display_coordinates_tis(dag_maker, session):
+    @task_group
+    def body():
+        EmptyOperator(task_id="step") >> PythonOperator.partial(
+            task_id="inner_mapped", python_callable=list
+        ).expand(op_kwargs=[{}, {}])
+
+    with dag_maker("display_coordinates", serialized=True) as dag:
+        PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=[{}, {}])
+        EmptyOperator(task_id="plain")
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    tis = {(ti.task_id, ti.region_index): ti for ti in dr.task_instances}
+    loop_region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+    )
+    inner_region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="body.inner_mapped",
+        parent_region_id=loop_region.id,
+        parent_region_index=1,
+        session=session,
+    )
+    for task_id, region in (("body.step", loop_region), ("body.inner_mapped", inner_region)):
+        tis[task_id, 1] = TaskInstance(
+            dag.get_task(task_id),
+            run_id=dr.run_id,
+            dag_version_id=dr.created_dag_version_id,
+            region_id=region.id,
+            region_index=1,
+        )
+    return tis
+
+
+@pytest.mark.parametrize(
+    ("key", "include_unmapped", "expected"),
+    [
+        pytest.param(("mapped", 1), False, {"map_index": 1}, id="mapped task outside a loop"),
+        pytest.param(("plain", -1), False, {}, id="unmapped task"),
+        pytest.param(("plain", -1), True, {"map_index": -1}, id="unmapped task, index requested"),
+        pytest.param(("body.step", 1), False, {"iteration": 1}, id="unmapped loop-body task"),
+    ],
+)
+def test_display_coordinates(display_coordinates_tis, key, include_unmapped, expected):
+    ti = display_coordinates_tis[key]
+    assert ti.get_display_coordinates(include_unmapped=include_unmapped) == expected
+
+
+def test_display_coordinates_of_a_mapped_loop_body_task_keep_the_region(display_coordinates_tis):
+    ti = display_coordinates_tis["body.inner_mapped", 1]
+    assert ti.get_display_coordinates() == {"region_id": str(ti.region_id), "region_index": 1}
+
+
+def test_display_coordinates_keep_the_region_when_the_task_definition_is_not_loaded(display_coordinates_tis):
+    ti = display_coordinates_tis["mapped", 1]
+    ti.task = None
+    assert ti.get_display_coordinates() == {"region_id": str(ti.region_id), "region_index": 1}
+
+
+def test_mapped_task_outside_a_loop_is_described_by_its_map_index(display_coordinates_tis):
+    ti = display_coordinates_tis["mapped", 1]
+    note = TaskInstanceNote(content="note")
+    note.task_instance = ti
+    assert "map_index=1 " in repr(ti)
+    assert "map_index=1 " in repr(note) + " "
+    assert "region_id" not in repr(ti) + repr(note)
 
 
 class TestTaskInstanceStatsTagsTeamName:

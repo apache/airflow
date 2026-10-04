@@ -67,7 +67,7 @@ class TestTaskStateStoreModel:
         row = TaskStateStoreModel(
             dag_run_id=dag_run.id,
             task_id=TASK_ID,
-            map_index=-1,
+            region_index=-1,
             key="remote_job_id",
             dag_id=DAG_ID,
             run_id=RUN_ID,
@@ -80,7 +80,7 @@ class TestTaskStateStoreModel:
             select(TaskStateStoreModel).where(
                 TaskStateStoreModel.dag_run_id == dag_run.id,
                 TaskStateStoreModel.task_id == TASK_ID,
-                TaskStateStoreModel.map_index == -1,
+                TaskStateStoreModel.region_index == -1,
                 TaskStateStoreModel.key == "remote_job_id",
             )
         )
@@ -95,7 +95,7 @@ class TestTaskStateStoreModel:
             TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id=TASK_ID,
-                map_index=-1,
+                region_index=-1,
                 key="remote_job_id",
                 dag_id=DAG_ID,
                 run_id=RUN_ID,
@@ -108,7 +108,7 @@ class TestTaskStateStoreModel:
             TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id=TASK_ID,
-                map_index=-1,
+                region_index=-1,
                 key="remote_job_id",
                 dag_id=DAG_ID,
                 run_id=RUN_ID,
@@ -123,7 +123,7 @@ class TestTaskStateStoreModel:
         row = TaskStateStoreModel(
             dag_run_id=dag_run.id,
             task_id=TASK_ID,
-            map_index=-1,
+            region_index=-1,
             key="remote_job_id",
             dag_id=DAG_ID,
             run_id=RUN_ID,
@@ -152,7 +152,7 @@ class TestTaskStateStoreModel:
                 TaskStateStoreModel(
                     dag_run_id=dag_run.id,
                     task_id=TASK_ID,
-                    map_index=idx,
+                    region_index=idx,
                     key="checkpoint",
                     dag_id=DAG_ID,
                     run_id=RUN_ID,
@@ -166,7 +166,7 @@ class TestTaskStateStoreModel:
                 select(TaskStateStoreModel).where(
                     TaskStateStoreModel.dag_run_id == dag_run.id,
                     TaskStateStoreModel.task_id == TASK_ID,
-                    TaskStateStoreModel.map_index == idx,
+                    TaskStateStoreModel.region_index == idx,
                     TaskStateStoreModel.key == "checkpoint",
                 )
             )
@@ -179,7 +179,7 @@ class TestTaskStateStoreModel:
             TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id=TASK_ID,
-                map_index=-1,
+                region_index=-1,
                 key="remote_job_id",
                 dag_id=DAG_ID,
                 run_id=RUN_ID,
@@ -212,7 +212,7 @@ class TestTaskStateStoreModel:
             TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id=TASK_ID,
-                map_index=-1,
+                region_index=-1,
                 key="watermark",
                 dag_id=DAG_ID,
                 run_id=RUN_ID,

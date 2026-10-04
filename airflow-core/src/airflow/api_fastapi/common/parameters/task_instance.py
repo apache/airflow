@@ -237,7 +237,11 @@ QueryTIMapIndexFilter = Annotated[
     FilterParam[list[int]],
     Depends(
         filter_param_factory(
-            TaskInstance.map_index, list[int], FilterOptionEnum.ANY_EQUAL, default_factory=list
+            TaskInstance.region_index,
+            list[int],
+            FilterOptionEnum.ANY_EQUAL,
+            filter_name="map_index",
+            default_factory=list,
         )
     ),
 ]

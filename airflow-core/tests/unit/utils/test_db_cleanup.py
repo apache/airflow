@@ -1736,7 +1736,7 @@ class TestDBCleanup:
                 dag_id="other",
                 task_id="task",
                 run_id="manual",
-                map_index=-1,
+                region_index=-1,
                 state="success",
                 try_number=1,
                 working_set=True,
@@ -1854,7 +1854,7 @@ class TestTaskStoreCleanup:
             expired = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
-                map_index=-1,
+                region_index=-1,
                 key="job_id",
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
@@ -1865,7 +1865,7 @@ class TestTaskStoreCleanup:
             never_expire = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
-                map_index=-1,
+                region_index=-1,
                 key="result",
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",
@@ -1876,7 +1876,7 @@ class TestTaskStoreCleanup:
             not_yet_expired = TaskStateStoreModel(
                 dag_run_id=dag_run.id,
                 task_id="t1",
-                map_index=-1,
+                region_index=-1,
                 key="future_key",
                 dag_id="ts_test_dag",
                 run_id="ts_test_run",

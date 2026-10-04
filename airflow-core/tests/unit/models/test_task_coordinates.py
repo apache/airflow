@@ -66,7 +66,9 @@ def loop_coordinates(dag_maker, session):
         outside >> loop
     dr = dag_maker.create_dagrun()
     tis = {ti.task_id: ti for ti in dr.task_instances}
-    first = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id)
+    first = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+    )
     session.add(first)
     session.flush()
     replacement = DynamicRegion(
@@ -164,7 +166,9 @@ def test_sentinel_consumer_resolves_modern_mapped_producers(dag_maker, session):
     dr = dag_maker.create_dagrun()
     consumer = next(ti for ti in dr.task_instances if ti.task_id == "consumer")
     mapped = sorted((ti for ti in dr.task_instances if ti.task_id == "mapped"), key=lambda ti: ti.map_index)
-    region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped")
+    region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped", session=session
+    )
     session.add(region)
     session.flush()
     for ti in mapped:
@@ -211,7 +215,9 @@ def test_unversioned_run_keeps_task_definition_after_latest_graph_changes(
             run_id=dr.run_id,
             dag_version_id=DagVersion.get_latest_version(dr.dag_id, session=session).id,
         )
-        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id=producer.task_id)
+        region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=producer.task_id, session=session
+        )
         session.add(region)
         session.flush()
         mapped.region_id, mapped.region_index = region.id, 0

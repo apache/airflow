@@ -110,6 +110,7 @@ from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
@@ -155,6 +156,7 @@ if TYPE_CHECKING:
     from airflow.executors.workloads.types import SchedulerWorkload
     from airflow.models.pool import PoolStats
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -1041,7 +1043,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .where(func.coalesce(dr_task_concurrency_subquery.c.task_per_dr_count, 0) < DM.max_active_tasks)
-            .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
+            .order_by(-TI.priority_weight, DR.logical_date, TI.region_index)
         )
 
         # Starvation filters should be applied before computing the row_num based on the
@@ -1069,14 +1071,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 func.row_number()
                 .over(
                     partition_by=[TI.dag_id, TI.run_id],
-                    order_by=[-TI.priority_weight, DR.logical_date, TI.map_index],
+                    order_by=[-TI.priority_weight, DR.logical_date, TI.region_index],
                 )
                 .label("row_num"),
                 DM.max_active_tasks.label("dr_max_active_tasks"),
                 # Create columns for the order_by checks here for sqlite.
                 TI.priority_weight.label("priority_weight_for_ordering"),
                 DR.logical_date.label("logical_date_for_ordering"),
-                TI.map_index.label("map_index_for_ordering"),
+                TI.region_index.label("region_index_for_ordering"),
             )
         ).subquery()
 
@@ -1086,17 +1088,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .select_from(ranked_query)
             .join(
                 TI,
-                (TI.dag_id == ranked_query.c.dag_id)
-                & (TI.task_id == ranked_query.c.task_id)
-                & (TI.run_id == ranked_query.c.run_id)
-                & (TI.map_index == ranked_query.c.map_index),
+                TI.id == ranked_query.c.id,
             )
             .where(ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks)
             # Add the order_by columns from the ranked query for sqlite.
             .order_by(
                 -ranked_query.c.priority_weight_for_ordering,
                 ranked_query.c.logical_date_for_ordering,
-                ranked_query.c.map_index_for_ordering,
+                ranked_query.c.region_index_for_ordering,
             )
             .options(selectinload(TI.dag_model))
             # Eager-load the run's pinned DagVersion (dag_run.created_dag_version): TIs become
@@ -1576,7 +1575,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             msg = (
-                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, ti_id=%s, "
+                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, %s, ti_id=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor=%s, executor_state=%s, try_number=%s, max_tries=%s, "
                 "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, scheduled_dttm=%s,"
@@ -1587,7 +1586,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.dag_id,
                 ti.task_id,
                 ti.run_id,
-                ti.map_index,
+                ", ".join(
+                    f"{name}={value}"
+                    for name, value in ti.get_display_coordinates(
+                        include_unmapped=True, task=cls._find_task_to_display(coordinates, ti)
+                    ).items()
+                ),
                 ti.id,
                 ti.start_date,
                 ti.end_date,
@@ -3469,7 +3473,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.dag_id == ti.dag_id,
                 Log.task_id == ti.task_id,
                 Log.run_id == ti.run_id,
-                Log.map_index == ti.map_index,
+                Log.map_index == ti.region_index,
                 Log.try_number == ti.try_number,
                 Log.event == "running",
             )
@@ -3484,7 +3488,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.task_id == ti.task_id,
                 Log.dag_id == ti.dag_id,
                 Log.run_id == ti.run_id,
-                Log.map_index == ti.map_index,
+                Log.map_index == ti.region_index,
                 Log.try_number == ti.try_number,
                 Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
             )
@@ -3659,7 +3663,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 TI.dag_id,
                                 TI.task_id,
                                 TI.run_id,
-                                TI.map_index,
+                                TI.region_id,
+                                TI.region_index,
+                                TI.dag_version_id,
                                 TI.try_number,
                                 TI.state,
                                 TI.external_executor_id,
@@ -3928,7 +3934,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             task_instance_heartbeat_timeout_message_details = (
-                self._generate_task_instance_heartbeat_timeout_message_details(ti)
+                self._generate_task_instance_heartbeat_timeout_message_details(
+                    ti, task=self._find_task_to_display(coordinates, ti)
+                )
             )
             msg = str(task_instance_heartbeat_timeout_message_details)
 
@@ -3978,7 +3986,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             has_callback_version = _ensure_ti_has_dag_version_id(ti, session, self.log)
             if not has_callback_version and ti.state != TaskInstanceState.RESTARTING:
                 continue
+            callback_map_index = None
             if has_callback_version:
+                try:
+                    # public_map_index falls back to stored region data, so only get_task can tell
+                    # that the pinned definition is gone.
+                    coordinates.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+                except (TaskNotFound, ValueError):
+                    self.log.warning(
+                        "Skipping heartbeat callback for %s: pinned task definition is missing", ti
+                    )
+                else:
+                    callback_map_index = coordinates.public_map_index(ti)
+            if callback_map_index is not None:
                 context_from_server = TIRunContext(
                     dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
                     max_tries=ti.max_tries,
@@ -3991,9 +4011,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     bundle_name=bundle_name,
                     bundle_version=bundle_version,
                     version_data=version_data,
-                    ti=task_instance_to_runtime(
-                        ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
-                    ),
+                    ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=callback_map_index),
                     msg=msg,
                     task_callback_type=task_callback_type,
                     context_from_server=context_from_server,
@@ -4010,9 +4028,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             bundle_name=bundle_name,
                             bundle_version=bundle_version,
                             version_data=version_data,
-                            ti=task_instance_to_runtime(
-                                ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
-                            ),
+                            ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=callback_map_index),
                             msg=msg,
                             email_type=(
                                 "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
@@ -4055,15 +4071,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     # [END find_and_purge_task_instances_without_heartbeats]
 
     @staticmethod
-    def _generate_task_instance_heartbeat_timeout_message_details(ti: TI) -> dict[str, Any]:
+    def _find_task_to_display(coordinates: TaskCoordinateResolver, ti: TI) -> Operator | None:
+        """Find the definition that tells a log message how to name an instance, only where it matters."""
+        return None if ti.region_id == SENTINEL_REGION_ID else coordinates.find_task(ti)
+
+    @staticmethod
+    def _generate_task_instance_heartbeat_timeout_message_details(
+        ti: TI, task: Operator | None = None
+    ) -> dict[str, Any]:
         task_instance_heartbeat_timeout_message_details: dict[str, Any] = {
             "DAG Id": ti.dag_id,
             "Task Id": ti.task_id,
             "Run Id": ti.run_id,
         }
 
-        if ti.map_index != -1:
-            task_instance_heartbeat_timeout_message_details["Map Index"] = ti.map_index
+        for name, value in ti.get_display_coordinates(task=task).items():
+            task_instance_heartbeat_timeout_message_details[name.replace("_", " ").title()] = value
         if ti.hostname:
             task_instance_heartbeat_timeout_message_details["Hostname"] = ti.hostname
         if ti.external_executor_id:

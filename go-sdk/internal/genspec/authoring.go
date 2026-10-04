@@ -168,6 +168,7 @@ var taskShape = authoringShape{
 		"is_setup":               "setup/teardown needs trigger-rule handling the SDK does not model yet",
 		"is_teardown":            "setup/teardown needs trigger-rule handling the SDK does not model yet",
 		"on_failure_fail_dagrun": "only meaningful on a teardown task",
+		"returns_dag_result":     "the SDK does not send dag_result on the return-value XCom push",
 		"allow_nested_operators": "Python-only: it warns when an operator executes inside another",
 		"doc":                    "a legacy rendering of the task's docs; only doc_md is exposed",
 		"doc_json":               "a legacy rendering of the task's docs; only doc_md is exposed",

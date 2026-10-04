@@ -254,7 +254,9 @@ def test_build_trigger_workloads_preserves_region_and_projects_public_map_index(
     session.add(trigger)
     session.flush()
     ti.trigger_id = trigger.id
-    region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id)
+    region = DynamicRegion.get_or_create(
+        dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
+    )
     session.add(region)
     session.flush()
     ti.region_id, ti.region_index = region.id, 2
