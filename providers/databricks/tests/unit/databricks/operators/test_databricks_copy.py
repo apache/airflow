@@ -540,6 +540,7 @@ USERS_URI = "databricks://my-workspace.cloud.databricks.com/main/default/users"
 
 def run_copy_into(op, context=None):
     with mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as hook_cls:
+        hook_cls.return_value.host = USERS_TABLE.host
         if context is not None:
             op.render_template_fields(context)
         op.execute(context)
@@ -637,6 +638,22 @@ def test_asset_operator_mismatch_raises_before_sql(table_name, catalog, schema):
     )
     with mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as hook_cls:
         with pytest.raises(ValueError, match="does not match unity_table"):
+            op.execute(None)
+    assert hook_cls.return_value.run.call_args_list == []
+    assert op._sql is None
+
+
+def test_asset_operator_rejects_connection_for_other_workspace_before_sql():
+    op = DatabricksCopyIntoAssetOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="main.default.users",
+        unity_table=USERS_TABLE,
+    )
+    with mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as hook_cls:
+        hook_cls.return_value.host = "other-workspace.cloud.databricks.com"
+        with pytest.raises(ValueError, match="connection host .* does not match unity_table host"):
             op.execute(None)
     assert hook_cls.return_value.run.call_args_list == []
     assert op._sql is None

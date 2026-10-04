@@ -701,4 +701,11 @@ class DatabricksCopyIntoAssetOperator(DatabricksCopyIntoOperator):
                 f"catalog={self._catalog!r}, schema={self._schema!r} does not match "
                 f"unity_table {expected._asdict()}."
             )
+
+        hook = self._get_hook()
+        if hook.host != self.unity_table.host:
+            raise ValueError(
+                f"Databricks connection host {hook.host!r} does not match "
+                f"unity_table host {self.unity_table.host!r}."
+            )
         return super().execute(context)
