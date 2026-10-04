@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import os
 import ssl
@@ -2169,6 +2170,15 @@ class TestAsyncKubernetesHook:
         assert not first_client.rest_client.pool_manager.closed
         mock_create_ssl.assert_called_once()
 
+    @staticmethod
+    async def _bearer_auth_headers(kube_client) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        # update_params_for_auth is sync in kubernetes_asyncio<33 and async from 33 on
+        result = kube_client.update_params_for_auth(headers, [], ["BearerToken"])
+        if inspect.isawaitable(result):
+            await result
+        return headers
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize("source", ["file", "dict"])
     @mock.patch(SSL_CREATE, autospec=True, side_effect=ssl.create_default_context)
@@ -2186,16 +2196,14 @@ class TestAsyncKubernetesHook:
             hook.config_dict = config_data
 
         async with hook.get_conn() as first_client:
-            first_headers: dict[str, str] = {}
-            await first_client.update_params_for_auth(first_headers, [], ["BearerToken"])
+            first_headers = await self._bearer_auth_headers(first_client)
 
         config_data["users"][0]["user"]["token"] = "rotated-token"
         if source == "file":
             kubeconfig.write_text(yaml.safe_dump(config_data))
 
         async with hook.get_conn() as second_client:
-            second_headers: dict[str, str] = {}
-            await second_client.update_params_for_auth(second_headers, [], ["BearerToken"])
+            second_headers = await self._bearer_auth_headers(second_client)
 
         assert first_client is second_client
         assert first_headers["authorization"] == "Bearer static-token"
@@ -2218,13 +2226,11 @@ class TestAsyncKubernetesHook:
         )
 
         async with hook.get_conn() as first_client:
-            first_headers: dict[str, str] = {}
-            await first_client.update_params_for_auth(first_headers, [], ["BearerToken"])
+            first_headers = await self._bearer_auth_headers(first_client)
 
         time_machine.move_to("2026-01-01T03:00:00Z")
         async with hook.get_conn() as second_client:
-            second_headers: dict[str, str] = {}
-            await second_client.update_params_for_auth(second_headers, [], ["BearerToken"])
+            second_headers = await self._bearer_auth_headers(second_client)
 
         assert first_client is second_client
         assert first_headers["authorization"] == "Bearer initial-token"
