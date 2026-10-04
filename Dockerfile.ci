@@ -1713,6 +1713,7 @@ EOF
 # Extract manifests separately so COPY below depends on their contents, not all source files.
 FROM ${BASE_IMAGE} as dependency-manifests
 WORKDIR /source
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 RUN --mount=type=bind,target=/source \
     mkdir -p /dependency-manifests && \
     while IFS= read -r -d '' manifest; do \
