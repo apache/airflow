@@ -330,7 +330,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
 
     def _find_job_run_id_by_task_uuid(self, task_uuid: str) -> tuple[str, str] | None:
         next_token: str | None = None
-        for _ in range(100):
+        while True:
             request = {"JobName": self.job_name, "MaxResults": 50}
             if next_token:
                 request["NextToken"] = next_token
@@ -345,7 +345,6 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
             next_token = response.get("NextToken")
             if not next_token:
                 return None
-        return None
 
     def execute(self, context: Context) -> str | None:
         """

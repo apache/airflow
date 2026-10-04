@@ -1353,18 +1353,23 @@ class TestGlueJobOperatorDurableExecution:
 
         mock_log.exception.assert_called_with("Failed to find previous Glue job run by task UUID")
 
-    def test_find_job_run_id_by_task_uuid_bounds_pagination(self):
+    def test_find_job_run_id_by_task_uuid_exhausts_pages(self):
         glue = self._build()
         glue.hook.conn = mock.MagicMock()
-        glue.hook.conn.get_job_runs.return_value = {
-            "JobRuns": [{"JobRunId": f"jr_{i}", "Arguments": {}} for i in range(50)],
-            "NextToken": "continue"
-        }
+        glue.hook.conn.get_job_runs.side_effect = [
+            {
+                "JobRuns": [{"JobRunId": "jr_1", "Arguments": {}}],
+                "NextToken": "page2",
+            },
+            {
+                "JobRuns": [{"JobRunId": "jr_2", "Arguments": {}}],
+            },
+        ]
 
         result = glue._find_job_run_id_by_task_uuid("test_task_uuid")
 
         assert result is None
-        assert glue.hook.conn.get_job_runs.call_count == 100
+        assert glue.hook.conn.get_job_runs.call_count == 2
 
 
 class TestGlueDataQualityOperator:
