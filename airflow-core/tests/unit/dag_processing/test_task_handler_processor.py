@@ -23,6 +23,7 @@ import os
 import selectors
 import signal
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -30,7 +31,7 @@ import typing
 import uuid
 from pathlib import Path
 from typing import BinaryIO
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 import psutil
 import pytest
@@ -433,6 +434,29 @@ class TestLangSDKTaskHandlerProcessorProcess:
         assert proc._exit_code == -signal.SIGKILL
         assert "The Lang-SDK runtime did not exit after its parse result; killing it" in cap_structlog
 
+    @patch("airflow.dag_processing.task_handler_processor._EXIT_GRACE_PERIOD", 0.5)
+    @patch.object(FakeCoordinator, "parse_task_handler", autospec=True)
+    def test_what_the_runtime_leaves_after_its_result_is_killed(
+        self, mock_parse_task_handler, parse, tmp_path, cap_structlog
+    ):
+        def reply(request, comms):
+            comms.send(_reply_with("extract")(request, comms))
+            # The leftover inherits the runtime's stdout, so the parse is not done when the runtime exits.
+            leftover = subprocess.Popen(["sleep", "60"])
+            (tmp_path / "leftover.pid").write_text(str(leftover.pid))
+
+        mock_parse_task_handler.side_effect = play_runtime(reply)
+
+        proc = parse()
+
+        assert _get_task_ids(proc.parsing_result) == ["extract"]
+        assert proc._exit_code == 0
+        assert (
+            "The Lang-SDK runtime left processes holding its output after its parse result; killing them"
+            in cap_structlog
+        )
+        assert _stops_running(int((tmp_path / "leftover.pid").read_text()))
+
     @pytest.mark.parametrize(
         ("policy", "error"),
         [
@@ -749,6 +773,31 @@ class TestRun:
 
     @pytest.mark.execution_timeout(30)
     @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
+    def test_what_the_runtime_leaves_is_killed_at_the_import_timeout(self, mock_timeout, tmp_path):
+        pid_file = tmp_path / "leftover.pid"
+        with patch.object(
+            LangSDKTaskHandlerProcessorProcess,
+            "close",
+            autospec=True,
+            side_effect=LangSDKTaskHandlerProcessorProcess.close,
+        ) as mock_close:
+            # The runtime exits, and the process it leaves in its process group keeps its output open.
+            result = _run(tmp_path, argv=["/bin/sh", "-c", f"sleep 30 & echo $! > {pid_file}; exit 0"])
+        [proc] = [c.args[0] for c in mock_close.call_args_list]
+        leftover = int(pid_file.read_text())
+        try:
+            assert result.import_errors == {
+                "etl.artifact": f"The Lang-SDK runtime did not parse {tmp_path / 'etl.artifact'} within 1.0s, "
+                "the limit set by [core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
+            }
+            assert proc._exit_code == 0
+            assert _stops_running(leftover)
+        finally:
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(leftover, signal.SIGKILL)
+
+    @pytest.mark.execution_timeout(30)
+    @patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
     def test_the_import_timeout_holds_after_the_runtime_exits(self, mock_timeout, tmp_path):
         pid_file = tmp_path / "leftover.pid"
         # The runtime exits, and the process it leaves outside its process group keeps its output open.
@@ -923,3 +972,19 @@ def test_killing_a_runtime_that_does_not_exit_waits_a_bounded_time(mock_signal):
     assert proc._exit_code is None
     mock_signal.assert_called_once_with(proc, signal.SIGKILL)
     process.wait.assert_called_once_with(_EXIT_GRACE_PERIOD)
+
+
+@pytest.mark.parametrize(("pid_reused", "killed"), [(False, True), (True, False)])
+@patch("airflow.dag_processing.task_handler_processor.os.killpg", autospec=True)
+@patch("airflow.dag_processing.task_handler_processor.psutil.pid_exists", autospec=True)
+def test_close_kills_what_an_exited_runtime_left_once(mock_pid_exists, mock_killpg, pid_reused, killed):
+    mock_pid_exists.return_value = pid_reused
+    logger_filehandle = MagicMock(spec=BinaryIO)
+    proc = _make_process(new_process_group=True, logger_filehandle=logger_filehandle)
+    proc._exit_code = 0
+
+    proc.close()
+    proc.close()
+
+    assert mock_killpg.call_args_list == ([call(1, signal.SIGKILL)] if killed else [])
+    logger_filehandle.close.assert_called()
