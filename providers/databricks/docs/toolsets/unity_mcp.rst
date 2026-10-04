@@ -49,7 +49,9 @@ supported.
 
 The gateway runs every tool call as the identity of the connection's credentials. That identity needs
 ``EXECUTE`` on the MCP Service, and ``USE CATALOG`` and ``USE SCHEMA`` on its parent catalog and
-schema: ``EXECUTE`` alone is not enough. Account users hold these on the built-in ``system.ai``
+schema: ``EXECUTE`` alone is not enough. It must also be assigned to the workspace. It needs no
+privilege on the Unity Catalog connection behind the service. Account users hold these on the
+built-in ``system.ai``
 services by default. The gateway exposes only the tools selected for the service, and the service's
 policies apply. Grant the identity only the services the agent should use.
 
