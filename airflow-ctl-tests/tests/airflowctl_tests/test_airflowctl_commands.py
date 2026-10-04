@@ -115,6 +115,13 @@ TEST_COMMANDS = [
     'taskinstances get example_bash_operator "manual__{date_param}" runme_0',
     'taskinstances get-dependencies example_bash_operator "manual__{date_param}" runme_0',
     'taskinstances list example_bash_operator "manual__{date_param}"',
+    'taskinstances state-store set example_bash_operator "manual__{date_param}" runme_0 test_key test_value',
+    'taskinstances state-store get example_bash_operator "manual__{date_param}" runme_0 test_key',
+    'taskinstances state-store list example_bash_operator "manual__{date_param}" runme_0',
+    'taskinstances state-store update example_bash_operator "manual__{date_param}" runme_0 test_key new_value',
+    'taskinstances state-store delete example_bash_operator "manual__{date_param}" runme_0 test_key',
+    'taskinstances state-store set example_bash_operator "manual__{date_param}" runme_0 clear_key value',
+    'taskinstances state-store clear example_bash_operator "manual__{date_param}" runme_0',
     # XCom commands - need a Dag run with completed tasks
     'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
     'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
