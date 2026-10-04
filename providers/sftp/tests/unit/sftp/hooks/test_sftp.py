@@ -353,6 +353,55 @@ class TestSFTPHook:
         assert len(output) == 14
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    def test_make_worker_hook_keeps_effective_settings(self, get_connection):
+        get_connection.return_value = Connection(
+            login="conn-user", host="conn-host", port=22, extra=json.dumps({"no_host_key_check": "false"})
+        )
+        hook = SFTPHook(
+            remote_host="explicit-host", username="explicit-user", port=2222, host_proxy_cmd="nc %h %p"
+        )
+        hook.client = MagicMock(spec=SSHClient)
+        hook.conn = MagicMock(spec=SFTPClient)
+
+        worker = hook._make_worker_hook()
+
+        assert worker is not hook
+        assert (worker.remote_host, worker.username, worker.port, worker.host_proxy_cmd) == (
+            "explicit-host",
+            "explicit-user",
+            2222,
+            "nc %h %p",
+        )
+        assert worker.no_host_key_check is False
+        assert worker.client is None
+        assert worker.conn is None
+        assert worker.get_conn_count() == 0
+
+    @pytest.mark.parametrize("direction", ["retrieve", "store"])
+    @patch.object(SFTPHook, "_make_worker_hook", autospec=True)
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    def test_concurrent_transfers_use_worker_hooks(
+        self, get_connection, mock_make_worker_hook, direction, tmp_path
+    ):
+        get_connection.return_value = Connection(login="login", host="host")
+        hook = SFTPHook(remote_host="explicit-host")
+        local_dir = tmp_path / "local"
+        with (
+            patch.object(SFTPHook, "get_managed_conn", autospec=True),
+            patch.object(SFTPHook, "get_tree_map", autospec=True, return_value=(["/remote/a.txt"], [], [])),
+            patch.object(SFTPHook, "path_exists", autospec=True, return_value=False),
+            patch.object(SFTPHook, "create_directory", autospec=True),
+        ):
+            if direction == "retrieve":
+                hook.retrieve_directory_concurrently("/remote", str(local_dir), workers=2)
+            else:
+                local_dir.mkdir()
+                (local_dir / "a.txt").write_text("a")
+                hook.store_directory_concurrently("/remote", str(local_dir), workers=2)
+
+        assert mock_make_worker_hook.call_args_list == [call(hook), call(hook)]
+
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_default(self, get_connection):
         connection = Connection(login="login", host="host")
         get_connection.return_value = connection

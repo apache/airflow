@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import copy
 import datetime
 import functools
 import inspect
@@ -206,6 +207,25 @@ class SFTPHook(SSHHook):
     def get_conn_count(self) -> int:
         """Get the number of open connections."""
         return self._conn_count
+
+    def _make_worker_hook(self) -> SFTPHook:
+        """
+        Return a hook for one concurrent transfer worker.
+
+        Rebuilding the worker from ``ssh_conn_id`` would drop everything the caller passed to the
+        constructor (``remote_host``, port, credentials, proxy, host key settings), so a worker
+        could connect to a different host than the one the directory was listed on. A copy keeps
+        those settings; only the connection state is reset, so each worker opens its own
+        connection and proxy.
+        """
+        worker = copy.copy(self)
+        worker.conn = None
+        worker.client = None
+        worker._ssh_conn = None
+        worker._sftp_conn = None
+        worker._conn_count = 0
+        worker.__dict__.pop("host_proxy", None)
+        return worker
 
     @handle_connection_management
     def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
@@ -478,7 +498,7 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [new_local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
-        conns = [SFTPHook(ssh_conn_id=self.ssh_conn_id).get_conn() for _ in range(workers)]
+        conns = [self._make_worker_hook().get_conn() for _ in range(workers)]
         try:
             self.log.info("Retrieving files concurrently with %s threads", workers)
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
@@ -571,7 +591,7 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [new_remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
-        conns = [SFTPHook(ssh_conn_id=self.ssh_conn_id).get_conn() for _ in range(workers)]
+        conns = [self._make_worker_hook().get_conn() for _ in range(workers)]
         try:
             self.log.info("Storing files concurrently with %s threads", workers)
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
