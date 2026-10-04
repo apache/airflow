@@ -24,7 +24,7 @@ import selectors
 import signal
 import time
 from pathlib import Path
-from socket import socket
+from socket import MSG_DONTWAIT, socket
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, cast, get_args
 
 import attrs
@@ -128,6 +128,24 @@ def _start_task_handler_runtime_entrypoint() -> None:
         )
     except Exception as e:
         comms.send(LangSDKRuntimeStartFailed(error=f"{type(e).__name__}: {e}"))
+
+
+class _ReadsWithoutWaiting:
+    """
+    The runtime's comm socket, with reads that return at once instead of waiting for data.
+
+    A runtime that stops in the middle of a frame then cannot block the caller's loop, which keeps
+    checking the import timeout. Replies are sent on the socket itself, which stays blocking.
+    """
+
+    def __init__(self, sock: socket) -> None:
+        self._sock = sock
+
+    def recv(self, bufsize: int) -> bytes:
+        return self._sock.recv(bufsize, MSG_DONTWAIT)
+
+    def recv_into(self, buffer: memoryview) -> int:
+        return self._sock.recv_into(buffer, 0, MSG_DONTWAIT)
 
 
 @attrs.define(kw_only=True)
@@ -337,10 +355,13 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
         )
 
         def read_valid_frame(sock: socket) -> bool:
-            # A frame that does not decode would otherwise escape the Dag processor's selector loop.
             try:
-                return read_frame(sock)
+                return read_frame(cast("socket", _ReadsWithoutWaiting(sock)))
+            except BlockingIOError:
+                # The rest of the frame has not arrived; the reader keeps what it has read so far.
+                return True
             except msgspec.DecodeError as e:
+                # A frame that does not decode would otherwise escape the Dag processor's selector loop.
                 self._fail_on_invalid_message(f"The Lang-SDK runtime sent an invalid frame: {e}")
                 return False
 
