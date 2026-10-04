@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import struct
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Iterator
 from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -301,6 +301,82 @@ class DynamicRegion(Base):
                 for node_id in slots
             }
         return slots
+
+    @classmethod
+    def load_for_run(cls, dag_id: str, run_id: str, *, session: Session) -> dict[UUID, DynamicRegion]:
+        """Load every region of a Dag run, keyed by id."""
+        return {
+            region.id: region
+            for region in session.scalars(select(cls).where(cls.dag_id == dag_id, cls.run_id == run_id))
+        }
+
+    @classmethod
+    def get_forks_after(cls, region_id: UUID, regions: dict[UUID, DynamicRegion]) -> Iterator[DynamicRegion]:
+        """Yield the successive forks of a region, oldest first."""
+        successors = {region.forked_from_region_id: region for region in regions.values()}
+        while region_id in successors:
+            successor = successors[region_id]
+            yield successor
+            region_id = successor.id
+
+    @classmethod
+    def find_physical_coordinate(
+        cls, region_id: UUID, index: int, node_id: str, regions: dict[UUID, DynamicRegion]
+    ) -> tuple[UUID, int] | None:
+        """Walk up the parents of a coordinate to the region executing ``node_id``, without following forks."""
+        while region_id in regions:
+            region = regions[region_id]
+            if region.node_id == node_id:
+                return region_id, index
+            if region.parent_region_id is None or region.parent_region_index is None:
+                return None
+            region_id, index = region.parent_region_id, region.parent_region_index
+        return None
+
+    @classmethod
+    def is_coordinate_superseded(
+        cls, region_id: UUID, index: int, regions: dict[UUID, DynamicRegion]
+    ) -> bool:
+        """Test whether a coordinate or its parent lies beyond a durable fork cut."""
+        while region_id in regions:
+            if any(region.resumes_from_index <= index for region in cls.get_forks_after(region_id, regions)):
+                return True
+            region = regions[region_id]
+            if region.parent_region_id is None or region.parent_region_index is None:
+                break
+            region_id, index = region.parent_region_id, region.parent_region_index
+        return False
+
+    @classmethod
+    def get_successor_region_id(
+        cls, region_id: UUID, next_index: int, regions: dict[UUID, DynamicRegion]
+    ) -> UUID:
+        """Choose the region that holds ``next_index`` of the pass family ``region_id`` belongs to."""
+        successor_id = region_id
+        for fork in cls.get_forks_after(region_id, regions):
+            if fork.resumes_from_index <= next_index:
+                successor_id = fork.id
+        return successor_id
+
+    @classmethod
+    def fork_family(
+        cls, family_id: UUID, resumes_from_index: int, regions: dict[UUID, DynamicRegion], *, session: Session
+    ) -> DynamicRegion:
+        """Fork the newest region of a family so that it resumes from ``resumes_from_index``."""
+        leaf = regions[family_id]
+        for successor in cls.get_forks_after(family_id, regions):
+            leaf = successor
+        fork = cls(
+            dag_id=leaf.dag_id,
+            run_id=leaf.run_id,
+            node_id=leaf.node_id,
+            parent_region_id=leaf.parent_region_id,
+            parent_region_index=leaf.parent_region_index,
+            forked_from_region_id=leaf.id,
+            resumes_from_index=resumes_from_index,
+        )
+        session.add(fork)
+        return fork
 
 
 @event.listens_for(DynamicRegion, "before_insert")

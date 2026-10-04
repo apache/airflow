@@ -57,6 +57,8 @@ class TaskInstanceResponse(BaseModel):
     dag_id: str
     run_id: str = Field(alias="dag_run_id")
     map_index: int
+    region_id: UUID
+    region_index: int
     logical_date: datetime | None
     run_after: datetime
     start_date: datetime | None
@@ -239,6 +241,19 @@ class ClearTaskInstancesBody(StrictBaseModel):
         "The group's tasks are resolved on the server from the dag structure, so all of them are "
         "targeted regardless of how many there are.",
     )
+    task_instance_ids: list[UUID] | None = Field(
+        default=None,
+        min_length=1,
+        description="Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.",
+    )
+    whole_expansion_ids: list[UUID] = Field(
+        default_factory=list,
+        description="Selected execution IDs whose entire mapped expansion should be cleared.",
+    )
+    include_later_loop_iterations: bool = Field(
+        default=True,
+        description="Clear later iterations when the selection includes a loop gate.",
+    )
     dag_run_id: str | None = None
     include_upstream: bool = False
     include_downstream: bool = False
@@ -281,11 +296,26 @@ class ClearTaskInstancesBody(StrictBaseModel):
             raise ValueError("Only one of task_ids or task_group_id may be provided")
         return data
 
+    @model_validator(mode="after")
+    def validate_execution_selection(self):
+        if self.task_instance_ids is not None:
+            if self.task_ids is not None or self.task_group_id is not None:
+                raise ValueError("task_instance_ids cannot be combined with task_ids or task_group_id")
+            if self.dag_run_id is None or self.include_past or self.include_future:
+                raise ValueError(
+                    "task_instance_ids requires one dag_run_id without include_past or include_future"
+                )
+        if not set(self.whole_expansion_ids) <= set(self.task_instance_ids or ()):
+            raise ValueError("whole_expansion_ids must be a subset of task_instance_ids")
+        return self
+
 
 class PatchTaskInstanceBody(StrictBaseModel):
     """Request body for patching task instance state."""
 
     new_state: TaskInstanceState | None = None
+    region_id: UUID | None = None
+    region_index: int | None = None
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None
     include_upstream: bool = False
     include_downstream: bool = False

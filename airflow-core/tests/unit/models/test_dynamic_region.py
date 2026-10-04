@@ -25,6 +25,7 @@ from sqlalchemy import event, func, insert, select, text
 from sqlalchemy.exc import IntegrityError
 
 from airflow._shared.timezones import timezone
+from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import (
     SENTINEL_REGION_ID,
     AmbiguousProducerError,
@@ -32,7 +33,10 @@ from airflow.models.dynamic_region import (
     ProducerContext,
     resolve_current_producers,
 )
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import (
+    TaskInstance,
+    clear_loop_task_instances,
+)
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -546,7 +550,11 @@ def _ti_search_plans(session, statements):
     plans = []
     for statement in statements:
         rows = session.execute(text(f"EXPLAIN QUERY PLAN {statement}")).all()
-        plans.extend(row[-1] for row in rows if "task_instance" in row[-1] and "SEARCH" in row[-1])
+        plans.extend(
+            row[-1]
+            for row in rows
+            if "task_instance" in row[-1] and ("SEARCH" in row[-1] or "SCAN" in row[-1])
+        )
     return plans
 
 
@@ -574,6 +582,12 @@ def test_public_lookups_use_the_task_instance_unique_key(dag_maker, session):
         plans = _ti_search_plans(session, statements)
         assert any("region_id=? AND region_index=?" in plan for plan in plans), (name, plans)
         assert not any("ANY(" in plan for plan in plans), (name, plans)
+
+    with capture_orm_selects("task_instance") as statements:
+        dr._reconcile_legacy_expansions(session=session)
+    plans = _ti_search_plans(session, statements)
+    assert plans, statements
+    assert all("(dag_id=?" in plan for plan in plans), (statements, plans)
 
 
 def test_second_original_region_for_a_slot_is_rejected(regional_tis, session):
@@ -651,3 +665,67 @@ def test_get_or_create_finds_a_region_created_before_slot_keys_existed(regional_
     assert found.slot_key is None
     count = select(func.count()).select_from(DynamicRegion).where(DynamicRegion.node_id == "legacy")
     assert session.scalar(count) == 1
+
+
+def test_gate_rerun_after_chained_forks_keeps_later_passes_in_later_regions(completed_loop, session):
+    dr, loop, complete_pass = completed_loop
+
+    def gate_at(index):
+        return next(
+            ti
+            for ti in dr.get_task_instances(session=session)
+            if ti.task_id == loop.gate_task_id and ti.region_index == index
+        )
+
+    clear_loop_task_instances([gate_at(2)], downstream=False, session=session)
+    complete_pass(2, "continue")
+    complete_pass(3, "continue")
+    clear_loop_task_instances([gate_at(1)], downstream=False, session=session)
+    complete_pass(1, "continue")
+    complete_pass(2, "continue")
+    before = {
+        (ti.task_id, ti.region_index): (ti.id, ti.region_id) for ti in dr.get_task_instances(session=session)
+    }
+    clear_loop_task_instances([gate_at(1)], downstream=False, later_loop_iterations=False, session=session)
+
+    complete_pass(1, "continue")
+
+    current = {
+        (ti.task_id, ti.region_index): (ti.id, ti.region_id) for ti in dr.get_task_instances(session=session)
+    }
+    assert {key: value for key, value in current.items() if key[1] >= 2} == {
+        key: value for key, value in before.items() if key[1] >= 2
+    }
+
+
+def test_repeated_rewind_appends_empty_forks_and_generates_in_latest_region(completed_loop, session):
+    dr, loop, complete_pass = completed_loop
+    original_region = next(ti.region_id for ti in dr.get_task_instances(session=session))
+    for index in (2, 1):
+        gate = next(
+            ti
+            for ti in dr.get_task_instances(session=session)
+            if ti.task_id == loop.gate_task_id and ti.region_index == index
+        )
+        clear_loop_task_instances([gate], downstream=False, session=session)
+        complete_pass(index, "stop")
+    regions = list(session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)))
+    first = next(region for region in regions if region.forked_from_region_id == original_region)
+    second = next(region for region in regions if region.forked_from_region_id == first.id)
+    assert (first.resumes_from_index, second.resumes_from_index) == (3, 2)
+    assert not session.scalar(
+        select(TaskInstance.id).where(TaskInstance.region_id.in_([first.id, second.id]))
+    )
+    gate = next(
+        ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == loop.gate_task_id and ti.region_index == 1
+    )
+
+    clear_loop_task_instances([gate], downstream=False, session=session)
+    complete_pass(1, "continue")
+
+    third = session.scalar(select(DynamicRegion).where(DynamicRegion.forked_from_region_id == second.id))
+    generated = [ti for ti in dr.get_task_instances(session=session) if ti.region_index == 2]
+    assert len(generated) == 4
+    assert {ti.region_id for ti in generated} == {third.id}

@@ -94,7 +94,7 @@ from airflow.models.dynamic_region import (
     DynamicRegion,
     public_region_filter,
 )
-from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
+from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti
 from airflow.models.tasklog import LogTemplate
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
@@ -1479,6 +1479,8 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def task_instance_scheduling_decisions(self, *, session: Session = NEW_SESSION) -> TISchedulingDecision:
         tis = self.get_task_instances(session=session, state=State.task_states)
+        reconciled = self._reconcile_legacy_expansions(session=session)
+        tis = list({ti.id: ti for ti in (*tis, *reconciled)}.values())
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
 
         def _filter_tis_and_exclude_removed(dag: SerializedDAG, tis: list[TI]) -> Iterable[TI]:
@@ -1912,6 +1914,100 @@ class DagRun(Base, LoggingMixin):
             tags={**self.stats_tags, "dag_id": self.dag_id},
         )
 
+    def _reconcile_legacy_expansions(
+        self, *, session: Session, dag_version_id: UUID | None = None
+    ) -> list[TI]:
+        from airflow.models.task_coordinates import TaskCoordinateResolver
+
+        if not self.get_dag().has_dynamic_nodes:
+            return []
+
+        pending = (
+            select(DynamicRegion)
+            .where(
+                DynamicRegion.dag_id == self.dag_id,
+                DynamicRegion.run_id == self.run_id,
+                DynamicRegion.parent_region_id.is_(None),
+                DynamicRegion.forked_from_region_id.is_(None),
+                ~select(TI.id)
+                .where(
+                    TI.working_set.is_(True),
+                    TI.dag_id == DynamicRegion.dag_id,
+                    TI.run_id == DynamicRegion.run_id,
+                    TI.region_id == DynamicRegion.id,
+                )
+                .exists(),
+                ~select(TI.id)
+                .where(
+                    TI.working_set.is_(True),
+                    TI.dag_id == DynamicRegion.dag_id,
+                    TI.run_id == DynamicRegion.run_id,
+                    TI.task_id == DynamicRegion.node_id,
+                    TI.region_id == SENTINEL_REGION_ID,
+                )
+                .exists(),
+                select(TI.id)
+                .where(
+                    TI.working_set.is_(None),
+                    TI.dag_id == DynamicRegion.dag_id,
+                    TI.run_id == DynamicRegion.run_id,
+                    TI.task_id == DynamicRegion.node_id,
+                    TI.region_id == SENTINEL_REGION_ID,
+                    TI.archived_reason == "superseded",
+                )
+                .exists(),
+            )
+            .execution_options(include_all_attempts=True)
+        )
+        regions = session.scalars(pending).all()
+        if not regions:
+            return []
+        session.execute(
+            select(DagRun)
+            .where(DagRun.id == self.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalar_one()
+        version_id = dag_version_id or self.created_dag_version_id
+        if version_id is None:
+            return []
+        dag = TaskCoordinateResolver.for_dag(self.dag, session).get_dag(version_id)
+        if dag is None:
+            return []
+        live = list(
+            session.scalars(
+                select(TI)
+                .where(
+                    TI.working_set.is_(True),
+                    TI.dag_id == self.dag_id,
+                    TI.run_id == self.run_id,
+                    or_(
+                        TI.region_id.in_([region.id for region in regions]),
+                        and_(
+                            TI.region_id == SENTINEL_REGION_ID,
+                            TI.task_id.in_([region.node_id for region in regions]),
+                        ),
+                    ),
+                )
+                .execution_options(populate_existing=True)
+            ).all()
+        )
+        occupied_regions = {ti.region_id for ti in live}
+        archiving_tasks = {ti.task_id for ti in live if ti.region_id == SENTINEL_REGION_ID}
+        for region in regions:
+            if region.id in occupied_regions or region.node_id in archiving_tasks:
+                continue
+            if not dag.has_task(region.node_id):
+                continue
+            task = dag.get_task(region.node_id)
+            if not task.get_needs_expansion():
+                continue
+            ti = TI(task, run_id=self.run_id, dag_version_id=version_id, region_id=region.id)
+            _add_and_prime_mapped_ti(ti, task, self, session=session)
+            live.append(ti)
+        session.flush()
+        return live
+
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION, dag_version_id: UUID) -> None:
         """
@@ -1929,6 +2025,7 @@ class DagRun(Base, LoggingMixin):
         hook_is_noop: Literal[True, False] = getattr(task_instance_mutation_hook, "is_noop", False)
 
         dag = self.get_dag()
+        self._reconcile_legacy_expansions(session=session, dag_version_id=dag_version_id)
         task_ids = self._check_for_removed_or_restored_tasks(
             dag, task_instance_mutation_hook, session=session
         )
@@ -2239,19 +2336,10 @@ class DagRun(Base, LoggingMixin):
 
         if gate.dag_version_id is None:
             raise InvalidLoopDecision("Loop gate requires a pinned DAG version")
+        if state == TaskInstanceState.SUCCESS and gate.waits_for_loop_archival(session=session):
+            raise InvalidLoopDecision("Loop gate must wait for superseded executions to terminate")
         signal = XComModelV2.get_for_attempt(gate.id, LOOP_DECISION_KEY, session=session)
-        later_gate = session.scalar(
-            select(TI.id)
-            .where(
-                TI.working_set.is_(True),
-                TI.dag_id == self.dag_id,
-                TI.run_id == self.run_id,
-                TI.task_id == gate.task_id,
-                TI.region_id == gate.region_id,
-                TI.region_index > gate.region_index,
-            )
-            .limit(1)
-        )
+        later_gate = gate.has_later_loop_pass(group, session=session)
         if state != TaskInstanceState.SUCCESS or later_gate:
             if signal is not None:
                 session.delete(signal)
@@ -2271,7 +2359,7 @@ class DagRun(Base, LoggingMixin):
                 group.iter_tasks(),
                 creator,
                 session=session,
-                parent_region=(gate.region_id, gate.region_index + 1),
+                parent_region=(gate.get_loop_successor_region_id(session=session), gate.region_index + 1),
             )
         )
         self._create_task_instances(
@@ -2297,6 +2385,18 @@ class DagRun(Base, LoggingMixin):
             else:
                 ordinary_tasks.append(task)
         yield from self._create_tasks(ordinary_tasks, task_creator, session=session, expand_literals=True)
+        regions = (
+            {
+                region.id: region
+                for region in session.scalars(
+                    select(DynamicRegion).where(
+                        DynamicRegion.dag_id == self.dag_id, DynamicRegion.run_id == self.run_id
+                    )
+                )
+            }
+            if loop_tasks
+            else {}
+        )
         for group_id, members in loop_tasks.items():
             coordinates = (
                 session.execute(
@@ -2332,6 +2432,8 @@ class DagRun(Base, LoggingMixin):
                 )
                 coordinates = [(region.id, 0)]
             for region_id, region_index in coordinates:
+                if DynamicRegion.is_coordinate_superseded(region_id, region_index, regions):
+                    continue
                 yield from self._create_tasks(
                     members,
                     task_creator,
@@ -2791,6 +2893,8 @@ def clear_partition_runs(
 
     :meta private:
     """
+    from airflow.models.taskinstance import clear_task_instances_for_runs
+
     stmt = select(DagRun).where(DagRun.dag_id == dag_id)
     if run_id is not None:
         stmt = stmt.where(DagRun.run_id == run_id)
@@ -2810,6 +2914,15 @@ def clear_partition_runs(
             end=partition_date_end,
         )
     stmt = stmt.order_by(DagRun.partition_date, DagRun.run_id)
+
+    if clear_tis and not dry_run:
+        session.execute(
+            stmt.with_only_columns(DagRun.id)
+            .where(select(TI.id).where(TI.dag_id == DagRun.dag_id, TI.run_id == DagRun.run_id).exists())
+            .order_by(None)
+            .order_by(DagRun.dag_id, DagRun.run_id)
+            .with_for_update()
+        ).all()
 
     dag_runs_cleared = 0
     ti_buffer_run_ids: list[str] = []
@@ -2833,10 +2946,18 @@ def clear_partition_runs(
         while len(ti_carry) >= _TI_CHUNK_SIZE:
             slice_tis = ti_carry[:_TI_CHUNK_SIZE]
             del ti_carry[:_TI_CHUNK_SIZE]
-            clear_task_instances(slice_tis, session=session)
+            clear_task_instances_for_runs(
+                slice_tis,
+                session=session,
+                whole_task_keys={(ti.dag_id, ti.run_id, ti.task_id) for ti in slice_tis},
+            )
             flushed += len(slice_tis)
         if drain and ti_carry:
-            clear_task_instances(ti_carry, session=session)
+            clear_task_instances_for_runs(
+                ti_carry,
+                session=session,
+                whole_task_keys={(ti.dag_id, ti.run_id, ti.task_id) for ti in ti_carry},
+            )
             flushed += len(ti_carry)
         return flushed
 

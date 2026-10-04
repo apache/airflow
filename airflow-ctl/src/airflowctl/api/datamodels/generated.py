@@ -263,6 +263,17 @@ class TaskIds(RootModel[tuple[str, int]]):
     root: Annotated[tuple[str, int], Field(max_length=2, min_length=2)]
 
 
+class TaskInstanceIds(RootModel[list[UUID]]):
+    root: Annotated[
+        list[UUID],
+        Field(
+            description="Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.",
+            min_length=1,
+            title="Task Instance Ids",
+        ),
+    ]
+
+
 class ClearTaskInstancesBody(BaseModel):
     """
     Request body for Clear Task Instances endpoint.
@@ -291,6 +302,27 @@ class ClearTaskInstancesBody(BaseModel):
             title="Task Group Id",
         ),
     ] = None
+    task_instance_ids: Annotated[
+        TaskInstanceIds | None,
+        Field(
+            description="Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.",
+            title="Task Instance Ids",
+        ),
+    ] = None
+    whole_expansion_ids: Annotated[
+        list[UUID] | None,
+        Field(
+            description="Selected execution IDs whose entire mapped expansion should be cleared.",
+            title="Whole Expansion Ids",
+        ),
+    ] = None
+    include_later_loop_iterations: Annotated[
+        bool | None,
+        Field(
+            description="Clear later iterations when the selection includes a loop gate.",
+            title="Include Later Loop Iterations",
+        ),
+    ] = True
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
@@ -1971,6 +2003,8 @@ class BulkTaskInstanceBody(BaseModel):
         extra="forbid",
     )
     new_state: TaskInstanceState | None = None
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     note: Annotated[Note | None, Field(title="Note")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
@@ -2480,6 +2514,8 @@ class PatchTaskInstanceBody(BaseModel):
         extra="forbid",
     )
     new_state: TaskInstanceState | None = None
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     note: Annotated[Note | None, Field(title="Note")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
@@ -2624,6 +2660,8 @@ class TaskInstanceResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID, Field(title="Region Id")]
+    region_index: Annotated[int, Field(title="Region Index")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     run_after: Annotated[datetime, Field(title="Run After")]
     start_date: Annotated[datetime | None, Field(title="Start Date")]

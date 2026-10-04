@@ -28,6 +28,7 @@ from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
+from airflow.ti_deps.deps.loop_archival_dep import LoopArchivalDep
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
@@ -54,6 +55,7 @@ DEFAULT_OPERATOR_DEPS: frozenset[BaseTIDep] = frozenset(
         TriggerRuleDep(),
         NotPreviouslySkippedDep(),
         MappedTaskUpstreamDep(),
+        LoopArchivalDep(),
     )
 )
 

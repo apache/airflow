@@ -49,7 +49,10 @@ from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TISuccessStatePayload
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    TISuccessStatePayload,
+    TITerminalStatePayload,
+)
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
@@ -65,7 +68,7 @@ from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.log import Log
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_loop_task_instances, clear_task_instances
 from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -177,6 +180,98 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
     resp = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
     assert resp.status_code == 200, resp.json()
     validator.avalidated_claims.assert_awaited()
+
+
+@pytest.mark.parametrize("ack_interleaving", ["before_reconciliation", "during_reconciliation"])
+def test_legacy_expansion_waits_for_all_cleared_workers_before_replacement(
+    client, dag_maker, session, ack_interleaving
+):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    dr = dag_maker.create_dagrun()
+    session.execute(delete(TaskInstance).where(TaskInstance.dag_id == dr.dag_id))
+    session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+    old = [
+        TaskInstance(
+            dag_maker.serialized_dag.get_task("mapped"),
+            run_id=dr.run_id,
+            dag_version_id=dr.created_dag_version_id,
+            region_index=index,
+            state=State.QUEUED,
+        )
+        for index in range(2)
+    ]
+    session.add_all(old)
+    session.commit()
+    old_ids = [ti.id for ti in old]
+    for ti_id in old_ids:
+        response = client.patch(
+            f"/execution/task-instances/{ti_id}/run",
+            json={
+                "state": "running",
+                "hostname": "original",
+                "unixname": "airflow",
+                "pid": 123,
+                "start_date": DEFAULT_START_DATE.isoformat(),
+            },
+        )
+        assert response.status_code == 200, response.text
+
+    session.expire_all()
+    for _ in range(2):
+        dag_maker.serialized_dag.clear(task_ids=["mapped"], run_id=dr.run_id, session=session)
+        dr.dag = dag_maker.serialized_dag
+        dr.verify_integrity(dag_version_id=dr.created_dag_version_id, session=session)
+        session.commit()
+        session.expire_all()
+        assert all(session.get(TaskInstance, ti_id).state == State.RESTARTING for ti_id in old_ids)
+    region = session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).one()
+    assert not session.scalars(select(TaskInstance).where(TaskInstance.region_id == region.id)).all()
+
+    payload = {
+        "state": "server_terminated",
+        "end_date": DEFAULT_END_DATE.isoformat(),
+        "hostname": "original",
+        "pid": 123,
+    }
+    for index, ti_id in enumerate(old_ids):
+        if index == 1 and ack_interleaving == "during_reconciliation":
+            reconcile = dr._reconcile_legacy_expansions
+
+            def acknowledge_then_reconcile(*, session, ti_id=ti_id, reconcile=reconcile):
+                response = client.patch(f"/execution/task-instances/{ti_id}/state", json=payload)
+                assert response.status_code == 204, response.text
+                return reconcile(session=session)
+
+            with mock.patch.object(
+                dr, "_reconcile_legacy_expansions", autospec=True, side_effect=acknowledge_then_reconcile
+            ):
+                dr.update_state(session=session)
+                assert dr.state == DagRunState.RUNNING
+        else:
+            response = client.patch(f"/execution/task-instances/{ti_id}/state", json=payload)
+            assert response.status_code == 204, response.text
+        session.expire_all()
+        archived = session.get(TaskInstance, ti_id)
+        assert (archived.working_set, archived.archived_reason) == (None, "superseded")
+        assert archived.region_id.int == 0
+        if index == 0:
+            dr.dag = dag_maker.serialized_dag
+            dr.update_state(session=session)
+            assert dr.state == DagRunState.RUNNING
+            assert not session.scalars(select(TaskInstance).where(TaskInstance.region_id == region.id)).all()
+            session.commit()
+        assert client.patch(f"/execution/task-instances/{ti_id}/state", json=payload).status_code == 204
+
+    dr.dag = dag_maker.serialized_dag
+    dr.update_state(session=session)
+    assert dr.state == DagRunState.RUNNING
+    replacements = session.scalars(select(TaskInstance).where(TaskInstance.region_id == region.id)).all()
+    replacement_ids = {ti.id for ti in replacements}
+    assert len(replacement_ids) == 2
+    assert replacement_ids.isdisjoint(old_ids)
+    dr.update_state(session=session)
+    assert {ti.id for ti in dr.get_task_instances(session=session)} == replacement_ids
 
 
 @pytest.fixture
@@ -1721,6 +1816,169 @@ class TestTIUpdateState:
         ready = dr.task_instance_scheduling_decisions(session=session).schedulable_tis
         assert {(ti.task_id, ti.region_index) for ti in ready} == {("body.left", 1), ("body.right", 1)}
 
+    @pytest.fixture
+    def started_loop_successor(self, client, session, running_loop_gate):
+        gate = running_loop_gate
+        dr = gate.dag_run
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+        assert response.status_code == 204
+        session.expire_all()
+        running = next(
+            ti
+            for ti in dr.get_task_instances(session=session)
+            if ti.task_id != gate.task_id and ti.region_index == 1
+        )
+        running.state = State.QUEUED
+        for ti in dr.get_task_instances(session=session):
+            if ti.task_id != gate.task_id and ti.region_index == 0:
+                ti.state = State.SUCCESS
+        session.commit()
+        running_id = running.id
+        response = client.patch(
+            f"/execution/task-instances/{running_id}/run",
+            json={
+                "state": "running",
+                "hostname": "archiving-worker",
+                "unixname": "airflow",
+                "pid": 123,
+                "start_date": DEFAULT_START_DATE.isoformat(),
+            },
+        )
+        assert response.status_code == 200, response.text
+        session.expire_all()
+        return gate, running_id
+
+    def test_loop_rewind_waits_for_worker_acknowledgement_before_gate_admission(
+        self, client, session, started_loop_successor, dag_maker
+    ):
+        gate, running_id = started_loop_successor
+        dr = gate.dag_run
+        running = session.get(TaskInstance, running_id)
+
+        for _ in range(2):
+            clear_loop_task_instances([session.get(TaskInstance, gate.id)], downstream=False, session=session)
+            session.commit()
+            session.expire_all()
+            assert running.id == running_id
+            assert running.state == State.RESTARTING
+            assert running.working_set is True
+            dr.dag = dag_maker.serialized_dag
+            decision = dr.task_instance_scheduling_decisions(session=session)
+            assert gate.id not in {ti.id for ti in decision.schedulable_tis}
+            dr.update_state(session=session)
+            assert dr.state == DagRunState.RUNNING
+            session.commit()
+            gate = next(
+                ti
+                for ti in dr.get_task_instances(session=session)
+                if ti.task_id == gate.task_id and ti.region_index == gate.region_index
+            )
+
+        response = client.patch(
+            f"/execution/task-instances/{running_id}/state",
+            json={
+                "state": "server_terminated",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "hostname": "archiving-worker",
+                "pid": 123,
+            },
+        )
+
+        assert response.status_code == 204, response.text
+        session.expire_all()
+        archived = session.get(TaskInstance, running_id)
+        assert (archived.working_set, archived.archived_reason) == (None, "superseded")
+        dr.dag = dag_maker.serialized_dag
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert gate.id in {ti.id for ti in decision.schedulable_tis}
+        assert not any(ti.region_index == 1 for ti in dr.get_task_instances(session=session))
+
+    def test_restart_ack_locks_run_before_task(self, client, session, create_task_instance, mocker):
+        if session.bind.dialect.name == "sqlite":
+            pytest.skip("SQLite has no row locks")
+        ti = create_task_instance(state=State.QUEUED)
+        ti.region_index = 0
+        session.commit()
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "worker",
+                "unixname": "airflow",
+                "pid": 123,
+                "start_date": DEFAULT_START_DATE.isoformat(),
+            },
+        )
+        assert response.status_code == 200, response.text
+        session.refresh(ti)
+        clear_task_instances([ti], session=session)
+        session.commit()
+        archiving_id = ti.id
+        dag_id, run_id = ti.dag_id, ti.run_id
+        ack_locked = Event()
+        clear_at_lock = Event()
+        execute = Session._execute_internal
+        bind = session.get_bind()
+
+        def coordinate(request_session, statement, *args, **kwargs):
+            locking = isinstance(statement, Select) and statement._for_update_arg is not None
+            run_lock = locking and any(
+                getattr(table, "name", None) == "dag_run" for table in statement.get_final_froms()
+            )
+            role = request_session.info.get("role")
+            if role == "clear" and run_lock:
+                clear_at_lock.set()
+            result = execute(request_session, statement, *args, **kwargs)
+            if role == "ack" and run_lock:
+                request_session.info["run_locked"] = True
+            elif role == "ack" and locking:
+                ack_locked.set()
+                assert request_session.info.get("run_locked")
+                assert clear_at_lock.wait(timeout=10)
+            return result
+
+        mocker.patch.object(Session, "_execute_internal", autospec=True, side_effect=coordinate)
+
+        def acknowledge():
+            with Session(bind=bind, info={"role": "ack"}) as other:
+                result = ti_update_state(
+                    task_instance_id=archiving_id,
+                    ti_patch_payload=TITerminalStatePayload(
+                        state="server_terminated", end_date=DEFAULT_END_DATE, hostname="worker", pid=123
+                    ),
+                    session=other,
+                    dag_bag=DBDagBag(),
+                )
+                other.commit()
+                return result.status_code
+
+        def clear_again():
+            assert ack_locked.wait(timeout=10)
+            with Session(bind=bind, info={"role": "clear"}) as other:
+                other.scalar(
+                    select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id).with_for_update()
+                )
+                selected = other.scalar(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == dag_id,
+                        TaskInstance.run_id == run_id,
+                        TaskInstance.working_set.is_(True),
+                    )
+                )
+                clear_task_instances([selected], session=other)
+                other.commit()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            ack = pool.submit(acknowledge)
+            repeated = pool.submit(clear_again)
+            assert ack.result(timeout=20) == 204
+            repeated.result(timeout=20)
+        session.expire_all()
+        assert session.get(TaskInstance, archiving_id).working_set is None
+
     @conf_vars({("state_store", "clear_on_success"): "true"})
     @pytest.mark.parametrize("mapped", [False, True])
     @pytest.mark.parametrize(
@@ -2225,6 +2483,41 @@ class TestTIUpdateState:
         assert response.status_code == (409 if state == State.RUNNING else 204)
         session.refresh(ti)
         assert ti.state == state
+
+    @pytest.mark.parametrize(
+        ("region_index", "locks_run"),
+        [(-1, False), (0, True)],
+    )
+    def test_stopped_report_locks_dag_run_only_for_regional_task(
+        self, client, session, create_task_instance, mocker, region_index, locks_run
+    ):
+        ti = create_task_instance(task_id="stopped_lock", state=State.SUCCESS)
+        ti.hostname = "worker"
+        ti.pid = 123
+        ti.region_index = region_index
+        session.commit()
+        execute = Session.execute
+        locked_tables = []
+
+        def record_locks(request_session, statement, *args, **kwargs):
+            if isinstance(statement, Select) and statement._for_update_arg is not None:
+                locked_tables.extend(getattr(table, "name", None) for table in statement.get_final_froms())
+            return execute(request_session, statement, *args, **kwargs)
+
+        mocker.patch.object(Session, "execute", autospec=True, side_effect=record_locks)
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "server_terminated",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "hostname": "worker",
+                "pid": 123,
+            },
+        )
+
+        assert response.status_code == 204
+        assert ("dag_run" in locked_tables) == locks_run
 
     @pytest.mark.parametrize("matching_worker", [True, False])
     @pytest.mark.parametrize("missing_definition", [None, "dag", "task"])

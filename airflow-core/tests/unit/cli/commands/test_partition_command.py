@@ -435,7 +435,9 @@ class TestPartitionsClear:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -486,7 +488,9 @@ class TestPartitionsClear:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -538,7 +542,9 @@ class TestPartitionsClear:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -611,7 +617,9 @@ class TestPartitionsClear:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(

@@ -68,6 +68,7 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstanceNote,
     _update_dagrun_to_latest_version,
+    clear_loop_task_instances,
     clear_task_instances,
 )
 from airflow.models.taskreschedule import TaskReschedule
@@ -6001,7 +6002,9 @@ class TestClearPartitionRuns:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", 6),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             cleared, tis = clear_partition_runs(
                 dag=serialized_dag,
@@ -6047,7 +6050,9 @@ class TestClearPartitionRuns:
 
         with (
             mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", 6),
-            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
+            mock.patch(
+                "airflow.models.taskinstance.clear_task_instances_for_runs", autospec=True
+            ) as mock_cti,
         ):
             clear_partition_runs(
                 dag=serialized_dag,
@@ -6200,3 +6205,42 @@ def test_scheduling_decisions_do_not_redeserialize_the_dag_per_pass(dag_maker, s
             dr.task_instance_scheduling_decisions(session=session)
 
     assert read.call_count == 0
+
+
+def test_integrity_does_not_create_members_at_draining_gate_coordinates(completed_loop, dag_maker, session):
+    dr, loop, complete_pass = completed_loop
+    gates = {
+        ti.region_index: ti
+        for ti in dr.get_task_instances(session=session)
+        if ti.task_id == loop.gate_task_id
+    }
+    gates[4].state = State.RUNNING
+    session.flush()
+    clear_loop_task_instances([gates[2]], downstream=False, session=session)
+
+    @task_group
+    def body():
+        (
+            EmptyOperator(task_id="prepare")
+            >> EmptyOperator(task_id="process")
+            >> EmptyOperator(task_id="consume")
+            >> EmptyOperator(task_id="new")
+        )
+
+    with dag_maker(serialized=True, session=session):
+        create_loop(body, max_iterations=5, until=lambda loop: True)
+    version = DagVersion.get_latest_version(dr.dag_id, session=session).id
+    dr.dag = DBDagBag().get_dag(version_id=version, session=session)
+
+    dr.verify_integrity(session=session, dag_version_id=version)
+
+    assert gates[4].state == State.RESTARTING
+    assert set(
+        session.scalars(
+            select(TaskInstance.region_index).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == "body.new",
+            )
+        )
+    ) == {0, 1, 2}

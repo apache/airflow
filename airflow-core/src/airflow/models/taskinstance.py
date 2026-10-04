@@ -52,6 +52,7 @@ from sqlalchemy import (
     cast,
     delete,
     event as sqlalchemy_event,
+    exists,
     extract,
     false,
     func,
@@ -106,6 +107,8 @@ from airflow.models.dynamic_region import (
     SENTINEL_REGION_ID,
     DynamicRegion,
     ProducerContext,
+    load_region_ancestry,
+    loop_position,
     public_region_filter,
 )
 
@@ -156,7 +159,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
-    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedTaskGroup
     from airflow.triggers.base import StartTriggerArgs
 
 PAST_DEPENDS_MET = "past_depends_met"
@@ -407,6 +410,9 @@ def clear_task_instances(
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
+    *,
+    whole_task_keys: Collection[tuple[str, str, str]] = (),
+    superseded_ti_ids: Collection[UUID] = (),
 ) -> list[TaskInstance]:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -424,10 +430,50 @@ def clear_task_instances(
     :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version.
         A run with no version of its own uses the latest either way, since there is nothing
         else for it to run on; a task instance with no version joins its run's.
+    :param whole_task_keys: ``(dag_id, run_id, task_id)`` of tasks cleared as a whole. A pre-region
+        mapped expansion of such a task is archived and regenerated in a new region.
+    :param superseded_ti_ids: executions whose generated work is replaced rather than retried; they
+        are archived in place instead of receiving a successor.
 
     :meta private:
     """
     from airflow.exceptions import AirflowClearRunningTaskException
+    from airflow.models.dagrun import DagRun
+
+    if tis:
+        run_keys = {(ti.dag_id, ti.run_id) for ti in tis}
+        session.scalars(
+            select(DagRun.id)
+            .where(tuple_(DagRun.dag_id, DagRun.run_id).in_(run_keys))
+            .order_by(DagRun.dag_id, DagRun.run_id)
+            .with_for_update()
+        ).all()
+
+    legacy_keys = {
+        (ti.dag_id, ti.run_id, ti.task_id)
+        for ti in tis
+        if ti.region_id == SENTINEL_REGION_ID
+        and ti.region_index >= 0
+        and (ti.dag_id, ti.run_id, ti.task_id) in whole_task_keys
+    }
+    if legacy_keys:
+        existing_keys = {
+            (region.dag_id, region.run_id, region.node_id)
+            for region in session.scalars(
+                select(DynamicRegion).where(
+                    tuple_(DynamicRegion.dag_id, DynamicRegion.run_id, DynamicRegion.node_id).in_(
+                        legacy_keys
+                    ),
+                    DynamicRegion.parent_region_id.is_(None),
+                    DynamicRegion.forked_from_region_id.is_(None),
+                )
+            )
+        }
+        session.add_all(
+            DynamicRegion(dag_id=dag_id, run_id=run_id, node_id=task_id)
+            for dag_id, run_id, task_id in legacy_keys - existing_keys
+        )
+        session.flush()
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     latest_dag_versions: dict[str, DagVersion | None] = {}
@@ -453,6 +499,10 @@ def clear_task_instances(
         # If a task is cleared when running and the prevent_running_task is false,
         # set its state to RESTARTING so that
         # the task is terminated and becomes eligible for retry.
+        elif ti.id in superseded_ti_ids or (
+            ti.region_id == SENTINEL_REGION_ID and (ti.dag_id, ti.run_id, ti.task_id) in legacy_keys
+        ):
+            ti.archive(reason="superseded", session=session)
         else:
             if ti.state in (None, TaskInstanceState.UP_FOR_RETRY):
                 # The pending attempt hasn't run, so base its retry budget on the preceding attempt.
@@ -570,9 +620,295 @@ def clear_task_instances(
             if dr.created_dag_version_id:
                 _pin_versionless_tis_to_run_version(dr, dr.created_dag_version_id, session)
     for ti in tis:
-        ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
+        if ti.working_set is True:
+            ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()
     return cleared
+
+
+@attrs.define(frozen=True)
+class LoopClearScope:
+    """Live executions to retry and generated executions to archive."""
+
+    retry_ids: frozenset[UUID]
+    archive_ids: frozenset[UUID]
+
+
+def select_loop_clear_scope(
+    selected: Collection[TaskInstance],
+    *,
+    whole_expansion_ids: Collection[UUID] = (),
+    upstream: bool = False,
+    downstream: bool = True,
+    later_loop_iterations: bool = True,
+    session: Session,
+) -> LoopClearScope:
+    """Select loop clear executions; mutation callers must hold the DagRun lock."""
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.task_coordinates import TaskCoordinateResolver, enclosing_loop
+    from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
+
+    if not selected:
+        return LoopClearScope(frozenset(), frozenset())
+    runs = {(ti.dag_id, ti.run_id) for ti in selected}
+    if len(runs) != 1:
+        raise ValueError("Loop clear selection must belong to one DagRun")
+    dag_id, run_id = runs.pop()
+    live = {
+        ti.id: ti
+        for ti in session.scalars(
+            select(TaskInstance)
+            .where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.working_set.is_(True),
+            )
+            .execution_options(populate_existing=True)
+        )
+    }
+    selected_ids = {ti.id for ti in selected}
+    if not selected_ids <= live.keys():
+        raise ValueError("Loop clear selection contains executions that are no longer live")
+    if not set(whole_expansion_ids) <= selected_ids:
+        raise ValueError("Whole-task selection requires an explicitly selected execution")
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    regions = load_region_ancestry(
+        {ti.region_id for ti in live.values()}, dag_id=dag_id, run_id=run_id, session=session
+    )
+    retry = {ti_id: live[ti_id] for ti_id in selected_ids}
+    for ti in tuple(retry.values()):
+        task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+        group = enclosing_loop(task)
+        if group is not None and loop_position(regions, ti.region_id, ti.region_index, group.node_id) is None:
+            raise ValueError("Loop clear selection requires an execution inside its pinned loop")
+        if ti.id in whole_expansion_ids:
+            if not task.get_needs_expansion():
+                raise ValueError("Whole-expansion selection requires a mapped task")
+            retry.update(
+                (other.id, other)
+                for other in resolver.resolve(dag_id=dag_id, run_id=run_id, task_id=ti.task_id, caller=ti)
+            )
+    for is_upstream, enabled in ((True, upstream), (False, downstream)):
+        if not enabled:
+            continue
+        for ti in tuple(retry.values()):
+            task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            contexts = resolver.producer_contexts(ti)
+            count = (
+                get_mapped_ti_count(task, run_id, session=session, producer_contexts=contexts)
+                if task.get_needs_expansion() and ti.region_index >= 0
+                else None
+            )
+            for relative in task.get_flat_relatives(upstream=is_upstream):
+                indexes = _get_relevant_map_indexes(
+                    task=task,
+                    run_id=run_id,
+                    map_index=resolver.public_map_index(ti),
+                    relative=relative,
+                    ti_count=count,
+                    session=session,
+                    producer_contexts=contexts,
+                )
+                relative_loop = enclosing_loop(relative)
+                task_loop = enclosing_loop(task)
+                matches: Collection[TaskInstance]
+                if relative_loop is not None and (
+                    task_loop is None or task_loop.group_id != relative_loop.group_id
+                ):
+                    matches = [
+                        other
+                        for other in live.values()
+                        if other.task_id == relative.task_id
+                        and (
+                            indexes is None
+                            or (isinstance(indexes, int) and resolver.public_map_index(other) == indexes)
+                            or (isinstance(indexes, range) and resolver.public_map_index(other) in indexes)
+                        )
+                    ]
+                else:
+                    matches = resolver.resolve(
+                        dag_id=dag_id,
+                        run_id=run_id,
+                        task_id=relative.task_id,
+                        caller=ti,
+                        map_indexes=indexes,
+                    )
+                retry.update((other.id, other) for other in matches)
+    archived: set[UUID] = set()
+    if later_loop_iterations:
+        for ti in retry.values():
+            task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            group = enclosing_loop(task)
+            if group is None or ti.task_id != group.gate_task_id:
+                continue
+            position = loop_position(regions, ti.region_id, ti.region_index, group.node_id)
+            if position is None:
+                raise ValueError("Gate coordinates do not belong to its pinned loop")
+            for other in live.values():
+                other_position = loop_position(regions, other.region_id, other.region_index, group.node_id)
+                if (
+                    other_position is not None
+                    and other_position[0] == position[0]
+                    and other_position[1] > position[1]
+                ):
+                    archived.add(other.id)
+    return LoopClearScope(frozenset(retry.keys() - archived), frozenset(archived))
+
+
+def clear_loop_task_instances(
+    selected: Collection[TaskInstance],
+    *,
+    whole_expansion_ids: Collection[UUID] = (),
+    upstream: bool = False,
+    downstream: bool = True,
+    later_loop_iterations: bool = True,
+    session: Session,
+    dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
+    run_on_latest_version: bool = False,
+    prevent_running_task: bool | None = None,
+    whole_task_keys: Collection[tuple[str, str, str]] = (),
+) -> LoopClearScope:
+    """Clear selected loop tries and archive their replaced generated suffixes."""
+    from airflow.models.dagrun import DagRun
+
+    if not selected:
+        return LoopClearScope(frozenset(), frozenset())
+    run_keys = {(ti.dag_id, ti.run_id) for ti in selected}
+    if len(run_keys) != 1:
+        raise ValueError("Loop clear selection must belong to one DagRun")
+    dag_id, run_id = run_keys.pop()
+    session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id).with_for_update())
+    scope = select_loop_clear_scope(
+        selected,
+        whole_expansion_ids=whole_expansion_ids,
+        upstream=upstream,
+        downstream=downstream,
+        later_loop_iterations=later_loop_iterations,
+        session=session,
+    )
+    apply_loop_clear_scope(
+        scope,
+        later_loop_iterations=later_loop_iterations,
+        session=session,
+        dag_run_state=dag_run_state,
+        run_on_latest_version=run_on_latest_version,
+        prevent_running_task=prevent_running_task,
+        whole_task_keys=whole_task_keys,
+    )
+    return scope
+
+
+def clear_task_instances_for_runs(
+    tis: Collection[TaskInstance],
+    *,
+    session: Session,
+    dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
+    run_on_latest_version: bool = False,
+    prevent_running_task: bool | None = None,
+    whole_task_keys: Collection[tuple[str, str, str]] = (),
+    later_loop_iterations: bool = True,
+) -> None:
+    """
+    Clear exactly the given executions, archiving the later passes of any loop gate among them.
+
+    Runs without a selected gate are retried in place as an ordinary clear.
+    """
+    from airflow.models.dagrun import DagRun
+    from airflow.models.task_coordinates import LOOP_GATE_OPERATOR
+
+    if not tis:
+        return
+    run_keys = sorted({(ti.dag_id, ti.run_id) for ti in tis})
+    session.scalars(
+        select(DagRun.id)
+        .where(tuple_(DagRun.dag_id, DagRun.run_id).in_(run_keys))
+        .order_by(DagRun.dag_id, DagRun.run_id)
+        .with_for_update()
+    ).all()
+    gate_runs = {(ti.dag_id, ti.run_id) for ti in tis if ti.operator == LOOP_GATE_OPERATOR}
+    clear_task_instances(
+        [ti for ti in tis if (ti.dag_id, ti.run_id) not in gate_runs],
+        session=session,
+        dag_run_state=dag_run_state,
+        run_on_latest_version=run_on_latest_version,
+        prevent_running_task=prevent_running_task,
+        whole_task_keys=whole_task_keys,
+    )
+    for run_key in sorted(gate_runs):
+        clear_loop_task_instances(
+            [ti for ti in tis if (ti.dag_id, ti.run_id) == run_key],
+            downstream=False,
+            later_loop_iterations=later_loop_iterations,
+            session=session,
+            dag_run_state=dag_run_state,
+            run_on_latest_version=run_on_latest_version,
+            prevent_running_task=prevent_running_task,
+            whole_task_keys=whole_task_keys,
+        )
+
+
+def apply_loop_clear_scope(
+    scope: LoopClearScope,
+    *,
+    later_loop_iterations: bool = True,
+    session: Session,
+    dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
+    run_on_latest_version: bool = False,
+    prevent_running_task: bool | None = None,
+    whole_task_keys: Collection[tuple[str, str, str]] = (),
+) -> list[TaskInstance]:
+    """Apply a planned clear while the caller holds its DagRun lock."""
+    from airflow.exceptions import AirflowClearRunningTaskException
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver, enclosing_loop
+
+    selected_ids = scope.retry_ids | scope.archive_ids
+    if not selected_ids:
+        return []
+    tis = list(
+        session.scalars(
+            select(TaskInstance)
+            .where(TaskInstance.id.in_(selected_ids), TaskInstance.working_set.is_(True))
+            .execution_options(populate_existing=True)
+        )
+    )
+    if {ti.id for ti in tis} != selected_ids:
+        raise ValueError("Clear selection contains executions that are no longer live")
+    run_keys = {(ti.dag_id, ti.run_id) for ti in tis}
+    if len(run_keys) != 1:
+        raise ValueError("Clear selection must belong to one DagRun")
+    dag_id, run_id = run_keys.pop()
+    if prevent_running_task and any(
+        ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING) for ti in tis
+    ):
+        raise AirflowClearRunningTaskException("Cannot clear running task instances")
+    if later_loop_iterations:
+        resolver = TaskCoordinateResolver(DBDagBag(), session)
+        regions = DynamicRegion.load_for_run(tis[0].dag_id, tis[0].run_id, session=session)
+        cuts: dict[UUID, int] = {}
+        for ti in tis:
+            if ti.id not in scope.retry_ids or ti.operator != LOOP_GATE_OPERATOR:
+                continue
+            task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            group = enclosing_loop(task)
+            if group is None or group.gate_task_id != ti.task_id:
+                raise ValueError("Gate coordinates require a pinned loop definition")
+            family = loop_position(regions, ti.region_id, ti.region_index, group.node_id)
+            if family is None:
+                raise ValueError("Gate coordinates do not belong to its pinned loop")
+            cuts[family[0]] = min(cuts.get(family[0], ti.region_index + 1), ti.region_index + 1)
+        for family_id, index in cuts.items():
+            DynamicRegion.fork_family(family_id, index, regions, session=session)
+        session.flush()
+    return clear_task_instances(
+        tis,
+        session=session,
+        superseded_ti_ids=scope.archive_ids,
+        dag_run_state=dag_run_state,
+        run_on_latest_version=run_on_latest_version,
+        prevent_running_task=prevent_running_task,
+        whole_task_keys=whole_task_keys,
+    )
 
 
 def _creator_note(val):
@@ -1211,14 +1547,50 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # is the task still in the retry waiting period?
         return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
 
+    def is_replaced_generated_work(self, *, session: Session) -> bool:
+        """Whether a pre-region mapped expansion was cleared as a whole and now has a replacement region."""
+        if self.region_id != SENTINEL_REGION_ID or self.region_index < 0:
+            return False
+        return (
+            session.scalar(
+                select(DynamicRegion.id)
+                .where(
+                    DynamicRegion.dag_id == self.dag_id,
+                    DynamicRegion.run_id == self.run_id,
+                    DynamicRegion.node_id == self.task_id,
+                    DynamicRegion.parent_region_id.is_(None),
+                    DynamicRegion.forked_from_region_id.is_(None),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
     def archive(self, *, reason: str, session: Session) -> None:
         """Remove this attempt from the working set while retaining its UUID and children."""
-        current = session.scalar(
-            select(TaskInstance.working_set).where(TaskInstance.id == self.id).with_for_update()
-        )
-        if current is not True:
+        current = session.execute(
+            select(
+                TaskInstance.working_set,
+                TaskInstance.state,
+                TaskInstance.start_date,
+                TaskInstance.end_date,
+            )
+            .where(TaskInstance.id == self.id)
+            .with_for_update()
+        ).one_or_none()
+        if current is None or current.working_set is not True:
             raise ValueError("An archived task instance cannot be archived again")
-        if self.state not in State.finished:
+        state: Any = inspect(self)
+        for name in ("state", "start_date", "end_date"):
+            if not state.attrs[name].history.has_changes():
+                setattr(self, name, getattr(current, name))
+        never_started = reason == "superseded" and self.state in (
+            None,
+            TaskInstanceState.SCHEDULED,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.UP_FOR_RETRY,
+        )
+        if self.state not in State.finished and not never_started:
             self.state = TaskInstanceState.FAILED
             if self.end_date is None:
                 self.end_date = timezone.utcnow()
@@ -1307,10 +1679,28 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             successor.task_instance_note = carried
         return successor
 
-    def complete_restart(self, *, session: Session) -> TaskInstance:
-        """Release a cleared attempt after termination; the caller must hold its row lock."""
+    def complete_restart(
+        self, *, session: Session, terminal_outcome: TaskInstanceState | None = None
+    ) -> TaskInstance:
+        """
+        Release a cleared attempt after termination; the caller must hold its row lock.
+
+        A task instance whose generated work was replaced is archived in place instead of receiving a
+        successor, ending in ``terminal_outcome`` when one is given.
+        """
         if self.state != TaskInstanceState.RESTARTING or self.working_set is not True:
             raise ValueError("Only a current restarting task instance can complete a restart")
+        if terminal_outcome is not None and terminal_outcome not in State.finished:
+            raise ValueError("An archival outcome must be terminal")
+        if self.is_replaced_generated_work(session=session) or (
+            self.region_id != SENTINEL_REGION_ID and self.is_loop_execution_superseded(session=session)
+        ):
+            if terminal_outcome is not None:
+                self.set_state(terminal_outcome, session=session)
+            self.archive(reason="superseded", session=session)
+            return self
+        if terminal_outcome is not None:
+            raise ValueError("A terminal archival outcome requires a superseded execution")
         successor = self.prepare_db_for_next_try(session)
         # Keep the terminated attempt's version; the successor follows the run's current code.
         if dag_version_id := DBDagBag._version_from_dag_run(self.dag_run, session=session):
@@ -1323,6 +1713,81 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         successor.clear_next_method_args()
         session.flush()
         return successor
+
+    def is_loop_execution_superseded(self, *, session: Session) -> bool:
+        """Identify an archiving loop coordinate for termination acknowledgement."""
+        regions = DynamicRegion.load_for_run(self.dag_id, self.run_id, session=session)
+        return DynamicRegion.is_coordinate_superseded(self.region_id, self.region_index, regions)
+
+    def waits_for_loop_archival(self, *, session: Session) -> bool:
+        """Hold a rerun gate until superseded executions of its later passes finish termination."""
+        from airflow.models.task_coordinates import LOOP_GATE_OPERATOR
+
+        gate = self
+        if gate.operator != LOOP_GATE_OPERATOR or gate.region_id == SENTINEL_REGION_ID:
+            return False
+        if not session.scalar(
+            select(
+                exists().where(
+                    DynamicRegion.dag_id == gate.dag_id,
+                    DynamicRegion.run_id == gate.run_id,
+                    DynamicRegion.forked_from_region_id.is_not(None),
+                )
+            )
+        ):
+            return False
+        regions = DynamicRegion.load_for_run(gate.dag_id, gate.run_id, session=session)
+        gate_region = regions.get(gate.region_id)
+        if gate_region is None:
+            return False
+        node_id = gate_region.node_id
+        gate_position = loop_position(regions, gate.region_id, gate.region_index, node_id)
+        if gate_position is None:
+            raise ValueError("Gate coordinates do not belong to its pinned loop")
+        for region_id, region_index in session.execute(
+            select(TaskInstance.region_id, TaskInstance.region_index).where(
+                TaskInstance.dag_id == gate.dag_id,
+                TaskInstance.run_id == gate.run_id,
+                TaskInstance.working_set.is_(True),
+                TaskInstance.state == TaskInstanceState.RESTARTING,
+            )
+        ):
+            position = loop_position(regions, region_id, region_index, node_id)
+            if position is None or position[0] != gate_position[0] or position[1] <= gate_position[1]:
+                continue
+            coordinate = DynamicRegion.find_physical_coordinate(region_id, region_index, node_id, regions)
+            if coordinate is not None and any(
+                region.resumes_from_index <= coordinate[1]
+                for region in DynamicRegion.get_forks_after(coordinate[0], regions)
+            ):
+                return True
+        return False
+
+    def has_later_loop_pass(self, group: SerializedLoopTaskGroup, *, session: Session) -> bool:
+        """Find a live gate of a later pass in the same loop family, including passes in forked regions."""
+        gate = self
+        regions = DynamicRegion.load_for_run(gate.dag_id, gate.run_id, session=session)
+        position = loop_position(regions, gate.region_id, gate.region_index, group.node_id)
+        if position is None:
+            raise ValueError("Gate coordinates do not belong to its pinned loop")
+        for region_id, region_index in session.execute(
+            select(TaskInstance.region_id, TaskInstance.region_index).where(
+                TaskInstance.working_set.is_(True),
+                TaskInstance.dag_id == gate.dag_id,
+                TaskInstance.run_id == gate.run_id,
+                TaskInstance.task_id == gate.task_id,
+                TaskInstance.region_index > gate.region_index,
+            )
+        ):
+            other = loop_position(regions, region_id, region_index, group.node_id)
+            if other is not None and other[0] == position[0]:
+                return True
+        return False
+
+    def get_loop_successor_region_id(self, *, session: Session) -> UUID:
+        """Choose the region for the pass that follows this gate."""
+        regions = DynamicRegion.load_for_run(self.dag_id, self.run_id, session=session)
+        return DynamicRegion.get_successor_region_id(self.region_id, self.region_index + 1, regions)
 
     @provide_session
     def are_dependents_done(self, *, session: Session = NEW_SESSION) -> bool:

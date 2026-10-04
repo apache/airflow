@@ -35,7 +35,7 @@ from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import JsonValue, ValidationError
-from sqlalchemy import and_, func, or_, tuple_, union, update
+from sqlalchemy import and_, exists, func, or_, tuple_, union, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, contains_eager, joinedload
@@ -424,6 +424,23 @@ def ti_update_state(
     if isinstance(ti_patch_payload, TITerminalStatePayload) and (
         ti_patch_payload.state == TerminalStateNonSuccess.SERVER_TERMINATED
     ):
+        in_region = session.scalar(
+            select(or_(TI.region_id != SENTINEL_REGION_ID, TI.region_index >= 0)).where(
+                TI.id == task_instance_id
+            )
+        )
+        if in_region:
+            session.execute(
+                select(DR.id)
+                .where(
+                    exists().where(
+                        TI.id == task_instance_id,
+                        TI.dag_id == DR.dag_id,
+                        TI.run_id == DR.run_id,
+                    )
+                )
+                .with_for_update()
+            ).all()
         ti = session.scalar(
             select(TI)
             .where(TI.id == task_instance_id)

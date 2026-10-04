@@ -271,6 +271,15 @@ class SerializedDAG:
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
 
+    @functools.cached_property
+    def has_dynamic_nodes(self) -> bool:
+        from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
+
+        return any(task.get_needs_expansion() for task in self.tasks) or any(
+            isinstance(group, SerializedLoopTaskGroup)
+            for group in self.task_group.get_task_group_dict().values()
+        )
+
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
 
@@ -1228,7 +1237,7 @@ class SerializedDAG:
         from airflow.models.taskinstance import (
             _get_new_task_ids,
             _update_dagrun_to_latest_version,
-            clear_task_instances,
+            clear_task_instances_for_runs,
         )
 
         if only_new:
@@ -1290,11 +1299,23 @@ class SerializedDAG:
         if count == 0:
             return 0
 
-        clear_task_instances(
-            list(tis),
-            session,
+        clear_task_instances_for_runs(
+            tis,
+            session=session,
             dag_run_state=dag_run_state,
             run_on_latest_version=run_on_latest_version,
+            later_loop_iterations=not (only_failed or only_running),
+            whole_task_keys={
+                (ti.dag_id, ti.run_id, ti.task_id)
+                for ti in tis
+                if not only_failed
+                and not only_running
+                and (task_ids is None or ti.task_id in task_ids)
+                and not any(
+                    isinstance(excluded, tuple) and excluded[0] == ti.task_id
+                    for excluded in exclude_task_ids or ()
+                )
+            },
         )
 
         session.flush()
