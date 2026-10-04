@@ -300,6 +300,16 @@ def _decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
     )
 
 
+def _build_json_path(error: ValidationError) -> str:
+    """
+    Return where *error* is in the document, such as ``$.dag.tasks[2].__type``.
+
+    Unlike ``ValidationError.json_path``, whose quoting of a key such as ``__type`` depends on the
+    jsonschema version, this is the same under every version.
+    """
+    return "$" + "".join(f"[{part}]" if isinstance(part, int) else f".{part}" for part in error.absolute_path)
+
+
 class _XComRef(NamedTuple):
     """
     Store info needed to create XComArg.
@@ -2182,7 +2192,7 @@ class DagSerialization(BaseSerialization):
             cls.validate_schema(serialized_obj)
         except ValidationError as e:
             raise DeserializationError(
-                dag_id, f"Dag {dag_id!r} does not match the schema at {e.json_path}: {e.message}"
+                dag_id, f"Dag {dag_id!r} does not match the schema at {_build_json_path(e)}: {e.message}"
             ) from e
         task_ids = collections.Counter(
             task[Encoding.VAR]["task_id"] for task in serialized_obj["dag"]["tasks"]

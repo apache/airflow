@@ -5209,12 +5209,12 @@ class TestValidateSerializedDag:
             pytest.param({}, "$.dag.tasks[2]", id="empty"),
             pytest.param("x", "$.dag.tasks[2]", id="not-an-object"),
             pytest.param(
-                {"__type": "dag", "__var": {"task_id": "t"}}, "$.dag.tasks[2]['__type']", id="wrong-type"
+                {"__type": "dag", "__var": {"task_id": "t"}}, "$.dag.tasks[2].__type", id="wrong-type"
             ),
-            pytest.param({"__type": "operator", "__var": {}}, "$.dag.tasks[2]['__var']", id="no-task-id"),
+            pytest.param({"__type": "operator", "__var": {}}, "$.dag.tasks[2].__var", id="no-task-id"),
             pytest.param(
                 {"__type": "operator", "__var": {"task_id": 5}},
-                "$.dag.tasks[2]['__var'].task_id",
+                "$.dag.tasks[2].__var.task_id",
                 id="task-id-not-a-string",
             ),
         ],
