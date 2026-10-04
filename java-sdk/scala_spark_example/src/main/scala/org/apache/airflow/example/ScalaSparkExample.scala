@@ -19,7 +19,7 @@
 
 package org.apache.airflow.example
 
-import org.apache.airflow.sdk.{Bundle, BundleBuilder, Client, Context, DagDef, Server, Task}
+import org.apache.airflow.sdk.{Bundle, Client, Context, Server, Task}
 import org.apache.logging.log4j.{LogManager, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.sum
@@ -132,18 +132,15 @@ class SparkLoad extends Task {
   }
 }
 
-object ScalaSparkExample {
-  def build(): DagDef =
-    new DagDef(SparkEtl.DagId)
-      .addTask(SparkEtl.ExtractTaskId, classOf[SparkExtract])
-      .addTask(SparkEtl.TransformTaskId, classOf[SparkTransform])
-      .addTask(SparkEtl.LoadTaskId, classOf[SparkLoad])
-}
-
 /** Bundle entry point served to Airflow's Java coordinator. */
-object ScalaSparkBundleBuilder extends BundleBuilder {
-  override def getDags(): java.lang.Iterable[DagDef] = java.util.List.of(ScalaSparkExample.build())
+object ScalaSparkBundleBuilder {
+  // The Python Dag file owns the Dag, so its tasks register as task handlers.
+  def build(): Bundle =
+    new Bundle()
+      .register(SparkEtl.DagId, SparkEtl.ExtractTaskId, classOf[SparkExtract])
+      .register(SparkEtl.DagId, SparkEtl.TransformTaskId, classOf[SparkTransform])
+      .register(SparkEtl.DagId, SparkEtl.LoadTaskId, classOf[SparkLoad])
 
   def main(args: Array[String]): Unit =
-    Server.create(args).serve(new Bundle(getDags()))
+    Server.create(args).serve(build())
 }
