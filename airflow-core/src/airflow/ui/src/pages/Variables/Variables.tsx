@@ -29,6 +29,7 @@ import type { VariableResponse } from "openapi/requests/types.gen";
 
 import { Tooltip, ActionBar } from "src/system-components";
 
+import { BackendsOrderCard } from "src/components/BackendsOrder/BackendsOrderCard";
 import { DataTable } from "src/components/DataTable";
 import {
   SelectionHeaderCheckbox,
@@ -206,6 +207,7 @@ export const Variables = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
+      <BackendsOrderCard />
       <DataTable
         columns={columns}
         data={variables}
