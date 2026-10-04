@@ -46,6 +46,9 @@ fi
 if [[ "${name}" == "sudo" && "$*" == "tar "* ]]; then
     exit "${TAR_EXIT:-0}"
 fi
+if [[ "${name}" == "sudo" && "$*" == "systemctl stop docker.socket docker" && "${STOP_EXIT:-0}" != 0 ]]; then
+    exit "${STOP_EXIT}"
+fi
 if [[ "${name}" == "sudo" && "$*" == "systemctl start docker" && "${START_FAIL_ONCE:-0}" == 1 ]]; then
     if [[ $(grep -c 'sudo systemctl start docker' "${COMMAND_LOG}") == 1 ]]; then
         exit 1
@@ -215,3 +218,11 @@ def test_stale_snapshot_does_not_modify_daemon(fake_tools, snapshot):
     result = run_script({**fake_tools, "CHECKOUT_SHA": "revision2"}, "restore", str(snapshot))
     assert result.returncode == 3
     assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
+
+
+@pytest.mark.parametrize("mode", ["create", "restore"])
+def test_partial_stop_failure_restarts_daemon(fake_tools, snapshot, mode):
+    result = run_script({**fake_tools, "STOP_EXIT": "1", "CI_IMAGES": "abc123"}, mode, str(snapshot))
+    assert result.returncode != 0
+    assert read_commands(fake_tools)[-1] == ["sudo", "systemctl", "start", "docker"]
+    assert not any(command[:2] == ["sudo", "rm"] for command in read_commands(fake_tools))
