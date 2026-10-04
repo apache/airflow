@@ -36,6 +36,7 @@
 
     Connection types <connections/databricks>
     Operators <operators/index>
+    Toolsets <toolsets/index>
     Plugins <plugins/index>
 
 .. toctree::
@@ -133,6 +134,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                               Extra
 ==============================================================================================================  ===============
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_            ``amazon``
+`apache-airflow-providers-common-ai <https://airflow.apache.org/docs/apache-airflow-providers-common-ai>`_      ``common.ai``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_            ``google``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
 ==============================================================================================================  ===============
@@ -154,6 +156,7 @@ Extra               Dependencies
 ``avro``            ``fastavro>=1.9.0; python_version<"3.14"``, ``fastavro>=1.10.0; python_version>="3.12" and python_version<"3.14"``, ``fastavro>=1.12.1; python_version>="3.14"``
 ``amazon``          ``apache-airflow-providers-amazon>=9.22.0``
 ``azure-identity``  ``azure-identity>=1.25.3``
+``common.ai``       ``apache-airflow-providers-common-ai[mcp]>=0.10.0``
 ``fab``             ``apache-airflow-providers-fab>=2.2.0``
 ``google``          ``apache-airflow-providers-google>=10.24.0``
 ``sdk``             ``databricks-sdk==0.10.0``

@@ -89,6 +89,9 @@ dependencies = [
 "azure-identity" = [
     "azure-identity>=1.25.3",
 ]
+"common.ai" = [
+    "apache-airflow-providers-common-ai[mcp]>=0.10.0",  # use next version
+]
 "fab" = [
     "apache-airflow-providers-fab>=2.2.0"
 ]
@@ -114,6 +117,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
+    "apache-airflow-providers-common-ai",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-google",
