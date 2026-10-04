@@ -21,15 +21,21 @@ import json
 import sys
 from unittest import mock
 from unittest.mock import PropertyMock
+from uuid import uuid4
 
 import pytest
 from itsdangerous.url_safe import URLSafeSerializer
+from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
 from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
+from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -48,6 +54,45 @@ class TestTaskInstancesLog:
     TRY_NUMBER = 1
 
     default_time = "2020-06-10T20:00:00+00:00"
+
+    def test_external_link_uses_the_selected_archived_try(self, session):
+        current = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.working_set.is_(True),
+            )
+        )
+        history = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.try_number == 1,
+            )
+        )
+        previous_region, current_region = uuid4(), uuid4()
+        for region_id in (previous_region, current_region):
+            session.add(DynamicRegion(id=region_id, dag_id=self.DAG_ID, run_id=self.RUN_ID, node_id="loop"))
+        history.region_id, history.region_index = previous_region, 2
+        current.region_id, current.region_index, current.try_number = current_region, 2, 2
+        session.commit()
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.log.TaskLogReader", autospec=True
+        ) as reader:
+            reader.return_value.supports_external_link = True
+            reader.return_value.log_handler = mock.create_autospec(ExternalLoggingMixin, instance=True)
+            reader.return_value.log_handler.get_external_log_url.return_value = "https://logs.example/old"
+            response = self.client.get(
+                f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/externalLogUrl/1",
+                params={"region_id": str(previous_region), "region_index": 2},
+            )
+            assert response.status_code == 200
+            selected, try_number = reader.return_value.log_handler.get_external_log_url.call_args.args
+            assert selected.id == history.id
+            assert selected.id != current.id
+            assert try_number == 1
 
     @pytest.fixture(autouse=True)
     def setup_attrs(self, test_client, configure_loggers, dag_maker, session) -> None:
@@ -345,6 +390,27 @@ class TestTaskInstancesLog:
         assert response.status_code == 400
         assert "Task log handler does not support read logs." in response.content.decode("utf-8")
 
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.log.TaskLogReader", autospec=True)
+    def test_get_logs_resolves_task_for_unversioned_run(self, mock_log_reader, session):
+        reader = mock_log_reader.return_value
+        reader.supports_read = True
+        reader.read_log_chunks.return_value = (iter([]), {"end_of_log": True})
+        session.execute(
+            update(TaskInstance).where(TaskInstance.dag_id == self.DAG_ID).values(dag_version_id=None)
+        )
+        session.execute(
+            update(DagRun).where(DagRun.dag_id == self.DAG_ID).values(created_dag_version_id=None)
+        )
+        session.commit()
+
+        response = self.client.get(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            headers={"Accept": "application/json"},
+        )
+
+        assert response.status_code == 200, response.json()
+        assert reader.read_log_chunks.call_args.args[0].task.task_id == self.TASK_ID
+
     def test_bad_signature_raises(self):
         token = {"download_logs": False}
 
@@ -390,7 +456,7 @@ class TestTaskInstancesLog:
             headers={"Accept": "application/x-ndjson"},
         )
         assert response.status_code == 404
-        assert response.json()["detail"] == "TaskInstance not found"
+        assert response.json()["detail"] == "Task instance not found for selected coordinates"
 
     def test_should_raise_404_when_filtering_on_map_index_for_unmapped_task(self):
         key = self.app.state.secret_key

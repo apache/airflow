@@ -267,6 +267,7 @@ class _XComOperations:
         task_id: str,
         run_id: str,
         map_index: int = -1,
+        region_id: UUID | None = SENTINEL_REGION_ID,
         serialize: bool = True,
         dag_result: bool = False,
         mapped_length: int | None = None,
@@ -291,7 +292,13 @@ class _XComOperations:
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
         owner = session.scalar(
-            select_producers(dag_ids=dag_id, task_ids=task_id, run_id=run_id, map_indexes=map_index)
+            select_producers(
+                dag_ids=dag_id,
+                task_ids=task_id,
+                run_id=run_id,
+                map_indexes=map_index,
+                region_id=region_id,
+            )
         )
         if owner is None:
             raise ValueError(

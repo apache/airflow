@@ -33,10 +33,14 @@ from airflow._shared.timezones.timezone import utc, utcnow
 from airflow.api_fastapi.core_api.routes.public import hitl as hitl_routes
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TIModel
 from airflow.models.team import Team
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION
@@ -56,6 +60,61 @@ if TYPE_CHECKING:
 
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.mark.parametrize("operation", ["get", "history", "list", "respond"])
+def test_hitl_selects_loop_iteration(test_client, dag_maker, session, operation):
+    @task_group
+    def body():
+        EmptyOperator(task_id="work")
+
+    with dag_maker(serialized=True) as dag:
+        loop = create_loop(body, max_iterations=4)
+    run = dag_maker.create_dagrun()
+    region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+    later = TIModel(
+        task=dag.get_task("body.work"),
+        run_id=run.run_id,
+        dag_version_id=run.created_dag_version_id,
+        region_id=region.id,
+        region_index=2,
+    )
+    later.try_number = 1
+    later.state = TaskInstanceState.AWAITING_INPUT
+    session.add(later)
+    session.flush()
+    detail = HITLDetail(ti_id=later.id, options=["Approve", "Reject"], subject="Iteration 3")
+    session.add(detail)
+    session.commit()
+    run_url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}"
+    url = f"{run_url}/taskInstances/body.work/-1/hitlDetails"
+    params = {"region_id": str(region.id), "region_index": 2}
+    if operation == "history":
+        later.state = TaskInstanceState.SUCCESS
+        later.archive(reason="superseded", session=session)
+        session.commit()
+        response = test_client.get(f"{url}/tries/1", params=params)
+    elif operation == "list":
+        response = test_client.get(f"{run_url}/hitlDetails", params={"map_index": -1})
+    elif operation == "respond":
+        response = test_client.patch(url, params=params, json={"chosen_options": ["Approve"]})
+    else:
+        response = test_client.get(url, params=params)
+    assert response.status_code == 200, response.text
+    if operation == "respond":
+        session.refresh(later)
+        assert later.state == TaskInstanceState.SCHEDULED
+        assert response.json()["chosen_options"] == ["Approve"]
+    else:
+        data = response.json()
+        if operation == "list":
+            assert data["total_entries"] == 1
+            data = data["hitl_details"][0]
+        assert data["subject"] == "Iteration 3"
+        assert data["task_instance"]["map_index"] == -1
+        assert data["task_instance"]["region_index"] == 2
+        assert data["task_instance"]["region_id"] == str(region.id)
+
 
 DAG_ID = "test_hitl_dag"
 ANOTHER_DAG_ID = "another_hitl_dag"
@@ -267,6 +326,8 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "id": str(sample_ti.id),
             "logical_date": mock.ANY,
             "map_index": -1,
+            "region_id": "00000000-0000-0000-0000-000000000000",
+            "region_index": -1,
             "max_tries": 0,
             "note": None,
             "operator": "EmptyOperator",

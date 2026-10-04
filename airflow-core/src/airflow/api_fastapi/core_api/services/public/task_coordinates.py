@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
 from airflow._shared.state import TaskScope
+from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError
 from airflow.models.task_coordinates import TaskCoordinateResolver
 
@@ -113,3 +115,34 @@ def resolve_task_scope(
         map_index=tasks[0].region_index,
         region_id=tasks[0].region_id,
     )
+
+
+def _coordinate_resolver(dag_bag: DagBagDep, session: SessionDep) -> TaskCoordinateResolver:
+    return TaskCoordinateResolver(dag_bag, session)
+
+
+CoordinateResolverDep = Annotated[TaskCoordinateResolver, Depends(_coordinate_resolver)]
+
+
+def _task_scope(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    resolver: CoordinateResolverDep,
+    map_index: int = -1,
+    region_id: Annotated[UUID | None, Query()] = None,
+    region_index: Annotated[int | None, Query(ge=-1)] = None,
+) -> TaskScope:
+    return resolve_task_scope(
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        task_id=task_id,
+        session=resolver.session,
+        dag_bag=resolver.dag_bag,
+        map_index=map_index,
+        region_id=region_id,
+        region_index=region_index,
+    )
+
+
+TaskScopeDep = Annotated[TaskScope, Depends(_task_scope)]

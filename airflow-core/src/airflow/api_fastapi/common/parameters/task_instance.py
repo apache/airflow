@@ -37,6 +37,7 @@ from airflow.api_fastapi.common.parameters.search import (
 )
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.models.dag_version import DagVersion
+from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import TaskInstanceState
 
@@ -237,7 +238,7 @@ QueryTIMapIndexFilter = Annotated[
     FilterParam[list[int]],
     Depends(
         filter_param_factory(
-            TaskInstance.region_index,
+            public_map_index_expression(TaskInstance),
             list[int],
             FilterOptionEnum.ANY_EQUAL,
             filter_name="map_index",
