@@ -4093,9 +4093,9 @@ class TestKubernetesPodOperatorAsync:
     @patch(POD_MANAGER_CLASS)
     @patch(HOOK_CLASS)
     def test_async_trigger_reentry_returns_when_pod_gcd_on_success(self, mocked_hook, mock_manager):
-        """Pod GC'd between trigger firing and reentry should not fail a successful task."""
+        """Pod GC'd between trigger firing and reentry should not fail a successful task (no XCom)."""
         mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
-        k = KubernetesPodOperator(task_id="task", deferrable=True)
+        k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=False)
         context = create_context(k)
         context["ti"] = MagicMock()
 
@@ -4113,6 +4113,33 @@ class TestKubernetesPodOperatorAsync:
         assert result is None
         # await_pod_completion in _clean must not be called with self.pod=None
         mock_manager.return_value.await_pod_completion.assert_not_called()
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_raises_pod_not_found_on_success_when_xcom_push(
+        self, mocked_hook, mock_manager
+    ):
+        """Pod GC'd before reentry with do_xcom_push=True must not silently succeed (issue #73117).
+
+        The XCom sidecar died with the pod, so returning success would leave the task
+        SUCCESS with no return_value XCom, unrecoverably breaking downstream tasks.
+        Raising lets the task fail/retry so a fresh pod reproduces the result.
+        """
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(PodNotFoundException, match="not found after resuming from deferral"):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "success",
+                    "message": TEST_SUCCESS_MESSAGE,
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                },
+            )
 
     @patch(POD_MANAGER_CLASS)
     @patch(HOOK_CLASS)
