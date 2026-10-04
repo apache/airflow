@@ -66,6 +66,8 @@ const taskInstance: TaskInstanceResponse = {
   priority_weight: null,
   queue: null,
   queued_when: null,
+  region_id: "00000000-0000-0000-0000-000000000000",
+  region_index: 0,
   rendered_fields: undefined,
   rendered_map_index: null,
   run_after: "2025-01-01T00:00:00Z",

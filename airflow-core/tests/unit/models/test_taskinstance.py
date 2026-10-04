@@ -62,6 +62,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
@@ -229,6 +230,102 @@ def test_conflicting_task_instance_index_names_are_rejected(dag_maker, bulk):
         kwargs["dag_run"] = dr
     with pytest.raises(ValueError, match="map_index.*region_index"):
         constructor(**kwargs)
+
+
+@pytest.fixture
+def legacy_mapped_ti(dag_maker, session):
+    with dag_maker("legacy_mapping", serialized=True):
+        MockOperator.partial(task_id="mapped").expand(arg2=[1])
+    dr = dag_maker.create_dagrun()
+    session.execute(delete(TI).where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id))
+    session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+    ti = TI(
+        dag_maker.serialized_dag.get_task("mapped"),
+        run_id=dr.run_id,
+        dag_version_id=dr.created_dag_version_id,
+        region_index=0,
+        state=TaskInstanceState.SUCCESS,
+    )
+    session.add(ti)
+    session.flush()
+    return dr, ti
+
+
+@pytest.mark.parametrize("whole_task", [False, True])
+def test_legacy_width_one_clear_distinguishes_whole_task(dag_maker, session, legacy_mapped_ti, whole_task):
+    dr, ti = legacy_mapped_ti
+    old_id = ti.id
+
+    dag_maker.serialized_dag.clear(
+        task_ids=["mapped"] if whole_task else [("mapped", 0)], run_id=dr.run_id, session=session
+    )
+    session.flush()
+
+    old = session.get(TI, old_id)
+    assert old.working_set is None
+    assert old.region_id.int == 0
+    assert old.region_index == 0
+    regions = session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all()
+    live_query = select(TI).where(TI.dag_id == dr.dag_id, TI.working_set.is_(True))
+    if whole_task:
+        assert old.archived_reason == "superseded"
+        assert len(regions) == 1
+        assert regions[0].node_id == "mapped"
+        assert regions[0].forked_from_region_id is None
+        assert not session.scalars(live_query).all()
+        dr.task_instance_scheduling_decisions(session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        live = session.scalars(live_query).one()
+        assert live.region_id == regions[0].id
+        assert live.region_index == 0
+    else:
+        assert old.archived_reason == "retry"
+        assert not regions
+        live = session.scalars(live_query).one()
+        assert live.id != old_id
+        assert live.region_id.int == 0
+        assert live.region_index == 0
+
+
+@pytest.mark.parametrize("state", [None, State.SCHEDULED, State.QUEUED, State.UP_FOR_RETRY])
+def test_legacy_whole_clear_archives_pending_execution_in_place(dag_maker, session, legacy_mapped_ti, state):
+    dr, ti = legacy_mapped_ti
+    ti.state = state
+    session.flush()
+    old_id = ti.id
+
+    dag_maker.serialized_dag.clear(task_ids=["mapped"], run_id=dr.run_id, session=session)
+    session.flush()
+
+    archived = session.get(TI, old_id)
+    assert archived.archived_reason == "superseded"
+    assert archived.working_set is None
+    assert archived.state == state
+    assert (archived.start_date, archived.end_date) == (None, None)
+
+
+@pytest.mark.parametrize("replacement_task_id", ["mapped", "different"])
+def test_legacy_reconciliation_does_not_revive_removed_mapping(
+    dag_maker, session, legacy_mapped_ti, replacement_task_id
+):
+    dr, _ = legacy_mapped_ti
+    dag_maker.serialized_dag.clear(task_ids=["mapped"], run_id=dr.run_id, session=session)
+    session.commit()
+    region = session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).one()
+
+    with dag_maker(dr.dag_id, serialized=True):
+        EmptyOperator(task_id=replacement_task_id)
+    version = DagVersion.get_latest_version(dr.dag_id, session=session)
+    dr.created_dag_version_id = version.id
+    dr.dag = dag_maker.serialized_dag
+    session.flush()
+
+    dr.verify_integrity(dag_version_id=version.id, session=session)
+    dr.verify_integrity(dag_version_id=version.id, session=session)
+    dr.task_instance_scheduling_decisions(session=session)
+
+    assert not session.scalars(select(TI).where(TI.region_id == region.id)).all()
+    assert session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all() == [region]
 
 
 class TestTaskInstance:

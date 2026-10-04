@@ -1225,10 +1225,10 @@ class SerializedDAG:
             tuples that should not be cleared
         :param exclude_run_ids: A set of ``run_id`` or (``run_id``)
         """
+        from airflow.models.loop_clear import clear_task_instances_for_runs
         from airflow.models.taskinstance import (
             _get_new_task_ids,
             _update_dagrun_to_latest_version,
-            clear_task_instances,
         )
 
         if only_new:
@@ -1290,11 +1290,23 @@ class SerializedDAG:
         if count == 0:
             return 0
 
-        clear_task_instances(
-            list(tis),
-            session,
+        clear_task_instances_for_runs(
+            tis,
+            session=session,
             dag_run_state=dag_run_state,
             run_on_latest_version=run_on_latest_version,
+            later_loop_iterations=not (only_failed or only_running),
+            whole_task_keys={
+                (ti.dag_id, ti.run_id, ti.task_id)
+                for ti in tis
+                if not only_failed
+                and not only_running
+                and (task_ids is None or ti.task_id in task_ids)
+                and not any(
+                    isinstance(excluded, tuple) and excluded[0] == ti.task_id
+                    for excluded in exclude_task_ids or ()
+                )
+            },
         )
 
         session.flush()

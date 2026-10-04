@@ -593,6 +593,8 @@ export type BulkResponse = {
  */
 export type BulkTaskInstanceBody = {
     new_state?: TaskInstanceState | null;
+    region_id?: string | null;
+    region_index?: number | null;
     note?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -768,6 +770,18 @@ export type ClearTaskInstancesBody = {
      * Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are.
      */
     task_group_id?: string | null;
+    /**
+     * Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.
+     */
+    task_instance_ids?: Array<(string)> | null;
+    /**
+     * Selected execution IDs whose entire mapped expansion should be cleared.
+     */
+    whole_expansion_ids?: Array<(string)>;
+    /**
+     * Clear later iterations when the selection includes a loop gate.
+     */
+    include_later_loop_iterations?: boolean;
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -1849,6 +1863,8 @@ export type NewTaskResponse = {
  */
 export type PatchTaskInstanceBody = {
     new_state?: TaskInstanceState | null;
+    region_id?: string | null;
+    region_index?: number | null;
     note?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -2175,6 +2191,8 @@ export type TaskInstanceResponse = {
     dag_id: string;
     dag_run_id: string;
     map_index: number;
+    region_id: string;
+    region_index: number;
     logical_date: string | null;
     run_after: string;
     start_date: string | null;
@@ -4228,6 +4246,8 @@ export type PatchTaskInstanceData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -4371,6 +4391,8 @@ export type PatchTaskInstanceByMapIndexData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -4536,6 +4558,8 @@ export type PatchTaskGroupInstancesData = {
     dagId: string;
     dagRunId: string;
     groupId: string;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     updateMask?: Array<(string)> | null;
 };
@@ -4546,6 +4570,8 @@ export type PatchTaskGroupInstancesDryRunData = {
     dagId: string;
     dagRunId: string;
     groupId: string;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
 };
 
@@ -4555,6 +4581,8 @@ export type PatchTaskInstanceDryRunByMapIndexData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -4566,6 +4594,8 @@ export type PatchTaskInstanceDryRunData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;

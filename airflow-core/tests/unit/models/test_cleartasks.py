@@ -21,11 +21,12 @@ import datetime
 import random
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, clear_partition_runs
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -38,10 +39,89 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import run_task_instance
 from unit.models import DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
+
+
+def test_superseded_execution_is_archived_in_place_without_successor(dag_maker, session):
+    with dag_maker("superseded_clear"):
+        EmptyOperator(task_id="superseded")
+        EmptyOperator(task_id="retried")
+    dr = dag_maker.create_dagrun()
+    superseded, retried = sorted(dr.task_instances, key=lambda ti: ti.task_id, reverse=True)
+    superseded.state = retried.state = TaskInstanceState.SUCCESS
+    session.flush()
+    superseded_id, retried_id = superseded.id, retried.id
+
+    clear_task_instances([superseded, retried], session, superseded_ti_ids={superseded_id})
+
+    assert (superseded.id, superseded.working_set, superseded.archived_reason) == (
+        superseded_id,
+        None,
+        "superseded",
+    )
+    assert superseded.state == TaskInstanceState.SUCCESS
+    live = session.scalars(select(TI).where(TI.dag_id == dr.dag_id, TI.working_set.is_(True))).all()
+    assert [ti.task_id for ti in live] == ["retried"]
+    assert live[0].id != retried_id
+    assert session.get(TI, retried_id).archived_reason == "retry"
+
+
+def test_complete_restart_rejects_outcome_for_ordinary_execution(dag_maker, session):
+    with dag_maker("ordinary_restart_outcome"):
+        EmptyOperator(task_id="task")
+    dr = dag_maker.create_dagrun()
+    ti = dr.task_instances[0]
+    ti.state = TaskInstanceState.RESTARTING
+    session.flush()
+
+    with pytest.raises(ValueError, match="requires a superseded execution"):
+        ti.complete_restart(session=session, terminal_outcome=TaskInstanceState.FAILED)
+
+
+def test_partition_clear_archives_legacy_expansion_once_across_batches(dag_maker, session):
+    with dag_maker("legacy_partition_clear", serialized=True):
+        MockOperator.partial(task_id="mapped").expand(arg2=list(range(1200)))
+    dr = dag_maker.create_dagrun()
+    session.execute(delete(TI).where(TI.dag_id == dr.dag_id))
+    session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+    session.add_all(
+        TI(
+            dag_maker.serialized_dag.get_task("mapped"),
+            run_id=dr.run_id,
+            dag_version_id=dr.created_dag_version_id,
+            region_index=index,
+            state=State.SUCCESS,
+        )
+        for index in range(1200)
+    )
+    dr.partition_key = "legacy"
+    session.flush()
+
+    result = clear_partition_runs(
+        dag=None,
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        partition_key=None,
+        partition_date_start=None,
+        partition_date_end=None,
+        clear_tis=True,
+        dry_run=False,
+        session=session,
+    )
+    session.flush()
+
+    assert result == (1, 1200)
+    assert session.scalar(select(func.count()).select_from(DynamicRegion)) == 1
+    archived = session.scalars(
+        select(TI).where(TI.dag_id == dr.dag_id).execution_options(include_all_attempts=True)
+    ).all()
+    assert len(archived) == 1200
+    assert {ti.archived_reason for ti in archived} == {"superseded"}
+    assert {ti.working_set for ti in archived} == {None}
 
 
 class TestClearTasks:

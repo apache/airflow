@@ -2581,6 +2581,8 @@ export class TaskInstanceService {
      * @param data.requestBody
      * @param data.mapIndex
      * @param data.updateMask
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2595,7 +2597,9 @@ export class TaskInstanceService {
             },
             query: {
                 map_index: data.mapIndex,
-                update_mask: data.updateMask
+                update_mask: data.updateMask,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -2921,6 +2925,8 @@ export class TaskInstanceService {
      * @param data.mapIndex
      * @param data.requestBody
      * @param data.updateMask
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2935,7 +2941,9 @@ export class TaskInstanceService {
                 map_index: data.mapIndex
             },
             query: {
-                update_mask: data.updateMask
+                update_mask: data.updateMask,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -3258,6 +3266,8 @@ export class TaskInstanceService {
      * @param data.groupId
      * @param data.requestBody
      * @param data.updateMask
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3271,7 +3281,9 @@ export class TaskInstanceService {
                 group_id: data.groupId
             },
             query: {
-                update_mask: data.updateMask
+                update_mask: data.updateMask,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -3294,6 +3306,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.groupId
      * @param data.requestBody
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3305,6 +3319,10 @@ export class TaskInstanceService {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId,
                 group_id: data.groupId
+            },
+            query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -3328,6 +3346,8 @@ export class TaskInstanceService {
      * @param data.mapIndex
      * @param data.requestBody
      * @param data.updateMask
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3342,7 +3362,9 @@ export class TaskInstanceService {
                 map_index: data.mapIndex
             },
             query: {
-                update_mask: data.updateMask
+                update_mask: data.updateMask,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -3366,6 +3388,8 @@ export class TaskInstanceService {
      * @param data.requestBody
      * @param data.mapIndex
      * @param data.updateMask
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3380,7 +3404,9 @@ export class TaskInstanceService {
             },
             query: {
                 map_index: data.mapIndex,
-                update_mask: data.updateMask
+                update_mask: data.updateMask,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',

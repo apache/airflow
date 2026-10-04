@@ -18,17 +18,19 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal
+from typing import Literal, TypeVar
+from uuid import UUID
 
 import structlog
 from fastapi import HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import select, tuple_
+from sqlalchemy import delete, select, tuple_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.session import Session
 
 from airflow._shared.state import TaskScope
+from airflow.api.common.mark_tasks import get_run_ids
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
@@ -48,16 +50,36 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.task_coordinates import resolve_task_scope
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
+from airflow.models.dagbag import DBDagBag
+from airflow.models.dagrun import DagRun
+from airflow.models.dynamic_region import (
+    LOOP_DECISION_KEY,
+    SENTINEL_REGION_ID,
+    DynamicRegion,
+    load_region_ancestry,
+    loop_position,
+)
+from airflow.models.loop_clear import loop_coordinate_is_superseded, select_loop_clear_scope
 from airflow.models.renderedtifields import load_legacy_rendered_fields
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.task_coordinates import (
+    TaskCoordinateResolver,
+    enclosing_loop,
+    public_map_index_expression,
+)
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.xcom import XComModelV2
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.state.metastore import _get_db_backend
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(__name__)
+MutationAction = TypeVar(
+    "MutationAction", BulkUpdateAction[BulkTaskInstanceBody], BulkDeleteAction[BulkTaskInstanceBody]
+)
 
 
 def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str) -> None:
@@ -83,7 +105,8 @@ def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str
             dag_id=ti.dag_id,
             run_id=ti.run_id,
             task_id=ti.task_id,
-            map_index=ti.map_index if ti.map_index is not None else -1,
+            region_id=ti.region_id,
+            region_index=ti.region_index,
         )
         try:
             backend.clear(scope=scope, session=session)
@@ -111,7 +134,8 @@ def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> N
             dag_id=ti.dag_id,
             run_id=ti.run_id,
             task_id=ti.task_id,
-            map_index=ti.map_index if ti.map_index is not None else -1,
+            region_id=ti.region_id,
+            region_index=ti.region_index,
         )
         try:
             backend.clear(scope=scope, session=session)
@@ -120,7 +144,7 @@ def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> N
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 task_id=ti.task_id,
-                map_index=ti.map_index,
+                region_index=ti.region_index,
             )
         except Exception:
             log.warning(
@@ -197,9 +221,14 @@ def _patch_ti_validate_request(
     session: SessionDep,
     map_index: int | None = -1,
     update_mask: list[str] | None = None,
+    *,
+    lock: bool = True,
 ) -> tuple[SerializedDAG, list[TI], dict]:
+    _validate_region_selection(body)
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    if not dag.has_task(task_id):
+    if lock:
+        _lock_patch_runs(dag, dag_run_id, body, session)
+    if body.region_id is None and not dag.has_task(task_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in Dag '{dag_id}'")
 
     query = (
@@ -207,11 +236,36 @@ def _patch_ti_validate_request(
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
-    if map_index is not None:
-        query = query.where(TI.map_index == map_index)
-    else:
-        query = query.order_by(TI.map_index)
-
+    if body.region_id is None:
+        resolver = TaskCoordinateResolver(dag_bag, session)
+        for version in session.scalars(
+            select(TI.dag_version_id)
+            .where(
+                TI.dag_id == dag_id,
+                TI.run_id == dag_run_id,
+                TI.task_id == task_id,
+            )
+            .distinct()
+        ):
+            if enclosing_loop(resolver.get_task(dag_id, dag_run_id, task_id, dag_version_id=version)):
+                raise HTTPException(status.HTTP_409_CONFLICT, "Select a region and index for this loop task")
+    scope = resolve_task_scope(
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        task_id=task_id,
+        session=session,
+        dag_bag=dag_bag,
+        map_index=map_index if map_index is not None else -1,
+        region_id=body.region_id,
+        region_index=body.region_index,
+        all_map_indices=map_index is None,
+    )
+    query = query.where(TI.region_id == scope.region_id)
+    if body.region_id is not None or map_index is not None:
+        query = query.where(TI.region_index == scope.region_index)
+    query = query.order_by(TI.region_index).execution_options(populate_existing=True)
+    if lock:
+        query = query.with_for_update(of=TI)
     tis = session.scalars(query).all()
 
     err_msg_404 = (
@@ -219,9 +273,53 @@ def _patch_ti_validate_request(
     )
     if len(tis) == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
+    if body.region_id is not None and tis[0].dag_version_id is not None:
+        pinned_dag = dag_bag.get_dag(tis[0].dag_version_id, session=session)
+        if pinned_dag is not None:
+            dag = pinned_dag
 
     data = _validate_patch_task_instance_body(body, update_mask)
     return dag, list(tis), data
+
+
+def _validate_region_selection(body: PatchTaskInstanceBody) -> None:
+    if (body.region_id is None) != (body.region_index is None):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "region_id and region_index must be supplied together"
+        )
+    if body.region_id is not None and (body.include_past or body.include_future):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Regional selection requires one explicit DagRun")
+
+
+def _lock_patch_runs(dag: SerializedDAG, run_id: str, body: PatchTaskInstanceBody, session: Session) -> None:
+    run_ids = get_run_ids(dag, run_id, body.include_future, body.include_past, session=session)
+    session.scalars(
+        select(DagRun.id)
+        .where(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.run_id.in_(run_ids),
+        )
+        .order_by(DagRun.run_id)
+        .with_for_update()
+    ).all()
+
+
+def patch_region_selection(
+    body: PatchTaskInstanceBody, region_id: UUID | None, region_index: int | None
+) -> PatchTaskInstanceBody:
+    if region_id is None and region_index is None:
+        _validate_region_selection(body)
+        return body
+    if region_id is None or region_index is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "region_id and region_index must be supplied together"
+        )
+    if body.region_id is not None or body.region_index is not None:
+        if (body.region_id, body.region_index) != (region_id, region_index):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Body and query region coordinates conflict")
+    body = body.model_copy(update={"region_id": region_id, "region_index": region_index})
+    _validate_region_selection(body)
+    return body
 
 
 def _get_task_group_task_ids(dag_id: str, task_group_id: str, dag: SerializedDAG) -> list[str]:
@@ -240,21 +338,68 @@ def _get_task_group_task_instances(
     task_group_id: str,
     dag: SerializedDAG,
     session: Session,
+    body: PatchTaskInstanceBody | None = None,
+    dag_bag: DBDagBag | None = None,
 ) -> list[TI]:
     """Get all task instances in a task group for a specific DAG run."""
-    task_ids = _get_task_group_task_ids(dag_id, task_group_id, dag)
-
     query = (
         select(TI)
         .where(
             TI.dag_id == dag_id,
             TI.run_id == dag_run_id,
-            TI.task_id.in_(task_ids),
         )
-        .order_by(TI.task_id, TI.map_index)
+        .order_by(TI.task_id, TI.region_id, TI.region_index)
+        .execution_options(populate_existing=True)
     )
+    if body is None or body.region_id is None:
+        task_ids = _get_task_group_task_ids(dag_id, task_group_id, dag)
+        query = query.where(TI.task_id.in_(task_ids))
 
     group_tis = list(session.scalars(query).all())
+    if body is not None:
+        _validate_region_selection(body)
+        if body.region_id is None:
+            resolver = TaskCoordinateResolver(dag_bag or DBDagBag(), session)
+            if any(
+                ti.region_id != SENTINEL_REGION_ID
+                and enclosing_loop(
+                    resolver.get_task(dag_id, dag_run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+                )
+                for ti in group_tis
+            ):
+                raise HTTPException(status.HTTP_409_CONFLICT, "Select a region and index for this loop group")
+        elif body.region_index is not None:
+            region = session.get(DynamicRegion, body.region_id)
+            if region is None or (region.dag_id, region.run_id) != (dag_id, dag_run_id):
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Selected loop region not found")
+            regions = load_region_ancestry(
+                {ti.region_id for ti in group_tis} | {body.region_id},
+                dag_id=dag_id,
+                run_id=dag_run_id,
+                session=session,
+            )
+            position = loop_position(regions, body.region_id, body.region_index, region.node_id)
+            group_tis = [
+                ti
+                for ti in group_tis
+                if loop_position(regions, ti.region_id, ti.region_index, region.node_id) == position
+            ]
+            resolver = TaskCoordinateResolver(dag_bag or DBDagBag(), session)
+            members = []
+            for ti in group_tis:
+                task = resolver.get_task(dag_id, dag_run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+                loop = enclosing_loop(task)
+                if loop is None or loop.node_id != region.node_id:
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST, "Group coordinates must identify an enclosing loop pass"
+                    )
+                group = task.task_group
+                while group is not None:
+                    if group.group_id == task_group_id:
+                        members.append(ti)
+                        break
+                    group = group.parent_group
+            group_tis = members
     if not group_tis:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -272,10 +417,23 @@ def _patch_ti_group_validate_request(
     body: PatchTaskInstanceBody,
     session: SessionDep,
     update_mask: list[str] | None = None,
+    *,
+    lock: bool = True,
 ) -> tuple[SerializedDAG, list[TI], dict]:
     """Validate and prepare data for task group patch request."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    tis = _get_task_group_task_instances(dag_id, dag_run_id, task_group_id, dag, session)
+    if lock:
+        _lock_patch_runs(dag, dag_run_id, body, session)
+    tis = _get_task_group_task_instances(dag_id, dag_run_id, task_group_id, dag, session, body, dag_bag)
+    if lock:
+        tis = list(
+            session.scalars(
+                select(TI)
+                .where(TI.id.in_([ti.id for ti in tis]))
+                .with_for_update(of=TI)
+                .execution_options(populate_existing=True)
+            )
+        )
 
     data = _validate_patch_task_instance_body(body, update_mask)
     return dag, tis, data
@@ -288,7 +446,23 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
+    selected: list[TI] | None = None,
+    commit: bool = True,
 ) -> list[TI]:
+    if task_instance_body.region_id is not None:
+        if selected is None:
+            selected = list(
+                session.scalars(
+                    select(TI).where(
+                        TI.dag_id == dag.dag_id,
+                        TI.run_id == dag_run_id,
+                        TI.task_id == task_id,
+                        TI.region_id == task_instance_body.region_id,
+                        TI.region_index == task_instance_body.region_index,
+                    )
+                )
+            )
+        return _patch_selected_task_state(selected, task_instance_body, data, session=session, commit=commit)
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -318,6 +492,75 @@ def _patch_task_instance_state(
     return updated_tis
 
 
+def _patch_selected_task_state(
+    selected: list[TI], body: PatchTaskInstanceBody, data: dict, *, session: Session, commit: bool
+) -> list[TI]:
+    if commit and selected:
+        session.scalars(
+            select(DagRun.id)
+            .where(DagRun.dag_id == selected[0].dag_id, DagRun.run_id == selected[0].run_id)
+            .with_for_update()
+        ).all()
+    scope = select_loop_clear_scope(
+        selected,
+        upstream=body.include_upstream,
+        downstream=body.include_downstream,
+        later_loop_iterations=False,
+        session=session,
+    )
+    query = select(TI).where(TI.id.in_(scope.retry_ids))
+    if commit:
+        query = query.with_for_update(of=TI).execution_options(populate_existing=True)
+    tis = list(session.scalars(query))
+    changed = [ti for ti in tis if ti.state != data["new_state"]]
+    if not commit:
+        return changed
+    if not changed:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f"Selected task instances are already in {data['new_state']} state"
+        )
+    regions = {
+        region.id: region
+        for region in session.scalars(
+            select(DynamicRegion).where(
+                DynamicRegion.dag_id == tis[0].dag_id,
+                DynamicRegion.run_id == tis[0].run_id,
+            )
+        )
+    }
+    superseded = {
+        ti.id for ti in tis if loop_coordinate_is_superseded(ti.region_id, ti.region_index, regions)
+    }
+    downstream = select_loop_clear_scope(
+        [ti for ti in tis if ti.id not in superseded], later_loop_iterations=False, session=session
+    )
+    for ti in changed:
+        if ti.operator == "LoopGateOperator":
+            session.execute(
+                delete(XComModelV2).where(
+                    XComModelV2.task_instance_id == ti.id, XComModelV2.key == LOOP_DECISION_KEY
+                )
+            )
+        if ti.state == TaskInstanceState.RESTARTING and ti.id in superseded:
+            ti.complete_restart(session=session, terminal_outcome=data["new_state"])
+        else:
+            ti.set_state(data["new_state"], session=session)
+    failures = list(
+        session.scalars(
+            select(TI).where(
+                TI.id.in_(downstream.retry_ids - scope.retry_ids),
+                TI.state.in_((TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED)),
+            )
+        )
+    )
+    if failures:
+        clear_task_instances(failures, session=session)
+    if data["new_state"] == TaskInstanceState.SUCCESS:
+        _clear_task_state_store_on_success(changed, session)
+    _emit_state_listener_hooks(changed, data["new_state"])
+    return changed
+
+
 def _patch_task_group_state(
     group_id: str,
     dag_run_id: str,
@@ -326,8 +569,14 @@ def _patch_task_group_state(
     data: dict,
     *,
     session: Session,
+    selected: list[TI] | None = None,
+    commit: bool = True,
 ) -> list[TI]:
     """Update the state of all task instances in a task group."""
+    if body.region_id is not None:
+        if selected is None:
+            selected = _get_task_group_task_instances(dag.dag_id, dag_run_id, group_id, dag, session, body)
+        return _patch_selected_task_state(selected, body, data, session=session, commit=commit)
     updated_tis = dag.set_task_group_state(
         group_id=group_id,
         run_id=dag_run_id,
@@ -484,16 +733,34 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         # Filter at database level using exact tuple matching instead of fetching all combinations
         # and filtering in Python
         task_keys_list = list(task_keys)
-        query = select(TI).where(tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(task_keys_list))
-
-        task_instances = self.session.scalars(query).all()
-        task_instances_map = {
-            (ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1): ti
-            for ti in task_instances
-        }
+        public_index = public_map_index_expression(TI)
+        query = select(TI, public_index).where(
+            tuple_(TI.dag_id, TI.run_id, TI.task_id, public_index).in_(task_keys_list)
+        )
+        rows = self.session.execute(query).all()
+        self._reject_unscoped_loop_tasks([ti for ti, _ in rows])
+        task_instances_map = {}
+        for ti, index in rows:
+            key = (ti.dag_id, ti.run_id, ti.task_id, index)
+            if key in task_instances_map:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, "Select region coordinates for loop task instances"
+                )
+            task_instances_map[key] = ti
         matched_task_keys = set(task_instances_map.keys())
         not_found_task_keys = task_keys - matched_task_keys
         return task_instances_map, matched_task_keys, not_found_task_keys
+
+    def _reject_unscoped_loop_tasks(self, tis: Sequence[TI]) -> None:
+        resolver = TaskCoordinateResolver(self.dag_bag, self.session)
+        for ti in tis:
+            if ti.region_id == SENTINEL_REGION_ID:
+                continue
+            task = resolver.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            if enclosing_loop(task) is not None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, "Select region coordinates for loop task instances"
+                )
 
     def _perform_update(
         self,
@@ -545,13 +812,92 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             }
         )
 
+    def _handle_regional_bulk(
+        self, action: MutationAction, results: BulkActionResponse
+    ) -> tuple[MutationAction, set[tuple[str, str, str, int]], set[tuple[str, str, str]]]:
+        regional = [
+            entity
+            for entity in action.entities
+            if isinstance(entity, BulkTaskInstanceBody)
+            and (entity.region_id is not None or entity.region_index is not None)
+        ]
+        deleting = isinstance(action, BulkDeleteAction)
+        specific, whole = self._categorize_entities(
+            action.entities, results, method="DELETE" if deleting else "PUT", action_name=action.action.value
+        )
+        keys = {key[:3] for key in specific} | whole
+        run_keys = {key[:2] for key in keys}
+        for entity in action.entities:
+            if isinstance(entity, BulkTaskInstanceBody) and (entity.include_future or entity.include_past):
+                dag_id, run_id, task_id, _ = self._extract_task_identifiers(entity)
+                if (dag_id, run_id, task_id) in keys:
+                    dag = get_latest_version_of_dag(self.dag_bag, dag_id, self.session)
+                    run_keys.update(
+                        (dag_id, selected_run)
+                        for selected_run in get_run_ids(
+                            dag, run_id, entity.include_future, entity.include_past, session=self.session
+                        )
+                    )
+        self.session.scalars(
+            select(DagRun)
+            .where(
+                tuple_(DagRun.dag_id, DagRun.run_id).in_(run_keys),
+            )
+            .order_by(DagRun.dag_id, DagRun.run_id)
+            .with_for_update()
+        ).all()
+        for entity in regional:
+            dag_id, run_id, task_id, map_index = self._extract_task_identifiers(entity)
+            if (dag_id, run_id, task_id) not in keys:
+                continue
+            try:
+                dag, tis, data = _patch_ti_validate_request(
+                    dag_id,
+                    run_id,
+                    task_id,
+                    self.dag_bag,
+                    entity,
+                    self.session,
+                    map_index,
+                    getattr(action, "update_mask", None),
+                )
+                if deleting:
+                    for ti in tis:
+                        self.session.delete(ti)
+                else:
+                    if "note" in data:
+                        _patch_task_instance_note(entity, tis, self.user)
+                    if "new_state" in data:
+                        _patch_task_instance_state(
+                            task_id, run_id, dag, entity, data, self.session, selected=tis
+                        )
+                results.success.extend(
+                    str(ti.id)
+                    if ti.region_id != SENTINEL_REGION_ID
+                    else f"{dag_id}.{run_id}.{task_id}[{ti.region_index}]"
+                    for ti in tis
+                )
+            except HTTPException as error:
+                if (
+                    error.status_code == status.HTTP_404_NOT_FOUND
+                    and action.action_on_non_existence != BulkActionNotOnExistence.FAIL
+                ):
+                    continue
+                results.errors.append({"error": str(error.detail), "status_code": error.status_code})
+        remaining = [entity for entity in action.entities if entity not in regional]
+        remaining_keys = {self._extract_task_identifiers(entity) for entity in remaining}
+        return (
+            action.model_copy(update={"entities": remaining}),
+            specific & remaining_keys,
+            whole & {key[:3] for key in remaining_keys if key[3] is None},
+        )
+
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkTaskInstanceBody], results: BulkActionResponse
     ) -> None:
         """Bulk Update Task Instances."""
-        # Validate and categorize entities into specific and all map index update sets
-        update_specific_map_index_task_keys, update_all_map_index_task_keys = self._categorize_entities(
-            action.entities, results, method="PUT", action_name=action.action.value
+        action, update_specific_map_index_task_keys, update_all_map_index_task_keys = (
+            self._handle_regional_bulk(action, results)
         )
 
         try:
@@ -611,6 +957,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                 ).all()
 
                 # Group task instances by (dag_id, run_id, task_id)
+                self._reject_unscoped_loop_tasks(batch_task_instances)
                 task_instances_by_key: dict[tuple[str, str, str], list[TI]] = {}
                 for ti in batch_task_instances:
                     key = (ti.dag_id, ti.run_id, ti.task_id)
@@ -636,7 +983,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                                 dag_id=dag_id,
                                 dag_run_id=run_id,
                                 task_id=task_id,
-                                map_index=ti.map_index if ti.map_index is not None else -1,
+                                map_index=ti.region_index,
                                 entity=entity,
                                 results=results,
                                 update_mask=action.update_mask,
@@ -651,9 +998,8 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self, action: BulkDeleteAction[BulkTaskInstanceBody], results: BulkActionResponse
     ) -> None:
         """Bulk delete task instances."""
-        # Validate and categorize entities into specific and all map index delete sets
-        delete_specific_map_index_task_keys, delete_all_map_index_task_keys = self._categorize_entities(
-            action.entities, results, method="DELETE", action_name=action.action.value
+        action, delete_specific_map_index_task_keys, delete_all_map_index_task_keys = (
+            self._handle_regional_bulk(action, results)
         )
 
         try:
@@ -699,6 +1045,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                 ).all()
 
                 # Group task instances by (dag_id, run_id, task_id) for efficient lookup
+                self._reject_unscoped_loop_tasks(batch_task_instances)
                 task_instances_by_key: dict[tuple[str, str, str], list[TI]] = {}
                 for ti in batch_task_instances:
                     key = (ti.dag_id, ti.run_id, ti.task_id)
@@ -721,7 +1068,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                             dag_id=dag_id, run_id=run_id, task_id=task_id, session=self.session
                         )
                     for ti in all_task_instances:
-                        results.success.append(f"{dag_id}.{run_id}.{task_id}[{ti.map_index}]")
+                        results.success.append(f"{dag_id}.{run_id}.{task_id}[{ti.region_index}]")
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

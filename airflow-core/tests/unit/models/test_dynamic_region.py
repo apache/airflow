@@ -425,7 +425,11 @@ def _ti_search_plans(session, statements):
     plans = []
     for statement in statements:
         rows = session.execute(text(f"EXPLAIN QUERY PLAN {statement}")).all()
-        plans.extend(row[-1] for row in rows if "task_instance" in row[-1] and "SEARCH" in row[-1])
+        plans.extend(
+            row[-1]
+            for row in rows
+            if "task_instance" in row[-1] and ("SEARCH" in row[-1] or "SCAN" in row[-1])
+        )
     return plans
 
 
@@ -453,3 +457,9 @@ def test_public_lookups_use_the_task_instance_unique_key(dag_maker, session):
         plans = _ti_search_plans(session, statements)
         assert any("region_id=? AND region_index=?" in plan for plan in plans), (name, plans)
         assert not any("ANY(" in plan for plan in plans), (name, plans)
+
+    with capture_orm_selects("task_instance") as statements:
+        dr._reconcile_legacy_expansions(session=session)
+    plans = _ti_search_plans(session, statements)
+    assert plans, statements
+    assert all("(dag_id=?" in plan for plan in plans), (statements, plans)

@@ -41,8 +41,9 @@ from airflow.dag_processing.processor import DagFileParsingResult, DagFileProces
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
+from airflow.models.loop_clear import clear_task_instances_for_runs
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, PartitionedAssetTimetable, task
@@ -2127,16 +2128,16 @@ class TestCliDagsClear:
     def test_clears_each_matching_run_once_across_chunks(self, parser, chunk_size, expected_calls):
         """Every matching run is cleared exactly once, however run_ids split into chunks.
 
-        clear_task_instances is called once per chunk (not once per run), every matching
+        clear_task_instances_for_runs is called once per chunk (not once per run), every matching
         run is re-queued, and each run's clear_number advances by exactly 1 — proving a
         run's TIs are never split across chunks.
         """
         call_count = 0
 
-        def counting_clear(tis, session, **kwargs):
+        def counting_clear(tis, **kwargs):
             nonlocal call_count
             call_count += 1
-            return clear_task_instances(tis, session, **kwargs)
+            return clear_task_instances_for_runs(tis, **kwargs)
 
         args = parser.parse_args(
             [
@@ -2153,7 +2154,7 @@ class TestCliDagsClear:
         with (
             mock.patch.object(dag_command, "_RUN_CHUNK_SIZE", chunk_size),
             mock.patch(
-                "airflow.cli.commands.dag_command.clear_task_instances",
+                "airflow.cli.commands.dag_command.clear_task_instances_for_runs",
                 side_effect=counting_clear,
             ),
         ):

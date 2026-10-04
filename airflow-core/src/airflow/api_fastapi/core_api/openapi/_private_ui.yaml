@@ -4842,6 +4842,13 @@ components:
         map_index:
           type: integer
           title: Map Index
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
         logical_date:
           anyOf:
           - type: string
@@ -4993,6 +5000,8 @@ components:
       - dag_id
       - dag_run_id
       - map_index
+      - region_id
+      - region_index
       - logical_date
       - run_after
       - start_date

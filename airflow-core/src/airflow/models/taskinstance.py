@@ -407,6 +407,9 @@ def clear_task_instances(
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
+    *,
+    whole_task_keys: Collection[tuple[str, str, str]] = (),
+    superseded_ti_ids: Collection[UUID] = (),
 ) -> list[TaskInstance]:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -424,11 +427,51 @@ def clear_task_instances(
     :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version.
         A run with no version of its own uses the latest either way, since there is nothing
         else for it to run on; a task instance with no version joins its run's.
+    :param whole_task_keys: ``(dag_id, run_id, task_id)`` of tasks cleared as a whole. A pre-region
+        mapped expansion of such a task is archived and regenerated in a new region.
+    :param superseded_ti_ids: executions whose generated work is replaced rather than retried; they
+        are archived in place instead of receiving a successor.
 
     :meta private:
     """
     from airflow.exceptions import AirflowClearRunningTaskException
     from airflow.models.dagbag import DBDagBag
+    from airflow.models.dagrun import DagRun
+
+    if tis:
+        run_keys = {(ti.dag_id, ti.run_id) for ti in tis}
+        session.scalars(
+            select(DagRun.id)
+            .where(tuple_(DagRun.dag_id, DagRun.run_id).in_(run_keys))
+            .order_by(DagRun.dag_id, DagRun.run_id)
+            .with_for_update()
+        ).all()
+
+    legacy_keys = {
+        (ti.dag_id, ti.run_id, ti.task_id)
+        for ti in tis
+        if ti.region_id == SENTINEL_REGION_ID
+        and ti.region_index >= 0
+        and (ti.dag_id, ti.run_id, ti.task_id) in whole_task_keys
+    }
+    if legacy_keys:
+        existing_keys = {
+            (region.dag_id, region.run_id, region.node_id)
+            for region in session.scalars(
+                select(DynamicRegion).where(
+                    tuple_(DynamicRegion.dag_id, DynamicRegion.run_id, DynamicRegion.node_id).in_(
+                        legacy_keys
+                    ),
+                    DynamicRegion.parent_region_id.is_(None),
+                    DynamicRegion.forked_from_region_id.is_(None),
+                )
+            )
+        }
+        session.add_all(
+            DynamicRegion(dag_id=dag_id, run_id=run_id, node_id=task_id)
+            for dag_id, run_id, task_id in legacy_keys - existing_keys
+        )
+        session.flush()
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     cleared = []
@@ -447,6 +490,10 @@ def clear_task_instances(
         # If a task is cleared when running and the prevent_running_task is false,
         # set its state to RESTARTING so that
         # the task is terminated and becomes eligible for retry.
+        elif ti.id in superseded_ti_ids or (
+            ti.region_id == SENTINEL_REGION_ID and (ti.dag_id, ti.run_id, ti.task_id) in legacy_keys
+        ):
+            ti.archive(reason="superseded", session=session)
         else:
             if ti.state in (None, TaskInstanceState.UP_FOR_RETRY):
                 # The pending attempt hasn't run, so base its retry budget on the preceding attempt.
@@ -575,7 +622,8 @@ def clear_task_instances(
             if dr.created_dag_version_id:
                 _pin_versionless_tis_to_run_version(dr, dr.created_dag_version_id, session)
     for ti in tis:
-        ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
+        if ti.working_set is True:
+            ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()
     return cleared
 
@@ -1219,14 +1267,45 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # is the task still in the retry waiting period?
         return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
 
+    def is_replaced_generated_work(self, *, session: Session) -> bool:
+        """Whether a pre-region mapped expansion was cleared as a whole and now has a replacement region."""
+        if self.region_id != SENTINEL_REGION_ID or self.region_index < 0:
+            return False
+        return (
+            session.scalar(
+                select(DynamicRegion.id)
+                .where(
+                    DynamicRegion.dag_id == self.dag_id,
+                    DynamicRegion.run_id == self.run_id,
+                    DynamicRegion.node_id == self.task_id,
+                    DynamicRegion.parent_region_id.is_(None),
+                    DynamicRegion.forked_from_region_id.is_(None),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
     def archive(self, *, reason: str, session: Session) -> None:
         """Remove this attempt from the working set while retaining its UUID and children."""
-        current = session.scalar(
-            select(TaskInstance.working_set).where(TaskInstance.id == self.id).with_for_update()
-        )
-        if current is not True:
+        current = session.execute(
+            select(
+                TaskInstance.working_set,
+                TaskInstance.state,
+                TaskInstance.start_date,
+                TaskInstance.end_date,
+            )
+            .where(TaskInstance.id == self.id)
+            .with_for_update()
+        ).one_or_none()
+        if current is None or current.working_set is not True:
             raise ValueError("An archived task instance cannot be archived again")
-        if self.state not in State.finished:
+        state: Any = inspect(self)
+        for name in ("state", "start_date", "end_date"):
+            if not state.attrs[name].history.has_changes():
+                setattr(self, name, getattr(current, name))
+        never_started = reason == "superseded" and self.start_date is None
+        if self.state not in State.finished and not never_started:
             self.state = TaskInstanceState.FAILED
             if self.end_date is None:
                 self.end_date = timezone.utcnow()
@@ -1315,10 +1394,30 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             successor.task_instance_note = carried
         return successor
 
-    def complete_restart(self, *, session: Session) -> TaskInstance:
-        """Release a cleared attempt after termination; the caller must hold its row lock."""
+    def complete_restart(
+        self, *, session: Session, terminal_outcome: TaskInstanceState | None = None
+    ) -> TaskInstance:
+        """
+        Release a cleared attempt after termination; the caller must hold its row lock.
+
+        A task instance whose generated work was replaced is archived in place instead of receiving a
+        successor, ending in ``terminal_outcome`` when one is given.
+        """
+        from airflow.models.loop_clear import loop_execution_is_superseded
+
         if self.state != TaskInstanceState.RESTARTING or self.working_set is not True:
             raise ValueError("Only a current restarting task instance can complete a restart")
+        if terminal_outcome is not None and terminal_outcome not in State.finished:
+            raise ValueError("An archival outcome must be terminal")
+        if self.is_replaced_generated_work(session=session) or (
+            self.region_id != SENTINEL_REGION_ID and loop_execution_is_superseded(self, session=session)
+        ):
+            if terminal_outcome is not None:
+                self.set_state(terminal_outcome, session=session)
+            self.archive(reason="superseded", session=session)
+            return self
+        if terminal_outcome is not None:
+            raise ValueError("A terminal archival outcome requires a superseded execution")
         successor = self.prepare_db_for_next_try(session)
         if self.task is not None:
             successor.max_tries = self.try_number + self.task.retries

@@ -44,8 +44,8 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
+from airflow.models.loop_clear import clear_task_instances_for_runs
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import clear_task_instances
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
@@ -234,7 +234,7 @@ def _bulk_clear_runs(
         tis = session.scalars(ti_query).all()
         if not tis:
             continue
-        clear_task_instances(list(tis), session=session)
+        clear_task_instances_for_runs(tis, session=session)
         session.flush()
         cleared += len(tis)
 
