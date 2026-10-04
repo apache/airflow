@@ -357,6 +357,20 @@ ARG_MAP_INDEX = Arg(
     help="Mapped task index",
 )
 
+# Task logs command args. Required primitive parameters stay positional per the
+# airflowctl parameter style consensus (#66768).
+ARG_TASKS_LOGS_DAG_RUN_ID = Arg(
+    flags=("dag_run_id",),
+    type=str,
+    help="The run ID of the Dag run",
+)
+ARG_TRY_NUMBER = Arg(
+    flags=("--try-number",),
+    type=int,
+    required=True,
+    help="The try number of the task instance logs to fetch",
+)
+
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
@@ -1241,6 +1255,19 @@ TASK_COMMANDS = (
             ARG_RUN_ID,
             ARG_LOGICAL_DATE,
             ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="logs",
+        help="Get the logs of a task instance",
+        description="Get the logs of a task instance for a given try number.",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.logs"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASKS_LOGS_DAG_RUN_ID,
+            ARG_TASK_ID,
+            ARG_MAP_INDEX,
+            ARG_TRY_NUMBER,
         ),
     ),
 )
