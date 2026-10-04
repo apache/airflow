@@ -85,6 +85,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
@@ -96,6 +97,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T1 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -103,6 +105,7 @@ class BuilderTest {
              }
            }
 
+           @GeneratedDagTask
            public static final class T2 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -110,6 +113,7 @@ class BuilderTest {
              }
            }
 
+           @GeneratedDagTask
            public static final class T3 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -159,6 +163,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
@@ -168,6 +173,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -222,6 +228,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
          import org.apache.airflow.sdk.internal.TypeRef;
 
@@ -232,6 +239,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -284,6 +292,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -296,6 +305,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T1 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -340,6 +350,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
@@ -348,6 +359,7 @@ class BuilderTest {
              dag.addTask(new TaskDef("t", T.class));
              return dag;
            }
+           @GeneratedDagTask
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -404,6 +416,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
          import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
@@ -414,6 +427,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class Flat implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -424,6 +438,7 @@ class BuilderTest {
              }
            }
 
+           @GeneratedDagTask
            public static final class Named implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -682,6 +697,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -690,6 +706,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T1 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -803,6 +820,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
          import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -811,6 +829,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class Score implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
