@@ -27,15 +27,24 @@ import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.Frame
 import org.apache.airflow.sdk.execution.IncomingFrame
+import org.apache.airflow.sdk.execution.RawFrame
 import org.apache.airflow.sdk.execution.comm.TaskState
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.msgpack.core.MessagePack
+import org.msgpack.core.buffer.ArrayBufferInput
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
+
+private class ServerNoopTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
 
 class ServerTest {
   private fun hexToBytes(hex: String): ByteArray =
@@ -110,6 +119,60 @@ class ServerTest {
       }
     }
     comm.close()
+  }
+
+  @Test
+  @DisplayName("Should serialize the bundle's dags when the initial frame is a parse request")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun parsesDagsAndReportsResult() {
+    val toServer = ByteChannel(autoFlush = true)
+    val fromServer = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toServer, fromServer)
+    val server = Server(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
+    val bundle = Bundle(listOf(DagDef("parsed_dag").addTask(TaskDef("t", ServerNoopTask::class.java))))
+
+    val reported = ArrayBlockingQueue<RawFrame>(1)
+    val supervisor =
+      Thread {
+        runBlocking {
+          toServer.writeFrame(parseRequestFrame(3, "/bundle/dags/java.py", "/bundle"))
+          val prefix = fromServer.readByteArray(4)
+          val payload = fromServer.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+          val raw = Frame.decodeRaw(ArrayBufferInput(payload))
+          reported.put(raw)
+          toServer.writeFrame(ackFrame(raw.id))
+        }
+      }
+    supervisor.start()
+
+    runBlocking { server.dispatchTask(bundle, comm) }
+    supervisor.join()
+
+    val body = reported.take().rawBody as Map<*, *>
+    Assertions.assertEquals("DagFileParsingResult", body["type"])
+    Assertions.assertEquals("/bundle/dags/java.py", body["fileloc"])
+    val dags = body["serialized_dags"] as List<*>
+    Assertions.assertEquals(1, dags.size)
+    val dag = ((dags[0] as Map<*, *>)["data"] as Map<*, *>)["dag"] as Map<*, *>
+    Assertions.assertEquals("parsed_dag", dag["dag_id"])
+    comm.close()
+  }
+
+  private fun parseRequestFrame(
+    id: Int,
+    file: String,
+    bundlePath: String,
+  ): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(2)
+      packer.packInt(id)
+      packer.packMapHeader(3)
+      packer.packString("type").packString("DagFileParseRequest")
+      packer.packString("file").packString(file)
+      packer.packString("bundle_path").packString(bundlePath)
+    }
+    return out.toByteArray()
   }
 
   private companion object {
