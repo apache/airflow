@@ -37,24 +37,28 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    case,
     delete,
     func,
     select,
+    text
 )
 from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
 from airflow.models.base import Base, StringID
-from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime, is_lock_not_available_error, with_row_locks
+from airflow.utils.session import create_session, NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import UtcDateTime, is_lock_not_available_error, with_row_locks, get_dialect_name
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from sqlalchemy.sql.elements import Case
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
@@ -203,6 +207,28 @@ class Backfill(Base):
     def __repr__(self):
         return f"Backfill({self.dag_id=}, {self.from_date=}, {self.to_date=})"
 
+    @hybrid_property
+    def duration(self) -> float | None:
+        if self.completed_at and self.created_at:
+            return (self.completed_at - self.created_at).total_seconds()
+        return None
+
+    @duration.expression
+    @provide_session
+    def duration(cls, *, session: Session = NEW_SESSION) -> Case:
+        dialect_name = get_dialect_name(session=session)
+        if dialect_name == "mysql":
+            return func.timestampdiff(
+                text("SECOND"), cls.created_at, cls.completed_at)
+        if dialect_name == "sqlite":
+            duration_expr = (func.julianday(cls.completed_at) - func.julianday(cls.created_at))*86400
+        else:
+            duration_expr = func.extract("epoch", cls.completed_at - cls.created_at)
+        
+        when_condition = (cls.completed_at.isnot(None) & cls.created_at.isnot(None), duration_expr)
+        
+        return case(when_condition, else_=None)
+        
 
 class BackfillDagRunExceptionReason(str, Enum):
     """
