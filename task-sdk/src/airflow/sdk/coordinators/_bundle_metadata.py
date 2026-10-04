@@ -46,8 +46,7 @@ def walk_files(
     Roots are visited in order and each directory's entries sorted, so coordinator selection does
     not depend on filesystem ordering.
 
-    ``JavaCoordinator`` and ``ExecutableCoordinator`` still carry equivalent walks and should move
-    onto this one.
+    ``JavaCoordinator`` still carries an equivalent walk and should move onto this one.
     """
     yield from _walk_files(roots, match, set())
 

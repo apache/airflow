@@ -22,7 +22,6 @@ from __future__ import annotations
 import hashlib
 import os
 import pathlib
-import stat
 import struct
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, BinaryIO
@@ -34,11 +33,12 @@ from airflow.sdk.coordinators._bundle_metadata import (
     ResolvedBundle,
     extract_supervisor_schema_version,
     parse_metadata_mapping,
+    walk_files,
 )
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Sequence
+    from collections.abc import Sequence
 
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
@@ -253,40 +253,8 @@ def _dag_ids(metadata: dict[str, Any]) -> set[str]:
     return set(dags.keys())
 
 
-def _find_executables(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
-    """
-    Yield executable regular files under *items*, descending into directories.
-
-    A symlink loop or a directory that hardlinks into one of its ancestors
-    would otherwise recurse until the interpreter stack is exhausted, so
-    directories are deduplicated by ``(st_dev, st_ino)`` for the duration
-    of a single scan.
-    """
-    seen_dirs: set[tuple[int, int]] = set()
-    yield from _walk_executables(items, seen_dirs)
-
-
-def _walk_executables(
-    items: Iterable[pathlib.Path], seen_dirs: set[tuple[int, int]]
-) -> Iterator[pathlib.Path]:
-    for item in items:
-        try:
-            st = item.stat()
-        except OSError:
-            continue
-        if stat.S_ISDIR(st.st_mode):
-            key = (st.st_dev, st.st_ino)
-            if key in seen_dirs:
-                log.debug("Skipping already-visited directory", path=str(item))
-                continue
-            seen_dirs.add(key)
-            try:
-                children = list(item.iterdir())
-            except OSError:
-                continue
-            yield from _walk_executables(children, seen_dirs)
-        elif stat.S_ISREG(st.st_mode) and os.access(item, os.X_OK):
-            yield item
+def _is_executable(path: pathlib.Path) -> bool:
+    return os.access(path, os.X_OK)
 
 
 @attrs.define
@@ -295,7 +263,7 @@ class _Bundle(ResolvedBundle):
     def find(cls, roots: Sequence[pathlib.Path], dag_id: str) -> Self:
         log.debug("Finding executable bundles recursively", roots=roots)
         rejected: list[tuple[pathlib.Path, str]] = []
-        for p in _find_executables(roots):
+        for p in walk_files(roots, match=_is_executable):
             if (metadata := _read_bundle_metadata(p)) is None:
                 continue
             if dag_id not in _dag_ids(metadata):
@@ -340,7 +308,9 @@ class ExecutableCoordinator(SubprocessCoordinator):
         executable bundles a Python stub Dag delegates task execution to. It must
         be registered in ``[dag_processor] dag_bundle_config_list``. If unset,
         the task's own Dag bundle is used. Only files with the executable bit set
-        are considered.
+        are considered. The Dag bundle is searched recursively, in sorted path
+        order, and the first executable bundle that declares the task instance's
+        Dag runs.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
