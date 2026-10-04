@@ -18,13 +18,23 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.models.dynamic_region import DynamicRegion, ProducerContext
 from airflow.models.expandinput import NotFullyPopulated
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 from airflow.serialization.definitions.notset import NOTSET
+from airflow.serialization.definitions.xcom_arg import (
+    SchedulerConcatXComArg,
+    SchedulerMapXComArg,
+    SchedulerPlainXComArg,
+    SchedulerZipXComArg,
+    get_task_map_length,
+)
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -266,3 +276,190 @@ def test_mapped_length_dies_with_the_pushed_value(dag_maker, session):
         session=session,
     )
     assert get_mapped_ti_count(consume_task, dr.run_id, session=session) == 2
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected_length"),
+    [("plain", 2), ("map", 2), ("zip", 2), ("zip_longest", 5), ("concat", 7)],
+)
+def test_map_length_selects_retained_producer_in_callers_iteration(
+    dag_maker, session, operation, expected_length
+):
+    with dag_maker(session=session, serialized=True) as dag:
+
+        @dag.task
+        def source():
+            return [1, 2]
+
+        @dag.task
+        def outside():
+            return [1, 2, 3, 4, 5]
+
+        source()
+        outside()
+
+    dr = dag_maker.create_dagrun()
+    original = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop")
+    session.add(original)
+    session.flush()
+    replacement = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="loop",
+        forked_from_region_id=original.id,
+        resumes_from_index=1,
+    )
+    session.add(replacement)
+    source_ti = next(ti for ti in dr.task_instances if ti.task_id == "source")
+    outside_ti = next(ti for ti in dr.task_instances if ti.task_id == "outside")
+    source_ti.region_id = original.id
+    source_ti.region_index = 1
+    source_ti.state = TaskInstanceState.SUCCESS
+    earlier_ti = TaskInstance(
+        task=dag_maker.serialized_dag.get_task("source"),
+        run_id=dr.run_id,
+        map_index=0,
+        dag_version_id=source_ti.dag_version_id,
+    )
+    earlier_ti.region_id = original.id
+    earlier_ti.state = TaskInstanceState.SUCCESS
+    session.add(earlier_ti)
+    session.flush()
+    for ti, length in ((earlier_ti, 99), (source_ti, 2), (outside_ti, 5)):
+        XComModel.set_for_attempt(
+            task_instance_id=ti.id,
+            key=XCOM_RETURN_KEY,
+            value=list(range(length)),
+            mapped_length=length,
+            session=session,
+        )
+    session.flush()
+    source_arg = SchedulerPlainXComArg(dag_maker.serialized_dag.get_task("source"), XCOM_RETURN_KEY)
+    outside_arg = SchedulerPlainXComArg(dag_maker.serialized_dag.get_task("outside"), XCOM_RETURN_KEY)
+    argument = {
+        "plain": source_arg,
+        "map": SchedulerMapXComArg(source_arg, ["str"]),
+        "zip": SchedulerZipXComArg([source_arg, outside_arg], NOTSET),
+        "zip_longest": SchedulerZipXComArg([source_arg, outside_arg], None),
+        "concat": SchedulerConcatXComArg([source_arg, outside_arg]),
+    }[operation]
+    contexts = {"source": ProducerContext(replacement.id, 1, loop_node_id="loop")}
+
+    assert (
+        get_task_map_length(argument, dr.run_id, producer_contexts=contexts, session=session)
+        == expected_length
+    )
+
+
+@pytest.mark.parametrize(
+    ("count", "unfinished", "expected_length"), [(0, False, 0), (2, False, 2), (2, True, None)]
+)
+def test_mapped_producer_length_ignores_other_iterations(
+    dag_maker, session, count, unfinished, expected_length
+):
+    with dag_maker(session=session, serialized=True) as dag:
+
+        @dag.task
+        def source(value):
+            return value
+
+        source.expand(value=list(range(count)))
+
+    dr = dag_maker.create_dagrun()
+    loop = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop")
+    session.add(loop)
+    session.flush()
+    expansions = [
+        DynamicRegion(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            node_id="source",
+            parent_region_id=loop.id,
+            parent_region_index=index,
+        )
+        for index in range(2)
+    ]
+    session.add_all(expansions)
+    session.flush()
+    for ti in dr.task_instances:
+        ti.region_id = expansions[1].id
+        ti.state = TaskInstanceState.SUCCESS if count else TaskInstanceState.SKIPPED
+    session.flush()
+    for ti in dr.task_instances:
+        if ti.map_index >= 0:
+            XComModel.set_for_attempt(
+                task_instance_id=ti.id, key=XCOM_RETURN_KEY, value=ti.map_index, session=session
+            )
+    if unfinished:
+        dr.task_instances[0].state = TaskInstanceState.RUNNING
+    earlier_ti = TaskInstance(
+        task=dag_maker.serialized_dag.get_task("source"),
+        run_id=dr.run_id,
+        map_index=0,
+        dag_version_id=dr.task_instances[0].dag_version_id,
+    )
+    earlier_ti.region_id = expansions[0].id
+    earlier_ti.state = TaskInstanceState.RUNNING
+    session.add(earlier_ti)
+    session.flush()
+    XComModel.set_for_attempt(
+        task_instance_id=earlier_ti.id, key=XCOM_RETURN_KEY, value="other iteration", session=session
+    )
+    session.flush()
+    argument = SchedulerPlainXComArg(dag_maker.serialized_dag.get_task("source"), XCOM_RETURN_KEY)
+
+    assert (
+        get_task_map_length(
+            argument,
+            dr.run_id,
+            producer_contexts={"source": ProducerContext(loop.id, 1, loop_node_id="loop")},
+            session=session,
+        )
+        == expected_length
+    )
+
+
+def test_member_of_mapped_task_group_has_no_map_length(dag_maker, session):
+    from airflow.sdk import task_group
+
+    with dag_maker(session=session, serialized=True):
+
+        @task_group
+        def group(value):
+            BashOperator(task_id="member", bash_command="true")
+
+        group.expand(value=[1, 2])
+
+    dr = dag_maker.create_dagrun()
+    loop = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop")
+    session.add(loop)
+    session.flush()
+    expansion = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="group",
+        parent_region_id=loop.id,
+        parent_region_index=1,
+    )
+    session.add(expansion)
+    session.flush()
+    member_task = dag_maker.serialized_dag.get_task("group.member")
+    first = next(ti for ti in dr.task_instances if ti.task_id == "group.member")
+    first.region_id = expansion.id
+    first.region_index = 0
+    second = TaskInstance(task=member_task, run_id=dr.run_id, dag_version_id=first.dag_version_id)
+    second.region_id = expansion.id
+    second.region_index = 1
+    session.add(second)
+    session.flush()
+    argument = SchedulerPlainXComArg(member_task, XCOM_RETURN_KEY)
+
+    assert (
+        get_task_map_length(
+            argument,
+            dr.run_id,
+            producer_contexts={"group.member": ProducerContext(loop.id, 1, loop_node_id="loop")},
+            session=session,
+        )
+        is None
+    )
