@@ -99,6 +99,55 @@
                     "state": "success"
                 }
             ]
+        },
+        "document_classifier_deletable": {
+            "delay": 10,
+            "maxAttempts": 30,
+            "operation": "DescribeDocumentClassifier",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "SUBMITTED",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "TRAINING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "STOP_REQUESTED",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "TRAINED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "TRAINED_WITH_WARNING",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "IN_ERROR",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
+                    "expected": "STOPPED",
+                    "state": "success"
+                }
+            ]
         }
     }
 }

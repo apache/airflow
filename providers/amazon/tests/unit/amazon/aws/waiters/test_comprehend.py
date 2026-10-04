@@ -33,6 +33,7 @@ class TestComprehendCustomWaiters:
     def test_service_waiters(self):
         assert "pii_entities_detection_job_complete" in ComprehendHook().list_waiters()
         assert "create_document_classifier_complete" in ComprehendHook().list_waiters()
+        assert "document_classifier_deletable" in ComprehendHook().list_waiters()
 
 
 class TestComprehendCustomWaitersBase:
@@ -97,6 +98,41 @@ class TestComprehendDocumentClassifierCompleteWaiter(TestComprehendCustomWaiters
     def test_create_document_classifier_wait(self, mock_describe_document_classifier):
         wait = {"DocumentClassifierProperties": {"Status": "TRAINING"}}
         success = {"DocumentClassifierProperties": {"Status": "TRAINED"}}
+        mock_describe_document_classifier.side_effect = [wait, wait, success]
+
+        ComprehendHook().get_waiter(self.WAITER_NAME).wait(
+            DocumentClassifierArn="arn", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3}
+        )
+
+
+class TestComprehendDocumentClassifierDeletableWaiter(TestComprehendCustomWaitersBase):
+    WAITER_NAME = "document_classifier_deletable"
+
+    @pytest.fixture
+    def mock_describe_document_classifier(self):
+        with mock.patch.object(self.client, "describe_document_classifier") as mock_getter:
+            yield mock_getter
+
+    @pytest.mark.parametrize("state", ["TRAINED", "TRAINED_WITH_WARNING", "IN_ERROR", "STOPPED"])
+    def test_document_classifier_deletable(self, state, mock_describe_document_classifier):
+        mock_describe_document_classifier.return_value = {"DocumentClassifierProperties": {"Status": state}}
+
+        ComprehendHook().get_waiter(self.WAITER_NAME).wait(DocumentClassifierArn="arn")
+
+    @pytest.mark.parametrize("state", ["SUBMITTED", "TRAINING", "STOP_REQUESTED"])
+    def test_document_classifier_deletable_retries_while_in_progress(
+        self, state, mock_describe_document_classifier
+    ):
+        mock_describe_document_classifier.return_value = {"DocumentClassifierProperties": {"Status": state}}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            ComprehendHook().get_waiter(self.WAITER_NAME).wait(
+                DocumentClassifierArn="arn", WaiterConfig={"Delay": 0.01, "MaxAttempts": 2}
+            )
+
+    def test_document_classifier_deletable_wait(self, mock_describe_document_classifier):
+        wait = {"DocumentClassifierProperties": {"Status": "STOP_REQUESTED"}}
+        success = {"DocumentClassifierProperties": {"Status": "STOPPED"}}
         mock_describe_document_classifier.side_effect = [wait, wait, success]
 
         ComprehendHook().get_waiter(self.WAITER_NAME).wait(
