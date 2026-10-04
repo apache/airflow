@@ -180,6 +180,39 @@ class TestSmtpHook:
         mock_conn.login.assert_called_once_with(SMTP_LOGIN, SMTP_PASSWORD)
         assert mock_conn.close.call_count == 1
 
+    @pytest.mark.parametrize("failed_step", ["starttls", "ehlo", "login", "auth"])
+    @pytest.mark.parametrize("cleanup_fails", [False, True])
+    def test_discards_failed_setup(self, failed_step, cleanup_fails):
+        failed_client = mock.create_autospec(smtplib.SMTP, instance=True)
+        healthy_client = mock.create_autospec(smtplib.SMTP, instance=True)
+        setup_error = OSError("setup failed")
+        getattr(failed_client, failed_step).side_effect = setup_error
+        if cleanup_fails:
+            failed_client.close.side_effect = OSError("cleanup failed")
+        hook = SmtpHook(CONN_ID_NONSSL, auth_type="oauth2" if failed_step == "auth" else "basic")
+        hook._access_token = ACCESS_TOKEN
+
+        with mock.patch.object(
+            SmtpHook, "_build_client", autospec=True, side_effect=[failed_client, healthy_client]
+        ) as build_client:
+            with pytest.raises(OSError, match="setup failed") as exc:
+                hook.get_conn()
+
+            assert exc.value is setup_error
+            assert hook._smtp_client is None
+            failed_client.close.assert_called_once_with()
+            assert hook.get_conn() is hook
+            assert hook._smtp_client is healthy_client
+            assert hook.get_conn() is hook
+            assert build_client.call_count == 2
+            healthy_client.close.assert_not_called()
+            healthy_client.starttls.assert_called_once()
+            healthy_client.ehlo.assert_called_once_with()
+            if failed_step == "auth":
+                healthy_client.auth.assert_called_once()
+            else:
+                healthy_client.login.assert_called_once_with(SMTP_LOGIN, SMTP_PASSWORD)
+
     @patch(smtplib_string)
     def test_get_email_address_single_email(self, mock_smtplib):
         with SmtpHook() as smtp_hook:
@@ -719,6 +752,58 @@ class TestSmtpHookAsync:
 
         assert mock_smtp_client.auth_login.await_count == 1
         mock_smtp_client.auth_login.assert_awaited_once_with(SMTP_LOGIN, SMTP_PASSWORD)
+
+    @pytest.mark.parametrize("failed_step", ["starttls", "ehlo", "auth_login", "auth_xoauth2"])
+    @pytest.mark.parametrize("cleanup_fails", [False, True])
+    async def test_discards_failed_setup(self, mock_get_connection, failed_step, cleanup_fails):
+        failed_client = mock.create_autospec(aiosmtplib.SMTP, instance=True)
+        healthy_client = mock.create_autospec(aiosmtplib.SMTP, instance=True)
+        setup_error = OSError("setup failed")
+        getattr(failed_client, failed_step).side_effect = setup_error
+        if cleanup_fails:
+            failed_client.close.side_effect = OSError("cleanup failed")
+        hook = SmtpHook(CONN_ID_NONSSL, auth_type="oauth2" if failed_step == "auth_xoauth2" else "basic")
+        hook._access_token = ACCESS_TOKEN
+
+        with mock.patch.object(
+            SmtpHook, "_abuild_client", autospec=True, side_effect=[failed_client, healthy_client]
+        ) as build_client:
+            with pytest.raises(OSError, match="setup failed") as exc:
+                await hook.aget_conn()
+
+            assert exc.value is setup_error
+            assert hook._smtp_client is None
+            failed_client.close.assert_called_once_with()
+            assert await hook.aget_conn() is hook
+            assert hook._smtp_client is healthy_client
+            assert await hook.aget_conn() is hook
+            assert build_client.await_count == 2
+            healthy_client.close.assert_not_called()
+            healthy_client.starttls.assert_awaited_once()
+            healthy_client.ehlo.assert_awaited_once_with()
+            if failed_step == "auth_xoauth2":
+                healthy_client.auth_xoauth2.assert_awaited_once_with(SMTP_LOGIN, ACCESS_TOKEN)
+            else:
+                healthy_client.auth_login.assert_awaited_once_with(SMTP_LOGIN, SMTP_PASSWORD)
+
+    @pytest.mark.parametrize("failed_step", ["connect", "ehlo"])
+    @pytest.mark.parametrize("cleanup_fails", [False, True])
+    async def test_abuild_client_closes_failed_setup(self, mock_get_connection, failed_step, cleanup_fails):
+        failed_client = mock.create_autospec(aiosmtplib.SMTP, instance=True)
+        setup_error = OSError("setup failed")
+        getattr(failed_client, failed_step).side_effect = setup_error
+        if cleanup_fails:
+            failed_client.close.side_effect = OSError("cleanup failed")
+        hook = SmtpHook(CONN_ID_NONSSL)
+        hook.smtp_connection = await hook.aget_connection(CONN_ID_NONSSL)
+
+        with mock.patch("airflow.providers.smtp.hooks.smtp.aiosmtplib.SMTP", return_value=failed_client):
+            with pytest.raises(OSError, match="setup failed") as exc:
+                await hook._abuild_client()
+
+        assert exc.value is setup_error
+        assert hook._smtp_client is None
+        failed_client.close.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_async_send_email(self, mock_smtp, mock_smtp_client, mock_get_connection):

@@ -30,6 +30,7 @@ import re
 import smtplib
 import ssl
 from collections.abc import Iterable
+from contextlib import suppress
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -120,30 +121,36 @@ class SmtpHook(BaseHook):
 
             for attempt in range(self.smtp_retry_limit + 1):
                 try:
-                    self._smtp_client = self._build_client()
+                    smtp_client = self._build_client()
                 except smtplib.SMTPServerDisconnected:
                     if attempt == self.smtp_retry_limit:
                         raise AirflowException("Unable to connect to smtp server")
                 else:
-                    if self.smtp_starttls:
-                        self._smtp_client.starttls(context=self._build_ssl_context())
-                        self._smtp_client.ehlo()
+                    try:
+                        if self.smtp_starttls:
+                            smtp_client.starttls(context=self._build_ssl_context())
+                            smtp_client.ehlo()
 
-                    # choose auth
-                    if self.auth_type == "oauth2":
-                        if not self._access_token:
-                            self._access_token = self._get_oauth2_token()
-                        user_identity = self.smtp_user or self.from_email
-                        if user_identity is None:
-                            raise AirflowException(
-                                "smtp_user or from_email must be set for OAuth2 authentication"
+                        # choose auth
+                        if self.auth_type == "oauth2":
+                            if not self._access_token:
+                                self._access_token = self._get_oauth2_token()
+                            user_identity = self.smtp_user or self.from_email
+                            if user_identity is None:
+                                raise AirflowException(
+                                    "smtp_user or from_email must be set for OAuth2 authentication"
+                                )
+                            smtp_client.auth(
+                                "XOAUTH2",
+                                lambda _=None, ui=user_identity: build_xoauth2_string(ui, self._access_token),
                             )
-                        self._smtp_client.auth(
-                            "XOAUTH2",
-                            lambda _=None, ui=user_identity: build_xoauth2_string(ui, self._access_token),
-                        )
-                    elif self.smtp_user and self.smtp_password:
-                        self._smtp_client.login(self.smtp_user, self.smtp_password)
+                        elif self.smtp_user and self.smtp_password:
+                            smtp_client.login(self.smtp_user, self.smtp_password)
+                    except BaseException:
+                        with suppress(Exception):
+                            smtp_client.close()
+                        raise
+                    self._smtp_client = smtp_client
                     break
 
         return self
@@ -166,27 +173,32 @@ class SmtpHook(BaseHook):
             for attempt in range(self.smtp_retry_limit + 1):
                 try:
                     async_client = await self._abuild_client()
-                    self._smtp_client = async_client
                 except aiosmtplib.errors.SMTPServerDisconnected:
                     if attempt == self.smtp_retry_limit:
                         raise AirflowException("Unable to connect to smtp server")
                 else:
-                    if self.smtp_starttls:
-                        await async_client.starttls(tls_context=self._build_ssl_context())
-                        await async_client.ehlo()
+                    try:
+                        if self.smtp_starttls:
+                            await async_client.starttls(tls_context=self._build_ssl_context())
+                            await async_client.ehlo()
 
-                    # choose auth
-                    if self.auth_type == "oauth2":
-                        if not self._access_token:
-                            self._access_token = self._get_oauth2_token()
-                        user_identity = self.smtp_user or self.from_email
-                        if user_identity is None:
-                            raise AirflowException(
-                                "smtp_user or from_email must be set for OAuth2 authentication"
-                            )
-                        await async_client.auth_xoauth2(user_identity, self._access_token)
-                    elif self.smtp_user and self.smtp_password:
-                        await async_client.auth_login(self.smtp_user, self.smtp_password)
+                        # choose auth
+                        if self.auth_type == "oauth2":
+                            if not self._access_token:
+                                self._access_token = self._get_oauth2_token()
+                            user_identity = self.smtp_user or self.from_email
+                            if user_identity is None:
+                                raise AirflowException(
+                                    "smtp_user or from_email must be set for OAuth2 authentication"
+                                )
+                            await async_client.auth_xoauth2(user_identity, self._access_token)
+                        elif self.smtp_user and self.smtp_password:
+                            await async_client.auth_login(self.smtp_user, self.smtp_password)
+                    except BaseException:
+                        with suppress(Exception):
+                            async_client.close()
+                        raise
+                    self._smtp_client = async_client
                     break
 
         return self
@@ -246,8 +258,13 @@ class SmtpHook(BaseHook):
         match get_conn.
         """
         async_client = aiosmtplib.SMTP(**self._build_client_kwargs(is_async=True))
-        await async_client.connect()
-        await async_client.ehlo()
+        try:
+            await async_client.connect()
+            await async_client.ehlo()
+        except BaseException:
+            with suppress(Exception):
+                async_client.close()
+            raise
 
         return async_client
 
