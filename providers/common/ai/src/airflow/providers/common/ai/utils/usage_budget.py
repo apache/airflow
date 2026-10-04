@@ -28,6 +28,7 @@ constructed on 3.3+ (see ``UsageBudgetMixin._build_usage_budget``).
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
@@ -35,6 +36,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_4_PLUS
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
@@ -173,6 +175,18 @@ def delete_usage_record(accessor: TaskStateStoreAccessor) -> None:
         log.warning("Usage budget: failed to delete cumulative usage key", exc_info=True)
 
 
+async def adelete_usage_record(accessor: TaskStateStoreAccessor) -> None:
+    """Async version of :func:`delete_usage_record`."""
+    if not AIRFLOW_V_3_4_PLUS:
+        # The task state store has async accessors from Airflow 3.4.
+        await asyncio.to_thread(delete_usage_record, accessor)
+        return
+    try:
+        await accessor.adelete(USAGE_BUDGET_KEY)
+    except Exception:
+        log.warning("Usage budget: failed to delete cumulative usage key", exc_info=True)
+
+
 class TaskStateStoreUsageBudget:
     """
     Persists cumulative ``RunUsage`` across task attempts in the AIP-103 task state store.
@@ -197,7 +211,16 @@ class TaskStateStoreUsageBudget:
 
     def load(self) -> RunUsage:
         """Return the cumulative usage so far, or a fresh ``RunUsage()`` if none or stale."""
-        raw = self._store.get(USAGE_BUDGET_KEY)
+        return self._parse(self._store.get(USAGE_BUDGET_KEY))
+
+    async def aload(self) -> RunUsage:
+        """Async version of :meth:`load`."""
+        if not AIRFLOW_V_3_4_PLUS:
+            # The task state store has async accessors from Airflow 3.4.
+            return await asyncio.to_thread(self.load)
+        return self._parse(await self._store.aget(USAGE_BUDGET_KEY))
+
+    def _parse(self, raw: Any) -> RunUsage:
         if raw is None:
             return RunUsage()
         if not isinstance(raw, dict) or "usage" not in raw:
@@ -216,15 +239,30 @@ class TaskStateStoreUsageBudget:
             # module keeps importing cleanly on older Airflow versions (this module's docstring).
             from airflow.sdk.execution_time.context import NEVER_EXPIRE
 
-            record: dict[str, Any] = {
-                "version": 1,
-                "max_tries": self._max_tries,
-                "usage": dump_run_usage(usage),
-            }
-            self._store.set(USAGE_BUDGET_KEY, record, retention=NEVER_EXPIRE)
+            self._store.set(USAGE_BUDGET_KEY, self._record(usage), retention=NEVER_EXPIRE)
         except Exception:
             log.warning("Usage budget: failed to persist cumulative usage", exc_info=True)
+
+    async def asave(self, usage: RunUsage) -> None:
+        """Async version of :meth:`save`."""
+        if not AIRFLOW_V_3_4_PLUS:
+            # The task state store has async accessors from Airflow 3.4.
+            await asyncio.to_thread(self.save, usage)
+            return
+        try:
+            from airflow.sdk.execution_time.context import NEVER_EXPIRE
+
+            await self._store.aset(USAGE_BUDGET_KEY, self._record(usage), retention=NEVER_EXPIRE)
+        except Exception:
+            log.warning("Usage budget: failed to persist cumulative usage", exc_info=True)
+
+    def _record(self, usage: RunUsage) -> dict[str, Any]:
+        return {"version": 1, "max_tries": self._max_tries, "usage": dump_run_usage(usage)}
 
     def clear(self) -> None:
         """Best-effort delete, called once the whole execute succeeds."""
         delete_usage_record(self._store)
+
+    async def aclear(self) -> None:
+        """Async version of :meth:`clear`."""
+        await adelete_usage_record(self._store)
