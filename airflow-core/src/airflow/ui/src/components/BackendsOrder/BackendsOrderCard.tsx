@@ -36,7 +36,7 @@ export const BackendsOrderCard = () => {
         icon={<LuSettings />}
         isLoading={false}
         isRTL={isRTL}
-        label={translate("variables.backendsOrder")}
+        label={translate("backendsOrder.title")}
         onClick={onOpen}
       />
       <BackendsOrderModal onClose={onClose} open={open} />

@@ -43,13 +43,13 @@ export const BackendsOrderModal = ({ onClose, open }: BackendsOrderModalProps) =
         <Dialog.Header display="flex" justifyContent="space-between">
           <HStack fontSize="xl">
             <LuSettings />
-            <Heading size="md">{translate("variables.backendsOrder")}</Heading>
+            <Heading size="md">{translate("backendsOrder.title")}</Heading>
           </HStack>
           <Dialog.CloseTrigger />
         </Dialog.Header>
         <Dialog.Body>
           <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
-            {backendsOrder ?? translate("variables.loading")}
+            {backendsOrder ?? translate("backendsOrder.loading")}
           </Text>
         </Dialog.Body>
       </Dialog.Content>
