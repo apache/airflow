@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import datetime
 import inspect
 import json
@@ -84,7 +85,9 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodManager,
     PodNotFoundException,
     PodPhase,
+    PodPreemptedException,
     detect_pod_terminate_early_issues,
+    raise_for_missing_pod,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, conf
@@ -118,6 +121,10 @@ KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 # Key used to persist/retrieve a submitted pod's identity in task_state_store across retries.
 # Renaming this on a deployed operator breaks in flight retries because the old key is already stored.
 POD_IDENTIFIER_STATE_KEY = "pod_identifier"
+
+# A preempted standalone pod is deleted, not rescheduled. Relaunch only until this
+# many attempts, and only while the pod has never reached Running (retries=0 included).
+_POD_PREEMPTION_MAX_ATTEMPTS = 3
 
 
 class PodEventType(Enum):
@@ -796,6 +803,7 @@ class KubernetesPodOperator(BaseOperator):
                         schedule_timeout=self.schedule_timeout_seconds,
                         startup_timeout=self.startup_timeout_seconds,
                         check_interval=self.startup_check_interval_seconds,
+                        base_container_name=self.base_container_name,
                     )
                 finally:
                     # Stop watching events
@@ -868,7 +876,7 @@ class KubernetesPodOperator(BaseOperator):
                     operator=self,
                 )
 
-            self.await_pod_start(pod=self.pod)
+            self._await_pod_start_or_relaunch(context)
 
             self.await_init_containers_completion(pod=self.pod)
             if self.callbacks:
@@ -963,7 +971,80 @@ class KubernetesPodOperator(BaseOperator):
                     polling_time=self.base_container_status_polling_interval,
                 )
         except kubernetes.client.exceptions.ApiException as exc:
+            if str(exc.status) == "404":
+                raise_for_missing_pod(
+                    exc,
+                    namespace=pod.metadata.namespace if pod.metadata else None,
+                    name=pod.metadata.name if pod.metadata else None,
+                    observed_running=True,
+                )
             self._handle_api_exception(exc, pod)
+
+    def _await_pod_start_or_relaunch(self, context: Context) -> None:
+        """Wait for the pod to start, launching a replacement if it disappears first."""
+        for attempt in range(1, _POD_PREEMPTION_MAX_ATTEMPTS + 1):
+            try:
+                self.await_pod_start(pod=self.pod)
+                return
+            except PodPreemptedException:
+                if attempt == _POD_PREEMPTION_MAX_ATTEMPTS:
+                    raise
+                self.log.warning(
+                    "Pod %s/%s disappeared before it reached Running. "
+                    "Launching a replacement (attempt %s/%s).",
+                    self.pod.metadata.namespace if self.pod and self.pod.metadata else "",
+                    self.pod.metadata.name if self.pod and self.pod.metadata else "",
+                    attempt + 1,
+                    _POD_PREEMPTION_MAX_ATTEMPTS,
+                )
+                self._launch_replacement_pod(context)
+
+    def _launch_replacement_pod(self, context: Context) -> None:
+        """Create a new pod for a task whose previous pod never started running."""
+        if self.pod_request_obj is None:
+            self.pod_request_obj = self.build_pod_request_obj(context)
+        else:
+            replacement = copy.deepcopy(self.pod_request_obj)
+            replacement.metadata.name = self._next_pod_name()
+            self.pod_request_obj = replacement
+        self.pod = self.get_or_create_pod(pod_request_obj=self.pod_request_obj, context=context)
+        ti = context["ti"]
+        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
+        self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
+        for callback in self.callbacks:
+            callback.on_pod_creation(
+                pod=self.remote_pod,
+                client=self.client,
+                mode=ExecutionMode.SYNC,
+                context=context,
+                operator=self,
+            )
+
+    def _next_pod_name(self) -> str:
+        if self.name and self.random_name_suffix:
+            return add_unique_suffix(name=self.name)
+        if self.name and self.pod_request_obj and self.pod_request_obj.metadata:
+            return self.pod_request_obj.metadata.name
+        return create_unique_id(task_id=self.task_id, unique=True, max_length=POD_NAME_MAX_LENGTH)
+
+    def _relaunch_after_preemption(self, context: Context, event: dict[str, Any]) -> None:
+        """Relaunch from a deferrable trigger that saw the pod disappear before Running."""
+        relaunch_count = int(event.get("_preemption_relaunch_count", 0))
+        if relaunch_count + 1 >= _POD_PREEMPTION_MAX_ATTEMPTS:
+            message = event.get("message")
+            raise PodPreemptedException(
+                message
+                or (
+                    f"Pod {event.get('namespace')}/{event.get('name')} was not found "
+                    "before it reached Running."
+                )
+            )
+        self._launch_replacement_pod(context)
+        merged_kwargs = dict(self.trigger_kwargs or {})
+        merged_kwargs["_preemption_relaunch_count"] = relaunch_count + 1
+        self.trigger_kwargs = merged_kwargs
+        self.invoke_defer_method(context=context)
 
     def _handle_api_exception(
         self,
@@ -1126,6 +1207,10 @@ class KubernetesPodOperator(BaseOperator):
         If ``logging_interval`` is not None, it could be that the pod is still running, and we'll just
         grab the latest logs and defer back to the trigger again.
         """
+        if event.get("status") == "preempted":
+            self._relaunch_after_preemption(context, event)
+            return
+
         self.pod = None
         xcom_sidecar_output = None
         pod_name = event["name"]

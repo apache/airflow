@@ -26,7 +26,17 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pendulum
 import pytest
 import time_machine
+from kubernetes.client import (
+    V1ContainerState,
+    V1ContainerStateRunning,
+    V1ContainerStateTerminated,
+    V1ContainerStatus,
+    V1ObjectMeta,
+    V1Pod,
+    V1PodStatus,
+)
 from kubernetes.client.rest import ApiException
+from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
@@ -35,12 +45,15 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodCommandException,
     PodLogsConsumer,
     PodManager,
+    PodNotFoundException,
     PodPhase,
+    PodPreemptedException,
     XComRetrievalError,
     _parse_log_level,
     detect_pod_terminate_early_issues,
     log_pod_event,
     parse_log_line,
+    pod_observed_running,
 )
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 
@@ -1045,6 +1058,124 @@ class TestPodManager:
             )
             mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
 
+    @pytest.mark.parametrize(
+        ("phase", "container_state", "expected"),
+        [
+            (PodPhase.PENDING, None, False),
+            (PodPhase.UNKNOWN, None, False),
+            (PodPhase.RUNNING, None, True),
+            (PodPhase.SUCCEEDED, None, True),
+            (PodPhase.FAILED, None, True),
+            (PodPhase.PENDING, "running", True),
+            (PodPhase.PENDING, "terminated", True),
+        ],
+    )
+    def test_pod_observed_running(self, phase, container_state, expected):
+        if container_state == "running":
+            state = V1ContainerState(running=V1ContainerStateRunning())
+        elif container_state == "terminated":
+            state = V1ContainerState(terminated=V1ContainerStateTerminated(exit_code=0))
+        else:
+            state = V1ContainerState()
+        pod = V1Pod(
+            metadata=V1ObjectMeta(name="pod", namespace="ns"),
+            status=V1PodStatus(
+                phase=phase,
+                container_statuses=[
+                    V1ContainerStatus(
+                        name="base",
+                        image="img",
+                        image_id="img",
+                        ready=False,
+                        restart_count=0,
+                        state=state,
+                    )
+                ],
+            ),
+        )
+
+        assert pod_observed_running(pod) is expected
+
+    def _namespaced_pod(self, phase: str) -> V1Pod:
+        return V1Pod(
+            metadata=V1ObjectMeta(name="fresh-squeeze", namespace="default"),
+            status=V1PodStatus(phase=phase),
+        )
+
+    @pytest.mark.asyncio
+    async def test_await_pod_start_404_on_first_read_is_preempted(self):
+        pod = self._namespaced_pod(PodPhase.PENDING)
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=404, reason="Not Found")
+
+        with pytest.raises(PodPreemptedException, match="before it reached Running"):
+            await self.pod_manager.await_pod_start(pod=pod, schedule_timeout=30, startup_timeout=30)
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    async def test_await_pod_start_404_before_running_is_preempted(self, mock_sleep):
+        pending = self._namespaced_pod(PodPhase.PENDING)
+        self.mock_kube_client.read_namespaced_pod.side_effect = [
+            pending,
+            ApiException(status=404, reason="Not Found"),
+        ]
+
+        with pytest.raises(PodPreemptedException, match="before it reached Running"):
+            await self.pod_manager.await_pod_start(pod=pending, schedule_timeout=30, startup_timeout=30)
+        mock_sleep.assert_awaited()
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    async def test_await_pod_start_404_after_base_container_running_is_terminal(self, mock_sleep):
+        pending_but_running = V1Pod(
+            metadata=V1ObjectMeta(name="fresh-squeeze", namespace="default"),
+            status=V1PodStatus(
+                phase=PodPhase.PENDING,
+                container_statuses=[
+                    V1ContainerStatus(
+                        name="base",
+                        image="img",
+                        image_id="img",
+                        ready=True,
+                        restart_count=0,
+                        state=V1ContainerState(running=V1ContainerStateRunning()),
+                    )
+                ],
+            ),
+        )
+        self.mock_kube_client.read_namespaced_pod.side_effect = [
+            pending_but_running,
+            ApiException(status=404, reason="Not Found"),
+        ]
+
+        with pytest.raises(PodNotFoundException, match="after it had reached Running"):
+            await self.pod_manager.await_pod_start(
+                pod=pending_but_running, schedule_timeout=30, startup_timeout=30
+            )
+        mock_sleep.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_await_pod_start_propagates_non_404(self):
+        pod = self._namespaced_pod(PodPhase.PENDING)
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(
+            status=401, reason="Unauthorized"
+        )
+
+        with pytest.raises(ApiException) as exc_info:
+            await self.pod_manager.await_pod_start(pod=pod, schedule_timeout=30, startup_timeout=30)
+
+        assert exc_info.value.status == 401
+
+    def test_await_pod_completion_404_after_start_is_terminal(self):
+        pod = self._namespaced_pod(PodPhase.RUNNING)
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=404, reason="Not Found")
+
+        with pytest.raises(PodNotFoundException, match="after it had reached Running"):
+            self.pod_manager.await_pod_completion(pod)
+
     @pytest.mark.asyncio
     async def test_start_pod_preemption_raises_error(self):
         """After a pod is scheduled on a node, it is possible that it gets preempted by another pod, such as a daemonset on a new node, it is possible this happens before
@@ -1629,6 +1760,24 @@ class TestAsyncPodManager:
 
             # No events should be logged for None
             mock_log_info.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    async def test_await_pod_start_404_before_running_is_preempted(self, mock_sleep):
+        pending = V1Pod(
+            metadata=V1ObjectMeta(name="fresh-squeeze", namespace="default"),
+            status=V1PodStatus(phase=PodPhase.PENDING),
+        )
+        self.mock_async_hook.get_pod.side_effect = [
+            pending,
+            AsyncApiException(status=404, reason="Not Found"),
+        ]
+
+        with pytest.raises(PodPreemptedException, match="before it reached Running"):
+            await self.async_pod_manager.await_pod_start(pod=pending, schedule_timeout=30, startup_timeout=30)
+        mock_sleep.assert_awaited()
 
     @pytest.mark.asyncio
     async def test_start_pod_raises_informative_error_on_scheduled_timeout(self):

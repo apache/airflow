@@ -48,6 +48,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLoggingStatus,
     PodNotFoundException,
     PodPhase,
+    PodPreemptedException,
 )
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.providers.common.compat.sdk import (
@@ -1364,6 +1365,135 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
 
         await_init_mock.assert_not_called()
+
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None)
+    def test_execute_relaunches_pod_that_disappears_before_running(self, find_pod_mock, await_container_mock):
+        self.await_start_mock.side_effect = [PodPreemptedException("preempted before Running"), None]
+        self.await_pod_mock.return_value = None
+        launched_names: list[str] = []
+
+        def _record_create(*args, **kwargs):
+            pod = kwargs.get("pod", args[0] if args else None)
+            launched_names.append(pod.metadata.name)
+
+        self.create_mock.side_effect = _record_create
+        k = KubernetesPodOperator(
+            task_id="task",
+            name="fresh-squeeze",
+            get_logs=False,
+            retries=0,
+        )
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        k.execute(context=context)
+
+        assert self.await_start_mock.call_count == 2
+        assert launched_names[0] != launched_names[1]
+        assert launched_names[0].startswith("fresh-squeeze")
+        await_container_mock.assert_called_once()
+        find_pod_mock.assert_called()
+
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None)
+    def test_execute_stops_relaunching_after_repeated_preemption(self, find_pod_mock, await_container_mock):
+        self.await_start_mock.side_effect = PodPreemptedException("preempted before Running")
+        k = KubernetesPodOperator(task_id="task", name="fresh-squeeze", get_logs=False, retries=0)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(PodPreemptedException, match="preempted before Running"):
+            k.execute(context=context)
+
+        assert self.create_mock.call_count == 3
+        assert self.await_start_mock.call_count == 3
+        await_container_mock.assert_not_called()
+        find_pod_mock.assert_called()
+
+    @patch(
+        f"{POD_MANAGER_CLASS}.await_container_completion",
+        side_effect=PodNotFoundException(
+            "Pod default/fresh-squeeze was not found after it had reached Running."
+        ),
+    )
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None)
+    def test_execute_does_not_relaunch_when_pod_disappears_after_running(
+        self, find_pod_mock, await_container_mock
+    ):
+        k = KubernetesPodOperator(task_id="task", name="fresh-squeeze", get_logs=False, retries=0)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(PodNotFoundException, match="after it had reached Running"):
+            k.execute(context=context)
+
+        assert self.create_mock.call_count == 1
+        assert self.await_start_mock.call_count == 1
+        find_pod_mock.assert_called()
+
+    def test_await_pod_completion_translates_404_after_running(self):
+        k = KubernetesPodOperator(task_id="task", get_logs=True)
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="fresh-squeeze", namespace="default"))
+        with (
+            patch(
+                f"{POD_MANAGER_CLASS}.fetch_requested_container_logs",
+                side_effect=ApiException(status=404, reason="Not Found"),
+            ),
+            pytest.raises(PodNotFoundException, match="after it had reached Running"),
+        ):
+            k.await_pod_completion(pod)
+
+    def test_trigger_reentry_relaunches_pod_preempted_before_running(self):
+        k = KubernetesPodOperator(task_id="task", name="fresh-squeeze", retries=0)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+        replacement = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="fresh-squeeze-new", namespace="default"))
+
+        with (
+            patch.object(k, "build_pod_request_obj", return_value=replacement) as build_pod,
+            patch.object(k, "get_or_create_pod", return_value=replacement) as create_pod,
+            patch.object(k, "invoke_defer_method") as defer_method,
+            patch.object(k, "find_pod", return_value=None),
+        ):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "preempted",
+                    "name": "fresh-squeeze-old",
+                    "namespace": "default",
+                    "message": "Pod default/fresh-squeeze-old was not found before it reached Running.",
+                },
+            )
+
+        build_pod.assert_called_once()
+        create_pod.assert_called_once()
+        defer_method.assert_called_once()
+        assert k.trigger_kwargs["_preemption_relaunch_count"] == 1
+        assert k.pod is replacement
+
+    def test_trigger_reentry_does_not_relaunch_after_preemption_attempt_limit(self):
+        k = KubernetesPodOperator(task_id="task", name="fresh-squeeze", retries=0)
+        context = create_context(k)
+
+        with (
+            patch.object(k, "get_or_create_pod") as create_pod,
+            patch.object(k, "invoke_defer_method") as defer_method,
+            pytest.raises(PodPreemptedException),
+        ):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "preempted",
+                    "name": "fresh-squeeze-old",
+                    "namespace": "default",
+                    "message": "Pod default/fresh-squeeze-old was not found before it reached Running.",
+                    "_preemption_relaunch_count": 2,
+                },
+            )
+
+        create_pod.assert_not_called()
+        defer_method.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("should_fail", [True, False])

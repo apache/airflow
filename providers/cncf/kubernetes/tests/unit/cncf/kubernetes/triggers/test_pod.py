@@ -29,11 +29,16 @@ from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
+from kubernetes.client.exceptions import ApiException
 from pendulum import DateTime
 from sqlalchemy.orm.session import Session
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    PodNotFoundException,
+    PodPhase,
+    PodPreemptedException,
+)
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
@@ -738,6 +743,53 @@ class TestKubernetesPodTrigger:
         with context:
             await trigger._get_pod()
         assert mock_hook.get_pod.call_count == call_count
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_get_pod_404_before_running_is_preempted(self, mock_hook, trigger):
+        mock_hook.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+
+        with pytest.raises(PodPreemptedException, match="before it reached Running"):
+            await trigger._get_pod()
+
+        assert mock_hook.get_pod.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_get_pod_404_after_running_is_terminal(self, mock_hook, trigger):
+        mock_hook.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+
+        with pytest.raises(PodNotFoundException, match="after it had reached Running"):
+            await trigger._get_pod(observed_running=True)
+
+        assert mock_hook.get_pod.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_run_yields_preempted_when_pod_disappears_before_running(self, trigger):
+        with mock.patch.object(
+            trigger,
+            "_wait_for_pod_start",
+            new=mock.AsyncMock(side_effect=PodPreemptedException("gone before Running")),
+        ):
+            event = await trigger.run().asend(None)
+
+        assert event.payload["status"] == "preempted"
+        assert event.payload["name"] == POD_NAME
+        assert event.payload["namespace"] == NAMESPACE
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_run_yields_error_when_pod_disappears_after_running(self, mock_hook, trigger):
+        mock_hook.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        with mock.patch.object(
+            trigger,
+            "_wait_for_pod_start",
+            new=mock.AsyncMock(return_value=ContainerState.RUNNING),
+        ):
+            event = await trigger.run().asend(None)
+
+        assert event.payload["status"] == "error"
+        assert "reached Running" in event.payload["message"]
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,
