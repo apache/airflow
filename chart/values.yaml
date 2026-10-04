@@ -1434,11 +1434,10 @@ scheduler:
 # Airflow create user job settings
 createUserJob:
   # Whether the create user job should be created.
-  # Creating a user here previously produced the same credentials on every install.
   enabled: false
 
   # Initial user to create. Only used when `createUserJob.enabled` is true, and both
-  # `username` and `password` must be supplied
+  # `username` and `password` are set
   defaultUser:
     role: Admin
     username: ""
