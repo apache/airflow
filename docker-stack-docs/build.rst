@@ -320,9 +320,9 @@ Naming conventions for the images:
 +----------------+--------------------------+---------------------------------+--------------------------------------+
 | Default        | 3.13                     | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
 +----------------+--------------------------+---------------------------------+--------------------------------------+
-| Latest         | 3.11,3.12,3.13,3.14 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
+| Latest         | 3.11,3.12,3.13,3.14      | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
 +----------------+--------------------------+---------------------------------+--------------------------------------+
-| Specific       | 3.11,3.12,3.13,3.14 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
+| Specific       | 3.11,3.12,3.13,3.14      | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
 +----------------+--------------------------+---------------------------------+--------------------------------------+
 
 * The "latest" image is always the latest released stable version available.
