@@ -73,6 +73,7 @@ export const useAssetServiceGetAssetAlias = <TData = Common.AssetServiceGetAsset
 * @param data.assetId
 * @param data.sourceDagId
 * @param data.sourceTaskId
+* @param data.sourceTaskInstanceId
 * @param data.sourceRunId
 * @param data.sourceMapIndex
 * @param data.partitionKey
@@ -87,7 +88,7 @@ export const useAssetServiceGetAssetAlias = <TData = Common.AssetServiceGetAsset
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetServiceGetAssetEvents = <TData = Common.AssetServiceGetAssetEventsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const useAssetServiceGetAssetEvents = <TData = Common.AssetServiceGetAssetEventsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
   extra?: string[];
   limit?: number;
@@ -101,11 +102,12 @@ export const useAssetServiceGetAssetEvents = <TData = Common.AssetServiceGetAsse
   sourceMapIndex?: number;
   sourceRunId?: string;
   sourceTaskId?: string;
+  sourceTaskInstanceId?: string;
   timestampGt?: string;
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }, queryKey), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }, queryKey), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }) as TData, ...options });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -984,11 +986,14 @@ export const useEventLogServiceGetEventLog = <TData = Common.EventLogServiceGetE
 * Get Event Logs
 * Get all Event Logs.
 * @param data The data for the request.
+* @param data.regionId
+* @param data.regionIndex
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
 * @param data.dagId
 * @param data.taskId
+* @param data.taskInstanceId
 * @param data.runId
 * @param data.mapIndex
 * @param data.tryNumber
@@ -1014,7 +1019,7 @@ export const useEventLogServiceGetEventLog = <TData = Common.EventLogServiceGetE
 * @returns EventLogCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useEventLogServiceGetEventLogs = <TData = Common.EventLogServiceGetEventLogsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, tryNumber }: {
+export const useEventLogServiceGetEventLogs = <TData = Common.EventLogServiceGetEventLogsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }: {
   after?: string;
   before?: string;
   dagId?: string;
@@ -1034,15 +1039,18 @@ export const useEventLogServiceGetEventLogs = <TData = Common.EventLogServiceGet
   ownerDisplayNamePrefixPattern?: string;
   ownerPattern?: string;
   ownerPrefixPattern?: string;
+  regionId?: string;
+  regionIndex?: number;
   runId?: string;
   runIdPattern?: string;
   runIdPrefixPattern?: string;
   taskId?: string;
   taskIdPattern?: string;
   taskIdPrefixPattern?: string;
+  taskInstanceId?: string;
   teams?: string[];
   tryNumber?: number;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, tryNumber }, queryKey), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, tryNumber }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }, queryKey), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }) as TData, ...options });
 /**
 * Get Extra Links
 * Get extra links for task instance.

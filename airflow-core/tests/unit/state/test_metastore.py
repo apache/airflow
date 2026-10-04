@@ -620,6 +620,75 @@ async def dispose_async_engine():
 @pytest.mark.usefixtures("dispose_async_engine")
 @pytest.mark.asyncio(loop_scope="class")
 class TestMetastoreBackendAsync:
+    @pytest.mark.parametrize("async_writer", [False, True])
+    @pytest.mark.parametrize("missing", ["task_instance_id", "region_id", "region_index", "try_number"])
+    async def test_rejects_partial_execution_identity(self, backend, asset_committed, async_writer, missing):
+        scope = AssetScope(asset_id=asset_committed.id)
+        identity = dict(task_instance_id=uuid4(), region_id=uuid4(), region_index=2, try_number=3)
+        identity.pop(missing)
+        fields = dict(
+            kind=AssetStateStoreWriterKind.TASK,
+            dag_id="dag",
+            run_id="run",
+            task_id="task",
+            map_index=-1,
+            **identity,
+        )
+        if async_writer:
+            with pytest.raises(ValueError, match="Task execution identity requires"):
+                await backend.aset_asset_state_store(scope, "watermark", "v", **fields)
+        else:
+            with pytest.raises(ValueError, match="Task execution identity requires"):
+                backend.set_asset_state_store(scope, "watermark", "v", **fields)
+
+    @pytest.mark.parametrize("async_writer", [False, True])
+    @pytest.mark.parametrize("kind", [AssetStateStoreWriterKind.WATCHER, AssetStateStoreWriterKind.API])
+    async def test_rejects_non_task_execution_identity(self, backend, asset_committed, async_writer, kind):
+        scope = AssetScope(asset_id=asset_committed.id)
+        identity = dict(task_instance_id=uuid4(), region_id=uuid4(), region_index=2, try_number=3)
+        if async_writer:
+            with pytest.raises(ValueError, match="Only task writers"):
+                await backend.aset_asset_state_store(scope, "watermark", "v", kind=kind, **identity)
+        else:
+            with pytest.raises(ValueError, match="Only task writers"):
+                backend.set_asset_state_store(scope, "watermark", "v", kind=kind, **identity)
+
+    @pytest.mark.parametrize("async_writer", [False, True])
+    @pytest.mark.parametrize(
+        "replacement_kind", [AssetStateStoreWriterKind.WATCHER, AssetStateStoreWriterKind.API]
+    )
+    async def test_non_task_write_clears_exact_task_attribution(
+        self, backend, asset_committed, async_writer, replacement_kind
+    ):
+        scope = AssetScope(asset_id=asset_committed.id)
+        identity = dict(task_instance_id=uuid4(), region_id=uuid4(), region_index=2, try_number=3)
+        task_fields = dict(
+            kind=AssetStateStoreWriterKind.TASK,
+            dag_id="dag",
+            run_id="run",
+            task_id="task",
+            map_index=-1,
+            **identity,
+        )
+        if async_writer:
+            await backend.aset_asset_state_store(scope, "watermark", "first", **task_fields)
+        else:
+            backend.set_asset_state_store(scope, "watermark", "first", **task_fields)
+        with create_session() as session:
+            row = session.get(AssetStateStoreModel, (asset_committed.id, "watermark"))
+            assert {name: getattr(row, f"last_updated_by_{name}") for name in identity} == identity
+
+        if async_writer:
+            await backend.aset_asset_state_store(scope, "watermark", "second", kind=replacement_kind)
+        else:
+            backend.set_asset_state_store(scope, "watermark", "second", kind=replacement_kind)
+
+        with create_session() as session:
+            row = session.get(AssetStateStoreModel, (asset_committed.id, "watermark"))
+            assert row.value == "second"
+            assert row.last_updated_by_kind == replacement_kind.value
+            assert all(getattr(row, f"last_updated_by_{name}") is None for name in identity)
+
     @pytest.mark.parametrize("operation", ["update", "delete", "clear_index", "clear_region"])
     async def test_operations_isolate_colliding_regions(self, backend, dag_run_committed, operation):
         regions = [UUID(int=0), uuid4(), uuid4()]

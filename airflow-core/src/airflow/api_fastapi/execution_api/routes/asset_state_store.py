@@ -29,7 +29,7 @@ Per-task asset registration checks are intentionally not implemented here
 from __future__ import annotations
 
 import json
-from typing import Annotated
+from typing import Annotated, NamedTuple
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
@@ -45,22 +45,37 @@ from airflow.api_fastapi.execution_api.datamodels.asset_state_store import (
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.security import CurrentTIToken, ExecutionAPIRoute
 from airflow.models.asset import AssetModel
+from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.state import get_state_backend
 from airflow.state.metastore import MetastoreBackend
 
-_TIWriterFields = tuple[str, str, str, int]
 NULL_UUID = UUID(int=0)
 
 
+class _TIWriterFields(NamedTuple):
+    dag_id: str
+    run_id: str
+    task_id: str
+    map_index: int
+    task_instance_id: UUID
+    region_id: UUID
+    region_index: int
+    try_number: int
+
+
 def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFields:
-    """Return (dag_id, run_id, task_id, map_index) for the TI identified by the token."""
+    """Return exact writer attribution for the execution identified by the token."""
     row = session.execute(
         select(
             TaskInstance.dag_id,
             TaskInstance.run_id,
             TaskInstance.task_id,
-            TaskInstance.region_index.label("map_index"),
+            public_map_index_expression(TaskInstance).label("map_index"),
+            TaskInstance.id,
+            TaskInstance.region_id,
+            TaskInstance.region_index,
+            TaskInstance.try_number,
         ).where(TaskInstance.id == token.id)
     ).one_or_none()
     if row is None:
@@ -68,7 +83,7 @@ def _fetch_ti_writer_fields(token: TIToken, session: SessionDep) -> _TIWriterFie
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": f"Task instance {token.id!r} not found"},
         )
-    return row.dag_id, row.run_id, row.task_id, row.map_index
+    return _TIWriterFields(*row)
 
 
 # TODO(AIP-103): enforce that the requesting task is registered with the asset
@@ -142,18 +157,21 @@ def _put_asset_state_store(
                 session=session,
             )
         else:
-            ti_fields = _fetch_ti_writer_fields(token, session)
-            dag_id, run_id, task_id, map_index = ti_fields
+            writer = _fetch_ti_writer_fields(token, session)
 
             backend.set_asset_state_store(
                 scope,
                 key,
                 json.dumps(body.value),
                 kind=AssetStateStoreWriterKind.TASK,
-                dag_id=dag_id,
-                run_id=run_id,
-                task_id=task_id,
-                map_index=map_index,
+                dag_id=writer.dag_id,
+                run_id=writer.run_id,
+                task_id=writer.task_id,
+                map_index=writer.map_index,
+                task_instance_id=writer.task_instance_id,
+                region_id=writer.region_id,
+                region_index=writer.region_index,
+                try_number=writer.try_number,
                 session=session,
             )
     else:

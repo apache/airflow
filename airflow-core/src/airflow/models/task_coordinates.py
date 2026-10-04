@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 import attrs
-from sqlalchemy import case, or_, select, tuple_
+from sqlalchemy import FromClause, case, or_, select, tuple_
 
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagbag import DBDagBag
@@ -70,18 +70,47 @@ def enclosing_loop(task: SerializedOperator) -> SerializedLoopTaskGroup | None:
 
 def mapped_region_expression(model) -> ColumnElement[bool]:
     """Match rows whose region is the task's own mapped expansion."""
+    columns = model.c if isinstance(model, FromClause) else model
     return (
         select(DynamicRegion.id)
-        .where(DynamicRegion.id == model.region_id, DynamicRegion.node_id == model.task_id)
+        .where(DynamicRegion.id == columns.region_id, DynamicRegion.node_id == columns.task_id)
         .correlate(model)
         .exists()
     )
 
 
 def public_map_index_expression(model) -> ColumnElement[int]:
+    """Build the public map index for an ORM entity or a Table (tables skip the current-rows filter)."""
+    columns = model.c if isinstance(model, FromClause) else model
     return case(
-        (or_(model.region_id == SENTINEL_REGION_ID, mapped_region_expression(model)), model.region_index),
+        (or_(columns.region_id == SENTINEL_REGION_ID, mapped_region_expression(model)), columns.region_index),
         else_=-1,
+    )
+
+
+def get_public_map_index(task_instance: TaskInstance, *, session: Session) -> int:
+    """Return the map index a client sees for a persisted task instance; only a regional one costs a query."""
+    if task_instance.region_id == SENTINEL_REGION_ID:
+        return task_instance.region_index
+    return session.execute(
+        select(public_map_index_expression(TaskInstance)).where(TaskInstance.id == task_instance.id)
+    ).scalar_one()
+
+
+def is_plain_expansion(task_instance: TaskInstance, *, session: Session) -> bool:
+    """Tell whether a task instance sits in the top-level expansion of its own task."""
+    return bool(
+        session.scalar(
+            select(
+                select(DynamicRegion.id)
+                .where(
+                    DynamicRegion.id == task_instance.region_id,
+                    DynamicRegion.node_id == task_instance.task_id,
+                    DynamicRegion.parent_region_id.is_(None),
+                )
+                .exists()
+            )
+        )
     )
 
 

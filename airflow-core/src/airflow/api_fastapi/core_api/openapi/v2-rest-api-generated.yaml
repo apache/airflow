@@ -386,6 +386,15 @@ paths:
           - type: string
           - type: 'null'
           title: Source Task Id
+      - name: source_task_instance_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Source Task Instance Id
       - name: source_run_id
         in: query
         required: false
@@ -4813,6 +4822,24 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
       - name: limit
         in: query
         required: false
@@ -4863,6 +4890,15 @@ paths:
           - type: string
           - type: 'null'
           title: Task Id
+      - name: task_instance_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
       - name: run_id
         in: query
         required: false
@@ -5124,6 +5160,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '422':
           description: Validation Error
           content:
@@ -11641,6 +11683,12 @@ components:
         source_map_index:
           type: integer
           title: Source Map Index
+        source_task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Source Task Instance Id
         created_dagruns:
           items:
             $ref: '#/components/schemas/DagRunAssetReference'
@@ -11921,6 +11969,24 @@ components:
           - type: integer
           - type: 'null'
           title: Map Index
+        task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
+        try_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
       type: object
       required:
       - kind
@@ -15352,6 +15418,12 @@ components:
           type: string
           format: date-time
           title: When
+        task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
         dag_id:
           anyOf:
           - type: string

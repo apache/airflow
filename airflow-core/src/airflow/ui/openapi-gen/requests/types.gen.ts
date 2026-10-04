@@ -78,6 +78,7 @@ export type AssetEventResponse = {
     source_dag_id?: string | null;
     source_run_id?: string | null;
     source_map_index: number;
+    source_task_instance_id?: string | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
     partition_key?: string | null;
@@ -193,6 +194,10 @@ export type AssetStateStoreLastUpdatedBy = {
     run_id?: string | null;
     task_id?: string | null;
     map_index?: number | null;
+    task_instance_id?: string | null;
+    region_id?: string;
+    region_index?: number;
+    try_number?: number | null;
 };
 
 /**
@@ -1574,6 +1579,7 @@ export type EventLogCollectionResponse = {
 export type EventLogResponse = {
     event_log_id: number;
     when: string;
+    task_instance_id?: string | null;
     dag_id: string | null;
     task_id: string | null;
     run_id: string | null;
@@ -3340,6 +3346,7 @@ export type GetAssetEventsData = {
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
     sourceTaskId?: string | null;
+    sourceTaskInstanceId?: string | null;
     timestampGt?: string | null;
     timestampGte?: string | null;
     timestampLt?: string | null;
@@ -4208,6 +4215,8 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     ownerPrefixPattern?: string | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     runId?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -4226,6 +4235,7 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    taskInstanceId?: string | null;
     teams?: Array<(string)>;
     tryNumber?: number | null;
 };
@@ -7305,6 +7315,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: EventLogCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

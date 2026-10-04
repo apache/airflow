@@ -285,6 +285,18 @@ export const $AssetEventResponse = {
             type: 'integer',
             title: 'Source Map Index'
         },
+        source_task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Source Task Instance Id'
+        },
         created_dagruns: {
             items: {
                 '$ref': '#/components/schemas/DagRunAssetReference'
@@ -671,6 +683,38 @@ export const $AssetStateStoreLastUpdatedBy = {
                 }
             ],
             title: 'Map Index'
+        },
+        task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Id'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
+        try_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Try Number'
         }
     },
     type: 'object',
@@ -5628,6 +5672,18 @@ export const $EventLogResponse = {
             type: 'string',
             format: 'date-time',
             title: 'When'
+        },
+        task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Id'
         },
         dag_id: {
             anyOf: [

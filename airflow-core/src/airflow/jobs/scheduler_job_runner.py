@@ -1670,7 +1670,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if info is not None:
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
-                session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
+                session.add(Log(event="state mismatch", extra=msg, task_instance=ti))
 
                 # Get task from the Serialized DAG
                 try:
@@ -3372,7 +3372,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(
                 Log(
                     event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
-                    task_instance=ti.key,
+                    task_instance=ti,
                     extra=(
                         f"Task was in queued state for longer than {self._task_queued_timeout} "
                         "seconds; task state will be set back to scheduled."
@@ -3389,7 +3389,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(
                 Log(
                     event="stuck in queued tries exceeded",
-                    task_instance=ti.key,
+                    task_instance=ti,
                     extra=msg,
                 )
             )
@@ -3468,14 +3468,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         We can then use this information to determine whether to reschedule a task or fail it.
         """
+        identity = Log.task_instance_id == ti.id
+        if ti.region_id == SENTINEL_REGION_ID:
+            identity = or_(
+                identity,
+                and_(
+                    Log.task_instance_id.is_(None),
+                    Log.dag_id == ti.dag_id,
+                    Log.task_id == ti.task_id,
+                    Log.run_id == ti.run_id,
+                    Log.map_index == ti.region_index,
+                    Log.try_number == ti.try_number,
+                ),
+            )
         last_running_time = session.scalar(
             select(Log.dttm)
             .where(
-                Log.dag_id == ti.dag_id,
-                Log.task_id == ti.task_id,
-                Log.run_id == ti.run_id,
-                Log.map_index == ti.region_index,
-                Log.try_number == ti.try_number,
+                identity,
                 Log.event == "running",
             )
             .order_by(Log.dttm.desc())
@@ -3486,11 +3495,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(func.count())
             .select_from(Log)
             .where(
-                Log.task_id == ti.task_id,
-                Log.dag_id == ti.dag_id,
-                Log.run_id == ti.run_id,
-                Log.map_index == ti.region_index,
-                Log.try_number == ti.try_number,
+                identity,
                 Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
             )
         )
@@ -3963,7 +3968,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(
                 Log(
                     event="heartbeat timeout",
-                    task_instance=ti.key,
+                    task_instance=ti,
                     extra=(
                         f"Task did not emit heartbeat within time limit ({self._task_instance_heartbeat_timeout_secs} "
                         "seconds) and will be terminated. "

@@ -109,9 +109,6 @@ def test_trigger_count_cache_separates_expansions_in_different_loop_passes(dag_m
     with dag_maker(serialized=True):
         loop = create_loop(body, max_iterations=3)
     dr = dag_maker.create_dagrun()
-    parent = DynamicRegion.get_or_create(
-        dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
-    )
     for ti in dr.task_instances:
         ti.region_id = SENTINEL_REGION_ID
     session.flush()
