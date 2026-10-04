@@ -210,6 +210,165 @@ class TestTaskInstanceEndpoint:
 
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
+    def test_regional_current_and_archived_tries_keep_their_coordinates(
+        self, test_client, dag_maker, session
+    ):
+        @task_group
+        def body():
+            MockOperator(task_id="member")
+
+        with dag_maker("regional-ti", serialized=True) as dag:
+            loop = create_loop(body, max_iterations=4)
+
+            @task
+            def mapped(value):
+                return value
+
+            mapped.expand(value=[1, 2])
+        dr = dag_maker.create_dagrun()
+        original = next(ti for ti in dr.task_instances if ti.task_id == "body.member")
+        first = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+        )
+        session.add(first)
+        session.flush()
+        original.region_id, original.region_index = first.id, 2
+        original.try_number, original.state = 1, TaskInstanceState.SUCCESS
+        session.flush()
+        original.archive(reason="superseded", session=session)
+        replacement_region = DynamicRegion(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            node_id=loop.group_id,
+            forked_from_region_id=first.id,
+        )
+        session.add(replacement_region)
+        session.flush()
+        replacement = TaskInstance(
+            task=dag.get_task("body.member"),
+            run_id=dr.run_id,
+            dag_version_id=dr.created_dag_version_id,
+            region_id=replacement_region.id,
+            map_index=2,
+        )
+        replacement.try_number, replacement.state = 1, TaskInstanceState.RUNNING
+        session.add(replacement)
+        mapped_region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped", session=session
+        )
+        session.add(mapped_region)
+        session.flush()
+        for ti in dr.task_instances:
+            if ti.task_id == "mapped":
+                ti.region_id = mapped_region.id
+        session.commit()
+        url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.member"
+        params = {"region_id": str(replacement_region.id), "region_index": 2}
+
+        response = test_client.get(url, params=params)
+        assert response.status_code == 200
+        assert response.json()["id"] == str(replacement.id)
+        assert response.json()["map_index"] == -1
+        assert response.json()["region_index"] == 2
+        response = test_client.get(f"{url}/tries/1", params=params)
+        assert response.status_code == 200
+        assert response.json()["state"] == TaskInstanceState.RUNNING
+        response = test_client.get(f"{url}/tries/1", params={"region_id": str(first.id), "region_index": 2})
+        assert response.status_code == 200
+        assert response.json()["state"] == TaskInstanceState.SUCCESS
+        assert response.json()["map_index"] == -1
+        assert response.json()["region_id"] == str(first.id)
+        assert test_client.get(url).status_code == 400
+        collection_url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
+        cursor = ""
+        entries = []
+        while cursor is not None:
+            response = test_client.get(
+                collection_url, params={"order_by": "map_index", "limit": 1, "cursor": cursor}
+            )
+            assert response.status_code == 200
+            page = response.json()
+            entries.extend(page["task_instances"])
+            cursor = page["next_cursor"]
+            assert len(entries) <= 4
+        assert [ti["map_index"] for ti in entries] == [-1, -1, 0, 1]
+        assert len({ti["id"] for ti in entries}) == 4
+        response = test_client.get(collection_url, params={"map_index": -1})
+        assert response.json()["total_entries"] == 2
+
+    def test_mapped_path_selects_the_instance_in_the_requested_region(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            MockOperator(task_id="member")
+
+        with dag_maker("regional-ti-path", serialized=True) as dag:
+            loop = create_loop(body, max_iterations=4)
+        dr = dag_maker.create_dagrun()
+        instances = []
+        original = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+        )
+        fork = DynamicRegion(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, forked_from_region_id=original.id
+        )
+        session.add(fork)
+        session.flush()
+        for region in (original, fork):
+            ti = TaskInstance(
+                task=dag.get_task("body.member"),
+                run_id=dr.run_id,
+                dag_version_id=dr.created_dag_version_id,
+                region_id=region.id,
+                region_index=2,
+            )
+            session.add(ti)
+            session.flush()
+            instances.append(ti)
+        session.commit()
+        sibling, selected = instances
+
+        response = test_client.get(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.member/2",
+            params={"region_id": str(selected.region_id), "region_index": 2},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["id"] == str(selected.id)
+        assert response.json()["id"] != str(sibling.id)
+
+    def test_cursor_pages_mapped_region_instances_pinned_to_an_unmapped_definition(
+        self, test_client, dag_maker, session
+    ):
+        with dag_maker("pinned-unmapped", serialized=True):
+
+            @task
+            def mapped(value):
+                return value
+
+            mapped.expand(value=[1, 2, 3])
+        dr = dag_maker.create_dagrun()
+        with dag_maker(dag_id=dr.dag_id, serialized=True):
+            MockOperator(task_id="mapped")
+        latest_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+        for ti in dr.task_instances:
+            ti.dag_version_id = latest_version_id
+        session.commit()
+        collection_url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
+
+        cursor = ""
+        entries = []
+        while cursor is not None:
+            response = test_client.get(
+                collection_url, params={"order_by": "map_index", "limit": 1, "cursor": cursor}
+            )
+            assert response.status_code == 200
+            page = response.json()
+            entries.extend(page["task_instances"])
+            cursor = page["next_cursor"]
+            assert len(entries) <= 3
+
+        assert [ti["map_index"] for ti in entries] == [0, 1, 2]
+
     def test_removed_mapped_regional_instances_are_still_listed(self, test_client, dag_maker, session):
         with dag_maker("removed-mapped", serialized=True):
             MockOperator(task_id="kept")
@@ -637,6 +796,17 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID` and task_id: `print_the_context` was not found"
         }
+
+    def test_does_not_accept_a_map_index_query_parameter(self, test_client, session):
+        self.create_task_instances(session)
+
+        response = test_client.get(
+            "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            params={"map_index": 3},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["map_index"] == -1
 
     def test_raises_404_for_mapped_task_instance_with_multiple_indexes(self, test_client, session):
         tis = self.create_task_instances(session)
@@ -2468,8 +2638,13 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
             ),
         ],
     )
-    def test_should_respond_dependencies(self, test_client, session, state, dependencies):
+    @pytest.mark.parametrize("unversioned", [False, True])
+    def test_should_respond_dependencies(self, test_client, session, state, dependencies, unversioned):
         self.create_task_instances(session, task_instances=[{"state": state}], update_extras=True)
+        if unversioned:
+            session.execute(update(TaskInstance).values(dag_version_id=None))
+            session.execute(update(DagRun).values(created_dag_version_id=None))
+            session.commit()
 
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
@@ -2869,6 +3044,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
@@ -2951,6 +3128,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
             "max_tries": 0 if try_number == 1 else 1,
@@ -3032,6 +3211,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "end_date": "2020-01-03T00:00:00Z",
                 "executor": None,
                 "executor_config": "{}",
+                "id": mock.ANY,
+                "note": mock.ANY,
                 "hostname": "",
                 "map_index": map_index,
                 "max_tries": 0 if try_number == 1 else 1,
@@ -3099,6 +3280,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
@@ -3147,6 +3330,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
             "max_tries": 0,
@@ -3242,6 +3427,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pid": None,
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "dag_version": {
                 "id": mock.ANY,
                 "version_number": expected_version_number,
@@ -5172,7 +5359,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         self.create_task_instances(
             session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
         )
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get(
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
             )
@@ -5189,6 +5376,8 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
                     "executor_config": "{}",
+                    "id": mock.ANY,
+                    "note": mock.ANY,
                     "hostname": "",
                     "map_index": -1,
                     "max_tries": 0,
@@ -5227,6 +5416,8 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
                     "executor_config": "{}",
+                    "id": mock.ANY,
+                    "note": mock.ANY,
                     "hostname": "",
                     "map_index": -1,
                     "max_tries": 1,
@@ -5323,7 +5514,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         # in each loop, we should get the right mapped TI back
         for map_index in (1, 2):
             # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
-            with assert_queries_count(3):
+            with assert_queries_count(5):
                 response = test_client.get(
                     "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
                     f"/print_the_context/{map_index}/tries",
@@ -5343,6 +5534,8 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "end_date": "2020-01-03T00:00:00Z",
                         "executor": None,
                         "executor_config": "{}",
+                        "id": mock.ANY,
+                        "note": mock.ANY,
                         "hostname": "",
                         "map_index": map_index,
                         "max_tries": 0,
@@ -5381,6 +5574,8 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "end_date": "2020-01-03T00:00:00Z",
                         "executor": None,
                         "executor_config": "{}",
+                        "id": mock.ANY,
+                        "note": mock.ANY,
                         "hostname": "",
                         "map_index": map_index,
                         "max_tries": 1,
@@ -5468,6 +5663,8 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "pid": None,
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "dag_version": {
                 "id": mock.ANY,
                 "version_number": expected_version_number,
@@ -5593,6 +5790,20 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         response = test_client.patch(
             f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first",
             json={"new_state": "success"},
+        )
+
+        assert response.status_code == 400, response.text
+        assert response.json()["detail"] == "Select a region and index for this task instance"
+
+    @pytest.mark.parametrize("with_region_id", [False, True])
+    def test_loop_read_without_index_requires_a_region_and_index(
+        self, test_client, loop_instances, with_region_id
+    ):
+        dr, loop, root, tis = loop_instances
+
+        response = test_client.get(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first",
+            params={"region_id": str(root.id)} if with_region_id else {},
         )
 
         assert response.status_code == 400, response.text
@@ -5757,8 +5968,9 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         else:
             assert all(live[ti_id] == State.SUCCESS for ti_id in ids)
 
-    def test_bulk_delete_of_a_loop_pass_removes_its_archived_tries(
-        self, test_client, session, loop_instances
+    @pytest.mark.parametrize("via", ["bulk", "single"])
+    def test_delete_of_a_loop_pass_removes_its_archived_tries(
+        self, test_client, session, loop_instances, via
     ):
         dr, loop, root, tis = loop_instances
         archived = tis["body.first", 2]
@@ -5777,27 +5989,34 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         )
         assert set(session.scalars(pass_rows)) == {archived.id, retried.id}, "Checking pre-conditions"
 
-        response = test_client.patch(
-            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances",
-            json={
-                "actions": [
-                    {
-                        "action": "delete",
-                        "entities": [
-                            {
-                                "task_id": "body.first",
-                                "map_index": -1,
-                                "region_id": str(root.id),
-                                "region_index": 2,
-                            }
-                        ],
-                    }
-                ]
-            },
-        )
+        if via == "bulk":
+            response = test_client.patch(
+                f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances",
+                json={
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "task_id": "body.first",
+                                    "map_index": -1,
+                                    "region_id": str(root.id),
+                                    "region_index": 2,
+                                }
+                            ],
+                        }
+                    ]
+                },
+            )
+        else:
+            response = test_client.delete(
+                f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first",
+                params={"region_id": str(root.id), "region_index": 2},
+            )
 
         assert response.status_code == 200, response.text
-        assert not response.json()["delete"]["errors"]
+        if via == "bulk":
+            assert not response.json()["delete"]["errors"]
         session.expire_all()
         assert set(session.scalars(pass_rows)) == set()
         remaining = {(ti.task_id, ti.region_index) for ti in dr.get_task_instances(session=session)}

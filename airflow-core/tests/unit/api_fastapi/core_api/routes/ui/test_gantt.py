@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from operator import attrgetter
+from unittest.mock import ANY
 
 import pendulum
 import pytest
@@ -48,6 +49,8 @@ TASK_DISPLAY_NAME_3 = "task3_display_name"
 MAPPED_TASK_ID = "mapped_task"
 
 GANTT_TASK_1 = {
+    "id": ANY,
+    "map_index": -1,
     "task_id": "task",
     "task_display_name": TASK_DISPLAY_NAME,
     "try_number": 1,
@@ -61,6 +64,8 @@ GANTT_TASK_1 = {
 }
 
 GANTT_TASK_2 = {
+    "id": ANY,
+    "map_index": -1,
     "task_id": "task2",
     "task_display_name": TASK_DISPLAY_NAME_2,
     "try_number": 1,
@@ -74,6 +79,8 @@ GANTT_TASK_2 = {
 }
 
 GANTT_TASK_3 = {
+    "id": ANY,
+    "map_index": -1,
     "task_id": "task3",
     "task_display_name": TASK_DISPLAY_NAME_3,
     "try_number": 1,

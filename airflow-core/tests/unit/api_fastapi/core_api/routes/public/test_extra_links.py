@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
@@ -25,9 +25,13 @@ from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollect
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel as XCom
 from airflow.plugins_manager import AirflowPlugin
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -81,6 +85,100 @@ class TryNumberLink(BaseOperatorLink):
 class TryNumberPlugin(AirflowPlugin):
     name = "try_number_plugin"
     operator_extra_links = [TryNumberLink()]
+
+
+@pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
+@pytest.mark.parametrize("retained", [False, True])
+@pytest.mark.parametrize("unversioned", [False, True])
+def test_links_select_loop_execution_without_requiring_live_history(
+    test_client, dag_maker, session, retained, unversioned
+):
+    @task_group
+    def body():
+        CustomOperator(task_id="work", bash_command="echo test")
+
+    with dag_maker(serialized=True) as dag:
+        loop = create_loop(body, max_iterations=4)
+    run = dag_maker.create_dagrun()
+    region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+    later = TaskInstance(
+        task=dag.get_task("body.work"),
+        run_id=run.run_id,
+        dag_version_id=None if unversioned else run.created_dag_version_id,
+        region_id=region.id,
+        region_index=2,
+    )
+    later.try_number = 2
+    later.state = "success"
+    session.add(later)
+    session.flush()
+    if retained:
+        later.archive(reason="superseded", session=session)
+    if unversioned:
+        run.created_dag_version_id = None
+    session.commit()
+
+    if not unversioned:
+        with dag_maker(dag_id=run.dag_id, serialized=True, session=session):
+            CustomOperator(task_id="replacement", bash_command="echo changed")
+        session.commit()
+
+    url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/links"
+    response = test_client.get(url, params={"region_id": str(region.id), "region_index": 2, "try_number": 2})
+    assert response.status_code == 200, response.text
+    assert response.json()["extra_links"]["Try Number"] == "https://example.com/logs?try_number=2"
+    assert test_client.get(url, params={"region_index": 2}).status_code == 400
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_serialized_links_read_xcom_from_selected_region(test_client, dag_maker, session, mapped):
+    @task_group
+    def body():
+        if mapped:
+            CustomOperator.partial(task_id="work").expand(bash_command=["echo first", "echo second"])
+        else:
+            CustomOperator(task_id="work", bash_command="echo test")
+
+    with dag_maker(serialized=True) as dag:
+        loop = create_loop(body, max_iterations=4)
+    run = dag_maker.create_dagrun()
+    sibling = next(ti for ti in run.task_instances if ti.task_id == "body.work" and ti.region_index == 0)
+    selected_region = DynamicRegion(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        node_id=loop.group_id,
+        forked_from_region_id=sibling.region_id,
+        resumes_from_index=sibling.region_index,
+    )
+    session.add(selected_region)
+    session.flush()
+    selected = TaskInstance(
+        task=dag.get_task("body.work"),
+        run_id=run.run_id,
+        dag_version_id=run.created_dag_version_id,
+        region_id=selected_region.id,
+        region_index=sibling.region_index,
+    )
+    session.add(selected)
+    session.flush()
+    for ti, value in ((sibling, "sibling"), (selected, "selected")):
+        XCom.set(
+            key="_link_CustomOpLink",
+            value=f"https://example.com/{value}-execution",
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.region_index,
+            region_id=ti.region_id,
+            session=session,
+        )
+    session.commit()
+    response = test_client.get(
+        f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/links",
+        params={"region_id": str(selected.region_id), "region_index": selected.region_index},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["extra_links"]["Google Custom"] == "https://example.com/selected-execution"
 
 
 class TeamALink(BaseOperatorLink):
@@ -317,6 +415,13 @@ class TestGetExtraLinks:
         )
 
     def test_should_respond_200_mapped_task_instance(self, test_client, session):
+        region_id = session.scalar(
+            select(DynamicRegion.id).where(
+                DynamicRegion.dag_id == self.dag_id,
+                DynamicRegion.run_id == self.dag_run_id,
+                DynamicRegion.node_id == self.task_mapped,
+            )
+        )
         for map_index, value in enumerate(["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]):
             XCom.set(
                 key="search_query",
@@ -325,6 +430,7 @@ class TestGetExtraLinks:
                 dag_id=self.dag_id,
                 run_id=self.dag_run_id,
                 map_index=map_index,
+                region_id=region_id,
             )
             XCom.set(
                 key="_link_CustomOpLink",
@@ -333,6 +439,7 @@ class TestGetExtraLinks:
                 dag_id=self.dag_id,
                 run_id=self.dag_run_id,
                 map_index=map_index,
+                region_id=region_id,
             )
             session.commit()
             response = test_client.get(
@@ -368,7 +475,7 @@ class TestGetExtraLinks:
             params={"map_index": 4},
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "TaskInstance not found"}
+        assert response.json() == {"detail": "Task instance not found for selected coordinates"}
 
     def test_should_not_deserialize_ill_formatted_links(self, test_client, session):
         import json

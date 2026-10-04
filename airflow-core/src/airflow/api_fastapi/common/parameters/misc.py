@@ -39,6 +39,7 @@ from airflow.models.dag import DagModel
 from airflow.models.errors import ParseImportError
 from airflow.models.hitl import HITLDetail
 from airflow.models.pool import Pool
+from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.utils.state import TaskInstanceState
@@ -245,7 +246,7 @@ QueryHITLDetailMapIndexFilter = Annotated[
     FilterParam[int | None],
     Depends(
         filter_param_factory(
-            TaskInstance.region_index,
+            public_map_index_expression(TaskInstance),
             int | None,
             filter_name="map_index",
         )

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, Literal
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -36,14 +37,18 @@ from airflow.api_fastapi.core_api.datamodels.task_state_store import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.services.public.task_coordinates import (
+    CoordinateResolverDep,
+    TaskScopeDep,
+    resolve_task_scope,
+)
 from airflow.configuration import conf
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.state.metastore import _get_db_backend
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.orm import Session
 
 task_state_store_router = AirflowRouter(
@@ -58,17 +63,18 @@ def _require_task_instance(
     task_id: str,
     map_index: int | None,
     session: Session,
-) -> UUID:
-    """Return the region of the addressed task instance, raising 404 when it does not exist."""
-    statement = select(TI.region_id).where(
+    region_id: UUID,
+) -> None:
+    """Raise 404 unless the task instance exists. ``map_index=None`` matches any map index."""
+    statement = select(TI.task_id).where(
         TI.dag_id == dag_id,
         TI.run_id == dag_run_id,
         TI.task_id == task_id,
+        TI.region_id == region_id,
     )
     if map_index is not None:
         statement = statement.where(TI.region_index == map_index)
-    region_id = session.scalar(statement.order_by(TI.region_id).limit(1))
-    if region_id is None:
+    if session.scalar(statement.limit(1)) is None:
         addressed_by = "all_map_indices=True" if map_index is None else f"map_index={map_index}"
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -77,37 +83,61 @@ def _require_task_instance(
                 f"task_id={task_id!r}, {addressed_by}"
             ),
         )
-    return region_id
-
-
-def _resolve_scope(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    map_index: Annotated[int, Query(ge=-1)] = -1,
-) -> TaskScope:
-    """Map the path and query parameters onto the task instance they address."""
-    return TaskScope(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
-
-
-TaskScopeDep = Annotated[TaskScope, Depends(_resolve_scope)]
 
 
 def _validate_scope(scope: TaskScopeDep, session: SessionDep) -> TaskScope:
     """Resolve the scope, 404ing when the task instance it addresses does not exist."""
-    region_id = _require_task_instance(scope.dag_id, scope.run_id, scope.task_id, scope.map_index, session)
-    return TaskScope(
-        scope.dag_id, scope.run_id, scope.task_id, region_index=scope.region_index, region_id=region_id
+    _require_task_instance(
+        scope.dag_id, scope.run_id, scope.task_id, scope.region_index, session, scope.region_id
     )
+    return scope
 
 
 ValidatedTaskScopeDep = Annotated[TaskScope, Depends(_validate_scope)]
 
 
-def _validate_clear_scope(
-    scope: TaskScopeDep,
+def _resolve_clear_scope(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    resolver: CoordinateResolverDep,
+    map_index: Annotated[int, Query(ge=-1)] = -1,
+    region_id: Annotated[UUID | None, Query()] = None,
+    region_index: Annotated[int | None, Query(ge=-1)] = None,
+    all_map_indices: Annotated[bool, Query()] = False,
+) -> TaskScope:
+    return resolve_task_scope(
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        task_id=task_id,
+        resolver=resolver,
+        map_index=map_index,
+        region_id=region_id,
+        region_index=region_index,
+        all_map_indices=all_map_indices,
+    )
+
+
+ClearTaskScopeDep = Annotated[TaskScope, Depends(_resolve_clear_scope)]
+
+
+def _clear_all_map_indices(
+    scope: ClearTaskScopeDep,
     session: SessionDep,
     all_map_indices: Annotated[bool, Query()] = False,
+) -> bool:
+    if not all_map_indices or scope.region_id == SENTINEL_REGION_ID:
+        return all_map_indices
+    return (
+        session.scalar(select(DynamicRegion.node_id).where(DynamicRegion.id == scope.region_id))
+        == scope.task_id
+    )
+
+
+def _validate_clear_scope(
+    scope: ClearTaskScopeDep,
+    session: SessionDep,
+    all_map_indices: Annotated[bool, Depends(_clear_all_map_indices)],
 ) -> TaskScope:
     """
     Resolve the scope for a clear request, 404ing when the task instance does not exist.
@@ -115,12 +145,15 @@ def _validate_clear_scope(
     ``all_map_indices`` addresses the task across every index, so it is validated against any
     instance -- an expanded mapped task has no ``map_index=-1`` instance to check.
     """
-    region_id = _require_task_instance(
-        scope.dag_id, scope.run_id, scope.task_id, None if all_map_indices else scope.map_index, session
+    _require_task_instance(
+        scope.dag_id,
+        scope.run_id,
+        scope.task_id,
+        None if all_map_indices else scope.region_index,
+        session,
+        scope.region_id,
     )
-    return TaskScope(
-        scope.dag_id, scope.run_id, scope.task_id, region_index=scope.region_index, region_id=region_id
-    )
+    return scope
 
 
 ValidatedClearTaskScopeDep = Annotated[TaskScope, Depends(_validate_clear_scope)]
@@ -149,6 +182,9 @@ def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> dat
 
 @task_state_store_router.get(
     "",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def list_task_state_store(
@@ -169,6 +205,7 @@ def list_task_state_store(
             TaskStateStoreModel.dag_id == scope.dag_id,
             TaskStateStoreModel.run_id == scope.run_id,
             TaskStateStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.region_id == scope.region_id,
             TaskStateStoreModel.region_index == scope.region_index,
         )
         .order_by(TaskStateStoreModel.key.asc())
@@ -193,7 +230,9 @@ def list_task_state_store(
 
 @task_state_store_router.get(
     "/{key:path}",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def get_task_state_store(
@@ -212,6 +251,7 @@ def get_task_state_store(
             TaskStateStoreModel.dag_id == scope.dag_id,
             TaskStateStoreModel.run_id == scope.run_id,
             TaskStateStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.region_id == scope.region_id,
             TaskStateStoreModel.region_index == scope.region_index,
             TaskStateStoreModel.key == key,
         )
@@ -229,7 +269,9 @@ def get_task_state_store(
 @task_state_store_router.put(
     "/{key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def set_task_state_store(
@@ -249,7 +291,9 @@ def set_task_state_store(
 @task_state_store_router.patch(
     "/{key:path}",
     status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def patch_task_state_store(
@@ -264,6 +308,7 @@ def patch_task_state_store(
             TaskStateStoreModel.dag_id == scope.dag_id,
             TaskStateStoreModel.run_id == scope.run_id,
             TaskStateStoreModel.task_id == scope.task_id,
+            TaskStateStoreModel.region_id == scope.region_id,
             TaskStateStoreModel.region_index == scope.region_index,
             TaskStateStoreModel.key == key,
         )
@@ -286,7 +331,9 @@ def patch_task_state_store(
 @task_state_store_router.delete(
     "/{key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def delete_task_state_store(
@@ -301,13 +348,15 @@ def delete_task_state_store(
 @task_state_store_router.delete(
     "",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.TASK_INSTANCE))],
 )
 def clear_task_state_store(
     scope: ValidatedClearTaskScopeDep,
     session: SessionDep,
-    all_map_indices: Annotated[bool, Query()] = False,
+    all_map_indices: Annotated[bool, Depends(_clear_all_map_indices)],
 ) -> None:
     """
     Delete all task state store keys for a task instance.

@@ -545,6 +545,34 @@ export const useDagRunServiceGetDagRunStats = <TData = Common.DagRunServiceGetDa
   dagRunId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunStatsKeyFn({ dagId, dagRunId }, queryKey), queryFn: () => DagRunService.getDagRunStats({ dagId, dagRunId }) as TData, ...options });
 /**
+* Get Execution
+* List a Dag run's live task instances with the region structure that locates them.
+*
+* Supplying ``try_number`` selects the tries with that number instead, including archived
+* ones. Use ``region_id``, ``region_index`` and ``try_number`` for exact links.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.regionId
+* @param data.regionIndex
+* @param data.tryNumber
+* @param data.limit
+* @param data.offset
+* @returns ExecutionCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagRunServiceGetExecution = <TData = Common.DagRunServiceGetExecutionDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }: {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  offset?: number;
+  regionId?: string;
+  regionIndex?: number;
+  taskId?: string;
+  tryNumber?: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetExecutionKeyFn({ dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }, queryKey), queryFn: () => DagRunService.getExecution({ dagId, dagRunId, limit, offset, regionId, regionIndex, taskId, tryNumber }) as TData, ...options });
+/**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the Dag run state.
 * @param data The data for the request.
@@ -1059,17 +1087,21 @@ export const useEventLogServiceGetEventLogs = <TData = Common.EventLogServiceGet
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.tryNumber
 * @returns ExtraLinkCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useExtraLinksServiceGetExtraLinks = <TData = Common.ExtraLinksServiceGetExtraLinksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const useExtraLinksServiceGetExtraLinks = <TData = Common.ExtraLinksServiceGetExtraLinksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   tryNumber?: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }, queryKey), queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }, queryKey), queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }) as TData, ...options });
 /**
 * Get Extra Links
 * Get extra links for task instance.
@@ -1078,17 +1110,21 @@ export const useExtraLinksServiceGetExtraLinks = <TData = Common.ExtraLinksServi
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.tryNumber
 * @returns ExtraLinkCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetExtraLinks = <TData = Common.TaskInstanceServiceGetExtraLinksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const useTaskInstanceServiceGetExtraLinks = <TData = Common.TaskInstanceServiceGetExtraLinksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   tryNumber?: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }) as TData, ...options });
 /**
 * Get Task Instance
 * Get task instance.
@@ -1096,14 +1132,18 @@ export const useTaskInstanceServiceGetExtraLinks = <TData = Common.TaskInstanceS
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetTaskInstance = <TData = Common.TaskInstanceServiceGetTaskInstanceDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, taskId }: {
+export const useTaskInstanceServiceGetTaskInstance = <TData = Common.TaskInstanceServiceGetTaskInstanceDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Mapped Task Instances
 * Get list of mapped task instances.
@@ -1111,6 +1151,8 @@ export const useTaskInstanceServiceGetTaskInstance = <TData = Common.TaskInstanc
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
+* @param data.regionId
+* @param data.regionIndex
 * @param data.runAfterGte
 * @param data.runAfterGt
 * @param data.runAfterLte
@@ -1157,7 +1199,7 @@ export const useTaskInstanceServiceGetTaskInstance = <TData = Common.TaskInstanc
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.TaskInstanceServiceGetMappedTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.TaskInstanceServiceGetMappedTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   dagId: string;
   dagRunId: string;
   durationGt?: number;
@@ -1186,6 +1228,8 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.Task
   queue?: string[];
   queueNamePattern?: string;
   queueNamePrefixPattern?: string;
+  regionId?: string;
+  regionIndex?: number;
   renderedMapIndexPattern?: string;
   renderedMapIndexPrefixPattern?: string;
   runAfterGt?: string;
@@ -1204,7 +1248,7 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.Task
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
 /**
 * Get Task Instance Dependencies
 * Get dependencies blocking task from getting scheduled.
@@ -1213,15 +1257,19 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <TData = Common.Task
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskDependencyCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = <TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = <TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesByMapIndexDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesByMapIndexKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstanceDependenciesByMapIndex({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Task Instance Dependencies
 * Get dependencies blocking task from getting scheduled.
@@ -1230,48 +1278,65 @@ export const useTaskInstanceServiceGetTaskInstanceDependenciesByMapIndex = <TDat
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskDependencyCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetTaskInstanceDependencies = <TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+export const useTaskInstanceServiceGetTaskInstanceDependencies = <TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Task Instance Tries
 * Get list of task instances history.
+*
+* Tries recorded before the task had regions are not included once it has them.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceHistoryCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetTaskInstanceTries = <TData = Common.TaskInstanceServiceGetTaskInstanceTriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+export const useTaskInstanceServiceGetTaskInstanceTries = <TData = Common.TaskInstanceServiceGetTaskInstanceTriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Mapped Task Instance Tries
+* Get list of task instances history for a mapped task instance.
+*
+* Tries recorded before the task had regions are not included once it has them.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceHistoryCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetMappedTaskInstanceTries = <TData = Common.TaskInstanceServiceGetMappedTaskInstanceTriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+export const useTaskInstanceServiceGetMappedTaskInstanceTries = <TData = Common.TaskInstanceServiceGetMappedTaskInstanceTriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstanceTries({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Mapped Task Instance
 * Get task instance.
@@ -1280,15 +1345,19 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTries = <TData = Common.
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskInstanceServiceGetMappedTaskInstanceDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskInstanceServiceGetMappedTaskInstanceDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Task Instances
 * Get list of task instances.
@@ -1308,6 +1377,8 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskI
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
+* @param data.regionId
+* @param data.regionIndex
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
 * @param data.taskId
 * @param data.runAfterGte
@@ -1364,7 +1435,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskI
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstanceServiceGetTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstanceServiceGetTaskInstancesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   cursor?: string;
   dagId: string;
   dagIdPattern?: string;
@@ -1396,6 +1467,8 @@ export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstan
   queue?: string[];
   queueNamePattern?: string;
   queueNamePrefixPattern?: string;
+  regionId?: string;
+  regionIndex?: number;
   renderedMapIndexPattern?: string;
   renderedMapIndexPrefixPattern?: string;
   runAfterGt?: string;
@@ -1420,7 +1493,7 @@ export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstan
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getTaskInstances({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }, queryKey), queryFn: () => TaskInstanceService.getTaskInstances({ cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, operatorNamePrefixPattern, orderBy, pool, poolNamePattern, poolNamePrefixPattern, queue, queueNamePattern, queueNamePrefixPattern, regionId, regionIndex, renderedMapIndexPattern, renderedMapIndexPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskDisplayNamePrefixPattern, taskGroupId, taskId, teams, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) as TData, ...options });
 /**
 * Get Task Instance Try Details
 * Get task instance details by try number.
@@ -1430,16 +1503,20 @@ export const useTaskInstanceServiceGetTaskInstances = <TData = Common.TaskInstan
 * @param data.taskId
 * @param data.taskTryNumber
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceHistoryResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetTaskInstanceTryDetails = <TData = Common.TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }: {
+export const useTaskInstanceServiceGetTaskInstanceTryDetails = <TData = Common.TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   taskTryNumber: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }, queryKey), queryFn: () => TaskInstanceService.getTaskInstanceTryDetails({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }, queryKey), queryFn: () => TaskInstanceService.getTaskInstanceTryDetails({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }) as TData, ...options });
 /**
 * Get Mapped Task Instance Try Details
 * @param data The data for the request.
@@ -1448,16 +1525,20 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetails = <TData = Common.T
 * @param data.taskId
 * @param data.taskTryNumber
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskInstanceHistoryResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetMappedTaskInstanceTryDetails = <TData = Common.TaskInstanceServiceGetMappedTaskInstanceTryDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }: {
+export const useTaskInstanceServiceGetMappedTaskInstanceTryDetails = <TData = Common.TaskInstanceServiceGetMappedTaskInstanceTryDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   taskTryNumber: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstanceTryDetails({ dagId, dagRunId, mapIndex, taskId, taskTryNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }, queryKey), queryFn: () => TaskInstanceService.getMappedTaskInstanceTryDetails({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskTryNumber }) as TData, ...options });
 /**
 * Get Log
 * Get logs for a specific task instance.
@@ -1467,22 +1548,26 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTryDetails = <TData = Co
 * @param data.taskId
 * @param data.tryNumber
 * @param data.fullContent
-* @param data.mapIndex
 * @param data.token
+* @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.accept
 * @returns TaskInstancesLogResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetLog = <TData = Common.TaskInstanceServiceGetLogDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber }: {
+export const useTaskInstanceServiceGetLog = <TData = Common.TaskInstanceServiceGetLogDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ accept, dagId, dagRunId, fullContent, mapIndex, regionId, regionIndex, taskId, token, tryNumber }: {
   accept?: "application/json" | "*/*" | "application/x-ndjson";
   dagId: string;
   dagRunId: string;
   fullContent?: boolean;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   token?: string;
   tryNumber: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetLogKeyFn({ accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getLog({ accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetLogKeyFn({ accept, dagId, dagRunId, fullContent, mapIndex, regionId, regionIndex, taskId, token, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getLog({ accept, dagId, dagRunId, fullContent, mapIndex, regionId, regionIndex, taskId, token, tryNumber }) as TData, ...options });
 /**
 * Get External Log Url
 * Get external log URL for a specific task instance.
@@ -1492,16 +1577,20 @@ export const useTaskInstanceServiceGetLog = <TData = Common.TaskInstanceServiceG
 * @param data.taskId
 * @param data.tryNumber
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns ExternalLogUrlResponse Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetExternalLogUrl = <TData = Common.TaskInstanceServiceGetExternalLogUrlDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const useTaskInstanceServiceGetExternalLogUrl = <TData = Common.TaskInstanceServiceGetExternalLogUrlDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   tryNumber: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }) as TData, ...options });
 /**
 * Get Hitl Detail
 * Get a Human-in-the-loop detail of a specific task instance.
@@ -1510,15 +1599,19 @@ export const useTaskInstanceServiceGetExternalLogUrl = <TData = Common.TaskInsta
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns HITLDetail Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetHitlDetail = <TData = Common.TaskInstanceServiceGetHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId }: {
+export const useTaskInstanceServiceGetHitlDetail = <TData = Common.TaskInstanceServiceGetHitlDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getHitlDetail({ dagId, dagRunId, mapIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskInstanceService.getHitlDetail({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Hitl Detail Try Detail
 * Get a Human-in-the-loop detail of a specific task instance.
@@ -1528,22 +1621,28 @@ export const useTaskInstanceServiceGetHitlDetail = <TData = Common.TaskInstanceS
 * @param data.taskId
 * @param data.mapIndex
 * @param data.tryNumber
+* @param data.regionId
+* @param data.regionIndex
 * @returns HITLDetailHistory Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetHitlDetailTryDetail = <TData = Common.TaskInstanceServiceGetHitlDetailTryDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+export const useTaskInstanceServiceGetHitlDetailTryDetail = <TData = Common.TaskInstanceServiceGetHitlDetailTryDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   tryNumber: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailTryDetailKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getHitlDetailTryDetail({ dagId, dagRunId, mapIndex, taskId, tryNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailTryDetailKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }, queryKey), queryFn: () => TaskInstanceService.getHitlDetailTryDetail({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }) as TData, ...options });
 /**
 * Get Hitl Details
 * Get Human-in-the-loop details.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
+* @param data.regionId
+* @param data.regionIndex
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
@@ -1567,7 +1666,7 @@ export const useTaskInstanceServiceGetHitlDetailTryDetail = <TData = Common.Task
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetHitlDetails = <TData = Common.TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }: {
+export const useTaskInstanceServiceGetHitlDetails = <TData = Common.TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, regionId, regionIndex, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }: {
   bodySearch?: string;
   createdAtGt?: string;
   createdAtGte?: string;
@@ -1581,6 +1680,8 @@ export const useTaskInstanceServiceGetHitlDetails = <TData = Common.TaskInstance
   mapIndex?: number;
   offset?: number;
   orderBy?: string[];
+  regionId?: string;
+  regionIndex?: number;
   respondedByUserId?: string[];
   respondedByUserName?: string[];
   responseReceived?: boolean;
@@ -1590,7 +1691,7 @@ export const useTaskInstanceServiceGetHitlDetails = <TData = Common.TaskInstance
   taskIdPattern?: string;
   taskIdPrefixPattern?: string;
   teams?: string[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }, queryKey), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, regionId, regionIndex, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }, queryKey), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, regionId, regionIndex, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }) as TData, ...options });
 /**
 * Get Import Error
 * Get an import error.
@@ -1767,19 +1868,23 @@ export const useAssetStateStoreServiceGetAssetStateStore = <TData = Common.Asset
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.limit
 * @param data.offset
 * @returns TaskStateStoreCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskStateStoreServiceListTaskStateStore = <TData = Common.TaskStateStoreServiceListTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, taskId }: {
+export const useTaskStateStoreServiceListTaskStateStore = <TData = Common.TaskStateStoreServiceListTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number;
   offset?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId }, queryKey), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Task State Store
 * Get a single task state store entry.
@@ -1789,16 +1894,20 @@ export const useTaskStateStoreServiceListTaskStateStore = <TData = Common.TaskSt
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns TaskStateStoreResponse Successful Response
 * @throws ApiError
 */
-export const useTaskStateStoreServiceGetTaskStateStore = <TData = Common.TaskStateStoreServiceGetTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, key, mapIndex, taskId }: {
+export const useTaskStateStoreServiceGetTaskStateStore = <TData = Common.TaskStateStoreServiceGetTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceGetTaskStateStoreKeyFn({ dagId, dagRunId, key, mapIndex, taskId }, queryKey), queryFn: () => TaskStateStoreService.getTaskStateStore({ dagId, dagRunId, key, mapIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceGetTaskStateStoreKeyFn({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskStateStoreService.getTaskStateStore({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Xcom Entry
 * Get an XCom entry.
@@ -1808,20 +1917,24 @@ export const useTaskStateStoreServiceGetTaskStateStore = <TData = Common.TaskSta
 * @param data.dagRunId
 * @param data.xcomKey
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.deserialize
 * @param data.stringify
 * @returns unknown Successful Response
 * @throws ApiError
 */
-export const useXcomServiceGetXcomEntry = <TData = Common.XcomServiceGetXcomEntryDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey }: {
+export const useXcomServiceGetXcomEntry = <TData = Common.XcomServiceGetXcomEntryDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, deserialize, mapIndex, regionId, regionIndex, stringify, taskId, xcomKey }: {
   dagId: string;
   dagRunId: string;
   deserialize?: boolean;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   stringify?: boolean;
   taskId: string;
   xcomKey: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntryKeyFn({ dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey }, queryKey), queryFn: () => XcomService.getXcomEntry({ dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntryKeyFn({ dagId, dagRunId, deserialize, mapIndex, regionId, regionIndex, stringify, taskId, xcomKey }, queryKey), queryFn: () => XcomService.getXcomEntry({ dagId, dagRunId, deserialize, mapIndex, regionId, regionIndex, stringify, taskId, xcomKey }) as TData, ...options });
 /**
 * Get Xcom Entries
 * Get all XCom entries.
@@ -1833,6 +1946,8 @@ export const useXcomServiceGetXcomEntry = <TData = Common.XcomServiceGetXcomEntr
 * @param data.taskId
 * @param data.xcomKey
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @param data.limit
 * @param data.offset
 * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -1853,11 +1968,11 @@ export const useXcomServiceGetXcomEntry = <TData = Common.XcomServiceGetXcomEntr
 * @param data.runAfterLte
 * @param data.runAfterLt
 * @param data.teams
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, region_id, region_index, timestamp, run_after`
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }: {
+export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }: {
   dagDisplayNamePattern?: string;
   dagDisplayNamePrefixPattern?: string;
   dagId: string;
@@ -1871,6 +1986,8 @@ export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEn
   mapIndexFilter?: number;
   offset?: number;
   orderBy?: string[];
+  regionId?: string;
+  regionIndex?: number;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
@@ -1884,7 +2001,7 @@ export const useXcomServiceGetXcomEntries = <TData = Common.XcomServiceGetXcomEn
   xcomKey?: string;
   xcomKeyPattern?: string;
   xcomKeyPrefixPattern?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }) as TData, ...options });
 /**
 * Get Tasks
 * Get tasks for Dag.
@@ -2745,6 +2862,8 @@ export const useAssetStateStoreServiceSetAssetStateStore = <TData = Common.Asset
 * @param data.taskId
 * @param data.requestBody
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -2753,6 +2872,8 @@ export const useTaskStateStoreServiceSetTaskStateStore = <TData = Common.TaskSta
   dagRunId: string;
   key: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   requestBody: TaskStateStoreBody;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
@@ -2760,9 +2881,11 @@ export const useTaskStateStoreServiceSetTaskStateStore = <TData = Common.TaskSta
   dagRunId: string;
   key: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   requestBody: TaskStateStoreBody;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) => TaskStateStoreService.setTaskStateStore({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, requestBody, taskId }) => TaskStateStoreService.setTaskStateStore({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Reparse Dag File
 * Request re-parsing a Dag file.
@@ -3148,6 +3271,8 @@ export const useTaskInstanceServicePatchTaskInstanceDryRun = <TData = Common.Tas
 * @param data.taskId
 * @param data.mapIndex
 * @param data.requestBody
+* @param data.regionId
+* @param data.regionIndex
 * @returns HITLDetailResponse Successful Response
 * @throws ApiError
 */
@@ -3155,15 +3280,19 @@ export const useTaskInstanceServiceUpdateHitlDetail = <TData = Common.TaskInstan
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   requestBody: UpdateHITLDetailPayload;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  regionId?: string;
+  regionIndex?: number;
   requestBody: UpdateHITLDetailPayload;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId }) => TaskInstanceService.updateHitlDetail({ dagId, dagRunId, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, regionId, regionIndex, requestBody, taskId }) => TaskInstanceService.updateHitlDetail({ dagId, dagRunId, mapIndex, regionId, regionIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Pool
 * Update a Pool.
@@ -3206,6 +3335,8 @@ export const usePoolServiceBulkPools = <TData = Common.PoolServiceBulkPoolsMutat
 * @param data.taskId
 * @param data.requestBody
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns unknown Successful Response
 * @throws ApiError
 */
@@ -3214,6 +3345,8 @@ export const useTaskStateStoreServicePatchTaskStateStore = <TData = Common.TaskS
   dagRunId: string;
   key: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   requestBody: TaskStateStorePatchBody;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
@@ -3221,9 +3354,11 @@ export const useTaskStateStoreServicePatchTaskStateStore = <TData = Common.TaskS
   dagRunId: string;
   key: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   requestBody: TaskStateStorePatchBody;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) => TaskStateStoreService.patchTaskStateStore({ dagId, dagRunId, key, mapIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, requestBody, taskId }) => TaskStateStoreService.patchTaskStateStore({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, requestBody, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Update Xcom Entry
 * Update an existing XCom entry.
@@ -3381,6 +3516,8 @@ export const useDagServiceDeleteDag = <TData = Common.DagServiceDeleteDagMutatio
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns unknown Successful Response
 * @throws ApiError
 */
@@ -3388,13 +3525,17 @@ export const useTaskInstanceServiceDeleteTaskInstance = <TData = Common.TaskInst
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, taskId }) => TaskInstanceService.deleteTaskInstance({ dagId, dagRunId, mapIndex, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) => TaskInstanceService.deleteTaskInstance({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Pool
 * Delete a pool entry.
@@ -3447,8 +3588,10 @@ export const useAssetStateStoreServiceDeleteAssetStateStore = <TData = Common.As
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
-* @param data.allMapIndices
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
+* @param data.allMapIndices
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -3457,14 +3600,18 @@ export const useTaskStateStoreServiceClearTaskStateStore = <TData = Common.TaskS
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   allMapIndices?: boolean;
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, TContext>({ mutationFn: ({ allMapIndices, dagId, dagRunId, mapIndex, taskId }) => TaskStateStoreService.clearTaskStateStore({ allMapIndices, dagId, dagRunId, mapIndex, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ allMapIndices, dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) => TaskStateStoreService.clearTaskStateStore({ allMapIndices, dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Task State Store
 * Delete a single task state store key. No-op if the key does not exist.
@@ -3474,6 +3621,8 @@ export const useTaskStateStoreServiceClearTaskStateStore = <TData = Common.TaskS
 * @param data.dagRunId
 * @param data.taskId
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -3482,14 +3631,18 @@ export const useTaskStateStoreServiceDeleteTaskStateStore = <TData = Common.Task
   dagRunId: string;
   key: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
   key: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, taskId }) => TaskStateStoreService.deleteTaskStateStore({ dagId, dagRunId, key, mapIndex, taskId }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, taskId }) => TaskStateStoreService.deleteTaskStateStore({ dagId, dagRunId, key, mapIndex, regionId, regionIndex, taskId }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Xcom Entry
 * Delete an XCom entry.
@@ -3499,6 +3652,8 @@ export const useTaskStateStoreServiceDeleteTaskStateStore = <TData = Common.Task
 * @param data.dagRunId
 * @param data.xcomKey
 * @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -3506,15 +3661,19 @@ export const useXcomServiceDeleteXcomEntry = <TData = Common.XcomServiceDeleteXc
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   xcomKey: string;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
   mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId: string;
   xcomKey: string;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, taskId, xcomKey }) => XcomService.deleteXcomEntry({ dagId, dagRunId, mapIndex, taskId, xcomKey }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, xcomKey }) => XcomService.deleteXcomEntry({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, xcomKey }) as unknown as Promise<TData>, ...options });
 /**
 * Delete Variable
 * Delete a variable entry.

@@ -14,39 +14,53 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 from datetime import datetime
 from uuid import UUID
+
+from pydantic import Field
 
 from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import TaskInstanceState
 
 
-class GanttTaskInstance(OmitsMissingRegion, BaseModel):
-    """Task instance data for Gantt chart."""
+class ExecutionTaskResponse(OmitsMissingRegion, BaseModel):
+    """A task try together with the coordinates that address it exactly."""
 
     id: UUID
+    dag_id: str
+    run_id: str = Field(alias="dag_run_id")
+    task_id: str
+    task_display_name: str
     region_id: RegionId = None
     region_index: RegionIndex = None
     map_index: int
-    task_id: str
-    task_display_name: str
     try_number: int
     state: TaskInstanceState | None
-    scheduled_dttm: datetime | None
-    queued_dttm: datetime | None
     start_date: datetime | None
     end_date: datetime | None
-    is_group: bool = False
-    is_mapped: bool = False
+    duration: float | None
+    dag_version_id: UUID | None
+    operator: str | None
+    note: str | None = None
 
 
-class GanttResponse(BaseModel):
-    """Response for Gantt chart endpoint."""
+class ExecutionRegionResponse(BaseModel):
+    """Immutable region structure for interpreting task coordinates."""
 
-    dag_id: str
-    run_id: str
-    task_instances: list[GanttTaskInstance]
+    id: UUID
+    node_id: str
+    parent_region_id: UUID | None
+    parent_region_index: int | None
+    forked_from_region_id: UUID | None
+    resumes_from_index: int
+
+
+class ExecutionCollectionResponse(BaseModel):
+    """A page of task executions with their region ancestry."""
+
+    task_instances: list[ExecutionTaskResponse]
+    regions: list[ExecutionRegionResponse]
+    total_entries: int

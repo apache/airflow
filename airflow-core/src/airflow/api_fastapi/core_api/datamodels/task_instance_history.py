@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated, cast
+from uuid import UUID
 
 from pydantic import (
     AliasPath,
@@ -27,14 +28,16 @@ from pydantic import (
 )
 
 from airflow._shared.secrets_masker import redact
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.utils.state import TaskInstanceState
 
 
-class TaskInstanceHistoryResponse(BaseModel):
+class TaskInstanceHistoryResponse(OmitsMissingRegion, BaseModel):
     """TaskInstanceHistory serializer for responses."""
 
+    id: UUID
     task_id: str
     dag_id: str
 
@@ -42,6 +45,8 @@ class TaskInstanceHistoryResponse(BaseModel):
     run_id: str = Field(alias="dag_run_id")
 
     map_index: int
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     start_date: datetime | None
     end_date: datetime | None
     duration: float | None
@@ -64,6 +69,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
     dag_version: DagVersionResponse | None
+    note: str | None = None
     state_reason: str | None = Field(
         default=None,
         validation_alias="retry_reason",

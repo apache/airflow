@@ -19,20 +19,24 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import AliasPath, Field, field_validator
 
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 
 
-class XComResponse(BaseModel):
+class XComResponse(OmitsMissingRegion, BaseModel):
     """Serializer for a xcom item."""
 
     key: str
     timestamp: datetime
     logical_date: datetime | None
     map_index: int
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     task_id: str
     dag_id: str
     run_id: str
@@ -105,6 +109,8 @@ class XComCreateBody(StrictBaseModel):
     key: str
     value: Any
     map_index: int = -1
+    region_id: UUID | None = None
+    region_index: int | None = Field(default=None, ge=-1)
 
     @field_validator("value")
     @classmethod
@@ -117,6 +123,8 @@ class XComUpdateBody(StrictBaseModel):
 
     value: Any
     map_index: int = -1
+    region_id: UUID | None = None
+    region_index: int | None = Field(default=None, ge=-1)
 
     @field_validator("value")
     @classmethod
