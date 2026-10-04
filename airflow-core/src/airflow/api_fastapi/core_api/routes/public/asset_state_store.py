@@ -162,7 +162,7 @@ def get_asset_state_store(
 @asset_state_store_router.put(
     "/{key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="PUT"))],
 )
 def set_asset_state_store(
@@ -172,19 +172,22 @@ def set_asset_state_store(
     session: SessionDep,
 ) -> None:
     """Set an asset state store value. Creates or overwrites the key."""
-    _get_db_backend().set_asset_state_store(
-        AssetScope(asset_id=asset_id),
-        key,
-        json.dumps(body.value),
-        kind=AssetStateStoreWriterKind.API,
-        session=session,
-    )
+    try:
+        _get_db_backend().set_asset_state_store(
+            AssetScope(asset_id=asset_id),
+            key,
+            json.dumps(body.value),
+            kind=AssetStateStoreWriterKind.API,
+            session=session,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @asset_state_store_router.delete(
     "/{key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="DELETE"))],
 )
 def delete_asset_state_store(
@@ -193,13 +196,16 @@ def delete_asset_state_store(
     session: SessionDep,
 ) -> None:
     """Delete a single asset state store key. No-op if the key does not exist."""
-    _get_db_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
+    try:
+        _get_db_backend().delete(AssetScope(asset_id=asset_id), key, session=session)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @asset_state_store_router.delete(
     "",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="DELETE"))],
 )
 def clear_asset_state_store(
@@ -207,4 +213,7 @@ def clear_asset_state_store(
     session: SessionDep,
 ) -> None:
     """Delete all state store keys for an asset."""
-    _get_db_backend().clear(AssetScope(asset_id=asset_id), session=session)
+    try:
+        _get_db_backend().clear(AssetScope(asset_id=asset_id), session=session)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
