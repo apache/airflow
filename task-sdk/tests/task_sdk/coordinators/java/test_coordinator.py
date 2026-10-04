@@ -24,14 +24,14 @@ import pathlib
 import re
 import socket
 import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from task_sdk.coordinators.java._jar_test_utils import make_jar
 from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
-from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
+from airflow.sdk.coordinators._subprocess import TASK_HANDLER_PARSING_SCHEMA_VERSION, _PopenActivitySubprocess
 from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _calculate_classpath,
@@ -150,8 +150,10 @@ class TestCalculateClasspath:
 
 class TestMainJar:
     def test_returns_main_class_from_jar(self, tmp_path):
-        _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main", schema_version="2026-06-16")
-        assert _JarInfo.find([tmp_path], "") == _JarInfo("com.example.Main", "2026-06-16")
+        jar = _make_jar(
+            tmp_path.joinpath("app.jar"), main_class="com.example.Main", schema_version="2026-06-16"
+        )
+        assert _JarInfo.find([tmp_path], "") == _JarInfo(jar.resolve(), "com.example.Main", "2026-06-16")
 
     def test_no_jars_raises_file_not_found(self, tmp_path):
         with pytest.raises(FileNotFoundError, match=re.escape(str(tmp_path.resolve()))):
@@ -170,22 +172,27 @@ class TestMainJar:
 
     def test_non_jar_files_skipped(self, tmp_path):
         tmp_path.joinpath("readme.txt").write_bytes(b"not a jar")
-        _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.Main", schema_version="2026-06-16")
-        assert _JarInfo.find([tmp_path], "") == _JarInfo("com.example.Main", "2026-06-16")
+        jar = _make_jar(
+            tmp_path.joinpath("app.jar"), main_class="com.example.Main", schema_version="2026-06-16"
+        )
+        assert _JarInfo.find([tmp_path], "") == _JarInfo(jar.resolve(), "com.example.Main", "2026-06-16")
 
     def test_first_jar_missing_main_class_falls_through_to_second(self, tmp_path):
         # Alphabetically: a.jar (no Main-Class), b.jar (has Main-Class).
         _make_jar(tmp_path.joinpath("a.jar"), main_class=None)
-        _make_jar(tmp_path.joinpath("b.jar"), main_class="com.example.Fallback", schema_version="2026-06-16")
-        assert _JarInfo.find([tmp_path], "") == _JarInfo("com.example.Fallback", "2026-06-16")
+        jar = _make_jar(
+            tmp_path.joinpath("b.jar"), main_class="com.example.Fallback", schema_version="2026-06-16"
+        )
+        assert _JarInfo.find([tmp_path], "") == _JarInfo(jar.resolve(), "com.example.Fallback", "2026-06-16")
 
     def test_fully_qualified_class_name_preserved(self, tmp_path):
-        _make_jar(
+        jar = _make_jar(
             tmp_path.joinpath("app.jar"),
             main_class="org.apache.airflow.sdk.java.TaskRunner",
             schema_version="2026-06-16",
         )
         assert _JarInfo.find([tmp_path], "") == _JarInfo(
+            path=jar.resolve(),
             main_class="org.apache.airflow.sdk.java.TaskRunner",
             schema_version="2026-06-16",
         )
@@ -206,7 +213,7 @@ class TestMainJar:
     def test_symlink_cycle_does_not_infinite_recurse(self, tmp_path):
         nested = tmp_path / "inner"
         nested.mkdir()
-        _make_jar(nested / "app.jar", main_class="com.example.Loop", schema_version="2026-06-16")
+        jar = _make_jar(nested / "app.jar", main_class="com.example.Loop", schema_version="2026-06-16")
         loop = nested / "loop"
         try:
             loop.symlink_to(tmp_path)
@@ -214,7 +221,31 @@ class TestMainJar:
             pytest.skip("symlinks not supported on this platform")
 
         result = _JarInfo.find([tmp_path], "com.example.Loop")
-        assert result == _JarInfo("com.example.Loop", "2026-06-16")
+        assert result == _JarInfo(jar.resolve(), "com.example.Loop", "2026-06-16")
+
+    @pytest.mark.parametrize(
+        ("app", "sdk"),
+        [
+            pytest.param("app.jar", "libs/airflow-sdk.jar", id="main-class-first"),
+            pytest.param("x-app.jar", "airflow-sdk.jar", id="schema-version-first"),
+        ],
+    )
+    def test_records_the_jar_that_sets_the_main_class(self, tmp_path, app, sdk):
+        # A thin JAR leaves the schema version to the airflow-sdk JAR, and the scan stops at whichever
+        # comes second.
+        tmp_path.joinpath("libs").mkdir()
+        jar = _make_jar(tmp_path / app, main_class="com.example.App")
+        _make_jar(tmp_path / sdk, main_class=None, schema_version="2026-10-30")
+
+        assert _JarInfo.find([tmp_path], "") == _JarInfo(jar.resolve(), "com.example.App", "2026-10-30")
+
+    def test_for_jar_records_the_jar_it_runs(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.App")
+        _make_jar(tmp_path / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
+
+        assert _JarInfo.for_jar([tmp_path], jar, "com.example.App", None) == _JarInfo(
+            jar.resolve(), "com.example.App", "2026-10-30"
+        )
 
 
 class TestWalkJars:
@@ -672,3 +703,182 @@ class TestBuildParseDagCommand:
             "--comm=127.0.0.1:1001",
             "--logs=127.0.0.1:1002",
         ]
+
+
+class TestFindTaskHandlerArtifact:
+    @pytest.mark.parametrize("dag_id", ["etl", "another_dag"])
+    def test_finds_the_jar_whose_main_class_a_task_runs(self, tmp_path, dag_id):
+        # A task runs the Main-Class the scan picks, whatever its Dag, so the Dag id plays no part.
+        jar = _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-10-30")
+        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-06-16")
+        coordinator = JavaCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id=dag_id))
+
+        artifact = coordinator._find_task_handler_artifact(bundle_path=tmp_path, dag_id=dag_id)
+
+        assert command[-1] == "com.example.A"
+        assert artifact.path == jar.resolve()
+        assert artifact.schema_version == schema_version
+
+    def test_finds_the_jar_of_the_configured_main_class(self, tmp_path):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-10-30")
+        jar = _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
+
+        artifact = JavaCoordinator(main_class="com.example.B")._find_task_handler_artifact(
+            bundle_path=tmp_path, dag_id="etl"
+        )
+
+        assert artifact.path == jar.resolve()
+
+    def test_finds_a_thin_jar_whose_schema_version_another_jar_sets(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.App")
+        (tmp_path / "libs").mkdir()
+        _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
+
+        artifact = JavaCoordinator()._find_task_handler_artifact(bundle_path=tmp_path, dag_id="etl")
+
+        assert artifact.path == jar.resolve()
+        assert artifact.schema_version == "2026-10-30"
+
+    def test_resolves_a_symlinked_bundle_root(self, tmp_path):
+        real = tmp_path / "real"
+        (real / "team-a").mkdir(parents=True)
+        target = _make_jar(
+            real / "team-a" / "app.jar", main_class="com.example.App", schema_version="2026-10-30"
+        )
+        root = tmp_path / "bundle"
+        try:
+            root.symlink_to(real, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not supported on this platform")
+
+        artifact = JavaCoordinator()._find_task_handler_artifact(bundle_path=root, dag_id="etl")
+
+        assert artifact.path == target.resolve()
+        assert artifact.path.relative_to(root.resolve()) == pathlib.Path("team-a", "app.jar")
+
+    @pytest.mark.parametrize(
+        ("main_class", "schema_version", "error", "match"),
+        [
+            pytest.param(
+                None, "2026-10-30", FileNotFoundError, "with Main-Class metadata", id="no-main-class"
+            ),
+            pytest.param(
+                "com.example.App",
+                None,
+                FileNotFoundError,
+                "Airflow-Supervisor-Schema-Version",
+                id="no-version",
+            ),
+            pytest.param(
+                "com.example.App",
+                "1999-01-01",
+                ValueError,
+                "not found in supervisor schema",
+                id="unknown-version",
+            ),
+        ],
+    )
+    def test_raises_when_a_task_finds_no_jar_it_can_run(
+        self, tmp_path, main_class, schema_version, error, match
+    ):
+        _make_jar(tmp_path / "app.jar", main_class=main_class, schema_version=schema_version)
+
+        with pytest.raises(error, match=match):
+            JavaCoordinator()._find_task_handler_artifact(bundle_path=tmp_path, dag_id="etl")
+
+
+class TestBuildParseTaskHandlerCommand:
+    def _build(self, coordinator: JavaCoordinator, root: pathlib.Path, path: pathlib.Path):
+        with coordinator._set_scan_roots([root]):
+            return coordinator._build_parse_task_handler_command(path=path)
+
+    def test_runs_the_command_a_task_runs(self, tmp_path):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-10-30")
+        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
+        (tmp_path / "lib").mkdir()
+        _make_jar(tmp_path / "lib" / "dep.jar", main_class=None)
+        coordinator = JavaCoordinator(java_executable="/opt/java/bin/java", jvm_args=["-Xmx1g"])
+        artifact = coordinator._find_task_handler_artifact(bundle_path=tmp_path, dag_id="etl")
+        with coordinator._set_scan_roots([tmp_path]):
+            task = coordinator._build_execute_task_command(what=_make_ti())
+
+        command, schema_version = self._build(coordinator, tmp_path, artifact.path)
+
+        classpath = os.pathsep.join(
+            (tmp_path / name).as_posix() for name in ("a.jar", "b.jar", "lib/dep.jar")
+        )
+        assert command == ["/opt/java/bin/java", "-classpath", classpath, "-Xmx1g", "com.example.A"]
+        assert (command, schema_version) == task
+
+    def test_scans_the_scan_roots_and_not_the_directory_of_the_jar(self, tmp_path):
+        (tmp_path / "app").mkdir()
+        (tmp_path / "libs").mkdir()
+        jar = _make_jar(tmp_path / "app" / "app.jar", main_class="com.example.App")
+        _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
+        coordinator = JavaCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            task = coordinator._build_execute_task_command(what=_make_ti())
+
+        assert self._build(coordinator, tmp_path, jar) == task
+
+    def test_runs_the_configured_main_class(self, tmp_path):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-10-30")
+        jar = _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
+
+        command, _ = self._build(JavaCoordinator(main_class="com.example.B"), tmp_path, jar)
+
+        assert command[-1] == "com.example.B"
+
+    def test_a_thin_jar_takes_the_schema_version_from_the_sdk_jar(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.App")
+        _make_jar(tmp_path / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
+
+        command, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
+
+        assert command[-1] == "com.example.App"
+        assert schema_version == "2026-10-30"
+
+    def test_runs_a_main_class_that_two_jars_set_as_a_task_does(self, tmp_path):
+        # A native Dag's own command rejects this, but a task runs it, so the probe does too.
+        new = _make_jar(tmp_path / "etl-new.jar", main_class="com.example.A", schema_version="2026-10-30")
+        _make_jar(tmp_path / "etl-old.jar", main_class="com.example.A", schema_version="2026-10-30")
+        coordinator = JavaCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            task = coordinator._build_execute_task_command(what=_make_ti())
+
+        assert self._build(coordinator, tmp_path, new) == task
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch(
+        "airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec failed")
+    )
+    def test_the_probe_execs_what_a_task_runs(
+        self, mock_execvpe, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        _make_jar(tmp_path / "app.jar", main_class="com.example.App")
+        _make_jar(
+            tmp_path / "airflow-sdk.jar", main_class=None, schema_version=TASK_HANDLER_PARSING_SCHEMA_VERSION
+        )
+        coordinator = JavaCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, _ = coordinator._build_execute_task_command(what=_make_ti())
+        artifact = coordinator._find_task_handler_artifact(bundle_path=tmp_path, dag_id="etl")
+        reported: list[str | None] = []
+
+        with pytest.raises(OSError, match="exec failed"):
+            coordinator.parse_task_handler(
+                path=artifact.path,
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=reported.append,
+            )
+
+        assert reported == [TASK_HANDLER_PARSING_SCHEMA_VERSION]
+        mock_execvpe.assert_called_once_with(
+            command[0], [*command, "--comm=127.0.0.1:1001", "--logs=127.0.0.1:1002"], ANY
+        )

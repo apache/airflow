@@ -28,7 +28,10 @@ from typing import TYPE_CHECKING, Final
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import validate_schema_version
+from airflow.sdk.coordinators._bundle_metadata import (
+    ResolvedBundle,
+    validate_schema_version,
+)
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.coordinators.java._jar_manifest import (
     MAIN_CLASS,
@@ -131,18 +134,29 @@ def _read_executable_jar(path: pathlib.Path) -> tuple[str, str | None]:
 
 @attrs.define
 class _JarInfo:
+    """
+    How to run a Dag bundle's executable JAR.
+
+    *path* is the JAR that sets *main_class*, with symlinks in its path resolved. The scan stops once it
+    has a Main-Class and a schema version, so when two JARs set the same Main-Class, *path* can name the
+    later one while the classpath loads the earlier one. The probe still runs the task's own command.
+    *schema_version* can come from another JAR, such as the ``airflow-sdk`` JAR beside a thin JAR.
+    """
+
+    path: pathlib.Path
     main_class: str
     schema_version: str = attrs.field(validator=validate_schema_version)
 
     @attrs.define
     class _Progress:
+        path: pathlib.Path | None = attrs.field(init=False, default=None)
         main_class: str | None = attrs.field(init=False, default=None)
         schema_version: str | None = attrs.field(init=False, default=None)
 
         def collect(self) -> _JarInfo | None:
-            if self.main_class is None or self.schema_version is None:
+            if self.path is None or self.main_class is None or self.schema_version is None:
                 return None
-            return _JarInfo(self.main_class, self.schema_version)
+            return _JarInfo(self.path, self.main_class, self.schema_version)
 
     @classmethod
     def for_jar(
@@ -173,7 +187,7 @@ class _JarInfo:
                 "cannot find a JAR with Airflow-Supervisor-Schema-Version metadata in "
                 + os.pathsep.join(os.fspath(p.resolve()) for p in roots)
             )
-        return cls(main_class, schema_version)
+        return cls(target, main_class, schema_version)
 
     @classmethod
     def find(cls, roots: Sequence[pathlib.Path], main_class: str) -> _JarInfo:
@@ -184,6 +198,7 @@ class _JarInfo:
                 continue
             if metadata.main_class and ((main_class == metadata.main_class) or not main_class):
                 log.debug("JAR located with Main-Class metadata", path=p, main_class=metadata.main_class)
+                progress.path = p.resolve()
                 progress.main_class = metadata.main_class
             if metadata.schema_version:
                 log.debug(
@@ -238,7 +253,8 @@ class JavaCoordinator(SubprocessCoordinator):
     find an executable JAR (one with Main-Class set in its metadata). If more
     than one executable JAR is found, the first by path is executed, so set *main_class*
     when more than one JAR in the bundle declares Main-Class. A task of a native Java Dag
-    does not scan: it runs the JAR the Dag was parsed from.
+    does not scan: it runs the JAR the Dag was parsed from. Started with a task's command,
+    the JAR also answers a task handler parse request with the task handlers it registers.
 
     A JAR containing metadata *Airflow-Supervisor-Schema-Version* should also be
     available to specify the wire schema version. The JAR containing the Java
@@ -271,6 +287,22 @@ class JavaCoordinator(SubprocessCoordinator):
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         # Without main_class, the first executable JAR in path order wins; tracked at
         # https://github.com/apache/airflow/issues/71134
+        roots = self._get_scan_roots()
+        jar = _JarInfo.find(roots, self.main_class)
+        return self._build_command(roots, jar.main_class), jar.schema_version
+
+    def _find_task_handler_artifact(self, *, bundle_path: pathlib.Path, dag_id: str) -> ResolvedBundle:
+        """
+        Return the JAR that sets the Main-Class a task runs, with symlinks in its path resolved.
+
+        A task of any Dag runs that Main-Class, so *dag_id* plays no part. Compute the JAR's path in
+        the Dag bundle relative to ``bundle_path.resolve()``, since *bundle_path* may contain symlinks.
+        """
+        jar = _JarInfo.find([bundle_path], self.main_class)
+        return ResolvedBundle(jar.path, jar.schema_version)
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        # The command a task runs; *path* is the JAR that sets its Main-Class.
         roots = self._get_scan_roots()
         jar = _JarInfo.find(roots, self.main_class)
         return self._build_command(roots, jar.main_class), jar.schema_version
