@@ -409,8 +409,9 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
         env:
+          # Docker is bind-mounted from /mnt on AMD; write the archive on the root disk.
           SNAPSHOT_FILE: >-
-            /mnt/ci-image-snapshot-${{
+            ${{ runner.temp }}/ci-image-snapshot-${{
             inputs.platform == 'linux/amd64' && 'linux_amd64' || 'linux_arm64'
             }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst
         run: |
@@ -462,7 +463,7 @@ jobs:
           name: >-
             ci-image-snapshot-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{
             inputs.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
-          path: "/mnt/ci-image-snapshot-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst*"
+          path: "${{ runner.temp }}/ci-image-snapshot-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst*"
           if-no-files-found: 'error'
           compression-level: '0'
           retention-days: '2'
