@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import tempfile
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -638,17 +639,18 @@ def test_get_hook_lineage_does_not_create_collector(mock_created, mock_get_colle
 
 @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ caches the collector getter")
 class TestIsHookLineageCollectorCreatedAirflow32:
-    def test_false_when_collector_never_created(self):
+    def test_real_getter_is_cached(self):
         from airflow.sdk import lineage
 
-        lineage.get_hook_lineage_collector.cache_clear()
+        assert hasattr(lineage.get_hook_lineage_collector, "cache_info")
 
-        assert _is_hook_lineage_collector_created() is False
-
-    def test_true_when_collector_created(self):
-        with patch("airflow.sdk.lineage.get_hook_lineage_collector", autospec=True) as mock_getter:
-            mock_getter.cache_info.return_value = MagicMock(spec=["currsize"], currsize=1)
-
+    def test_tracks_whether_cached_getter_was_called(self):
+        # A test-local cache instead of clearing the real one: clearing it would let the next caller,
+        # possibly under ``mock_plugin_manager`` with no readers, cache a NoOpCollector for later tests.
+        getter = functools.cache(lambda: object())
+        with patch("airflow.sdk.lineage.get_hook_lineage_collector", new=getter):
+            assert _is_hook_lineage_collector_created() is False
+            getter()
             assert _is_hook_lineage_collector_created() is True
 
     def test_true_when_getter_is_not_cached(self):
