@@ -318,6 +318,13 @@ _DICT_PARAM_FIELD_BY_TASK = {
     "run_job_task": "job_parameters",
 }
 
+# Per-task parameter slots that the Databricks API rejects when combined with the dict-shaped field
+# above. ``python_wheel_task.parameters`` (positional CLI arguments) is mutually exclusive with
+# ``python_wheel_task.named_parameters``, so a task that already carries one must not receive the other.
+_TASK_PARAM_SLOTS_CONFLICTING_WITH_DICT_PARAM_FIELD = {
+    "python_wheel_task": ("parameters",),
+}
+
 # Parameter slots in run-now payload that Databricks API rejects when combined with job_parameters
 _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
     "notebook_params",
@@ -338,11 +345,21 @@ def _get_forwardable_dag_params(params: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _inject_airflow_params_into_task(task: dict, params: dict) -> None:
-    """Set dict-shaped per-task parameter fields from ``params`` if they are not already set."""
+    """
+    Set dict-shaped per-task parameter fields from ``params`` if they are not already set.
+
+    Injection is skipped when the task already carries a parameter slot that the Databricks API
+    does not allow alongside the dict-shaped field; see
+    ``_TASK_PARAM_SLOTS_CONFLICTING_WITH_DICT_PARAM_FIELD``.
+    """
     for task_key, field in _DICT_PARAM_FIELD_BY_TASK.items():
         task_def = task.get(task_key)
-        if isinstance(task_def, dict) and not task_def.get(field):
-            task_def[field] = dict(params)
+        if not isinstance(task_def, dict) or task_def.get(field):
+            continue
+        conflicting_slots = _TASK_PARAM_SLOTS_CONFLICTING_WITH_DICT_PARAM_FIELD.get(task_key, ())
+        if any(task_def.get(slot) for slot in conflicting_slots):
+            continue
+        task_def[field] = dict(params)
 
 
 def _inject_openlineage_context_into_task_parameters(task: dict, context: Context) -> None:
@@ -791,7 +808,9 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         ``sql_task.parameters``, ``run_job_task.job_parameters``. Tasks whose only parameter
         field is ``List[str]`` (``spark_jar_task``, ``spark_python_task``, ``spark_submit_task``)
         are skipped because there is no canonical mapping from a key/value dict to a positional
-        argument list. Params whose value is ``None`` are skipped.
+        argument list. A ``python_wheel_task`` that already has positional ``parameters`` is also
+        skipped, because the Databricks API rejects ``parameters`` together with
+        ``named_parameters``. Params whose value is ``None`` are skipped.
     """
 
     external_id_key = "databricks_run_id"
