@@ -18,27 +18,32 @@
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import re
 import socket
 import subprocess
-import zipfile
 from unittest.mock import MagicMock, patch
 
 import pytest
+from task_sdk.coordinators.java._jar_test_utils import make_jar
 from uuid6 import uuid7
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
 from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _calculate_classpath,
     _JarInfo,
+    _JarMetadata,
     _walk_jars,
 )
-from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
+from airflow.sdk.importers import reset_importer_registry
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_3_PLUS:
@@ -65,15 +70,50 @@ def _make_jar(
     schema_version: str | None = None,
 ) -> pathlib.Path:
     """Write a minimal JAR with (optionally) a Main-Class manifest entry."""
-    lines = ["Manifest-Version: 1.0"]
+    attributes = {"Manifest-Version": "1.0"}
     if main_class:
-        lines.append(f"Main-Class: {main_class}")
+        attributes["Main-Class"] = main_class
     if schema_version:
-        lines.append(f"Airflow-Supervisor-Schema-Version: {schema_version}")
-    manifest = "\n".join(lines) + "\n\n"
-    with zipfile.ZipFile(path, "w") as zf:
-        zf.writestr("META-INF/MANIFEST.MF", manifest)
-    return path
+        attributes["Airflow-Supervisor-Schema-Version"] = schema_version
+    return make_jar(path, attributes=attributes)
+
+
+class TestJarMetadata:
+    def test_reads_a_folded_main_class(self, tmp_path):
+        main_class = "org.apache.airflow.example.nativedag.generated.VeryLongNativeDagBundleBuilder"
+        jar = make_jar(tmp_path / "app.jar", attributes={"Main-Class": main_class})
+
+        assert _JarMetadata.from_jar(jar) == _JarMetadata(main_class, None)
+
+    def test_jar_without_manifest_gives_none(self, tmp_path):
+        jar = make_jar(tmp_path / "lib.jar", entries={"com/example/Lib.class": b"\xca\xfe"})
+
+        assert _JarMetadata.from_jar(jar) is None
+
+    def test_non_zip_gives_none(self, tmp_path):
+        jar = tmp_path / "broken.jar"
+        jar.write_bytes(b"not a zip")
+
+        assert _JarMetadata.from_jar(jar) is None
+
+    @pytest.mark.parametrize("kind", ["missing", "directory"])
+    def test_unreadable_jar_gives_none(self, tmp_path, kind):
+        jar = tmp_path / "gone.jar"
+        if kind == "directory":
+            jar.mkdir()
+
+        assert _JarMetadata.from_jar(jar) is None
+
+    def test_permission_error_propagates(self, tmp_path):
+        jar = tmp_path / "locked.jar"
+        with (
+            patch(
+                "airflow.sdk.coordinators.java.coordinator.zipfile.ZipFile",
+                side_effect=PermissionError(13, "Permission denied", str(jar)),
+            ),
+            pytest.raises(PermissionError, match="locked.jar"),
+        ):
+            _JarMetadata.from_jar(jar)
 
 
 class TestCalculateClasspath:
@@ -401,3 +441,224 @@ class TestJavaCoordinatorExecuteTask:
 
         assert isinstance(result, BaseCoordinator.ExecutionResult)
         assert result.exit_code == 0
+
+
+class TestJavaCoordinatorExecuteNativeDag:
+    """With a JavaCoordinator configured, a task of a native Java Dag runs the JAR of its Dag."""
+
+    @pytest.fixture(autouse=True)
+    def _java_coordinator_config(self):
+        coordinators = {"java": {"classpath": "airflow.sdk.coordinators.java.JavaCoordinator"}}
+        reset_importer_registry()
+        with conf_vars({("sdk", "coordinators"): json.dumps(coordinators)}):
+            yield
+        reset_importer_registry()
+
+    @pytest.fixture
+    def mock_start(self, tmp_path):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
+        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
+        bundle = MagicMock(path=tmp_path, version="v1")
+        bundle.name = "dags-folder"
+        with (
+            patch("airflow.sdk.coordinators._subprocess._initialize_pinned_bundle", return_value=bundle),
+            patch("airflow.sdk.coordinators._subprocess.BundleVersionLock"),
+            patch.object(_PopenActivitySubprocess, "start") as mock_start,
+        ):
+            mock_start.return_value.wait.return_value = 0
+            yield mock_start
+
+    def _execute(self, rel_path: str, client, coordinator: JavaCoordinator | None = None):
+        return (coordinator or JavaCoordinator()).execute_task(
+            what=_make_ti(),
+            dag_rel_path=rel_path,
+            bundle_info=BundleInfo(name="dags-folder", version="v1"),
+            client=client,
+            subprocess_logs_to_stdout=False,
+        )
+
+    def test_runs_the_jar_of_the_dag_and_not_the_first_jar_by_path(self, mock_start, mock_client):
+        self._execute("b.jar", mock_client)
+
+        assert mock_start.call_args.kwargs["command"][-1] == "com.example.B"
+        assert mock_start.call_args.kwargs["subprocess_schema_version"] == "2026-10-30"
+
+    def test_a_task_of_a_python_dag_still_scans_the_bundle(self, mock_start, mock_client):
+        self._execute("dag.py", mock_client)
+
+        assert mock_start.call_args.kwargs["command"][-1] == "com.example.A"
+
+    def test_fails_without_starting_the_jvm_for_a_jar_the_coordinator_cannot_run(
+        self, mock_start, mock_client
+    ):
+        with pytest.raises(
+            TaskLaunchError, match="runs 'com.example.B', but .* main_class is 'com.example.A'"
+        ):
+            self._execute("b.jar", mock_client, JavaCoordinator(main_class="com.example.A"))
+
+        mock_start.assert_not_called()
+
+
+class TestBuildDagFileCommand:
+    def _build(self, coordinator: JavaCoordinator, root: pathlib.Path, jar: pathlib.Path):
+        with coordinator._set_scan_roots([root]):
+            return coordinator._build_dag_file_command(what=_make_ti(), path=jar)
+
+    @pytest.mark.parametrize("parsed", ["a.jar", "b.jar"])
+    def test_runs_the_main_class_of_the_jar_the_dag_was_parsed_from(self, tmp_path, parsed):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-10-30")
+        _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
+        coordinator = JavaCoordinator()
+
+        command, schema_version = self._build(coordinator, tmp_path, tmp_path / parsed)
+
+        expected = {"a.jar": "com.example.A", "b.jar": "com.example.B"}[parsed]
+        assert command[-1] == expected
+        assert schema_version == "2026-10-30"
+        with coordinator._set_scan_roots([tmp_path]):
+            assert coordinator._build_parse_dag_command(path=tmp_path / parsed) == (command, schema_version)
+
+    def test_runs_a_jar_whose_schema_version_is_too_old_to_parse(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16")
+
+        _, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
+
+        assert schema_version == "2026-06-16"
+
+    def test_rejects_a_jar_whose_main_class_differs_from_the_pinned_one(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Other", schema_version="2026-10-30")
+
+        with pytest.raises(ValueError, match="main_class is 'com.example.Dags'"):
+            self._build(JavaCoordinator(main_class="com.example.Dags"), tmp_path, jar)
+
+    def test_rejects_a_main_class_another_jar_sets(self, tmp_path):
+        new = _make_jar(tmp_path / "etl-new.jar", main_class="com.example.A", schema_version="2026-10-30")
+        _make_jar(tmp_path / "etl-old.jar", main_class="com.example.A", schema_version="2026-10-30")
+
+        with pytest.raises(ValueError, match="all set Main-Class 'com.example.A'"):
+            self._build(JavaCoordinator(), tmp_path, new)
+
+
+class TestBuildParseDagCommand:
+    def _build(self, coordinator: JavaCoordinator, root: pathlib.Path, jar: pathlib.Path):
+        with coordinator._set_scan_roots([root]):
+            return coordinator._build_parse_dag_command(path=jar)
+
+    def test_fat_jar(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
+        coordinator = JavaCoordinator(java_executable="/opt/java/bin/java", jvm_args=["-Xmx256m"])
+
+        command, schema_version = self._build(coordinator, tmp_path, jar)
+
+        assert command == ["/opt/java/bin/java", "-classpath", jar.as_posix(), "-Xmx256m", "com.example.Dags"]
+        assert schema_version == "2026-10-30"
+
+    def test_thin_jar_takes_the_schema_version_from_a_sibling(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags")
+        (tmp_path / "libs").mkdir()
+        sdk = _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
+
+        command, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
+
+        assert command[2].split(os.pathsep) == [jar.as_posix(), sdk.as_posix()]
+        assert command[-1] == "com.example.Dags"
+        assert schema_version == "2026-10-30"
+
+    def test_matches_the_execute_command(self, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
+        _make_jar(tmp_path / "dep.jar", main_class=None)
+        coordinator = JavaCoordinator(jvm_args=["-Xmx256m"])
+
+        parse = self._build(coordinator, tmp_path, jar)
+        with coordinator._set_scan_roots([tmp_path]):
+            execute = coordinator._build_execute_task_command(what=_make_ti())
+
+        assert parse == execute
+
+    def test_takes_the_schema_version_of_the_parsed_jar(self, tmp_path):
+        _make_jar(tmp_path / "a.jar", main_class="com.example.A", schema_version="2026-06-16")
+        jar = _make_jar(tmp_path / "b.jar", main_class="com.example.B", schema_version="2026-10-30")
+
+        _, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
+
+        assert schema_version == "2026-10-30"
+
+    @pytest.mark.parametrize("own", [True, False], ids=["own", "sibling"])
+    def test_rejects_a_schema_version_that_cannot_parse(self, tmp_path, own):
+        jar = _make_jar(
+            tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-06-16" if own else None
+        )
+        if not own:
+            _make_jar(tmp_path / "sdk.jar", main_class=None, schema_version="2026-06-16")
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                f"{jar} uses supervisor schema 2026-06-16, which cannot parse Dags; "
+                "rebuild it with a newer Java SDK or list it in .airflowignore"
+            ),
+        ):
+            self._build(JavaCoordinator(), tmp_path, jar)
+
+    def test_rejects_a_main_class_another_jar_sets(self, tmp_path):
+        new = _make_jar(tmp_path / "etl-new.jar", main_class="com.example.A", schema_version="2026-10-30")
+        old = _make_jar(tmp_path / "etl-old.jar", main_class="com.example.A", schema_version="2026-10-30")
+
+        with pytest.raises(ValueError, match="all set Main-Class 'com.example.A'") as excinfo:
+            self._build(JavaCoordinator(), tmp_path, new)
+
+        assert os.fspath(new) in str(excinfo.value)
+        assert os.fspath(old) in str(excinfo.value)
+        assert "Keep one in the bundle" in str(excinfo.value)
+
+    @pytest.mark.parametrize(
+        ("attributes", "match"),
+        [
+            pytest.param(None, "has no META-INF/MANIFEST.MF", id="no-manifest"),
+            pytest.param({"Manifest-Version": "1.0"}, "sets no Main-Class", id="no-main-class"),
+            pytest.param({"Main-Class": "com.example.Other"}, "main_class is 'com.example.Dags'", id="pin"),
+        ],
+    )
+    def test_rejects_a_jar_it_cannot_run(self, tmp_path, attributes, match):
+        jar = make_jar(tmp_path / "app.jar", attributes=attributes, entries={"a.class": b""})
+
+        with pytest.raises(ValueError, match=match):
+            self._build(JavaCoordinator(main_class="com.example.Dags"), tmp_path, jar)
+
+    def test_rejects_a_non_zip(self, tmp_path):
+        jar = tmp_path / "broken.jar"
+        jar.write_bytes(b"not a zip")
+
+        with pytest.raises(ValueError, match="broken.jar is not a valid JAR: File is not a zip file"):
+            self._build(JavaCoordinator(), tmp_path, jar)
+
+    def test_rejects_a_jar_deleted_after_discovery(self, tmp_path):
+        with pytest.raises(FileNotFoundError, match="gone.jar"):
+            self._build(JavaCoordinator(), tmp_path, tmp_path / "gone.jar")
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
+    def test_parse_dag_execs_the_jvm(self, mock_execvpe, mock_signal, mock_close_on_exec, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
+        reported: list[str | None] = []
+
+        with pytest.raises(OSError, match="exec"):
+            JavaCoordinator().parse_dag(
+                path=jar,
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=reported.append,
+            )
+
+        assert reported == ["2026-10-30"]
+        argv = mock_execvpe.call_args.args[1]
+        assert argv == [
+            "java",
+            "-classpath",
+            jar.as_posix(),
+            "com.example.Dags",
+            "--comm=127.0.0.1:1001",
+            "--logs=127.0.0.1:1002",
+        ]

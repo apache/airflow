@@ -57,11 +57,27 @@ if TYPE_CHECKING:
 __all__ = [
     "BaseCoordinator",
     "CoordinatorManager",
+    "TaskLaunchError",
     "get_coordinator_manager",
     "reset_coordinator_manager",
 ]
 
 log = structlog.get_logger(__name__)
+
+
+class TaskLaunchError(Exception):
+    """
+    A coordinator cannot launch the runtime of a task.
+
+    A coordinator raises this from :meth:`BaseCoordinator.execute_task` before it starts the runtime.
+    The supervisor then fails the task instance and writes the message to the task log. A *retryable*
+    error leaves the task to retry while it has retries left. One that is not, such as a routing
+    mistake that retrying cannot fix, fails the task at once.
+    """
+
+    def __init__(self, message: str, *, retryable: bool = True) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 class BaseCoordinator:
@@ -97,6 +113,9 @@ class BaseCoordinator:
         Start task execution.
 
         This should execute the task and return a result.
+
+        :raises TaskLaunchError: when the runtime cannot be launched. Raise it before the runtime
+            starts, so the supervisor can fail the task instance with the message in its task log.
         """
         raise NotImplementedError
 
