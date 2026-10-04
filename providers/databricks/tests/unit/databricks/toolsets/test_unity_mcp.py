@@ -29,7 +29,7 @@ import pytest
 pytest.importorskip("fastmcp")
 pytest.importorskip("airflow.providers.common.ai")
 
-from pydantic_ai import RunContext
+from pydantic_ai import ModelRetry, RunContext
 
 from airflow.models import Connection
 from airflow.providers.common.ai.utils import toolset_base
@@ -49,13 +49,14 @@ SERVICE = "main.tools.genie"
 
 
 class _StubGateway(BaseHTTPRequestHandler):
-    """A Unity AI Gateway stand-in that serves one MCP Service with a single ``echo`` tool."""
+    """A Unity Gateway stand-in that serves one MCP Service with a single ``echo`` tool."""
 
     protocol_version = "HTTP/1.1"
     # Per-test behaviour, set by the ``gateway`` fixture: service name -> status for every request,
-    # and a status for ``tools/call`` requests only.
+    # a status for ``tools/call`` requests only, and a status for notifications only.
     service_status: dict[str, tuple[int, dict[str, str]]] = {}
     tool_call_status: int | None = None
+    notification_status: int | None = None
     requests: list[tuple[str, str | None, str | None]] = []
 
     def do_POST(self):
@@ -69,7 +70,7 @@ class _StubGateway(BaseHTTPRequestHandler):
         if method == "tools/call" and self.tool_call_status:
             return self._reply(self.tool_call_status)
         if "id" not in body:
-            return self._reply(202)
+            return self._reply(self.notification_status or 202)
         if method == "initialize":
             result = {
                 "protocolVersion": body["params"]["protocolVersion"],
@@ -87,6 +88,9 @@ class _StubGateway(BaseHTTPRequestHandler):
                 ]
             }
         elif method == "tools/call":
+            if "text" not in body["params"]["arguments"]:
+                error = {"code": -32602, "message": "Invalid params: 'text' is required"}
+                return self._reply(200, {"jsonrpc": "2.0", "id": body["id"], "error": error})
             text = body["params"]["arguments"]["text"]
             result = {"content": [{"type": "text", "text": f"echo: {text}"}], "isError": False}
         else:
@@ -118,6 +122,7 @@ class _StubGateway(BaseHTTPRequestHandler):
 def gateway():
     _StubGateway.service_status = {}
     _StubGateway.tool_call_status = None
+    _StubGateway.notification_status = None
     _StubGateway.requests = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), _StubGateway)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -269,7 +274,7 @@ class TestAuthentication:
             Connection(conn_id=CONN_ID, conn_type="databricks", host="h", login="user", password="pass")
         )
 
-        with pytest.raises(ValueError, match="bearer tokens only"):
+        with pytest.raises(ValueError, match="sends a bearer token"):
             DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)._get_server()
 
     @mock.patch.object(DatabricksHook, "_get_token", autospec=True)
@@ -317,6 +322,20 @@ class TestErrors:
         # The failed call was sent once and not retried.
         assert [m for _, _, m in _StubGateway.requests].count("tools/call") == 1
 
+    def test_tool_errors_after_a_tolerated_gateway_error_are_left_to_the_agent(self, gateway, gateway_conn):
+        # The MCP client carries on when the gateway rejects a notification; a later tool error the
+        # model can fix must still reach pydantic-ai as a retry, not as that earlier gateway error.
+        _StubGateway.notification_status = 400
+
+        async def call_with_missing_argument():
+            toolset = DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)
+            async with toolset:
+                tools = await toolset.get_tools(_ctx())
+                await toolset.execute_tool("echo", {}, ctx=_ctx(), tool=tools["echo"])
+
+        with pytest.raises(ModelRetry, match="'text' is required"):
+            _run(call_with_missing_argument())
+
     def test_unreachable_gateway_is_a_transport_error(self, create_connection_without_db):
         create_connection_without_db(
             Connection(
@@ -324,7 +343,7 @@ class TestErrors:
             )
         )
 
-        with pytest.raises(DatabricksUnityMCPTransportError, match="Could not reach Unity AI Gateway"):
+        with pytest.raises(DatabricksUnityMCPTransportError, match="Could not reach Unity Gateway"):
             _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
 
 

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Toolset that gives a common.ai agent the tools of a Unity AI Gateway MCP Service."""
+"""Toolset that gives a common.ai agent the tools of a Unity Gateway MCP Service."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ except ImportError as e:
     ) from e
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, AsyncIterator, Generator, Sequence
+    from collections.abc import AsyncGenerator, AsyncIterator, Sequence
 
     from pydantic_ai._run_context import RunContext
     from pydantic_ai.toolsets.abstract import ToolsetTool
@@ -78,7 +78,7 @@ def validate_service_name(service_name: str) -> None:
     """
     if not isinstance(service_name, str) or not _SERVICE_NAME.fullmatch(service_name):
         raise ValueError(
-            f"Invalid Unity AI Gateway MCP Service name {service_name!r}: expected "
+            f"Invalid Unity Gateway MCP Service name {service_name!r}: expected "
             "'catalog.schema.service', each part made of ASCII letters, digits, '_' or '-'."
         )
 
@@ -138,9 +138,9 @@ class _DatabricksTokenAuth(httpx2.Auth):
         if not token:
             raise ValueError(
                 f"Connection {self._hook.databricks_conn_id!r} has no token-based authentication "
-                "configured. Unity AI Gateway accepts bearer tokens only: use a personal access "
-                "token, service principal OAuth, Azure AD, or workload identity federation. "
-                "Username and password authentication is not supported."
+                "configured. This toolset sends a bearer token: use a personal access token, "
+                "service principal OAuth, Azure AD, or workload identity federation. Username and "
+                "password authentication is not supported."
             )
         # A personal access token is masked when the connection is fetched; mask minted
         # OAuth tokens too, so they never reach task logs.
@@ -154,19 +154,13 @@ class _DatabricksTokenAuth(httpx2.Auth):
         return error
 
     def _record(self, response: httpx2.Response) -> None:
+        # The MCP client tolerates some error responses, such as one to a notification, so an
+        # error must not outlive the next success, or a later failure would be reported as it.
         if response.status_code >= 400:
             self.error_status = response.status_code
             self.retry_after = _parse_retry_after(response.headers.get("Retry-After"))
-
-    def sync_auth_flow(self, request: httpx2.Request) -> Generator[httpx2.Request, httpx2.Response, None]:
-        try:
-            token = self.get_token()
-        except Exception as e:
-            self.token_error = e
-            raise
-        request.headers["Authorization"] = f"Bearer {token}"
-        response = yield request
-        self._record(response)
+        else:
+            self.error_status = self.retry_after = None
 
     async def async_auth_flow(
         self, request: httpx2.Request
@@ -187,7 +181,7 @@ class _DatabricksTokenAuth(httpx2.Auth):
 
 class DatabricksUnityMCPToolset(MCPToolset):
     """
-    Give an agent the tools of a Unity AI Gateway MCP Service, authenticated as the connection's identity.
+    Give an agent the tools of a Unity Gateway MCP Service, authenticated as the connection's identity.
 
     The service is named by its three-level Unity Catalog name, ``catalog.schema.service``, and
     reached at ``https://<workspace host>/ai-gateway/mcp-services/<catalog.schema.service>``. The
@@ -195,18 +189,20 @@ class DatabricksUnityMCPToolset(MCPToolset):
     neither a gateway URL nor a token, and the token is only ever sent to that workspace.
 
     The gateway runs every tool call as the identity of the connection's credentials (a user's
-    personal access token, a service principal, or an Azure AD / federated identity), which needs
-    ``EXECUTE`` on the MCP Service and ``USE CATALOG`` and ``USE SCHEMA`` on its catalog and schema.
-    It sees only the tools selected for the service, and the service's policies apply.
+    personal access token, a service principal, or an Azure AD / federated identity). That identity
+    needs ``EXECUTE`` on the MCP Service, ``USE CATALOG`` and ``USE SCHEMA`` on its catalog and
+    schema, and an assignment to the workspace. It sees only the tools selected for the service, and
+    the service's policies apply.
 
     Tokens are fetched from the connection for each request, so OAuth tokens refresh during a long
     agent run and on reconnection. Gateway errors are raised as
     :class:`~airflow.providers.databricks.exceptions.DatabricksUnityMCPAccessDeniedError`,
     :class:`~airflow.providers.databricks.exceptions.DatabricksUnityMCPServiceNotFoundError`,
-    :class:`~airflow.providers.databricks.exceptions.DatabricksUnityMCPThrottledError` or
-    :class:`~airflow.providers.databricks.exceptions.DatabricksUnityMCPTransportError`. Tool calls
-    are never retried by this toolset, because a call interrupted after it was sent may already
-    have run.
+    :class:`~airflow.providers.databricks.exceptions.DatabricksUnityMCPThrottledError`,
+    :class:`~airflow.providers.databricks.exceptions.DatabricksUnityMCPTransportError`, or, for any
+    other gateway error, :class:`~airflow.providers.databricks.exceptions.DatabricksUnityMCPError`.
+    Tool calls are never retried by this toolset, because a call interrupted after it was sent may
+    already have run.
 
     .. code-block:: python
 
@@ -280,7 +276,7 @@ class DatabricksUnityMCPToolset(MCPToolset):
             )
         if status in (401, 403):
             return DatabricksUnityMCPAccessDeniedError(
-                f"Unity AI Gateway denied access to MCP Service {service!r} (HTTP {status}). The "
+                f"Unity Gateway denied access to MCP Service {service!r} (HTTP {status}). The "
                 f"identity of connection {self._databricks_conn_id!r} needs EXECUTE on the service and "
                 "USE CATALOG and USE SCHEMA on its catalog and schema, and its credentials must be valid.",
                 http_status_code=status,
@@ -294,7 +290,7 @@ class DatabricksUnityMCPToolset(MCPToolset):
         if status == 429:
             hint = f" Retry after {retry_after:g} seconds." if retry_after is not None else ""
             return DatabricksUnityMCPThrottledError(
-                f"Unity AI Gateway rate-limited calls to MCP Service {service!r} (HTTP 429).{hint}",
+                f"Unity Gateway rate-limited calls to MCP Service {service!r} (HTTP 429).{hint}",
                 http_status_code=status,
                 retry_after=retry_after,
             )
@@ -303,12 +299,12 @@ class DatabricksUnityMCPToolset(MCPToolset):
         )
         if status is not None:
             return DatabricksUnityMCPError(
-                f"Unity AI Gateway returned HTTP {status} for MCP Service {service!r}.{ambiguous}",
+                f"Unity Gateway returned HTTP {status} for MCP Service {service!r}.{ambiguous}",
                 http_status_code=status,
             )
         if (transport_error := _find_transport_error(error)) is not None:
             return DatabricksUnityMCPTransportError(
-                f"Could not reach Unity AI Gateway for MCP Service {service!r}: {transport_error}.{ambiguous}"
+                f"Could not reach Unity Gateway for MCP Service {service!r}: {transport_error}.{ambiguous}"
             )
         return None
 

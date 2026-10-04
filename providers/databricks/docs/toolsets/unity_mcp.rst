@@ -17,14 +17,15 @@
 
 .. _howto/toolset:DatabricksUnityMCPToolset:
 
-Unity AI Gateway MCP Services
-=============================
+Unity Gateway MCP Services
+==========================
 
 Use :class:`~airflow.providers.databricks.toolsets.unity_mcp.DatabricksUnityMCPToolset` to give an
-agent the tools of a Unity AI Gateway MCP Service. One service can front Unity Catalog functions,
-Genie spaces, AI Search indexes, or an external MCP server registered in Unity Catalog. The toolset
-works with :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`, ``@task.agent``, and
-the LangChain bridge of the Common AI provider.
+agent the tools of a Unity Gateway MCP Service: either one Databricks provides for workspace tools
+and SaaS applications, such as ``system.ai.google_calendar``, or an external MCP server registered as
+an MCP Service in Unity Catalog. The toolset works with
+:class:`~airflow.providers.common.ai.operators.agent.AgentOperator`, ``@task.agent``, and the LangChain
+bridge of the Common AI provider.
 
 The Dag names the service by its three-level Unity Catalog name, ``catalog.schema.service``, and the
 :ref:`Databricks connection <howto/connection:databricks>` to use. The toolset builds the service URL,
@@ -48,12 +49,11 @@ MCP Services need a workspace enabled for Unity Catalog, in a region where Model
 supported.
 
 The gateway runs every tool call as the identity of the connection's credentials. That identity needs
-``EXECUTE`` on the MCP Service, and ``USE CATALOG`` and ``USE SCHEMA`` on its parent catalog and
-schema: ``EXECUTE`` alone is not enough. It must also be assigned to the workspace. It needs no
-privilege on the Unity Catalog connection behind the service. Account users hold these on the
-built-in ``system.ai``
-services by default. The gateway exposes only the tools selected for the service, and the service's
-policies apply. Grant the identity only the services the agent should use.
+``EXECUTE`` on the MCP Service, ``USE CATALOG`` and ``USE SCHEMA`` on its parent catalog and schema
+(``EXECUTE`` alone is not enough), and an assignment to the workspace. It needs no privilege on the
+Unity Catalog connection behind the service. Account users already hold these privileges on the
+built-in ``system.ai`` services. The gateway exposes only the tools selected for the service, and the
+service's policies apply. Grant the identity only the services the agent should use.
 
 Built-in services that act on a user's own data, such as ``system.ai.google_calendar`` or
 ``system.ai.gmail``, need that identity to complete a one-time OAuth login first, for example by

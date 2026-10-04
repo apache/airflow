@@ -143,7 +143,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-databricks/operators/workflow.rst
     tags: [service]
-  - integration-name: Databricks Unity AI Gateway
+  - integration-name: Databricks Unity Gateway
     external-doc-url: https://docs.databricks.com/aws/en/unity-gateway/concepts
     how-to-guide:
       - /docs/apache-airflow-providers-databricks/toolsets/unity_mcp.rst
@@ -200,7 +200,7 @@ sensors:
       - airflow.providers.databricks.sensors.databricks_partition
 
 toolsets:
-  - integration-name: Databricks Unity AI Gateway
+  - integration-name: Databricks Unity Gateway
     python-modules:
       - airflow.providers.databricks.toolsets.unity_mcp
 

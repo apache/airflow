@@ -49,7 +49,7 @@ class DatabricksApiError(AirflowException):
 
 
 class DatabricksUnityMCPError(DatabricksApiError):
-    """Raised when a call to a Unity AI Gateway MCP Service fails."""
+    """Raised when a call to a Unity Gateway MCP Service fails."""
 
 
 class DatabricksUnityMCPAccessDeniedError(DatabricksUnityMCPError):

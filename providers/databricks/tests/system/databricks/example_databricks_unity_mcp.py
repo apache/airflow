@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Dag giving an agent the tools of a Unity AI Gateway MCP Service.
+Example Dag giving an agent the tools of a Unity Gateway MCP Service.
 
 Needs a Databricks connection whose identity has EXECUTE on the MCP Service and USE CATALOG and
 USE SCHEMA on its catalog and schema, an LLM connection for the agent, and these environment
