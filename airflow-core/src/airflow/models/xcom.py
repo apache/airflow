@@ -41,7 +41,6 @@ from sqlalchemy import (
     delete,
     event,
     func,
-    or_,
     select,
     union_all,
 )
@@ -51,7 +50,7 @@ from sqlalchemy.sql.visitors import cloned_traverse
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base, TaskInstanceDependencies
-from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, public_region_filter
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
@@ -316,7 +315,7 @@ class _XComOperations:
         dag_ids: str | Iterable[str] | None = None,
         map_indexes: int | Iterable[int] | None = None,
         region_id: UUID | None = SENTINEL_REGION_ID,
-        include_node_regions: bool = False,
+        include_node_regions: bool = True,
         producer_ids: Select | None = None,
         include_prior_dates: bool = False,
         limit: int | None = None,
@@ -329,11 +328,11 @@ class _XComOperations:
         just want one stored value, use :meth:`get_one` instead.
 
         ``region_id`` is the exact producer region (the legacy sentinel by default); pass ``None`` to
-        enumerate across regions. ``include_node_regions`` widens it to the top-level region each
-        producer task owns, which is where its mapped instances live. ``producer_ids`` names attempts
-        already resolved by :func:`~airflow.models.dynamic_region.resolve_current_producers` and cannot be
-        combined with ``task_ids``, ``dag_ids``, ``map_indexes``, ``region_id``, ``include_node_regions``
-        or ``include_prior_dates``.
+        enumerate across regions. For the sentinel, ``include_node_regions`` also admits the top-level
+        region each producer task owns, which is where its mapped instances live. ``producer_ids`` names
+        task instances already resolved by :func:`~airflow.models.dynamic_region.resolve_current_producers`
+        and cannot be combined with ``task_ids``, ``dag_ids``, ``map_indexes``, ``region_id`` or
+        ``include_prior_dates``.
 
         Use :func:`xcom_entity` for columns added to the returned statement.
 
@@ -362,7 +361,6 @@ class _XComOperations:
                 any(value is not None for value in (task_ids, dag_ids, map_indexes))
                 or include_prior_dates
                 or try_number is not None
-                or include_node_regions
                 or region_id != SENTINEL_REGION_ID
             ):
                 raise ValueError("producer_ids cannot be combined with coordinate filters")
@@ -456,7 +454,12 @@ def _rows():
     data = ("key", "value", "timestamp", "dag_result", "mapped_length")
     run_join = and_(DagRun.dag_id == TaskInstance.dag_id, DagRun.run_id == TaskInstance.run_id)
     context = [
-        *(getattr(TaskInstance, name) for name in coordinates),
+        TaskInstance.dag_id,
+        TaskInstance.task_id,
+        TaskInstance.run_id,
+        TaskInstance.region_index.label("map_index"),
+        TaskInstance.region_id,
+        TaskInstance.region_index,
         DagRun.id.label("dag_run_id"),
         DagRun.logical_date,
         DagRun.run_after,
@@ -603,26 +606,24 @@ def select_producers(
     task_ids=None,
     map_indexes=None,
     region_id=SENTINEL_REGION_ID,
-    include_node_regions=False,
+    include_node_regions=True,
     include_prior_dates=False,
     try_number=None,
 ):
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
 
+    dag_ids = list(dag_ids) if is_container(dag_ids) else dag_ids
+    task_ids = list(task_ids) if is_container(task_ids) else task_ids
     query = select(TaskInstance.id)
     if region_id is not None:
         region_filter = TaskInstance.region_id == region_id
-        if include_node_regions:
-            region_filter = or_(
-                region_filter,
-                select(DynamicRegion.id)
-                .where(
-                    DynamicRegion.id == TaskInstance.region_id,
-                    DynamicRegion.node_id == TaskInstance.task_id,
-                    DynamicRegion.parent_region_id.is_(None),
-                )
-                .exists(),
+        if include_node_regions and region_id == SENTINEL_REGION_ID:
+            region_filter = public_region_filter(
+                TaskInstance,
+                dag_ids=dag_ids,
+                run_ids=None if include_prior_dates else run_id,
+                task_ids=task_ids,
             )
         query = query.where(region_filter)
     if try_number is not None:
@@ -634,12 +635,12 @@ def select_producers(
             query = query.where(column == value)
     if isinstance(map_indexes, range) and map_indexes.step == 1:
         query = query.where(
-            TaskInstance.map_index >= map_indexes.start, TaskInstance.map_index < map_indexes.stop
+            TaskInstance.region_index >= map_indexes.start, TaskInstance.region_index < map_indexes.stop
         )
     elif is_container(map_indexes):
-        query = query.where(TaskInstance.map_index.in_(map_indexes))
+        query = query.where(TaskInstance.region_index.in_(map_indexes))
     elif map_indexes is not None:
-        query = query.where(TaskInstance.map_index == map_indexes)
+        query = query.where(TaskInstance.region_index == map_indexes)
     if include_prior_dates:
         requested_run = aliased(DagRun)
         cutoff = (

@@ -377,7 +377,9 @@ def test_execute_task_projects_unmapped_loop_index_without_changing_storage(dag_
     with dag_maker(serialized=True):
         loop = create_loop(body, max_iterations=3)
     ti = dag_maker.create_dagrun().task_instances[0]
-    region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id=loop.group_id)
+    region = DynamicRegion.get_or_create(
+        dag_id=ti.dag_id, run_id=ti.run_id, node_id=loop.group_id, session=session
+    )
     session.add(region)
     session.flush()
     ti.region_id, ti.region_index = region.id, 2

@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
@@ -43,9 +43,12 @@ from airflow.exceptions import DagRunNotFound
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG as SdkDAG, BaseOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import DAG as SdkDAG, BaseOperator, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -72,6 +75,282 @@ def reset(dag_id):
         session.execute(delete(DagRun).where(DagRun.dag_id == dag_id))
         session.execute(delete(DagModel).where(DagModel.dag_id == dag_id))
         session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
+
+
+def test_task_states_for_dag_run_projects_map_index_and_identifies_regions(dag_maker, session):
+    with dag_maker() as dag:
+        BashOperator(task_id="work", bash_command="echo work")
+        BashOperator.partial(task_id="mapped").expand(bash_command=["echo mapped"])
+    run = dag_maker.create_dagrun()
+    loop = DynamicRegion.get_or_create(dag_id=run.dag_id, run_id=run.run_id, node_id="loop", session=session)
+    successor = DynamicRegion(
+        dag_id=run.dag_id, run_id=run.run_id, node_id="loop", forked_from_region_id=loop.id
+    )
+    mapped = DynamicRegion.get_or_create(
+        dag_id=run.dag_id, run_id=run.run_id, node_id="mapped", session=session
+    )
+    session.add(successor)
+    session.flush()
+    work_ti = next(ti for ti in run.task_instances if ti.task_id == "work")
+    mapped_ti = next(ti for ti in run.task_instances if ti.task_id == "mapped")
+    work_ti.region_id, work_ti.region_index = loop.id, 4
+    mapped_ti.region_id, mapped_ti.region_index = mapped.id, 0
+    sibling = TaskInstance(
+        dag.get_task("work"),
+        run_id=run.run_id,
+        dag_version_id=work_ti.dag_version_id,
+        region_id=successor.id,
+        region_index=4,
+    )
+    session.add(sibling)
+    session.flush()
+
+    with redirect_stdout(io.StringIO()) as stdout:
+        task_command.task_states_for_dag_run(
+            cli_parser.get_parser().parse_args(
+                ["tasks", "states-for-dag-run", run.dag_id, run.run_id, "--output", "json"]
+            ),
+            session=session,
+        )
+
+    rows = json.loads(stdout.getvalue())
+    assert len(rows) == 3
+    assert {(row["region_id"], row["region_index"], row["map_index"]) for row in rows} == {
+        (str(loop.id), "4", ""),
+        (str(successor.id), "4", ""),
+        (str(mapped.id), "0", "0"),
+    }
+
+
+def test_task_states_for_dag_run_lists_only_live_rows_without_region_columns_for_mapped_dag(
+    dag_maker, session
+):
+    with dag_maker():
+        BashOperator(task_id="work", bash_command="echo work")
+        BashOperator.partial(task_id="mapped").expand(bash_command=["echo a", "echo b"])
+    run = dag_maker.create_dagrun()
+    work_ti = next(ti for ti in run.task_instances if ti.task_id == "work")
+    work_ti.state = State.SUCCESS
+    work_ti.archive(reason="cleared", session=session)
+    session.flush()
+    session.expire(run, ["task_instances"])
+
+    with redirect_stdout(io.StringIO()) as stdout:
+        task_command.task_states_for_dag_run(
+            cli_parser.get_parser().parse_args(
+                ["tasks", "states-for-dag-run", run.dag_id, run.run_id, "--output", "json"]
+            ),
+            session=session,
+        )
+
+    rows = json.loads(stdout.getvalue())
+    assert sorted((row["task_id"], row["map_index"]) for row in rows) == [("mapped", "0"), ("mapped", "1")]
+    assert all(
+        set(row) == {"dag_id", "logical_date", "task_id", "state", "start_date", "end_date", "map_index"}
+        for row in rows
+    )
+
+
+def test_task_states_for_dag_run_omits_region_columns_for_unexpanded_xcom_mapped_placeholder(
+    dag_maker, session
+):
+    with dag_maker(serialized=True):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: [1, 2, 3])
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=upstream.output)
+    run = dag_maker.create_dagrun()
+    placeholder = session.scalars(
+        select(TaskInstance).where(TaskInstance.run_id == run.run_id, TaskInstance.task_id == "mapped")
+    ).one()
+    assert placeholder.region_id != SENTINEL_REGION_ID
+    assert placeholder.region_index == -1
+
+    with redirect_stdout(io.StringIO()) as stdout:
+        task_command.task_states_for_dag_run(
+            cli_parser.get_parser().parse_args(
+                ["tasks", "states-for-dag-run", run.dag_id, run.run_id, "--output", "json"]
+            ),
+            session=session,
+        )
+
+    rows = json.loads(stdout.getvalue())
+    assert sorted(row["task_id"] for row in rows) == ["mapped", "upstream"]
+    assert all("region_id" not in row and "region_index" not in row for row in rows)
+
+
+@pytest.mark.parametrize("command", ["state", "failed-deps", "test", "render"])
+def test_cli_commands_reuse_existing_regional_mapped_task(dag_maker, session, mocker, capsys, command):
+    with dag_maker(dag_id="regional_cli", serialized=True) as dag:
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    dr = dag_maker.create_dagrun(run_id="regional")
+    region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped", session=session
+    )
+    for ti in dr.task_instances:
+        ti.region_id = region.id
+        ti.state = State.SUCCESS
+    selected = next(ti for ti in dr.task_instances if ti.region_index == 0)
+    selected_id = selected.id
+    session.commit()
+    serialized = dag_maker.serialized_dag
+    mocker.patch.object(task_command, "get_db_dag", autospec=True, return_value=serialized)
+    mocker.patch.object(task_command, "get_bagged_dag", autospec=True, return_value=dag_maker.dag)
+    run_task = mocker.patch.object(task_command, "_run_task", autospec=True)
+    lookup = mocker.spy(task_command, "_get_ti")
+    args = cli_parser.get_parser().parse_args(
+        ["tasks", command, dag.dag_id, "mapped", dr.run_id, "--map-index", "0"]
+    )
+
+    getattr(task_command, f"task_{command.replace('-', '_')}")(args)
+
+    assert lookup.spy_return[0].id == selected_id
+    if command == "test":
+        assert run_task.call_args.kwargs["ti"].id == selected_id
+    elif command == "state":
+        assert "success" in capsys.readouterr().out
+    session.expire_all()
+    rows = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag.dag_id)).all()
+    assert len(rows) == 2
+    assert all(ti.region_id == region.id for ti in rows)
+
+
+@pytest.mark.parametrize("create_if_necessary", [False, "db", "memory"])
+@pytest.mark.parametrize("live_rows", [False, True])
+def test_cli_lookup_rejects_loop_scope_instead_of_creating_sentinel(
+    dag_maker, session, create_if_necessary, live_rows
+):
+    @task_group
+    def body():
+        BashOperator(task_id="terminal", bash_command="true")
+
+    with dag_maker(serialized=True):
+        group = create_loop(body, max_iterations=2)
+    dr = dag_maker.create_dagrun()
+    region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id=group.group_id, session=session
+    )
+    session.add(region)
+    session.flush()
+    for ti in dr.task_instances:
+        ti.region_id, ti.region_index = region.id, 0
+    if not live_rows:
+        session.execute(delete(TaskInstance).where(TaskInstance.dag_id == dr.dag_id))
+    session.commit()
+    serialized = dag_maker.serialized_dag
+
+    with pytest.raises(ValueError, match="loop.*scope"):
+        task_command._get_ti(
+            serialized.get_task(group.terminal_task_id),
+            -1,
+            logical_date_or_run_id=dr.run_id,
+            create_if_necessary=create_if_necessary,
+            session=session,
+        )
+
+    assert not session.scalars(
+        select(TaskInstance).where(TaskInstance.dag_id == dr.dag_id, TaskInstance.region_id != region.id)
+    ).all()
+
+
+@pytest.mark.parametrize("create_if_necessary", ["db", "memory"])
+@pytest.mark.parametrize("regional_expansion", [False, True])
+def test_cli_missing_mapped_slot_is_created_ad_hoc_in_existing_expansion(
+    dag_maker, session, create_if_necessary, regional_expansion
+):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    dr = dag_maker.create_dagrun()
+    if regional_expansion:
+        region = session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).one()
+        expected_region_id = region.id
+        session.execute(delete(TaskInstance).where(TaskInstance.dag_id == dr.dag_id))
+    else:
+        expected_region_id = SENTINEL_REGION_ID
+        for ti in dr.task_instances:
+            ti.region_id = SENTINEL_REGION_ID
+        session.flush()
+        session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+        session.execute(
+            delete(TaskInstance).where(TaskInstance.dag_id == dr.dag_id, TaskInstance.region_index == 0)
+        )
+    session.commit()
+
+    ti, _ = task_command._get_ti(
+        dag_maker.serialized_dag.get_task("mapped"),
+        0,
+        logical_date_or_run_id=dr.run_id,
+        create_if_necessary=create_if_necessary,
+        session=session,
+    )
+
+    assert (ti.region_id, ti.region_index) == (expected_region_id, 0)
+    assert session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all() == (
+        [region] if regional_expansion else []
+    )
+
+
+@pytest.mark.parametrize("create_if_necessary", ["db", "memory"])
+def test_cli_xcom_mapped_slot_is_created_ad_hoc_beside_placeholder(dag_maker, session, create_if_necessary):
+    with dag_maker(serialized=True):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: [1, 2, 3])
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=upstream.output)
+    dr = dag_maker.create_dagrun()
+    placeholder = session.scalars(
+        select(TaskInstance).where(TaskInstance.dag_id == dr.dag_id, TaskInstance.task_id == "mapped")
+    ).all()
+    assert placeholder
+
+    ti, _ = task_command._get_ti(
+        dag_maker.serialized_dag.get_task("mapped"),
+        2,
+        logical_date_or_run_id=dr.run_id,
+        create_if_necessary=create_if_necessary,
+        session=session,
+    )
+
+    assert ti.region_index == 2
+    assert ti.task_id == "mapped"
+    assert ti.region_id == placeholder[0].region_id != SENTINEL_REGION_ID
+    if create_if_necessary == "db":
+        assert len(session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all()) == 1
+
+
+@pytest.mark.parametrize("command", ["test", "render"])
+def test_ad_hoc_mapped_task_gets_root_region(dag_maker, session, mocker, command):
+    with dag_maker(dag_id="ad_hoc_mapping", serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    run_id = "ad_hoc"
+    if command == "test":
+        dr = dag_maker.create_dagrun(run_id=run_id)
+        session.execute(delete(TaskInstance).where(TaskInstance.dag_id == dr.dag_id))
+        session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
+        session.add(
+            DynamicRegion.get_or_create(
+                dag_id=dr.dag_id, run_id=run_id, node_id="other_task", session=session
+            )
+        )
+        session.commit()
+    mocker.patch.object(task_command, "get_db_dag", autospec=True, return_value=dag_maker.serialized_dag)
+    mocker.patch.object(task_command, "get_bagged_dag", autospec=True, return_value=dag_maker.dag)
+
+    def run_task(*, ti, task, run_triggerer):
+        region = session.get(DynamicRegion, ti.region_id)
+        assert region is not None
+        assert (region.node_id, region.parent_region_id) == ("mapped", None)
+
+    mocker.patch.object(task_command, "_run_task", autospec=True, side_effect=run_task)
+    lookup = mocker.spy(task_command, "_get_ti")
+    args = cli_parser.get_parser().parse_args(
+        ["tasks", command, "ad_hoc_mapping", "mapped", run_id, "--map-index", "0"]
+    )
+
+    getattr(task_command, f"task_{command}")(args)
+
+    ti = lookup.spy_return[0]
+    assert ti.region_id.int != 0
+    assert ti.region_index == 0
+    if command == "render":
+        assert session.get(DynamicRegion, ti.region_id) is None
+        assert not session.scalars(select(DagRun).where(DagRun.dag_id == "ad_hoc_mapping")).all()
 
 
 class TestCliTasks:

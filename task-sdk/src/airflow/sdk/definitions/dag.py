@@ -768,8 +768,12 @@ class DAG:
 
         This is called by the Dag bag before bagging the Dag.
         """
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_expansions_over_loop_tasks
+
         self.timetable.validate()
         self.validate_setup_teardown()
+        check_expansions_over_loop_tasks(self)
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here
@@ -1134,6 +1138,10 @@ class DAG:
     def add_result(self, xcom_arg: X) -> X:
         if not _is_valid_dag_result(xcom_arg):
             raise ValueError("Only plain return value can be used as dag result")
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_dag_result_outside_loop
+
+        check_dag_result_outside_loop(xcom_arg.operator)
         xcom_arg.operator.returns_dag_result = True
         return xcom_arg
 

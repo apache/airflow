@@ -29,7 +29,9 @@ from airflow.api_fastapi.core_api.datamodels.task_state_store import (
     TaskStateStorePatchBody,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.types import DagRunType
 
@@ -61,7 +63,7 @@ def _create_task_state_store_row(session, key: str, value: str, dag_run: DagRun)
         dag_id=DAG_ID,
         run_id=RUN_ID,
         task_id=TASK_ID,
-        map_index=-1,
+        region_index=-1,
         key=key,
         value=json.dumps(value),
     )
@@ -120,7 +122,7 @@ class TestListTaskState(TestTaskStateEndpoint):
             dag_id=DAG_ID,
             run_id=RUN_ID,
             task_id=TASK_ID,
-            map_index=0,
+            region_index=0,
             key="job_id",
             value=json.dumps("mapped_app"),
         )
@@ -461,7 +463,7 @@ class TestClearTaskState(TestTaskStateEndpoint):
                 dag_id=DAG_ID,
                 run_id=RUN_ID,
                 task_id=TASK_ID,
-                map_index=map_index,
+                region_index=map_index,
                 key="job_id",
                 value=json.dumps(f"app_{map_index}"),
             )
@@ -569,3 +571,25 @@ class TestUnknownTaskInstance(TestTaskStateEndpoint):
         response = test_client.get(f"{BASE_URL}/no_such_key")
         assert response.status_code == 404
         assert response.json()["detail"] == "Task state store key 'no_such_key' not found"
+
+
+class TestRegionalTaskState(TestTaskStateEndpoint):
+    def test_writes_and_clears_address_the_region_of_the_instance(self, test_client):
+        ti = self._session.scalar(select(TaskInstance).where(TaskInstance.dag_id == DAG_ID))
+        region = DynamicRegion(dag_id=DAG_ID, run_id=RUN_ID, node_id=TASK_ID)
+        self._session.add(region)
+        self._session.flush()
+        ti.region_id, ti.region_index = region.id, 0
+        self._session.commit()
+
+        assert test_client.put(f"{BASE_URL}/key?map_index=0", json={"value": "v"}).status_code == 204
+
+        row = self._session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.dag_id == DAG_ID)
+        ).one()
+        assert (row.region_id, row.region_index) == (region.id, 0)
+        assert test_client.get(f"{BASE_URL}/key?map_index=0").json()["value"] == "v"
+
+        assert test_client.delete(f"{BASE_URL}?all_map_indices=true").status_code == 204
+        self._session.expire_all()
+        assert self._session.scalars(select(TaskStateStoreModel)).all() == []

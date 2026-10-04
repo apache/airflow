@@ -181,7 +181,7 @@ def loop_reader_tis(dag_maker, session):
     with dag_maker(serialized=True) as dag:
         create_loop(body, max_iterations=3)
     dr = dag_maker.create_dagrun()
-    region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+    region = DynamicRegion.get_or_create(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session)
     session.add(region)
     session.flush()
     current = next(ti for ti in dr.task_instances if ti.task_id == "body.task")
@@ -285,14 +285,14 @@ def mapped_loop_runs(dag_maker, session):
         create_loop(body, max_iterations=3)
 
     def add_pass(run, loop_region, iteration, states):
-        region = DynamicRegion(
+        region = DynamicRegion.get_or_create(
             dag_id=run.dag_id,
             run_id=run.run_id,
             node_id="body.mapped",
             parent_region_id=loop_region.id,
             parent_region_index=iteration,
+            session=session,
         )
-        session.add(region)
         session.flush()
         expanded = sorted(
             (ti for ti in run.task_instances if ti.task_id == "body.mapped"), key=lambda ti: ti.map_index
@@ -315,8 +315,9 @@ def mapped_loop_runs(dag_maker, session):
         ("current", timezone.datetime(2026, 1, 2), [[State.SUCCESS, State.SUCCESS], [State.FAILED]]),
     ]:
         run = dag_maker.create_dagrun(run_id=run_id, logical_date=logical_date)
-        loop_region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="body")
-        session.add(loop_region)
+        loop_region = DynamicRegion.get_or_create(
+            dag_id=run.dag_id, run_id=run.run_id, node_id="body", session=session
+        )
         session.flush()
         for iteration, states in enumerate(passes):
             add_pass(run, loop_region, iteration, states)
@@ -403,7 +404,9 @@ class TestTIRunState:
         self, client, session, create_task_instance, regional
     ):
         ti = create_task_instance(state=State.QUEUED, session=session)
-        region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop")
+        region = DynamicRegion.get_or_create(
+            dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop", session=session
+        )
         session.add(region)
         session.flush()
         if regional:
@@ -2329,7 +2332,7 @@ class TestTIUpdateState:
                             dag_id="dag",
                             run_id="run",
                             task_id="task",
-                            map_index=-1,
+                            region_index=-1,
                             try_number=1,
                             max_tries=0,
                             start_date=None,
@@ -3328,7 +3331,9 @@ class TestTIUpdateState:
             state=State.RUNNING,
         )
         if regional:
-            region = DynamicRegion(dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop")
+            region = DynamicRegion.get_or_create(
+                dag_id=ti.dag_id, run_id=ti.run_id, node_id="loop", session=session
+            )
             session.add(region)
             session.flush()
             ti.region_id = region.id
@@ -3428,7 +3433,9 @@ class TestTISkipDownstream:
         with dag_maker(serialized=True) as dag:
             create_loop(body, max_iterations=3)
         dr = dag_maker.create_dagrun()
-        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+        region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="body", session=session
+        )
         session.add(region)
         session.flush()
         tis = {ti.task_id: ti for ti in dr.task_instances}

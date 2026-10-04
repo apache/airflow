@@ -21,8 +21,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import AirflowFailException, AirflowSkipException
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
@@ -44,6 +48,33 @@ REMOVED = TaskInstanceState.REMOVED
 SKIPPED = TaskInstanceState.SKIPPED
 SUCCESS = TaskInstanceState.SUCCESS
 UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
+
+
+def test_mapping_dependency_checks_unmapped_loop_producer_at_positive_pass(dag_maker, session):
+    @task_group
+    def body():
+        source = PythonOperator(task_id="source", python_callable=list)
+        PythonOperator.partial(task_id="consumer", python_callable=list).expand(op_kwargs=source.output)
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+    )
+    session.add(region)
+    session.flush()
+    source = next(ti for ti in dr.task_instances if ti.task_id == "body.source")
+    consumer = next(ti for ti in dr.task_instances if ti.task_id == "body.consumer")
+    source.region_id, source.region_index, source.state = region.id, 1, FAILED
+    consumer.region_id, consumer.region_index = region.id, 1
+    consumer.task = dag_maker.serialized_dag.get_task(consumer.task_id)
+    session.flush()
+
+    statuses = list(MappedTaskUpstreamDep()._get_dep_statuses(consumer, DepContext(), session=session))
+
+    assert any(not status.passed for status in statuses)
+    assert consumer.state == UPSTREAM_FAILED
 
 
 @pytest.mark.parametrize(
@@ -151,7 +182,7 @@ def test_mapped_task_upstream_dep(
         ]
     )
     assert get_dep_statuses(dr, mapped_task, session) == expected_statuses
-    ti = dr.get_task_instance(session=session, task_id=mapped_task)
+    ti = dr.get_task_instance(session=session, task_id=mapped_task, region_id=tis[mapped_task].region_id)
     assert ti is not None
     assert ti.state == expected_state
 

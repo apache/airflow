@@ -234,7 +234,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
                 TaskStateStoreModel.region_id == scope.region_id,
-                TaskStateStoreModel.map_index == scope.map_index,
+                TaskStateStoreModel.region_index == scope.region_index,
                 TaskStateStoreModel.key == key,
             )
         )
@@ -264,7 +264,7 @@ class MetastoreBackend(BaseStoreBackend):
             run_id=scope.run_id,
             task_id=scope.task_id,
             region_id=scope.region_id,
-            map_index=scope.map_index,
+            region_index=scope.region_index,
             key=key,
             value=value,
             updated_at=now,
@@ -273,7 +273,7 @@ class MetastoreBackend(BaseStoreBackend):
         stmt = _build_upsert_stmt(
             get_dialect_name(session),
             TaskStateStoreModel,
-            ["dag_run_id", "task_id", "region_id", "map_index", "key"],
+            ["dag_run_id", "task_id", "region_id", "region_index", "key"],
             values,
             dict(value=value, updated_at=now, expires_at=expires_at),
         )
@@ -286,7 +286,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
                 TaskStateStoreModel.region_id == scope.region_id,
-                TaskStateStoreModel.map_index == scope.map_index,
+                TaskStateStoreModel.region_index == scope.region_index,
                 TaskStateStoreModel.key == key,
             )
         )
@@ -301,7 +301,7 @@ class MetastoreBackend(BaseStoreBackend):
             TaskStateStoreModel.region_id == scope.region_id,
         ]
         if not all_map_indices:
-            conditions.append(TaskStateStoreModel.map_index == scope.map_index)
+            conditions.append(TaskStateStoreModel.region_index == scope.region_index)
         session.execute(delete(TaskStateStoreModel).where(*conditions))
 
     def _get_asset_state_store(self, scope: AssetScope, key: str, *, session: Session) -> str | None:
@@ -423,7 +423,7 @@ class MetastoreBackend(BaseStoreBackend):
             TaskStateStoreModel.dag_id,
             TaskStateStoreModel.run_id,
             TaskStateStoreModel.task_id,
-            TaskStateStoreModel.map_index,
+            TaskStateStoreModel.region_index,
             TaskStateStoreModel.key,
         )
         with create_session() as session:
@@ -439,7 +439,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
                 TaskStateStoreModel.region_id == scope.region_id,
-                TaskStateStoreModel.map_index == scope.map_index,
+                TaskStateStoreModel.region_index == scope.region_index,
                 TaskStateStoreModel.key == key,
             )
         )
@@ -469,7 +469,7 @@ class MetastoreBackend(BaseStoreBackend):
             run_id=scope.run_id,
             task_id=scope.task_id,
             region_id=scope.region_id,
-            map_index=scope.map_index,
+            region_index=scope.region_index,
             key=key,
             value=value,
             updated_at=now,
@@ -479,7 +479,7 @@ class MetastoreBackend(BaseStoreBackend):
         stmt = _build_upsert_stmt(
             get_dialect_name(session.sync_session),
             TaskStateStoreModel,
-            ["dag_run_id", "task_id", "region_id", "map_index", "key"],
+            ["dag_run_id", "task_id", "region_id", "region_index", "key"],
             values,
             dict(value=value, updated_at=now, expires_at=expires_at),
         )
@@ -492,7 +492,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
                 TaskStateStoreModel.region_id == scope.region_id,
-                TaskStateStoreModel.map_index == scope.map_index,
+                TaskStateStoreModel.region_index == scope.region_index,
                 TaskStateStoreModel.key == key,
             )
         )
@@ -507,7 +507,7 @@ class MetastoreBackend(BaseStoreBackend):
             TaskStateStoreModel.region_id == scope.region_id,
         ]
         if not all_map_indices:
-            conditions.append(TaskStateStoreModel.map_index == scope.map_index)
+            conditions.append(TaskStateStoreModel.region_index == scope.region_index)
         await session.execute(delete(TaskStateStoreModel).where(*conditions))
 
     async def _aget_asset_state_store(

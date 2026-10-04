@@ -82,7 +82,13 @@ class NotPreviouslySkippedDep(BaseTIDep):
                 # query with -1 instead of the child's map_index. A parent inside a
                 # mapped task group is expanded like a mapped task, so it writes XCom
                 # per map index even though ``is_mapped`` is False.
-                xcom_map_index = ti.map_index if parent.get_needs_expansion() else -1
+                xcom_map_index = -1
+                if parent.get_needs_expansion():
+                    xcom_map_index = (
+                        dep_context.coordinate_resolver(ti, session=session).public_map_index(ti)
+                        if dep_context.has_regions(ti, session=session)
+                        else ti.region_index
+                    )
                 prev_result = ti.xcom_pull(
                     task_ids=parent.task_id,
                     key=XCOM_SKIPMIXIN_KEY,

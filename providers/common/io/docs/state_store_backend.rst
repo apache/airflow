@@ -27,7 +27,7 @@ section to ``airflow.providers.common.io.state_store.backend.StateStoreObjectSto
 ``state_store_objectstorage_path`` to the desired base location. The connection id is obtained from the
 user part of the URL, e.g. ``state_store_objectstorage_path = s3://conn_id@mybucket/task-state/``.
 
-Task state is stored under ``<dag_id>/<run_id>/[region=<region_id>/]<task_id>/<map_index>/<key>`` and asset state under
+Task state is stored under ``<dag_id>/<run_id>/[region=<region_id>/]<task_id>/<region_index>/<key>`` and asset state under
 ``assets/<asset_identifier>/<key>`` beneath the configured base path.
 
 By default (``state_store_objectstorage_threshold = 0``) all serialized values are offloaded to object storage.
@@ -76,6 +76,6 @@ Using the local filesystem (useful for development)::
 
 .. note::
 
-  Task state paths are keyed on ``(dag_id, run_id, region_id, task_id, map_index)`` and are stable across
+  Task state paths are keyed on ``(dag_id, run_id, region_id, task_id, region_index)`` and are stable across
   task retries. This makes this backend suitable for operators that use
   :class:`~airflow.sdk.ResumableJobMixin` to reconnect to external jobs after a retry.

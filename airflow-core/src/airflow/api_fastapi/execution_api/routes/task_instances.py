@@ -177,7 +177,7 @@ def ti_run(
             TI.dag_id,
             TI.run_id,
             TI.task_id,
-            TI.map_index,
+            TI.region_index,
             TI.try_number,
             TI.max_tries,
             TI.start_date,
@@ -264,7 +264,7 @@ def ti_run(
                 task_id=ti.task_id,
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
-                map_index=ti.map_index,
+                map_index=ti.region_index,
                 try_number=ti.try_number,
                 logical_date=ti.logical_date,
                 owner=ti.owners,
@@ -443,7 +443,7 @@ def ti_update_state(
             TI.dag_id,
             TI.task_id,
             TI.run_id,
-            TI.map_index,
+            TI.region_index,
             TI.region_id,
             TI.hostname,
             DR.logical_date,
@@ -465,7 +465,7 @@ def ti_update_state(
             dag_id,
             task_id,
             run_id,
-            map_index,
+            region_index,
             region_id,
             hostname,
             logical_date,
@@ -581,7 +581,7 @@ def ti_update_state(
                 task_id=task_id,
                 dag_id=dag_id,
                 run_id=run_id,
-                map_index=map_index,
+                map_index=region_index,
                 try_number=try_number,
                 logical_date=logical_date,
                 owner=owners,
@@ -601,7 +601,7 @@ def ti_update_state(
                 dag_id=dag_id,
                 run_id=run_id,
                 task_id=task_id,
-                map_index=map_index if map_index is not None else -1,
+                region_index=region_index if region_index is not None else -1,
                 region_id=region_id,
             )
             try:
@@ -611,7 +611,7 @@ def ti_update_state(
                     dag_id=dag_id,
                     run_id=run_id,
                     task_id=task_id,
-                    map_index=map_index,
+                    region_index=region_index,
                 )
             except Exception:
                 log.warning(

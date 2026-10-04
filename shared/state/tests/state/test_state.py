@@ -24,6 +24,19 @@ from airflow_shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskS
 
 
 class TestTaskScope:
+    def test_canonical_coordinates_preserve_legacy_scope_identity(self):
+        region_id = uuid4()
+        canonical = TaskScope("dag", "run", "task", region_id=region_id, region_index=3)
+        legacy = TaskScope("dag", "run", "task", 3, region_id)
+
+        assert canonical == legacy
+        assert hash(canonical) == hash(legacy)
+        assert canonical.map_index == 3
+
+    def test_conflicting_coordinate_names_are_rejected(self):
+        with pytest.raises(ValueError, match="map_index.*region_index"):
+            TaskScope("dag", "run", "task", map_index=2, region_index=3)
+
     def test_legacy_scope_uses_sentinel_region(self):
         scope = TaskScope("dag", "run", "task", 3)
         assert scope.region_id == UUID(int=0)

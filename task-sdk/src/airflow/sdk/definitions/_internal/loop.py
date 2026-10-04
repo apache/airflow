@@ -53,6 +53,52 @@ class LoopTaskGroup(TaskGroup):
         super().__attrs_post_init__()
 
 
+def check_dag_result_outside_loop(operator: Any) -> None:
+    """Raise if the operator sits in a loop group, whose tasks cannot be the Dag result."""
+    group = operator.task_group
+    while group is not None:
+        if isinstance(group, LoopTaskGroup):
+            raise ValueError(
+                f"Task {operator.task_id!r} is inside a loop and cannot be a Dag result; "
+                "publish the result through a task outside the loop"
+            )
+        group = group.parent_group
+
+
+def _find_loop(group: TaskGroup | None) -> LoopTaskGroup | None:
+    while group is not None:
+        if isinstance(group, LoopTaskGroup):
+            return group
+        group = group.parent_group
+    return None
+
+
+def check_expansions_over_loop_tasks(dag: Any) -> None:
+    """
+    Raise if a mapped task or task group expands over a loop task without being in that loop.
+
+    The loop task ran once per iteration, so outside the loop there is no single result to expand over.
+    """
+    consumers: list[tuple[str | None, LoopTaskGroup | None, Any]] = [
+        (task.task_id, _find_loop(task.task_group), task.iter_mapped_dependencies())
+        for task in dag.task_dict.values()
+        if task.is_mapped
+    ]
+    consumers.extend(
+        (group.group_id, _find_loop(group), group.iter_mapped_dependencies())
+        for group in dag.task_group.get_task_group_dict().values()
+        if isinstance(group, MappedTaskGroup)
+    )
+    for consumer_id, consumer_loop, producers in consumers:
+        for producer in producers:
+            loop = _find_loop(producer.task_group)
+            if loop is not None and (consumer_loop is None or consumer_loop.group_id != loop.group_id):
+                raise ValueError(
+                    f"{consumer_id!r} cannot expand over {producer.task_id!r}, a task in loop "
+                    f"{loop.group_id!r}; only tasks in the same loop can expand over its output"
+                )
+
+
 class LoopGateOperator(BaseOperator):
     """Definition of a loop gate task."""
 

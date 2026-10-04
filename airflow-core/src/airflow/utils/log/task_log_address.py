@@ -143,6 +143,38 @@ def render_task_log_filename(ti, try_number: int, *, context: TaskLogContext) ->
     return filename
 
 
+def _load_node_kinds(
+    tis: Collection[TaskInstance],
+    runs: Mapping[tuple[str, str], DagRun],
+    session: Session,
+    dag_bag: DBDagBag | None,
+) -> dict[UUID, dict[str, str]]:
+    """Classify the loop groups and mapped tasks of each pinned Dag version, skipping versions that are gone."""
+    version_ids = {
+        version_id
+        for ti in tis
+        if (version_id := ti.dag_version_id or runs[ti.dag_id, ti.run_id].created_dag_version_id)
+    }
+    attached = {
+        dag.dag_version_id: dag
+        for ti in tis
+        if (dag := getattr(ti.task, "dag", None)) is not None and dag.dag_version_id is not None
+    }
+    if dag_bag is None:
+        dag_bag = DBDagBag(load_op_links=False)
+    kinds: dict[UUID, dict[str, str]] = {}
+    for version_id in version_ids:
+        dag = attached.get(version_id) or dag_bag.get_dag(version_id, session=session)
+        if dag is None:
+            continue
+        kinds[version_id] = {
+            group_id: "loop"
+            for group_id, group in dag.task_group.get_task_group_dict().items()
+            if group_id is not None and isinstance(group, SerializedLoopTaskGroup)
+        } | {task.task_id: "map" for task in dag.tasks if task.get_needs_expansion()}
+    return kinds
+
+
 def prepare_task_log_contexts(
     tis: Collection[TaskInstance],
     *,
@@ -200,22 +232,10 @@ def prepare_task_log_contexts(
                 for ancestor_id in (row.parent_region_id, row.forked_from_region_id)
                 if ancestor_id is not None and ancestor_id not in regions
             }
-        version_ids = {
-            version_id
-            for ti in regional
-            if (version_id := ti.dag_version_id or runs[ti.dag_id, ti.run_id].created_dag_version_id)
-        }
-        if dag_bag is None:
-            dag_bag = DBDagBag(load_op_links=False)
-        for version_id in version_ids:
-            dag = dag_bag.get_dag(version_id, session=session)
-            if dag is None:
-                continue
-            node_kinds[version_id] = {
-                group_id: "loop"
-                for group_id, group in dag.task_group.get_task_group_dict().items()
-                if group_id is not None and isinstance(group, SerializedLoopTaskGroup)
-            } | {task.task_id: "map" for task in dag.tasks if task.get_needs_expansion()}
+        # A task's own top-level region is already known from its stored row to be a mapped expansion
+        # or a loop; only a region nested inside another needs the pinned definition to be told apart.
+        nested = [ti for ti in regional if ti.region_id in regions and regions[ti.region_id].parent_region_id]
+        node_kinds = _load_node_kinds(nested, runs, session, dag_bag)
     contexts = {}
     for ti in tis:
         run = runs[ti.dag_id, ti.run_id]
@@ -226,7 +246,7 @@ def prepare_task_log_contexts(
                 "Please make sure you set up the metadatabase correctly."
             )
         position = ""
-        map_index = ti.map_index
+        map_index = ti.region_index
         if ti.region_id != SENTINEL_REGION_ID:
             version_id = ti.dag_version_id or run.created_dag_version_id
             position = region_log_position(

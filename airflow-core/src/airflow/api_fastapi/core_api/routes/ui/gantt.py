@@ -73,7 +73,7 @@ def get_gantt_data(
     ).where(
         TaskInstance.dag_id == dag_id,
         TaskInstance.run_id == run_id,
-        TaskInstance.map_index == -1,
+        TaskInstance.region_index == -1,
         or_(TaskInstance.state != TaskInstanceState.UP_FOR_RETRY, TaskInstance.state.is_(None)),
     )
 
