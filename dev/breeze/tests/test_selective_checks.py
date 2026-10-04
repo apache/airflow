@@ -1353,7 +1353,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "testable-core-integrations": "['kerberos', 'otel', 'redis']",
-                    "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'elasticsearch', 'tinkerpop', 'kafka', "
+                    "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'elasticsearch', 'opensearch', 'tinkerpop', 'kafka', "
                     "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "run-mypy-providers": "true",
                 },
@@ -3732,6 +3732,19 @@ def test_testable_providers_integrations_gated_by_affected_provider():
     # Unrelated integrations whose providers are not affected must be absent.
     assert "mongo" not in result
     assert "ydb" not in result
+
+
+def test_opensearch_provider_integration_triggered_by_affected_provider():
+    """Verify that changes to the OpenSearch provider trigger its integration test."""
+    selective_checks = SelectiveChecks(
+        files=("providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
+    )
+    result = selective_checks.testable_providers_integrations
+    assert "opensearch" in result
+    assert "cassandra" not in result
 
 
 def test_individual_providers_excludes_platform_excluded_on_arm():
