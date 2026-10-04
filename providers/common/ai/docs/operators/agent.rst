@@ -83,6 +83,30 @@ the prompt string; all other parameters are passed to the operator.
     :start-after: [START howto_decorator_agent]
     :end-before: [END howto_decorator_agent]
 
+.. _howto/operator:agent-async:
+
+Async callables
+^^^^^^^^^^^^^^^
+
+On Airflow 3.2+ the decorated function can be an ``async def``. It is awaited for the prompt, and
+the agent run is then awaited on the task's event loop. The function can await async hooks. What
+has no async counterpart, such as the connection lookup, runs in a worker thread, so nothing blocks
+the event loop.
+
+.. code-block:: python
+
+    @task.agent(llm_conn_id="pydanticai_default", system_prompt="You are a support analyst.")
+    async def summarize_ticket(ticket_id: str) -> str:
+        ticket = await fetch_ticket(ticket_id)
+        return f"Summarize this ticket: {ticket}"
+
+A single run is not faster this way, as its duration is the model's. Tools that call blocking hooks,
+such as ``SQLToolset`` and ``HookToolset``, run in a worker thread with either kind of function.
+
+``durable=True`` and ``enable_hitl_review=True`` do blocking I/O during the run and are not
+supported with an ``async def`` function: the Dag fails to parse with a ``ValueError``. Use a regular
+function for them.
+
 .. _howto/operator:agent-multimodal:
 
 Multimodal prompts
