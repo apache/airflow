@@ -191,6 +191,23 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert fetcher.hook.region_name == "region"
 
+    @mock.patch("airflow.providers.amazon.aws.operators.ecs.AwsTaskLogFetcher")
+    def test_get_task_log_fetcher_uses_operator_aws_configuration(self, log_fetcher_mock):
+        botocore_config = {"read_timeout": 10}
+        self.set_up_operator(
+            awslogs_group="awslogs-group",
+            awslogs_stream_prefix="prefix",
+            region_name="region",
+            verify="/path/to/ca-bundle.pem",
+            botocore_config=botocore_config,
+        )
+
+        self.ecs._get_task_log_fetcher()
+
+        passed = log_fetcher_mock.call_args.kwargs
+        assert passed["verify"] == "/path/to/ca-bundle.pem"
+        assert passed["botocore_config"] == botocore_config
+
     def test_template_fields_overrides(self):
         assert self.ecs.template_fields == (
             "task_definition",

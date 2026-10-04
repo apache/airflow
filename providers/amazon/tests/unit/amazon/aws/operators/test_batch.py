@@ -92,6 +92,33 @@ class TestBatchOperator:
 
         self.mock_context = mock.MagicMock()
 
+    @patch("airflow.providers.amazon.aws.operators.batch.AwsTaskLogFetcher")
+    @patch.object(BatchClientHook, "get_job_awslogs_info")
+    def test_get_batch_log_fetcher_uses_operator_aws_configuration(
+        self, mock_get_job_awslogs_info, log_fetcher_mock
+    ):
+        mock_get_job_awslogs_info.return_value = {
+            "awslogs_region": "us-east-1",
+            "awslogs_group": "/aws/batch/job",
+            "awslogs_stream_name": "stream1",
+        }
+        botocore_config = {"read_timeout": 10}
+        batch = BatchOperator(
+            task_id="test_log_fetcher_configuration",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            awslogs_enabled=True,
+            verify="/path/to/ca-bundle.pem",
+            botocore_config=botocore_config,
+        )
+
+        batch._get_batch_log_fetcher(JOB_ID)
+
+        passed = log_fetcher_mock.call_args.kwargs
+        assert passed["verify"] == "/path/to/ca-bundle.pem"
+        assert passed["botocore_config"] == botocore_config
+
     def test_init(self):
         assert self.batch.job_id == JOB_ID
         assert self.batch.job_name == JOB_NAME
