@@ -22,10 +22,12 @@ import warnings
 from unittest import mock
 
 import pytest
+from openlineage.client.event_v2 import Dataset
 
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.openlineage.utils.emission_policy import (
+    DatasetFilter,
     EmissionPolicy,
     Rule,
     resolve_dag_emission_policy,
@@ -2412,3 +2414,254 @@ class TestSelectiveEnableWithLockedRule:
         # adds 'emit' to locked_fields but locked_fields only blocks AUTHORING, not other conf rules.
         # So the task-tier opt-in rule still applies.
         assert cfg.emit is True
+
+
+_HOOK = "airflow.providers.google.cloud.hooks.gcs.GCSHook"
+_OTHER_HOOK = "airflow.providers.postgres.hooks.postgres.PostgresHook"
+
+
+def _exclude_rule(scope: dict, patterns: list[str], **extra) -> dict:
+    return {"scope": scope, "controls": {"exclude_datasets": patterns}, **extra}
+
+
+class TestExcludeDatasetsValidation:
+    @pytest.mark.parametrize(
+        "rule",
+        [
+            pytest.param({"scope": {}, "controls": {"exclude_datasets": "gs://b/.*"}}, id="not-a-list"),
+            pytest.param({"scope": {}, "controls": {"exclude_datasets": [1]}}, id="non-string-pattern"),
+            pytest.param({"scope": {}, "controls": {"exclude_datasets": ["("]}}, id="invalid-regex"),
+            pytest.param({"scope": {"hook": _HOOK}, "controls": {"emit": False}}, id="hook-scope-emit"),
+            pytest.param(
+                {"scope": {"hook": _HOOK}, "controls": {"exclude_datasets": [".*"], "hook_lineage": False}},
+                id="hook-scope-both-controls",
+            ),
+            pytest.param(
+                {"scope": {"hook": "("}, "match_mode": "regex", "controls": {"exclude_datasets": [".*"]}},
+                id="hook-scope-invalid-regex",
+            ),
+        ],
+    )
+    def test_invalid_rule_is_skipped(self, rule):
+        cfg = _resolve_task_controls([rule], operator=MockOperator(), dag_id="dag", task_id="task")
+        assert cfg == EmissionPolicy.defaults()
+
+    def test_hook_scoped_hook_lineage_does_not_disable_task_hook_lineage(self):
+        cfg = _resolve_task_controls(
+            [{"scope": {"hook": _HOOK}, "controls": {"hook_lineage": False}}],
+            operator=MockOperator(),
+            dag_id="dag",
+            task_id="task",
+        )
+        assert cfg.hook_lineage is True
+        assert cfg.dataset_filter.get_patterns(_HOOK) == (".*",)
+
+
+class TestExcludeDatasetsResolution:
+    @pytest.mark.parametrize(
+        ("rules", "hook", "expected"),
+        [
+            pytest.param([_exclude_rule({}, ["a"])], None, ("a",), id="global"),
+            pytest.param([_exclude_rule({}, ["a"])], _HOOK, ("a",), id="global-applies-to-hooks"),
+            pytest.param(
+                [_exclude_rule({}, ["a"]), _exclude_rule({"dag_id": "dag", "task_id": "task"}, ["b"])],
+                None,
+                ("b",),
+                id="task-replaces-global",
+            ),
+            pytest.param(
+                [_exclude_rule({}, ["a"]), _exclude_rule({"dag_id": "dag", "task_id": "task"}, [])],
+                None,
+                (),
+                id="task-clears-global",
+            ),
+            pytest.param([_exclude_rule({"hook": _HOOK}, ["a"])], _HOOK, ("a",), id="hook-matches"),
+            pytest.param([_exclude_rule({"hook": _HOOK}, ["a"])], _OTHER_HOOK, (), id="hook-other-hook"),
+            pytest.param([_exclude_rule({"hook": _HOOK}, ["a"])], None, (), id="hook-no-hook"),
+            pytest.param(
+                [_exclude_rule({"hook": ".*GCSHook"}, ["a"], match_mode="regex")],
+                _HOOK,
+                ("a",),
+                id="hook-regex",
+            ),
+            pytest.param(
+                [_exclude_rule({"dag_id": "other", "hook": _HOOK}, ["a"])],
+                _HOOK,
+                (),
+                id="dag-hook-other-dag",
+            ),
+            pytest.param(
+                [
+                    _exclude_rule({"dag_id": "dag", "task_id": "task"}, ["task"]),
+                    _exclude_rule({"dag_id": "dag", "task_id": "task", "hook": _HOOK}, ["task+hook"]),
+                ],
+                _HOOK,
+                ("task+hook",),
+                id="task-hook-beats-task",
+            ),
+            pytest.param(
+                [
+                    _exclude_rule({"dag_id": "dag", "hook": _HOOK}, ["dag+hook"]),
+                    _exclude_rule({"dag_id": "dag", "task_id": "task"}, ["task"]),
+                ],
+                _HOOK,
+                ("task",),
+                id="task-beats-dag-hook",
+            ),
+            pytest.param(
+                [
+                    _exclude_rule({"dag_id": "dag"}, ["dag"]),
+                    _exclude_rule({"dag_id": "dag", "hook": _HOOK}, ["dag+hook"]),
+                ],
+                _HOOK,
+                ("dag+hook",),
+                id="dag-hook-beats-dag",
+            ),
+            pytest.param(
+                [
+                    _exclude_rule({"operator": "tests.mock_module.MockOperator"}, ["op"]),
+                    _exclude_rule({"operator": "tests.mock_module.MockOperator", "hook": _HOOK}, ["op+hook"]),
+                ],
+                _HOOK,
+                ("op+hook",),
+                id="operator-hook-beats-operator",
+            ),
+            pytest.param(
+                [_exclude_rule({"hook": _HOOK}, ["hook"]), _exclude_rule({"operator": "x.Y"}, ["op"])],
+                _HOOK,
+                ("hook",),
+                id="operator-rule-not-matching",
+            ),
+            pytest.param(
+                [_exclude_rule({}, ["global"]), _exclude_rule({"hook": _HOOK}, ["hook"])],
+                _HOOK,
+                ("hook",),
+                id="hook-beats-global",
+            ),
+            pytest.param(
+                [
+                    {"scope": {"hook": _HOOK}, "controls": {"hook_lineage": False}},
+                    {"scope": {"dag_id": "dag", "hook": _HOOK}, "controls": {"hook_lineage": True}},
+                ],
+                _HOOK,
+                (),
+                id="hook-lineage-true-clears-broader-hook-rule",
+            ),
+        ],
+    )
+    def test_get_patterns(self, rules, hook, expected):
+        cfg = _resolve_task_controls(rules, operator=MockOperator(), dag_id="dag", task_id="task")
+        assert cfg.dataset_filter.get_patterns(hook) == expected
+
+    @pytest.mark.parametrize(
+        ("patterns", "dataset", "excluded"),
+        [
+            pytest.param(
+                ["gs://bucket/staging/.*"], Dataset("gs://bucket", "staging/part_1"), True, id="match"
+            ),
+            pytest.param(
+                ["staging/.*"], Dataset("gs://bucket", "staging/part_1"), False, id="fullmatch-only"
+            ),
+            pytest.param(
+                ["gs://bucket/staging/.*"], Dataset("gs://bucket", "final/out"), False, id="no-match"
+            ),
+        ],
+    )
+    def test_is_excluded_matches_namespace_and_name(self, patterns, dataset, excluded):
+        cfg = _resolve_task_controls(
+            [_exclude_rule({}, patterns)], operator=MockOperator(), dag_id="dag", task_id="task"
+        )
+        assert cfg.dataset_filter.is_excluded(dataset) is excluded
+
+    def test_exclude_keeps_order_of_remaining_datasets(self):
+        datasets = [Dataset("gs://b", "keep_1"), Dataset("gs://b", "drop"), Dataset("gs://b", "keep_2")]
+        cfg = _resolve_task_controls(
+            [_exclude_rule({}, ["gs://b/drop"])], operator=MockOperator(), dag_id="dag", task_id="task"
+        )
+        assert cfg.dataset_filter.exclude(datasets) == [datasets[0], datasets[2]]
+
+    def test_audit_log_names_replaced_broader_rules(self):
+        global_rule = _exclude_rule({}, ["a"])
+        task_rule = _exclude_rule({"dag_id": "dag", "task_id": "task"}, ["b"])
+        cfg = _resolve_task_controls(
+            [global_rule, task_rule], operator=MockOperator(), dag_id="dag", task_id="task"
+        )
+        with mock.patch("airflow.providers.openlineage.utils.emission_policy.log") as mock_log:
+            cfg.dataset_filter.get_patterns(None)
+            cfg.dataset_filter.get_patterns(None)
+        mock_log.info.assert_called_once_with(
+            "OpenLineage emission policy: '%s' set to %r for %s by %r, replacing broader rule(s) %r",
+            "exclude_datasets",
+            ["b"],
+            "task 'task' in dag 'dag'",
+            Rule(scope=task_rule["scope"], controls=task_rule["controls"]),
+            [Rule(scope={}, controls=global_rule["controls"])],
+        )
+
+
+class TestExcludeDatasetsAuthoring:
+    def test_authoring_replaces_conf_patterns_for_every_source(self):
+        from airflow.providers.openlineage.api.emission_policy import (
+            extend_global_openlineage_emission_policy,
+        )
+
+        _, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(task, exclude_datasets=["authored"])
+        rules = [_exclude_rule({}, ["global"]), _exclude_rule({"hook": _HOOK}, ["hook"])]
+        cfg = _resolve_task_controls(rules, operator=task, dag_id="test_dag", task_id="test_task")
+
+        assert cfg.dataset_filter.get_patterns(None) == ("authored",)
+        assert cfg.dataset_filter.get_patterns(_HOOK) == ("authored",)
+
+    def test_authoring_without_conf_rules(self):
+        from airflow.providers.openlineage.api.emission_policy import (
+            extend_global_openlineage_emission_policy,
+        )
+
+        _, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(task, exclude_datasets=["authored"])
+        cfg = _resolve_task_controls([], operator=task, dag_id="test_dag", task_id="test_task")
+
+        assert cfg.dataset_filter == DatasetFilter(authoring_patterns=("authored",))
+        assert cfg.dataset_filter.get_patterns(None) == ("authored",)
+
+    def test_locked_rule_blocks_authoring_only_where_it_applies(self):
+        from airflow.providers.openlineage.api.emission_policy import (
+            extend_global_openlineage_emission_policy,
+        )
+
+        _, task = _make_dag_and_task()
+        extend_global_openlineage_emission_policy(task, exclude_datasets=["authored"])
+        rules = [_exclude_rule({"hook": _HOOK}, ["locked"], locked=True)]
+        cfg = _resolve_task_controls(rules, operator=task, dag_id="test_dag", task_id="test_task")
+
+        with mock.patch("airflow.providers.openlineage.utils.emission_policy.log") as mock_log:
+            assert cfg.dataset_filter.get_patterns(_HOOK) == ("locked",)
+        mock_log.warning.assert_called_once()
+        assert cfg.dataset_filter.get_patterns(_OTHER_HOOK) == ("authored",)
+        assert cfg.dataset_filter.get_patterns(None) == ("authored",)
+
+    def test_locked_rule_does_not_block_more_specific_conf_rule(self):
+        rules = [
+            _exclude_rule({}, ["locked"], locked=True),
+            _exclude_rule({"dag_id": "dag", "task_id": "task"}, ["task"]),
+        ]
+        cfg = _resolve_task_controls(rules, operator=MockOperator(), dag_id="dag", task_id="task")
+        assert cfg.dataset_filter.get_patterns(None) == ("task",)
+
+    @pytest.mark.parametrize(
+        "patterns", [pytest.param(["("], id="invalid-regex"), pytest.param([1], id="non-string")]
+    )
+    def test_invalid_authored_patterns_bypassing_api_are_ignored(self, patterns):
+        _, task = _make_dag_and_task()
+        task.params["_openlineage_emission_policy"] = {"exclude_datasets": patterns}
+        cfg = _resolve_task_controls(
+            [_exclude_rule({}, ["global"])], operator=task, dag_id="test_dag", task_id="test_task"
+        )
+        assert cfg.dataset_filter.get_patterns(None) == ("global",)
+
+    def test_policy_with_exclude_rules_is_hashable(self):
+        cfg = _resolve_task_controls(
+            [_exclude_rule({}, ["a"])], operator=MockOperator(), dag_id="dag", task_id="task"
+        )
+        assert hash(cfg) == hash(EmissionPolicy.defaults())

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 import tempfile
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -36,6 +37,7 @@ from airflow.providers.common.compat.sdk import BaseOperator, Context, ObjectSto
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
+from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, EmissionPolicy, Rule
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State, TaskInstanceState
 
@@ -532,7 +534,9 @@ def test_get_hook_lineage_with_sql_extras_only(hook_lineage_collector):
         )
 
     assert result is None
-    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+    mock_sql_fn.assert_called_once_with(
+        task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True, dataset_filter=DatasetFilter()
+    )
     sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
     assert len(sql_extras) == 1
     assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT 1"
@@ -560,7 +564,9 @@ def test_get_hook_lineage_with_assets_and_sql_extras(hook_lineage_collector):
             task_instance_state=TaskInstanceState.SUCCESS,
         )
 
-    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+    mock_sql_fn.assert_called_once_with(
+        task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True, dataset_filter=DatasetFilter()
+    )
     sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
     assert len(sql_extras) == 1
     assert (
@@ -595,7 +601,9 @@ def test_get_hook_lineage_sql_extras_multiple_queries(hook_lineage_collector):
             task_instance_state=TaskInstanceState.SUCCESS,
         )
 
-    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+    mock_sql_fn.assert_called_once_with(
+        task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True, dataset_filter=DatasetFilter()
+    )
     sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
     assert len(sql_extras) == 2
     assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT a from src1"
@@ -633,7 +641,9 @@ def test_get_hook_lineage_passes_failed_state(hook_lineage_collector):
             task_instance_state=TaskInstanceState.FAILED,
         )
 
-    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=False)
+    mock_sql_fn.assert_called_once_with(
+        task_instance=mock_ti, sql_extras=mock.ANY, is_successful=False, dataset_filter=DatasetFilter()
+    )
     sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
     assert len(sql_extras) == 1
     assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT 1"
@@ -840,3 +850,152 @@ def test_convert_to_ol_dataset_asset_returns_none_when_translation_fails():
         return_value=None,
     ):
         assert ExtractorManager.convert_to_ol_dataset(asset) is None
+
+
+class _FakeStorageHook:
+    pass
+
+
+class _FakeWarehouseHook:
+    pass
+
+
+def _hook_fqcn(hook_cls) -> str:
+    return f"{hook_cls.__module__}.{hook_cls.__name__}"
+
+
+def _controls(dataset_filter: DatasetFilter) -> EmissionPolicy:
+    return dataclasses.replace(EmissionPolicy.defaults(), dataset_filter=dataset_filter)
+
+
+def _hook_exclusion(hook_cls, patterns: list[str]) -> DatasetFilter:
+    return DatasetFilter(
+        tiers=((Rule(scope={"hook": _hook_fqcn(hook_cls)}, controls={"exclude_datasets": patterns}),),)
+    )
+
+
+# gs:// because translating an asset needs the converter of the provider owning the scheme, and
+# google is a dev dependency of this provider while amazon is not.
+def _collect_gs_parts(collector):
+    storage_hook, warehouse_hook = _FakeStorageHook(), _FakeWarehouseHook()
+    collector.add_output_asset(context=storage_hook, uri="gs://bucket/staging/part_0")
+    collector.add_output_asset(context=storage_hook, uri="gs://bucket/final/summary")
+    collector.add_output_asset(context=warehouse_hook, uri="gs://bucket/staging/part_1")
+
+
+def test_get_hook_lineage_excludes_datasets_per_reporting_hook(hook_lineage_collector):
+    _collect_gs_parts(hook_lineage_collector)
+
+    result = ExtractorManager().get_hook_lineage(
+        controls=_controls(_hook_exclusion(_FakeStorageHook, ["gs://bucket/staging/.*"]))
+    )
+
+    assert result == OperatorLineage(
+        outputs=[
+            OpenLineageDataset(namespace="gs://bucket", name="final/summary"),
+            OpenLineageDataset(namespace="gs://bucket", name="staging/part_1"),
+        ]
+    )
+
+
+def test_get_hook_lineage_returns_empty_lineage_when_everything_excluded(hook_lineage_collector):
+    _collect_gs_parts(hook_lineage_collector)
+
+    result = ExtractorManager().get_hook_lineage(
+        controls=_controls(DatasetFilter(authoring_patterns=(".*",)))
+    )
+
+    assert result == OperatorLineage()
+
+
+def test_get_hook_lineage_passes_dataset_filter_to_sql_extras(hook_lineage_collector):
+    hook_lineage_collector.add_extra(
+        context=MagicMock(),
+        key=SqlJobHookLineageExtra.KEY.value,
+        value={SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value: "SELECT 1"},
+    )
+    dataset_filter = DatasetFilter(authoring_patterns=("x",))
+
+    with patch(_SQL_FN_PATH, return_value=None) as mock_sql_fn:
+        ExtractorManager().get_hook_lineage(
+            task_instance=MagicMock(),
+            task_instance_state=TaskInstanceState.SUCCESS,
+            controls=_controls(dataset_filter),
+        )
+
+    assert mock_sql_fn.call_args.kwargs["dataset_filter"] is dataset_filter
+
+
+def test_extract_metadata_excluded_hook_lineage_does_not_fall_back_to_inlets(hook_lineage_collector):
+    class FakeUnsupportedOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+    _collect_gs_parts(hook_lineage_collector)
+    task = FakeUnsupportedOperator(
+        task_id="unsupported_task", inlets=[OpenLineageDataset(namespace="ns", name="inlet")]
+    )
+
+    metadata = ExtractorManager().extract_metadata(
+        dagrun=MagicMock(),
+        task=task,
+        task_instance_state=None,
+        task_instance=MagicMock(),
+        controls=_controls(DatasetFilter(authoring_patterns=("gs://.*",))),
+    )
+
+    assert metadata.inputs == []
+    assert metadata.outputs == []
+
+
+def test_extract_metadata_excludes_extractor_datasets():
+    class FakeSupportedOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+        def get_openlineage_facets_on_complete(self, task_instance):
+            return OperatorLineage(
+                inputs=[OpenLineageDataset(namespace="ns", name="keep")],
+                outputs=[OpenLineageDataset(namespace="ns", name="drop")],
+            )
+
+    metadata = ExtractorManager().extract_metadata(
+        dagrun=MagicMock(),
+        task=FakeSupportedOperator(task_id="supported_task"),
+        task_instance_state=None,
+        task_instance=MagicMock(),
+        controls=_controls(DatasetFilter(authoring_patterns=("ns/drop",))),
+    )
+
+    assert metadata.inputs == [OpenLineageDataset(namespace="ns", name="keep")]
+    assert metadata.outputs == []
+
+
+def test_extract_inlets_and_outlets_excludes_static_and_runtime_datasets():
+    task = PythonOperator(
+        task_id="t",
+        python_callable=lambda: 1,
+        inlets=[
+            OpenLineageDataset(namespace="ns", name="drop_in"),
+            OpenLineageDataset(namespace="ns", name="in"),
+        ],
+        outlets=[OpenLineageDataset(namespace="ns", name="out")],
+    )
+    lineage = OperatorLineage()
+
+    with (
+        patch(
+            "airflow.providers.openlineage.extractors.manager.get_runtime_outlet_assets",
+            return_value=[(Asset(uri="s3://bucket/runtime.txt", extra={}), None)],
+        ),
+        patch(
+            "airflow.providers.openlineage.extractors.manager.translate_airflow_asset",
+            return_value=OpenLineageDataset(namespace="ns", name="drop_runtime"),
+        ),
+    ):
+        ExtractorManager().extract_inlets_and_outlets(
+            lineage, task, MagicMock(), _controls(DatasetFilter(authoring_patterns=("ns/drop_.*",)))
+        )
+
+    assert lineage.inputs == [OpenLineageDataset(namespace="ns", name="in")]
+    assert lineage.outputs == [OpenLineageDataset(namespace="ns", name="out")]
