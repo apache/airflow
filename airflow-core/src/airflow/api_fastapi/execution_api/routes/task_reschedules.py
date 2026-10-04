@@ -20,7 +20,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Security, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -42,11 +42,6 @@ router = APIRouter(
 @router.get("/{task_instance_id}/start_date")
 async def get_start_date(task_instance_id: UUID, session: AsyncSessionDep) -> UtcDateTime | None:
     """Get the first reschedule date if found, None if no records exist."""
-    start_date = await session.scalar(
-        select(TaskReschedule.start_date)
-        .where(TaskReschedule.ti_id == task_instance_id)
-        .order_by(TaskReschedule.id.asc())
-        .limit(1)
+    return await session.scalar(
+        select(func.min(TaskReschedule.start_date)).where(TaskReschedule.ti_id == task_instance_id)
     )
-
-    return start_date

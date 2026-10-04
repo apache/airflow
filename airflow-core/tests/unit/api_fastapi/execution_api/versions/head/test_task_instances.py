@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 from contextlib import nullcontext
-from datetime import datetime
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -3953,6 +3953,30 @@ class TestGetRescheduleStartDate:
             reschedule_date=timezone.datetime(2024, 1, 1, 2),
         )
         session.add(tr)
+        session.commit()
+
+        response = client.get(f"/execution/task-reschedules/{ti.id}/start_date")
+        assert response.status_code == 200
+        assert response.json() == "2024-01-01T00:00:00Z"
+
+    def test_get_start_date_returns_earliest_not_first_inserted(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_get_start_date_returns_earliest_not_first_inserted",
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 1),
+            session=session,
+        )
+        # Insert the later reschedule first so that ordering by id and by start_date disagree
+        for start_date in (timezone.datetime(2024, 1, 2), timezone.datetime(2024, 1, 1)):
+            session.add(
+                TaskReschedule(
+                    ti_id=ti.id,
+                    start_date=start_date,
+                    end_date=start_date + timedelta(hours=1),
+                    reschedule_date=start_date + timedelta(hours=2),
+                )
+            )
+            session.flush()
         session.commit()
 
         response = client.get(f"/execution/task-reschedules/{ti.id}/start_date")
