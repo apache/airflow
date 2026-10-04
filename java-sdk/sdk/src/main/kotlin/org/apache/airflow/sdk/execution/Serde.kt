@@ -167,7 +167,7 @@ private fun applyDagConfig(
   (config["tags"] as? List<*>)?.let { tags ->
     // Python stores tags in a set and serializes them sorted (for a stable
     // dag_hash); mirror that regardless of registration order.
-    data["tags"] = tags.map { it.toString() }.sorted()
+    data["tags"] = tags.map { it.toString() }.distinct().sorted()
   }
   listOf(
     "max_active_tasks",

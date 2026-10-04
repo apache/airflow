@@ -119,7 +119,7 @@ internal class SerdeTest {
     val dag =
       DagDef("d")
         .config("description", "demo")
-        .config("tags", listOf("b", "a"))
+        .config("tags", listOf("b", "a", "b"))
         .config("catchup", true)
         .config("fail_fast", true)
         .config("max_active_runs", 3)
