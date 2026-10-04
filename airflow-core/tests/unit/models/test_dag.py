@@ -63,6 +63,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.hitl import HITLDetail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
@@ -78,9 +79,11 @@ from airflow.sdk import (
     TaskGroup,
     setup,
     task as task_decorator,
+    task_group,
     teardown,
 )
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.callback import AsyncCallback
@@ -1720,6 +1723,62 @@ class TestDag:
         dag.add_task(task_with_task_group)
         assert task_group.get_child_by_label("task_with_task_group") == task_with_task_group
         assert dag.get_task("task_group.task_with_task_group") == task_with_task_group
+
+    @pytest.mark.parametrize(
+        ("excluded", "remaining"),
+        [
+            (None, {"outside", "body.work", "body.__loop_gate", "mapped"}),
+            (set(), {"outside", "body.work", "body.__loop_gate", "mapped"}),
+            ({("outside", -1)}, {"body.work", "body.__loop_gate", "mapped"}),
+            ({"body.work"}, {"outside", "body.__loop_gate", "mapped"}),
+            ({("body.work", -1)}, {"outside", "body.__loop_gate", "mapped"}),
+            ({("mapped", 0)}, {"outside", "body.work", "body.__loop_gate", "mapped"}),
+        ],
+    )
+    @pytest.mark.need_serialized_dag
+    def test_clear_selection_excludes_public_map_indexes(self, dag_maker, session, excluded, remaining):
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        with dag_maker(serialized=True) as dag:
+            create_loop(body, max_iterations=3)
+            EmptyOperator(task_id="outside")
+            PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=[{}, {}])
+        dr = dag_maker.create_dagrun(session=session)
+        root = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+        session.add(root)
+        session.flush()
+        first_pass = next(ti for ti in dr.task_instances if ti.task_id == "body.work")
+        first_pass.region_id, first_pass.region_index = root.id, 0
+        for index in (1, 2):
+            session.add(
+                TI(
+                    task=dag.get_task("body.work"),
+                    run_id=dr.run_id,
+                    dag_version_id=dr.created_dag_version_id,
+                    region_id=root.id,
+                    region_index=index,
+                )
+            )
+        session.flush()
+        selected = list(
+            dag._get_task_instances(
+                task_ids=None,
+                start_date=None,
+                end_date=None,
+                run_id=dr.run_id,
+                state=None,
+                exclude_task_ids=excluded,
+                exclude_run_ids=None,
+                session=session,
+            )
+        )
+        assert {ti.task_id for ti in selected} == remaining
+        if excluded == {("mapped", 0)}:
+            assert [ti.region_index for ti in selected if ti.task_id == "mapped"] == [1]
+        if "body.work" in remaining:
+            assert {ti.region_index for ti in selected if ti.task_id == "body.work"} == {0, 1, 2}
 
     @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
     @pytest.mark.need_serialized_dag

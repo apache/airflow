@@ -17,18 +17,21 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest import mock
 from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import event
 
 from airflow.configuration import conf
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.task_log_address import (
     TaskLogContext,
@@ -45,7 +48,7 @@ from tests_common.test_utils.asserts import assert_queries_count
     [(-1, "", "attempt=3.log"), (0, "", "map_index=0/attempt=3.log"), (-1, "pass=2", "pass=2/attempt=3.log")],
 )
 def test_default_template_preserves_exact_filename(map_index, token, suffix):
-    ti = SimpleNamespace(dag_id="dag", run_id="run", task_id="task", map_index=map_index, try_number=3)
+    ti = SimpleNamespace(dag_id="dag", run_id="run", task_id="task", region_index=map_index, try_number=3)
     context = TaskLogContext(conf.get("logging", "log_filename_template"), "", "", "", token, map_index)
 
     assert render_task_log_filename(ti, 3, context=context) == f"dag_id=dag/run_id=run/task_id=task/{suffix}"
@@ -242,3 +245,22 @@ def test_mapped_log_context_projects_expansion_position(dag_maker, session, insi
         assert path.endswith(f"map_index=0/{token}/attempt=1.log")
     else:
         assert path.endswith("task_id=body.mapped/map_index=0/attempt=1.log")
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(("attach_dag", "expected_reads"), [(True, 0), (False, 1)])
+def test_mapped_log_contexts_deserialize_the_dag_at_most_once(dag_maker, session, attach_dag, expected_reads):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    run = dag_maker.create_dagrun()
+    tis = run.task_instances
+    dag = DBDagBag().get_dag_for_run(run, session=session)
+    for ti in tis:
+        ti.task = dag.get_task(ti.task_id) if attach_dag else None
+
+    with mock.patch.object(
+        DagSerialization, "from_dict", autospec=True, side_effect=DagSerialization.from_dict
+    ) as read:
+        prepare_task_log_contexts(tis, session=session)
+
+    assert read.call_count == expected_reads

@@ -1677,6 +1677,7 @@ class TestStringifiedDAGs:
             "retries": 0,
             "retry_delay": timedelta(0, 300),
             "retry_exponential_backoff": 0,
+            "returns_dag_result": False,
             "run_as_user": None,
             "start_date": None,
             "start_from_trigger": False,
@@ -1795,6 +1796,31 @@ class TestStringifiedDAGs:
             serialized_task.get("arg2")
             == "<callable unit.serialization.test_dag_serialization.TestStringifiedDAGs.test_template_field_via_callable_serialization.<locals>.fn_returns_callable.<locals>.get_arg>"
         )
+
+    @pytest.mark.parametrize("mapped", [False, True])
+    @pytest.mark.parametrize("is_result", [False, True])
+    def test_dag_result_declaration_survives_serialization(self, mapped, is_result):
+        @task_decorator
+        def value(v):
+            return v
+
+        with DAG("serialized_dag_result", schedule=None) as dag:
+            output = value.expand(v=[1, 2]) if mapped else value(1)
+            if is_result:
+                dag.add_result(output)
+
+        encoded = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(encoded)
+        restored = DagSerialization.from_json(DagSerialization.to_json(dag))
+        assert restored.get_task("value").returns_dag_result is is_result
+
+        operator = (
+            OperatorSerialization.serialize_mapped_operator(output.operator)
+            if mapped
+            else OperatorSerialization.serialize_operator(output.operator)
+        )
+        operator.pop("returns_dag_result", None)
+        assert OperatorSerialization.deserialize_operator(operator).returns_dag_result is False
 
     @pytest.mark.parametrize("conditional", [False, True])
     @pytest.mark.parametrize("mapped_terminal", [False, True])

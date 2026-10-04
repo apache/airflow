@@ -24,7 +24,7 @@ import logging
 import math
 import warnings
 from collections import defaultdict
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import quote
@@ -101,7 +101,12 @@ from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 from airflow.models.deadline import Deadline, ReferenceModels
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.dynamic_region import SENTINEL_REGION_ID
+from airflow.models.dynamic_region import (
+    SENTINEL_REGION_ID,
+    DynamicRegion,
+    ProducerContext,
+    public_region_filter,
+)
 
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
@@ -601,8 +606,11 @@ def _log_state(*, task_instance: TaskInstance, lead_msg: str = "") -> None:
         task_instance.run_id,
     ]
     message = "%sMarking task as %s. dag_id=%s, task_id=%s, run_id=%s, "
-    if task_instance.map_index >= 0:
-        params.append(task_instance.map_index)
+    if task_instance.region_id != SENTINEL_REGION_ID:
+        params.extend((str(task_instance.region_id), task_instance.region_index))
+        message += "region_id=%s, region_index=%d, "
+    elif task_instance.region_index >= 0:
+        params.append(task_instance.region_index)
         message += "map_index=%d, "
     message += "logical_date=%s, start_date=%s, end_date=%s"
     log.info(
@@ -626,6 +634,14 @@ def _date_or_empty(*, task_instance: TaskInstance, attr: str) -> str:
     """
     result: datetime | None = getattr(task_instance, attr, None)
     return result.strftime("%Y%m%dT%H%M%S") if result else ""
+
+
+def _resolve_stored_index(map_index: int | None, region_index: int | None) -> int:
+    if map_index is not None and region_index is not None and map_index != region_index:
+        raise ValueError("map_index and region_index must identify the same stored index")
+    if region_index is not None:
+        return region_index
+    return map_index if map_index is not None else -1
 
 
 def uuid7() -> UUID:
@@ -703,8 +719,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
-    region_index = synonym("map_index")
+    region_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
+    map_index = synonym("region_index")
     region_id: Mapped[UUID] = mapped_column(
         CompactUUID(),
         nullable=False,
@@ -804,7 +820,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "task_id",
             "run_id",
             "region_id",
-            "map_index",
+            "region_index",
             "working_set",
             name="task_instance_current_key",
         ),
@@ -813,7 +829,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "task_id",
             "run_id",
             "region_id",
-            "map_index",
+            "region_index",
             "try_number",
             name="task_instance_try_key",
         ),
@@ -880,14 +896,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         dag_version_id: UUID | None,
         run_id: str | None = None,
         state: str | None = None,
-        map_index: int = -1,
+        map_index: int | None = None,
         *,
         region_id: UUID = SENTINEL_REGION_ID,
+        region_index: int | None = None,
     ):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
-        self.map_index = map_index
+        self.region_index = _resolve_stored_index(map_index, region_index)
         self.region_id = region_id
         if run_id is not None:
             self.run_id = run_id
@@ -914,7 +931,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.dag_version_id = dag_version_id
 
     def __hash__(self):
-        return hash((self.task_id, self.dag_id, self.run_id, self.map_index))
+        return hash((self.task_id, self.dag_id, self.run_id, self.region_index))
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -926,17 +943,19 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     def insert_mapping(
         run_id: str,
         task: Operator,
-        map_index: int,
+        map_index: int | None = None,
         *,
         dag_version_id: UUID | None,
         dag_run: DagRun,
         region_id: UUID = SENTINEL_REGION_ID,
+        region_index: int | None = None,
     ) -> dict[str, Any]:
         """
         Insert mapping.
 
         :meta private:
         """
+        region_index = _resolve_stored_index(map_index, region_index)
         weight_rule = task.weight_rule
         if not hasattr(weight_rule, "get_weight"):
             weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
@@ -944,7 +963,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             TaskInstance(
                 task=task,
                 run_id=run_id,
-                map_index=map_index,
+                region_index=region_index,
                 region_id=region_id,
                 dag_version_id=dag_version_id,
             )
@@ -968,7 +987,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "executor_config": task.executor_config,
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "operator_name", None),
-            "map_index": map_index,
+            "region_index": region_index,
             "region_id": region_id,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
@@ -997,15 +1016,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     def rendered_map_index(self) -> str | None:
         if self._rendered_map_index is not None:
             return self._rendered_map_index
-        if self.map_index >= 0:
-            return str(self.map_index)
+        if self.region_index >= 0:
+            return str(self.region_index)
         return None
 
     @rendered_map_index.expression  # type: ignore[no-redef]
     def rendered_map_index(cls):
         return case(
             (cls._rendered_map_index.isnot(None), cls._rendered_map_index),
-            (cls.map_index >= 0, cast(cls.map_index, String)),
+            (cls.region_index >= 0, cast(cls.region_index, String)),
             else_=None,
         )
 
@@ -1014,7 +1033,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
         base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
-        map_index = f"/mapped/{self.map_index}" if self.map_index >= 0 else ""
+        map_index = f"/mapped/{self.region_index}" if self.region_index >= 0 else ""
         try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
         _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
 
@@ -1047,7 +1066,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         map_index: int,
         lock_for_update: bool = False,
         *,
-        region_id: UUID = SENTINEL_REGION_ID,
+        region_id: UUID | None = None,
         session: Session = NEW_SESSION,
     ) -> TaskInstance | None:
         query = (
@@ -1057,8 +1076,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 dag_id=dag_id,
                 run_id=run_id,
                 task_id=task_id,
-                map_index=map_index,
-                region_id=region_id,
+                region_index=map_index,
+            )
+            .where(
+                public_region_filter(TaskInstance, dag_ids=dag_id, run_ids=run_id, task_ids=task_id)
+                if region_id is None
+                else TaskInstance.region_id == region_id
             )
         )
 
@@ -1155,7 +1178,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def key(self) -> TaskInstanceKey:
         """Returns a tuple that identifies the task instance uniquely."""
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.region_index)
 
     def get_dag_id(self) -> str:
         """Return the DAG ID for scheduler routing."""
@@ -1248,18 +1271,18 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if map_indexes is not None and not map_indexes:
             return {}
         statement = (
-            select(cls.map_index, func.max(cls.try_number))
+            select(cls.region_index, func.max(cls.try_number))
             .where(
                 cls.dag_id == dag_id,
                 cls.task_id == task_id,
                 cls.run_id == run_id,
                 cls.region_id == region_id,
             )
-            .group_by(cls.map_index)
+            .group_by(cls.region_index)
             .execution_options(include_all_attempts=True)
         )
         if map_indexes is not None:
-            statement = statement.where(cls.map_index.in_(map_indexes))
+            statement = statement.where(cls.region_index.in_(map_indexes))
         return {map_index: last_try for map_index, last_try in session.execute(statement)}
 
     def prepare_db_for_next_try(self, session: Session) -> TaskInstance:
@@ -1470,9 +1493,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 return "<deferred>"
 
         prefix = f"<TaskInstance: {field('dag_id')}.{field('task_id')} {field('run_id')} "
-        map_index = field("map_index")
-        if map_index != -1:
-            prefix += f"map_index={map_index} "
+        region_id = field("region_id")
+        region_index = field("region_index")
+        if region_id != SENTINEL_REGION_ID:
+            prefix += f"region_id={region_id} region_index={region_index} "
+        elif region_index != -1:
+            prefix += f"map_index={region_index} "
         return prefix + f"[{field('state')}] ti_id={field('id')}>"
 
     def next_retry_datetime(self):
@@ -2416,15 +2442,25 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool] | None:
         """Return SQLAlchemy filter to query selected task instances."""
-        by_region: dict[UUID, list[TaskInstance | TaskInstanceKey]] = defaultdict(list)
+        by_region: dict[UUID | None, list[TaskInstance | TaskInstanceKey]] = defaultdict(list)
         # ``tis`` may be a one-shot iterable (dict keys view, generator); this loop is its only consumer.
         for ti in tis:
-            by_region[SENTINEL_REGION_ID if isinstance(ti, TaskInstanceKey) else ti.region_id].append(ti)
+            by_region[None if isinstance(ti, TaskInstanceKey) else ti.region_id].append(ti)
         if not by_region:
             return None
         return or_(
             *(
-                and_(TaskInstance.region_id == region_id, TaskInstance._filter_for_tis(group))
+                and_(
+                    public_region_filter(
+                        TaskInstance,
+                        dag_ids={ti.dag_id for ti in group},
+                        run_ids={ti.run_id for ti in group},
+                        task_ids={ti.task_id for ti in group},
+                    )
+                    if region_id is None
+                    else TaskInstance.region_id == region_id,
+                    TaskInstance._filter_for_tis(group),
+                )
                 for region_id, group in by_region.items()
             )
         )
@@ -2452,21 +2488,21 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
-                TaskInstance.map_index == map_index,
+                TaskInstance.region_index == map_index,
                 TaskInstance.task_id.in_(task_ids),
             )
         if dag_ids == {dag_id} and task_ids == {first_task_id} and map_indices == {map_index}:
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id.in_(run_ids),
-                TaskInstance.map_index == map_index,
+                TaskInstance.region_index == map_index,
                 TaskInstance.task_id == first_task_id,
             )
         if dag_ids == {dag_id} and run_ids == {run_id} and task_ids == {first_task_id}:
             return and_(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
-                TaskInstance.map_index.in_(map_indices),
+                TaskInstance.region_index.in_(map_indices),
                 TaskInstance.task_id == first_task_id,
             )
 
@@ -2476,8 +2512,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         task_id_groups: dict[tuple, dict[Any, list[Any]]] = defaultdict(lambda: defaultdict(list))
         map_index_groups: dict[tuple, dict[Any, list[Any]]] = defaultdict(lambda: defaultdict(list))
         for t in tis:
-            task_id_groups[(t.dag_id, t.run_id)][t.task_id].append(t.map_index)
-            map_index_groups[(t.dag_id, t.run_id)][t.map_index].append(t.task_id)
+            index = t.map_index
+            task_id_groups[(t.dag_id, t.run_id)][t.task_id].append(index)
+            map_index_groups[(t.dag_id, t.run_id)][index].append(t.task_id)
 
         # this assumes that most dags have dag_id as the largest grouping, followed by run_id. even
         # if its not, this is still  a significant optimization over querying for every single tuple key
@@ -2493,7 +2530,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                             TaskInstance.dag_id == cur_dag_id,
                             TaskInstance.run_id == cur_run_id,
                             TaskInstance.task_id == cur_task_id,
-                            TaskInstance.map_index.in_(cur_map_indices),
+                            TaskInstance.region_index.in_(cur_map_indices),
                         )
                     )
             else:
@@ -2503,7 +2540,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                             TaskInstance.dag_id == cur_dag_id,
                             TaskInstance.run_id == cur_run_id,
                             TaskInstance.task_id.in_(cur_task_ids),
-                            TaskInstance.map_index == cur_map_index,
+                            TaskInstance.region_index == cur_map_index,
                         )
                     )
 
@@ -2525,7 +2562,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if task_id_only:
             filters.append(cls.task_id.in_(task_id_only))
         if with_map_index:
-            filters.append(tuple_(cls.task_id, cls.map_index).in_(with_map_index))
+            filters.append(tuple_(cls.task_id, cls.region_index).in_(with_map_index))
 
         if not filters:
             return false()
@@ -2539,16 +2576,18 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ti_count: int | None,
         *,
         session: Session,
+        producer_contexts: Mapping[str, ProducerContext] | None = None,
     ) -> int | range | None:
         if TYPE_CHECKING:
             assert self.task
         return _get_relevant_map_indexes(
             run_id=self.run_id,
-            map_index=self.map_index,
+            map_index=self.region_index,
             ti_count=ti_count,
             task=self.task,
             relative=upstream,
             session=session,
+            producer_contexts=producer_contexts,
         )
 
     def clear_db_references(self, session: Session):
@@ -2573,11 +2612,16 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """
         Create the mapped task instances for mapped task.
 
+        A mapped task's region is born with its placeholder and keeps it through re-expansion. The
+        placeholder of a pre-region expansion lives in the sentinel region; it moves, with its
+        identity, into a newly minted region.
+
         :raise NotMapped: If this task does not need expansion.
         :return: The newly created mapped task instances (if any) in ascending
             order by map index, and the maximum map index value.
         """
         from airflow.models.expandinput import NotFullyPopulated
+        from airflow.models.task_coordinates import TaskCoordinateResolver
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
         from airflow.serialization.definitions.mappedoperator import (
             SerializedMappedOperator,
@@ -2593,7 +2637,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             )
 
         try:
-            total_length: int | None = get_mapped_ti_count(task, run_id, session=session)
+            total_length: int | None = get_mapped_ti_count(
+                task,
+                run_id,
+                session=session,
+                producer_contexts=TaskCoordinateResolver.for_dag(
+                    getattr(task, "dag", None), session
+                ).producer_contexts(self),
+            )
         except NotFullyPopulated as e:
             if not task.dag or not task.dag.partial:
                 task.log.error(
@@ -2604,27 +2655,38 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 )
             total_length = None
 
+        region_id = self.region_id
         state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == task.dag_id,
                 TaskInstance.task_id == task.task_id,
                 TaskInstance.run_id == run_id,
-                TaskInstance.map_index == -1,
-                TaskInstance.region_id == self.region_id,
+                TaskInstance.region_index == -1,
+                TaskInstance.region_id == region_id,
                 or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
             )
         ).one_or_none()
+
+        all_expanded_tis: list[TaskInstance] = []
+
+        if unmapped_ti and total_length is not None and region_id == SENTINEL_REGION_ID:
+            region = DynamicRegion(dag_id=task.dag_id, run_id=run_id, node_id=task.task_id)
+            session.add(region)
+            session.flush()
+            region_id = region.id
+            unmapped_ti.region_id = region_id
+            session.flush()
+            if total_length < 1:
+                all_expanded_tis.append(unmapped_ti)
 
         last_tries = TaskInstance.get_last_try_numbers(
             dag_id=task.dag_id,
             task_id=task.task_id,
             run_id=run_id,
-            region_id=self.region_id,
+            region_id=region_id,
             session=session,
         )
-
-        all_expanded_tis: list[TaskInstance] = []
 
         if unmapped_ti:
             if TYPE_CHECKING:
@@ -2654,7 +2716,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     TaskInstance.dag_id == task.dag_id,
                     TaskInstance.task_id == task.task_id,
                     TaskInstance.run_id == run_id,
-                    TaskInstance.map_index == 0,
+                    TaskInstance.region_index == 0,
+                    TaskInstance.region_id == region_id,
                     session=session,
                 )
                 if not zero_index_ti_exists:
@@ -2665,7 +2728,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         (unmapped_ti.max_tries or 0) + promoted_try - unmapped_ti.try_number
                     )
                     unmapped_ti.try_number = promoted_try
-                    unmapped_ti.map_index = 0
+                    unmapped_ti.region_index = 0
                     task.log.debug("Updated in place to become %s", unmapped_ti)
                     all_expanded_tis.append(unmapped_ti)
                     # execute hook for task instance map index 0
@@ -2682,11 +2745,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # Only create "missing" ones.
             current_max_mapping = (
                 session.scalar(
-                    select(func.max(TaskInstance.map_index)).where(
+                    select(func.max(TaskInstance.region_index)).where(
                         TaskInstance.dag_id == task.dag_id,
                         TaskInstance.task_id == task.task_id,
                         TaskInstance.run_id == run_id,
-                        TaskInstance.region_id == self.region_id,
+                        TaskInstance.region_id == region_id,
                     )
                 )
                 or 0
@@ -2715,8 +2778,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             ti = TaskInstance(
                 task,
                 run_id=run_id,
-                map_index=index,
-                region_id=self.region_id,
+                region_index=index,
+                region_id=region_id,
                 state=state,
                 dag_version_id=dag_version_id,
             )
@@ -2741,8 +2804,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             TaskInstance.dag_id == task.dag_id,
             TaskInstance.task_id == task.task_id,
             TaskInstance.run_id == run_id,
-            TaskInstance.map_index >= total_expanded_ti_count,
-            TaskInstance.region_id == self.region_id,
+            TaskInstance.region_index >= total_expanded_ti_count,
+            TaskInstance.region_id == region_id,
         )
         to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
         for ti in to_update:
@@ -2852,6 +2915,7 @@ def _get_relevant_map_indexes(
     relative: Operator,
     ti_count: int | None,
     session: Session,
+    producer_contexts: Mapping[str, ProducerContext] | None = None,
 ) -> int | range | None:
     """
     Infer the map indexes of a relative that's "relevant" to this ti.
@@ -2920,7 +2984,9 @@ def _get_relevant_map_indexes(
     # should use a "partial" value. Let's break down the mapped ti count
     # between the ancestor and further expansion happened inside it.
 
-    ancestor_ti_count = get_mapped_ti_count(common_ancestor, run_id, session=session)
+    ancestor_ti_count = get_mapped_ti_count(
+        common_ancestor, run_id, session=session, producer_contexts=producer_contexts
+    )
     ancestor_map_index = map_index * ancestor_ti_count // ti_count
 
     # If the task is NOT further expanded inside the common ancestor, we
@@ -3038,8 +3104,12 @@ class TaskInstanceNote(Base):
 
     def __repr__(self):
         prefix = f"<{self.__class__.__name__}: {self.task_instance.dag_id}.{self.task_instance.task_id} {self.task_instance.run_id}"
-        if self.task_instance.map_index != -1:
-            prefix += f" map_index={self.task_instance.map_index}"
+        if self.task_instance.region_id != SENTINEL_REGION_ID:
+            prefix += (
+                f" region_id={self.task_instance.region_id} region_index={self.task_instance.region_index}"
+            )
+        elif self.task_instance.region_index != -1:
+            prefix += f" map_index={self.task_instance.region_index}"
         return prefix + f" TI ID: {self.ti_id}>"
 
 

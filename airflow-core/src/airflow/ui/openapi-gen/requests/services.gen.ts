@@ -1383,6 +1383,7 @@ export class DagRunService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -1525,6 +1526,7 @@ export class ExperimentalService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });

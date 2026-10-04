@@ -231,6 +231,30 @@ def test_prior_dates_resolves_mapped_region_separately_for_each_run(
     assert response.json() == {"key": "key", "value": "old"}
 
 
+@pytest.mark.parametrize("archived_run", ["old", "current"])
+def test_prior_dates_ignores_values_of_archived_expansion_task_instances(
+    client, dag_maker, session, archived_run
+):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1]])
+    old = dag_maker.create_dagrun(run_id="old", logical_date=timezone.datetime(2026, 1, 1))
+    current = dag_maker.create_dagrun(run_id="current", logical_date=timezone.datetime(2026, 1, 2))
+    dr = old if archived_run == "old" else current
+    archived = dr.task_instances[0]
+    XComModel.set_for_attempt(
+        task_instance_id=archived.id, key="key", value=99, serialize=False, session=session
+    )
+    archived.archive(reason="retry", session=session)
+    session.commit()
+
+    response = client.get(
+        f"/execution/xcoms/{current.dag_id}/{current.run_id}/mapped/key",
+        params={"map_index": 0, "include_prior_dates": True},
+    )
+
+    assert response.status_code == 404
+
+
 @pytest.fixture(autouse=True)
 def reset_db():
     """Reset XCom entries."""
@@ -393,7 +417,7 @@ class TestXComsGetEndpoint:
         with dag_maker(dag_id="dag"):
             MyOperator.partial(task_id="task").expand(x=xcom_values)
         dag_run = dag_maker.create_dagrun(run_id="runid")
-        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+        tis = {ti.region_index: ti for ti in dag_run.task_instances}
 
         for map_index, db_value in enumerate(xcom_values):
             if db_value is None:  # We don't put None to XCom.
@@ -447,7 +471,7 @@ class TestXComsGetEndpoint:
         with dag_maker(dag_id="dag"):
             MyOperator.partial(task_id="task").expand(x=xcom_values)
         dag_run = dag_maker.create_dagrun(run_id="runid")
-        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+        tis = {ti.region_index: ti for ti in dag_run.task_instances}
 
         for map_index, db_value in enumerate(xcom_values):
             if db_value is None:  # We don't put None to XCom.

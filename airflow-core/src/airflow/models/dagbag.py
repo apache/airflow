@@ -22,6 +22,7 @@ import math
 import time
 from collections.abc import MutableMapping
 from contextlib import nullcontext
+from functools import cache
 from threading import RLock
 from typing import TYPE_CHECKING, Any, NamedTuple
 from uuid import UUID
@@ -43,6 +44,9 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.serialization.definitions.dag import SerializedDAG
+
+
+SHARED_DAG_CACHE_SIZE = 64
 
 
 class _CacheEntry(NamedTuple):
@@ -287,6 +291,23 @@ class CachedDBDagBag(DBDagBag):
         with self._lock:
             size = len(self._dags)
         stats.gauge(f"{self._stats_prefix}.cache_size", size, rate=rate)
+
+
+@cache
+def get_shared_dag_bag() -> DBDagBag:
+    """
+    Return the process-wide Dag cache for structural lookups on hot paths.
+
+    Scheduling, log addressing and task coordinate resolution only need a Dag's shape, and a
+    version's definition is immutable, so one revalidated cache is reused rather than
+    deserializing the serialized Dag for every pass or request.
+    """
+    return CachedDBDagBag(
+        load_op_links=False,
+        cache_size=SHARED_DAG_CACHE_SIZE,
+        cache_ttl=0,
+        stats_prefix="shared.dag_bag",
+    )
 
 
 def generate_md5_hash(context):

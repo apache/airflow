@@ -49,6 +49,11 @@ from tests_common.test_utils.attempt_ownership import (
 pytestmark = [pytest.mark.db_test, pytest.mark.execution_timeout(10)]
 
 
+def ti_coordinates(coordinates):
+    """Rename the legacy ``map_index`` key to the live ``region_index`` column."""
+    return {("region_index" if key == "map_index" else key): value for key, value in coordinates.items()}
+
+
 def producers(session, *ids):
     ti = table(session.connection(), "task_instance", "id")
     return sa.select(ti.c.id).where(ti.c.id.in_(ids))
@@ -70,7 +75,7 @@ def seed_many_legacy_attempts(session):
     session.execute(
         ti.insert(),
         [
-            dict(**coord, id=attempt_id, try_number=1, pool="default_pool", pool_slots=1)
+            dict(**ti_coordinates(coord), id=attempt_id, try_number=1, pool="default_pool", pool_slots=1)
             for coord, attempt_id in zip(coordinates, ids)
         ],
     )
@@ -158,7 +163,12 @@ def add_other_task_with_legacy_xcom(session, run_id):
     coordinates = {**COORDINATES, "task_id": "other", "run_id": run_id}
     session.execute(
         TaskInstance.__table__.insert().values(
-            **coordinates, id=OTHER_ID, try_number=1, pool="default_pool", pool_slots=1, working_set=True
+            **ti_coordinates(coordinates),
+            id=OTHER_ID,
+            try_number=1,
+            pool="default_pool",
+            pool_slots=1,
+            working_set=True,
         )
     )
     session.execute(LegacyTaskDataOwner.__table__.insert().values(**coordinates, task_instance_id=OTHER_ID))
@@ -314,7 +324,7 @@ def test_delete_removes_both_copies_without_touching_a_successor(ownership_sessi
             dag_id="ownership",
             task_id="task",
             run_id="manual",
-            map_index=-1,
+            region_index=-1,
             try_number=3,
             pool="default_pool",
             pool_slots=1,
@@ -355,7 +365,7 @@ def test_read_projection_cannot_be_flushed_as_a_physical_row(ownership_session, 
 def test_legacy_lookup_uses_fixed_owner_coordinates_after_mapping_promotion(ownership_session):
     session = ownership_session
     ti = table(session.connection(), "task_instance", "id")
-    session.execute(ti.update().where(ti.c.id == CURRENT_ID).values(map_index=0))
+    session.execute(ti.update().where(ti.c.id == CURRENT_ID).values(region_index=0))
     rows = read(session, CURRENT_ID)
     assert len(rows) == 1
     assert rows[0].map_index == 0
@@ -527,7 +537,7 @@ def test_rendered_retention_deletes_both_stores_and_keeps_a_whole_mapped_run(own
                 dag_id="ownership",
                 task_id="task",
                 run_id="next",
-                map_index=map_index,
+                region_index=map_index,
                 try_number=1,
                 pool="default_pool",
                 pool_slots=1,
@@ -560,7 +570,7 @@ def test_rendered_retention_deletes_both_stores_and_keeps_a_whole_mapped_run(own
         session.execute(
             ti.insert().values(
                 id=attempt_id,
-                **coordinates,
+                **ti_coordinates(coordinates),
                 try_number=1,
                 pool="default_pool",
                 pool_slots=1,

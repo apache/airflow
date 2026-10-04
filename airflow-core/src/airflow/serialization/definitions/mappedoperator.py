@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, TypeGuard, overload
 
 import attrs
@@ -29,6 +29,7 @@ import structlog
 from sqlalchemy.orm import Session
 
 from airflow.exceptions import NotMapped
+from airflow.models.dynamic_region import ProducerContext
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.serialization.definitions.baseoperator import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
@@ -113,6 +114,7 @@ class SerializedMappedOperator(DAGNode):
     start_trigger_args: StartTriggerArgs | None = None
     start_from_trigger: bool = False
     _needs_expansion: bool = True
+    returns_dag_result: bool = attrs.field(init=False, default=False)
 
     doc: str | None = attrs.field(init=False)
     doc_json: str | None = attrs.field(init=False)
@@ -361,6 +363,7 @@ class SerializedMappedOperator(DAGNode):
                 "operator_extra_links",
                 "params",
                 "partial_kwargs",
+                "returns_dag_result",
                 "start_date",
                 "start_from_trigger",
                 "start_trigger_args",
@@ -504,7 +507,13 @@ class SerializedMappedOperator(DAGNode):
 
 
 @functools.singledispatch
-def get_mapped_ti_count(task: DAGNode | TaskSDKDAGNode, run_id: str, *, session: Session) -> int:
+def get_mapped_ti_count(
+    task: DAGNode | TaskSDKDAGNode,
+    run_id: str,
+    *,
+    session: Session,
+    producer_contexts: Mapping[str, ProducerContext] | None = None,
+) -> int:
     raise NotImplementedError(f"Not implemented for {type(task)}")
 
 
@@ -512,18 +521,30 @@ def get_mapped_ti_count(task: DAGNode | TaskSDKDAGNode, run_id: str, *, session:
 # TODO (GH-52141): Rewrite tests so we can drop SDK references at some point.
 @get_mapped_ti_count.register(SerializedBaseOperator)
 @get_mapped_ti_count.register(TaskSDKBaseOperator)
-def _(task: SerializedBaseOperator | TaskSDKBaseOperator, run_id: str, *, session: Session) -> int:
+def _(
+    task: SerializedBaseOperator | TaskSDKBaseOperator,
+    run_id: str,
+    *,
+    session: Session,
+    producer_contexts: Mapping[str, ProducerContext] | None = None,
+) -> int:
     group = task.get_closest_mapped_task_group()
     if group is None:
         raise NotMapped()
-    return get_mapped_ti_count(group, run_id, session=session)
+    return get_mapped_ti_count(group, run_id, session=session, producer_contexts=producer_contexts)
 
 
 # Still accept TaskSDKMappedOperator because some tests don't go through serialization.
 # TODO (GH-52141): Rewrite tests so we can drop SDK references at some point.
 @get_mapped_ti_count.register(SerializedMappedOperator)
 @get_mapped_ti_count.register(TaskSDKMappedOperator)
-def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
+def _(
+    task: SerializedMappedOperator | TaskSDKMappedOperator,
+    run_id: str,
+    *,
+    session: Session,
+    producer_contexts: Mapping[str, ProducerContext] | None = None,
+) -> int:
     from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
     exp_input = task._get_specified_expand_input()
@@ -537,20 +558,28 @@ def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, se
                 BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
             )
             .deref(task.dag)
-            .get_total_map_length(run_id, session=session)
+            .get_total_map_length(run_id, session=session, producer_contexts=producer_contexts)
         )
     else:
-        current_count = exp_input.get_total_map_length(run_id, session=session)
+        current_count = exp_input.get_total_map_length(
+            run_id, session=session, producer_contexts=producer_contexts
+        )
 
     group = task.get_closest_mapped_task_group()
     if group is None:
         return current_count
-    parent_count = get_mapped_ti_count(group, run_id, session=session)
+    parent_count = get_mapped_ti_count(group, run_id, session=session, producer_contexts=producer_contexts)
     return parent_count * current_count
 
 
 @get_mapped_ti_count.register
-def _(group: SerializedTaskGroup, run_id: str, *, session: Session) -> int:
+def _(
+    group: SerializedTaskGroup,
+    run_id: str,
+    *,
+    session: Session,
+    producer_contexts: Mapping[str, ProducerContext] | None = None,
+) -> int:
     """
     Return the number of instances a task in this group should be mapped to at run time.
 
@@ -579,7 +608,9 @@ def _(group: SerializedTaskGroup, run_id: str, *, session: Session) -> int:
                         exp_input.EXPAND_INPUT_TYPE,
                         BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
                     ).deref(group.dag)
-                yield exp_input.get_total_map_length(run_id, session=session)
+                yield exp_input.get_total_map_length(
+                    run_id, session=session, producer_contexts=producer_contexts
+                )
             group = group.parent_group
 
     return functools.reduce(operator.mul, iter_mapped_task_group_lengths(group))

@@ -23,6 +23,7 @@ import attrs
 from sqlalchemy import case, or_, select
 
 from airflow.exceptions import TaskNotFound
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import (
     SENTINEL_REGION_ID,
@@ -32,7 +33,8 @@ from airflow.models.dynamic_region import (
     resolve_current_producers,
 )
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
+from airflow.serialization.definitions.mappedoperator import is_mapped
+from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedMappedTaskGroup
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -40,7 +42,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import ColumnElement
 
-    from airflow.models.dagbag import DBDagBag
     from airflow.serialization.definitions.dag import SerializedDAG, SerializedOperator
 
 
@@ -85,17 +86,33 @@ class TaskCoordinateResolver:
     _dags: dict[UUID, SerializedDAG] = attrs.field(factory=dict, init=False)
     _region_nodes: dict[UUID, str | None] = attrs.field(factory=dict, init=False)
 
+    @classmethod
+    def for_dag(cls, dag: SerializedDAG | None, session: Session) -> TaskCoordinateResolver:
+        """Build a resolver that reads from the Dag the caller already holds, loading others on demand."""
+        resolver = cls(DBDagBag(load_op_links=False), session)
+        resolver.adopt_dag(dag)
+        return resolver
+
+    def adopt_dag(self, dag: SerializedDAG | None) -> None:
+        if dag is not None and dag.dag_version_id is not None:
+            self._dags.setdefault(dag.dag_version_id, dag)
+
     def get_task(
         self, dag_id: str, run_id: str, task_id: str, *, dag_version_id: UUID | None = None
     ) -> SerializedOperator:
         if dag_version_id is None:
             return self._producer_task(dag_id, run_id, task_id)
+        dag = self.get_dag(dag_version_id)
+        if dag is None or dag.dag_id != dag_id:
+            raise ValueError(f"Pinned Dag for {dag_id}/{run_id} not found")
+        return dag.get_task(task_id)
+
+    def get_dag(self, dag_version_id: UUID) -> SerializedDAG | None:
         if dag_version_id not in self._dags:
-            dag = self.dag_bag.get_dag(dag_version_id, session=self.session)
-            if dag is None or dag.dag_id != dag_id:
-                raise ValueError(f"Pinned Dag for {dag_id}/{run_id} not found")
+            if (dag := self.dag_bag.get_dag(dag_version_id, session=self.session)) is None:
+                return None
             self._dags[dag_version_id] = dag
-        return self._dags[dag_version_id].get_task(task_id)
+        return self._dags[dag_version_id]
 
     def _producer_task(
         self,
@@ -157,6 +174,41 @@ class TaskCoordinateResolver:
                 select(DynamicRegion.node_id).where(DynamicRegion.id == ti.region_id)
             )
         return self._region_nodes[ti.region_id] == ti.task_id
+
+    def producer_contexts(
+        self,
+        caller: TaskInstance,
+        producer_task_ids: Collection[str] | None = None,
+    ) -> dict[str, ProducerContext]:
+        task = caller.task or self.get_task(
+            caller.dag_id, caller.run_id, caller.task_id, dag_version_id=caller.dag_version_id
+        )
+        if producer_task_ids is None:
+            producer_task_ids = (
+                {op.task_id for op in task.iter_mapped_dependencies()} if is_mapped(task) else set()
+            )
+            group = task.task_group
+            while group is not None:
+                if isinstance(group, SerializedMappedTaskGroup):
+                    producer_task_ids.update(op.task_id for op in group.iter_mapped_dependencies())
+                group = group.parent_group
+        caller_loop = enclosing_loop(task)
+        contexts = {}
+        for task_id in producer_task_ids:
+            producer = (
+                task.dag.get_task(task_id)
+                if caller.task is not None and task.dag is not None
+                else self.get_task(
+                    caller.dag_id, caller.run_id, task_id, dag_version_id=caller.dag_version_id
+                )
+            )
+            loop = enclosing_loop(producer)
+            if loop is None:
+                continue
+            if caller_loop is None or caller_loop.group_id != loop.group_id:
+                raise ValueError("A loop producer requires a consumer inside the loop")
+            contexts[task_id] = ProducerContext(caller.region_id, caller.region_index, loop.group_id)
+        return contexts
 
     def has_regions(self, dag_id: str, run_id: str | None, task_id: str) -> bool:
         query = select(TaskInstance.id).where(

@@ -172,6 +172,9 @@ type TaskSpec struct {
 	// "retry_exponential_backoff".
 	RetryExponentialBackoff float64
 
+	// ReturnsDagResult corresponds to the JSON schema field "returns_dag_result".
+	ReturnsDagResult bool
+
 	// StartDate corresponds to the JSON schema field "start_date".
 	StartDate time.Time
 

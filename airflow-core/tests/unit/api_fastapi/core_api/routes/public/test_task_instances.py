@@ -4411,7 +4411,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         if task_id is not None:
             stmt = stmt.where(TaskStateStoreModel.task_id == task_id)
         if map_index is not None:
-            stmt = stmt.where(TaskStateStoreModel.map_index == map_index)
+            stmt = stmt.where(TaskStateStoreModel.region_index == map_index)
         return session.scalars(stmt).all()
 
     @pytest.mark.db_test

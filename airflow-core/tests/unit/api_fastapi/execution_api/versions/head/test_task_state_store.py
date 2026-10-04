@@ -334,7 +334,7 @@ class TestClearTaskState:
                         dag_id=ti.dag_id,
                         run_id=ti.run_id,
                         task_id=ti.task_id,
-                        map_index=idx,
+                        region_index=idx,
                         key="job_id",
                         value=f"app_{idx}",
                         updated_at=now,
@@ -355,7 +355,7 @@ class TestClearTaskState:
         with create_session() as session:
             remaining_indices = sorted(
                 session.scalars(
-                    select(TaskStateStoreModel.map_index).where(
+                    select(TaskStateStoreModel.region_index).where(
                         TaskStateStoreModel.dag_id == ti.dag_id,
                         TaskStateStoreModel.task_id == ti.task_id,
                     )

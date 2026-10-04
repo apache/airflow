@@ -55,6 +55,7 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs, get_or_create_dagrun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
@@ -80,7 +81,7 @@ from airflow.sdk import (
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
-from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
@@ -90,6 +91,7 @@ from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInst
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -196,7 +198,7 @@ class TestDagRun:
 
         if task_states is not None:
             for task_id, task_state in task_states.items():
-                ti = dag_run.get_task_instance(task_id)
+                ti = dag_run.get_task_instance(task_id, session=session)
                 if TYPE_CHECKING:
                     assert ti
                 ti.set_state(task_state, session=session)
@@ -1730,10 +1732,10 @@ def test_verify_integrity_task_start_and_end_date(
 
 
 @pytest.mark.parametrize("is_noop", [True, False])
-def test_expand_mapped_task_instance_at_create(is_noop, dag_maker, session):
-    with mock.patch("airflow.settings.task_instance_mutation_hook") as mock_mut:
+@pytest.mark.parametrize("literal", [[], [1, 2, 3, 4]])
+def test_expand_mapped_task_instance_at_create(is_noop, literal, dag_maker, session):
+    with mock.patch("airflow.settings.task_instance_mutation_hook", autospec=True) as mock_mut:
         mock_mut.is_noop = is_noop
-        literal = [1, 2, 3, 4]
         with dag_maker(session=session, dag_id="test_dag"):
             mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
 
@@ -1743,7 +1745,56 @@ def test_expand_mapped_task_instance_at_create(is_noop, dag_maker, session):
             .where(TI.task_id == mapped.task_id, TI.dag_id == mapped.dag_id, TI.run_id == dr.run_id)
             .order_by(TI.map_index)
         ).all()
-        assert indices == [0, 1, 2, 3]
+        assert indices == (list(range(len(literal))) if literal else [-1])
+        region = session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).one()
+        assert region.node_id == mapped.task_id
+        assert region.parent_region_id is None
+        assert region.forked_from_region_id is None
+        tis = session.scalars(select(TI).where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)).all()
+        assert {ti.region_id for ti in tis} == {region.id}
+        if not literal:
+            assert tis[0].state == TaskInstanceState.SKIPPED
+        original_states = {ti.id: ti.state for ti in tis}
+
+        dr.verify_integrity(dag_version_id=dr.created_dag_version_id, session=session)
+
+        assert {ti.id: ti.state for ti in dr.get_task_instances(session=session)} == original_states
+        assert session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all() == [
+            region
+        ]
+
+
+@pytest.mark.parametrize("task_count", [2, 40])
+def test_creating_literal_mapped_tasks_costs_constant_queries(task_count, dag_maker, session):
+    with dag_maker(session=session, serialized=True):
+        for index in range(task_count):
+            MockOperator.partial(task_id=f"mapped_{index}").expand(arg2=[1, 2, 3])
+
+    with assert_queries_count(12):
+        dr = dag_maker.create_dagrun()
+
+    live = session.scalars(select(TI).where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)).all()
+    assert len(live) == 3 * task_count
+
+
+def test_unresolved_mapping_has_region_before_expansion(dag_maker, session):
+    with dag_maker(serialized=True):
+        producer = BaseOperator(task_id="producer")
+        MockOperator.partial(task_id="mapped").expand(arg2=producer.output)
+    dr = dag_maker.create_dagrun()
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    mapped = tis["mapped"]
+    assert mapped.region_id.int != 0
+    assert mapped.region_index == -1
+    assert mapped.state is None
+    assert tis["producer"].region_id.int == 0
+    region = session.get(DynamicRegion, mapped.region_id)
+    assert region.node_id == "mapped"
+
+    dr.verify_integrity(dag_version_id=dr.created_dag_version_id, session=session)
+
+    assert session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all() == [region]
+    assert session.get(TI, mapped.id) is mapped
 
 
 @pytest.mark.parametrize("is_noop", [True, False])
@@ -2161,7 +2212,7 @@ def test_restoring_removed_task_allocates_attempt_once(dag_maker, session, try_n
         else:
             BashOperator(task_id="task", bash_command="true")
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance("task", map_index=0 if mapped else -1, session=session)
+    ti = dr.task_instances[0]
     ti.state = TaskInstanceState.REMOVED
     ti.try_number = try_number
     old_id = ti.id
@@ -2199,7 +2250,7 @@ def test_verifying_removed_map_index_does_not_allocate_attempt(dag_maker, sessio
     with dag_maker(session=session):
         BashOperator.partial(task_id="task").expand(bash_command=["true", "true"])
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance("task", map_index=1, session=session)
+    ti = next(ti for ti in dr.task_instances if ti.region_index == 1)
     ti.try_number = 2
     ti.state = TaskInstanceState.SUCCESS
     old_id = ti.id
@@ -2398,9 +2449,11 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
     assert len(decision.schedulable_tis) == 2
 
     # We insert a faulty record
-    session.add(
-        create_task_instance(task=dag.get_task("task_2"), run_id=dr.run_id, dag_version_id=ti.dag_version_id)
+    placeholder = create_task_instance(
+        task=dag.get_task("task_2"), run_id=dr.run_id, dag_version_id=ti.dag_version_id
     )
+    placeholder.region_id = decision.schedulable_tis[0].region_id
+    session.add(placeholder)
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions()
@@ -2557,20 +2610,27 @@ def test_mapped_task_group_empty_operator(dag_maker, session):
     dr = dag_maker.create_dagrun()
 
     t2_task = dag.get_task("tg.t2")
-    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    region_id = session.scalar(
+        select(DynamicRegion.id).where(
+            DynamicRegion.dag_id == dr.dag_id,
+            DynamicRegion.run_id == dr.run_id,
+            DynamicRegion.node_id == "tg.t2",
+        )
+    )
+    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0, region_id=region_id)
     t2_0.refresh_from_task(t2_task)
     assert t2_0.state is None
 
-    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1, region_id=region_id)
     t2_1.refresh_from_task(t2_task)
     assert t2_1.state is None
 
     dr.schedule_tis([t2_0])
 
-    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0, region_id=region_id)
     assert t2_0.state == TaskInstanceState.SUCCESS
 
-    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1, region_id=region_id)
     assert t2_1.state is None
 
 
@@ -3377,6 +3437,7 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
                     map_index=map_index,
                     dag_version_id=ti.dag_version_id,
                 )
+                ti_new.region_id = ti.region_id
                 session.add(ti_new)
                 ti_new.dag_run = dr
         else:
@@ -3861,7 +3922,14 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     # Purposely omitted RenderedTaskInstanceFields because the ti need
     # to be expanded but here we are mimicking and made it map_index -1
     session.add(tr)
-    XComModel.set(key="test", value="value", task_id=ti.task_id, dag_id=dag.dag_id, run_id=ti.run_id)
+    XComModel.set(
+        key="test",
+        value="value",
+        task_id=ti.task_id,
+        dag_id=dag.dag_id,
+        run_id=ti.run_id,
+        region_id=ti.region_id,
+    )
     session.commit()
     for table in [TaskInstanceNote, TaskReschedule, XComModel]:
         assert session.scalar(select(func.count()).select_from(table)) == 1
@@ -5537,3 +5605,20 @@ class TestGetOrCreateDagrun:
             select(func.count()).select_from(TaskInstance).where(TaskInstance.run_id == "manual__existing")
         )
         assert existing_ti_count == 1
+
+
+def test_scheduling_decisions_do_not_redeserialize_the_dag_per_pass(dag_maker, session):
+    with dag_maker(session=session, serialized=True):
+        producer = EmptyOperator(task_id="producer")
+        mapped = MockOperator.partial(task_id="mapped").expand(arg2=[1, 2])
+        producer >> mapped >> EmptyOperator(task_id="reduce")
+    dr = dag_maker.create_dagrun()
+    dr.dag = DBDagBag().get_dag_for_run(dr, session=session)
+
+    with mock.patch.object(
+        DagSerialization, "from_dict", autospec=True, side_effect=DagSerialization.from_dict
+    ) as read:
+        for _ in range(3):
+            dr.task_instance_scheduling_decisions(session=session)
+
+    assert read.call_count == 0

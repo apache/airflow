@@ -29,9 +29,9 @@ from jinja2.meta import find_undeclared_variables
 from sqlalchemy import inspect, select, tuple_
 from sqlalchemy.orm.attributes import NO_VALUE
 
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.tasklog import LogTemplate
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.utils.helpers import render_template
@@ -184,15 +184,22 @@ def prepare_task_log_contexts(
                 if ancestor_id is not None and ancestor_id not in regions
             }
         version_ids = {
-            ti.dag_version_id or runs[ti.dag_id, ti.run_id].created_dag_version_id for ti in regional
+            version_id
+            for ti in regional
+            if (version_id := ti.dag_version_id or runs[ti.dag_id, ti.run_id].created_dag_version_id)
         }
-        for row in session.scalars(
-            select(SerializedDagModel).where(SerializedDagModel.dag_version_id.in_(version_ids))
-        ):
-            row.load_op_links = False
-            dag = row.dag
-            dags[row.dag_version_id] = dag
-            node_kinds[row.dag_version_id] = {
+        attached = {
+            dag.dag_version_id: dag
+            for ti in regional
+            if (dag := getattr(ti.task, "dag", None)) is not None and dag.dag_version_id is not None
+        }
+        dag_bag = DBDagBag(load_op_links=False)
+        for version_id in version_ids:
+            dag = attached.get(version_id) or dag_bag.get_dag(version_id, session=session)
+            if dag is None:
+                raise ValueError(f"Pinned Dag version {version_id} not found")
+            dags[version_id] = dag
+            node_kinds[version_id] = {
                 group_id: "loop"
                 for group_id, group in dag.task_group.get_task_group_dict().items()
                 if group_id is not None and isinstance(group, SerializedLoopTaskGroup)
@@ -207,7 +214,7 @@ def prepare_task_log_contexts(
                 "Please make sure you set up the metadatabase correctly."
             )
         position = ""
-        map_index = ti.map_index
+        map_index = ti.region_index
         if ti.region_id != SENTINEL_REGION_ID:
             version_id = ti.dag_version_id or run.created_dag_version_id
             if version_id is None:

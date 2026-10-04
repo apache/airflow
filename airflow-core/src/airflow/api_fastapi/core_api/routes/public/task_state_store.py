@@ -42,6 +42,8 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.state.metastore import _get_db_backend
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from sqlalchemy.orm import Session
 
 task_state_store_router = AirflowRouter(
@@ -56,16 +58,17 @@ def _require_task_instance(
     task_id: str,
     map_index: int | None,
     session: Session,
-) -> None:
-    """Raise 404 unless the task instance exists. ``map_index=None`` matches any map index."""
-    statement = select(TI.task_id).where(
+) -> UUID:
+    """Return the region of the addressed task instance, raising 404 when it does not exist."""
+    statement = select(TI.region_id).where(
         TI.dag_id == dag_id,
         TI.run_id == dag_run_id,
         TI.task_id == task_id,
     )
     if map_index is not None:
-        statement = statement.where(TI.map_index == map_index)
-    if session.scalar(statement.limit(1)) is None:
+        statement = statement.where(TI.region_index == map_index)
+    region_id = session.scalar(statement.order_by(TI.region_id).limit(1))
+    if region_id is None:
         addressed_by = "all_map_indices=True" if map_index is None else f"map_index={map_index}"
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -74,6 +77,7 @@ def _require_task_instance(
                 f"task_id={task_id!r}, {addressed_by}"
             ),
         )
+    return region_id
 
 
 def _resolve_scope(
@@ -91,8 +95,10 @@ TaskScopeDep = Annotated[TaskScope, Depends(_resolve_scope)]
 
 def _validate_scope(scope: TaskScopeDep, session: SessionDep) -> TaskScope:
     """Resolve the scope, 404ing when the task instance it addresses does not exist."""
-    _require_task_instance(scope.dag_id, scope.run_id, scope.task_id, scope.map_index, session)
-    return scope
+    region_id = _require_task_instance(scope.dag_id, scope.run_id, scope.task_id, scope.map_index, session)
+    return TaskScope(
+        scope.dag_id, scope.run_id, scope.task_id, region_index=scope.region_index, region_id=region_id
+    )
 
 
 ValidatedTaskScopeDep = Annotated[TaskScope, Depends(_validate_scope)]
@@ -109,10 +115,12 @@ def _validate_clear_scope(
     ``all_map_indices`` addresses the task across every index, so it is validated against any
     instance -- an expanded mapped task has no ``map_index=-1`` instance to check.
     """
-    _require_task_instance(
+    region_id = _require_task_instance(
         scope.dag_id, scope.run_id, scope.task_id, None if all_map_indices else scope.map_index, session
     )
-    return scope
+    return TaskScope(
+        scope.dag_id, scope.run_id, scope.task_id, region_index=scope.region_index, region_id=region_id
+    )
 
 
 ValidatedClearTaskScopeDep = Annotated[TaskScope, Depends(_validate_clear_scope)]
@@ -161,7 +169,7 @@ def list_task_state_store(
             TaskStateStoreModel.dag_id == scope.dag_id,
             TaskStateStoreModel.run_id == scope.run_id,
             TaskStateStoreModel.task_id == scope.task_id,
-            TaskStateStoreModel.map_index == scope.map_index,
+            TaskStateStoreModel.region_index == scope.region_index,
         )
         .order_by(TaskStateStoreModel.key.asc())
     )
@@ -204,7 +212,7 @@ def get_task_state_store(
             TaskStateStoreModel.dag_id == scope.dag_id,
             TaskStateStoreModel.run_id == scope.run_id,
             TaskStateStoreModel.task_id == scope.task_id,
-            TaskStateStoreModel.map_index == scope.map_index,
+            TaskStateStoreModel.region_index == scope.region_index,
             TaskStateStoreModel.key == key,
         )
     ).one_or_none()
@@ -256,7 +264,7 @@ def patch_task_state_store(
             TaskStateStoreModel.dag_id == scope.dag_id,
             TaskStateStoreModel.run_id == scope.run_id,
             TaskStateStoreModel.task_id == scope.task_id,
-            TaskStateStoreModel.map_index == scope.map_index,
+            TaskStateStoreModel.region_index == scope.region_index,
             TaskStateStoreModel.key == key,
         )
     ).one_or_none()

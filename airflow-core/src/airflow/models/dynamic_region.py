@@ -23,7 +23,18 @@ from uuid import UUID
 
 import attrs
 import uuid6
-from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Index, Integer, UniqueConstraint, select
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    UniqueConstraint,
+    and_,
+    literal,
+    or_,
+    select,
+    union_all,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.timezones import timezone
@@ -34,6 +45,7 @@ SENTINEL_REGION_ID = UUID(int=0)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.models.taskinstance import TaskInstance
 
@@ -100,6 +112,53 @@ class DynamicRegion(Base):
         Index("idx_dynamic_region_slot", dag_id, run_id, node_id, parent_region_id, parent_region_index),
         Index("idx_dynamic_region_parent_region_id", parent_region_id),
     )
+
+
+def public_region_filter(
+    model,
+    *,
+    dag_ids: str | Collection[str] | None = None,
+    run_ids: str | Collection[str] | None = None,
+    task_ids: str | Collection[str] | None = None,
+) -> ColumnElement[bool]:
+    """
+    Match rows addressed by public coordinates: legacy rows and a task's own top-level region.
+
+    Pass the dag, run and task the caller is looking up so the regions that can match are
+    resolved once from ``dynamic_region`` instead of being checked per row. The row filter is then an
+    equality-or-IN on ``region_id`` that the unique key serves, where a per-row check has to read
+    every row of the task.
+    """
+    own_region = (
+        select(DynamicRegion.id)
+        .where(
+            DynamicRegion.id == model.region_id,
+            DynamicRegion.node_id == model.task_id,
+            DynamicRegion.parent_region_id.is_(None),
+        )
+        .correlate(model)
+        .exists()
+    )
+    exact = or_(model.region_id == SENTINEL_REGION_ID, own_region)
+    if dag_ids is None or run_ids is None or task_ids is None:
+        return exact
+    candidates = union_all(
+        select(literal(SENTINEL_REGION_ID, CompactUUID()).label("id")),
+        select(DynamicRegion.id.label("id")).where(
+            _match_any(DynamicRegion.dag_id, dag_ids),
+            _match_any(DynamicRegion.run_id, run_ids),
+            _match_any(DynamicRegion.node_id, task_ids),
+            DynamicRegion.parent_region_id.is_(None),
+        ),
+    ).subquery()
+    narrowed = model.region_id.in_(select(candidates.c.id))
+    if isinstance(dag_ids, str) and isinstance(run_ids, str) and isinstance(task_ids, str):
+        return narrowed
+    return and_(narrowed, exact)
+
+
+def _match_any(column, value: str | Collection[str]) -> ColumnElement[bool]:
+    return column == value if isinstance(value, str) else column.in_(value)
 
 
 def resolve_current_producers(

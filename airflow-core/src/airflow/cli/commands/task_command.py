@@ -27,6 +27,9 @@ import textwrap
 from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
 
+import uuid6
+from sqlalchemy import select
+
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
@@ -34,10 +37,16 @@ from airflow.cli.utils import deprecated_for_airflowctl, fetch_dag_run_from_run_
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, NotMapped, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun, get_or_create_dagrun
-from airflow.models.dynamic_region import SENTINEL_REGION_ID
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_coordinates import (
+    TaskCoordinateResolver,
+    enclosing_loop,
+    public_map_index_expression,
+)
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -185,6 +194,8 @@ def _get_ti(
 
     if not logical_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `logical_date_or_run_id` if not `create_if_necessary`.")
+    if enclosing_loop(task) is not None:
+        raise ValueError("A loop task requires an explicit region scope")
     if task.get_needs_expansion():
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
@@ -197,7 +208,13 @@ def _get_ti(
         session=session,
     )
 
-    ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
+    producers = TaskCoordinateResolver(DBDagBag(), session).resolve(
+        dag_id=dag_run.dag_id,
+        run_id=dag_run.run_id,
+        task_id=task.task_id,
+        map_indexes=map_index,
+    )
+    ti_or_none = producers[0] if producers else None
     ti: TaskInstance
     if ti_or_none is None:
         if not create_if_necessary:
@@ -223,7 +240,48 @@ def _get_ti(
             raise ValueError(
                 f"Cannot create TaskInstance for {dag.dag_id} because the Dag is not serialized."
             )
-        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index, dag_version_id=dag_version.id)
+        region_id = SENTINEL_REGION_ID
+        if map_index >= 0:
+            existing_region_id = session.scalar(
+                select(DynamicRegion.id)
+                .where(
+                    DynamicRegion.dag_id == dag.dag_id,
+                    DynamicRegion.run_id == dag_run.run_id,
+                    DynamicRegion.node_id == task.task_id,
+                )
+                .order_by(DynamicRegion.id.desc())
+                .limit(1)
+            )
+            has_legacy_instances = existing_region_id is None and session.scalar(
+                select(
+                    select(TaskInstance.id)
+                    .where(
+                        TaskInstance.working_set.is_(True),
+                        TaskInstance.dag_id == dag.dag_id,
+                        TaskInstance.run_id == dag_run.run_id,
+                        TaskInstance.task_id == task.task_id,
+                    )
+                    .exists()
+                )
+            )
+            if existing_region_id is not None:
+                region_id = existing_region_id
+            elif not has_legacy_instances:
+                region_id = uuid6.uuid7()
+                if dag_run in session:
+                    session.add(
+                        DynamicRegion(
+                            id=region_id, dag_id=dag.dag_id, run_id=dag_run.run_id, node_id=task.task_id
+                        )
+                    )
+                    session.flush()
+        ti = TaskInstance(
+            task,
+            run_id=dag_run.run_id,
+            region_id=region_id,
+            region_index=map_index,
+            dag_version_id=dag_version.id,
+        )
         if dag_run in session:
             session.add(ti)
         ti.dag_run = dag_run
@@ -389,7 +447,19 @@ def task_states_for_dag_run(args, *, session: Session = NEW_SESSION) -> None:
             "not found"
         )
 
-    has_mapped_instances = any(ti.map_index >= 0 for ti in dag_run.task_instances)
+    rows = session.execute(
+        select(TaskInstance, public_map_index_expression(TaskInstance)).where(
+            TaskInstance.working_set.is_(True),
+            TaskInstance.dag_id == dag_run.dag_id,
+            TaskInstance.run_id == dag_run.run_id,
+        )
+    ).all()
+    task_instances = [ti for ti, _ in rows]
+    map_indexes = {ti.id: map_index for ti, map_index in rows}
+    has_mapped_instances = any(map_index >= 0 for map_index in map_indexes.values())
+    has_loop_instances = any(
+        ti.region_id != SENTINEL_REGION_ID and map_indexes[ti.id] < 0 for ti in task_instances
+    )
 
     def format_task_instance(ti: TaskInstance) -> dict[str, str]:
         data = {
@@ -401,10 +471,14 @@ def task_states_for_dag_run(args, *, session: Session = NEW_SESSION) -> None:
             "end_date": ti.end_date.isoformat() if ti.end_date else "",
         }
         if has_mapped_instances:
-            data["map_index"] = str(ti.map_index) if ti.map_index is not None and ti.map_index >= 0 else ""
+            map_index = map_indexes[ti.id]
+            data["map_index"] = str(map_index) if map_index >= 0 else ""
+        if has_loop_instances:
+            data["region_id"] = str(ti.region_id)
+            data["region_index"] = str(ti.region_index)
         return data
 
-    AirflowConsole().print_as(data=dag_run.task_instances, output=args.output, mapper=format_task_instance)
+    AirflowConsole().print_as(data=task_instances, output=args.output, mapper=format_task_instance)
 
 
 @cli_utils.action_cli(check_db=False)

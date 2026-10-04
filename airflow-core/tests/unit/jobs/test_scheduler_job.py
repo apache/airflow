@@ -95,6 +95,7 @@ from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool, PoolStats
@@ -410,6 +411,28 @@ class TestSchedulerJob:
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.init_executors") as loader_mock:
             loader_mock.return_value = mock_executors
             yield default_executor
+
+    def test_ranked_admission_joins_exact_task_uuid(self, dag_maker, session):
+        with dag_maker(max_active_tasks=1):
+            task = EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        scheduled = dr.task_instances[0]
+        scheduled.state = TaskInstanceState.SCHEDULED
+        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id=task.task_id)
+        session.add(region)
+        session.flush()
+        sibling = TaskInstance(
+            task=task, run_id=dr.run_id, dag_version_id=scheduled.dag_version_id, region_id=region.id
+        )
+        sibling.state = TaskInstanceState.SUCCESS
+        session.add(sibling)
+        scheduled.dag_model.is_paused = False
+        session.flush()
+        runner = SchedulerJobRunner(Job())
+
+        selected = session.scalars(runner._build_schedulable_tis_query(set(), set(), set(), set(), 10)).all()
+
+        assert [ti.id for ti in selected] == [scheduled.id]
 
     def test_is_alive(self):
         scheduler_job = Job(heartrate=10, state=State.RUNNING)
@@ -3997,11 +4020,11 @@ class TestSchedulerJob:
 
         def refuse_adoption(tis):
             assert len(tis) == 1
-            # ``repr(ti)`` in the reset path reads both ``state`` and ``map_index``; the query
+            # ``repr(ti)`` in the reset path reads both ``state`` and ``region_index``; the query
             # must load both so the reset log stays accurate (and never lazy-loads on detach).
             unloaded = inspect(tis[0]).unloaded
             assert "state" not in unloaded
-            assert "map_index" not in unloaded
+            assert "region_index" not in unloaded
             # repr must render the real state, not the ``<deferred>`` fallback.
             assert "queued" in repr(tis[0])
             return tis
@@ -10211,6 +10234,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize("missing_definition", ["dag", "task"])
     @pytest.mark.parametrize(("max_tries", "expected_max_tries"), [(0, 3), (7, 7)])
     @pytest.mark.parametrize("callback_version_available", [True, False])
+    @pytest.mark.parametrize("regional", [False, True])
     def test_heartbeat_timeout_completes_clear_without_definition(
         self,
         dag_maker,
@@ -10220,11 +10244,17 @@ class TestSchedulerJob:
         max_tries,
         expected_max_tries,
         callback_version_available,
+        regional,
     ):
         with dag_maker(dag_id="heartbeat_clear_missing_definition", session=session):
             EmptyOperator(task_id="task")
         dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
         ti = dr.get_task_instance("task", session=session)
+        if regional:
+            region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop")
+            session.add(region)
+            session.flush()
+            ti.region_id, ti.region_index = region.id, 2
         ti.state = State.RESTARTING
         ti.try_number = 3
         ti.max_tries = max_tries
@@ -10252,7 +10282,9 @@ class TestSchedulerJob:
         session.refresh(ti)
         assert ti.id == old_id
         assert ti.working_set is None
-        current = dr.get_task_instance("task", session=session)
+        current = dr.get_task_instance(
+            "task", map_index=ti.region_index, region_id=ti.region_id, session=session
+        )
         assert current.id != old_id
         assert (current.try_number, current.state, current.max_tries) == (4, None, expected_max_tries)
         assert current.external_executor_id is None

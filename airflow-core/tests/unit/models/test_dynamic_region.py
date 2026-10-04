@@ -17,25 +17,32 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from airflow._shared.timezones import timezone
 from airflow.models.dynamic_region import (
+    SENTINEL_REGION_ID,
     AmbiguousProducerError,
     DynamicRegion,
     ProducerContext,
     resolve_current_producers,
 )
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.db import clear_db_runs
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
 
 pytestmark = pytest.mark.db_test
 
@@ -45,6 +52,10 @@ def clean_db():
     clear_db_runs()
     yield
     clear_db_runs()
+
+
+def make_region(dag_run: DagRun, **kwargs) -> DynamicRegion:
+    return DynamicRegion(dag_id=dag_run.dag_id, run_id=dag_run.run_id, node_id="loop", **kwargs)
 
 
 @pytest.fixture
@@ -307,9 +318,7 @@ def test_mapping_revision_only_changes_selected_expansion(dag_maker, session):
     regional = TaskInstance(task, version, run_id=dr.run_id, map_index=3, region_id=uuid4())
     session.add_all([ordinary, regional])
     session.flush()
-    added = dr._revise_map_indexes_if_mapped(
-        task, dag_version_id=version, region_id=regional.region_id, session=session
-    )
+    added = dr._revise_map_indexes_if_mapped(regional, session=session)
     assert [(ti.region_id, ti.region_index) for ti in added] == [
         (regional.region_id, 0),
         (regional.region_id, 1),
@@ -387,3 +396,60 @@ def test_xcom_reads_are_scoped_to_the_producer_region(regional_tis, session):
     assert read() == {first.id}
     assert read(region_id=second.region_id) == {second.id}
     assert read(region_id=None) == {first.id, second.id}
+
+
+def test_public_task_instance_lookup_addresses_a_tasks_own_region_only(dag_maker, session):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+        EmptyOperator(task_id="plain")
+    dr = dag_maker.create_dagrun()
+    mapped = dr.get_task_instance("mapped", map_index=1, session=session)
+    plain = dr.get_task_instance("plain", session=session)
+    assert mapped is not None
+    assert mapped.region_id != SENTINEL_REGION_ID
+    assert TaskInstance.get_task_instance(dr.dag_id, dr.run_id, "mapped", 1, session=session) == mapped
+    assert dr.get_task_instance("mapped", map_index=1, region_id=SENTINEL_REGION_ID, session=session) is None
+    assert dr.get_task_instance("mapped", map_index=1, region_id=mapped.region_id, session=session) == mapped
+
+    loop = make_region(dr)
+    session.add(loop)
+    session.flush()
+    plain.region_id, plain.region_index = loop.id, 2
+    session.flush()
+
+    assert dr.get_task_instance("plain", map_index=2, session=session) is None
+    assert dr.get_task_instance("plain", map_index=2, region_id=loop.id, session=session) == plain
+
+
+def _ti_search_plans(session, statements):
+    plans = []
+    for statement in statements:
+        rows = session.execute(text(f"EXPLAIN QUERY PLAN {statement}")).all()
+        plans.extend(row[-1] for row in rows if "task_instance" in row[-1] and "SEARCH" in row[-1])
+    return plans
+
+
+def test_public_lookups_use_the_task_instance_unique_key(dag_maker, session):
+    if session.get_bind().dialect.name != "sqlite":
+        pytest.skip("Reads the SQLite query plan")
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[i] for i in range(40)])
+    dr = dag_maker.create_dagrun()
+    key = TaskInstanceKey(dr.dag_id, "mapped", dr.run_id, map_index=7)
+    lookups = {
+        "dagrun": lambda: dr.get_task_instance("mapped", map_index=7, session=session),
+        "ti": lambda: TaskInstance.get_task_instance(dr.dag_id, dr.run_id, "mapped", 7, session=session),
+        "keys": lambda: session.scalars(select(TaskInstance).where(TaskInstance.filter_for_tis([key]))).all(),
+        "xcom": lambda: session.scalars(
+            XComModel.get_many(
+                run_id=dr.run_id, dag_ids=dr.dag_id, task_ids="mapped", map_indexes=7, key="return_value"
+            )
+        ).all(),
+    }
+
+    for name, lookup in lookups.items():
+        with capture_orm_selects("task_instance") as statements:
+            lookup()
+        plans = _ti_search_plans(session, statements)
+        assert any("region_id=? AND region_index=?" in plan for plan in plans), (name, plans)
+        assert not any("ANY(" in plan for plan in plans), (name, plans)

@@ -2188,7 +2188,7 @@ class TestTIUpdateState:
                             dag_id="dag",
                             run_id="run",
                             task_id="task",
-                            map_index=-1,
+                            region_index=-1,
                             try_number=1,
                             max_tries=0,
                             start_date=None,

@@ -245,7 +245,7 @@ QueryHITLDetailMapIndexFilter = Annotated[
     FilterParam[int | None],
     Depends(
         filter_param_factory(
-            TaskInstance.map_index,
+            TaskInstance.region_index,
             int | None,
             filter_name="map_index",
         )
