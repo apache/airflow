@@ -161,6 +161,45 @@ abstract class GenerateDiscriminatorTask : DefaultTask() {
     }
 }
 
+// Code generation reads only the committed schema/schema.json, so this check
+// never writes: it fails when that file is not at airflowSupervisorSchemaVersion,
+// because the models would then be generated for one version while the jar
+// manifest names another.
+abstract class CheckSupervisorSchemaVersionTask : DefaultTask() {
+    @get:Input
+    abstract val schemaVersion: Property<String>
+
+    @get:InputFile
+    abstract val schemaFile: RegularFileProperty
+
+    @TaskAction
+    fun check() {
+        val declared =
+            com.fasterxml.jackson.databind
+                .ObjectMapper()
+                .readTree(schemaFile.get().asFile)
+                .path("api_version")
+                .asText()
+        val expected = schemaVersion.get()
+        if (declared != expected) {
+            throw GradleException(
+                "schema/schema.json declares api_version='$declared' but airflowSupervisorSchemaVersion is " +
+                    "'$expected'. Run java-sdk/gradlew -p java-sdk :sdk:syncSupervisorSchema and commit the file.",
+            )
+        }
+    }
+}
+
+// Refreshes the vendored schema/schema.json. It runs only when asked, so a later
+// change to the Task SDK snapshot never rewrites the file behind a build or a prek
+// hook. After such a change, run
+//   java-sdk/gradlew -p java-sdk :sdk:syncSupervisorSchema
+// and commit the file. The prek hook also runs it, but only when
+// airflowSupervisorSchemaVersion no longer matches the file.
+// A version is published only when it is released, so the in-progress one
+// (which gains messages during a release cycle) is taken from the monorepo
+// snapshot whenever that snapshot declares the configured version. Otherwise the
+// published file is downloaded, unless the file is already at that version.
 abstract class SyncSupervisorSchemaTask : DefaultTask() {
     @get:Input
     abstract val schemaVersion: Property<String>
@@ -170,6 +209,9 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
 
     @get:Internal
     abstract val schemaFile: RegularFileProperty
+
+    @get:Internal
+    abstract val monorepoFile: RegularFileProperty
 
     private fun apiVersionOf(file: File): String =
         if (file.exists()) {
@@ -186,6 +228,16 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
     fun sync() {
         val file = schemaFile.get().asFile
         val version = schemaVersion.get()
+        val monorepo = monorepoFile.get().asFile
+        if (apiVersionOf(monorepo) == version) {
+            if (file.exists() && file.readBytes().contentEquals(monorepo.readBytes())) {
+                logger.lifecycle("Supervisor Schema matches the monorepo snapshot (api_version=$version).")
+            } else {
+                logger.lifecycle("Refreshing Supervisor Schema from ${monorepo.path}")
+                monorepo.copyTo(file, overwrite = true)
+            }
+            return
+        }
         if (apiVersionOf(file) == version) {
             logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
             return
@@ -649,14 +701,21 @@ abstract class GenerateDagDslTask : DefaultTask() {
 }
 
 val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
-    description = "Ensure the bundled Supervisor Schema is up-to-date with the Gradle property."
+    description = "Refresh the vendored Supervisor Schema from the monorepo snapshot. Run on request, then commit the file."
     schemaVersion = airflowSupervisorSchemaVersion
     baseUrl = schemaBaseUrl
+    schemaFile = schemaInput
+    monorepoFile = layout.projectDirectory.file("../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json")
+}
+
+val checkSupervisorSchemaVersion by tasks.registering(CheckSupervisorSchemaVersionTask::class) {
+    description = "Fail when the vendored Supervisor Schema is not at the configured version. Never writes."
+    schemaVersion = airflowSupervisorSchemaVersion
     schemaFile = schemaInput
 }
 
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
-    dependsOn(syncSupervisorSchema)
+    dependsOn(checkSupervisorSchemaVersion)
     description = "Generate Discriminator to wire type strings to model classes"
     schemaFile = schemaInput
     modelPackage = jsonSchemaPackage
@@ -664,7 +723,7 @@ tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
 }
 
 tasks.register<GeneratePointersTask>("generatePointers") {
-    dependsOn(syncSupervisorSchema)
+    dependsOn(checkSupervisorSchemaVersion)
     description = "Generate pointer files for jsonSchema2Pojo"
     schemaFile = schemaInput
     targetDirectory = pointersDir
