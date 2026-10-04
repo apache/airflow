@@ -402,50 +402,59 @@ jobs:
       - name: "Check disk space after build"
         run: df -H
 
-  # Run checkout code in a separate job with no branch-cache publications. This optional
-  # producer hands the snapshot only to consumers of the same workflow run.
-  snapshot-ci-images:
-    name: "Snapshot CI ${{ inputs.platform }} image ${{ matrix.python-version }}"
-    needs: build-ci-images
-    if: >
-      github.event_name == 'pull_request' &&
-      inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
-      (inputs.checkout-ref == '' || inputs.checkout-ref == github.sha)
-    continue-on-error: true
-    timeout-minutes: 20
-    runs-on: ${{ fromJSON(inputs.runners) }}
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ${{ fromJSON(inputs.python-versions) }}
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: "Checkout sources"
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: "Prepare authoritative CI image"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: ${{ inputs.platform }}
-          python: ${{ matrix.python-version }}
-          use-uv: ${{ inputs.use-uv }}
-          make-mnt-writeable-and-cleanup: 'true'
-          restore-snapshot: 'false'
+      # Snapshot only after cache publication: pruning removes the mount-cache image.
+      # Keep creation in trusted workflow commands; the configurable checkout is untrusted.
       - name: "Snapshot CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         id: snapshot-export
         continue-on-error: true
+        timeout-minutes: 5
         env:
-          PLATFORM: ${{ inputs.platform }}
-        run: >
-          ./scripts/ci/docker_data_root_snapshot.sh create
-          "/mnt/ci-image-snapshot-${PLATFORM//\//_}-${PYTHON_MAJOR_MINOR_VERSION}.tar.zst"
+          SNAPSHOT_FILE: >-
+            /mnt/ci-image-snapshot-${{
+            inputs.platform == 'linux/amd64' && 'linux_amd64' || 'linux_arm64'
+            }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst
+        run: |
+          daemon_stopped=false
+          function restart_docker_on_exit() {
+            local result=$?
+            trap - EXIT
+            if [[ "${daemon_stopped}" == true ]]; then
+              sudo systemctl start docker
+            fi
+            exit "${result}"
+          }
+          trap restart_docker_on_exit EXIT
+          daemon="$(docker info --format \
+            '{{.ServerVersion}} {{.Driver}} {{.Architecture}} {{.DockerRootDir}}')"
+          read -r _ driver _ root <<< "${daemon}"
+          if [[ "${driver}" != overlay2 || "${root}" != /var/lib/docker ]]; then
+            echo "::warning::Unsupported Docker image store; skipping snapshot creation: ${daemon}"
+            exit 3
+          fi
+          image_id="$(docker images --quiet --filter 'label=org.apache.airflow.image=airflow-ci' | sort -u)"
+          if [[ -z "${image_id}" || "${image_id}" == *$'\n'* ]]; then
+            echo "Expected exactly one CI image in the daemon, found: '${image_id}'" >&2
+            exit 1
+          fi
+          docker ps --all --quiet | xargs --no-run-if-empty docker rm --force >/dev/null
+          docker images --quiet | sort -u | {
+            grep --invert-match --fixed-strings --line-regexp "${image_id}" || true
+          } | xargs --no-run-if-empty docker rmi --force >/dev/null
+          docker builder prune --all --force >/dev/null
+          printf '%s %s %s\n' "${daemon}" "${image_id}" "$(git rev-parse HEAD)" \
+            > "${SNAPSHOT_FILE}.meta"
+          daemon_stopped=true
+          sudo systemctl stop docker.socket docker
+          sudo tar --directory /var/lib/docker --xattrs --acls --numeric-owner \
+            --create --file - image overlay2 \
+            | zstd -3 -T0 --quiet --force -o "${SNAPSHOT_FILE}"
+          sudo systemctl start docker
+          daemon_stopped=false
         shell: bash
+        if: >
+          github.event_name == 'pull_request' &&
+          inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
+          (inputs.checkout-ref == '' || inputs.checkout-ref == github.sha)
       - name: "Upload CI image snapshot ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1

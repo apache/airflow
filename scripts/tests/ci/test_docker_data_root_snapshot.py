@@ -22,8 +22,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 SCRIPT = Path(__file__).resolve().parents[2] / "ci" / "docker_data_root_snapshot.sh"
+WORKFLOW = SCRIPT.parents[2] / ".github" / "workflows" / "ci-image-build.yml"
 FINGERPRINT = "28.5.2 overlay2 x86_64 /var/lib/docker"
 
 
@@ -85,8 +87,16 @@ def snapshot(tmp_path):
 
 
 def run_script(env, *args):
+    if args[0] == "create":
+        workflow = yaml.safe_load(WORKFLOW.read_text())
+        steps = workflow["jobs"]["build-ci-images"]["steps"]
+        create_step = next(step for step in steps if step.get("id") == "snapshot-export")
+        command = ["bash", "--noprofile", "--norc", "-e", "-o", "pipefail", "-c", create_step["run"]]
+        env = {**env, "SNAPSHOT_FILE": args[1]}
+    else:
+        command = ["bash", "--noprofile", "--norc", str(SCRIPT), *args]
     return subprocess.run(
-        ["bash", "--noprofile", "--norc", str(SCRIPT), *args],
+        command,
         env={**os.environ, **env},
         capture_output=True,
         text=True,
@@ -133,6 +143,8 @@ def test_restore_leaves_daemon_alone_when_snapshot_does_not_fit(
     result = run_script({**fake_tools, **env}, "restore", str(snapshot))
 
     assert result.returncode == expected_exit
+    if "DAEMON_FINGERPRINT" in env:
+        assert "::warning::" in result.stdout
     assert not [c for c in read_commands(fake_tools) if c[:2] == ["sudo", "systemctl"]]
 
 
@@ -198,6 +210,7 @@ def test_create_restarts_daemon_after_archive_failure(fake_tools, tmp_path, fail
 def test_unsupported_storage_does_not_modify_daemon(fake_tools, snapshot, mode, daemon):
     result = run_script({**fake_tools, "DAEMON_FINGERPRINT": daemon}, mode, str(snapshot))
     assert result.returncode == 3
+    assert "::warning::" in result.stdout
     assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
 
 
@@ -234,3 +247,13 @@ def test_partial_stop_failure_restarts_daemon(fake_tools, snapshot, mode):
     assert result.returncode != 0
     assert read_commands(fake_tools)[-1] == ["sudo", "systemctl", "start", "docker"]
     assert not any(command[:2] == ["sudo", "rm"] for command in read_commands(fake_tools))
+
+
+def test_snapshot_creation_uses_builder_after_cache_publication():
+    workflow = yaml.safe_load(WORKFLOW.read_text())
+    assert "snapshot-ci-images" not in workflow["jobs"]
+    steps = workflow["jobs"]["build-ci-images"]["steps"]
+    snapshot = next(i for i, step in enumerate(steps) if step.get("id") == "snapshot-export")
+    cache_publishers = [i for i, step in enumerate(steps) if "/stash/save@" in step.get("uses", "")]
+    assert cache_publishers
+    assert all(publisher < snapshot for publisher in cache_publishers)

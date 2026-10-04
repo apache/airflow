@@ -20,9 +20,7 @@
 # restores it with one extraction instead of `docker image load` unpacking and checksumming every
 # layer again.
 #
-#   docker_data_root_snapshot.sh create SNAPSHOT_FILE
-#       Keeps only the CI image in the daemon and writes its image store to SNAPSHOT_FILE, plus
-#       SNAPSHOT_FILE.meta naming the daemon that wrote it and the image.
+#   The builder creates the snapshot in ci-image-build.yml after publishing its caches.
 #   docker_data_root_snapshot.sh restore SNAPSHOT_FILE
 #       Restores the image. Incompatible snapshots leave the daemon untouched. Failed
 #       materialization cleans partial image state and restarts Docker for the normal stash path.
@@ -51,7 +49,7 @@ function check_supported_daemon() {
     local _ driver root
     read -r _ driver _ root <<< "${daemon}"
     if [[ "${driver}" != overlay2 || "${root}" != "${DATA_ROOT}" ]]; then
-        echo "Unsupported Docker image store: ${daemon}"
+        echo "::warning::Unsupported Docker image store; skipping snapshot restore: ${daemon}"
         exit 3
     fi
 }
@@ -73,26 +71,6 @@ function start_daemon() {
 
 function remove_image_store() {
     sudo rm -rf "${DATA_ROOT}/image" "${DATA_ROOT}/overlay2"
-}
-
-function create_snapshot() {
-    local snapshot_file="${1}"
-    local image_id
-    check_supported_daemon "$(daemon_fingerprint)"
-    image_id="$(docker images --quiet --filter "label=org.apache.airflow.image=airflow-ci" | sort -u)"
-    if [[ -z "${image_id}" || "${image_id}" == *$'\n'* ]]; then
-        echo "Expected exactly one CI image in the daemon, found: '${image_id}'" >&2
-        exit 1
-    fi
-    docker ps --all --quiet | xargs --no-run-if-empty docker rm --force >/dev/null
-    docker images --quiet | sort -u | { grep --invert-match --fixed-strings --line-regexp "${image_id}" || true; } \
-        | xargs --no-run-if-empty docker rmi --force >/dev/null
-    docker builder prune --all --force >/dev/null
-    printf '%s %s %s\n' "$(daemon_fingerprint)" "${image_id}" "$(git rev-parse HEAD)" > "${snapshot_file}.meta"
-    stop_daemon
-    sudo tar --directory "${DATA_ROOT}" --xattrs --acls --numeric-owner --create --file - image overlay2 \
-        | zstd -3 -T0 --quiet --force -o "${snapshot_file}"
-    start_daemon
 }
 
 function restore_snapshot() {
@@ -117,7 +95,7 @@ function restore_snapshot() {
     daemon="$(daemon_fingerprint)"
     check_supported_daemon "${daemon}"
     if [[ "${snapshot_fingerprint}" != "${daemon}" ]]; then
-        echo "The snapshot was written by '${snapshot_fingerprint}', this daemon is '${daemon}'"
+        echo "::warning::Snapshot daemon fingerprint mismatch: '${snapshot_fingerprint}' != '${daemon}'"
         exit 3
     fi
     existing_images="$(docker images --all --quiet)"
@@ -141,14 +119,11 @@ function restore_snapshot() {
 }
 
 case "${1:-}" in
-    create)
-        create_snapshot "${2}"
-        ;;
     restore)
         restore_snapshot "${2}"
         ;;
     *)
-        echo "Usage: ${0} create|restore SNAPSHOT_FILE" >&2
+        echo "Usage: ${0} restore SNAPSHOT_FILE" >&2
         exit 1
         ;;
 esac
