@@ -28,7 +28,7 @@ from airflow_breeze.params.shell_params import ShellParams
 @pytest.fixture(autouse=True)
 def mock_run_command():
     """We mock run_command to capture its call args; tests that depend on its return code set it."""
-    with patch("airflow_breeze.commands.testing_commands.run_command") as mck:
+    with patch("airflow_breeze.commands.testing_commands.run_command", autospec=True) as mck:
         yield mck
 
 
@@ -156,8 +156,14 @@ def test_none_test_type_with_extra_args_does_not_skip(mock_run_command):
 
 @pytest.mark.parametrize(
     ("run_db_tests_only", "pytest_exit_code", "expected_return_code"),
-    [(True, 5, 0), (True, 1, 1), (False, 5, 5)],
-    ids=["db-only-no-tests-collected", "db-only-test-failed", "no-tests-collected-without-db-only"],
+    [
+        pytest.param(True, 5, 0, id="db-only-no-tests-collected"),
+        pytest.param(True, 0, 0, id="db-only-passed"),
+        pytest.param(True, 1, 1, id="db-only-test-failed"),
+        pytest.param(True, 2, 2, id="db-only-interrupted"),
+        pytest.param(True, 137, 137, id="db-only-killed"),
+        pytest.param(False, 5, 5, id="no-tests-collected-without-db-only"),
+    ],
 )
 def test_no_tests_collected_is_success_only_for_db_only_runs(
     mock_run_command, run_db_tests_only, pytest_exit_code, expected_return_code
