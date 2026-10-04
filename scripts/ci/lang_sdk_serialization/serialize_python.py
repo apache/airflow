@@ -19,8 +19,8 @@ Serialize the Dags of test_dags.yaml with Airflow's own serializer.
 
 Each Dag is built with the Python authoring API and written as ``DagSerialization.to_dict`` returns it,
 keyed by Dag id. ``--receive`` also takes a language SDK's output as Airflow receives it: it fills in the
-Dag fields the SDK leaves to Airflow's config, writes the result, and loads every Dag through
-``DagSerialization.validate_schema`` and ``from_dict``. compare.py runs it as::
+Dag fields the SDK leaves to Airflow's config with ``DagSerialization.fill_config_defaults``, writes the
+result, and checks every Dag with ``DagSerialization.validate_serialized_dag``. compare.py runs it as::
 
     uv run --project airflow-core --no-dev python scripts/ci/lang_sdk_serialization/serialize_python.py \
         scripts/ci/lang_sdk_serialization/test_dags.yaml serialized_python.json \
@@ -30,29 +30,16 @@ Dag fields the SDK leaves to Airflow's config, writes the result, and loads ever
 from __future__ import annotations
 
 import argparse
-import copy
 import datetime
 import json
 import sys
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from airflow.configuration import conf
 from airflow.sdk import DAG, BaseOperator, TaskGroup
 from airflow.serialization.serialized_objects import DagSerialization
-
-# The Dag fields the Python DAG reads from config when they are left unset. A language SDK cannot read
-# Airflow's config, so it leaves them out, and Airflow fills them in when it receives the SDK's Dags.
-CONFIG_BACKED_DAG_FIELDS: dict[str, Callable[[], Any]] = {
-    "max_active_tasks": lambda: conf.getint("core", "max_active_tasks_per_dag"),
-    "max_active_runs": lambda: conf.getint("core", "max_active_runs_per_dag"),
-    "max_consecutive_failed_dag_runs": lambda: conf.getint("core", "max_consecutive_failed_dag_runs_per_dag"),
-    "catchup": lambda: conf.getboolean("scheduler", "catchup_by_default"),
-    "disable_bundle_versioning": lambda: conf.getboolean("dag_processor", "disable_bundle_versioning"),
-}
 
 
 class NoopOperator(BaseOperator):
@@ -102,13 +89,11 @@ def get_node(dag: DAG, groups: dict[str, TaskGroup], node_id: str):
 def receive(sdk_output: Path, received_output: Path) -> None:
     received = json.loads(sdk_output.read_text())
     for data in received.values():
-        for key, read_config in CONFIG_BACKED_DAG_FIELDS.items():
-            data["dag"].setdefault(key, read_config())
+        DagSerialization.fill_config_defaults(data)
     received_output.write_text(json.dumps(received, indent=2) + "\n")
     for dag_id, data in received.items():
         try:
-            DagSerialization.validate_schema(data)
-            DagSerialization.from_dict(copy.deepcopy(data))
+            DagSerialization.validate_serialized_dag(data)
         except Exception:
             print(f"Airflow cannot load Dag {dag_id!r} as the SDK wrote it", file=sys.stderr)
             raise
