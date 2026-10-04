@@ -34,10 +34,12 @@ from airflowctl.api.operations import ServerResponseError
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import task_command
 
+MAPPED_TASK_DETAIL = "Task instance is mapped, add the map_index value to the URL"
 
-def _make_server_error(status_code: int) -> ServerResponseError:
+
+def _make_server_error(status_code: int, detail: str = "boom") -> ServerResponseError:
     request = httpx.Request("GET", "http://testserver/api/v2/dags/test_dag/dagRuns/test_run")
-    response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+    response = httpx.Response(status_code, request=request, json={"detail": detail})
     return ServerResponseError(message="boom", request=request, response=response)
 
 
@@ -309,19 +311,30 @@ class TestFailedDeps:
         )
 
     @pytest.mark.parametrize(
-        ("extra_args", "expected_message"),
+        ("extra_args", "detail", "expected_message"),
         [
-            ([], "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found"),
+            (
+                [],
+                "boom",
+                "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found",
+            ),
             (
                 ["--map-index", "3"],
+                "boom",
                 "Task instance for task 'test_task' with map index 3 in Dag run 'test_run' "
                 "of Dag 'test_dag' not found",
             ),
+            (
+                [],
+                MAPPED_TASK_DETAIL,
+                "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found. "
+                "The task is mapped; pass --map-index to select one of its task instances",
+            ),
         ],
     )
-    def test_failed_deps_task_instance_not_found(self, extra_args, expected_message, capsys):
+    def test_failed_deps_task_instance_not_found(self, extra_args, detail, expected_message, capsys):
         api_client = self._make_api_client()
-        api_client.task_instances.get_dependencies.side_effect = _make_server_error(404)
+        api_client.task_instances.get_dependencies.side_effect = _make_server_error(404, detail)
 
         with pytest.raises(SystemExit, match="1"):
             task_command.failed_deps(
@@ -849,19 +862,30 @@ class TestState:
         )
 
     @pytest.mark.parametrize(
-        ("extra_args", "expected_message"),
+        ("extra_args", "detail", "expected_message"),
         [
-            ([], "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found"),
+            (
+                [],
+                "boom",
+                "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found",
+            ),
             (
                 ["--map-index", "3"],
+                "boom",
                 "Task instance for task 'test_task' with map index 3 in Dag run 'test_run' "
                 "of Dag 'test_dag' not found",
             ),
+            (
+                [],
+                MAPPED_TASK_DETAIL,
+                "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found. "
+                "The task is mapped; pass --map-index to select one of its task instances",
+            ),
         ],
     )
-    def test_state_task_instance_not_found(self, extra_args, expected_message, capsys):
+    def test_state_task_instance_not_found(self, extra_args, detail, expected_message, capsys):
         api_client = self._make_api_client()
-        api_client.task_instances.get.side_effect = _make_server_error(404)
+        api_client.task_instances.get.side_effect = _make_server_error(404, detail)
 
         with pytest.raises(SystemExit, match="1"):
             task_command.state(

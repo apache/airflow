@@ -31,13 +31,27 @@ if TYPE_CHECKING:
     from airflowctl.api.datamodels.generated import TaskInstanceResponse
 
 
-def _task_instance_not_found_message(dag_id: str, run_id: str, task_id: str, map_index: int) -> str:
+def _is_mapped_task_error(error: ServerResponseError) -> bool:
+    """Whether the API rejected the lookup because the task is mapped and no map index was given."""
+    try:
+        detail = error.response.json().get("detail")
+    except ValueError:
+        return False
+    return isinstance(detail, str) and "is mapped" in detail
+
+
+def _task_instance_not_found_message(
+    dag_id: str, run_id: str, task_id: str, map_index: int, error: ServerResponseError
+) -> str:
     """Build the message shown when a task instance is not found."""
     map_index_part = f" with map index {map_index}" if map_index >= 0 else ""
-    return (
+    message = (
         f"Task instance for task {task_id!r}{map_index_part} in Dag run "
         f"{run_id!r} of Dag {dag_id!r} not found"
     )
+    if map_index < 0 and _is_mapped_task_error(error):
+        message += ". The task is mapped; pass --map-index to select one of its task instances"
+    return message
 
 
 def _format_task_instance(ti: TaskInstanceResponse, has_mapped_instances: bool) -> dict[str, str]:
@@ -85,7 +99,7 @@ def failed_deps(args, api_client=NEW_API_CLIENT) -> None:
     except ServerResponseError as e:
         if e.response.status_code == 404:
             rich.print(
-                f"[red]{_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index)}[/red]"
+                f"[red]{_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index, e)}[/red]"
             )
             sys.exit(1)
         raise
@@ -136,7 +150,7 @@ def state(args, api_client=NEW_API_CLIENT) -> None:
     except ServerResponseError as e:
         if e.response.status_code == 404:
             rich.print(
-                f"[red]{_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index)}[/red]"
+                f"[red]{_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index, e)}[/red]"
             )
             sys.exit(1)
         raise
