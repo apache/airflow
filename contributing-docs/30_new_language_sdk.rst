@@ -161,7 +161,8 @@ not started. The runtime answers as described in
 
 Both defaults raise ``NotImplementedError``, so the stub tasks of a coordinator
 that does not implement them are not checked. ``ExecutableCoordinator``
-implements both for executable bundles.
+implements both for executable bundles. ``JavaCoordinator`` implements both for
+JARs, and its probe runs the same command as a task.
 
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~
