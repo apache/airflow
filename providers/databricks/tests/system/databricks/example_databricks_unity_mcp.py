@@ -17,8 +17,9 @@
 """
 Example Dag giving an agent the tools of a Unity AI Gateway MCP Service.
 
-Needs a Databricks connection whose identity has EXECUTE on the MCP Service, an LLM connection for
-the agent, and these environment variables:
+Needs a Databricks connection whose identity has EXECUTE on the MCP Service and USE CATALOG and
+USE SCHEMA on its catalog and schema, an LLM connection for the agent, and these environment
+variables:
 
 - ``UNITY_MCP_SERVICE``: the service's three-level name, ``catalog.schema.service``.
 - ``UNITY_MCP_READ_ONLY_TOOL``: the name of one of its tools that only reads, which the agent calls

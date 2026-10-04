@@ -44,12 +44,21 @@ The service name and connection ID are templated when the toolset is passed to `
 Caller identity and authentication
 ----------------------------------
 
-The gateway runs every tool call as the identity of the connection's credentials, which needs
-``EXECUTE`` on the MCP Service in Unity Catalog. It exposes only the tools selected for the service,
-and the service's policies apply. Grant that identity only the services the agent should use.
+MCP Services need a workspace enabled for Unity Catalog, in a region where Model Serving is
+supported.
 
-The gateway accepts bearer tokens only, so the connection must use one of these authentication modes
-of the Databricks connection:
+The gateway runs every tool call as the identity of the connection's credentials. That identity needs
+``EXECUTE`` on the MCP Service, and ``USE CATALOG`` and ``USE SCHEMA`` on its parent catalog and
+schema: ``EXECUTE`` alone is not enough. Account users hold these on the built-in ``system.ai``
+services by default. The gateway exposes only the tools selected for the service, and the service's
+policies apply. Grant the identity only the services the agent should use.
+
+Built-in services that act on a user's own data, such as ``system.ai.google_calendar`` or
+``system.ai.gmail``, need that identity to complete a one-time OAuth login first, for example by
+opening the service in Catalog Explorer and clicking **Login**.
+
+The toolset sends the connection's token as a bearer token, so the connection must use one of these
+authentication modes of the Databricks connection:
 
 * a personal access token (the identity is the token's user or service principal);
 * service principal OAuth (``service_principal_oauth``);
@@ -72,7 +81,8 @@ Gateway errors are raised as dedicated exceptions from
     * - Exception
       - Cause
     * - ``DatabricksUnityMCPAccessDeniedError``
-      - HTTP 401 or 403: the credentials are invalid, or the identity lacks ``EXECUTE`` on the service.
+      - HTTP 401 or 403: the credentials are invalid, or the identity lacks ``EXECUTE`` on the service
+        or ``USE CATALOG`` / ``USE SCHEMA`` on its parents.
     * - ``DatabricksUnityMCPServiceNotFoundError``
       - HTTP 404: the service does not exist on the workspace, or is not visible to the identity.
     * - ``DatabricksUnityMCPThrottledError``

@@ -196,8 +196,8 @@ class DatabricksUnityMCPToolset(MCPToolset):
 
     The gateway runs every tool call as the identity of the connection's credentials (a user's
     personal access token, a service principal, or an Azure AD / federated identity), which needs
-    ``EXECUTE`` on the MCP Service in Unity Catalog. It sees only the tools selected for the
-    service, and the service's policies apply.
+    ``EXECUTE`` on the MCP Service and ``USE CATALOG`` and ``USE SCHEMA`` on its catalog and schema.
+    It sees only the tools selected for the service, and the service's policies apply.
 
     Tokens are fetched from the connection for each request, so OAuth tokens refresh during a long
     agent run and on reconnection. Gateway errors are raised as
@@ -214,10 +214,10 @@ class DatabricksUnityMCPToolset(MCPToolset):
         from airflow.providers.databricks.toolsets.unity_mcp import DatabricksUnityMCPToolset
 
         AgentOperator(
-            task_id="ask_genie",
-            prompt="How many orders shipped yesterday?",
+            task_id="ask_mcp_service",
+            prompt="Which tools do you have?",
             llm_conn_id="pydanticai_default",
-            toolsets=[DatabricksUnityMCPToolset("system.ai.genie_one_mcp", databricks_conn_id="databricks")],
+            toolsets=[DatabricksUnityMCPToolset("main.default.my_mcp", databricks_conn_id="databricks")],
         )
 
     :param service_name: Three-level name of the MCP Service, ``catalog.schema.service``. Templated
@@ -281,8 +281,8 @@ class DatabricksUnityMCPToolset(MCPToolset):
         if status in (401, 403):
             return DatabricksUnityMCPAccessDeniedError(
                 f"Unity AI Gateway denied access to MCP Service {service!r} (HTTP {status}). The "
-                f"identity of connection {self._databricks_conn_id!r} needs EXECUTE on the service, "
-                "and its credentials must be valid.",
+                f"identity of connection {self._databricks_conn_id!r} needs EXECUTE on the service and "
+                "USE CATALOG and USE SCHEMA on its catalog and schema, and its credentials must be valid.",
                 http_status_code=status,
             )
         if status == 404:

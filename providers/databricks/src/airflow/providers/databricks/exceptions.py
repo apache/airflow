@@ -53,7 +53,7 @@ class DatabricksUnityMCPError(DatabricksApiError):
 
 
 class DatabricksUnityMCPAccessDeniedError(DatabricksUnityMCPError):
-    """Raised when the gateway rejects the caller's credentials or the caller lacks EXECUTE on the service."""
+    """Raised when the gateway rejects the caller's credentials or the caller lacks a privilege on the service."""
 
 
 class DatabricksUnityMCPServiceNotFoundError(DatabricksUnityMCPError):
