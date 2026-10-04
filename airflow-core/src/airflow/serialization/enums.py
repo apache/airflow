@@ -79,6 +79,7 @@ class DagAttributeTypes(str, Enum):
     TASK_GROUP = "taskgroup"
     EDGE_INFO = "edgeinfo"
     PARAM = "param"
+    DAG_PARAM = "dag_param"
     XCOM_REF = "xcomref"
     ASSET = "asset"
     ASSET_ALIAS = "asset_alias"
