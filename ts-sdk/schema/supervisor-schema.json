@@ -3442,6 +3442,31 @@
           "default": -1,
           "title": "Map Index"
         },
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "duration": {
           "anyOf": [
             {
@@ -5266,6 +5291,31 @@
           "default": -1,
           "title": "Map Index",
           "type": "integer"
+        },
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
         },
         "hostname": {
           "anyOf": [

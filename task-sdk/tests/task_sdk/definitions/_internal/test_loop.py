@@ -1,0 +1,202 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+from functools import partial
+
+import pytest
+
+from airflow.sdk import DAG, BaseOperator, TaskGroup, TriggerRule, task, task_group
+from airflow.sdk.definitions._internal.loop import LoopGateOperator, create_loop
+
+
+def test_loop_dependencies_follow_terminal_instead_of_body_return():
+    @task_group
+    def body():
+        """Loop documentation."""
+        first = BaseOperator(task_id="first")
+        second = BaseOperator(task_id="second")
+        terminal = BaseOperator(task_id="terminal", trigger_rule=TriggerRule.ONE_SUCCESS)
+        [first, second] >> terminal
+        return first
+
+    with DAG("loop_dependencies", schedule=None) as dag:
+        start = BaseOperator(task_id="start")
+        loop = create_loop(body, max_iterations=3)
+        finish = BaseOperator(task_id="finish")
+        start >> loop >> finish
+
+    gate = dag.get_task(loop.gate_task_id)
+    assert isinstance(gate, LoopGateOperator)
+    assert gate.task_id == "body.__loop_gate"
+    assert gate.until is None
+    assert loop.max_iterations == 3
+    assert loop.terminal_task_id == "body.terminal"
+    assert loop.doc_md == "Loop documentation."
+    assert gate.upstream_task_ids == {"body.terminal"}
+    assert gate.downstream_task_ids == {"finish"}
+    assert gate.trigger_rule == TriggerRule.ALL_SUCCESS
+    assert dag.get_task("body.first").upstream_task_ids == {"start"}
+    assert dag.get_task("body.second").upstream_task_ids == {"start"}
+    assert dag.get_task("body.terminal").trigger_rule == TriggerRule.ONE_SUCCESS
+
+
+def test_shared_terminal_with_two_teardowns_is_one_terminal_definition():
+    @task_group
+    def body():
+        setup = BaseOperator(task_id="setup")
+        work = BaseOperator(task_id="work")
+        first = BaseOperator(task_id="first").as_teardown(setups=setup)
+        second = BaseOperator(task_id="second").as_teardown(setups=setup)
+        setup >> work >> [first, second]
+
+    with DAG("loop_teardowns", schedule=None) as dag:
+        loop = create_loop(body, max_iterations=2)
+
+    assert loop.terminal_task_id == "body.work"
+    assert dag.get_task(loop.gate_task_id).upstream_task_ids == {"body.work"}
+    assert dag.get_task("body.work").downstream_task_ids == {
+        "body.first",
+        "body.second",
+        loop.gate_task_id,
+    }
+
+
+@pytest.mark.parametrize(
+    ("terminal_id", "gate_task_id"),
+    [("terminal", "refine.converged"), ("converged", "refine.converged__1")],
+)
+def test_conditional_loop_names_gate_after_condition_and_preserves_arguments(terminal_id, gate_task_id):
+    @task_group(group_id="refine")
+    def body(queue):
+        BaseOperator(task_id=terminal_id, queue=queue)
+
+    def converged(loop):
+        return loop.result
+
+    with DAG("conditional_loop", schedule=None) as dag:
+        loop = create_loop(body.partial(queue="compute"), max_iterations=4, until=converged)
+
+    assert loop.gate_task_id == gate_task_id
+    assert dag.get_task(loop.gate_task_id).until is converged
+    assert dag.get_task(loop.terminal_task_id).queue == "compute"
+
+
+@pytest.mark.parametrize("condition", [lambda loop: True, partial(bool)])
+def test_condition_without_task_compatible_name_uses_internal_gate_name(condition):
+    @task_group
+    def body():
+        BaseOperator(task_id="terminal")
+
+    with DAG("unnamed_condition", schedule=None) as dag:
+        loop = create_loop(body, max_iterations=2, until=condition)
+
+    assert loop.gate_task_id == "body.__loop_gate"
+    assert dag.get_task(loop.gate_task_id).until is condition
+
+
+@pytest.mark.parametrize("trigger_rule", [TriggerRule.ALL_DONE, TriggerRule.ONE_SUCCESS])
+def test_gate_inherits_body_trigger_rule_default(trigger_rule):
+    @task_group(default_args={"trigger_rule": trigger_rule})
+    def body():
+        BaseOperator(task_id="terminal")
+
+    with DAG("body_trigger_rule", schedule=None) as dag:
+        loop = create_loop(body, max_iterations=2)
+
+    assert dag.get_task(loop.terminal_task_id).trigger_rule == trigger_rule
+    assert dag.get_task(loop.gate_task_id).trigger_rule == trigger_rule
+
+
+@pytest.mark.parametrize("max_iterations", [0, -1, True, 1.5, "2", None])
+def test_invalid_loop_limit_is_rejected(max_iterations):
+    @task_group
+    def body():
+        BaseOperator(task_id="task")
+
+    with DAG("invalid_limit", schedule=None):
+        with pytest.raises((TypeError, ValueError), match="positive integer"):
+            create_loop(body, max_iterations=max_iterations)
+
+
+@pytest.mark.parametrize("until", [False, 3, "condition"])
+def test_noncallable_condition_is_rejected(until):
+    @task_group
+    def body():
+        BaseOperator(task_id="task")
+
+    with DAG("invalid_condition", schedule=None):
+        with pytest.raises(TypeError, match="callable"):
+            create_loop(body, max_iterations=2, until=until)
+
+
+@pytest.mark.parametrize("terminal_count", [0, 2])
+def test_loop_requires_one_terminal_task_definition(terminal_count):
+    @task_group
+    def body():
+        for index in range(terminal_count):
+            BaseOperator(task_id=f"task_{index}")
+
+    with DAG("invalid_terminals", schedule=None):
+        with pytest.raises(ValueError, match="exactly one terminal"):
+            create_loop(body, max_iterations=2)
+
+
+def test_mapped_terminal_inside_ordinary_nested_group_is_allowed():
+    @task
+    def terminal(value):
+        return value
+
+    @task_group
+    def body():
+        with TaskGroup("nested"):
+            terminal.expand(value=[1, 2])
+
+    with DAG("mapped_terminal", schedule=None) as dag:
+        loop = create_loop(body, max_iterations=2)
+
+    assert loop.terminal_task_id == "body.nested.terminal"
+    assert dag.get_task(loop.gate_task_id).upstream_task_ids == {"body.nested.terminal"}
+
+
+def test_nested_loop_is_rejected_through_ordinary_groups():
+    @task_group
+    def inner():
+        BaseOperator(task_id="terminal")
+
+    @task_group
+    def outer():
+        with TaskGroup("nested"):
+            create_loop(inner, max_iterations=2)
+
+    with DAG("nested_loop", schedule=None):
+        with pytest.raises(NotImplementedError, match="Nested loops"):
+            create_loop(outer, max_iterations=2)
+
+
+def test_mapping_whole_loop_is_rejected():
+    @task_group
+    def body():
+        BaseOperator(task_id="terminal")
+
+    @task_group
+    def mapped(value):
+        create_loop(body, max_iterations=2)
+
+    with DAG("mapped_loop", schedule=None):
+        with pytest.raises(NotImplementedError, match="mapped task group"):
+            mapped.expand(value=[1, 2])

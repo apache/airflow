@@ -24,9 +24,17 @@ from kubernetes.client.api_client import ApiClient
 
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, generate_pod_command_args
+from airflow.providers.cncf.kubernetes.pod_generator import (
+    PodGenerator,
+    generate_pod_command_args,
+    workload_to_command_args,
+)
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.executors import workloads
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -62,14 +70,19 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
         # The pod spec using the default template.
         pod_template_file = kube_config.pod_template_file
 
-    # Generate command args using shared utility function
-    command_args = generate_pod_command_args(task_instance)
+    if AIRFLOW_V_3_4_PLUS:
+        workload = workloads.ExecuteTask.make(task_instance)
+        command_args = workload_to_command_args(workload)
+        map_index = workload.key.map_index
+    else:
+        command_args = generate_pod_command_args(task_instance)
+        map_index = task_instance.map_index
 
     pod = PodGenerator.construct_pod(
         dag_id=task_instance.dag_id,
         run_id=task_instance.run_id,
         task_id=task_instance.task_id,
-        map_index=task_instance.map_index,
+        map_index=map_index,
         date=None,
         pod_id=create_unique_id(task_instance.dag_id, task_instance.task_id),
         try_number=task_instance.try_number,

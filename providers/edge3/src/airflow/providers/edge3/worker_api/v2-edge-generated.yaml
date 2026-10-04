@@ -1336,6 +1336,17 @@ components:
           type: integer
           title: Map Index
           default: -1
+        region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+        region_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
         hostname:
           anyOf:
           - type: string

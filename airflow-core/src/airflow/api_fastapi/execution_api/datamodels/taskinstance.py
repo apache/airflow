@@ -20,7 +20,7 @@ import uuid
 from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeVar
 
 from pydantic import (
     AwareDatetime,
@@ -45,6 +45,9 @@ from airflow.utils.state import (
     TerminalTIState,
 )
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance as TaskInstanceModel
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 
@@ -295,12 +298,22 @@ class TaskInstance(BaseModel):
     try_number: int
     dag_version_id: uuid.UUID
     map_index: int = -1
+    region_id: uuid.UUID | None = None
+    region_index: int | None = None
     hostname: str | None = None
     context_carrier: dict | None = None
     # The supervisor routes tasks to a coordinator by queue. The default keeps
     # hand-built instances (tests, dry runs) valid; the executor workload
     # always sends the real value.
     queue: str = "default"
+
+
+_RuntimeTI = TypeVar("_RuntimeTI", bound=TaskInstance)
+
+
+def task_instance_to_runtime(ti: TaskInstanceModel, *, model: type[_RuntimeTI], map_index: int) -> _RuntimeTI:
+    """Build a runtime identity with a prepared public map index."""
+    return model.model_validate(ti, from_attributes=True).model_copy(update={"map_index": map_index})
 
 
 class AssetReferenceAssetEventDagRun(StrictBaseModel):
@@ -490,6 +503,8 @@ class PreviousTIResponse(BaseModel):
     state: str | None = None
     try_number: int
     map_index: int | None = -1
+    region_id: uuid.UUID | None = None
+    region_index: int | None = None
     duration: float | None = None
 
 

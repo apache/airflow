@@ -1527,11 +1527,20 @@ class DagRun(Base, LoggingMixin):
         which heals the row to the latest version first wins, and the run's own version is
         then never reported here.
         """
-        from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+            TaskInstance as TIDataModel,
+            task_instance_to_runtime,
+        )
         from airflow.models.dag_version import DagVersion
+        from airflow.models.dagbag import DBDagBag
+        from airflow.models.task_coordinates import TaskCoordinateResolver
+
+        coordinates = TaskCoordinateResolver(DBDagBag(), session)
 
         if relevant_ti.dag_version_id is not None:
-            return TIDataModel.model_validate(relevant_ti, from_attributes=True)
+            return task_instance_to_runtime(
+                relevant_ti, model=TIDataModel, map_index=coordinates.public_map_index(relevant_ti)
+            )
 
         dag_version_id = self.created_dag_version_id
         if dag_version_id is not None:
@@ -1566,6 +1575,7 @@ class DagRun(Base, LoggingMixin):
             if hasattr(relevant_ti, name)
         }
         values["dag_version_id"] = dag_version_id
+        values["map_index"] = coordinates.public_map_index(relevant_ti, dag_version_id=dag_version_id)
         return TIDataModel.model_validate(values)
 
     def produce_dag_callback(

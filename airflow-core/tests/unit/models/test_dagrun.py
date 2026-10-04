@@ -58,6 +58,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs, get_or_create_dagrun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskreschedule import TaskReschedule
@@ -4219,6 +4220,23 @@ def test_teardown_and_fail_fast(dag_maker):
 
 class TestDagRunHandleDagCallback:
     """Test the execute_dag_callbacks method (only uses in dag.test)."""
+
+    def test_callback_last_ti_preserves_region_and_projects_public_map_index(self, dag_maker, session):
+        with dag_maker(serialized=True):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop")
+        session.add(region)
+        session.flush()
+        ti.region_id, ti.region_index = region.id, 2
+        session.flush()
+
+        callback_ti = dr._build_callback_last_ti(ti, session=session)
+
+        assert callback_ti.map_index == -1
+        assert callback_ti.region_index == 2
+        assert callback_ti.region_id == region.id
 
     def test_execute_dag_callbacks_success(self, dag_maker, session):
         """Test execute_dag_callbacks executes success callback with RuntimeTaskInstance context"""

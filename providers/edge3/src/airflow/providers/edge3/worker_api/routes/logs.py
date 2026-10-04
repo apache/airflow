@@ -20,14 +20,17 @@ from __future__ import annotations
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
+from uuid import UUID
 
 from fastapi import Body, Depends, status
+from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import TaskInstanceKey, conf
+from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import PushLogsBody, WorkerApiDocs
@@ -41,6 +44,21 @@ logs_router = AirflowRouter(tags=["Logs"], prefix="/logs")
 @provide_session
 def _logfile_path(task: TaskInstanceKey, *, session=NEW_SESSION) -> str:
     """Elaborate the (relative) path and filename to expect from task execution."""
+    ti_id = session.scalar(
+        select(EdgeJobModel.task_instance_id).where(
+            EdgeJobModel.dag_id == task.dag_id,
+            EdgeJobModel.task_id == task.task_id,
+            EdgeJobModel.run_id == task.run_id,
+            EdgeJobModel.map_index == task.map_index,
+            EdgeJobModel.try_number == task.try_number,
+            EdgeJobModel.task_instance_id != "",
+        )
+    )
+    if ti_id:
+        ti = session.get(TaskInstance, UUID(ti_id), execution_options={"include_all_attempts": True})
+        if TYPE_CHECKING:
+            assert ti
+        return FileTaskHandler(".")._render_filename(ti, task.try_number)
     ti = TaskInstance.get_task_instance(
         dag_id=task.dag_id,
         run_id=task.run_id,

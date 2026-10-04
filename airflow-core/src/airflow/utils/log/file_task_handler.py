@@ -38,17 +38,16 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.utils.helpers import parse_template_string, render_template
 from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from typing import TypeAlias
 
     from requests import Response
+    from sqlalchemy.orm import Session
 
     from airflow._shared.logging.remote import (
         LogMessages,
@@ -515,41 +514,12 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    @provide_session
-    def _render_filename(self, ti: TaskInstance, try_number: int, *, session=NEW_SESSION) -> str:
+    def _render_filename(self, ti: TaskInstance, try_number: int, *, session: Session | None = None) -> str:
         """Return the worker log filename."""
-        dag_run = ti.get_dagrun(session=session)
+        from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
 
-        date = dag_run.logical_date or dag_run.run_after
-        formatted_date = date.isoformat()
-
-        template = dag_run.get_log_template(session=session).filename
-        str_tpl, jinja_tpl = parse_template_string(template)
-        if jinja_tpl:
-            return render_template(
-                jinja_tpl, {"ti": ti, "ts": formatted_date, "try_number": try_number}, native=False
-            )
-
-        if str_tpl:
-            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
-            if data_interval[0]:
-                data_interval_start = data_interval[0].isoformat()
-            else:
-                data_interval_start = ""
-            if data_interval[1]:
-                data_interval_end = data_interval[1].isoformat()
-            else:
-                data_interval_end = ""
-            return str_tpl.format(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                data_interval_start=data_interval_start,
-                data_interval_end=data_interval_end,
-                logical_date=formatted_date,
-                try_number=try_number,
-            )
-        raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
+        context = prepare_task_log_contexts([ti], session=session)[ti.id]
+        return render_task_log_filename(ti, try_number, context=context)
 
     def _get_executor(self, ti: TaskInstance) -> BaseExecutor:
         """

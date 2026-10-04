@@ -190,6 +190,8 @@ export type RunId3 = string;
 export type TryNumber = number;
 export type DagVersionId = string;
 export type MapIndex = number;
+export type RegionId = string | null;
+export type RegionIndex = number | null;
 export type Hostname = string | null;
 export type ContextCarrier = {
   [k: string]: unknown;
@@ -533,6 +535,8 @@ export type EndDate4 = string | null;
 export type State4 = string | null;
 export type TryNumber2 = number;
 export type MapIndex6 = number | null;
+export type RegionId1 = string | null;
+export type RegionIndex1 = number | null;
 export type Duration = number | null;
 export type Type60 = "PreviousTIResult";
 export type Key14 = string;
@@ -984,6 +988,8 @@ export interface TaskInstance {
   try_number: TryNumber;
   dag_version_id: DagVersionId;
   map_index?: MapIndex;
+  region_id?: RegionId;
+  region_index?: RegionIndex;
   hostname?: Hostname;
   context_carrier?: ContextCarrier;
   queue?: Queue;
@@ -1639,6 +1645,8 @@ export interface PreviousTIResponse {
   state?: State4;
   try_number: TryNumber2;
   map_index?: MapIndex6;
+  region_id?: RegionId1;
+  region_index?: RegionIndex1;
   duration?: Duration;
 }
 /**
