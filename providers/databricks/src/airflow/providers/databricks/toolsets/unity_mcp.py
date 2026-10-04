@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import re
+import threading
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -38,7 +40,6 @@ try:
     from pydantic_ai.mcp import MCPToolset as PydanticAIMCPToolset
 
     from airflow.providers.common.ai.toolsets.mcp import MCPToolset
-    from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(
         "DatabricksUnityMCPToolset needs the 'common.ai' extra of the databricks provider: "
@@ -129,9 +130,11 @@ class _DatabricksTokenAuth(httpx2.Auth):
         self.error_status: int | None = None
         self.retry_after: float | None = None
         self.token_error: Exception | None = None
+        self._token_lock = threading.Lock()
 
     def get_token(self) -> str:
-        token = self._hook._get_token(raise_error=False)
+        with self._token_lock:
+            token = self._hook._get_token(raise_error=False)
         if not token:
             raise ValueError(
                 f"Connection {self._hook.databricks_conn_id!r} has no token-based authentication "
@@ -169,8 +172,11 @@ class _DatabricksTokenAuth(httpx2.Auth):
         self, request: httpx2.Request
     ) -> AsyncGenerator[httpx2.Request, httpx2.Response]:
         try:
-            # Minting an OAuth token makes a blocking HTTP call; keep it off the event loop.
-            token = await AirflowToolset.run_blocking(self.get_token)
+            # Not AirflowToolset.run_blocking: its lock is shared by every toolset, so a long SQL
+            # query in another toolset would hold up each request here. The connection is already
+            # resolved by _get_server, so fetching a token only calls the token endpoint, and the
+            # hook is this toolset's own, so a lock of its own is enough.
+            token = await asyncio.to_thread(self.get_token)
         except Exception as e:
             self.token_error = e
             raise

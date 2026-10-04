@@ -32,6 +32,7 @@ pytest.importorskip("airflow.providers.common.ai")
 from pydantic_ai import RunContext
 
 from airflow.models import Connection
+from airflow.providers.common.ai.utils import toolset_base
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.exceptions import (
     DatabricksUnityMCPAccessDeniedError,
@@ -243,6 +244,19 @@ class TestAuthentication:
         sent = [auth for _, auth, _ in _StubGateway.requests]
         # One token is fetched up front to fail fast, then one per request.
         assert sent == [f"Bearer oauth-{i}" for i in range(1, len(sent) + 1)]
+
+    def test_requests_do_not_wait_for_other_toolsets_blocking_calls(self, gateway, gateway_conn):
+        async def call_while_another_toolset_holds_the_lock():
+            toolset = DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)
+            async with toolset:
+                tools = await toolset.get_tools(_ctx())
+                with toolset_base._blocking_call_lock:
+                    return await asyncio.wait_for(
+                        toolset.execute_tool("echo", {"text": "hi"}, ctx=_ctx(), tool=tools["echo"]),
+                        timeout=10,
+                    )
+
+        assert _run(call_while_another_toolset_holds_the_lock()) == "echo: hi"
 
     @mock.patch("airflow.providers.databricks.toolsets.unity_mcp.mask_secret", autospec=True)
     def test_minted_tokens_are_masked(self, mask_secret, gateway, gateway_conn):
