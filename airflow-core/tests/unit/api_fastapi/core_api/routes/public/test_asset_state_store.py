@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -86,6 +87,34 @@ class TestAssetNotFound(TestAssetStateEndpoint):
 
 
 class TestListAssetState(TestAssetStateEndpoint):
+    @pytest.mark.parametrize("exact", [False, True])
+    def test_readers_preserve_recorded_writer_identity_without_task_lookup(self, test_client, exact):
+        identity = dict(task_instance_id=uuid4(), region_id=uuid4(), region_index=2, try_number=3)
+        fields = {f"last_updated_by_{name}": value for name, value in identity.items()} if exact else {}
+        row = AssetStateStoreModel(
+            asset_id=self.asset.id,
+            key="watermark",
+            value='"v"',
+            last_updated_by_kind="task",
+            last_updated_by_dag_id="removed_dag",
+            last_updated_by_run_id="removed_run",
+            last_updated_by_task_id="work",
+            last_updated_by_map_index=-1,
+            **fields,
+        )
+        self._session.add(row)
+        self._session.commit()
+
+        detail = test_client.get(f"{self._base_url}/watermark")
+        listed = test_client.get(self._base_url)
+
+        assert detail.status_code == listed.status_code == 200
+        expected = {name: str(value) if name.endswith("_id") else value for name, value in identity.items()}
+        for response in (detail.json(), listed.json()["asset_state_store"][0]):
+            assert {name: response["last_updated_by"][name] for name in identity} == (
+                expected if exact else dict.fromkeys(identity)
+            )
+
     def test_returns_empty_list_when_no_state(self, test_client):
         response = test_client.get(self._base_url)
         assert response.status_code == 200

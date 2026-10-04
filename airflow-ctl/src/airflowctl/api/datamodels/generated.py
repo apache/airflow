@@ -1684,6 +1684,10 @@ class AssetStateStoreLastUpdatedBy(BaseModel):
     run_id: Annotated[str | None, Field(title="Run Id")] = None
     task_id: Annotated[str | None, Field(title="Task Id")] = None
     map_index: Annotated[int | None, Field(title="Map Index")] = None
+    task_instance_id: Annotated[UUID | None, Field(title="Task Instance Id")] = None
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
+    try_number: Annotated[int | None, Field(title="Try Number")] = None
 
 
 class AssetStateStoreResponse(BaseModel):

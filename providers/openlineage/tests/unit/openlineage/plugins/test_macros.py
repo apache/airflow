@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 
@@ -32,7 +34,7 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_run_id,
 )
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_4_PLUS
 
 _DAG_NAMESPACE = namespace()
 
@@ -44,6 +46,30 @@ else:
 
 def test_lineage_job_namespace():
     assert lineage_job_namespace() == _DAG_NAMESPACE
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+@pytest.mark.parametrize("map_index", [-1, 2])
+def test_regional_lineage_macro_and_parent_use_exact_execution_uuid(map_index):
+    dag_run = SimpleNamespace(logical_date=datetime(2024, 1, 1, tzinfo=timezone.utc))
+    ti = SimpleNamespace(
+        id=uuid4(),
+        region_id=uuid4(),
+        region_index=2,
+        map_index=map_index,
+        dag_id="dag",
+        task_id="loop.work",
+        try_number=1,
+        dag_run=dag_run,
+        get_template_context=lambda: {"dag_run": dag_run},
+    )
+
+    assert lineage_run_id(ti) == str(ti.id)
+    assert lineage_parent_id(ti) == f"{_DAG_NAMESPACE}/dag.loop.work/{ti.id}"
+    previous_id = ti.id
+    ti.id = uuid4()
+    assert lineage_run_id(ti) == str(ti.id)
+    assert lineage_run_id(ti) != str(previous_id)
 
 
 def test_lineage_job_name():

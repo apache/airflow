@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import JsonValue, field_validator
 
@@ -34,6 +35,10 @@ class AssetStateStoreLastUpdatedBy(BaseModel):
     run_id: str | None = None
     task_id: str | None = None
     map_index: int | None = None
+    task_instance_id: UUID | None = None
+    region_id: UUID | None = None
+    region_index: int | None = None
+    try_number: int | None = None
 
 
 class AssetStateStoreResponse(BaseModel):

@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from datetime import timedelta
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 import time_machine
@@ -1051,6 +1052,37 @@ class TestGetAssetEventsPerDagScoping(TestAssets):
 
 
 class TestGetAssetEvents(TestAssets):
+    @pytest.mark.parametrize("unknown", [False, True])
+    def test_filters_exact_execution_before_pagination(self, test_client, session, unknown):
+        assets = _create_assets(session)
+        selected = uuid4()
+        events = [
+            AssetEvent(
+                asset_id=assets[0].id,
+                source_dag_id="source_dag_id",
+                source_run_id="same_run",
+                source_task_id="same_task",
+                source_map_index=-1,
+                source_task_instance_id=identity,
+                timestamp=DEFAULT_DATE + timedelta(seconds=index),
+            )
+            for index, identity in enumerate((selected, selected, uuid4(), None))
+        ]
+        session.add_all(events)
+        session.commit()
+        response = test_client.get(
+            "/assets/events",
+            params={
+                "source_task_instance_id": str(uuid4() if unknown else selected),
+                "limit": 1,
+                "offset": 1,
+                "order_by": "timestamp",
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["total_entries"] == (0 if unknown else 2)
+        assert [row["id"] for row in response.json()["asset_events"]] == ([] if unknown else [events[1].id])
+
     def test_should_respond_200(self, test_client, session):
         asset1, asset2 = self.create_assets(session=session)
         self.create_assets_events(session=session)

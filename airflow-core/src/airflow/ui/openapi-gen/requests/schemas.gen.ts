@@ -671,6 +671,52 @@ export const $AssetStateStoreLastUpdatedBy = {
                 }
             ],
             title: 'Map Index'
+        },
+        task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Id'
+        },
+        region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Id'
+        },
+        region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Index'
+        },
+        try_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Try Number'
         }
     },
     type: 'object',

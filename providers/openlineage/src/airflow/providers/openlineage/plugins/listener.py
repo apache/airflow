@@ -51,7 +51,9 @@ from airflow.providers.openlineage.utils.utils import (
     get_dag_parent_run_facet,
     get_dag_run_dag_and_task_from_ti,
     get_job_name,
+    get_regional_task_instance_run_id,
     get_task_documentation,
+    get_task_instance_map_index,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
     is_dag_run_asset_triggered,
@@ -260,7 +262,9 @@ class OpenLineageListener:
                 clear_number=clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
+            task_uuid = get_regional_task_instance_run_id(
+                task_instance
+            ) or self.adapter.build_task_instance_run_id(
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
@@ -422,7 +426,9 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
+            task_uuid = get_regional_task_instance_run_id(
+                task_instance
+            ) or self.adapter.build_task_instance_run_id(
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
@@ -598,7 +604,9 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
+            task_uuid = get_regional_task_instance_run_id(
+                task_instance
+            ) or self.adapter.build_task_instance_run_id(
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
@@ -750,7 +758,9 @@ class OpenLineageListener:
                 clear_number=dagrun.clear_number,
             )
 
-            task_uuid = self.adapter.build_task_instance_run_id(
+            task_uuid = get_regional_task_instance_run_id(
+                task_instance
+            ) or self.adapter.build_task_instance_run_id(
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 try_number=task_instance.try_number,
@@ -901,12 +911,12 @@ class OpenLineageListener:
             # pickler loses TaskGroup attributes and crashes event emission -- see
             # the equivalent note in `on_dag_run_running` (listener.py ~868).
             date = dagrun.logical_date or dagrun.run_after
-            task_uuid = self.adapter.build_task_instance_run_id(
+            task_uuid = get_regional_task_instance_run_id(ti) or self.adapter.build_task_instance_run_id(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
                 try_number=ti.try_number,
                 logical_date=date,
-                map_index=ti.map_index,
+                map_index=get_task_instance_map_index(ti),
             )
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=ti.dag_id,

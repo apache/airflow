@@ -386,6 +386,15 @@ paths:
           - type: string
           - type: 'null'
           title: Source Task Id
+      - name: source_task_instance_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Source Task Instance Id
       - name: source_run_id
         in: query
         required: false
@@ -4863,6 +4872,15 @@ paths:
           - type: string
           - type: 'null'
           title: Task Id
+      - name: task_instance_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
       - name: run_id
         in: query
         required: false
@@ -11898,6 +11916,28 @@ components:
           - type: integer
           - type: 'null'
           title: Map Index
+        task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
+        region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+        region_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Region Index
+        try_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
       type: object
       required:
       - kind

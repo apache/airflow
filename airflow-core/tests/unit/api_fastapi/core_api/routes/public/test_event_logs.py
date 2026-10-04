@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import Session
@@ -28,7 +29,13 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagAccessEntity,
     DagDetails,
 )
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.log import Log
+from airflow.models.taskinstance import TaskInstance
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
@@ -61,7 +68,7 @@ TEAM_NAME = "TEST_TEAM"
 
 def _assert_selects_only_display_name_columns(statements: list[str]) -> None:
     (sql,) = [sql for sql in statements if "task_instance_1" in sql]
-    select_clause = sql.split(" FROM ", 1)[0]
+    select_clause = sql.split(" FROM log ", 1)[0]
     assert set(re.findall(r"\bdag_1\.(\w+)", select_clause)) == {"dag_id", "dag_display_name"}
     assert set(re.findall(r"\btask_instance_1\.(\w+)", select_clause)) == {
         "id",
@@ -331,6 +338,89 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
 
 class TestGetEventLogs(TestEventLogsEndpoint):
+    @pytest.mark.parametrize("archived", [False, True])
+    @pytest.mark.parametrize("mapped", [False, True])
+    def test_projects_public_mapping_index_for_exact_execution(
+        self, test_client, dag_maker, session, archived, mapped
+    ):
+        @task_group
+        def body():
+            if mapped:
+                PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+            else:
+                EmptyOperator(task_id="work")
+
+        with dag_maker(dag_id="audit_loop", serialized=True) as dag:
+            loop = create_loop(body, max_iterations=4)
+        run = dag_maker.create_dagrun()
+        if mapped:
+            ti = next(ti for ti in run.task_instances if ti.task_id == "body.work" and ti.region_index == 1)
+        else:
+            region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id)
+            session.add(region)
+            session.flush()
+            ti = TaskInstance(
+                task=dag.get_task("body.work"),
+                run_id=run.run_id,
+                dag_version_id=run.created_dag_version_id,
+                region_id=region.id,
+                region_index=2,
+            )
+            session.add(ti)
+        ti.try_number = 1
+        ti.state = "success"
+        session.flush()
+        identity = ti.id
+        event = Log(event="success", task_instance=ti)
+        session.add(event)
+        session.flush()
+        if archived:
+            ti.prepare_db_for_next_try(session=session)
+        session.commit()
+        expected_index = 1 if mapped else -1
+
+        detail = test_client.get(f"/eventLogs/{event.id}")
+        assert detail.status_code == 200, detail.text
+        assert detail.json()["map_index"] == expected_index
+        listed = test_client.get(
+            "/eventLogs", params={"task_instance_id": str(identity), "map_index": expected_index}
+        )
+        assert listed.status_code == 200, listed.text
+        assert listed.json()["total_entries"] == 1
+        assert listed.json()["event_logs"][0]["map_index"] == expected_index
+
+    @pytest.mark.parametrize("unknown", [False, True])
+    def test_filters_exact_execution_before_pagination(self, test_client, session, unknown):
+        selected = uuid4()
+        events = [
+            Log(
+                event="execution_event",
+                dag_id=DAG_ID,
+                task_id=TASK_ID,
+                run_id=DAG_RUN_ID,
+                map_index=-1,
+                task_instance_id=identity,
+            )
+            for identity in (selected, selected, uuid4(), None)
+        ]
+        session.add_all(events)
+        session.commit()
+        response = test_client.get(
+            "/eventLogs",
+            params={
+                "task_instance_id": str(uuid4() if unknown else selected),
+                "limit": 1,
+                "offset": 1,
+                "order_by": "event_log_id",
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["total_entries"] == (0 if unknown else 2)
+        assert [row["event_log_id"] for row in response.json()["event_logs"]] == (
+            [] if unknown else [events[1].id]
+        )
+        assert all(row["map_index"] is None for row in response.json()["event_logs"])
+
     @pytest.mark.parametrize(
         ("query_params", "expected_status_code", "expected_total_entries", "expected_events"),
         [

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
@@ -334,6 +335,10 @@ def get_asset_events(
     source_task_id: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_task_id, str | None))
     ],
+    source_task_instance_id: Annotated[
+        FilterParam[UUID | None],
+        Depends(filter_param_factory(AssetEvent.source_task_instance_id, UUID | None)),
+    ],
     source_run_id: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_run_id, str | None))
     ],
@@ -363,6 +368,7 @@ def get_asset_events(
             asset_id,
             source_dag_id,
             source_task_id,
+            source_task_instance_id,
             source_run_id,
             source_map_index,
             partition_key,

@@ -67,7 +67,11 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
-from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
+from airflow.jobs.scheduler_job_runner import (
+    SCHEDULER_DAG_CACHE_SIZE,
+    TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+    SchedulerJobRunner,
+)
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
     AssetActive,
@@ -353,6 +357,43 @@ def make_pool_stats(
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
 class TestSchedulerJob:
+    @pytest.mark.parametrize("region_kind", ["sentinel", "mapped", "loop"])
+    def test_queued_retry_count_uses_exact_try_identity(self, dag_maker, session, region_kind):
+        with dag_maker(session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        if region_kind != "sentinel":
+            region = DynamicRegion(
+                dag_id=dr.dag_id, run_id=dr.run_id, node_id="task" if region_kind == "mapped" else "loop"
+            )
+            session.add(region)
+            session.flush()
+            ti.region_id, ti.region_index = region.id, 2
+        event = TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT
+        session.add_all(
+            [
+                Log(event=event, task_instance=ti),
+                Log(event=event, task_instance=ti.key),
+                Log(event=event, task_instance=ti.key, task_instance_id=uuid4()),
+                Log(event=event, task_instance=ti.key, task_instance_id=uuid4()),
+            ]
+        )
+        session.flush()
+
+        count = SchedulerJobRunner(Job())._get_num_times_stuck_in_queued(ti, session=session)
+
+        assert count == (2 if region_kind == "sentinel" else 1)
+        archived_id = ti.id
+        ti.state = TaskInstanceState.SUCCESS
+        successor = ti.prepare_db_for_next_try(session)
+        session.flush()
+        assert successor.id != archived_id
+        session.add(Log(event=event, task_instance=successor.key, task_instance_id=archived_id))
+        session.flush()
+
+        assert SchedulerJobRunner(Job())._get_num_times_stuck_in_queued(successor, session=session) == 0
+
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
         _clean_db()

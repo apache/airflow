@@ -418,7 +418,10 @@ class BaseExecutor(LoggingMixin):
         coordinates = ti_key if isinstance(ti_key, TaskInstanceKey) else self._task_coordinates.get(ti_key)
         if coordinates is None:
             extra = f"Task instance {ti_key}: {extra}"
-        self._task_event_logs.append(Log(event=event, task_instance=coordinates, extra=extra))
+        task_instance_id = ti_key.id if isinstance(ti_key, TaskInstanceUuid) else None
+        self._task_event_logs.append(
+            Log(event=event, task_instance=coordinates, task_instance_id=task_instance_id, extra=extra)
+        )
 
     def _register_task(self, ti: TaskInstance | TaskInstanceDTO) -> None:
         """Snapshot identity before provider submission or adoption can emit events."""

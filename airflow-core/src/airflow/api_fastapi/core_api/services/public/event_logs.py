@@ -16,14 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import inspect
+from sqlalchemy import case, inspect, select
 from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow.api_fastapi.core_api.datamodels.event_logs import EventLogResponse
 from airflow.models import Log
+from airflow.models.task_coordinates import public_map_index_expression
+from airflow.models.taskinstance import TaskInstance
 
 
-def event_log_to_response(event_log: Log) -> EventLogResponse:
+def event_log_public_map_index():
+    """Resolve an attributed execution's public index without guessing once its row has been purged."""
+    attributed = (
+        select(public_map_index_expression(TaskInstance))
+        .where(TaskInstance.id == Log.task_instance_id)
+        .correlate(Log)
+        .scalar_subquery()
+    )
+    return case((Log.task_instance_id.is_(None), Log.map_index), else_=attributed).label("public_map_index")
+
+
+def event_log_to_response(event_log: Log, *, public_map_index: int | None) -> EventLogResponse:
     # owner_display_name is stored when the action is logged (the API layer populates it; other Log
     # creation paths leave it unset). Resolve it once, at log time, and only fall back to the raw
     # owner here so the value stays stable no matter who views the entry later. set_committed_value
@@ -37,4 +50,6 @@ def event_log_to_response(event_log: Log) -> EventLogResponse:
         if relationship_name in unloaded:
             set_committed_value(event_log, relationship_name, None)
 
-    return EventLogResponse.model_validate(event_log)
+    response = EventLogResponse.model_validate(event_log)
+    response.map_index = public_map_index
+    return response

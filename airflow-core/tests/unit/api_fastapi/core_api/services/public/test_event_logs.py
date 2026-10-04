@@ -36,7 +36,7 @@ def make_event_log(**kwargs) -> Log:
 def test_event_log_to_response_keeps_stored_owner_display_name():
     event_log = make_event_log(owner="owner", owner_display_name="Stored Owner")
 
-    response = event_log_to_response(event_log=event_log)
+    response = event_log_to_response(event_log=event_log, public_map_index=event_log.map_index)
 
     assert response.owner_display_name == "Stored Owner"
 
@@ -44,7 +44,7 @@ def test_event_log_to_response_keeps_stored_owner_display_name():
 def test_event_log_to_response_falls_back_to_owner_when_display_name_is_unset():
     event_log = make_event_log(owner="owner")
 
-    response = event_log_to_response(event_log=event_log)
+    response = event_log_to_response(event_log=event_log, public_map_index=event_log.map_index)
 
     assert response.owner_display_name == "owner"
 
@@ -56,7 +56,7 @@ def test_event_log_to_response_keeps_loaded_relationship_display_names():
     set_committed_value(event_log, "dag_model", DagModel(dag_id="my_dag"))
     set_committed_value(event_log, "task_instance", None)
 
-    response = event_log_to_response(event_log=event_log)
+    response = event_log_to_response(event_log=event_log, public_map_index=event_log.map_index)
 
     assert response.dag_display_name == "my_dag"
 
@@ -67,9 +67,11 @@ def test_event_log_to_response_does_not_mark_event_log_dirty(*, session: Session
     session.add(event_log)
     session.flush()
 
-    response = event_log_to_response(event_log=event_log)
+    response = event_log_to_response(event_log=event_log, public_map_index=-1)
 
     assert response.owner_display_name == "owner"
+    assert response.map_index == -1
+    assert event_log.map_index is None
     assert event_log not in session.dirty
 
     session.delete(event_log)

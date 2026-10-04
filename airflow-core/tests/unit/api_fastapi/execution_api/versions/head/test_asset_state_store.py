@@ -27,7 +27,12 @@ from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.asset_state_store import AssetStateStoreModel
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.session import create_session
+
+from tests_common.test_utils.mock_operators import MockOperator
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -173,6 +178,51 @@ class TestPutAssetStateByName:
         assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "total_runs"}).json() == {
             "value": 5
         }
+
+    @pytest.mark.parametrize("mapped", [False, True])
+    def test_loop_writer_uses_public_map_index(self, client, asset, session, dag_maker, mapped):
+        @task_group
+        def body():
+            if mapped:
+                MockOperator.partial(task_id="work").expand(arg2=[1, 2, 3])
+            else:
+                MockOperator(task_id="work")
+
+        with dag_maker("asset_writer_loop", serialized=True):
+            create_loop(body, max_iterations=3)
+        dr = dag_maker.create_dagrun()
+        self._ti = next(
+            ti
+            for ti in dr.task_instances
+            if ti.task_id == "body.work" and (not mapped or ti.region_index == 2)
+        )
+        if not mapped:
+            region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="body")
+            session.add(region)
+            session.flush()
+            self._ti.region_id, self._ti.region_index = region.id, 2
+        self._ti.try_number = 1
+        session.commit()
+
+        response = client.put(
+            _BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"}, json={"value": "v"}
+        )
+
+        assert response.status_code == 204, response.text
+        row = session.scalar(select(AssetStateStoreModel).where(AssetStateStoreModel.asset_id == asset.id))
+        assert row.last_updated_by_map_index == (2 if mapped else -1)
+        assert row.last_updated_by_task_instance_id == self._ti.id
+        assert row.last_updated_by_region_id == self._ti.region_id
+        assert row.last_updated_by_region_index == 2
+        assert row.last_updated_by_try_number == 1
+        writer_id = self._ti.id
+        self._ti.state = "success"
+        successor = self._ti.prepare_db_for_next_try(session)
+        session.flush()
+        session.expire(row)
+        assert successor.id != writer_id
+        assert row.last_updated_by_task_instance_id == writer_id
+        assert row.last_updated_by_try_number == 1
 
     def test_put_dict_value_roundtrip(self, client: TestClient, asset: AssetModel):
         response = client.put(

@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 
-from sqlalchemy import ForeignKeyConstraint, Integer, PrimaryKeyConstraint, String, Text
+from sqlalchemy import ForeignKeyConstraint, Integer, PrimaryKeyConstraint, String, Text, Uuid
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -52,6 +53,10 @@ class AssetStateStoreModel(Base):
     last_updated_by_run_id: Mapped[str | None] = mapped_column(String(250, **COLLATION_ARGS), nullable=True)
     last_updated_by_task_id: Mapped[str | None] = mapped_column(String(250, **COLLATION_ARGS), nullable=True)
     last_updated_by_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_updated_by_task_instance_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+    last_updated_by_region_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+    last_updated_by_region_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_updated_by_try_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
         PrimaryKeyConstraint("asset_id", "key", name="asset_state_store_pkey"),

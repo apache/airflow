@@ -114,6 +114,7 @@ export class AssetService {
      * @param data.assetId
      * @param data.sourceDagId
      * @param data.sourceTaskId
+     * @param data.sourceTaskInstanceId
      * @param data.sourceRunId
      * @param data.sourceMapIndex
      * @param data.partitionKey
@@ -139,6 +140,7 @@ export class AssetService {
                 asset_id: data.assetId,
                 source_dag_id: data.sourceDagId,
                 source_task_id: data.sourceTaskId,
+                source_task_instance_id: data.sourceTaskInstanceId,
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
                 partition_key: data.partitionKey,
@@ -2399,6 +2401,7 @@ export class EventLogService {
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
      * @param data.dagId
      * @param data.taskId
+     * @param data.taskInstanceId
      * @param data.runId
      * @param data.mapIndex
      * @param data.tryNumber
@@ -2434,6 +2437,7 @@ export class EventLogService {
                 order_by: data.orderBy,
                 dag_id: data.dagId,
                 task_id: data.taskId,
+                task_instance_id: data.taskInstanceId,
                 run_id: data.runId,
                 map_index: data.mapIndex,
                 try_number: data.tryNumber,
