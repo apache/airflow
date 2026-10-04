@@ -24,9 +24,8 @@
 #       Keeps only the CI image in the daemon and writes its image store to SNAPSHOT_FILE, plus
 #       SNAPSHOT_FILE.meta naming the daemon that wrote it and the image.
 #   docker_data_root_snapshot.sh restore SNAPSHOT_FILE
-#       Restores the image. Exits non-zero, leaving the daemon running and without images, when
-#       the snapshot is missing or was written by a different daemon, or the daemon already holds
-#       images, so the caller can fall back to `docker image load`.
+#       Restores the image. Incompatible snapshots leave the daemon untouched. Failed
+#       materialization cleans partial image state and restarts Docker for the normal stash path.
 set -euo pipefail
 
 DATA_ROOT="/var/lib/docker"
@@ -63,8 +62,8 @@ function daemon_fingerprint() {
 }
 
 function stop_daemon() {
-    sudo systemctl stop docker.socket docker
     DAEMON_STOPPED=true
+    sudo systemctl stop docker.socket docker
 }
 
 function start_daemon() {
