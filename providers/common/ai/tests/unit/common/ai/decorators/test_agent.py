@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import ANY, MagicMock, patch
+import threading
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
@@ -28,6 +29,8 @@ from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -236,3 +239,86 @@ class TestAgentDecoratedOperator:
             llm_conn_id="my_llm",
         )
         assert op.durable is False
+
+
+async def _async_prompt():
+    return "Who is our top customer?"
+
+
+def _make_async_context():
+    context = _make_context()
+    context["task_instance"].axcom_push = AsyncMock()
+    return context
+
+
+def _make_async_mock_agent(mock_hook_cls, make_mock_run_result):
+    mock_agent = MagicMock(spec=["run", "instrument"])
+    mock_agent.run = AsyncMock(return_value=make_mock_run_result("The top customer is Acme Corp."))
+    mock_hook_cls.aget_hook = AsyncMock()
+    mock_hook_cls.aget_hook.return_value.acreate_agent = AsyncMock(return_value=mock_agent)
+    return mock_agent
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="async tasks need Airflow >= 3.2")
+class TestAgentDecoratedOperatorAsync:
+    def test_is_async_follows_the_callable(self):
+        def prompt():
+            return "Who is our top customer?"
+
+        sync_op = _AgentDecoratedOperator(task_id="sync", python_callable=prompt, llm_conn_id="my_llm")
+        async_op = _AgentDecoratedOperator(
+            task_id="async", python_callable=_async_prompt, llm_conn_id="my_llm"
+        )
+
+        assert sync_op.is_async is False
+        assert async_op.is_async is True
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_aexecute_awaits_the_callable_for_the_prompt(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = _make_async_mock_agent(mock_hook_cls, make_mock_run_result)
+
+        op = _AgentDecoratedOperator(task_id="test", python_callable=_async_prompt, llm_conn_id="my_llm")
+        result = await op.aexecute(_make_async_context())
+
+        assert result == "The top customer is Acme Corp."
+        assert op.prompt == "Who is our top customer?"
+        mock_agent.run.assert_awaited_once_with(
+            "Who is our top customer?", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
+        )
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_runs_an_async_callable_on_an_event_loop(self, mock_hook_cls, make_mock_run_result):
+        """The task runner calls ``execute``: with an ``async def`` callable it drives ``aexecute``."""
+        _make_async_mock_agent(mock_hook_cls, make_mock_run_result)
+
+        op = _AgentDecoratedOperator(task_id="test", python_callable=_async_prompt, llm_conn_id="my_llm")
+        result = op.execute(context=_make_async_context())
+
+        assert result == "The top customer is Acme Corp."
+        mock_hook_cls.get_hook.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_template_fields_are_rendered_off_the_event_loop(self, mock_hook_cls, make_mock_run_result):
+        """Rendering can read a Variable or a Connection with a blocking call to the supervisor."""
+        _make_async_mock_agent(mock_hook_cls, make_mock_run_result)
+        rendered_on: list[int] = []
+
+        op = _AgentDecoratedOperator(task_id="test", python_callable=_async_prompt, llm_conn_id="my_llm")
+        with patch.object(
+            _AgentDecoratedOperator,
+            "render_template_fields",
+            side_effect=lambda context: rendered_on.append(threading.get_ident()),
+        ):
+            await op.aexecute(_make_async_context())
+
+        assert rendered_on
+        assert rendered_on[0] != threading.get_ident()
+
+    @pytest.mark.parametrize("feature", ["durable", "enable_hitl_review"])
+    def test_async_callable_rejects_features_that_block_the_event_loop(self, feature):
+        with pytest.raises(ValueError, match="not supported with an async callable"):
+            _AgentDecoratedOperator(
+                task_id="test", python_callable=_async_prompt, llm_conn_id="my_llm", **{feature: True}
+            )

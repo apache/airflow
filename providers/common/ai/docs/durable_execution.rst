@@ -38,6 +38,9 @@ after successful completion.
 Durable execution only helps when the task has retries configured. Without
 retries there is nothing to replay.
 
+``durable=True`` is not supported with an ``async def`` ``@task.agent`` function
+(:ref:`howto/operator:agent-async`).
+
 This page is about making an ``AgentOperator`` retry cheap. Deciding *whether* a task
 should retry at all is :doc:`retry_policies`; a retried ``LLMBatchOperator`` re-attaches
 to its running batch instead of resubmitting (:ref:`llm-batch-reattach`).

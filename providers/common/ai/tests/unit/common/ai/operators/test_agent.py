@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import json
 import logging
@@ -25,7 +26,7 @@ from datetime import timedelta
 from decimal import Decimal
 from types import ModuleType, SimpleNamespace
 from typing import Any
-from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, PropertyMock, call, patch
 
 import pytest
 from pydantic import BaseModel
@@ -95,7 +96,12 @@ from airflow.providers.common.compat.sdk import (
 )
 
 from tests_common.test_utils.compat import OperatorSerialization
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
 
 try:
@@ -3418,3 +3424,157 @@ class TestAgentOperatorMasksToolOutput:
         op._build_agent()
 
         assert hook.create_agent.call_args.kwargs["toolsets"] == [sql]
+
+
+def _make_async_task_state_store_accessor():
+    """A task state store whose async methods are backed by a dict and whose blocking ones fail the test."""
+    from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+
+    store: dict = {}
+    accessor = MagicMock(spec=TaskStateStoreAccessor)
+    blocking = AssertionError("blocking task state store call on the event loop")
+    accessor.get.side_effect = accessor.set.side_effect = accessor.delete.side_effect = blocking
+    accessor.aget = AsyncMock(side_effect=lambda key, default=None: store.get(key, default))
+    accessor.aset = AsyncMock(side_effect=lambda key, value, retention=None: store.__setitem__(key, value))
+    accessor.adelete = AsyncMock(side_effect=lambda key: store.pop(key, None))
+    return accessor
+
+
+def _make_async_context(task_state_store=None):
+    """A context for ``aexecute``: XComs go through ``axcom_push`` on Airflow 3.3+, ``xcom_push`` on 3.2."""
+    ti = _make_ti()
+    ti.axcom_push = AsyncMock()
+    context = {"task_instance": ti}
+    if task_state_store is not None:
+        context["task_state_store"] = task_state_store
+    return context
+
+
+def _make_async_mock_agent(mock_hook_cls, **run):
+    """Wire a mock agent whose ``run`` is awaitable into the hook's async path, and return it."""
+    mock_agent = MagicMock(spec=["run", "instrument"])
+    mock_agent.run = AsyncMock(**run)
+    mock_hook_cls.aget_hook = AsyncMock()
+    mock_hook_cls.aget_hook.return_value.acreate_agent = AsyncMock(return_value=mock_agent)
+    return mock_agent
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="async tasks need Airflow >= 3.2")
+class TestAgentOperatorAsync:
+    def test_operator_is_synchronous_unless_a_subclass_says_otherwise(self):
+        assert AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm").is_async is False
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_aexecute_awaits_the_run_through_the_async_hook_path(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_agent = _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result("done"))
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm")
+        result = await op.aexecute(_make_async_context())
+
+        assert result == "done"
+        mock_hook_cls.aget_hook.assert_awaited_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": None}
+        )
+        mock_hook_cls.get_hook.assert_not_called()
+        mock_agent.run.assert_awaited_once_with(
+            "run", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store needs Airflow >= 3.3")
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_successful_run_makes_no_blocking_call_to_the_supervisor(self, mock_hook_cls):
+        """A real run with a usage budget and a message history: every state store call and XCom
+        push of the successful path is awaited, so the blocking doubles are never reached."""
+        mock_hook_cls.aget_hook = AsyncMock()
+        mock_hook_cls.aget_hook.return_value.acreate_agent = AsyncMock(
+            side_effect=lambda **kw: Agent(FunctionModel(_build_priced_response), **kw)
+        )
+        store = _make_async_task_state_store_accessor()
+        context = _make_async_context(task_state_store=store)
+        context["task_instance"].xcom_push.side_effect = AssertionError("blocking xcom_push")
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="run",
+            llm_conn_id="my_llm",
+            usage_limits={"cost_limit": str(PRICED_COST * 2)},
+            message_history=[],
+        )
+        result = await op.aexecute(context)
+
+        assert result == "the answer"
+        pushed = [c.kwargs["key"] for c in context["task_instance"].axcom_push.await_args_list]
+        assert pushed == ["run_id", "usage", "message_history"]
+        assert store.aset.await_args.args[0] == USAGE_BUDGET_KEY
+        store.adelete.assert_awaited_with(USAGE_BUDGET_KEY)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store needs Airflow >= 3.3")
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_failed_run_saves_the_budget_and_reports_its_usage(self, mock_hook_cls):
+        _make_async_mock_agent(mock_hook_cls, side_effect=RuntimeError("boom"))
+        store = _make_async_task_state_store_accessor()
+        context = _make_async_context(task_state_store=store)
+
+        op = AgentOperator(
+            task_id="test", prompt="run", llm_conn_id="my_llm", usage_limits={"request_limit": 5}
+        )
+        with pytest.raises(RuntimeError, match="boom"):
+            await op.aexecute(context)
+
+        assert store.aset.await_args.args[0] == USAGE_BUDGET_KEY
+        # The failure report reuses the synchronous code, from a worker thread.
+        pushed = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
+        assert pushed == {"run_id", "usage"}
+
+    @pytest.mark.parametrize("feature", ["durable", "enable_hitl_review"])
+    @pytest.mark.asyncio
+    async def test_aexecute_rejects_features_that_block_the_event_loop(self, feature):
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", **{feature: True})
+
+        with pytest.raises(ValueError, match="not supported with an async callable"):
+            await op.aexecute(_make_async_context())
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_run_waiting_on_a_tool_approval_pauses_through_the_synchronous_path(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        class Paused(Exception):
+            pass
+
+        _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result(DeferredToolRequests()))
+        context = _make_async_context()
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm")
+        with patch.object(AgentOperator, "_pause_for_tool_approval", side_effect=Paused) as pause:
+            with pytest.raises(Paused):
+                await op.aexecute(context)
+
+        pause.assert_called_once()
+        context["task_instance"].axcom_push.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_runs_overlap_on_one_event_loop(self, mock_hook_cls):
+        async def slow(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            await asyncio.sleep(0.2)
+            return ModelResponse(parts=[TextPart(content="the answer")])
+
+        mock_hook_cls.aget_hook = AsyncMock()
+        mock_hook_cls.aget_hook.return_value.acreate_agent = AsyncMock(
+            side_effect=lambda **kw: Agent(FunctionModel(slow), **kw)
+        )
+        ops = [AgentOperator(task_id=f"test_{i}", prompt="run", llm_conn_id="my_llm") for i in range(8)]
+
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        results = await asyncio.gather(*(op.aexecute(_make_async_context()) for op in ops))
+
+        assert results == ["the answer"] * 8
+        # Eight runs of 0.2 s each take 1.6 s one after the other.
+        assert loop.time() - started < 1.0

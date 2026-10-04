@@ -2143,6 +2143,17 @@ class TestPydanticAIHookAsync:
         async_registry.get_async_connection.assert_awaited_once()
 
     @pytest.mark.asyncio
+    async def test_aget_hook_primes_the_hook_with_the_connection_it_fetched(
+        self, async_registry, infer_model_stub
+    ):
+        async_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+
+        hook = await PydanticAIHook.aget_hook("primary", hook_params={"model_id": "openai:gpt-5.6-terra"})
+
+        assert await hook.aget_conn() is infer_model_stub.models["openai:gpt-5.6-terra"]
+        async_registry.get_async_connection.assert_awaited_once_with("primary")
+
+    @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
     async def test_acreate_agent(self, mock_agent_cls, async_registry, infer_model_stub):
         async_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})

@@ -173,6 +173,20 @@ class PydanticAIHook(BaseHook):
         """
         return cls.get_connection(conn_id).get_hook(hook_params=hook_params)
 
+    @classmethod
+    async def aget_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id`` from an async context, built with ``hook_params``.
+
+        The hook is primed with the connection it was dispatched from, so its first
+        :meth:`aget_conn` or :meth:`acreate_agent` does not fetch that connection again.
+        """
+        conn = await get_async_connection(conn_id)
+        hook = conn.get_hook(hook_params=hook_params)
+        if isinstance(hook, PydanticAIHook):
+            hook._seed_connection(conn, await get_async_extra_dejson(conn))
+        return hook
+
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Return custom field behaviour for the Airflow connection form."""
