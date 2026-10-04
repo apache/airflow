@@ -35,58 +35,66 @@ coordinator does. This ADR settles where that importer comes from, which coordin
 
 ## Decision
 
-### The coordinator hands out its importer
+### The importer finds its coordinator
 
 ```
-BaseCoordinator.get_dag_importer() -> AbstractDagImporter
-    abstract — a coordinator names the importer for the artifacts it parses
-    JavaCoordinator.get_dag_importer() -> JavaDagImporter(coordinator=self)
+CoordinatorDagImporter                        one subclass per runtime
+    coordinator_classpath                     the coordinator class that parses and runs its files
+    get_parsing_coordinator()                 the coordinator that parses its files in its Dag bundle
+JavaDagImporter.coordinator_classpath = "airflow.sdk.coordinators.java.JavaCoordinator"
 ```
 
-The importer comes back already bound to the coordinator, so an operator never configures which coordinator an importer uses. `[sdk] coordinators` stays the one place a runtime is
-declared.
+A coordinator does not hand out an importer. The importer names the class of coordinator that parses its files, and the registry builds it for one Dag bundle, as `cls(bundle_name=...)`. It looks its coordinator up in `[sdk] coordinators` when it needs one, so no coordinator is built to register it. `[sdk] coordinators` stays the one place a runtime is declared.
 
-The return is not optional. A coordinator that never contributes an importer to any bundle already says so by the artifact source it was configured with — `for_bundle` below
-answers that, and answering it a second time with a `None` return would let the two disagree. What a coordinator can parse and where it gets registered are separate questions.
+Which coordinator parses the importer's files in a Dag bundle depends on how many coordinators of its class are configured.
+
+| Coordinators of the importer's class | What happens to the importer's files in the bundle |
+|---|---|
+| 0 | The importer is not registered, so the files are not listed. A deployment with no coordinator of the class is unchanged. |
+| 1 | That coordinator parses them, in every Dag bundle. `[sdk] dag_bundle_to_coordinator` is not read. |
+| 2 or more | `dag_bundle_to_coordinator[bundle]` must name one of them, and that one parses them. Otherwise each parse fails with an import error that says why: there is no entry, the entry names a coordinator of another class, the entry cannot be loaded, or the option is not a JSON object of strings. |
+
+A coordinator is of the importer's class when its class is that class or a subclass of it. Both classpaths are resolved with `import_string` and compared with `issubclass`. Comparing strings would miss `airflow.sdk.coordinators.java.coordinator.JavaCoordinator`, which `airflow.sdk.coordinators.java.JavaCoordinator` re-exports, and a user subclass. A configured classpath that cannot be imported, fails while importing or is not a class matches nothing, and is logged once.
+
+`dag_bundle_name` has nothing to do with parsing. It only names the Dag bundle that holds the artifacts of stub tasks.
 
 ### Registration order
 
 ```
 DagImporterRegistry.from_config(bundle_name)
   ├── defaults                              PythonDagImporter, ZipImporter
-  ├── CoordinatorManager.for_bundle(bundle_name)                    (new)
-  │     └── register(coordinator.get_dag_importer())
+  ├── COORDINATOR_DAG_IMPORTERS                                     (new)
+  │     └── register(cls(bundle_name=bundle_name)) for each class that has a configured coordinator
   ├── [dag_processor] dag_importer_configs             (global, unchanged)
   └── that bundle's own `importers` list                   (unchanged)
 ```
 
-`dag_importer_configs` remains the door for importers with no runtime behind them — a YAML importer, say. A Lang SDK never arrives that way.
+`COORDINATOR_DAG_IMPORTERS` is a tuple of importer classpaths next to `CoordinatorDagImporter`. A bundle can still override `.jar` in a later tier.
 
-### `CoordinatorManager.for_bundle`
+The importer is tied to its bundle because the Java importer's listing filter needs the parsing coordinator's `main_class`, and `might_contain_dag` gets no bundle argument. For the same reason it cannot come in through `dag_importer_configs`, which cannot pass a bundle name. A third-party runtime registers its `CoordinatorDagImporter` subclass in each bundle's `importers` list, with `"kwargs": {"bundle_name": "<bundle>"}`. `dag_importer_configs` remains the door for importers with no runtime behind them, a YAML importer say.
+
+When the tier fails:
+
+- If `[sdk] coordinators` cannot be loaded, the tier logs it and registers nothing. Tasks cannot start in that case anyway, because `for_queue` fails first.
+- Any other error is logged and kept on the registry, and `find_claiming_importer` re-raises it. A task routed to a coordinator then fails before its runtime starts, instead of running its file as a Python file. The Dag processor and the Python task runner log the error and treat the file as a Python file.
+
+### `CoordinatorManager`
 
 ```
 CoordinatorManager
-  ├── for_queue(queue)    → one coordinator      (shipped — task execution)
-  └── for_bundle(name)    → the coordinators serving that bundle    (new)
+  ├── for_queue(queue)                                  → one coordinator   (shipped, task execution)
+  ├── get_coordinator(key)                              → the coordinator under a key
+  ├── get_coordinator_keys_for_class(classpath)         → the keys of that class, building nothing
+  └── get_dag_parsing_coordinator_key(classpath, bundle) → the key that parses the bundle's files of that class   (new)
 ```
 
-`for_queue` answers "who runs this task". `for_bundle` answers "who can parse Dags in this bundle", which is what the registry tier above needs. It reads the same `[sdk]
-coordinators` specs, selecting by the artifact source below.
+`for_queue` answers "who runs this task" from `[sdk] queue_to_coordinator` alone. Tasks never read `dag_bundle_to_coordinator`: the supervisor and KubernetesExecutor pick the coordinator and the worker pod by queue, before the task runs. A native task therefore needs a coordinator of its file's class, not the one that parsed the file.
 
-### One coordinator instance owns a DagBundle
+`from_config` does not read `dag_bundle_to_coordinator` either, because it runs for every task and a typo in a setting that only parsing uses must not fail Python tasks. The option is read on first use, and a bad value is reported as an import error on the files that need it.
 
-```
-EXPLICIT_ROOT   jars_root / executables_root / bundles_root
-                  → no DagBundle at all      → not returned by for_bundle
-NAMED_BUNDLE    dag_bundle_name
-                  → that bundle, at the version current when work starts
-TASK_BUNDLE     neither set
-                  → the bundle the delegating Dag lives in, at the run's version
-```
+### A Dag bundle maps to one coordinator
 
-Importers are keyed by file extension, one per extension, so two `JavaCoordinator` instances on different JDKs would both claim `.jar`. Only `NAMED_BUNDLE` names a bundle, which
-makes it the mode a deployment running two runtimes of the same language has to use. `EXPLICIT_ROOT` has no DagBundle, so nothing scans its artifacts and it cannot produce a Dag to
-persist; it serves mixed-language work only. Appendix A covers the three modes in full.
+One entry in `dag_bundle_to_coordinator` picks one coordinator, so it only decides for that coordinator's runtime. With `{"dags-folder": "java-native"}`, four `JavaCoordinator`s and one `NodeCoordinator` named `ts`, the `.jar` files in `dags-folder` go to `java-native` and the `.min.mjs` files go to `ts`. With two `NodeCoordinator`s, the `.min.mjs` files get the import error until they move to a bundle of their own. An entry never breaks a runtime that has only one coordinator, even when it names a key that does not exist.
 
 ### The integration point is `import_definition`
 
@@ -103,7 +111,7 @@ DagFileProcessorProcess(analytics.jar)                       ← manager spawns,
                     │
                     ├── LangSDKDagFileProcessorProcess.start(
                     │       target=_parse_lang_sdk_dag_entrypoint,
-                    │       coordinator=JavaCoordinator(...), path=analytics.jar)
+                    │       coordinator=self.get_parsing_coordinator(), path=analytics.jar)
                     │     │
                     │     ├── in the child: _build_parse_dag_command() → (command, schema_version)
                     │     │                 coordinator.parse_dag() — spawn JVM, fd 0 ⇄ comm socket
@@ -146,14 +154,13 @@ DagModelOperation → PERSIST
 
 ## Consequences
 
-- A Lang-SDK importer is never configured by hand. The runtime is declared once, in `[sdk] coordinators`, and the importer follows from it.
+- The Java and TypeScript importers are never configured by hand. The runtime is declared once, in `[sdk] coordinators`, and the importer follows from it.
 - Routing a Lang-SDK artifact to its runtime becomes the importer registry's job. ADR-0004's `can_handle_dag_file` / `_resolve_processor_target` scan no longer decides which
   process parses a file, and the coordinator method it drove is replaced by `parse_dag` ([ADR-0012](0012-lang-sdk-parse-protocol.md)).
-- One coordinator instance per DagBundle becomes a deployment constraint: two JDKs mean two `dag_bundle_name` values and two bundle-scoped registries. This is what keeps
-  extension-keyed registration unambiguous.
-- A coordinator in `EXPLICIT_ROOT` mode cannot back a Dag importer. Its artifacts live outside any DagBundle, so nothing scans them. It still implements `get_dag_importer`; the
-  importer is simply never asked for, because `for_bundle` does not return that coordinator.
-- `CoordinatorManager` gains `for_bundle`, a second lookup axis beside `for_queue`.
+- A runtime with several coordinators needs one `dag_bundle_to_coordinator` entry for each Dag bundle that holds its native Dag files, and such a bundle holds the native Dag files of only that runtime.
+- `dag_bundle_name` only names the bundle that holds the artifacts of stub tasks. It no longer decides which coordinator parses a file.
+- `CoordinatorManager` gains `get_coordinator`, `get_coordinator_keys_for_class` and `get_dag_parsing_coordinator_key`, a lookup by Dag bundle beside `for_queue`.
+- A third-party runtime registers its importer in each bundle's `importers` list, because `dag_importer_configs` cannot pass a bundle name.
 - A packed Go bundle claims the empty extension, which three call sites currently treat as absent rather than as a key. Appendix B lists them.
 - `get_source_code` is abstract, so every Lang-SDK importer must implement it, and a native Lang-SDK Dag has no Python source to return. What it should return, and how that squares
   with [ADR-0006](0006-no-lang-sdk-source-display.md), is not settled here.
@@ -176,23 +183,15 @@ DagModelOperation → PERSIST
 
 ## Appendix
 
-### Appendix A — Artifact sources and what `for_bundle` returns
+### Appendix A: Two or more coordinators and no usable entry
 
-`SubprocessCoordinator` classifies artifact ownership at construction. The explicit root and `dag_bundle_name` are mutually exclusive, and both that conflict and a
-`dag_bundle_name` naming an unconfigured bundle are rejected there.
+Each file of the importer fails its parse with an import error. Three outcomes were possible:
 
-`NAMED_BUNDLE` is the unambiguous case. `for_bundle(name)` returns it when its `dag_bundle_name` matches, so its importer lands in exactly one bundle-scoped registry. Two
-`dag_bundle_name` values give two registries, and `.jar` is claimed once in each.
+- **Skip the importer.** The files stop being listed. Their Dags are marked stale and their import errors are deleted, with only a log line to show for it.
+- **Raise while building the registry.** The manager skips the whole bundle, Python files included.
+- **Import error per file (chosen).** The Dags also go stale, but the UI says why, and the next good parse brings them back.
 
-`TASK_BUNDLE` has no fixed bundle — its artifacts ride along with whichever Dag delegates to them — so `for_bundle` returns it for every bundle and its importer registers
-everywhere. That is sound only while it is the sole claimant of its extension, which is the co-located single-runtime deployment.
-
-`EXPLICIT_ROOT` points at a filesystem path outside any DagBundle. The Dag processor never scans it, so there is no file for an importer to claim and `for_bundle` never returns it.
-Such a coordinator is reachable only by queue, for mixed-language work.
-
-`get_importer_registry(bundle_name)` is already cached per bundle, and `CoordinatorManager` caches instances separately, so the two caches have to be reset together.
-
-### Appendix B — Extensionless artifacts
+### Appendix B: Extensionless artifacts
 
 A packed Go bundle has no suffix. `ExecutableDagImporter` claims the empty extension as a first-class key rather than depending on a `can_handle` scan, whose winner varies with
 registration order because `_ordered_importers` is scanned in reverse.
@@ -205,8 +204,8 @@ Three places assume a non-empty suffix today:
 
 Empty has to pass through all three, with the guards testing `suffix is not None`.
 
-### Appendix C — Resolving artifact roots at parse time
+### Appendix C: Resolving artifact roots at parse time
 
-`_init_root_source` already resolves roots for all three modes, but publishes them through `_get_scan_roots()`, which is scoped to an active task and raises outside one. Both
-parse-side commands need the same roots with no `TaskInstance` in hand: `EXPLICIT_ROOT` and `NAMED_BUNDLE` resolve from the coordinator's own configuration, and `TASK_BUNDLE`
-resolves against the bundle the Dag processor is parsing. The scope that publishes the roots has to open for a parse as well as for a task.
+`_init_root_source` resolves the roots of a task, but publishes them through `_get_scan_roots()`, which is scoped to an active task and raises outside one. Both parse-side commands need the
+same roots with no `TaskInstance` in hand. For a parse they are the root of the Dag bundle the Dag processor is parsing, whatever the coordinator's `dag_bundle_name` says. The scope that
+publishes the roots has to open for a parse as well as for a task.

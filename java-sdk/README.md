@@ -96,17 +96,32 @@ Now `cd example` into the example project, and
 * Ensure the `java` command is available in the same environment the Airflow
   task worker is in.
 
-* Configure Airflow to route tasks in the *java* queue to be run with Java:
+* Configure Airflow to load the JARs from a Dag bundle and route tasks in the *java* queue to be run with Java:
 
   ```bash
+  export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+    {
+      "name": "dags-folder",
+      "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+      "kwargs": {}
+    },
+    {
+      "name": "java-example",
+      "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+      "kwargs": {"path": "/opt/airflow/java-sdk/example/build/bundle"}
+    }
+  ]'
   export AIRFLOW__SDK__COORDINATORS='{
     "java": {
       "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-      "kwargs": {"jars_root": ["/opt/airflow/java-sdk/example/build/bundle"]}
+      "kwargs": {"dag_bundle_name": "java-example"}
     }
   }'
   export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"java": "java"}'
   ```
+
+  `dag_bundle_name` names the Dag bundle that holds the JARs, here `build/bundle`, outside the Dags folder.
+  Omit it to ship the JARs in the same Dag bundle as the stub Dag.
 
 * Ensure the Connection and Variable needed by the example DAG are available:
 
@@ -644,7 +659,7 @@ where Airflow can find it.
 When the Airflow supervisor identifies that a task should run with Java, it
 launches the JVM application as a subprocess. The flow is:
 
-1. `JavaCoordinator.execute_task()` (Python) scans `jars_root`, builds the
+1. `JavaCoordinator.execute_task()` (Python) scans the Dag bundle, builds the
    classpath, and spawns `java -cp <jars> <MainClass> --comm=<host>:<port>
    --logs=<host>:<port>`.
 2. `Server.kt` connects to both sockets immediately on startup.
