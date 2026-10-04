@@ -17,23 +17,16 @@
  * under the License.
  */
 
-package org.apache.airflow.example;
+package org.apache.airflow.sdk.internal
 
-import org.apache.airflow.sdk.*;
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
 
-// One bundle serves every surface: Dags built in Java, and the handler classes
-// whose Dags the Python file owns.
-public class ExampleBundleBuilder {
-  public static Bundle build() {
-    return new Bundle()
-        .register(InterfaceExampleBuilder.build())
-        .register(AnnotationExample.class)
-        .register(XComCastingExample.class)
-        .register(org.apache.airflow.example.nativedag.AnnotationExample.class)
-        .register(org.apache.airflow.example.nativedag.InterfaceExample.build());
-  }
-
-  public static void main(String[] args) {
-    Server.create(args).serve(build());
+internal class RegistrarTest {
+  @Test
+  @DisplayName("Should name the builder of a Dag class in the default package with no leading dot")
+  fun shouldNameBuilderInDefaultPackage() {
+    assertEquals("FooBuilder", builderName("", "Foo", ""))
   }
 }
