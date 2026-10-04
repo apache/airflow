@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import ast
+import zipfile
 from textwrap import dedent
 
 import pytest
@@ -27,6 +28,7 @@ from airflow.utils.dag_version_inflation_checker import (
     RuntimeVaryingValueAnalyzer,
     RuntimeVaryingValueWarning,
     WarningContext,
+    check_dag_file_stability,
 )
 
 
@@ -939,3 +941,35 @@ class TestIntegrationScenarios:
         )
         warnings = self._check_code(code)
         assert len(warnings) == 0
+
+def test_check_dag_file_stability_checks_dags_inside_zip(tmp_path):
+    """DAGs inside ZIP files should be checked for version inflation."""
+    source_1 = dedent(
+        """
+        from airflow import DAG
+        from datetime import datetime
+
+        current_time = datetime.now()
+        dag_1 = DAG(dag_id="dag_1", schedule=current_time)
+        """
+    )
+    source_2 = dedent(
+        """
+        from airflow import DAG
+        from datetime import datetime
+
+        current_time = datetime.now()
+        dag_2 = DAG(dag_id="dag_2", schedule=current_time)
+        """
+    )
+
+    zip_path = tmp_path / "dags.zip"
+    with zipfile.ZipFile(zip_path, "w") as zip_file:
+        zip_file.writestr("dag_one.py", source_1)
+        zip_file.writestr("dag_two.py", source_2)
+
+    result = check_dag_file_stability(zip_path)
+
+    assert len(result.warnings) == 2
+    assert len(result.runtime_varying_values) == 1
+    assert "current_time" in result.runtime_varying_values
