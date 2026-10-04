@@ -65,10 +65,21 @@ class BigtableHook(GoogleBaseHook):
         self,
         api_endpoint_override: str | None = None,
     ) -> ClientOptions:
-        """Return the ClientOptions object for Google Bigtable Admin API."""
+        """
+        Return the ClientOptions object for Google Bigtable Admin API.
+
+        The returned options point at the Bigtable Admin API. ``Client`` passes the same options to its
+        data client, so data-plane methods added to this hook would need their own endpoint.
+        """
         if not self.is_default_universe():
+            if api_endpoint_override:
+                self.log.info(
+                    "Ignoring api_endpoint_override because the universe domain is not Google default universe."
+                )
             global_universe_domain = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN")
-            # Force admin api endpoint for the non-default universe
+            # google.cloud.bigtable.Client builds the admin channel from api_endpoint only and ignores
+            # universe_domain, so the base hook's ClientOptions(universe_domain=...) would still reach
+            # bigtableadmin.googleapis.com.
             return ClientOptions(api_endpoint=f"bigtableadmin.{global_universe_domain}")
         return super().get_client_options(api_endpoint_override=api_endpoint_override)
 
