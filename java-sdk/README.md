@@ -674,6 +674,20 @@ launches the JVM application as a subprocess. The flow is:
 5. On completion (or exception) the JVM sends a `TaskState` message and closes
    the socket. The JVM process then exits.
 
+The Dag processor also starts a task's command to ask the bundle which task
+handlers it registers. The first frame is then a `TaskHandlerParseRequest`, and
+`execution/TaskHandlerParse.kt` replies with one `TaskHandlerParsingResult`:
+every task-handler registration, keyed by Dag id in registration order, each
+with its binding mode and parameters. Dags declared in Java are left out, and
+`Bundle.register(dagId, taskId, cls)` rejects a class generated for a
+`@Builder.Dag` task, so a task of a Python Dag is declared with
+`@Builder.TaskHandler`, or is a hand-written `Task` class registered with that
+method. Flat data parameters bind `positional` and a `TaskInput` binds `named`.
+The annotation processor records a handler's
+parameter names on its generated task class (`internal/TaskParams.kt`), because
+Java does not keep them at run time. The JVM waits for the reply's
+acknowledgement, then exits.
+
 Log messages produced by the SDK (not by user code) are forwarded over the
 `--logs` socket so the supervisor can append them to Airflow's log store.
 

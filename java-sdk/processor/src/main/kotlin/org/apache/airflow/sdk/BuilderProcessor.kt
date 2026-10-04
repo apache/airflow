@@ -32,6 +32,7 @@ import com.squareup.javapoet.TypeSpec
 import org.apache.airflow.sdk.internal.ArgValues
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.FieldType
+import org.apache.airflow.sdk.internal.GeneratedDagTask
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.TaskArgs
 import org.apache.airflow.sdk.internal.TaskParams
@@ -70,7 +71,8 @@ import javax.tools.Diagnostic
  * For each class annotated with [Builder.Dag], generates a `*Builder` class
  * containing:
  *
- * - One inner class per [Builder.Task]-annotated method, implementing [Task].
+ * - One inner class per [Builder.Task]-annotated method, implementing [Task]
+ *   and marked [GeneratedDagTask].
  * - A static `build()` method that constructs the [DagDef], lowers every
  *   explicitly-written `@Builder.Dag` attribute into a `DagDef.config` call,
  *   and registers those inner classes as [TaskDef]s, each carrying its
@@ -206,7 +208,12 @@ class BuilderProcessor : AbstractProcessor() {
       val taskAnn = inner.getAnnotation(Builder.Task::class.java) ?: continue
       val innerName = inner.simpleName.toString().replaceFirstChar(Char::uppercase)
 
-      builderClass.addType(buildTask(innerName, inner, el))
+      builderClass.addType(
+        buildTask(innerName, inner, el)
+          .toBuilder()
+          .addAnnotation(GENERATED_DAG_TASK_TYPE)
+          .build(),
+      )
 
       buildMethod.addStatement(
         $$"dag.addTask($L)",
@@ -528,6 +535,7 @@ private val CONTEXT_TYPE = ClassName.get(Context::class.java)
 private val TASK_INPUT_TYPE = ClassName.get(TaskInput::class.java)
 private val TASK_ARGS_TYPE = ClassName.get(TaskArgs::class.java)
 private val TASK_PARAMS_TYPE = ClassName.get(TaskParams::class.java)
+private val GENERATED_DAG_TASK_TYPE = ClassName.get(GeneratedDagTask::class.java)
 private val TYPE_REF_TYPE = ClassName.get(TypeRef::class.java)
 private val ARG_VALUES_TYPE = ClassName.get(ArgValues::class.java)
 

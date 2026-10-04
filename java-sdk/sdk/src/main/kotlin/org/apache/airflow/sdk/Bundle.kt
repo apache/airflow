@@ -19,6 +19,7 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.GeneratedDagTask
 import org.apache.airflow.sdk.internal.registrarName
 
 /**
@@ -124,10 +125,12 @@ class Bundle(
    *
    * @param dagId Dag ID as declared in the Python Dag file.
    * @param taskId Task ID as declared by the `@task.stub` function.
-   * @param definition Class that implements [Task].
+   * @param definition Class that implements [Task]. A class generated for a
+   *    [Builder.Dag] task is not accepted: that task belongs to a Dag declared
+   *    in Java, so declare a task handler with [Builder.TaskHandler] instead.
    * @return This bundle, for chaining.
    * @throws IllegalArgumentException if a Dag declared in Java already holds
-   *    that ID.
+   *    that ID, or [definition] was generated for a [Builder.Dag] task.
    * @throws IllegalStateException if [Server.serve] has already been called.
    */
   fun register(
@@ -136,6 +139,11 @@ class Bundle(
     definition: Class<out Task>,
   ): Bundle {
     checkOpen()
+    require(!definition.isAnnotationPresent(GeneratedDagTask::class.java)) {
+      "${definition.name} was generated for a @Builder.Dag task, which belongs to a Dag declared in " +
+        "Java; a task of a Dag the Python file owns is a task handler, so declare it with " +
+        "@Builder.TaskHandler, or register a Task class you wrote"
+    }
     require(dagId !in dags) {
       "Dag '$dagId' is declared in Java; attach its tasks with addTask(...) rather than " +
         "registering task handlers for them"
