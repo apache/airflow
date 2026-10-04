@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import AliasPath, Field, field_validator
 
@@ -33,6 +34,8 @@ class XComResponse(BaseModel):
     timestamp: datetime
     logical_date: datetime | None
     map_index: int
+    region_id: UUID
+    region_index: int
     task_id: str
     dag_id: str
     run_id: str
@@ -105,6 +108,8 @@ class XComCreateBody(StrictBaseModel):
     key: str
     value: Any
     map_index: int = -1
+    region_id: UUID | None = None
+    region_index: int | None = Field(default=None, ge=-1)
 
     @field_validator("value")
     @classmethod
@@ -117,6 +122,8 @@ class XComUpdateBody(StrictBaseModel):
 
     value: Any
     map_index: int = -1
+    region_id: UUID | None = None
+    region_index: int | None = Field(default=None, ge=-1)
 
     @field_validator("value")
     @classmethod

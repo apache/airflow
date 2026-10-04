@@ -5884,6 +5884,216 @@ export const $EventLogResponse = {
     description: 'Event Log Response.'
 } as const;
 
+export const $ExecutionCollectionResponse = {
+    properties: {
+        task_instances: {
+            items: {
+                '$ref': '#/components/schemas/ExecutionTaskResponse'
+            },
+            type: 'array',
+            title: 'Task Instances'
+        },
+        regions: {
+            items: {
+                '$ref': '#/components/schemas/ExecutionRegionResponse'
+            },
+            type: 'array',
+            title: 'Regions'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['task_instances', 'regions', 'total_entries'],
+    title: 'ExecutionCollectionResponse',
+    description: 'A page of task executions with their region ancestry.'
+} as const;
+
+export const $ExecutionRegionResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        node_id: {
+            type: 'string',
+            title: 'Node Id'
+        },
+        parent_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parent Region Id'
+        },
+        parent_region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parent Region Index'
+        },
+        forked_from_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Forked From Region Id'
+        },
+        resumes_from_index: {
+            type: 'integer',
+            title: 'Resumes From Index'
+        }
+    },
+    type: 'object',
+    required: ['id', 'node_id', 'parent_region_id', 'parent_region_index', 'forked_from_region_id', 'resumes_from_index'],
+    title: 'ExecutionRegionResponse',
+    description: 'Immutable region structure for interpreting task coordinates.'
+} as const;
+
+export const $ExecutionTaskResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            type: 'string',
+            title: 'Dag Run Id'
+        },
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
+        map_index: {
+            type: 'integer',
+            title: 'Map Index'
+        },
+        try_number: {
+            type: 'integer',
+            title: 'Try Number'
+        },
+        state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        },
+        duration: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration'
+        },
+        dag_version_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Id'
+        },
+        operator: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operator'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        }
+    },
+    type: 'object',
+    required: ['id', 'dag_id', 'dag_run_id', 'task_id', 'task_display_name', 'region_id', 'region_index', 'map_index', 'try_number', 'state', 'start_date', 'end_date', 'duration', 'dag_version_id', 'operator'],
+    title: 'ExecutionTaskResponse',
+    description: 'A task try together with the coordinates that address it exactly.'
+} as const;
+
 export const $ExternalLogUrlResponse = {
     properties: {
         url: {
@@ -7780,6 +7990,11 @@ export const $TaskInstanceHistoryCollectionResponse = {
 
 export const $TaskInstanceHistoryResponse = {
     properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
         task_id: {
             type: 'string',
             title: 'Task Id'
@@ -7795,6 +8010,15 @@ export const $TaskInstanceHistoryResponse = {
         map_index: {
             type: 'integer',
             title: 'Map Index'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
         },
         start_date: {
             anyOf: [
@@ -7991,6 +8215,17 @@ export const $TaskInstanceHistoryResponse = {
                 }
             ]
         },
+        note: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
         state_reason: {
             anyOf: [
                 {
@@ -8005,7 +8240,7 @@ export const $TaskInstanceHistoryResponse = {
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'region_id', 'region_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
@@ -9696,6 +9931,30 @@ export const $XComCreateBody = {
             type: 'integer',
             title: 'Map Index',
             default: -1
+        },
+        region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Id'
+        },
+        region_index: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: -1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Index'
         }
     },
     additionalProperties: false,
@@ -9732,6 +9991,15 @@ export const $XComResponse = {
             type: 'integer',
             title: 'Map Index'
         },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
         task_id: {
             type: 'string',
             title: 'Task Id'
@@ -9770,7 +10038,7 @@ export const $XComResponse = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'region_id', 'region_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after'],
     title: 'XComResponse',
     description: 'Serializer for a xcom item.'
 } as const;
@@ -9802,6 +10070,15 @@ export const $XComResponseNative = {
             type: 'integer',
             title: 'Map Index'
         },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
         task_id: {
             type: 'string',
             title: 'Task Id'
@@ -9843,7 +10120,7 @@ export const $XComResponseNative = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'region_id', 'region_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
     title: 'XComResponseNative',
     description: 'XCom response serializer with native return type.'
 } as const;
@@ -9875,6 +10152,15 @@ export const $XComResponseString = {
             type: 'integer',
             title: 'Map Index'
         },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
         task_id: {
             type: 'string',
             title: 'Task Id'
@@ -9924,7 +10210,7 @@ export const $XComResponseString = {
         }
     },
     type: 'object',
-    required: ['key', 'timestamp', 'logical_date', 'map_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
+    required: ['key', 'timestamp', 'logical_date', 'map_index', 'region_id', 'region_index', 'task_id', 'dag_id', 'run_id', 'dag_display_name', 'task_display_name', 'run_after', 'value'],
     title: 'XComResponseString',
     description: 'XCom response serializer with string return type.'
 } as const;
@@ -9938,6 +10224,30 @@ export const $XComUpdateBody = {
             type: 'integer',
             title: 'Map Index',
             default: -1
+        },
+        region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Id'
+        },
+        region_index: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: -1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Index'
         }
     },
     additionalProperties: false,
@@ -11266,6 +11576,24 @@ export const $GanttResponse = {
 
 export const $GanttTaskInstance = {
     properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
+        map_index: {
+            type: 'integer',
+            title: 'Map Index'
+        },
         task_id: {
             type: 'string',
             title: 'Task Id'
@@ -11348,7 +11676,7 @@ export const $GanttTaskInstance = {
         }
     },
     type: 'object',
-    required: ['task_id', 'task_display_name', 'try_number', 'state', 'scheduled_dttm', 'queued_dttm', 'start_date', 'end_date'],
+    required: ['id', 'region_id', 'region_index', 'map_index', 'task_id', 'task_display_name', 'try_number', 'state', 'scheduled_dttm', 'queued_dttm', 'start_date', 'end_date'],
     title: 'GanttTaskInstance',
     description: 'Task instance data for Gantt chart.'
 } as const;

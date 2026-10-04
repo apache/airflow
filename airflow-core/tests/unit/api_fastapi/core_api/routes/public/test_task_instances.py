@@ -210,6 +210,132 @@ class TestTaskInstanceEndpoint:
 
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
+    def test_regional_current_and_archived_tries_keep_their_coordinates(
+        self, test_client, dag_maker, session
+    ):
+        @task_group
+        def body():
+            MockOperator(task_id="member")
+
+        with dag_maker("regional-ti", serialized=True) as dag:
+            loop = create_loop(body, max_iterations=4)
+
+            @task
+            def mapped(value):
+                return value
+
+            mapped.expand(value=[1, 2])
+        dr = dag_maker.create_dagrun()
+        original = next(ti for ti in dr.task_instances if ti.task_id == "body.member")
+        first = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+        )
+        session.add(first)
+        session.flush()
+        original.region_id, original.region_index = first.id, 2
+        original.try_number, original.state = 1, TaskInstanceState.SUCCESS
+        session.flush()
+        original.archive(reason="superseded", session=session)
+        replacement_region = DynamicRegion(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            node_id=loop.group_id,
+            forked_from_region_id=first.id,
+        )
+        session.add(replacement_region)
+        session.flush()
+        replacement = TaskInstance(
+            task=dag.get_task("body.member"),
+            run_id=dr.run_id,
+            dag_version_id=dr.created_dag_version_id,
+            region_id=replacement_region.id,
+            map_index=2,
+        )
+        replacement.try_number, replacement.state = 1, TaskInstanceState.RUNNING
+        session.add(replacement)
+        mapped_region = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id="mapped", session=session
+        )
+        session.add(mapped_region)
+        session.flush()
+        for ti in dr.task_instances:
+            if ti.task_id == "mapped":
+                ti.region_id = mapped_region.id
+        session.commit()
+        url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.member"
+        params = {"region_id": str(replacement_region.id), "region_index": 2}
+
+        response = test_client.get(url, params=params)
+        assert response.status_code == 200
+        assert response.json()["id"] == str(replacement.id)
+        assert response.json()["map_index"] == -1
+        assert response.json()["region_index"] == 2
+        response = test_client.get(f"{url}/tries/1", params=params)
+        assert response.status_code == 200
+        assert response.json()["state"] == TaskInstanceState.RUNNING
+        response = test_client.get(f"{url}/tries/1", params={"region_id": str(first.id), "region_index": 2})
+        assert response.status_code == 200
+        assert response.json()["state"] == TaskInstanceState.SUCCESS
+        assert response.json()["map_index"] == -1
+        assert response.json()["region_id"] == str(first.id)
+        assert test_client.get(url).status_code == 400
+        collection_url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
+        cursor = ""
+        entries = []
+        while cursor is not None:
+            response = test_client.get(
+                collection_url, params={"order_by": "map_index", "limit": 1, "cursor": cursor}
+            )
+            assert response.status_code == 200
+            page = response.json()
+            entries.extend(page["task_instances"])
+            cursor = page["next_cursor"]
+            assert len(entries) <= 4
+        assert [ti["map_index"] for ti in entries] == [-1, -1, 0, 1]
+        assert len({ti["id"] for ti in entries}) == 4
+        response = test_client.get(collection_url, params={"map_index": -1})
+        assert response.json()["total_entries"] == 2
+
+    def test_mapped_path_selects_the_instance_in_the_requested_region(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            MockOperator(task_id="member")
+
+        with dag_maker("regional-ti-path", serialized=True) as dag:
+            loop = create_loop(body, max_iterations=4)
+        dr = dag_maker.create_dagrun()
+        instances = []
+        original = DynamicRegion.get_or_create(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+        )
+        fork = DynamicRegion(
+            dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, forked_from_region_id=original.id
+        )
+        session.add(fork)
+        session.flush()
+        for region in (original, fork):
+            ti = TaskInstance(
+                task=dag.get_task("body.member"),
+                run_id=dr.run_id,
+                dag_version_id=dr.created_dag_version_id,
+                region_id=region.id,
+                region_index=2,
+            )
+            session.add(ti)
+            session.flush()
+            instances.append(ti)
+        session.commit()
+        sibling, selected = instances
+
+        response = test_client.get(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.member/2",
+            params={"region_id": str(selected.region_id), "region_index": 2},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["id"] == str(selected.id)
+        assert response.json()["id"] != str(sibling.id)
+
     def test_removed_mapped_regional_instances_are_still_listed(self, test_client, dag_maker, session):
         with dag_maker("removed-mapped", serialized=True):
             MockOperator(task_id="kept")
@@ -2468,8 +2594,13 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
             ),
         ],
     )
-    def test_should_respond_dependencies(self, test_client, session, state, dependencies):
+    @pytest.mark.parametrize("unversioned", [False, True])
+    def test_should_respond_dependencies(self, test_client, session, state, dependencies, unversioned):
         self.create_task_instances(session, task_instances=[{"state": state}], update_extras=True)
+        if unversioned:
+            session.execute(update(TaskInstance).values(dag_version_id=None))
+            session.execute(update(DagRun).values(created_dag_version_id=None))
+            session.commit()
 
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
@@ -2869,8 +3000,12 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
+            "region_id": "00000000-0000-0000-0000-000000000000",
+            "region_index": -1,
             "max_tries": 0,
             "operator": "PythonOperator",
             "operator_name": "PythonOperator",
@@ -2951,8 +3086,12 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
+            "region_id": "00000000-0000-0000-0000-000000000000",
+            "region_index": -1,
             "max_tries": 0 if try_number == 1 else 1,
             "operator": "PythonOperator",
             "operator_name": "PythonOperator",
@@ -3032,8 +3171,12 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "end_date": "2020-01-03T00:00:00Z",
                 "executor": None,
                 "executor_config": "{}",
+                "id": mock.ANY,
+                "note": mock.ANY,
                 "hostname": "",
                 "map_index": map_index,
+                "region_id": "00000000-0000-0000-0000-000000000000",
+                "region_index": map_index,
                 "max_tries": 0 if try_number == 1 else 1,
                 "operator": "PythonOperator",
                 "operator_name": "PythonOperator",
@@ -3099,8 +3242,12 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
+            "region_id": "00000000-0000-0000-0000-000000000000",
+            "region_index": -1,
             "max_tries": 0,
             "operator": "PythonOperator",
             "operator_name": "PythonOperator",
@@ -3147,8 +3294,12 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "end_date": "2020-01-03T00:00:00Z",
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "hostname": "",
             "map_index": -1,
+            "region_id": "00000000-0000-0000-0000-000000000000",
+            "region_index": -1,
             "max_tries": 0,
             "operator": "PythonOperator",
             "operator_name": "PythonOperator",
@@ -3222,6 +3373,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_display_name": "dag_with_multiple_versions",
             "dag_run_id": run_id,
             "map_index": -1,
+            "region_id": "00000000-0000-0000-0000-000000000000",
+            "region_index": -1,
             "start_date": None,
             "end_date": mock.ANY,
             "duration": None,
@@ -3242,6 +3395,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pid": None,
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "dag_version": {
                 "id": mock.ANY,
                 "version_number": expected_version_number,
@@ -5172,7 +5327,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         self.create_task_instances(
             session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
         )
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get(
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
             )
@@ -5189,8 +5344,12 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
                     "executor_config": "{}",
+                    "id": mock.ANY,
+                    "note": mock.ANY,
                     "hostname": "",
                     "map_index": -1,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": -1,
                     "max_tries": 0,
                     "operator": "PythonOperator",
                     "operator_name": "PythonOperator",
@@ -5227,8 +5386,12 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "end_date": "2020-01-03T00:00:00Z",
                     "executor": None,
                     "executor_config": "{}",
+                    "id": mock.ANY,
+                    "note": mock.ANY,
                     "hostname": "",
                     "map_index": -1,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": -1,
                     "max_tries": 1,
                     "operator": "PythonOperator",
                     "operator_name": "PythonOperator",
@@ -5323,7 +5486,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         # in each loop, we should get the right mapped TI back
         for map_index in (1, 2):
             # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
-            with assert_queries_count(3):
+            with assert_queries_count(5):
                 response = test_client.get(
                     "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
                     f"/print_the_context/{map_index}/tries",
@@ -5343,8 +5506,12 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "end_date": "2020-01-03T00:00:00Z",
                         "executor": None,
                         "executor_config": "{}",
+                        "id": mock.ANY,
+                        "note": mock.ANY,
                         "hostname": "",
                         "map_index": map_index,
+                        "region_id": "00000000-0000-0000-0000-000000000000",
+                        "region_index": map_index,
                         "max_tries": 0,
                         "operator": "PythonOperator",
                         "operator_name": "PythonOperator",
@@ -5381,8 +5548,12 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "end_date": "2020-01-03T00:00:00Z",
                         "executor": None,
                         "executor_config": "{}",
+                        "id": mock.ANY,
+                        "note": mock.ANY,
                         "hostname": "",
                         "map_index": map_index,
+                        "region_id": "00000000-0000-0000-0000-000000000000",
+                        "region_index": map_index,
                         "max_tries": 1,
                         "operator": "PythonOperator",
                         "operator_name": "PythonOperator",
@@ -5448,6 +5619,8 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "dag_display_name": "dag_with_multiple_versions",
             "dag_run_id": run_id,
             "map_index": -1,
+            "region_id": "00000000-0000-0000-0000-000000000000",
+            "region_index": -1,
             "start_date": None,
             "end_date": mock.ANY,
             "duration": None,
@@ -5468,6 +5641,8 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "pid": None,
             "executor": None,
             "executor_config": "{}",
+            "id": mock.ANY,
+            "note": mock.ANY,
             "dag_version": {
                 "id": mock.ANY,
                 "version_number": expected_version_number,

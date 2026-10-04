@@ -265,6 +265,7 @@ class _XComOperations:
         task_id: str,
         run_id: str,
         map_index: int = -1,
+        region_id: UUID = SENTINEL_REGION_ID,
         serialize: bool = True,
         dag_result: bool = False,
         mapped_length: int | None = None,
@@ -279,6 +280,7 @@ class _XComOperations:
         :param task_id: Task ID.
         :param run_id: DAG run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
+        :param region_id: Region owning the task instance. Defaults to the top-level region.
         :param serialize: Optional parameter to specify if value should be serialized or not.
             The default is ``True``.
         :param mapped_length: Length of the value, if it can be used to expand a
@@ -289,7 +291,13 @@ class _XComOperations:
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
         owner = session.scalar(
-            select_producers(dag_ids=dag_id, task_ids=task_id, run_id=run_id, map_indexes=map_index)
+            select_producers(
+                dag_ids=dag_id,
+                task_ids=task_id,
+                run_id=run_id,
+                map_indexes=map_index,
+                region_id=region_id,
+            )
         )
         if owner is None:
             raise ValueError(

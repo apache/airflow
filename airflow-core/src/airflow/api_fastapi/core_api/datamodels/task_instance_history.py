@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated, cast
+from uuid import UUID
 
 from pydantic import (
     AliasPath,
@@ -35,6 +36,7 @@ from airflow.utils.state import TaskInstanceState
 class TaskInstanceHistoryResponse(BaseModel):
     """TaskInstanceHistory serializer for responses."""
 
+    id: UUID
     task_id: str
     dag_id: str
 
@@ -42,6 +44,8 @@ class TaskInstanceHistoryResponse(BaseModel):
     run_id: str = Field(alias="dag_run_id")
 
     map_index: int
+    region_id: UUID
+    region_index: int
     start_date: datetime | None
     end_date: datetime | None
     duration: float | None
@@ -64,6 +68,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
     dag_version: DagVersionResponse | None
+    note: str | None = None
     state_reason: str | None = Field(
         default=None,
         validation_alias="retry_reason",

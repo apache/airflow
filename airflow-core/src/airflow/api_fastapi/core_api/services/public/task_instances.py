@@ -236,8 +236,8 @@ def _patch_ti_validate_request(
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
+    resolver = TaskCoordinateResolver(dag_bag, session)
     if body.region_id is None:
-        resolver = TaskCoordinateResolver(dag_bag, session)
         for version in session.scalars(
             select(TI.dag_version_id)
             .where(
@@ -254,8 +254,7 @@ def _patch_ti_validate_request(
         dag_id=dag_id,
         run_id=dag_run_id,
         task_id=task_id,
-        session=session,
-        dag_bag=dag_bag,
+        resolver=resolver,
         map_index=map_index if map_index is not None else -1,
         region_id=body.region_id,
         region_index=body.region_index,

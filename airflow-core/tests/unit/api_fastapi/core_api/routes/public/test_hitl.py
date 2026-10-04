@@ -33,10 +33,14 @@ from airflow._shared.timezones.timezone import utc, utcnow
 from airflow.api_fastapi.core_api.routes.public import hitl as hitl_routes
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TIModel
 from airflow.models.team import Team
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION
@@ -56,6 +60,104 @@ if TYPE_CHECKING:
 
 
 pytestmark = pytest.mark.db_test
+
+
+def _create_loop_iterations(dag_maker, session):
+    @task_group
+    def body():
+        EmptyOperator(task_id="work")
+
+    with dag_maker(serialized=True) as dag:
+        loop = create_loop(body, max_iterations=4)
+    run = dag_maker.create_dagrun()
+    region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+    sibling_region = DynamicRegion.get_or_create(
+        dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
+    )
+    session.add(sibling_region)
+    session.flush()
+    iterations = []
+    for region_id, subject in ((sibling_region.id, "Other loop"), (region.id, "Iteration 3")):
+        ti = TIModel(
+            task=dag.get_task("body.work"),
+            run_id=run.run_id,
+            dag_version_id=run.created_dag_version_id,
+            region_id=region_id,
+            region_index=2,
+        )
+        ti.try_number = 1
+        ti.state = TaskInstanceState.AWAITING_INPUT
+        session.add(ti)
+        session.flush()
+        session.add(HITLDetail(ti_id=ti.id, options=["Approve", "Reject"], subject=subject))
+        iterations.append(ti)
+    session.commit()
+    sibling, selected = iterations
+    return run, region, selected, sibling
+
+
+def _assert_selected_iteration(data, region):
+    assert data["subject"] == "Iteration 3"
+    assert data["task_instance"]["map_index"] == -1
+    assert data["task_instance"]["region_index"] == 2
+    assert data["task_instance"]["region_id"] == str(region.id)
+
+
+def test_hitl_get_selects_loop_iteration(test_client, dag_maker, session):
+    run, region, _, _ = _create_loop_iterations(dag_maker, session)
+    url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/-1/hitlDetails"
+
+    response = test_client.get(url, params={"region_id": str(region.id), "region_index": 2})
+
+    assert response.status_code == 200, response.text
+    _assert_selected_iteration(response.json(), region)
+
+
+def test_hitl_history_selects_loop_iteration(test_client, dag_maker, session):
+    run, region, selected, sibling = _create_loop_iterations(dag_maker, session)
+    for ti in (selected, sibling):
+        ti.state = TaskInstanceState.SUCCESS
+        ti.archive(reason="superseded", session=session)
+    session.commit()
+    url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/-1/hitlDetails/tries/1"
+
+    response = test_client.get(url, params={"region_id": str(region.id), "region_index": 2})
+
+    assert response.status_code == 200, response.text
+    _assert_selected_iteration(response.json(), region)
+
+
+def test_hitl_list_reports_every_loop_iteration(test_client, dag_maker, session):
+    run, region, _, _ = _create_loop_iterations(dag_maker, session)
+
+    response = test_client.get(
+        f"/dags/{run.dag_id}/dagRuns/{run.run_id}/hitlDetails", params={"map_index": -1}
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["total_entries"] == 2
+    selected = next(row for row in data["hitl_details"] if row["subject"] == "Iteration 3")
+    _assert_selected_iteration(selected, region)
+
+
+def test_hitl_respond_selects_loop_iteration(test_client, dag_maker, session):
+    run, region, selected, sibling = _create_loop_iterations(dag_maker, session)
+    url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/-1/hitlDetails"
+
+    response = test_client.patch(
+        url,
+        params={"region_id": str(region.id), "region_index": 2},
+        json={"chosen_options": ["Approve"]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["chosen_options"] == ["Approve"]
+    session.refresh(selected)
+    session.refresh(sibling)
+    assert selected.state == TaskInstanceState.SCHEDULED
+    assert sibling.state == TaskInstanceState.AWAITING_INPUT
+
 
 DAG_ID = "test_hitl_dag"
 ANOTHER_DAG_ID = "another_hitl_dag"
@@ -267,6 +369,8 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "id": str(sample_ti.id),
             "logical_date": mock.ANY,
             "map_index": -1,
+            "region_id": "00000000-0000-0000-0000-000000000000",
+            "region_index": -1,
             "max_tries": 0,
             "note": None,
             "operator": "EmptyOperator",

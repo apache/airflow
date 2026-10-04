@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, GetAssetsUiData, GetAssetsUiResponse, NextRunAssetsData, NextRunAssetsResponse2, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, ListBackfillDagRunsData, ListBackfillDagRunsResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionTestData, GetConnectionTestResponse, EnqueueConnectionTestData, EnqueueConnectionTestResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, BulkDagRunsData, BulkDagRunsResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, ClearDagRunsData, ClearDagRunsResponse, ClearDagRunPartitionsData, ClearDagRunPartitionsResponse, GetDagRunStatsData, GetDagRunStatsResponse, GetDagVersionDiffData, GetDagVersionDiffResponse, GetDagSourceData, GetDagSourceResponse, GetDagBundlesData, GetDagBundlesResponse, GetDagBundleData, GetDagBundleResponse, GetDagBundleFilesData, GetDagBundleFilesResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, BulkDagsData, BulkDagsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetDagTimetableTypesUiData, GetDagTimetableTypesUiResponse, GetDagFoldersResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetDagRunStateCountsUiData, GetDagRunStateCountsUiResponse, GetRecentTaskInstanceStateCountsUiData, GetRecentTaskInstanceStateCountsUiResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskGroupInstancesData, PatchTaskGroupInstancesResponse, PatchTaskGroupInstancesDryRunData, PatchTaskGroupInstancesDryRunResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, ListAssetStateStoreData, ListAssetStateStoreResponse, ClearAssetStateStoreData, ClearAssetStateStoreResponse, GetAssetStateStoreData, GetAssetStateStoreResponse, SetAssetStateStoreData, SetAssetStateStoreResponse, DeleteAssetStateStoreData, DeleteAssetStateStoreResponse, ListTaskStateStoreData, ListTaskStateStoreResponse, ClearTaskStateStoreData, ClearTaskStateStoreResponse, GetTaskStateStoreData, GetTaskStateStoreResponse, SetTaskStateStoreData, SetTaskStateStoreResponse, PatchTaskStateStoreData, PatchTaskStateStoreResponse, DeleteTaskStateStoreData, DeleteTaskStateStoreResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, GetCalendarDeadlinesData, GetCalendarDeadlinesResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, GetAssetsUiData, GetAssetsUiResponse, NextRunAssetsData, NextRunAssetsResponse2, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, ListBackfillDagRunsData, ListBackfillDagRunsResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionTestData, GetConnectionTestResponse, EnqueueConnectionTestData, EnqueueConnectionTestResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, BulkDagRunsData, BulkDagRunsResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, ClearDagRunsData, ClearDagRunsResponse, ClearDagRunPartitionsData, ClearDagRunPartitionsResponse, GetExecutionData, GetExecutionResponse, GetDagRunStatsData, GetDagRunStatsResponse, GetDagVersionDiffData, GetDagVersionDiffResponse, GetDagSourceData, GetDagSourceResponse, GetDagBundlesData, GetDagBundlesResponse, GetDagBundleData, GetDagBundleResponse, GetDagBundleFilesData, GetDagBundleFilesResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, BulkDagsData, BulkDagsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetDagTimetableTypesUiData, GetDagTimetableTypesUiResponse, GetDagFoldersResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetDagRunStateCountsUiData, GetDagRunStateCountsUiResponse, GetRecentTaskInstanceStateCountsUiData, GetRecentTaskInstanceStateCountsUiResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskGroupInstancesData, PatchTaskGroupInstancesResponse, PatchTaskGroupInstancesDryRunData, PatchTaskGroupInstancesDryRunResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, ListAssetStateStoreData, ListAssetStateStoreResponse, ClearAssetStateStoreData, ClearAssetStateStoreResponse, GetAssetStateStoreData, GetAssetStateStoreResponse, SetAssetStateStoreData, SetAssetStateStoreResponse, DeleteAssetStateStoreData, DeleteAssetStateStoreResponse, ListTaskStateStoreData, ListTaskStateStoreResponse, ClearTaskStateStoreData, ClearTaskStateStoreResponse, GetTaskStateStoreData, GetTaskStateStoreResponse, SetTaskStateStoreData, SetTaskStateStoreResponse, PatchTaskStateStoreData, PatchTaskStateStoreResponse, DeleteTaskStateStoreData, DeleteTaskStateStoreResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, GetCalendarDeadlinesData, GetCalendarDeadlinesResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -1483,6 +1483,50 @@ export class DagRunService {
     }
     
     /**
+     * Get Execution
+     * List a Dag run's live task instances with the region structure that locates them.
+     *
+     * Supplying ``try_number`` selects the tries with that number instead, including archived
+     * ones. Use ``region_id``, ``region_index`` and ``try_number`` for exact links.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.regionId
+     * @param data.regionIndex
+     * @param data.tryNumber
+     * @param data.limit
+     * @param data.offset
+     * @returns ExecutionCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static getExecution(data: GetExecutionData): CancelablePromise<GetExecutionResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/execution',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId
+            },
+            query: {
+                task_id: data.taskId,
+                region_id: data.regionId,
+                region_index: data.regionIndex,
+                try_number: data.tryNumber,
+                limit: data.limit,
+                offset: data.offset
+            },
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
      * Get Dag Run Stats
      * Get duration statistics for a DAG based on its historical completed runs.
      * @param data The data for the request.
@@ -2516,8 +2560,10 @@ export class ExtraLinksService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.mapIndex
      * @param data.tryNumber
+     * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns ExtraLinkCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2531,13 +2577,17 @@ export class ExtraLinksService {
                 task_id: data.taskId
             },
             query: {
+                try_number: data.tryNumber,
                 map_index: data.mapIndex,
-                try_number: data.tryNumber
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -2553,8 +2603,10 @@ export class TaskInstanceService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.mapIndex
      * @param data.tryNumber
+     * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns ExtraLinkCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2568,13 +2620,17 @@ export class TaskInstanceService {
                 task_id: data.taskId
             },
             query: {
+                try_number: data.tryNumber,
                 map_index: data.mapIndex,
-                try_number: data.tryNumber
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -2587,6 +2643,9 @@ export class TaskInstanceService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
+     * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceResponse Successful Response
      * @throws ApiError
      */
@@ -2599,10 +2658,17 @@ export class TaskInstanceService {
                 dag_run_id: data.dagRunId,
                 task_id: data.taskId
             },
+            query: {
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
+            },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -2659,6 +2725,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns unknown Successful Response
      * @throws ApiError
      */
@@ -2672,7 +2740,9 @@ export class TaskInstanceService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
                 401: 'Unauthorized',
@@ -2690,6 +2760,8 @@ export class TaskInstanceService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
+     * @param data.regionId
+     * @param data.regionIndex
      * @param data.runAfterGte
      * @param data.runAfterGt
      * @param data.runAfterLte
@@ -2746,6 +2818,8 @@ export class TaskInstanceService {
                 task_id: data.taskId
             },
             query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex,
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
@@ -2791,6 +2865,7 @@ export class TaskInstanceService {
                 order_by: data.orderBy
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -2807,6 +2882,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskDependencyCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2820,10 +2897,16 @@ export class TaskInstanceService {
                 task_id: data.taskId,
                 map_index: data.mapIndex
             },
+            query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex
+            },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -2837,6 +2920,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskDependencyCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2850,7 +2935,9 @@ export class TaskInstanceService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
                 401: 'Unauthorized',
@@ -2869,6 +2956,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceHistoryCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2882,12 +2971,16 @@ export class TaskInstanceService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -2900,6 +2993,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceHistoryCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2913,10 +3008,16 @@ export class TaskInstanceService {
                 task_id: data.taskId,
                 map_index: data.mapIndex
             },
+            query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex
+            },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -2930,6 +3031,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceResponse Successful Response
      * @throws ApiError
      */
@@ -2943,10 +3046,16 @@ export class TaskInstanceService {
                 task_id: data.taskId,
                 map_index: data.mapIndex
             },
+            query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex
+            },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -3014,6 +3123,8 @@ export class TaskInstanceService {
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
+     * @param data.regionId
+     * @param data.regionIndex
      * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.taskId
      * @param data.runAfterGte
@@ -3079,6 +3190,8 @@ export class TaskInstanceService {
                 dag_run_id: data.dagRunId
             },
             query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex,
                 cursor: data.cursor,
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
@@ -3209,6 +3322,8 @@ export class TaskInstanceService {
      * @param data.taskId
      * @param data.taskTryNumber
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceHistoryResponse Successful Response
      * @throws ApiError
      */
@@ -3223,12 +3338,16 @@ export class TaskInstanceService {
                 task_try_number: data.taskTryNumber
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -3242,6 +3361,8 @@ export class TaskInstanceService {
      * @param data.taskId
      * @param data.taskTryNumber
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskInstanceHistoryResponse Successful Response
      * @throws ApiError
      */
@@ -3256,10 +3377,16 @@ export class TaskInstanceService {
                 task_try_number: data.taskTryNumber,
                 map_index: data.mapIndex
             },
+            query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex
+            },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -3469,8 +3596,10 @@ export class TaskInstanceService {
      * @param data.taskId
      * @param data.tryNumber
      * @param data.fullContent
-     * @param data.mapIndex
      * @param data.token
+     * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @param data.accept
      * @returns TaskInstancesLogResponse Successful Response
      * @throws ApiError
@@ -3490,14 +3619,17 @@ export class TaskInstanceService {
             },
             query: {
                 full_content: data.fullContent,
+                token: data.token,
                 map_index: data.mapIndex,
-                token: data.token
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
                 400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -3512,6 +3644,8 @@ export class TaskInstanceService {
      * @param data.taskId
      * @param data.tryNumber
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns ExternalLogUrlResponse Successful Response
      * @throws ApiError
      */
@@ -3526,13 +3660,16 @@ export class TaskInstanceService {
                 try_number: data.tryNumber
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
                 400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -3547,6 +3684,8 @@ export class TaskInstanceService {
      * @param data.taskId
      * @param data.mapIndex
      * @param data.requestBody
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns HITLDetailResponse Successful Response
      * @throws ApiError
      */
@@ -3559,6 +3698,10 @@ export class TaskInstanceService {
                 dag_run_id: data.dagRunId,
                 task_id: data.taskId,
                 map_index: data.mapIndex
+            },
+            query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -3581,6 +3724,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns HITLDetail Successful Response
      * @throws ApiError
      */
@@ -3594,10 +3739,16 @@ export class TaskInstanceService {
                 task_id: data.taskId,
                 map_index: data.mapIndex
             },
+            query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex
+            },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -3612,6 +3763,8 @@ export class TaskInstanceService {
      * @param data.taskId
      * @param data.mapIndex
      * @param data.tryNumber
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns HITLDetailHistory Successful Response
      * @throws ApiError
      */
@@ -3626,10 +3779,16 @@ export class TaskInstanceService {
                 map_index: data.mapIndex,
                 try_number: data.tryNumber
             },
+            query: {
+                region_id: data.regionId,
+                region_index: data.regionIndex
+            },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4205,6 +4364,8 @@ export class TaskStateStoreService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @param data.limit
      * @param data.offset
      * @returns TaskStateStoreCollectionResponse Successful Response
@@ -4221,12 +4382,17 @@ export class TaskStateStoreService {
             },
             query: {
                 map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex,
                 limit: data.limit,
                 offset: data.offset
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
+                404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4242,8 +4408,10 @@ export class TaskStateStoreService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.allMapIndices
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
+     * @param data.allMapIndices
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -4257,13 +4425,17 @@ export class TaskStateStoreService {
                 task_id: data.taskId
             },
             query: {
-                all_map_indices: data.allMapIndices,
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex,
+                all_map_indices: data.allMapIndices
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4278,6 +4450,8 @@ export class TaskStateStoreService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns TaskStateStoreResponse Successful Response
      * @throws ApiError
      */
@@ -4292,12 +4466,16 @@ export class TaskStateStoreService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4313,6 +4491,8 @@ export class TaskStateStoreService {
      * @param data.taskId
      * @param data.requestBody
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -4327,7 +4507,9 @@ export class TaskStateStoreService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',
@@ -4336,6 +4518,7 @@ export class TaskStateStoreService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4351,6 +4534,8 @@ export class TaskStateStoreService {
      * @param data.taskId
      * @param data.requestBody
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns unknown Successful Response
      * @throws ApiError
      */
@@ -4365,14 +4550,18 @@ export class TaskStateStoreService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4387,6 +4576,8 @@ export class TaskStateStoreService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -4401,12 +4592,16 @@ export class TaskStateStoreService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4423,9 +4618,11 @@ export class XcomService {
      * @param data.taskId
      * @param data.dagRunId
      * @param data.xcomKey
-     * @param data.mapIndex
      * @param data.deserialize
      * @param data.stringify
+     * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns unknown Successful Response
      * @throws ApiError
      */
@@ -4440,15 +4637,18 @@ export class XcomService {
                 xcom_key: data.xcomKey
             },
             query: {
-                map_index: data.mapIndex,
                 deserialize: data.deserialize,
-                stringify: data.stringify
+                stringify: data.stringify,
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
                 400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4483,6 +4683,7 @@ export class XcomService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4497,6 +4698,8 @@ export class XcomService {
      * @param data.dagRunId
      * @param data.xcomKey
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -4511,13 +4714,16 @@ export class XcomService {
                 xcom_key: data.xcomKey
             },
             query: {
-                map_index: data.mapIndex
+                map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex
             },
             errors: {
                 400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -4534,6 +4740,8 @@ export class XcomService {
      * @param data.taskId
      * @param data.xcomKey
      * @param data.mapIndex
+     * @param data.regionId
+     * @param data.regionIndex
      * @param data.limit
      * @param data.offset
      * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -4554,7 +4762,7 @@ export class XcomService {
      * @param data.runAfterLte
      * @param data.runAfterLt
      * @param data.teams
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, region_id, region_index, timestamp, run_after`
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -4570,6 +4778,8 @@ export class XcomService {
             query: {
                 xcom_key: data.xcomKey,
                 map_index: data.mapIndex,
+                region_id: data.regionId,
+                region_index: data.regionIndex,
                 limit: data.limit,
                 offset: data.offset,
                 xcom_key_pattern: data.xcomKeyPattern,

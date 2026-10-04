@@ -956,6 +956,19 @@ class EventLogResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class ExecutionRegionResponse(BaseModel):
+    """
+    Immutable region structure for interpreting task coordinates.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    node_id: Annotated[str, Field(title="Node Id")]
+    parent_region_id: Annotated[UUID | None, Field(title="Parent Region Id")]
+    parent_region_index: Annotated[int | None, Field(title="Parent Region Index")]
+    forked_from_region_id: Annotated[UUID | None, Field(title="Forked From Region Id")]
+    resumes_from_index: Annotated[int, Field(title="Resumes From Index")]
+
+
 class ExternalLogUrlResponse(BaseModel):
     """
     Response for the external log URL endpoint.
@@ -1550,6 +1563,10 @@ class VersionInfo(BaseModel):
     git_version: Annotated[str | None, Field(title="Git Version")]
 
 
+class RegionIndex(RootModel[int]):
+    root: Annotated[int, Field(ge=-1, title="Region Index")]
+
+
 class XComCreateBody(BaseModel):
     """
     Payload serializer for creating an XCom entry.
@@ -1561,6 +1578,8 @@ class XComCreateBody(BaseModel):
     key: Annotated[str, Field(title="Key")]
     value: Annotated[Any, Field(title="Value")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[RegionIndex | None, Field(title="Region Index")] = None
 
 
 class XComResponse(BaseModel):
@@ -1572,6 +1591,8 @@ class XComResponse(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID, Field(title="Region Id")]
+    region_index: Annotated[int, Field(title="Region Index")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1590,6 +1611,8 @@ class XComResponseNative(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID, Field(title="Region Id")]
+    region_index: Annotated[int, Field(title="Region Index")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1609,6 +1632,8 @@ class XComResponseString(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID, Field(title="Region Id")]
+    region_index: Annotated[int, Field(title="Region Index")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
@@ -1629,6 +1654,8 @@ class XComUpdateBody(BaseModel):
     )
     value: Annotated[Any, Field(title="Value")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[RegionIndex | None, Field(title="Region Index")] = None
 
 
 class AssetAliasCollectionResponse(BaseModel):
@@ -2453,6 +2480,29 @@ class EventLogCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class ExecutionTaskResponse(BaseModel):
+    """
+    A task try together with the coordinates that address it exactly.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    dag_run_id: Annotated[str, Field(title="Dag Run Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
+    region_id: Annotated[UUID, Field(title="Region Id")]
+    region_index: Annotated[int, Field(title="Region Index")]
+    map_index: Annotated[int, Field(title="Map Index")]
+    try_number: Annotated[int, Field(title="Try Number")]
+    state: TaskInstanceState | None
+    start_date: Annotated[datetime | None, Field(title="Start Date")]
+    end_date: Annotated[datetime | None, Field(title="End Date")]
+    duration: Annotated[float | None, Field(title="Duration")]
+    dag_version_id: Annotated[UUID | None, Field(title="Dag Version Id")]
+    operator: Annotated[str | None, Field(title="Operator")]
+    note: Annotated[str | None, Field(title="Note")] = None
+
+
 class ExternalViewResponse(BaseModel):
     """
     Serializer for External View Plugin responses.
@@ -2615,10 +2665,13 @@ class TaskInstanceHistoryResponse(BaseModel):
     TaskInstanceHistory serializer for responses.
     """
 
+    id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
     dag_run_id: Annotated[str, Field(title="Dag Run Id")]
     map_index: Annotated[int, Field(title="Map Index")]
+    region_id: Annotated[UUID, Field(title="Region Id")]
+    region_index: Annotated[int, Field(title="Region Index")]
     start_date: Annotated[datetime | None, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")]
     duration: Annotated[float | None, Field(title="Duration")]
@@ -2641,6 +2694,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")]
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None
+    note: Annotated[str | None, Field(title="Note")] = None
     state_reason: Annotated[
         str | None,
         Field(
@@ -2981,6 +3035,16 @@ class DagStatsCollectionResponse(BaseModel):
     """
 
     dags: Annotated[list[DagStatsResponse], Field(title="Dags")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class ExecutionCollectionResponse(BaseModel):
+    """
+    A page of task executions with their region ancestry.
+    """
+
+    task_instances: Annotated[list[ExecutionTaskResponse], Field(title="Task Instances")]
+    regions: Annotated[list[ExecutionRegionResponse], Field(title="Regions")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

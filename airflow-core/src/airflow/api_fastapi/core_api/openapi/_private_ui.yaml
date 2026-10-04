@@ -3983,6 +3983,20 @@ components:
       description: Response for Gantt chart endpoint.
     GanttTaskInstance:
       properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        region_id:
+          type: string
+          format: uuid
+          title: Region Id
+        region_index:
+          type: integer
+          title: Region Index
+        map_index:
+          type: integer
+          title: Map Index
         task_id:
           type: string
           title: Task Id
@@ -4030,6 +4044,10 @@ components:
           default: false
       type: object
       required:
+      - id
+      - region_id
+      - region_index
+      - map_index
       - task_id
       - task_display_name
       - try_number

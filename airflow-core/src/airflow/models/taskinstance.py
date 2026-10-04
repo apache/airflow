@@ -1653,6 +1653,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         run_id: str,
         task_id: str,
         map_index: int | None = None,
+        region_id: UUID | None = None,
         session: Session,
     ) -> None:
         """Delete every attempt, current and archived, of a task; all map indexes if ``map_index`` is None."""
@@ -1662,7 +1663,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             .execution_options(include_all_attempts=True)
         )
         if map_index is not None:
-            statement = statement.where(cls.map_index == map_index)
+            statement = statement.where(cls.region_index == map_index)
+        if region_id is not None:
+            statement = statement.where(cls.region_id == region_id)
         session.execute(statement)
 
     @classmethod

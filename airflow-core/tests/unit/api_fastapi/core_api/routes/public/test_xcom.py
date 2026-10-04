@@ -20,9 +20,10 @@ import json
 import re
 from typing import TYPE_CHECKING
 from unittest import mock
+from uuid import uuid4
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
@@ -31,11 +32,14 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG, AssetAlias
+from airflow.sdk import DAG, AssetAlias, task_group
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import DagRunType
@@ -100,6 +104,20 @@ def _create_xcom(key, value, backend, *, session: Session = NEW_SESSION) -> None
     )
 
 
+def _create_regional_ti(dag_maker, session, *, region_id, region_index) -> TaskInstance:
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == TEST_DAG_ID, DagRun.run_id == run_id))
+    ti = TaskInstance(
+        task=dag_maker.dag.get_task(TEST_TASK_ID),
+        run_id=run_id,
+        dag_version_id=dag_run.created_dag_version_id,
+        region_id=region_id,
+        region_index=region_index,
+    )
+    session.add(ti)
+    session.flush()
+    return ti
+
+
 @provide_session
 def _create_dag_run(dag_maker, *, session: Session = NEW_SESSION):
     with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date_parsed):
@@ -154,6 +172,141 @@ class TestXComEndpoint:
 
 
 class TestGetXComEntry(TestXComEndpoint):
+    @pytest.mark.parametrize("mapped", [False, True])
+    def test_regional_xcom_projects_public_map_index(self, test_client, dag_maker, session, mapped):
+        region = DynamicRegion.get_or_create(
+            dag_id=TEST_DAG_ID, run_id=run_id, node_id=TEST_TASK_ID if mapped else "loop", session=session
+        )
+        session.add(region)
+        session.flush()
+        _create_regional_ti(dag_maker, session, region_id=region.id, region_index=3)
+        XComModel.set(
+            dag_id=TEST_DAG_ID,
+            run_id=run_id,
+            task_id=TEST_TASK_ID,
+            region_id=region.id,
+            map_index=3,
+            key=TEST_XCOM_KEY,
+            value="live",
+            serialize=False,
+            session=session,
+        )
+        session.commit()
+        url = f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
+        expected_index = 3 if mapped else -1
+        response = test_client.get(
+            f"{url}/{TEST_XCOM_KEY}", params={"region_id": str(region.id), "region_index": 3}
+        )
+        assert response.status_code == 200
+        assert response.json()["map_index"] == expected_index
+        assert response.json()["region_index"] == 3
+        response = test_client.get(url, params={"map_index_filter": expected_index})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+        assert response.json()["xcom_entries"][0]["map_index"] == expected_index
+
+    @pytest.mark.parametrize(
+        ("params", "expected_indexes", "expected_region_indexes", "total"),
+        [
+            ({"map_index": -1}, [-1], [5], 1),
+            ({"map_index_filter": 0}, [0], [0], 1),
+            ({"order_by": "map_index", "limit": 1, "offset": 1}, [0], [0], 3),
+        ],
+    )
+    def test_collection_projects_loop_and_mapped_group_before_pagination(
+        self, test_client, dag_maker, session, params, expected_indexes, expected_region_indexes, total
+    ):
+        @task_group
+        def body():
+            EmptyOperator(task_id="member")
+
+        @task_group
+        def mapped_group(value):
+            EmptyOperator(task_id="member")
+
+        with dag_maker("regional-xcom", serialized=True):
+            loop = create_loop(body, max_iterations=7)
+            mapped_group.expand(value=[1, 2])
+        dr = dag_maker.create_dagrun()
+        regions = {}
+        for ti in dr.task_instances:
+            if ti.task_id == loop.gate_task_id:
+                continue
+            node_id = loop.group_id if ti.task_id == "body.member" else ti.task_id
+            if node_id not in regions:
+                region = DynamicRegion.get_or_create(
+                    dag_id=dr.dag_id, run_id=dr.run_id, node_id=node_id, session=session
+                )
+                session.add(region)
+                session.flush()
+                regions[node_id] = region.id
+            ti.region_id = regions[node_id]
+            if ti.task_id == "body.member":
+                ti.region_index = 5
+            session.flush()
+            XComModel.set(
+                dag_id=dr.dag_id,
+                run_id=dr.run_id,
+                task_id=ti.task_id,
+                region_id=ti.region_id,
+                map_index=ti.region_index,
+                key=TEST_XCOM_KEY,
+                value="value",
+                session=session,
+            )
+        session.commit()
+        response = test_client.get(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/~/xcomEntries", params=params
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == total
+        assert [row["map_index"] for row in data["xcom_entries"]] == expected_indexes
+        assert [row["region_index"] for row in data["xcom_entries"]] == expected_region_indexes
+
+    def test_exact_region_read_update_and_delete_preserve_sibling(self, test_client, dag_maker, session):
+        selected, sibling = uuid4(), uuid4()
+        for region_id, source in ((selected, None), (sibling, selected)):
+            session.add(
+                DynamicRegion(
+                    id=region_id,
+                    dag_id=TEST_DAG_ID,
+                    run_id=run_id,
+                    node_id="loop",
+                    forked_from_region_id=source,
+                )
+            )
+            session.flush()
+            _create_regional_ti(dag_maker, session, region_id=region_id, region_index=2)
+            XComModel.set(
+                dag_id=TEST_DAG_ID,
+                run_id=run_id,
+                task_id=TEST_TASK_ID,
+                key=TEST_XCOM_KEY,
+                map_index=2,
+                region_id=region_id,
+                value=str(region_id),
+                serialize=False,
+                session=session,
+            )
+        session.commit()
+        url = f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        params = {"region_id": str(selected), "region_index": 2}
+        response = test_client.get(url, params=params)
+        assert response.status_code == 200
+        assert response.json()["value"] == str(selected)
+        assert response.json()["map_index"] == -1
+        assert response.json()["region_id"] == str(selected)
+        assert response.json()["region_index"] == 2
+
+        response = test_client.patch(url, json={**params, "value": "replacement"})
+        assert response.status_code == 200
+        assert response.json()["value"] == "replacement"
+        response = test_client.delete(url, params=params)
+        assert response.status_code == 204
+        remaining = session.scalars(select(XComModel).where(XComModel.key == TEST_XCOM_KEY)).all()
+        assert [(row.region_id, row.map_index) for row in remaining] == [(sibling, 2)]
+
     def test_should_respond_200_native(self, test_client):
         self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
         response = test_client.get(
@@ -173,6 +326,8 @@ class TestGetXComEntry(TestXComEndpoint):
             "task_display_name": TEST_TASK_DISPLAY_NAME,
             "team_name": None,
             "map_index": -1,
+            "region_id": "00000000-0000-0000-0000-000000000000",
+            "region_index": -1,
             "timestamp": current_data["timestamp"],
             "value": json.dumps(TEST_XCOM_VALUE),
         }
@@ -300,6 +455,8 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": -1,
                 },
                 {
                     "dag_id": TEST_DAG_ID,
@@ -313,6 +470,8 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": -1,
                 },
             ],
             "total_entries": 2,
@@ -403,6 +562,8 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": -1,
                 },
                 {
                     "dag_id": TEST_DAG_ID,
@@ -416,6 +577,8 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": -1,
                 },
                 {
                     "dag_id": TEST_DAG_ID_2,
@@ -429,6 +592,8 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": -1,
                 },
                 {
                     "dag_id": TEST_DAG_ID_2,
@@ -442,6 +607,8 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": -1,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": -1,
                 },
             ],
             "total_entries": 4,
@@ -474,6 +641,8 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": idx,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": idx,
                 }
                 for idx in range(2)
             ]
@@ -491,6 +660,8 @@ class TestGetXComEntries(TestXComEndpoint):
                     "team_name": None,
                     "timestamp": "TIMESTAMP",
                     "map_index": map_index,
+                    "region_id": "00000000-0000-0000-0000-000000000000",
+                    "region_index": map_index,
                 }
             ]
         for xcom_entry in response_data["xcom_entries"]:
@@ -518,6 +689,8 @@ class TestGetXComEntries(TestXComEndpoint):
                         "team_name": None,
                         "timestamp": "TIMESTAMP",
                         "map_index": 0,
+                        "region_id": "00000000-0000-0000-0000-000000000000",
+                        "region_index": 0,
                     },
                     {
                         "dag_id": TEST_DAG_ID,
@@ -531,6 +704,8 @@ class TestGetXComEntries(TestXComEndpoint):
                         "team_name": None,
                         "timestamp": "TIMESTAMP",
                         "map_index": 1,
+                        "region_id": "00000000-0000-0000-0000-000000000000",
+                        "region_index": 1,
                     },
                 ],
             ),
