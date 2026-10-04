@@ -40,7 +40,7 @@ import subprocess
 import sys
 import time
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, Final, NoReturn, TypeVar, cast
 
 import attrs
 import psutil
@@ -71,6 +71,21 @@ if TYPE_CHECKING:
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.subprocess")
+
+# The first supervisor schema version whose runtime can answer a task handler parse request.
+TASK_HANDLER_PARSING_SCHEMA_VERSION: Final = "2026-10-30"
+
+
+def supports_task_handler_parsing(schema_version: str) -> bool:
+    """
+    Return whether a runtime of supervisor schema *schema_version* can answer a task handler parse request.
+
+    :raises ValueError: when this Task SDK does not know *schema_version*.
+    """
+    # Dated versions order as strings; SchemaVersionMigrator compares them the same way.
+    return (
+        get_schema_version_migrator().resolve_version(schema_version) >= TASK_HANDLER_PARSING_SCHEMA_VERSION
+    )
 
 
 def _start_server() -> socket.socket:
@@ -679,15 +694,23 @@ class SubprocessCoordinator(BaseCoordinator):
         version are resolved against *bundle_path*, and the version is passed to
         *report_schema_version* just before the exec. The runtime connects back to
         *comm_address* and *logs_address*. On Linux the runtime dies with the thread that forked
-        the calling process, and it is not started once that parent has exited.
+        the calling process, and it is not started once that parent has exited. A failure after the
+        version is reported leaves this process set to die with its parent and with the default
+        SIGPIPE and SIGXFSZ handling, so the caller should exit.
 
-        :raises Exception: when the command cannot be resolved or started, or the parent has
-            exited; the process is then unchanged.
+        :raises Exception: when the command cannot be resolved or the runtime's supervisor schema
+            version is unknown or older than :data:`TASK_HANDLER_PARSING_SCHEMA_VERSION`; the process
+            is then unchanged.
+        :raises RuntimeError: when the parent has exited.
+        :raises OSError: when the exec fails.
         """
         with self._set_scan_roots([bundle_path]):
             command, schema_version = self._build_parse_task_handler_command(path=path)
-        if schema_version is not None:
-            get_schema_version_migrator().resolve_version(schema_version)
+        if schema_version is not None and not supports_task_handler_parsing(schema_version):
+            raise ValueError(
+                f"{path} uses supervisor schema {schema_version}, "
+                "which cannot answer a task handler parse request"
+            )
         argv = [
             *command,
             f"--comm={comm_address[0]}:{comm_address[1]}",

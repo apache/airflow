@@ -49,6 +49,7 @@ from airflow.sdk.coordinators._subprocess import (
     _ResourceTracker,
     _start_server,
     log,
+    supports_task_handler_parsing,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, InvalidCoordinatorError, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -1626,6 +1627,22 @@ class TestParseTaskHandler:
     @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
+    def test_does_not_start_a_runtime_that_cannot_answer(
+        self, mock_execvpe, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        coordinator = _TaskHandlerParsingCoordinator(command=["runtime"], schema_version="2026-06-16")
+        reported: list[str | None] = []
+
+        with pytest.raises(ValueError, match="cannot answer a task handler parse request"):
+            _parse_task_handler(coordinator, tmp_path, reported)
+
+        assert reported == []
+        mock_execvpe.assert_not_called()
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
     def test_rejects_an_unknown_schema_version_before_reporting(
         self, mock_execvpe, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
     ):
@@ -1679,3 +1696,16 @@ class TestParseTaskHandler:
         finally:
             with contextlib.suppress(psutil.NoSuchProcess):
                 runtime.kill()
+
+
+class TestSupportsTaskHandlerParsing:
+    @pytest.mark.parametrize(
+        ("schema_version", "expected"),
+        [("2026-06-16", False), ("2026-10-30", True)],
+    )
+    def test_supports_task_handler_parsing(self, schema_version, expected):
+        assert supports_task_handler_parsing(schema_version) is expected
+
+    def test_supports_task_handler_parsing_rejects_an_unknown_version(self):
+        with pytest.raises(ValueError, match="not found"):
+            supports_task_handler_parsing("1999-01-01")
