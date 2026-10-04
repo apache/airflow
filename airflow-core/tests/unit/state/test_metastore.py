@@ -130,6 +130,21 @@ class TestMetastoreBackendTaskScope:
         session.flush()
         assert backend.get(scope, "job_id", session=session) == "app_1234"
 
+    def test_get_skips_a_key_past_its_expiry(
+        self, session: Session, backend: MetastoreBackend, dag_run: DagRun
+    ):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        backend.set(
+            scope,
+            "job_id",
+            "app_1234",
+            expires_at=timezone.utcnow() - timedelta(hours=1),
+            session=session,
+        )
+        session.flush()
+
+        assert backend.get(scope, "job_id", session=session) is None
+
     @pytest.mark.backend("postgres", "mysql", "sqlite")
     def test_set_twice_overrides_existing_value(
         self, session: Session, backend: MetastoreBackend, dag_run: DagRun
@@ -591,6 +606,14 @@ class TestMetastoreBackendAsync:
         await backend.aset(scope, "job_id", "app_async")
         result = await backend.aget(scope, "job_id")
         assert result == "app_async"
+
+    async def test_aget_skips_a_key_past_its_expiry(
+        self, backend: MetastoreBackend, dag_run_committed: DagRun
+    ):
+        scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)
+        await backend.aset(scope, "job_id", "app_async", expires_at=timezone.utcnow() - timedelta(hours=1))
+
+        assert await backend.aget(scope, "job_id") is None
 
     async def test_adelete_task_removes_key(self, backend: MetastoreBackend, dag_run_committed: DagRun):
         scope = TaskScope(dag_id=DAG_ID, run_id=RUN_ID, task_id=TASK_ID)

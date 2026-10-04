@@ -97,6 +97,8 @@ The optional ``retention`` argument controls when the key expires:
 * ``NEVER_EXPIRE``: the key never expires and is skipped during garbage collection, regardless of the global ``[state_store] default_retention_days`` setting.
 * ``None`` (default): fall back to the global ``[state_store] default_retention_days`` config.
 
+Once a key is past its expiry, ``get()`` reports it as absent and returns the default. This does not depend on :ref:`cleanup <task-and-asset-state-store-cleanup>` having run; cleanup only reclaims the disk space afterwards.
+
 .. important::
 
    ``retention`` accepts only a :class:`~datetime.timedelta`, not a plain integer number of days. Passing an integer raises a ``TypeError``.
