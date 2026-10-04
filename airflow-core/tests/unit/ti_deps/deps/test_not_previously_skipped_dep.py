@@ -37,6 +37,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import (
     NotPreviouslySkippedDep,
 )
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.taskinstance import run_task_instance
@@ -262,6 +263,56 @@ def test_parent_in_mapped_task_group_skips_same_map_index(session, dag_maker):
     assert dep.is_met(tis[("group.child", 0)], session=session)
     assert tis[("group.child", 0)].state != State.SKIPPED
 
+def test_parent_in_mapped_task_group_skips_transitive_downstream(session, dag_maker):
+    """
+    A SkipMixin parent inside a mapped task group records all downstream tasks
+    in its skip decision, so transitive downstream tasks must also be skipped
+    for the same map index.
+    """
+    with dag_maker("test_mapped_group_transitive_skip_dag", schedule=None, session=session):
+
+        @task.short_circuit(task_id="gate")
+        def gate(value):
+            return value
+
+        @task_group
+        def group(value):
+            gate(value) >> EmptyOperator(task_id="a") >> EmptyOperator(
+                task_id="b", trigger_rule=TriggerRule.ALL_DONE
+            )
+
+        group.expand(value=[True, False])
+
+    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+
+    for map_index in (0, 1):
+        tis[("group.gate", map_index)].state = State.SUCCESS
+        session.merge(tis[("group.gate", map_index)])
+
+    # Only map index 1 was short-circuited. The ShortCircuitOperator records
+    # all downstream tasks in its skip decision.
+    XComModel.set(
+        key=XCOM_SKIPMIXIN_KEY,
+        value={XCOM_SKIPMIXIN_SKIPPED: ["group.a", "group.b"]},
+        dag_id=dr.dag_id,
+        task_id="group.gate",
+        run_id=dr.run_id,
+        map_index=1,
+        session=session,
+    )
+    session.flush()
+
+    dep = NotPreviouslySkippedDep()
+
+    assert not dep.is_met(tis[("group.a", 1)], session=session)
+    assert tis[("group.a", 1)].state == State.SKIPPED
+
+    assert not dep.is_met(tis[("group.b", 1)], session=session)
+    assert tis[("group.b", 1)].state == State.SKIPPED
+
+    assert dep.is_met(tis[("group.a", 0)], session=session)
+    assert dep.is_met(tis[("group.b", 0)], session=session)
 
 def test_branch_skip_decision_bypasses_custom_xcom_backend(session, dag_maker):
     """
