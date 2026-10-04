@@ -267,12 +267,15 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
         bundle_name: str,
         artifact_rel_path: str,
         logger: FilteringBoundLogger,
+        deadline: float | None = None,
     ) -> TaskHandlerParsingResult:
         """
         Probe the artifact at *path* as :meth:`start` does, and wait for the result.
 
         The artifact's import timeout bounds the probe, and ``[dag_processor] dag_file_processor_timeout``
-        until the parse child reports it.
+        until the parse child reports it. *deadline*, a :func:`time.monotonic` value, also bounds it: a probe
+        still running then is killed, and its result is an import error unless the runtime had already
+        answered.
         """
         processor_timeout = conf.getfloat("dag_processor", "dag_file_processor_timeout")
         with selectors.DefaultSelector() as selector:
@@ -296,6 +299,14 @@ class LangSDKTaskHandlerProcessorProcess(BaseDagFileProcessorProcess):
                         # Unlike is_ready, this does not wait for an exited runtime's leftover processes,
                         # which can hold its sockets open. close() closes them.
                         proc._time_out(timeout, setting)
+                        break
+                    if deadline is not None and time.monotonic() >= deadline:
+                        if proc.parsing_result is None:
+                            proc._set_import_error(
+                                f"The Lang-SDK runtime did not parse {proc._parse_request.file} "
+                                "by its deadline"
+                            )
+                        proc._kill_runtime()
                         break
                     proc._service_subprocess(max_wait_time=0.1)
             except BaseException:
