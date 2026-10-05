@@ -394,11 +394,7 @@ DagFileProcessorProcess(etl.py)                            [no DB — client con
         │        ◀─TaskHandlerParsingResult(task_handlers={"etl": […]})── runtime
         │        Get* from the runtime is relayed up ToManager unchanged
         │
-        ├─7─ VALIDATE per dag_id, unioned across coordinators
-        │      task_id sets must match exactly
-        │      arg_bindings[*].name    ↔ handler_params[*].name, in order
-        │      arg_bindings[*].schema  ↔ handler_params[*].value_schema,
-        │                                 compared only where neither is null
+        ├─7─ VALIDATE each stub task against its coordinator's answer, per ADR-0011
         │      two candidates claiming one (dag_id, task_id) → import error
         │                                                      naming both paths
         │
