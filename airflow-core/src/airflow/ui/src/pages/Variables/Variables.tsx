@@ -46,7 +46,7 @@ import { TeamName } from "src/components/TeamName";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
-import { useDocumentTitle } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
@@ -143,7 +143,7 @@ const getColumns = ({
 };
 
 export const Variables = () => {
-  const { t: translate } = useTranslation("admin");
+  const { i18n, t: translate } = useTranslation("admin");
 
   useDocumentTitle(translate("common:admin.Variables"));
 
@@ -246,7 +246,7 @@ export const Variables = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("deleteActions.selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content={translate("variables.delete.tooltip")}>
