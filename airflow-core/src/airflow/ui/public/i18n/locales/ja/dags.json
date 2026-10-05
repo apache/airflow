@@ -10,17 +10,28 @@
   "filters": {
     "allRunTypes": "すべての実行タイプ",
     "allStates": "すべての状態",
+    "anyRunState": "任意の実行状態",
+    "anyRunStatePlaceholder": "任意の実行状態を選択してください…",
     "favorite": {
       "all": "すべて",
       "favorite": "お気に入り",
       "unfavorite": "お気に入り以外"
     },
+    "favoriteState": "お気に入りの状態",
+    "favoriteStatePlaceholder": "お気に入りの状態を選択してください…",
+    "lastRunState": "直近の実行状態",
+    "lastRunStatePlaceholder": "直近の実行状態を選択してください…",
+    "noTimetableTypesFound": "該当するスケジュールタイプが見つかりませんでした",
     "paused": {
       "active": "アクティブ",
       "all": "すべて",
       "paused": "停止済"
     },
-    "runIdPatternFilter": "Dag 実行を検索"
+    "pausedPlaceholder": "一時停止状態を選択します…",
+    "pausedState": "一時停止状態",
+    "requiresHitlAction": "要手動対応",
+    "runIdPatternFilter": "Dag 実行を検索",
+    "timetableType": "スケジュールタイプ"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
@@ -33,6 +44,11 @@
       "buttonTooltip": "消去するには shift+c を押してください",
       "error": "{{type}} の消去に失敗しました",
       "title": "{{type}} を消去"
+    },
+    "clearAllMapped": {
+      "button": "マッピング済みすべてのタスクを消去する",
+      "buttonTooltip": "マッピング済みのタスクインスタンスをすべてクリアにするには shift+c を押してください",
+      "title": "マッピング済みすべてのタスクインスタンスを消去する"
     },
     "confirmationDialog": {
       "description": "ユーザ {{user}} により {{time}} に開始されたタスクが現在、 {{state}} 状態にあります。\nこのタスクは、実行が完了するか、タスククリアダイアログで「タスクが実行中の場合、再実行を防止する」オプションを外すまで、ユーザがクリアできません",
@@ -68,8 +84,33 @@
       "preventRunningTasks": "タスクが実行中の場合、再実行を防止する",
       "queueNew": "新しいタスクを準備",
       "runOnLatestVersion": "最新のバンドルバージョンで実行",
+      "runOnLatestVersionForced": "戻せる以前のバージョンがないため、常に最新バージョンを使用してください",
       "upstream": "上流"
     }
+  },
+  "runStateCounts": {
+    "label": "実行状態",
+    "loading": "実行状態数の読込中",
+    "tooltip": "{{state}}: {{formattedCount}} — クリックして実行をフィルタします"
+  },
+  "schedulingActions": {
+    "cancelDrain": "スケジューリングを再開する",
+    "drain": "完了後に一時停止",
+    "drainPrompt": "この Dag には、実行中のタスクがあります。これらのタスクがすべて完了するまで待ってから Dag を一時停止することも、完了を待たずにすぐにスケジューリングを停止することもできます",
+    "pauseNow": "今すぐ一時停止",
+    "pauseSelected": "一時停止"
+  },
+  "schedulingBanner": {
+    "message": "この Dag は、現在実行中のすべての Dag 実行が完了すると自動的に一時停止します"
+  },
+  "schedulingState": {
+    "active": "アクティブ",
+    "draining": "完了後に一時停止",
+    "drainingBadgeTooltip": "この Dag は、現在実行中のすべての Dag 実行が完了すると自動的に一時停止します",
+    "drainingTooltip": "{{dagDisplayName}} は、現在実行中の Dag 実行がすべて完了すると自動的に一時停止します。スケジュールを再開するには、クリックしてください",
+    "label": "スケジューリング状態",
+    "paused": "一時停止",
+    "placeholder": "スケジューリング状態を選択してください…"
   },
   "search": {
     "advanced": "高度な検索",
@@ -83,9 +124,9 @@
       "asc": "表示名で並び替え (A-Z)",
       "desc": "表示名で並び替え (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "最新の実行開始日時で並び替え (旧-新)",
-      "desc": "最新の実行開始日時で並び替え (新-旧)"
+    "lastRunAfter": {
+      "asc": "最終実行順（古いから新しい）で並べ替える",
+      "desc": "最終実行順（新しいから古い）で並べ替える"
     },
     "lastRunState": {
       "asc": "最新の実行状態で並び替え (A-Z)",

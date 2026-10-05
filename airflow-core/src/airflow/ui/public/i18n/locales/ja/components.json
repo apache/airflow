@@ -7,11 +7,25 @@
     "backwards": "逆実行",
     "dateRange": "日付範囲",
     "errorStartDateBeforeEndDate": "開始日が終了日より前にする必要があります",
+    "exceptionReason": {
+      "alreadyExists": "すでに存在します",
+      "inFlight": "進行中",
+      "unknown": "不明"
+    },
     "maxRuns": "最大アクティブ実行数",
     "missingAndErroredRuns": "欠落およびエラー発生した実行",
     "missingRuns": "欠落実行",
+    "notCreatedReason": "作成されていない理由",
+    "overrideExistingParams": "既存実行のパラメータを上書きする",
+    "partitionRange": "パーティションの範囲",
+    "partitionsAffected_one": "1 つのパーティションの過去分再実行が行われます:",
+    "partitionsAffected_other": "{{count}} 個のパーティションの過去分再実行が行われます:",
+    "partitionsNone": "選択した範囲に一致するパーティションはありません",
+    "permissionDenied": "試行実行が失敗しました。ユーザに過去分の再実行ジョブを作成する権限がありません",
     "reprocessBehavior": "再処理動作",
     "run": "過去分再実行の実行",
+    "scheduleNotBackfillable": "この Dag のスケジュールは過去分の再実行に対応していません",
+    "schedulerPriorityHint": "過去分の再実行 Dag 実行は、各スケジューラサイクルで通常の Dag 実行の後に処理されます。他の通常実行が存在する場合、過去分の再実行はキューにとどまる時間が長くなる可能性があります",
     "selectDescription": "この Dag を指定した日付範囲で実行します",
     "selectLabel": "過去分再実行",
     "title": "過去分再実行",
@@ -25,7 +39,8 @@
     "validation": {
       "datesRequired": "データ範囲の開始日と終了日は必須です",
       "startBeforeEnd": "データ範囲の開始日は終了日以前である必要があります"
-    }
+    },
+    "viewSlots": "過去分再実行 #{{id}} のスロットを表示する"
   },
   "banner": {
     "backfillInProgress": "過去分再実行中",
@@ -61,6 +76,7 @@
     "lastDagRun_other": "直近の {{count}} 回の Dag 実行",
     "lastTaskInstance_one": "最新のタスクインスタンス",
     "lastTaskInstance_other": "直近の {{count}} 個のタスクインスタンス",
+    "medianTotalDuration": "合計： {{duration}}",
     "queuedDuration": "キューイングされた時間",
     "runAfter": "最も早い実行可能時間",
     "runDuration": "実行期間"
@@ -69,6 +85,7 @@
     "files_other": "{{count}} 個のファイル"
   },
   "flexibleForm": {
+    "durationPlaceholder": "ISO 8601 形式の期間を入力してください",
     "placeholder": "値を選択してください",
     "placeholderArray": "各文字列を新しい行に入力してください",
     "placeholderExamples": "入力を開始するとオプションが表示されます",
@@ -76,6 +93,7 @@
     "validationErrorArrayNotArray": "値は配列でなければなりません",
     "validationErrorArrayNotNumbers": "配列内のすべての要素が数値でなければなりません",
     "validationErrorArrayNotObject": "配列内のすべての要素がオブジェクトでなければなりません",
+    "validationErrorDuration": "無効な ISO 8601 期間形式",
     "validationErrorRequired": "この項目は必須です"
   },
   "graph": {
@@ -89,7 +107,12 @@
     "otherDagRuns": "+その他の Dag 実行",
     "taskCount_one": "{{count}} 個のタスク",
     "taskCount_other": "{{count}} 個のタスク",
-    "taskGroup": "タスクグループ"
+    "taskGroup": "タスクグループ",
+    "zoomToTask": "選択されたタスクにズームイン"
+  },
+  "jsonPreview": {
+    "items_one": "1 項目",
+    "items_other": "{{count}} 件項目"
   },
   "limitedList": "その他 +{{count}} 件",
   "limitedList.allItems": "全 {{count}} 件:",
@@ -104,17 +127,41 @@
     "file": "ファイル",
     "location": "{{name}} の {{line}} 行目"
   },
+  "passwordToggle": {
+    "hide": "隠す",
+    "show": "表示する"
+  },
   "reparseDag": "Dag の再パース",
+  "slowestTaskInstances": {
+    "empty": "この範囲内には、完了したタスクインスタンスはありません",
+    "title": "最も時間がかかったタスクインスタンス"
+  },
   "sortedAscending": "昇順ソート",
   "sortedDescending": "降順でソート",
   "sortedUnsorted": "未ソート",
+  "sortMultiColumnHint": "複数列で並べ替えるには、 Shift を押しながらクリックします",
   "taskTries": "タスクの試行",
+  "taskTryPlaceholder": "タスクの試行",
+  "team": {
+    "selector": {
+      "helperText": "任意：指定されたチームのみが使用できます。",
+      "label": "チーム",
+      "placeHolder": "チームを選択してください"
+    }
+  },
   "toggleCardView": "カードビューを表示",
   "toggleTableView": "テーブルビューを表示",
   "triggerDag": {
     "button": "トリガー",
+    "dataInterval": "データ範囲",
+    "dataIntervalAuto": "論理日付とスケジュールから推定する",
+    "dataIntervalManual": "手動で指定",
+    "intervalEnd": "終了",
+    "intervalStart": "開始",
     "loading": "Dag 情報を読込中...",
     "loadingFailed": "情報読込に失敗しました。もう一度試してください",
+    "manualRunDenied": "この Dag は手動実行が許可されていません",
+    "partitionKeyHelp": "オプション- パーティション化された Dag にのみ適用されます",
     "runIdHelp": "オプション- 指定しない場合自動的に生成されます",
     "selectDescription": "この Dag の単体での実行をトリガーします",
     "selectLabel": "単体での実行",
@@ -128,6 +175,7 @@
         "title": "Dag の実行がトリガーされました"
       }
     },
+    "triggerAgainWithConfig": "この設定で再度トリガー",
     "unpause": "{{dagDisplayName}} トリガーで停止を解除します"
   },
   "trimText": {
@@ -143,6 +191,7 @@
     "versionId": "バージョン ID"
   },
   "versionSelect": {
+    "allVersions": "すべてのバージョン",
     "dagVersion": "Dag バージョン",
     "versionCode": "v{{versionCode}}"
   }
