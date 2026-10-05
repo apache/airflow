@@ -72,6 +72,20 @@ class TestCorrectMaybeZipped:
 
         assert dag_folder == "/path/to/archive.zip"
 
+    @mock.patch("zipfile.is_zipfile")
+    def test_correct_maybe_zipped_archive_uppercase_extension(self, mocked_is_zipfile):
+        """Dag discovery accepts a packaged Dag named ``*.ZIP``; reading it back must too."""
+        path = "/path/to/archive.ZIP/deep/path/to/file.txt"
+        mocked_is_zipfile.return_value = True
+
+        dag_folder = correct_maybe_zipped(path)
+
+        assert mocked_is_zipfile.call_count == 1
+        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
+        assert args[0] == "/path/to/archive.ZIP"
+
+        assert dag_folder == "/path/to/archive.ZIP"
+
 
 class TestOpenMaybeZipped:
     def test_open_maybe_zipped_normal_file(self):
@@ -91,6 +105,16 @@ class TestOpenMaybeZipped:
         with open_maybe_zipped(test_file_path, "r") as test_file:
             content = test_file.read()
         assert isinstance(content, str)
+
+    def test_open_maybe_zipped_archive_uppercase_extension(self, tmp_path):
+        """A packaged Dag named ``*.ZIP`` must be readable back, not raise ``NotADirectoryError``."""
+        zipped = tmp_path / "archive.ZIP"
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.writestr("dag.py", "content")
+
+        with open_maybe_zipped(os.path.join(zipped, "dag.py"), "r") as test_file:
+            content = test_file.read()
+        assert content == "content"
 
 
 class TestDagFileHelpers:

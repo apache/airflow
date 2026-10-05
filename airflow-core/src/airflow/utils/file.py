@@ -32,7 +32,7 @@ from airflow._shared.module_loading import (
     might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
 )
 
-ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
+ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)", re.IGNORECASE)
 
 
 @overload
