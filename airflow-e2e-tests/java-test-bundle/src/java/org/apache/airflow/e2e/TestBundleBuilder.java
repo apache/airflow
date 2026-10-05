@@ -64,7 +64,8 @@ public class TestBundleBuilder {
         .register(
             "java_uninstantiable", "missing_no_arg_constructor", MissingNoArgConstructor.class)
         .register("java_uninstantiable", "non_static_inner", NonStaticInner.class)
-        .register("java_variable_write", "write_and_delete", WriteAndDeleteVariable.class);
+        .register("java_variable_write", "write_and_delete", WriteAndDeleteVariable.class)
+        .register(TaskHandlerFailures.class);
   }
 
   public static void main(String[] args) {

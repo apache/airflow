@@ -469,6 +469,10 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         tmp_dir / "dags" / "scala_spark_examples.py",
     )
     copyfile(JAVA_TEST_BUNDLE_DAGS_PATH / "java_test_dags.py", tmp_dir / "dags" / "java_test_dags.py")
+    copyfile(
+        JAVA_TEST_BUNDLE_DAGS_PATH / "java_task_handler_failures.py",
+        tmp_dir / "dags" / "java_task_handler_failures.py",
+    )
 
     # Keep the bundle JARs out of the build context: Dockerfile.java only adds a
     # JRE and copies nothing from the context, so without this docker build would

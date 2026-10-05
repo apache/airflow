@@ -17,34 +17,22 @@
  * under the License.
  */
 
-plugins {
-    id("org.apache.airflow.sdk") version "${projectVersion}"
-}
+package org.apache.airflow.e2e;
 
-repositories {
-    mavenLocal()
-    mavenCentral()
-}
+import org.apache.airflow.sdk.*;
 
-dependencies {
-    annotationProcessor("org.apache.airflow:airflow-sdk-processor:${projectVersion}")
-    implementation("org.apache.airflow:airflow-sdk:${projectVersion}")
-    implementation("org.apache.airflow:airflow-sdk-jpl:${projectVersion}")
-}
+/**
+ * Task handler whose stub Dag calls it with one argument more than it declares.
+ *
+ * Registered with {@code Bundle.register(Class)} rather than {@code
+ * TestBundleBuilder}'s hand-written {@code Task} classes, so the generated {@code
+ * TaskParams} gives it a positional binding (see {@code java_task_handler_failures.py}).
+ */
+public class TaskHandlerFailures {
+  private static final System.Logger log = System.getLogger(TaskHandlerFailures.class.getName());
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
-    }
-    sourceCompatibility = JavaVersion.VERSION_11
-}
-
-sourceSets {
-    main {
-        java.srcDir("src/java")
-    }
-}
-
-airflowBundle {
-    mainClass = "org.apache.airflow.e2e.TestBundleBuilder"
+  @Builder.TaskHandler(dag = "java_task_handler_failures", task = "takes_two_numbers")
+  public void takesTwoNumbers(Context context, long first, long second) {
+    log.log(System.Logger.Level.INFO, "Took two numbers: {0}, {1}", first, second);
+  }
 }
