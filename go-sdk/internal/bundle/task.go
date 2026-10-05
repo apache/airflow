@@ -78,9 +78,9 @@ func NewPositionalTaskFunction(fn any) (Task, error) {
 
 // NewPositionalBranchFunction is like NewPositionalTaskFunction, but the Task also skips tasks
 // that are downstream of it. fn must return a result and an error. Before fn runs, Execute checks
-// that the runtime can skip tasks, and writes an empty list to the skipmixin_key XCom of the task.
-// When fn returns a nil error, Execute passes the result to findSkipped. If findSkipped returns
-// task_ids, Execute records them in that XCom and skips those tasks.
+// that the runtime can skip tasks. When fn returns a nil error, Execute passes the result to
+// findSkipped. If findSkipped returns task_ids, Execute records them in the skipmixin_key XCom of
+// the task and skips those tasks.
 func NewPositionalBranchFunction(fn any, findSkipped func(result any) []string) (Task, error) {
 	return newTaskFunction(fn, binding.AnalyzePositional, findSkipped)
 }
@@ -118,7 +118,7 @@ func (f *taskFunction) Execute(
 	}
 	var branch *branchRun
 	if f.findSkipped != nil {
-		if branch, err = startBranch(ctx, sdkClient); err != nil {
+		if branch, err = startBranch(ctx); err != nil {
 			return err
 		}
 	}
@@ -200,11 +200,8 @@ type branchRun struct {
 }
 
 // startBranch runs before fn, so that a runtime that cannot skip tasks fails the task before fn
-// has any effect. It writes an empty list to the skipmixin_key XCom because the Go runtime does
-// not delete the XComs of earlier tries. Without the write, NotPreviouslySkippedDep could read
-// the list of an earlier try after this try fails or skips nothing. The list must be empty rather
-// than null, because NotPreviouslySkippedDep cannot read null.
-func startBranch(ctx context.Context, client sdk.Client) (*branchRun, error) {
+// has any effect.
+func startBranch(ctx context.Context) (*branchRun, error) {
 	skip, ok := ctx.Value(skipDownstreamTasksKey{}).(func(context.Context, []string) error)
 	if !ok {
 		return nil, errors.New("the task runtime cannot skip downstream tasks")
@@ -213,12 +210,7 @@ func startBranch(ctx context.Context, client sdk.Client) (*branchRun, error) {
 	if !ok {
 		return nil, errors.New("task runtime context is missing")
 	}
-	ti := runtimeContext.TaskInstance()
-	err := client.PushXCom(ctx, ti, skipMixinXComKey, map[string][]string{"skipped": {}})
-	if err != nil {
-		return nil, fmt.Errorf("clearing the %s XCom: %w", skipMixinXComKey, err)
-	}
-	return &branchRun{skip: skip, ti: ti}, nil
+	return &branchRun{skip: skip, ti: runtimeContext.TaskInstance()}, nil
 }
 
 // skipDownstream records taskIDs in the skipmixin_key XCom, and then skips those tasks.

@@ -185,9 +185,6 @@ func (g *IfRef) setTask(side string, task *TaskRef) {
 // does not take.
 func (g *IfRef) wrapCondition(fn any) (bundle.Task, error) {
 	fnType := reflect.TypeOf(fn)
-	// DagRef.Task also takes a function whose last result has a concrete type that implements
-	// error. A nil value of that type becomes a non-nil error when the runtime reads it, so the
-	// condition task would always fail.
 	if fnType.NumOut() != 2 ||
 		fnType.Out(0) != reflect.TypeFor[bool]() ||
 		fnType.Out(1) != reflect.TypeFor[error]() {
