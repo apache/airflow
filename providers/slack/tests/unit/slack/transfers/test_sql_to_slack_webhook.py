@@ -162,16 +162,17 @@ class TestSqlToSlackWebhookOperator:
         sql_to_slack_operator.execute(context)
         assert sql_to_slack_operator.sql == "SELECT '{{ leaked }}'"
 
-    def test_send_does_not_rerender_fields_after_mapped_first_render(self, mocked_hook):
-        """A mapped task's first render bypasses ``render_template_fields`` and leaves
-        ``times_rendered`` at 0; sending must still render only ``slack_message``."""
+    def test_send_renders_each_field_once_after_mapped_first_render(self, mocked_hook):
+        """A mapped task's first render bypasses ``render_template_fields``: it renders every template
+        field, ``slack_message`` included, and leaves ``times_rendered`` at 0. Sending must not render
+        any field a second time, or Jinja that arrived in a context value would be evaluated."""
         mock_dbapi_hook = mock.Mock()
         mock_dbapi_hook.return_value.get_df.return_value = pd.DataFrame({"a": "1"}, index=[0])
 
         sql_to_slack_operator = self._construct_operator(
             sql_conn_id="snowflake_connection",
             slack_webhook_conn_id="slack_connection",
-            slack_message="message: {{ results_df }}",
+            slack_message="message: {{ ds }}",
             slack_channel="#test",
             sql="SELECT '{{ ds }}'",
         )
@@ -180,14 +181,18 @@ class TestSqlToSlackWebhookOperator:
 
         # What MappedOperator.render_template_fields does for the unmapped task.
         sql_to_slack_operator._do_render_template_fields(
-            sql_to_slack_operator, ("sql",), context, sql_to_slack_operator.get_template_env(), set()
+            sql_to_slack_operator,
+            sql_to_slack_operator.template_fields,
+            context,
+            sql_to_slack_operator.get_template_env(),
+            set(),
         )
         assert sql_to_slack_operator.times_rendered == 0
 
         sql_to_slack_operator.execute(context)
 
         assert sql_to_slack_operator.sql == "SELECT '{{ leaked }}'"
-        assert sql_to_slack_operator.slack_message.startswith("message: ")
+        assert sql_to_slack_operator.slack_message == "message: {{ leaked }}"
 
     @pytest.mark.parametrize(
         ("slack_webhook_conn_id", "warning_expected", "expected_conn_id"),

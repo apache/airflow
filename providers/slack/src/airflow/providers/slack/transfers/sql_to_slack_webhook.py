@@ -97,15 +97,21 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         self.slack_webhook_conn_id = slack_webhook_conn_id
         self.slack_channel = slack_channel
         self.slack_message = slack_message
+        # Rendered once, at send time, from this original text. A mapped task's first render also
+        # renders slack_message, and rendering that output again would evaluate any Jinja that arrived
+        # in a context value (``dag_run.conf``, a param).
+        self._slack_message_template = slack_message
         self.results_df_name = results_df_name
         self.kwargs = kwargs
 
     def _render_and_send_slack_message(self, context, df) -> None:
-        # Render only the deferred field, without going through render_template_fields: a mapped
-        # task's first render never increments times_rendered, so relying on that counter would
-        # render the already-rendered fields a second time.
+        # Render only slack_message, without going through render_template_fields: a mapped task's
+        # first render never increments times_rendered, so relying on that counter would render the
+        # already-rendered fields a second time.
         context[self.results_df_name] = df
-        self._do_render_template_fields(self, ("slack_message",), context, self._get_jinja_env(), set())
+        self.slack_message = self.render_template(
+            self._slack_message_template, context, self._get_jinja_env()
+        )
 
         slack_hook = self._get_slack_hook()
         self.log.info("Sending slack message: %s", self.slack_message)
