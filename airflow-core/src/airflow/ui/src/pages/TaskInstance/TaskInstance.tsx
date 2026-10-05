@@ -20,7 +20,14 @@ import { Heading } from "@chakra-ui/react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
-import { MdDetails, MdOutlineEventNote, MdOutlineStorage, MdOutlineTask, MdReorder } from "react-icons/md";
+import {
+  MdDetails,
+  MdOutlineEventNote,
+  MdOutlineStorage,
+  MdOutlineTask,
+  MdReorder,
+  MdSyncAlt,
+} from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -78,12 +85,8 @@ export const TaskInstance = () => {
       label: translate("tabs.renderedTemplates"),
       value: "rendered_templates",
     },
-    {
-      icon: <MdOutlineStorage />,
-      label: translate("tabs.storage"),
-      matchPaths: ["task-state-store", "xcom"],
-      value: "xcom",
-    },
+    { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
+    { icon: <MdOutlineStorage />, label: translate("tabs.taskStateStore"), value: "task-state-store" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },

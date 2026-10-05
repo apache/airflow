@@ -77,7 +77,6 @@ import { XCom } from "src/pages/XCom";
 
 import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
 
-import { StorageLayout } from "./layouts/StorageLayout";
 import { client } from "./queryClient";
 
 const pluginRoute = {
@@ -89,13 +88,8 @@ export const taskInstanceRoutes = [
   { element: <TaskInstanceDefaultTab />, index: true, path: undefined },
   { element: <Logs />, path: TaskInstanceTab.Logs },
   { element: <Events />, path: TaskInstanceTab.Events },
-  {
-    children: [
-      { element: <XCom />, path: TaskInstanceTab.XCom },
-      { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
-    ],
-    element: <StorageLayout />,
-  },
+  { element: <XCom />, path: TaskInstanceTab.XCom },
+  { element: <TaskStateStore />, path: TaskInstanceTab.TaskStateStore },
   { element: <Code />, path: TaskInstanceTab.Code },
   { element: <TaskInstanceDetails />, path: TaskInstanceTab.Details },
   { element: <RenderedTemplates />, path: TaskInstanceTab.RenderedTemplates },
