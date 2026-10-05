@@ -384,15 +384,11 @@ class TestSmtpHook:
             ("disable_ssl=1&disable_tls=false", False, True),
             ("disable_ssl=t&disable_tls=y", False, False),
             ("disable_ssl=on&disable_tls=yes", False, False),
-            ("disable_ssl=ture&disable_tls=ture", True, True),
+            ("disable_ssl=ture&disable_tls=ture", True, True),  # codespell:ignore ture
         ],
     )
-    def test_ssl_and_tls_extras_from_uri(
-        self, query, expected_ssl, expected_starttls, create_connection_without_db
-    ):
-        create_connection_without_db(
-            Connection(conn_id="smtp_uri", uri=f"smtp://user:pass@{SMTP_HOST}:587?{query}")
-        )
+    def test_ssl_and_tls_extras_from_uri(self, query, expected_ssl, expected_starttls, monkeypatch):
+        monkeypatch.setenv("AIRFLOW_CONN_SMTP_URI", f"smtp://user:pass@{SMTP_HOST}:587?{query}")
         hook = SmtpHook(smtp_conn_id="smtp_uri")
         hook.smtp_connection = hook.get_connection("smtp_uri")
 
