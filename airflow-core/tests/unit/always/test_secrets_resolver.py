@@ -540,13 +540,50 @@ async def test_thread_fallback_preserves_contextvars(mock_ensure_secrets_loaded)
 async def fresh_async_engine():
     """Give this test's event loop its own async engine, then restore the previous globals."""
     previous_engine, previous_session_factory = settings.async_engine, settings.AsyncSession
-    settings._configure_async_session()
-    engine = settings.async_engine
+    engine = None
     try:
+        settings._configure_async_session()
+        engine = settings.async_engine
         yield engine
     finally:
-        await engine.dispose()
-        settings.async_engine, settings.AsyncSession = previous_engine, previous_session_factory
+        try:
+            engine = engine if engine is not None else settings.async_engine
+            if engine is not None and engine is not previous_engine:
+                await engine.dispose()
+        finally:
+            settings.async_engine, settings.AsyncSession = previous_engine, previous_session_factory
+
+
+@pytest.mark.db_test
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["configure", "dispose"])
+@mock.patch("sqlalchemy.ext.asyncio.AsyncEngine.dispose", autospec=True)
+async def test_fresh_async_engine_restores_globals_after_failure(mock_dispose, failure):
+    previous_engine, previous_factory = settings.async_engine, settings.AsyncSession
+    original_configure = settings._configure_async_session
+
+    def configure():
+        original_configure()
+        if failure == "configure":
+            raise RuntimeError("configure failed")
+
+    with mock.patch.object(settings, "_configure_async_session", autospec=True, side_effect=configure):
+        generator = fresh_async_engine.__wrapped__()
+        try:
+            if failure == "configure":
+                with pytest.raises(RuntimeError, match="configure failed"):
+                    await generator.__anext__()
+            else:
+                await generator.__anext__()
+                mock_dispose.side_effect = RuntimeError("dispose failed")
+                with pytest.raises(RuntimeError, match="dispose failed"):
+                    await generator.aclose()
+            mock_dispose.assert_awaited_once()
+            assert settings.async_engine is previous_engine
+            assert settings.AsyncSession is previous_factory
+        finally:
+            await generator.aclose()
+            settings.async_engine, settings.AsyncSession = previous_engine, previous_factory
 
 
 @pytest.mark.db_test

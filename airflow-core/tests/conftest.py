@@ -172,26 +172,52 @@ def in_process_execution_api():
     server's loop from checking out connections that earlier tests opened on other loops.
     """
     import asyncio
+    from contextlib import asynccontextmanager
 
+    import httpx
     from a2wsgi import ASGIMiddleware
+    from fastapi.testclient import TestClient
 
     from airflow import settings
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
     previous_engine, previous_session_factory = settings.async_engine, settings.AsyncSession
-    settings._configure_async_session()
-    engine = settings.async_engine
+    disposed = False
     try:
         api = InProcessExecutionAPI()
-        middleware = api.transport.app
-        yield api
-        # The WSGI transport wraps the a2wsgi middleware that runs the server's loop. Close the engine's
-        # connections there while that loop is still running.
-        assert isinstance(middleware, ASGIMiddleware)
-        if engine is not None:
-            asyncio.run_coroutine_threadsafe(engine.dispose(), middleware.loop).result(timeout=5)
+        app = api.app
+        settings._configure_async_session()
+        engine = settings.async_engine
+        original_lifespan = app.router.lifespan_context
+
+        @asynccontextmanager
+        async def lifespan(app):
+            nonlocal disposed
+            try:
+                async with original_lifespan(app):
+                    yield
+            finally:
+                disposed = True
+                if engine is not None:
+                    await engine.dispose()
+
+        app.router.lifespan_context = lifespan
+        # TestClient owns the lifespan and loop, so cleanup cannot be delayed until transport collection.
+        with TestClient(app) as client:
+            assert client.portal is not None
+            loop = client.portal.call(asyncio.get_running_loop)
+            with httpx.WSGITransport(app=ASGIMiddleware(app, loop=loop)) as transport:
+                api.transport = transport
+                yield api
     finally:
-        settings.async_engine, settings.AsyncSession = previous_engine, previous_session_factory
+        try:
+            if not disposed:
+                # Setup failed before the lifespan started; this engine has no loop-bound connections yet.
+                engine = settings.async_engine
+                if engine is not None and engine is not previous_engine:
+                    asyncio.run(engine.dispose())
+        finally:
+            settings.async_engine, settings.AsyncSession = previous_engine, previous_session_factory
 
 
 @pytest.fixture(autouse=True)

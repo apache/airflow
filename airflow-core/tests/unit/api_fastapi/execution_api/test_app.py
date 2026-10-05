@@ -32,6 +32,7 @@ from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
 from sqlalchemy import event, text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from airflow import settings
 from airflow.api_fastapi.execution_api.app import (
@@ -48,6 +49,96 @@ from airflow.utils.session import create_session_async
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.mark.parametrize("failure", [None, "startup", "shutdown", "dispose", "configure"])
+@mock.patch("airflow.api_fastapi.execution_api.app.InProcessExecutionAPI", autospec=True)
+def test_in_process_fixture_owns_engine_lifetime(mock_api, request, failure):
+    previous_engine, previous_factory = settings.async_engine, settings.AsyncSession
+    api = InProcessExecutionAPI()
+    mock_api.return_value = api
+    original_lifespan = api.app.router.lifespan_context
+    disposed = []
+    original_dispose = AsyncEngine.dispose
+    original_configure = settings._configure_async_session
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async with original_lifespan(app):
+            if failure == "startup":
+                raise RuntimeError("startup failed")
+            yield
+            if failure == "shutdown":
+                raise RuntimeError("shutdown failed")
+
+    api.app.router.lifespan_context = lifespan
+
+    async def dispose(engine, *args, **kwargs):
+        disposed.append((engine, asyncio.get_running_loop()))
+        await original_dispose(engine, *args, **kwargs)
+        if engine is not previous_engine and failure == "dispose":
+            raise RuntimeError("dispose failed")
+
+    def configure():
+        original_configure()
+        if failure == "configure":
+            raise RuntimeError("configure failed")
+
+    async def query(factory):
+        async with factory() as session:
+            return await session.scalar(text("SELECT 1"))
+
+    @api.app.get("/fixture-db-read")
+    async def read():
+        return await query(settings.AsyncSession)
+
+    fixture = request._fixturemanager.getfixturedefs("in_process_execution_api", request.node)[-1].func
+    transport = None
+    generator = fixture()
+    previous_connections_closed = []
+
+    def record_close(connection, record):
+        previous_connections_closed.append(connection)
+
+    with TestClient(FastAPI()) as previous_client:
+        assert previous_client.portal.call(query, previous_factory) == 1
+        event.listen(previous_engine.sync_engine, "close", record_close)
+        with (
+            mock.patch.object(AsyncEngine, "dispose", autospec=True, side_effect=dispose),
+            mock.patch.object(settings, "_configure_async_session", autospec=True, side_effect=configure),
+        ):
+            try:
+                if failure in {"startup", "configure"}:
+                    with pytest.raises(RuntimeError, match=f"{failure} failed"):
+                        next(generator)
+                else:
+                    server = next(generator)
+                    transport = server.transport
+                    with httpx.Client(transport=transport, base_url="http://fixture") as client:
+                        assert client.get("/fixture-db-read").json() == 1
+                    del client
+                    if failure:
+                        with pytest.raises(RuntimeError, match=f"{failure} failed"):
+                            next(generator)
+                    else:
+                        with pytest.raises(StopIteration):
+                            next(generator)
+                assert settings.async_engine is previous_engine
+                assert settings.AsyncSession is previous_factory
+                # Collection after restoring globals must not dispose the previous pool.
+                api.transport = None
+                transport = None
+                gc.collect()
+                assert disposed
+                assert all(engine is not previous_engine for engine, _ in disposed)
+                assert all(loop.is_closed() for _, loop in disposed)
+                assert previous_client.portal.call(query, previous_factory) == 1
+                assert not previous_connections_closed
+            finally:
+                generator.close()
+                settings.async_engine, settings.AsyncSession = previous_engine, previous_factory
+                event.remove(previous_engine.sync_engine, "close", record_close)
+                previous_client.portal.call(previous_engine.dispose)
 
 
 def test_custom_openapi_includes_extra_schemas(client):
