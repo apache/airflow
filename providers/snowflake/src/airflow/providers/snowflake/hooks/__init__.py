@@ -14,3 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "snowflake_cortex_agent": {
+        "SnowflakeCortexAgentHook": (
+            "airflow.providers.snowflake.hooks.cortex_agent.SnowflakeCortexAgentHook"
+        ),
+    },
+    "snowflake_sql_api": {
+        "SnowflakeSqlApiHook": ("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook"),
+    },
+}
+
+add_deprecated_classes(__deprecated_classes, __name__)

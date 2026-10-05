@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from openlineage.client.facet_v2 import JobFacet
 
     from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-    from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+    from airflow.providers.snowflake.hooks.sql_api import SnowflakeSqlApiHook
 
 
 log = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ def _get_queries_details_from_snowflake(
 
     try:
         # Note: need to lazy import here to avoid circular imports
-        from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+        from airflow.providers.snowflake.hooks.sql_api import SnowflakeSqlApiHook
 
         if isinstance(hook, SnowflakeSqlApiHook):
             result = _run_single_query_with_api_hook(hook=hook, sql=query)

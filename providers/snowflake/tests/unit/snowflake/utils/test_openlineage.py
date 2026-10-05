@@ -32,7 +32,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, timezone
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+from airflow.providers.snowflake.hooks.sql_api import SnowflakeSqlApiHook
 from airflow.providers.snowflake.utils.openlineage import (
     _create_snowflake_event_pair,
     _get_parent_run_facet,
@@ -199,10 +199,10 @@ def test_run_single_query_with_hook(mock_get_cursor, mock_set_autocommit, mock_g
 
 
 @mock.patch(
-    "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_result_from_successful_sql_api_query"
+    "airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.get_result_from_successful_sql_api_query"
 )
-@mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.wait_for_query")
-@mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+@mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.wait_for_query")
+@mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.execute_query")
 def test_run_single_query_with_api_hook_success(mock_execute, mock_wait, mock_get_result):
     hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
     hook.query_ids = ["old-id"]
@@ -225,10 +225,10 @@ def test_run_single_query_with_api_hook_success(mock_execute, mock_wait, mock_ge
 
 
 @mock.patch(
-    "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_result_from_successful_sql_api_query"
+    "airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.get_result_from_successful_sql_api_query"
 )
-@mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.wait_for_query")
-@mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+@mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.wait_for_query")
+@mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.execute_query")
 def test_run_single_query_exception_restores_query_ids(mock_execute, mock_wait, mock_get_result):
     hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
     hook.query_ids = ["persistent-id"]

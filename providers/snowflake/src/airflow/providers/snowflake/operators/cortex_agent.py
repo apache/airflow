@@ -23,7 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import BaseOperator
-from airflow.providers.snowflake.hooks.snowflake_cortex_agent import CreateMode, SnowflakeCortexAgentHook
+from airflow.providers.snowflake.hooks.cortex_agent import CreateMode, SnowflakeCortexAgentHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
