@@ -33,6 +33,7 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.local import LocalDagBundle
+from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
@@ -57,6 +58,7 @@ if TYPE_CHECKING:
     from airflow import DAG
     from airflow.models.dagwarning import DagWarning
     from airflow.sdk.importers import AbstractDagImporter, DagDefinition, DagImportWarning, DagSourceCode
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 
 class FileLoadStat(NamedTuple):
@@ -103,27 +105,24 @@ def _executor_exists(executor_name: str, team_name: str | None) -> bool:
     return False
 
 
-def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
+def _get_bundle_team_name(bundle_name: str | None) -> str | None:
+    """Return the team that owns *bundle_name* when multi-team is on, else ``None``."""
+    if not conf.getboolean("core", "multi_team") or not bundle_name:
+        return None
+    from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+    return DagBundlesManager()._bundle_config[bundle_name].team_name
+
+
+def _validate_executor_fields(dag: DAG | SerializedDAG, bundle_name: str | None = None) -> None:
     """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
     import logging
 
     log = logging.getLogger(__name__)
-    dag_team_name = None
 
-    # Check if multi team is available by reading the multi_team configuration (which is boolean)
-    if conf.getboolean("core", "multi_team"):
-        # Get team name from bundle configuration if available
-        if bundle_name:
-            from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-            bundle_manager = DagBundlesManager()
-            bundle_config = bundle_manager._bundle_config[bundle_name]
-
-            dag_team_name = bundle_config.team_name
-            if dag_team_name:
-                log.debug(
-                    "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name
-                )
+    dag_team_name = _get_bundle_team_name(bundle_name)
+    if dag_team_name:
+        log.debug("Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name)
 
     for task in dag.tasks:
         if not task.executor:
@@ -150,18 +149,7 @@ def _assign_default_team_pools(
     bundle_name: str | None = None,
 ) -> None:
     """Assign the default team pool to tasks that do not explicitly specify a pool."""
-    dag_team_name = None
-
-    if conf.getboolean("core", "multi_team"):
-        if bundle_name:
-            from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-            bundle_manager = DagBundlesManager()
-            bundle_config = bundle_manager._bundle_config[bundle_name]
-
-            dag_team_name = bundle_config.team_name
-
-    if not dag_team_name:
+    if not (dag_team_name := _get_bundle_team_name(bundle_name)):
         return
 
     for task in dag.tasks:
@@ -583,16 +571,30 @@ def sync_bag_to_db(
     version_data: dict[str, Any] | None = None,
     session: Session = NEW_SESSION,
 ) -> None:
-    """Save attributes about list of DAG to the DB."""
+    """
+    Save attributes about list of DAG to the DB.
+
+    Files that a Lang-SDK runtime parses are left out, with their import errors: the Dag processor
+    stores those.
+    """
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
-    import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
+    def is_parsed_by_runtime(rel_path: str) -> bool:
+        return get_claiming_importer(Path(dagbag.bundle_path or "", rel_path), bundle_name) is not None
+
+    import_errors = {
+        (bundle_name, rel_path): error
+        for rel_path, error in dagbag.import_errors.items()
+        if not is_parsed_by_runtime(rel_path)
+    }
 
     # Build the set of all files that were parsed and include files with import errors
     # in case they are not in parsed_definitions
     files_parsed = set(import_errors)
     if dagbag.bundle_path:
         for rel_path in dagbag.parsed_definitions:
+            if is_parsed_by_runtime(rel_path):
+                continue
             files_parsed.add((bundle_name, rel_path))
             # A definition nested in an archive also clears the archive's own discovery errors.
             if enclosing_file := find_enclosing_file(Path(dagbag.bundle_path, rel_path)):
