@@ -69,6 +69,7 @@ from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.exceptions import DagNotFound, TaskNotFound
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads.parsing import ParseDagFileKey
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
@@ -1492,6 +1493,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     tis_with_right_state.append(key)
             elif isinstance(key, ConnectionTestKey):
                 cls.logger().debug("Draining executor event with state %s for connection test %s", state, key)
+            elif isinstance(key, ParseDagFileKey):
+                cls.logger().debug("Draining parsing executor event %s for %s", state, key)
             elif isinstance(key, CallbackKey):
                 cls.logger().info("Received executor event with state %s for callback %s", state, key)
                 # Skip RUNNING: the callback token endpoint owns that transition, so persisting it here races.

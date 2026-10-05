@@ -812,6 +812,11 @@ ARG_SSL_CIPHERS = Arg(
     help="(Optional) OpenSSL cipher list to use when SSL is enabled.",
 )
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
+ARG_EXECUTOR_PARSING = Arg(
+    ("--executor-parsing",),
+    help="Use the experimental LocalExecutor pool for Dag file parsing",
+    action="store_true",
+)
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -2287,6 +2292,7 @@ core_commands: list[CLICommand] = [
         help="Start a dag processor instance",
         func=lazy_load_command("airflow.cli.commands.dag_processor_command.dag_processor"),
         args=(
+            ARG_EXECUTOR_PARSING,
             ARG_PID,
             ARG_DAEMON,
             ARG_BUNDLE_NAME,

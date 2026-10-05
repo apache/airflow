@@ -38,6 +38,7 @@ import structlog
 
 from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
 from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads.parsing import ParseDagFileKey
 from airflow.executors.workloads.types import state_class_for_key
 
 # add logger to parameter of setproctitle to support logging
@@ -183,7 +184,7 @@ class LocalExecutor(BaseExecutor):
             # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
             self._spawn_workers_with_gc_freeze(self.parallelism)
 
-    def _check_workers(self):
+    def _check_workers(self, *, pending_workloads: int = 0):
         self._read_results()
         # Reap any dead workers
         to_remove = set()
@@ -201,9 +202,9 @@ class LocalExecutor(BaseExecutor):
             self.workers = {pid: proc for pid, proc in self.workers.items() if pid not in to_remove}
 
         with self._unread_messages:
-            num_outstanding = self._unread_messages.value
+            num_outstanding = self._unread_messages.value + pending_workloads
 
-        if num_outstanding <= 0 or self.activity_queue.empty():
+        if num_outstanding <= 0 or (not pending_workloads and self.activity_queue.empty()):
             # Nothing to do. Future enhancement if someone wants: shut down workers that have been idle for N
             # seconds
             return
@@ -273,7 +274,7 @@ class LocalExecutor(BaseExecutor):
                         self.change_state(key, state, remove_running=False)
                 elif self._worker_tasks.get(pid) == key:
                     del self._worker_tasks[pid]
-                    self._finish_dispatch(key, state)
+                    self._finish_dispatch(key, state, info=exc if isinstance(key, ParseDagFileKey) else None)
         except (OSError, EOFError):
             self.log.exception("Error reading from result queue")
 
@@ -335,24 +336,39 @@ class LocalExecutor(BaseExecutor):
             proc.join(timeout=0.2)
 
     def _process_workloads(self, workload_list):
+        regular_workloads = 0
         for workload in workload_list:
             key = self.get_workload_key(workload)
-            self.activity_queue.put(workload)
+            is_parsing = workload.type == WorkloadType.PARSE_DAG_FILE
+            if is_parsing:
+                # Callbacks can fill SimpleQueue's pipe before spawn workers have started reading.
+                self._check_workers(pending_workloads=1)
+                with self._unread_messages:
+                    self._unread_messages.value += 1
+            else:
+                regular_workloads += 1
+            try:
+                self.activity_queue.put(workload)
+            except Exception:
+                if is_parsing:
+                    with self._unread_messages:
+                        self._unread_messages.value -= 1
+                raise
             removed = self.executor_queues[workload.type].pop(key, None)
             if not removed:
                 raise KeyError(f"Workload {key} was not found in any queue")
             self.running.add(key)
             self._dispatch_counts[key] = self._dispatch_counts.get(key, 0) + 1
         with self._unread_messages:
-            self._unread_messages.value += len(workload_list)
+            self._unread_messages.value += regular_workloads
         self._check_workers()
 
-    def _finish_dispatch(self, key: WorkloadKey, state: WorkloadState) -> None:
+    def _finish_dispatch(self, key: WorkloadKey, state: WorkloadState, info=None) -> None:
         # A resumed attempt reuses its key, so the previous dispatch can finish while the next one is live.
         remaining = self._dispatch_counts.pop(key, 1) - 1
         if remaining > 0:
             self._dispatch_counts[key] = remaining
-        super().change_state(key, state, remove_running=remaining <= 0)
+        super().change_state(key, state, info=info, remove_running=remaining <= 0)
 
     def _forget_workload(self, key: WorkloadKey) -> None:
         self._dispatch_counts.pop(key, None)

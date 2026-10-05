@@ -4,6 +4,7 @@ airflow-core/src/airflow/cli/commands/task_command.py::7
 airflow-core/src/airflow/cli/commands/triggerer_command.py::1
 airflow-core/src/airflow/configuration.py::1
 airflow-core/src/airflow/dag_processing/dagbag.py::3
+airflow-core/src/airflow/dag_processing/executor_worker.py::2
 airflow-core/src/airflow/dag_processing/manager.py::5
 airflow-core/src/airflow/dag_processing/processor.py::14
 airflow-core/src/airflow/exceptions.py::1

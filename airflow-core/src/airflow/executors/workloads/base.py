@@ -39,6 +39,7 @@ class WorkloadType(str, Enum):
     EXECUTE_TASK = "ExecuteTask"
     EXECUTE_CALLBACK = "ExecuteCallback"
     TEST_CONNECTION = "TestConnection"
+    PARSE_DAG_FILE = "ParseDagFile"
 
 
 # Central executor priority registry: tuple is ordered from highest priority to lowest.
@@ -54,6 +55,7 @@ _workload_type_priority_order = (
     WorkloadType.EXECUTE_CALLBACK,
     WorkloadType.TEST_CONNECTION,
     WorkloadType.EXECUTE_TASK,
+    WorkloadType.PARSE_DAG_FILE,
 )
 
 WORKLOAD_TYPE_PRIORITY: dict[WorkloadType, int] = {

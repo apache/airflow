@@ -24,6 +24,8 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_command
+from airflow.dag_processing.executor_manager import ExecutorDagFileProcessorManager
+from airflow.dag_processing.manager import DagFileProcessorManager
 
 from tests_common.test_utils.config import conf_vars
 
@@ -58,6 +60,13 @@ class TestDagProcessorCommand:
     @classmethod
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
+
+    @pytest.mark.parametrize("enabled", [False, True])
+    def test_executor_parsing_is_opt_in(self, enabled):
+        args = self.parser.parse_args(["dag-processor", *(["--executor-parsing"] if enabled else [])])
+        runner = dag_processor_command._create_dag_processor_job_runner(args)
+        expected = ExecutorDagFileProcessorManager if enabled else DagFileProcessorManager
+        assert type(runner.processor) is expected
 
     @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
@@ -106,10 +115,18 @@ class TestDagProcessorCommand:
     @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
     @mock.patch("airflow.utils.cli.validate_dag_bundle_arg")
     @pytest.mark.usefixtures("dag_bundles_with_teams")
-    def test_job_records_the_teams_owning_the_parsed_bundles(self, _, mock_runner):
+    @pytest.mark.parametrize("executor_parsing", [False, True])
+    def test_job_records_the_teams_owning_the_parsed_bundles(self, _, mock_runner, executor_parsing):
         mock_runner.return_value.job_type = "DagProcessorJob"
         args = self.parser.parse_args(
-            ["dag-processor", "--bundle-name", "bundle_a", "--bundle-name", "bundle_b"]
+            [
+                "dag-processor",
+                "--bundle-name",
+                "bundle_a",
+                "--bundle-name",
+                "bundle_b",
+                *(["--executor-parsing"] if executor_parsing else []),
+            ]
         )
 
         dag_processor_command.dag_processor(args)

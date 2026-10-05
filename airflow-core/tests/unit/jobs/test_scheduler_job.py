@@ -65,6 +65,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads.parsing import ParseDagFileKey, ParseDagFileState
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
@@ -1001,6 +1002,26 @@ class TestSchedulerJob:
             self.job_runner._process_executor_events(executor=executor, session=session)
             callback_lookups = [c for c in spy_get.call_args_list if c.args and c.args[0] is Callback]
             assert callback_lookups == []
+
+    @pytest.mark.parametrize("parsing_first", [True, False])
+    @pytest.mark.parametrize("uuid_key", [True, False])
+    def test_parsing_events_do_not_discard_task_events(self, dag_maker, session, parsing_first, uuid_key):
+        executor = MockExecutor(do_update=False)
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+        with dag_maker(session=session):
+            task = EmptyOperator(task_id="task")
+        ti = dag_maker.create_dagrun().get_task_instance(task.task_id, session=session)
+        ti.state = State.QUEUED
+        session.flush()
+        executor._register_task(ti)
+        events = [
+            (ParseDagFileKey(uuid4()), (ParseDagFileState.SUCCESS, None)),
+            (TaskInstanceUuid(ti.id) if uuid_key else ti.key, (State.RUNNING, "task-worker")),
+        ]
+        executor.event_buffer.update(events if parsing_first else reversed(events))
+        runner._process_executor_events(executor=executor, session=session)
+        assert ti.external_executor_id == "task-worker"
+        assert executor.event_buffer == {}
 
     @pytest.mark.parametrize("key", ["not-a-workload-key", uuid4()])
     def test_process_executor_events_raises_on_unknown_key_type(self, session, key):

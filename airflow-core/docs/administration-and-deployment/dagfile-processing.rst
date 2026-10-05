@@ -45,6 +45,44 @@ The ``DagFileProcessorManager`` coordinates this work but never runs user code i
 4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered Dag objects
 
 
+Experimental LocalExecutor parsing
+----------------------------------
+
+To try parsing through an executor, run:
+
+.. code-block:: bash
+
+    airflow dag-processor --executor-parsing --num-runs 1
+
+Use a fresh development database if you previously ran the broader PoC; its
+experimental migration revisions are not included in this local proof.
+
+This proof of concept keeps the existing manager's discovery, bundle refresh, file
+ordering, callbacks, priority requests, metadata persistence and stale-Dag cleanup.
+A dedicated ``LocalExecutor`` replaces its direct process launches. Each ``ParseDagFile``
+workload runs the existing ``DagFileProcessorProcess``, including its SDK subprocess
+and request handlers. ``[dag_processor] parsing_processes`` controls the executor's
+capacity independently of task execution.
+
+The worker returns serialized results through a private temporary directory on the same
+host. Cancellation is cooperative; the supervisor checks it while servicing the parser
+and enforces the file timeout. Results for cancelled work are discarded. The directory
+is removed after the executor stops. After a restart, the manager rediscovers files and
+parses them again, as it does in the regular mode.
+
+This mode shares the Dag processor's trust and credential environment. It uses the
+existing in-process Execution API for SDK requests and the existing manager for database
+writes. It does not provide remote execution, scheduler hosting, new database tables,
+or durable execution recovery. Those experiments are separate from this local pool
+replacement. Normal task executors do not enable parsing workloads.
+
+Verify the command and its subprocesses with:
+
+.. code-block:: bash
+
+    breeze run pytest airflow-core/tests/integration/dag_processing/test_executor_parsing.py -v
+
+
 Fine-tuning your Dag processor performance
 ------------------------------------------
 
