@@ -113,6 +113,48 @@ class TestSCBackwardsCompatibility:
                 )
                 == 3000
             )
+            for container_type in ("initContainers", "containers"):
+                container_name = "git-sync-init" if container_type == "initContainers" else "git-sync"
+                security_context = jmespath.search(
+                    f"spec.template.spec.{container_type}[?name=='{container_name}'].securityContext | [0]",
+                    doc,
+                )
+                assert security_context["allowPrivilegeEscalation"] is False
+                assert security_context["capabilities"] == {"drop": ["ALL"]}
+
+    def test_gitsync_explicit_container_security_context(self):
+        expected_context = {"runAsUser": 4000, "readOnlyRootFilesystem": True}
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "securityContexts": {"container": expected_context},
+                    }
+                },
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert (
+                jmespath.search(
+                    "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext | [0]",
+                    doc,
+                )
+                == expected_context
+            )
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[?name=='git-sync'].securityContext | [0]",
+                    doc,
+                )
+                == expected_context
+            )
 
 
 class TestSecurityContext:
