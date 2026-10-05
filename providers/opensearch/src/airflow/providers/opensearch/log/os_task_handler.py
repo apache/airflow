@@ -270,6 +270,9 @@ def _render_log_id(
 
 
 def _get_ti_id_fields(ti: TaskInstance | RuntimeTI) -> dict[str, str]:
+    # Before 3.4 a try can reuse the previous try's id, so only log_id identifies it.
+    if not AIRFLOW_V_3_4_PLUS:
+        return {}
     return {"ti_id": str(ti.id)}
 
 

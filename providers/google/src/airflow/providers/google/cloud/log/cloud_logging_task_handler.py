@@ -338,8 +338,8 @@ def _task_instance_to_labels(ti) -> dict[str, str]:
         else str(ti.execution_date.isoformat()),
         LABEL_TRY_NUMBER: str(ti.try_number),
     }
-    # Airflow 2 task instances have no id.
-    if ti_id := getattr(ti, "id", None):
+    # Before 3.4 a try can reuse the previous try's id, so only the other labels identify it.
+    if AIRFLOW_V_3_4_PLUS and (ti_id := getattr(ti, "id", None)):
         labels[LABEL_TI_ID] = str(ti_id)
     return labels
 

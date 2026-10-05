@@ -20,6 +20,7 @@ import logging
 import warnings
 from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import PropertyMock
 from urllib.parse import parse_qs, urlsplit
@@ -33,12 +34,31 @@ from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.cloud.log.cloud_logging_task_handler import (
     CloudLoggingRemoteLogIO,
     CloudLoggingTaskHandler,
+    _task_instance_to_labels,
 )
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_4_PLUS
+
+
+@pytest.mark.parametrize(
+    ("is_airflow_3_4_plus", "expect_ti_id"),
+    [(False, False), (True, True)],
+)
+def test_ti_id_label_is_only_written_from_airflow_3_4(is_airflow_3_4_plus, expect_ti_id):
+    ti = SimpleNamespace(
+        id="some-ti-id", task_id="t", dag_id="d", try_number=1, logical_date=timezone.utcnow()
+    )
+
+    with mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.AIRFLOW_V_3_4_PLUS",
+        is_airflow_3_4_plus,
+    ):
+        labels = _task_instance_to_labels(ti)
+
+    assert ("ti_id" in labels) is expect_ti_id
 
 
 def _create_list_log_entries_response_mock(messages, token):
@@ -530,7 +550,7 @@ class TestCloudLoggingHandlerTask:
         clear_db_dags()
 
     def _ti_id_labels(self) -> dict[str, str]:
-        return {"ti_id": str(self.ti.id)} if AIRFLOW_V_3_0_PLUS else {}
+        return {"ti_id": str(self.ti.id)} if AIRFLOW_V_3_4_PLUS else {}
 
     def _expect_label_filter(self, *label_conditions: str) -> str:
         if not AIRFLOW_V_3_4_PLUS:

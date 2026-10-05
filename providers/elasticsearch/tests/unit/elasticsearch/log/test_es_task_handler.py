@@ -46,6 +46,7 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
     _build_log_query,
     _clean_date,
     _format_error_detail,
+    _get_ti_id_fields,
     _render_log_id,
     _safe_build_structured_log_message,
     _strip_userinfo,
@@ -58,6 +59,17 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+
+@pytest.mark.parametrize(
+    ("is_airflow_3_4_plus", "expected"),
+    [(False, {}), (True, {"ti_id": "some-ti-id"})],
+)
+def test_ti_id_is_only_written_from_airflow_3_4(is_airflow_3_4_plus, expected):
+    ti = SimpleNamespace(id="some-ti-id")
+
+    with patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_4_PLUS", is_airflow_3_4_plus):
+        assert _get_ti_id_fields(ti) == expected
 
 
 @pytest.mark.parametrize("is_airflow_3_4_plus", [False, True])
@@ -734,6 +746,7 @@ class TestElasticsearchRemoteLogIO:
         file_path.write_text("\n".join(json.dumps(log) for log in sample_logs) + "\n")
         return file_path
 
+    @patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_4_PLUS", True)
     def test_write_to_stdout(self, tmp_json_file, ti, capsys):
         self.elasticsearch_io.write_to_es = False
         self.elasticsearch_io.upload(tmp_json_file, ti)

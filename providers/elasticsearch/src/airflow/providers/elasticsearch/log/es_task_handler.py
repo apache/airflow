@@ -231,7 +231,9 @@ def _render_log_id(log_id_template: str, ti: TaskInstance | TaskInstanceKey, try
 
 
 def _get_ti_id_fields(ti: TaskInstance | TaskInstanceKey) -> dict[str, str]:
-    # Airflow 2 task instances have no id.
+    # Before 3.4 a try can reuse the previous try's id, so only log_id identifies it.
+    if not AIRFLOW_V_3_4_PLUS:
+        return {}
     return {"ti_id": str(ti_id)} if (ti_id := getattr(ti, "id", None)) else {}
 
 
