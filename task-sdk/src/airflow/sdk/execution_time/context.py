@@ -297,7 +297,16 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
 
             if conn:
-                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                # Use aget_uri if the returned connection object supports it (the SDK's own
+                # Connection class does); otherwise fall back to the sync get_uri, since backends
+                # can hand back other connection-shaped objects (e.g. MetastoreBackend returns
+                # airflow.models.Connection, which has no aget_uri).
+                aget_uri = getattr(conn, "aget_uri", None)
+                if aget_uri is not None:
+                    uri = await aget_uri()
+                else:
+                    uri = await sync_to_async(conn.get_uri)()
+                SecretCache.save_connection_uri(conn_id, uri)
                 await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
@@ -986,6 +995,14 @@ class MacrosAccessor:
     """Wrapper to access Macros module lazily."""
 
     _macros_module = None
+    # Class-level defaults so a plain ``MacrosAccessor()`` keeps working and attribute
+    # lookup never falls through to ``__getattr__`` (which would recurse).
+    _team_name: str | None = None
+    _multi_team: bool = False
+
+    def __init__(self, team_name: str | None = None, multi_team: bool = False) -> None:
+        self._team_name = team_name
+        self._multi_team = multi_team
 
     def __getattr__(self, item: str) -> Any:
         # Lazily load Macros module
@@ -993,6 +1010,19 @@ class MacrosAccessor:
             import airflow.sdk.execution_time.macros
 
             self._macros_module = airflow.sdk.execution_time.macros
+
+        if self._multi_team:
+            from airflow.sdk.plugins_manager import get_macro_plugin_teams
+
+            owning_team = get_macro_plugin_teams().get(item)
+            # ``None`` covers both a global plugin and an attribute that is not a plugin
+            # module at all, such as a built-in macro.
+            if owning_team is not None and owning_team != self._team_name:
+                raise AttributeError(
+                    f"Macros of plugin {item!r} belong to team {owning_team!r} and are not "
+                    f"available to this task."
+                )
+
         return getattr(self._macros_module, item)
 
     def __repr__(self) -> str:

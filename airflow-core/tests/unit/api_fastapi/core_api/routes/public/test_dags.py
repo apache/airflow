@@ -22,16 +22,22 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import delete, insert, select, update
+from fastapi.testclient import TestClient
+from sqlalchemy import delete, func, insert, select, update
 
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
@@ -40,6 +46,8 @@ from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
     clear_db_dags,
+    clear_db_deadline,
+    clear_db_deadline_alert,
     clear_db_runs,
     clear_db_serialized_dags,
 )
@@ -66,12 +74,44 @@ API_PREFIX = "/dags"
 DAG3_START_DATE_1 = datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 DAG3_START_DATE_2 = datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
+_DEADLINE_CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.public.test_dags._noop_deadline_callback"
+
+
+async def _noop_deadline_callback(**kwargs):
+    pass
+
+
+def _deadline_callback() -> AsyncCallback:
+    return AsyncCallback(_DEADLINE_CALLBACK_PATH)
+
+
+def _deadline_alert(reference=DeadlineReference.DAGRUN_LOGICAL_DATE, hours: int = 1) -> DeadlineAlert:
+    return DeadlineAlert(reference=reference, interval=timedelta(hours=hours), callback=_deadline_callback())
+
+
+# ``dag_maker`` writes a SerializedDagModel row itself on exit, bypassing
+# ``SerializedDagModel.write_dag``. Without dropping the update interval, the later
+# ``sync_dagbag_to_db()`` short-circuits and no deadline_alert rows are ever created.
+_ALWAYS_RESERIALIZE = conf_vars({("core", "min_serialized_dag_update_interval"): "0"})
+
+
+def _count_deadline_alerts(session, dag_id: str) -> int:
+    session.expire_all()
+    return session.scalar(
+        select(func.count())
+        .select_from(DeadlineAlertModel)
+        .join(SerializedDagModel, SerializedDagModel.id == DeadlineAlertModel.serialized_dag_id)
+        .where(SerializedDagModel.dag_id == dag_id)
+    )
+
 
 class TestDagEndpoint:
     """Common class for /dags related unit tests."""
 
     @staticmethod
     def _clear_db():
+        clear_db_deadline()
+        clear_db_deadline_alert()
         clear_db_connections()
         clear_db_runs()
         clear_db_dags()
@@ -864,6 +904,35 @@ class TestGetDags(TestDagEndpoint):
             f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
         )
 
+    @pytest.mark.parametrize(
+        ("deadline", "expected_alert_count"),
+        [
+            pytest.param(_deadline_alert(), 1, id="single-deadline"),
+            pytest.param(
+                [
+                    _deadline_alert(DeadlineReference.DAGRUN_LOGICAL_DATE, hours=1),
+                    _deadline_alert(DeadlineReference.DAGRUN_QUEUED_AT, hours=2),
+                ],
+                2,
+                id="multiple-deadlines",
+            ),
+        ],
+    )
+    @_ALWAYS_RESERIALIZE
+    def test_get_dags_includes_dag_with_deadline(
+        self, dag_maker, test_client, session, deadline, expected_alert_count
+    ):
+        deadline_dag_id = "test_dag_with_deadline"
+        with dag_maker(deadline_dag_id, schedule=None, start_date=DAG1_START_DATE, deadline=deadline):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == expected_alert_count
+
+        response = test_client.get("/dags")
+        assert response.status_code == 200
+        dag_ids = [dag["dag_id"] for dag in response.json()["dags"]]
+        assert deadline_dag_id in dag_ids
+
 
 class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""
@@ -939,6 +1008,58 @@ class TestPatchDag(TestDagEndpoint):
                 assert tag["dag_id"] == dag_id
                 assert tag["dag_display_name"] == expected_display_name
 
+    @pytest.mark.parametrize(
+        ("requested_state", "is_paused", "is_draining"),
+        [
+            (DagSchedulingState.ACTIVE, False, False),
+            (DagSchedulingState.DRAINING, False, True),
+            (DagSchedulingState.PAUSED, True, False),
+        ],
+    )
+    def test_patch_dag_scheduling_state(self, test_client, session, requested_state, is_paused, is_draining):
+        response = test_client.patch(
+            f"/dags/{DAG1_ID}",
+            json={"scheduling_state": requested_state},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["scheduling_state"] == requested_state
+        dag_model = session.get(DagModel, DAG1_ID)
+        assert dag_model.is_paused is is_paused
+        assert dag_model.is_draining is is_draining
+
+    def test_patch_dag_rejects_multiple_state_fields(self, test_client):
+        response = test_client.patch(
+            f"/dags/{DAG1_ID}",
+            json={"is_paused": False, "scheduling_state": DagSchedulingState.DRAINING},
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        ("body", "expected_state"),
+        [
+            ({"is_paused": True, "scheduling_state": None}, DagSchedulingState.PAUSED),
+            ({"is_paused": False, "scheduling_state": None}, DagSchedulingState.ACTIVE),
+            (
+                {"is_paused": None, "scheduling_state": DagSchedulingState.DRAINING},
+                DagSchedulingState.DRAINING,
+            ),
+        ],
+    )
+    def test_patch_dag_accepts_unset_counterpart_sent_as_null(self, test_client, body, expected_state):
+        """Generated clients send the whole model, so the unused field arrives as an explicit null."""
+        response = test_client.patch(f"/dags/{DAG1_ID}", json=body)
+
+        assert response.status_code == 200
+        assert response.json()["scheduling_state"] == expected_state
+
+    @pytest.mark.parametrize("field", ["is_paused", "scheduling_state"])
+    def test_patch_dag_rejects_null_state(self, test_client, field):
+        response = test_client.patch(f"/dags/{DAG1_ID}", json={field: None})
+
+        assert response.status_code == 422
+
     def test_patch_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 401
@@ -961,6 +1082,27 @@ class TestPatchDag(TestDagEndpoint):
         check_last_log(
             session, dag_id=DAG1_ID, event="patch_dag", logical_date=None, expected_extra=expected_extra
         )
+
+    @_ALWAYS_RESERIALIZE
+    def test_patch_dag_with_deadline(self, dag_maker, test_client, session):
+        deadline_dag_id = "test_patch_deadline_dag"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=DAG1_START_DATE,
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.patch(f"/dags/{deadline_dag_id}", json={"is_paused": True})
+        assert response.status_code == 200
+        assert response.json()["is_paused"] is True
+
+        response = test_client.patch(f"/dags/{deadline_dag_id}", json={"is_paused": False})
+        assert response.status_code == 200
+        assert response.json()["is_paused"] is False
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -1087,6 +1229,32 @@ class TestPatchDags(TestDagEndpoint):
         ).all()
         assert set(paused_dags) == {DAG1_ID, DAG2_ID}
 
+    @pytest.mark.parametrize(
+        ("requested_state", "expected_states"),
+        [
+            (DagSchedulingState.DRAINING, {DAG1_ID: DagSchedulingState.DRAINING}),
+            (DagSchedulingState.PAUSED, {DAG1_ID: DagSchedulingState.PAUSED}),
+        ],
+    )
+    def test_patch_dags_scheduling_state(self, test_client, requested_state, expected_states):
+        response = test_client.patch(
+            "/dags",
+            json={"scheduling_state": requested_state},
+            params={"dag_id_pattern": "dag1"},
+        )
+
+        assert response.status_code == 200
+        assert {dag["dag_id"]: dag["scheduling_state"] for dag in response.json()["dags"]} == expected_states
+
+    def test_patch_dags_rejects_update_mask_for_other_state_field(self, test_client):
+        response = test_client.patch(
+            "/dags",
+            json={"scheduling_state": DagSchedulingState.DRAINING},
+            params={"dag_id_pattern": "dag1", "update_mask": "is_paused"},
+        )
+
+        assert response.status_code == 422
+
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_patch_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
         mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
@@ -1106,6 +1274,238 @@ class TestPatchDags(TestDagEndpoint):
     def test_patch_dags_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch("/dags", json={"is_paused": True})
         assert response.status_code == 403
+
+    @_ALWAYS_RESERIALIZE
+    def test_patch_dags_includes_dag_with_deadline(self, dag_maker, test_client, session):
+        deadline_dag_id = "test_bulk_patch_deadline"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=DAG1_START_DATE,
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.patch(
+            "/dags",
+            json={"is_paused": True},
+            params={"dag_id_pattern": "~"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        patched_ids = {dag["dag_id"] for dag in body["dags"]}
+        assert deadline_dag_id in patched_ids
+        assert all(dag["is_paused"] for dag in body["dags"] if dag["dag_id"] == deadline_dag_id)
+
+
+class TestBulkDags(TestDagEndpoint):
+    """Unit tests for bulk pause/resume/drain of Dags."""
+
+    def test_bulk_update_pauses_dags(self, test_client, session):
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                            {"dag_id": DAG2_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert sorted(body["update"]["success"]) == [DAG1_ID, DAG2_ID]
+        assert body["update"]["errors"] == []
+        session.expire_all()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG1_ID)) is True
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG2_ID)) is True
+        check_last_log(session, dag_id=None, event="bulk_dags", logical_date=None)
+
+    def test_bulk_update_drains_dags(self, test_client, session):
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.DRAINING},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [DAG1_ID]
+        session.expire_all()
+        dag = session.scalar(select(DagModel).where(DagModel.dag_id == DAG1_ID))
+        assert dag.is_paused is False
+        assert dag.is_draining is True
+
+    def test_bulk_update_unpauses_paused_and_draining_dags(self, test_client, session):
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG2_ID).values(is_draining=True))
+        session.commit()
+
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.ACTIVE},
+                            {"dag_id": DAG2_ID, "scheduling_state": DagSchedulingState.ACTIVE},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert sorted(response.json()["update"]["success"]) == [DAG1_ID, DAG2_ID]
+        session.expire_all()
+        for dag_id in (DAG1_ID, DAG2_ID):
+            dag = session.get(DagModel, dag_id)
+            assert dag.is_paused is False
+            assert dag.is_draining is False
+
+    def test_bulk_update_accepts_legacy_is_paused(self, test_client, session):
+        response = test_client.patch(
+            "/dags/bulk",
+            json={"actions": [{"action": "update", "entities": [{"dag_id": DAG1_ID, "is_paused": True}]}]},
+        )
+        assert response.status_code == 200
+        session.expire_all()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG1_ID)) is True
+
+    def test_bulk_update_not_found_fails(self, test_client, session):
+        """FAIL semantics: an unknown dag_id fails the whole action and nothing is updated."""
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                            {"dag_id": "does_not_exist", "scheduling_state": DagSchedulingState.PAUSED},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == []
+        errors = body["update"]["errors"]
+        assert len(errors) == 1
+        assert errors[0]["status_code"] == 404
+        assert "does_not_exist" in errors[0]["error"]
+        session.expire_all()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG1_ID)) is False
+
+    def test_bulk_update_not_found_skip(self, test_client, session):
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "action_on_non_existence": "skip",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                            {"dag_id": "does_not_exist", "scheduling_state": DagSchedulingState.PAUSED},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [DAG1_ID]
+        assert body["update"]["errors"] == []
+
+    @pytest.mark.parametrize("action", ["create", "delete"])
+    def test_bulk_create_and_delete_not_supported(self, test_client, action):
+        entity = (
+            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.PAUSED}
+            if action == "create"
+            else DAG1_ID
+        )
+        response = test_client.patch(
+            "/dags/bulk",
+            json={"actions": [{"action": action, "entities": [entity]}]},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body[action]["success"] == []
+        assert body[action]["errors"][0]["status_code"] == 405
+
+    def test_bulk_update_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(
+            "/dags/bulk",
+            json={"actions": [{"action": "update", "entities": [{"dag_id": DAG1_ID, "is_paused": True}]}]},
+        )
+        assert response.status_code == 401
+
+    def test_bulk_update_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(
+            "/dags/bulk",
+            json={"actions": [{"action": "update", "entities": [{"dag_id": DAG1_ID, "is_paused": True}]}]},
+        )
+        assert response.status_code == 403
+
+    def test_bulk_update_rejects_unauthorized_dag_ids(self, test_client, session):
+        """A 403 if any entity references a Dag the user can't access; nothing is updated."""
+        restricted_bundle = DagBundleModel(name="restricted-bundle-bulk")
+        restricted_team = Team(name="restricted-team-bulk")
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == DAG2_ID).values(bundle_name="restricted-bundle-bulk")
+        )
+        session.commit()
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.patch(
+                "/dags/bulk",
+                json={
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {"dag_id": DAG1_ID, "is_paused": True},
+                                {"dag_id": DAG2_ID, "is_paused": True},
+                            ],
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 403
+        session.expire_all()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG1_ID)) is False
 
 
 class TestFavoriteDag(TestDagEndpoint):
@@ -1145,6 +1545,19 @@ class TestFavoriteDag(TestDagEndpoint):
 
         response = test_client.post(f"/dags/{DAG1_ID}/favorite")
         assert response.status_code == 409
+        assert response.json()["detail"] == "Dag is already marked as favorite"
+
+    def test_favorite_dag_existence_check_is_bounded(self, test_client):
+        """The existing-favorite existence probe must ask the DB for one row."""
+        with capture_orm_selects("dag_favorite") as statements:
+            response = test_client.post(f"/dags/{DAG1_ID}/favorite")
+
+        assert response.status_code == 204
+        assert statements, "expected the endpoint to query the dag_favorite table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), (
+                f"favorite existence check is not bounded to one row: {sql}"
+            )
 
 
 class TestUnfavoriteDag(TestDagEndpoint):
@@ -1272,7 +1685,9 @@ class TestDagDetails(TestDagEndpoint):
             "is_stale": False,
             "latest_dag_version": {
                 "bundle_name": "dag_maker",
-                "bundle_url": "http://test_host.github.com/tree/None/dags",
+                # The bundle has no version yet, and a url template that interpolates one has
+                # nothing to render until it does.
+                "bundle_url": None,
                 "bundle_version": None,
                 "created_at": mock.ANY,
                 "dag_id": "test_dag2",
@@ -1304,6 +1719,7 @@ class TestDagDetails(TestDagEndpoint):
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
             "rerun_with_latest_version": None,
+            "scheduling_state": "active",
             "start_date": start_date,
             "tags": [],
             "template_search_path": None,
@@ -1447,6 +1863,24 @@ class TestDagDetails(TestDagEndpoint):
             session.execute(delete(Team).where(Team.name == "team-details"))
             session.commit()
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @_ALWAYS_RESERIALIZE
+    def test_dag_details_with_deadline(self, dag_maker, test_client, session):
+        deadline_dag_id = "test_details_deadline"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=DAG1_START_DATE,
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.get(f"/dags/{deadline_dag_id}/details")
+        assert response.status_code == 200
+        assert response.json()["dag_id"] == deadline_dag_id
+
 
 class TestGetDag(TestDagEndpoint):
     """Unit tests for Get DAG."""
@@ -1506,6 +1940,7 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
             "relative_fileloc": "test_dags.py",
+            "scheduling_state": "active",
             "tags": tags,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
@@ -1548,6 +1983,25 @@ class TestGetDag(TestDagEndpoint):
     def test_get_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}")
         assert response.status_code == 403
+
+    @_ALWAYS_RESERIALIZE
+    def test_get_dag_with_deadline(self, dag_maker, test_client, session):
+        deadline_dag_id = "test_get_deadline_dag"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=DAG1_START_DATE,
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.get(f"/dags/{deadline_dag_id}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_id"] == deadline_dag_id
+        assert body["is_paused"] is False
 
 
 class TestDagWithoutFileloc(TestDagEndpoint):
@@ -1638,6 +2092,30 @@ class TestDeleteDAG(TestDagEndpoint):
 
         if details_response.status_code == 204:
             check_last_log(session, dag_id=dag_id, event="delete_dag", logical_date=None)
+
+    @_ALWAYS_RESERIALIZE
+    def test_delete_dag_with_deadline(self, dag_maker, test_client, session):
+        """Deleting a DAG with deadline alerts succeeds without FK constraint errors."""
+        deadline_dag_id = "test_delete_deadline_dag"
+        with dag_maker(
+            deadline_dag_id,
+            schedule=None,
+            start_date=datetime(2024, 10, 10, tzinfo=timezone.utc),
+            deadline=_deadline_alert(),
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        assert _count_deadline_alerts(session, deadline_dag_id) == 1
+
+        response = test_client.get(f"{API_PREFIX}/{deadline_dag_id}")
+        assert response.status_code == 200
+
+        delete_response = test_client.delete(f"{API_PREFIX}/{deadline_dag_id}")
+        assert delete_response.status_code == 204
+
+        details_response = test_client.get(f"{API_PREFIX}/{deadline_dag_id}/details")
+        assert details_response.status_code == 404
+        assert _count_deadline_alerts(session, deadline_dag_id) == 0
 
     def test_delete_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.delete(f"{API_PREFIX}/{DAG1_ID}")

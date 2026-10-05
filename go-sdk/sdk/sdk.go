@@ -35,7 +35,7 @@ const (
 	XComReturnValueKey = "return_value"
 )
 
-// VariableClient reads Airflow Variables.
+// VariableClient reads, writes, and deletes Airflow Variables.
 //
 // Go has no function overloading, so the "give me the raw string" and
 // "give me a decoded struct" cases are split into two methods rather
@@ -67,6 +67,19 @@ type VariableClient interface {
 	//
 	// pointer must be a non-nil pointer, as required by encoding/json.
 	UnmarshalJSONVariable(ctx context.Context, key string, pointer any) error
+
+	// SetVariable stores value under key, creating the Variable or replacing
+	// an existing one. An empty description is sent as null, which clears any
+	// description the Variable already had.
+	//
+	// The value is stored as-is: encode structured data (for example with
+	// json.Marshal) before storing it. A value supplied by a secrets backend
+	// (for example an AIRFLOW_VAR_<KEY> environment variable) still takes
+	// precedence over the stored value when the Variable is read back.
+	SetVariable(ctx context.Context, key, value, description string) error
+
+	// DeleteVariable removes the Variable stored under key.
+	DeleteVariable(ctx context.Context, key string) error
 }
 
 // ConnectionClient reads Airflow Connections.
@@ -90,14 +103,14 @@ type ConnectionClient interface {
 // another task's XCom, or to push under a custom key.
 type XComClient interface {
 	// GetXCom returns the value stored under key by the task identified by
-	// dagId/runId/taskId. For a mapped task instance pass its mapIndex,
+	// dagID/runID/taskID. For a mapped task instance pass its mapIndex,
 	// otherwise pass nil. If no value exists the error wraps XComNotFound.
 	//
 	// value is reserved for future typed decoding and is currently ignored; the
 	// stored value is returned as the first result instead.
 	GetXCom(
 		ctx context.Context,
-		dagId, runId, taskId string,
+		dagID, runID, taskID string,
 		mapIndex *int,
 		key string,
 		value any,
@@ -107,9 +120,9 @@ type XComClient interface {
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error
 }
 
-// Client is the full task-facing API: read Variables and Connections, and
-// read/write XCom. A task that declares an sdk.Client parameter is handed one
-// by the runtime. If a task needs only one capability, ask for the narrower
+// Client is the full task-facing API: read/write Variables, read Connections,
+// and read/write XCom. A task gets one from its airflow.Context by calling
+// actx.Client(). A helper that needs only one capability can take the narrower
 // VariableClient, ConnectionClient, or XComClient instead.
 type Client interface {
 	VariableClient

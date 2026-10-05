@@ -23,13 +23,11 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Any
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreAllocateIdsOperator,
-    CloudDatastoreBeginTransactionOperator,
     CloudDatastoreCommitOperator,
     CloudDatastoreDeleteOperationOperator,
     CloudDatastoreExportEntitiesOperator,
@@ -60,11 +58,6 @@ KEYS = [
 ]
 # [END how_to_keys_def]
 
-# [START how_to_transaction_def]
-TRANSACTION_OPTIONS: dict[str, Any] = {"readWrite": {}}
-# [END how_to_transaction_def]
-
-
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -81,14 +74,6 @@ with DAG(
         task_id="allocate_ids", partial_keys=KEYS, project_id=PROJECT_ID
     )
     # [END how_to_allocate_ids]
-
-    # [START how_to_begin_transaction]
-    begin_transaction_commit = CloudDatastoreBeginTransactionOperator(
-        task_id="begin_transaction_commit",
-        transaction_options=TRANSACTION_OPTIONS,
-        project_id=PROJECT_ID,
-    )
-    # [END how_to_begin_transaction]
 
     # [START how_to_commit_def]
     COMMIT_BODY = {
@@ -156,7 +141,6 @@ with DAG(
         create_bucket,
         # TEST BODY
         allocate_ids,
-        begin_transaction_commit,
         commit_task,
         export_task,
         import_task,

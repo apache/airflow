@@ -38,7 +38,7 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
         when on_kill is called.
     """
 
-    template_fields = ["materialization_id"]
+    template_fields = ["materialization_id", "looker_conn_id"]
 
     def __init__(
         self, materialization_id: str, looker_conn_id: str, cancel_on_kill: bool = True, **kwargs

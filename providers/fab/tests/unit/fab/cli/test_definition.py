@@ -16,11 +16,29 @@
 # under the License.
 from __future__ import annotations
 
+import shlex
+
+import pytest
+
 from airflow.providers.fab.cli.definition import (
+    PERMISSIONS_CLEANUP_COMMAND,
     ROLES_COMMANDS,
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
+    get_parser,
 )
+
+
+def _extract_epilog_examples(command):
+    examples = []
+    for line in (command.epilog or "").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("$ airflow "):
+            examples.append(stripped.removeprefix("$ "))
+    if not examples:
+        # An empty parametrize set is silently skipped, which would hide the loss of this guard.
+        raise ValueError(f"No '$ airflow ...' example found in the {command.name} epilog")
+    return examples
 
 
 class TestCliDefinition:
@@ -32,3 +50,10 @@ class TestCliDefinition:
 
     def test_sync_perm_command(self):
         assert SYNC_PERM_COMMAND.name == "sync-perm"
+
+    @pytest.mark.parametrize(
+        "example", _extract_epilog_examples(PERMISSIONS_CLEANUP_COMMAND), ids=lambda e: e
+    )
+    def test_permissions_cleanup_epilog_examples_are_runnable(self, example):
+        args = get_parser().parse_args(shlex.split(example)[1:])
+        assert args.subcommand == PERMISSIONS_CLEANUP_COMMAND.name

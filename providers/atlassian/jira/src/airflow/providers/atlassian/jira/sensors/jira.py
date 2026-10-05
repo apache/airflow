@@ -37,6 +37,8 @@ class JiraSensor(BaseSensorOperator):
     :param result_processor: function that return boolean and act as a sensor response
     """
 
+    template_fields: Sequence[str] = ("jira_conn_id",)
+
     def __init__(
         self,
         *,
@@ -74,7 +76,10 @@ class JiraTicketSensor(JiraSensor):
     :param result_processor: function that return boolean and act as a sensor response
     """
 
-    template_fields: Sequence[str] = ("ticket_id",)
+    template_fields: Sequence[str] = (
+        "ticket_id",
+        "jira_conn_id",
+    )
 
     def __init__(
         self,

@@ -25,6 +25,37 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add GCS support to the DataFusion object storage layer (#73370)``
+* ``Allow DataSourceConfig to represent a plain database table (#73273)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Read the legacy extra__google_cloud_platform__ prefix for GCS credentials (#73613)``
+* ``Fix DataFusion storage-type error message on Python 3.11+ (#73413)``
+* ``Reject a DataSourceConfig with no uri or format in DataFusionEngine (#73287)``
+* ``Fix exception messages rendering as a tuple instead of the value (#73296)``
+
+Doc-only
+~~~~~~~~
+
+* ``Rewrite the 'common.sql' connections guide and fix the dialect extra name (#73605)``
+* ``Fix grammar in the dialects documentation (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Add tests for DataFusion base classes (#71983)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
 2.1.1
 .....
 

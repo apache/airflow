@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import convert_roots, validate_schema_version
+from airflow.sdk.coordinators._bundle_metadata import validate_schema_version
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 
 if TYPE_CHECKING:
@@ -82,8 +82,8 @@ def _iter_dir(directory: pathlib.Path) -> Iterator[pathlib.Path]:
         return
 
 
-def _calculate_classpath(jars_root: Sequence[pathlib.Path]) -> str:
-    jars = (p.as_posix() for p in _find_jars(jars_root))
+def _calculate_classpath(roots: Sequence[pathlib.Path]) -> str:
+    jars = (p.as_posix() for p in _find_jars(roots))
     return os.pathsep.join(sorted(jars))  # Keep output deterministic.
 
 
@@ -163,7 +163,7 @@ class JavaCoordinator(SubprocessCoordinator):
         "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
-                "jars_root": ["~/airflow/jars"],
+                "task_handler_bundle_name": "java-task-handlers",
                 "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
                 "jvm_args": ["-Xmx1024m"]
             }
@@ -172,15 +172,22 @@ class JavaCoordinator(SubprocessCoordinator):
     :param java_executable: Path to the ``java`` command (defaults to
         ``"java"``, which relies on ``$PATH``).
     :param jvm_args: Extra arguments passed to the JVM (e.g. ``["-Xmx512m"]``).
-    :param jars_root: A list of directories scanned for JAR bundles.
+    :param task_handler_bundle_name: Name of the Dag bundle holding the JARs. It
+        must be registered in ``[dag_processor] dag_bundle_config_list``. If
+        unset, the task's own Dag bundle is used.
     :param main_class: Explicit entry point to execute with *java_executable*.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
 
-    If *main_class* is not explicitly set, JavaCoordinator scans *jars_root* to
+    Every JAR in the bundle goes on the classpath, so one bundle is one
+    classpath. Handlers that need conflicting dependency versions belong in
+    separate bundles, each served by its own coordinator and queue.
+
+    If *main_class* is not explicitly set, JavaCoordinator scans the bundle to
     find an executable JAR (one with Main-Class set in its metadata). If more
     than one executable JAR is found, it may be nondeterministic which one ends
-    up being executed.
+    up being executed, so set *main_class* when more than one JAR in the bundle
+    declares Main-Class.
 
     A JAR containing metadata *Airflow-Supervisor-Schema-Version* should also be
     available to specify the wire schema version. The JAR containing the Java
@@ -198,18 +205,17 @@ class JavaCoordinator(SubprocessCoordinator):
 
     java_executable: str = "java"
     jvm_args: list[str] = attrs.field(factory=list)
-    jars_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        validator=attrs.validators.min_len(1),
-    )
     main_class: str = ""
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        jar = _JarInfo.find(self.jars_root, self.main_class)
+        # Without main_class, the first executable JAR in walk order wins; tracked at
+        # https://github.com/apache/airflow/issues/71134
+        roots = self._get_scan_roots()
+        jar = _JarInfo.find(roots, self.main_class)
         command = [
             self.java_executable,
             "-classpath",
-            _calculate_classpath(self.jars_root),
+            _calculate_classpath(roots),
             *self.jvm_args,
             jar.main_class,
         ]
