@@ -51,7 +51,7 @@ scheduler:
 # config.dag_processor.dag_bundle_config_list directly -- the chart renders the config from this and
 # it is the recommended, drift-safe path.
 #
-# go-task-handlers / java-task-handlers / ts-task-handlers are the coordinators' task_handler_bundle_name bundles:
+# go-task-handlers / java-task-handlers / ts-task-handlers are the task_handler_bundle_name bundles:
 # the worker pod's init container stages each artifact bucket into these paths (stage_artifacts.py).
 # They exist only in the worker pods, so the dag-processor finds no files in them.
 dagProcessor:
