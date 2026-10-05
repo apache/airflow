@@ -58,23 +58,24 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
     # Callback /run exchanges a single-use callback token for an execution token.
     "PATCH /callbacks/{callback_id}/run": {"callback"},
     # Requests a Dag processor makes on behalf of the code it parses and the callbacks it runs.
-    "GET /connections/{connection_id:path}": {"execution", "dag_processor"},
-    "GET /variables/keys": {"execution", "dag_processor"},
-    "GET /variables/{variable_key:path}": {"execution", "dag_processor"},
-    "PUT /variables/{variable_key:path}": {"execution", "dag_processor"},
-    "DELETE /variables/{variable_key:path}": {"execution", "dag_processor"},
-    "GET /task-instances/count": {"execution", "dag_processor"},
-    "GET /task-instances/states": {"execution", "dag_processor"},
-    "GET /task-instances/previous/{dag_id}/{task_id}": {"execution", "dag_processor"},
-    "GET /dag-runs/previous": {"execution", "dag_processor"},
-    "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}": {"execution", "dag_processor"},
-    "HEAD /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}": {"execution", "dag_processor"},
-    "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}": {"execution", "dag_processor"},
-    "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/slice": {"execution", "dag_processor"},
+    "GET /connections/{connection_id:path}": {"execution", "dag_processor", "dag_parse"},
+    "GET /variables/keys": {"execution", "dag_parse"},
+    "GET /variables/{variable_key:path}": {"execution", "dag_processor", "dag_parse"},
+    "PUT /variables/{variable_key:path}": {"execution", "dag_parse"},
+    "DELETE /variables/{variable_key:path}": {"execution", "dag_parse"},
+    "GET /task-instances/count": {"execution", "dag_parse"},
+    "GET /task-instances/states": {"execution", "dag_parse"},
+    "GET /task-instances/previous/{dag_id}/{task_id}": {"execution", "dag_parse"},
+    "GET /dag-runs/previous": {"execution", "dag_parse"},
+    "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}": {"execution", "dag_parse"},
+    "HEAD /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}": {"execution", "dag_parse"},
+    "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}": {"execution", "dag_parse"},
+    "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/slice": {"execution", "dag_parse"},
     # The Job lifecycle of a Dag processor session; registration exchanges the session token for a Job token.
     "POST /jobs": {"dag_processor_session"},
     "POST /jobs/{job_id}/heartbeat": {"dag_processor"},
     "POST /jobs/{job_id}/complete": {"dag_processor"},
+    "POST /jobs/{job_id}/parse-token": {"dag_processor"},
 }
 
 # Routes that check the Job of a dag_processor token themselves instead of requiring it to be open.
@@ -84,6 +85,7 @@ DAG_PROCESSOR_LIFECYCLE_ROUTES = {
     "POST /jobs",
     "POST /jobs/{job_id}/heartbeat",
     "POST /jobs/{job_id}/complete",
+    "POST /jobs/{job_id}/parse-token",
 }
 
 # Every message a Dag file parsing process can send its supervisor, mapped to the Execution API
@@ -185,7 +187,7 @@ class TestDagProcessorMessageRoutes:
         admitting = {
             route
             for route, types in _all_route_policies().items()
-            if types & {"dag_processor", "dag_processor_session"}
+            if types & {"dag_processor", "dag_processor_session", "dag_parse"}
         }
 
         assert (

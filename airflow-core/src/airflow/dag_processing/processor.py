@@ -88,6 +88,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+    from airflow.dag_processing.api_client import DagParseContext
     from airflow.sdk.api.client import Client
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.context import Context
@@ -603,6 +604,7 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
 
     bundle_name: str
     dag_file_rel_path: str
+    _api_parse_context: DagParseContext | None = attrs.field(init=False, default=None)
 
     def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
         base = super()._get_target_loggers()
@@ -681,13 +683,21 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             )
             return
         # Lazy: the HTTP client pulls in the Execution API versions, which parse processes never need.
-        from airflow.dag_processing.api_client import DagProcessorAPIClient
+        from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody
+        from airflow.dag_processing.api_client import DagParseContext, DagProcessorAPIClient
 
         if not isinstance(self.client, DagProcessorAPIClient):
             super()._handle_request(msg, log, req_id)
             return
-        # The API authorizes a Dag processor's request against the bundle it is made for.
-        with self.client.use_bundle(self.bundle_name):
+        if self._api_parse_context is None:
+            self._api_parse_context = DagParseContext(
+                request=DagParseTokenBody(
+                    attempt_id=self.id,
+                    bundle_name=self.bundle_name,
+                    relative_fileloc=self.dag_file_rel_path,
+                )
+            )
+        with self.client.use_parse(self._api_parse_context):
             super()._handle_request(msg, log, req_id)
 
     def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:

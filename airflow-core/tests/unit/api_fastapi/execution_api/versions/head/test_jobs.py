@@ -288,6 +288,31 @@ class TestHeartbeatJob:
         assert job.latest_heartbeat == NOW
 
 
+class TestParseTokenExchange:
+    def test_refuses_a_parent_credential_that_expires_after_authentication(
+        self, client, session, authenticate
+    ):
+        job = _create_job(session)
+        authenticate(
+            scope="dag_processor",
+            dag_bundles=frozenset({"bundle_a"}),
+            job_id=job.id,
+            exp=NOW.timestamp(),
+        )
+
+        response = client.post(
+            f"/execution/jobs/{job.id}/parse-token",
+            json={
+                "attempt_id": str(REGISTRATION_ID),
+                "bundle_name": "bundle_a",
+                "relative_fileloc": "dag.py",
+            },
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Processor credential has expired"
+
+
 class TestCompleteJob:
     def test_records_the_final_state(self, client, session, authenticate, time_machine):
         job = _create_job(session)

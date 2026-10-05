@@ -96,6 +96,7 @@ class AddDagProcessorJobEndpoints(VersionChange):
         endpoint("/jobs", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/heartbeat", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/complete", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/parse-token", ["POST"]).didnt_exist,
     )
 
 

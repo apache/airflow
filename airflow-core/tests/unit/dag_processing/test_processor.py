@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import os
 import pathlib
@@ -2469,12 +2470,26 @@ class TestDagFileProcessorProcess:
         token_file = tmp_path / "processor.jwt"
         token_file.write_text("session-token")
         job_token = jwt.encode({"iat": 0, "exp": 300, "scope": "dag_processor", "job_id": 1}, "secret")
+        parse_token = jwt.encode(
+            {
+                "iat": 0,
+                "exp": 300,
+                "sub": str(proc.id),
+                "scope": "dag_parse",
+                "job_id": 1,
+                "dag_bundles": [proc.bundle_name],
+                "relative_fileloc": proc.dag_file_rel_path,
+            },
+            "secret",
+        )
         requests = []
 
         def handle(request):
             requests.append(request)
             if request.url.path.endswith("/jobs"):
                 return httpx.Response(201, json={"job_id": 1, "token": job_token})
+            if request.url.path.endswith("/parse-token"):
+                return httpx.Response(200, json={"token": parse_token})
             return httpx.Response(200, json={"key": "my_key", "value": "my_value"})
 
         with DagProcessorAPIClient(
@@ -2486,15 +2501,39 @@ class TestDagFileProcessorProcess:
             client.register_job()
             proc.client = client
             proc._handle_request(GetVariable(key="my_key"), structlog.get_logger(), req_id=42)
+            proc._handle_request(GetVariable(key="my_key"), structlog.get_logger(), req_id=43)
 
         assert requests[-1].url.path == "/execution/variables/my_key"
         assert requests[-1].headers["Airflow-Dag-Bundle"] == "mybundle"
-        send_msg.assert_called_once_with(
+        assert requests[-1].headers["Authorization"] == f"Bearer {parse_token}"
+        assert json.loads(requests[1].content) == {
+            "attempt_id": str(proc.id),
+            "bundle_name": proc.bundle_name,
+            "relative_fileloc": proc.dag_file_rel_path,
+        }
+        assert sum(request.url.path.endswith("/parse-token") for request in requests) == 1
+        assert send_msg.call_count == 2
+        send_msg.assert_any_call(
             proc,
             VariableResult(key="my_key", value="my_value"),
             request_id=42,
             error=None,
             exclude_unset=True,
+        )
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_local_parse_messages_do_not_require_a_token_exchange(self, send_msg, proc, tmp_path):
+        with DagProcessorAPIClient(
+            base_url="http://unused/", token_file=tmp_path / "missing-token", hostname="processor-1"
+        ) as client:
+            proc.client = client
+            proc._handle_request(
+                comms.GetPrevSuccessfulDagRun(ti_id=uuid.uuid4()), structlog.get_logger(), req_id=42
+            )
+
+        assert client.job_id is None
+        send_msg.assert_called_once_with(
+            proc, comms.PrevSuccessfulDagRunResult(), request_id=42, error=None, exclude_unset=True
         )
 
     @pytest.fixture

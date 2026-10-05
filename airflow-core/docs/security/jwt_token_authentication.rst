@@ -412,14 +412,14 @@ they are designed to survive executor queue wait times without needing refresh. 
 ensures long-running tasks do not lose API access without requiring the worker to
 re-authenticate.
 
-No token revocation (Execution API)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Task-token revocation (Execution API)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
+Task Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
 (default 10 minutes) and automatically refreshed by the ``JWTReissueMiddleware``.
 ``workload``-scoped tokens (tracking ``[scheduler] task_queued_timeout``) are not refreshed —
-they expire naturally after their validity period. Revocation is not part of the Execution API
-security model.
+they expire naturally after their validity period. Processor and parsing credentials additionally
+require an open, owning Job, as described under "Dag processor HTTP client credentials" below.
 
 
 
@@ -484,6 +484,30 @@ processes as a different, low-privilege user) or network-level restrictions.
 
 See :doc:`/security/security_model` for the full security implications, deployment hardening
 guidance, and the planned strategic and tactical improvements.
+
+
+Dag processor HTTP client credentials
+-------------------------------------
+
+When a manager is supplied with a registered ``DagProcessorAPIClient``, its subprocess
+requests use file-scoped credentials. This client integration does not yet replace the
+manager's database-backed result persistence and orchestration.
+
+The externally provisioned ``dag_processor_session`` token registers one processor Job.
+Its ``dag_processor`` token manages that Job, reads Connections and Variables needed for
+bundle preparation, and exchanges credentials through ``POST /jobs/{job_id}/parse-token``.
+The manager chooses the bundle, bundle-relative file location, and parsing-attempt UUID.
+
+The returned ``dag_parse`` token binds these identifiers to the processor's session and
+Job. It authorizes parse-time operations within that bundle and has no Job-management or
+token-exchange access. A bundle header cannot override its signed bundle. The token expires
+no later than the management credential; ending or replacing the Job invalidates it.
+The supervisor caches it for the attempt and renews it through the manager when needed.
+
+File identity provides request attribution; Connection and Variable permissions remain
+bundle/team based. Archives retain one file identity under the current processor model.
+This exchange does not isolate hostile code from credentials accessible on the processor
+host. The process and deployment limitations described above still apply.
 
 
 Workload Isolation and Current Limitations

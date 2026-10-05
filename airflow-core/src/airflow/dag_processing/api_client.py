@@ -22,6 +22,7 @@ import math
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass, field
 from pathlib import Path
 from time import monotonic
 from typing import Any
@@ -33,6 +34,8 @@ import structlog
 from uuid6 import uuid7
 
 from airflow.api_fastapi.execution_api.datamodels.job import (
+    DagParseTokenBody,
+    DagParseTokenResponse,
     JobCompleteBody,
     JobHeartbeatResponse,
     JobRegisterBody,
@@ -46,6 +49,16 @@ from airflow.sdk.execution_time.comms import GetConnection, GetVariable, MaskSec
 from airflow.sdk.execution_time.request_handlers import handle_get_connection, handle_get_variable
 
 log = structlog.get_logger(__name__)
+
+
+@dataclass
+class DagParseContext:
+    """Credential cache owned by one parsing subprocess's supervisor."""
+
+    request: DagParseTokenBody
+    token: str | None = field(default=None, repr=False)
+    expires_at: float = 0.0
+
 
 # Core owns the control contracts, so it speaks the version its datamodels match, as the Task SDK does
 # for its own; runtime requests keep the SDK's negotiated version.
@@ -113,6 +126,7 @@ class DagProcessorAPIClient(Client):
         self._retry_renewal_at = 0.0
         self._restart_required = False
         self._bundle_context: ContextVar[str | None] = ContextVar("dag_processor_bundle", default=None)
+        self._parse_context: ContextVar[DagParseContext | None] = ContextVar("dag_parse", default=None)
         self._job_id: int | None = None
         self._completion_state: TerminalJobState | None = None
         self._completed = False
@@ -140,6 +154,47 @@ class DagProcessorAPIClient(Client):
             yield self
         finally:
             self._bundle_context.reset(context)
+
+    @contextmanager
+    def use_parse(self, context: DagParseContext) -> Iterator[DagProcessorAPIClient]:
+        """Answer a subprocess with its own credential; restore the manager context afterwards."""
+        selected = self._parse_context.set(context)
+        try:
+            yield self
+        finally:
+            self._parse_context.reset(selected)
+
+    def _get_parse_token(self, context: DagParseContext, *, retry: bool) -> str:
+        if context.token is not None and monotonic() < context.expires_at:
+            return context.token
+        self._ensure_job_token(retry=retry)
+        started_at = monotonic()
+        response = super().request(
+            "POST",
+            f"jobs/{self._require_job_id()}/parse-token",
+            json=context.request.model_dump(mode="json"),
+            retry=retry,
+            headers=_JOB_API_HEADERS,
+        )
+        parsed = DagParseTokenResponse.model_validate_json(response.content)
+        try:
+            claims = jwt.decode(parsed.token, options={"verify_signature": False})
+            lifetime = float(claims["exp"]) - float(claims["iat"])
+            if (
+                not math.isfinite(lifetime)
+                or lifetime <= 0
+                or claims.get("scope") != "dag_parse"
+                or claims.get("sub") != str(context.request.attempt_id)
+                or claims.get("job_id") != self._job_id
+                or claims.get("dag_bundles") != [context.request.bundle_name]
+                or claims.get("relative_fileloc") != context.request.relative_fileloc
+            ):
+                raise ValueError
+        except (jwt.PyJWTError, KeyError, TypeError, ValueError):
+            raise ValueError("Token exchange returned an invalid Dag parsing token") from None
+        context.token = parsed.token
+        context.expires_at = started_at + lifetime
+        return parsed.token
 
     def _update_auth(self, response: httpx.Response) -> None:
         # Task-token refresh headers cannot replace a provisioned or Job-bound credential.
@@ -263,16 +318,20 @@ class DagProcessorAPIClient(Client):
             self._register_job(retry=retry)
 
     def request(self, *args, retry: bool = True, **kwargs) -> httpx.Response:
-        """Use the Job token and the current subprocess's bundle context."""
+        """Use a parsing credential for subprocess requests, and the Job credential for manager work."""
         self._check_can_run()
-        self._ensure_job_token(retry=retry)
-        headers = httpx.Headers(kwargs.get("headers"))
-        if bundle_name := self._bundle_context.get():
-            headers["Airflow-Dag-Bundle"] = bundle_name
-        if kwargs.get("content") is not None:
-            headers.setdefault("Content-Type", "application/json")
-        kwargs["headers"] = headers
         try:
+            headers = httpx.Headers(kwargs.get("headers"))
+            if context := self._parse_context.get():
+                kwargs["auth"] = BearerAuth(self._get_parse_token(context, retry=retry))
+                headers["Airflow-Dag-Bundle"] = context.request.bundle_name
+            else:
+                self._ensure_job_token(retry=retry)
+                if bundle_name := self._bundle_context.get():
+                    headers["Airflow-Dag-Bundle"] = bundle_name
+            if kwargs.get("content") is not None:
+                headers.setdefault("Content-Type", "application/json")
+            kwargs["headers"] = headers
             return super().request(*args, retry=retry, **kwargs)
         except httpx.HTTPStatusError as error:
             if error.response.status_code == 403 and _get_error_reason(error) == "job_closed":

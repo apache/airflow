@@ -26,16 +26,30 @@ MISSING_JOB_HEARTBEAT_URL = "/execution/jobs/0/heartbeat"
 class TestDagProcessorJobEndpointsVersioning:
     """The jobs endpoints didn't exist before the 2026-10-30 API version."""
 
-    def test_old_version_returns_404(self, client):
+    @pytest.mark.parametrize("path", [MISSING_JOB_HEARTBEAT_URL, "/execution/jobs/0/parse-token"])
+    def test_old_version_returns_404(self, client, path):
         client.headers["Airflow-API-Version"] = "2026-06-30"
 
-        response = client.post(MISSING_JOB_HEARTBEAT_URL)
+        response = client.post(path)
 
         assert response.status_code == 404
         assert response.json() == {"detail": "Not Found"}
 
     def test_head_version_routes_to_endpoint(self, client):
         response = client.post(MISSING_JOB_HEARTBEAT_URL)
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "not_found"
+
+    def test_head_version_routes_to_parse_token_exchange(self, client):
+        response = client.post(
+            "/execution/jobs/0/parse-token",
+            json={
+                "attempt_id": "00000000-0000-0000-0000-000000000001",
+                "bundle_name": "bundle",
+                "relative_fileloc": "dag.py",
+            },
+        )
 
         assert response.status_code == 404
         assert response.json()["detail"]["reason"] == "not_found"

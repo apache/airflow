@@ -20,7 +20,7 @@ from __future__ import annotations
 from enum import Enum
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 from airflow.jobs.job import JobState
@@ -53,7 +53,7 @@ class JobRegisterBody(StrictBaseModel):
 
 
 class JobRegisterResponse(StrictBaseModel):
-    """The registered Job, and the token the processor uses for every other request."""
+    """The registered Job and its management credential."""
 
     job_id: int
     token: str = Field(description="A ``dag_processor`` token valid while the Job is open.")
@@ -69,3 +69,24 @@ class JobCompleteBody(StrictBaseModel):
     """Final state of the Job."""
 
     state: TerminalJobState
+
+
+class DagParseTokenBody(StrictBaseModel):
+    """Exchange a Job credential for access on behalf of one file-parsing attempt."""
+
+    attempt_id: UUID
+    bundle_name: str = Field(min_length=1, max_length=250)
+    relative_fileloc: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("relative_fileloc")
+    @classmethod
+    def validate_relative_fileloc(cls, value: str) -> str:
+        if "\\" in value or "\x00" in value or any(part in ("", ".", "..") for part in value.split("/")):
+            raise ValueError("The file location must be a normalized bundle-relative path")
+        return value
+
+
+class DagParseTokenResponse(StrictBaseModel):
+    """Short-lived parsing credential; cannot register, heartbeat, or complete Jobs."""
+
+    token: str

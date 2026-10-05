@@ -109,6 +109,30 @@ class ConnectionTestState(str, Enum):
     FAILED = "failed"
 
 
+class DagParseTokenBody(BaseModel):
+    """
+    Exchange a Job credential for access on behalf of one file-parsing attempt.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    bundle_name: Annotated[str, Field(max_length=250, min_length=1, title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(max_length=2000, min_length=1, title="Relative Fileloc")]
+
+
+class DagParseTokenResponse(BaseModel):
+    """
+    Short-lived parsing credential; cannot register, heartbeat, or complete Jobs.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    token: Annotated[str, Field(title="Token")]
+
+
 class DagResponse(BaseModel):
     """
     Schema for DAG response.
@@ -276,7 +300,7 @@ class JobRegisterBody(BaseModel):
 
 class JobRegisterResponse(BaseModel):
     """
-    The registered Job, and the token the processor uses for every other request.
+    The registered Job and its management credential.
     """
 
     model_config = ConfigDict(

@@ -30,9 +30,10 @@ from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariableResponse,
 )
 from airflow.api_fastapi.execution_api.security import (
-    CurrentTIToken,
+    CurrentExecutionToken,
     ExecutionAPIRoute,
-    ExecutionOrDagProcessorToken,
+    ExecutionOrDagParseToken,
+    ExecutionOrProcessorSecretsToken,
     get_team_name_dep,
 )
 from airflow.models.variable import Variable
@@ -41,7 +42,7 @@ from airflow.models.variable import Variable
 async def has_variable_access(
     request: Request,
     variable_key: Annotated[str, Path(min_length=1)],
-    token=CurrentTIToken,
+    token=CurrentExecutionToken,
 ):
     """Check if the task has access to the variable."""
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
@@ -73,7 +74,7 @@ log = logging.getLogger(__name__)
 # it requires a variable_key path parameter that /keys does not have.
 @router.get(
     "/keys",
-    dependencies=[ExecutionOrDagProcessorToken],
+    dependencies=[ExecutionOrDagParseToken],
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
     },
@@ -109,7 +110,7 @@ async def get_variable_keys(
 
 @router.get(
     "/{variable_key:path}",
-    dependencies=[ExecutionOrDagProcessorToken, Depends(has_variable_access)],
+    dependencies=[ExecutionOrProcessorSecretsToken, Depends(has_variable_access)],
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
@@ -137,7 +138,7 @@ def get_variable(
 
 @router.put(
     "/{variable_key:path}",
-    dependencies=[ExecutionOrDagProcessorToken, Depends(has_variable_access)],
+    dependencies=[ExecutionOrDagParseToken, Depends(has_variable_access)],
     status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
@@ -157,7 +158,7 @@ def put_variable(
 
 @router.delete(
     "/{variable_key:path}",
-    dependencies=[ExecutionOrDagProcessorToken, Depends(has_variable_access)],
+    dependencies=[ExecutionOrDagParseToken, Depends(has_variable_access)],
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},

@@ -38,13 +38,19 @@ Token types (``TokenType``):
     Issued by Job registration for one Job of a session (``job_id`` claim), and
     valid only while that Job is open: completing the Job, or registering
     another Job for the session, ends it. It never outlives the session token
-    it was exchanged for. Only accepted on routes that opt in via
-    ``token:dag_processor``; requests that need a bundle's team name it in the
-    ``Airflow-Dag-Bundle`` header, and requests about a Dag are limited to Dags
-    in granted bundles. Routes declaring the ``job:unchecked`` scope (Job
-    completion) check the Job themselves.
+    it was exchanged for. Accepted for Job lifecycle, parsing-token exchange,
+    and Connection/Variable reads needed by bundle preparation. These reads
+    select a granted bundle with the ``Airflow-Dag-Bundle`` header. Routes
+    declaring ``job:unchecked`` (Job completion) check the Job themselves.
 
-Neither Dag processor token is refreshed by ``JWTReissueMiddleware``.
+``"dag_parse"``
+    Exchanged by the manager for one file-parsing attempt. The subject is the
+    attempt ID; signed claims identify its processor session, Job, bundle and
+    relative file location. Runtime requests use the signed bundle for team
+    resolution. This credential cannot manage Jobs or exchange more tokens.
+    Closing or replacing its Job ends access; it never outlives the Job token.
+
+Dag processor and parsing tokens are not refreshed by ``JWTReissueMiddleware``.
 
 Tokens without a ``scope`` claim default to ``"execution"`` for backwards
 compatibility (``claims.setdefault("scope", "execution")``).
@@ -97,7 +103,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
-from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionClaims, ExecutionToken, TokenScope
 from airflow.api_fastapi.execution_api.deps import DepContainer
 
 log = structlog.get_logger(logger_name=__name__)
@@ -131,7 +137,7 @@ class JWTBearer(HTTPBearer):
         self,
         request: Request,
         services=DepContainer,
-    ) -> TIToken | None:
+    ) -> ExecutionToken | None:
         # Return cached token (handles both FastAPI dependency dedup and Cadwyn replays).
         if cached := request.scope.get(_REQUEST_SCOPE_TOKEN_KEY):
             return cached
@@ -152,12 +158,12 @@ class JWTBearer(HTTPBearer):
         claims.setdefault("scope", "execution")
 
         try:
-            claim_model = TIClaims(**claims)
+            claim_model = ExecutionClaims(**claims)
+            token = ExecutionToken.model_validate({"id": claims.get("sub"), "claims": claim_model})
         except ValidationError as err:
-            log.warning("JWT claims did not match task identity token schema", exc_info=True)
+            log.warning("JWT claims did not match Execution API principal schema", exc_info=True)
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
 
-        token = TIToken(id=claims["sub"], claims=claim_model)
         request.scope[_REQUEST_SCOPE_TOKEN_KEY] = token
         return token
 
@@ -168,8 +174,8 @@ _jwt_bearer = JWTBearer()
 async def require_auth(
     security_scopes: SecurityScopes,
     request: Request,
-    token: TIToken = Depends(_jwt_bearer),
-) -> TIToken:
+    token: ExecutionToken = Depends(_jwt_bearer),
+) -> ExecutionToken:
     """
     Security dependency that enforces token type and ``ti:self`` scope.
 
@@ -204,7 +210,7 @@ async def require_auth(
             f"Allowed types: {', '.join(sorted(allowed_token_types))}",
         )
 
-    if token_scope == "dag_processor" and getattr(route, "requires_open_job", True):
+    if token_scope in ("dag_processor", "dag_parse") and getattr(route, "requires_open_job", True):
         await _require_open_dag_processor_job(request, token)
 
     if "ti:self" in security_scopes.scopes:
@@ -232,8 +238,8 @@ async def require_auth(
     return token
 
 
-async def _require_open_dag_processor_job(request: Request, token: TIToken) -> None:
-    """Refuse a ``dag_processor`` token whose Job has completed or no longer belongs to its session."""
+async def _require_open_dag_processor_job(request: Request, token: ExecutionToken) -> None:
+    """Refuse processor or parsing access after the Job ends or is replaced."""
     if request.scope.get(_REQUEST_SCOPE_JOB_KEY):
         return
 
@@ -241,9 +247,10 @@ async def _require_open_dag_processor_job(request: Request, token: TIToken) -> N
     from airflow.utils.session import create_session_async
 
     async with create_session_async() as session:
+        session_id = token.claims.session_id if token.claims.scope == "dag_parse" else token.id
         job_id = await session.scalar(
             select(Job.id).where(
-                Job.id == token.claims.job_id, Job.session_id == token.id, Job.end_date.is_(None)
+                Job.id == token.claims.job_id, Job.session_id == session_id, Job.end_date.is_(None)
             )
         )
     if job_id is None:
@@ -257,19 +264,30 @@ async def _require_open_dag_processor_job(request: Request, token: TIToken) -> N
     request.scope[_REQUEST_SCOPE_JOB_KEY] = job_id
 
 
-CurrentTIToken: TIToken = Depends(require_auth)
+CurrentExecutionToken: ExecutionToken = Depends(require_auth)
+CurrentTIToken = CurrentExecutionToken
 
 DAG_BUNDLE_HEADER = "Airflow-Dag-Bundle"
 
-ExecutionOrDagProcessorToken = Security(require_auth, scopes=["token:execution", "token:dag_processor"])
-"""Route dependency that also admits ``dag_processor`` tokens; the router must use ``ExecutionAPIRoute``."""
+ExecutionOrDagParseToken = Security(require_auth, scopes=["token:execution", "token:dag_parse"])
+ExecutionOrProcessorSecretsToken = Security(
+    require_auth, scopes=["token:execution", "token:dag_processor", "token:dag_parse"]
+)
+"""Bundle preparation needs Connection and Variable reads before a file can be discovered."""
 
 
-async def get_selected_dag_bundle(request: Request, token=CurrentTIToken) -> str | None:
-    """Return the granted Dag bundle a ``dag_processor`` request acts for, or ``None`` for other tokens."""
-    if token.claims.scope != "dag_processor":
+async def get_selected_dag_bundle(request: Request, token=CurrentExecutionToken) -> str | None:
+    """Select a granted management bundle or use the immutable bundle of a parsing attempt."""
+    if token.claims.scope not in ("dag_processor", "dag_parse"):
         return None
     bundle_name = request.headers.get(DAG_BUNDLE_HEADER)
+    if token.claims.scope == "dag_parse":
+        signed_bundle = next(iter(token.claims.dag_bundles))
+        if bundle_name is not None and bundle_name != signed_bundle:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, detail="Bundle header conflicts with parsing token"
+            )
+        return signed_bundle
     if not bundle_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -286,14 +304,14 @@ async def get_selected_dag_bundle(request: Request, token=CurrentTIToken) -> str
 SelectedDagBundle = Depends(get_selected_dag_bundle)
 
 
-async def require_dag_in_granted_bundle(request: Request, token=CurrentTIToken) -> None:
+async def require_dag_in_granted_bundle(request: Request, token=CurrentExecutionToken) -> None:
     """
-    Limit a ``dag_processor`` request to Dags in the bundles its token grants.
+    Limit a parsing request to Dags in the bundle its token grants.
 
     The Dag comes from the ``dag_id`` path or query parameter. A Dag that does not exist is refused
     like one in an ungranted bundle, so the response does not reveal Dags in other bundles.
     """
-    if token.claims.scope != "dag_processor":
+    if token.claims.scope not in ("dag_processor", "dag_parse"):
         return
 
     from airflow.models import DagModel
@@ -353,8 +371,8 @@ class ExecutionAPIRoute(APIRoute):
         self.requires_open_job = JOB_UNCHECKED_SCOPE not in all_scopes
 
 
-async def get_team_name_dep(token=CurrentTIToken, dag_bundle=SelectedDagBundle) -> str | None:
-    """Return the team of the task, or of the Dag bundle a ``dag_processor`` request acts for (if any)."""
+async def get_team_name_dep(token=CurrentExecutionToken, dag_bundle=SelectedDagBundle) -> str | None:
+    """Return the team of a task or the selected bundle of a processor or parsing attempt."""
     from airflow.configuration import conf
 
     if not conf.getboolean("core", "multi_team"):
@@ -363,7 +381,7 @@ async def get_team_name_dep(token=CurrentTIToken, dag_bundle=SelectedDagBundle) 
     from airflow.utils.session import create_session_async
 
     async with create_session_async() as session:
-        if token.claims.scope == "dag_processor":
+        if token.claims.scope in ("dag_processor", "dag_parse"):
             return await session.scalar(_team_name_for_bundle_stmt(dag_bundle))
         return await session.scalar(_team_name_for_ti_stmt(token.id))
 

@@ -37,7 +37,7 @@ from airflow.api_fastapi.execution_api.security import (
     CurrentTIToken,
     DagInGrantedBundle,
     ExecutionAPIRoute,
-    ExecutionOrDagProcessorToken,
+    ExecutionOrDagParseToken,
 )
 from airflow.exceptions import DagNotPartitionedError, DagRunAlreadyExists, InvalidPartitionKeyError
 from airflow.models.dag import DagModel
@@ -273,7 +273,7 @@ async def get_dr_count(
 @router.get(
     "/previous",
     status_code=status.HTTP_200_OK,
-    dependencies=[ExecutionOrDagProcessorToken, DagInGrantedBundle],
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
 )
 def get_previous_dagrun(
     dag_id: str,

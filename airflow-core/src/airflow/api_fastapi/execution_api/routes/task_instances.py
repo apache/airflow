@@ -80,7 +80,7 @@ from airflow.api_fastapi.execution_api.security import (
     CurrentTIToken,
     DagInGrantedBundle,
     ExecutionAPIRoute,
-    ExecutionOrDagProcessorToken,
+    ExecutionOrDagParseToken,
     get_team_name_for_ti,
     issue_execution_token,
     require_auth,
@@ -1266,7 +1266,7 @@ async def get_previous_successful_dagrun(
 @router.get(
     "/count",
     status_code=status.HTTP_200_OK,
-    dependencies=[ExecutionOrDagProcessorToken, DagInGrantedBundle],
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
 )
 def get_task_instance_count(
     dag_id: str,
@@ -1327,7 +1327,7 @@ def get_task_instance_count(
 @router.get(
     "/previous/{dag_id}/{task_id}",
     status_code=status.HTTP_200_OK,
-    dependencies=[ExecutionOrDagProcessorToken, DagInGrantedBundle],
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
 )
 async def get_previous_task_instance(
     dag_id: str,
@@ -1383,7 +1383,7 @@ async def get_previous_task_instance(
 @router.get(
     "/states",
     status_code=status.HTTP_200_OK,
-    dependencies=[ExecutionOrDagProcessorToken, DagInGrantedBundle],
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
 )
 def get_task_instance_states(
     dag_id: str,

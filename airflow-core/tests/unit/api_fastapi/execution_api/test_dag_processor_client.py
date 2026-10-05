@@ -26,12 +26,17 @@ import pytest
 import uvicorn
 from sqlalchemy import select, update
 from tenacity import wait_none
+from uuid6 import uuid7
 
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
-from airflow.api_fastapi.execution_api.datamodels.job import JobState, TerminalJobState
-from airflow.dag_processing.api_client import DagProcessorAPIClient, DagProcessorRegistrationRetired
+from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody, JobState, TerminalJobState
+from airflow.dag_processing.api_client import (
+    DagParseContext,
+    DagProcessorAPIClient,
+    DagProcessorRegistrationRetired,
+)
 from airflow.jobs.job import Job
 from airflow.models.variable import Variable
 from airflow.sdk.api.client import Client
@@ -131,6 +136,10 @@ def test_rotation_stop_and_completion_over_http(clock, api_url, provision_token,
         token = processor.auth.token
         with processor.use_bundle("bundle-a"):
             assert processor.variables.get("processor-client-key").value == "value"
+        context = DagParseContext(
+            request=DagParseTokenBody(attempt_id=uuid7(), bundle_name="bundle-a", relative_fileloc="dag.py")
+        )
+        with processor.use_parse(context):
             assert processor.variables.set("processor-client-key", "updated").ok
             assert processor.variables.get("processor-client-key").value == "updated"
 
@@ -158,7 +167,10 @@ class LostAcknowledgmentTransport(httpx.BaseTransport):
 
     def handle_request(self, request):
         response = self.transport.handle_request(request)
-        if request.url.path.endswith(("/jobs", "/complete")) and request.url.path not in self.lost:
+        if (
+            request.url.path.endswith(("/jobs", "/complete", "/parse-token"))
+            and request.url.path not in self.lost
+        ):
             self.lost.add(request.url.path)
             response.read()
             response.close()
@@ -177,9 +189,22 @@ def test_lost_registration_and_completion_responses_over_http(api_url, provision
     ) as processor:
         job_id = processor.register_job()
         assert session.scalars(select(Job.id)).all() == [job_id]
+        Variable.set("parse-token-key", "value")
+        context = DagParseContext(
+            request=DagParseTokenBody(attempt_id=uuid7(), bundle_name="bundle-a", relative_fileloc="dag.py")
+        )
+        with processor.use_parse(context):
+            assert processor.variables.get("parse-token-key").value == "value"
+            with pytest.raises(httpx.HTTPStatusError) as error:
+                processor.post(f"jobs/{job_id}/heartbeat")
+            assert error.value.response.status_code == 403
         processor.complete_job(TerminalJobState.SUCCESS)
         assert session.get(Job, job_id).state == JobState.SUCCESS.value
-        assert transport.lost == {"/execution/jobs", f"/execution/jobs/{job_id}/complete"}
+        assert transport.lost == {
+            "/execution/jobs",
+            f"/execution/jobs/{job_id}/parse-token",
+            f"/execution/jobs/{job_id}/complete",
+        }
 
 
 @mock.patch("airflow.dag_processing.api_client.monotonic", autospec=True, return_value=0)

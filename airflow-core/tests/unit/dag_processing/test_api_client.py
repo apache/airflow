@@ -26,9 +26,10 @@ import jwt
 import pytest
 from tenacity import wait_none
 
-from airflow.api_fastapi.execution_api.datamodels.job import JobState, TerminalJobState
+from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody, JobState, TerminalJobState
 from airflow.dag_processing import api_client
 from airflow.dag_processing.api_client import (
+    DagParseContext,
     DagProcessorAPIClient,
     DagProcessorRegistrationRetired,
     DagProcessorSecretsComms,
@@ -673,3 +674,171 @@ def test_secrets_comms_ignores_masking_and_rejects_other_messages(make_client):
     with pytest.raises(TypeError, match="GetXCom"):
         comms.send(GetXCom(dag_id="dag", run_id="run", task_id="task", key="key"))
     assert requests == []
+
+
+def make_parse_context(**kwargs):
+    return DagParseContext(
+        request=DagParseTokenBody(
+            **{
+                "attempt_id": "00000000-0000-0000-0000-000000000001",
+                "bundle_name": "bundle-a",
+                "relative_fileloc": "dag.py",
+                **kwargs,
+            }
+        )
+    )
+
+
+def make_parse_token_response(**claims):
+    token = jwt.encode(
+        {
+            "scope": "dag_parse",
+            "sub": "00000000-0000-0000-0000-000000000001",
+            "session_id": "00000000-0000-0000-0000-000000000002",
+            "job_id": 1,
+            "dag_bundles": ["bundle-a"],
+            "relative_fileloc": "dag.py",
+            "iat": 0,
+            "exp": 60,
+            **claims,
+        },
+        SECRET,
+    )
+    return httpx.Response(200, json={"token": token})
+
+
+def test_parse_requests_exchange_once_and_restore_the_manager_credential(make_client):
+    exchanged = make_parse_token_response()
+    client, requests = make_client(
+        make_registration_response(),
+        exchanged,
+        httpx.Response(200, json={"key": "key", "value": "value"}),
+        httpx.Response(200, json={"key": "key", "value": "value"}),
+        httpx.Response(200, json={"state": "running"}),
+    )
+    client.register_job()
+    context = make_parse_context()
+
+    with client.use_bundle("bundle-b"), client.use_parse(context):
+        assert client.variables.get("key").value == "value"
+        assert client.variables.get("key").value == "value"
+    assert client.heartbeat() == JobState.RUNNING
+
+    assert requests[1].url.path == "/execution/jobs/1/parse-token"
+    assert json.loads(requests[1].content) == context.request.model_dump(mode="json")
+    assert requests[1].headers["Airflow-API-Version"] == api_client._JOB_API_HEADERS["Airflow-API-Version"]
+    assert [request.headers["Authorization"] for request in requests[1:]] == [
+        f"Bearer {make_job_token()}",
+        f"Bearer {exchanged.json()['token']}",
+        f"Bearer {exchanged.json()['token']}",
+        f"Bearer {make_job_token()}",
+    ]
+    assert requests[2].headers["Airflow-Dag-Bundle"] == "bundle-a"
+
+
+def test_parse_exchange_recovers_a_lost_response_without_changing_attempt(make_client):
+    client, requests = make_client(
+        make_registration_response(),
+        httpx.ReadError("exchange acknowledgment lost"),
+        make_parse_token_response(),
+        httpx.Response(200),
+    )
+    client.register_job()
+    with client.use_parse(make_parse_context()):
+        client.get("variables/key")
+
+    assert requests[1].content == requests[2].content
+    assert len(requests) == 4
+
+
+def test_interleaved_parses_keep_distinct_file_credentials(make_client):
+    first_response = make_parse_token_response()
+    second_response = make_parse_token_response(
+        sub="00000000-0000-0000-0000-000000000003",
+        relative_fileloc="other.py",
+        dag_bundles=["bundle-b"],
+    )
+    client, requests = make_client(
+        make_registration_response(),
+        first_response,
+        httpx.Response(200),
+        second_response,
+        httpx.Response(200),
+        httpx.Response(200),
+    )
+    client.register_job()
+    second = make_parse_context(
+        attempt_id="00000000-0000-0000-0000-000000000003",
+        bundle_name="bundle-b",
+        relative_fileloc="other.py",
+    )
+
+    with client.use_parse(make_parse_context()):
+        client.get("variables/key")
+        with client.use_parse(second):
+            client.get("variables/key")
+        client.get("variables/key")
+
+    assert [requests[index].headers["Authorization"] for index in (2, 4, 5)] == [
+        f"Bearer {first_response.json()['token']}",
+        f"Bearer {second_response.json()['token']}",
+        f"Bearer {first_response.json()['token']}",
+    ]
+
+
+def test_expired_parse_credential_renews_with_the_same_file_and_attempt(make_client, clock):
+    client, requests = make_client(
+        make_registration_response(),
+        make_parse_token_response(),
+        httpx.Response(200),
+        make_parse_token_response(iat=60, exp=120),
+        httpx.Response(200),
+    )
+    client.register_job()
+    with client.use_parse(make_parse_context()):
+        client.get("variables/key")
+        clock.return_value = 61
+        client.get("variables/key")
+
+    assert requests[1].content == requests[3].content
+    assert requests[2].headers["Authorization"] != requests[4].headers["Authorization"]
+
+
+@pytest.mark.parametrize(
+    "claims",
+    [
+        {"scope": "execution"},
+        {"sub": "another-attempt"},
+        {"job_id": 2},
+        {"dag_bundles": ["bundle-b"]},
+        {"relative_fileloc": "other.py"},
+        {"exp": 0},
+        {"exp": "not-a-time"},
+        {"exp": float("inf")},
+    ],
+)
+def test_invalid_exchanged_credentials_never_reach_a_runtime_endpoint(make_client, claims):
+    client, requests = make_client(make_registration_response(), make_parse_token_response(**claims))
+    client.register_job()
+    context = make_parse_context()
+
+    with client.use_parse(context), pytest.raises(ValueError, match="invalid Dag parsing token"):
+        client.get("variables/key")
+
+    assert len(requests) == 2
+    assert context.token is None
+
+
+def test_exchange_failure_restores_context_and_signals_a_closed_job(make_client):
+    client, requests = make_client(
+        make_registration_response(),
+        httpx.Response(403, json={"detail": {"reason": "job_closed"}}),
+        httpx.Response(200, json={"state": "restarting"}),
+    )
+    client.register_job()
+    with client.use_parse(make_parse_context()), pytest.raises(DagProcessorRegistrationRetired):
+        client.get("variables/key")
+
+    assert client.restart_required
+    assert client.heartbeat() == JobState.RESTARTING
+    assert requests[-1].headers["Authorization"] == f"Bearer {make_job_token()}"

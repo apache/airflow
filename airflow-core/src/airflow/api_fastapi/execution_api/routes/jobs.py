@@ -30,16 +30,18 @@ from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.job import (
+    DagParseTokenBody,
+    DagParseTokenResponse,
     JobCompleteBody,
     JobHeartbeatResponse,
     JobRegisterBody,
     JobRegisterResponse,
 )
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
     JOB_UNCHECKED_SCOPE,
-    CurrentTIToken,
+    CurrentExecutionToken,
     ExecutionAPIRoute,
     require_auth,
 )
@@ -61,7 +63,9 @@ _JOB_NOT_FOUND = create_openapi_http_exception_doc(
 )
 
 
-def _issue_job_token(services: svcs.Container, token: TIToken, job_id: int, bundle_names: list[str]) -> str:
+def _issue_job_token(
+    services: svcs.Container, token: ExecutionToken, job_id: int, bundle_names: list[str]
+) -> str:
     generator: JWTGenerator = services.get(JWTGenerator)
     # Never outlive the session token, so that provisioning, by no longer renewing it, still ends access.
     remaining = (token.claims.exp or 0) - timezone.utcnow().timestamp()
@@ -76,7 +80,7 @@ def _issue_job_token(services: svcs.Container, token: TIToken, job_id: int, bund
     )
 
 
-def _check_token_job(job_id: int, token: TIToken) -> None:
+def _check_token_job(job_id: int, token: ExecutionToken) -> None:
     if job_id != token.claims.job_id:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -89,7 +93,7 @@ def _get_registered_job(registration_id: UUID, *, session: Session) -> Job | Non
 
 
 def _resume_registration(
-    job: Job, body: JobRegisterBody, bundle_names: list[str], token: TIToken, services: svcs.Container
+    job: Job, body: JobRegisterBody, bundle_names: list[str], token: ExecutionToken, services: svcs.Container
 ) -> JobRegisterResponse:
     """Return the Job an earlier registration created, with a fresh token, if that Job is still the session's."""
     if job.session_id != token.id or job.end_date is not None:
@@ -126,10 +130,10 @@ def _resume_registration(
     ),
 )
 def register_job(
-    body: JobRegisterBody, session: SessionDep, token=CurrentTIToken, services=DepContainer
+    body: JobRegisterBody, session: SessionDep, token=CurrentExecutionToken, services=DepContainer
 ) -> JobRegisterResponse:
     """
-    Register the Job of a Dag processor session, in exchange for the token used for every other request.
+    Register the Job of a Dag processor session in exchange for its management credential.
 
     A registration creates one Job. Repeating it while that Job is open returns the Job with a fresh token;
     once the Job completes or is replaced, the registration is refused for good. A new registration is
@@ -198,7 +202,7 @@ def register_job(
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
     responses=_JOB_NOT_FOUND,
 )
-def heartbeat_job(job_id: int, session: SessionDep, token=CurrentTIToken) -> JobHeartbeatResponse:
+def heartbeat_job(job_id: int, session: SessionDep, token=CurrentExecutionToken) -> JobHeartbeatResponse:
     """Record a heartbeat and return the Job state, which tells the processor whether to stop."""
     _check_token_job(job_id, token)
     job = session.scalars(select(Job).where(Job.id == job_id)).one()
@@ -212,7 +216,9 @@ def heartbeat_job(job_id: int, session: SessionDep, token=CurrentTIToken) -> Job
     dependencies=[Security(require_auth, scopes=["token:dag_processor", JOB_UNCHECKED_SCOPE])],
     responses=_JOB_NOT_FOUND,
 )
-def complete_job(job_id: int, body: JobCompleteBody, session: SessionDep, token=CurrentTIToken) -> None:
+def complete_job(
+    job_id: int, body: JobCompleteBody, session: SessionDep, token=CurrentExecutionToken
+) -> None:
     """
     Record the final state of the Job, which ends every token issued for it.
 
@@ -232,3 +238,34 @@ def complete_job(job_id: int, body: JobCompleteBody, session: SessionDep, token=
             status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": f"Job {job_id} not found for this token"},
         )
+
+
+@router.post(
+    "/{job_id}/parse-token",
+    dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
+    responses=_JOB_NOT_FOUND,
+)
+def exchange_parse_token(
+    job_id: int, body: DagParseTokenBody, token=CurrentExecutionToken, services=DepContainer
+) -> DagParseTokenResponse:
+    """Bind runtime access to the bundle and file selected by the trusted processor manager."""
+    _check_token_job(job_id, token)
+    if body.bundle_name not in token.claims.dag_bundles:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Token is not granted this Dag bundle")
+    generator: JWTGenerator = services.get(JWTGenerator)
+    remaining = (token.claims.exp or 0) - timezone.utcnow().timestamp()
+    if remaining <= 0:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Processor credential has expired")
+    return DagParseTokenResponse(
+        token=generator.generate(
+            extras={
+                "sub": str(body.attempt_id),
+                "scope": "dag_parse",
+                "session_id": str(token.id),
+                "job_id": job_id,
+                "dag_bundles": [body.bundle_name],
+                "relative_fileloc": body.relative_fileloc,
+            },
+            valid_for=min(generator.valid_for, remaining),
+        )
+    )
