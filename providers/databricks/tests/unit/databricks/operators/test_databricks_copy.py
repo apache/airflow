@@ -643,7 +643,8 @@ def test_asset_operator_mismatch_raises_before_sql(table_name, catalog, schema):
     assert op._sql is None
 
 
-def test_asset_operator_rejects_connection_for_other_workspace_before_sql():
+@pytest.mark.parametrize("host", ["other-workspace.cloud.databricks.com", None, ""])
+def test_asset_operator_rejects_connection_for_other_workspace_before_sql(host):
     op = DatabricksCopyIntoAssetOperator(
         task_id=TASK_ID,
         file_location=COPY_FILE_LOCATION,
@@ -652,7 +653,7 @@ def test_asset_operator_rejects_connection_for_other_workspace_before_sql():
         unity_table=USERS_TABLE,
     )
     with mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as hook_cls:
-        hook_cls.return_value.host = "other-workspace.cloud.databricks.com"
+        hook_cls.return_value.host = host
         with pytest.raises(ValueError, match="connection host .* does not match unity_table host"):
             op.execute(None)
     assert hook_cls.return_value.run.call_args_list == []
@@ -686,3 +687,54 @@ def test_base_copy_into_operator_has_no_outlets_and_runs_any_table():
     run.assert_called_once_with(
         f"COPY INTO main.default.orders\nFROM '{COPY_FILE_LOCATION}'\nFILEFORMAT = JSON"
     )
+
+
+@pytest.mark.parametrize(
+    ("table_name", "catalog", "schema"),
+    [
+        pytest.param("MAIN.Default.Users", None, None, id="three-part"),
+        pytest.param("Default.Users", "MAIN", None, id="two-part"),
+        pytest.param("Users", "MAIN", "Default", id="one-part"),
+        pytest.param("{{ params.table }}", None, None, id="templated"),
+    ],
+)
+@mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook", autospec=True)
+def test_asset_operator_matches_table_case_insensitively(hook_cls, table_name, catalog, schema):
+    hook_cls.return_value.host = USERS_TABLE.host
+    op = DatabricksCopyIntoAssetOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name=table_name,
+        catalog=catalog,
+        schema=schema,
+        unity_table=USERS_TABLE,
+    )
+    context = {"params": {"table": "MAIN.Default.Users"}}
+    op.render_template_fields(context)
+    op.execute(context)
+    rendered_table = "MAIN.Default.Users" if table_name.startswith("{{") else table_name
+    hook_cls.return_value.run.assert_called_once_with(
+        f"COPY INTO {rendered_table}\nFROM '{COPY_FILE_LOCATION}'\nFILEFORMAT = JSON"
+    )
+    assert op.outlets == [Asset(uri=USERS_URI)]
+
+
+@pytest.mark.parametrize("host", ["my-workspace.cloud.databricks.com", "My-Workspace.cloud.Databricks.com"])
+@mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook", autospec=True)
+def test_asset_operator_matches_workspace_case_insensitively(hook_cls, host):
+    hook_cls.return_value.host = host
+    op = DatabricksCopyIntoAssetOperator(
+        task_id=TASK_ID,
+        file_location=COPY_FILE_LOCATION,
+        file_format="JSON",
+        table_name="main.default.users",
+        unity_table=UnityTableIdentity(
+            host="My-Workspace.cloud.Databricks.com", catalog="Main", schema="Default", table="Users"
+        ),
+    )
+    op.execute(None)
+    hook_cls.return_value.run.assert_called_once_with(
+        f"COPY INTO main.default.users\nFROM '{COPY_FILE_LOCATION}'\nFILEFORMAT = JSON"
+    )
+    assert op.outlets == [Asset(uri=USERS_URI)]

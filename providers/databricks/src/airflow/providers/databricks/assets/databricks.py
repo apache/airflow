@@ -73,6 +73,7 @@ class UnityTableIdentity:
                     f"UnityTableIdentity.{field.name} must be static, got Jinja {value!r}. "
                     "It is not a template field and is never rendered."
                 )
+            object.__setattr__(self, field.name, value.lower())
 
     def to_asset(self) -> Asset:
         return create_asset(host=self.host, catalog=self.catalog, schema=self.schema, table=self.table)

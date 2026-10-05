@@ -501,7 +501,6 @@ class DatabricksCopyIntoOperator(BaseOperator):
                     raise ValueError("expression_list must not contain statement separators or comments.")
 
     def _create_sql_query(self) -> str:
-
         self._validate_sql_fragments()
         escaper = ParamEscaper()
         maybe_with = ""
@@ -695,7 +694,12 @@ class DatabricksCopyIntoAssetOperator(DatabricksCopyIntoOperator):
             catalog=self.unity_table.catalog, schema=self.unity_table.schema, table=self.unity_table.table
         )
         target = _resolve_copy_into_target(self.table_name, catalog=self._catalog, schema=self._schema)
-        if target != expected:
+        normalized_target = _CopyIntoTarget(
+            catalog=target.catalog.lower() if target.catalog is not None else None,
+            schema=target.schema.lower() if target.schema is not None else None,
+            table=target.table.lower(),
+        )
+        if normalized_target != expected:
             raise ValueError(
                 f"COPY INTO target {target._asdict()} resolved from table_name={self.table_name!r}, "
                 f"catalog={self._catalog!r}, schema={self._schema!r} does not match "
@@ -703,7 +707,7 @@ class DatabricksCopyIntoAssetOperator(DatabricksCopyIntoOperator):
             )
 
         hook = self._get_hook()
-        if hook.host != self.unity_table.host:
+        if (hook.host or "").lower() != self.unity_table.host:
             raise ValueError(
                 f"Databricks connection host {hook.host!r} does not match "
                 f"unity_table host {self.unity_table.host!r}."

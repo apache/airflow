@@ -65,6 +65,8 @@ It accepts every ``DatabricksCopyIntoOperator`` argument plus a required ``unity
 with ``host``, ``catalog``, ``schema``, and ``table``. All four are required and static.
 Jinja in any field raises ``ValueError``. ``host`` follows the Databricks connection rule, so
 ``https://my-workspace.cloud.databricks.com/`` becomes ``my-workspace.cloud.databricks.com``.
+The hostname, catalog, schema, and table are normalized to lowercase because their names
+are case-insensitive. Different capitalization therefore produces the same asset URI.
 ``unity_table.to_asset()`` returns the ``databricks://host/catalog/schema/table`` asset.
 
 .. code-block:: python
@@ -101,6 +103,7 @@ Templated table names
 
 ``table_name`` stays templated. ``unity_table`` is not templated and fixes the asset at parse time.
 Before running SQL, the operator resolves the rendered ``table_name`` and compares it with ``unity_table``.
+The table and connection hostname comparisons are case-insensitive; the SQL keeps the supplied casing.
 
 * A three-part name ``catalog.schema.table`` is used as is.
 * A two-part name ``schema.table`` takes the catalog from the ``catalog`` argument.

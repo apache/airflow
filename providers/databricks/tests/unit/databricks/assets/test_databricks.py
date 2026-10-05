@@ -114,3 +114,19 @@ def test_unity_table_identity_rejects_invalid_fields(fields: dict[str, str], mat
     }
     with pytest.raises(ValueError, match=match):
         UnityTableIdentity(**{**valid, **fields})
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "My-Workspace.cloud.Databricks.com",
+        "https://My-Workspace.cloud.Databricks.com/",
+    ],
+)
+def test_unity_table_identity_normalizes_case(host: str) -> None:
+    identity = UnityTableIdentity(host=host, catalog="Main", schema="Default", table="Users")
+    canonical = UnityTableIdentity(
+        host="my-workspace.cloud.databricks.com", catalog="main", schema="default", table="users"
+    )
+    assert identity == canonical
+    assert identity.to_asset() == canonical.to_asset()
