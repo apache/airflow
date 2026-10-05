@@ -251,7 +251,7 @@ Define a policy once and share it across DAGs via ``default_args`` or a shared m
 Mapped tasks
 ~~~~~~~~~~~~
 
-Policies work with dynamic task mapping via ``.partial()``. The policy applies
+Policies work with task mapping via ``.partial()``. The policy applies
 per mapped task instance -- if instance 2 of 10 hits FAIL, the other 9 continue
 independently:
 

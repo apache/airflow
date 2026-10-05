@@ -16,25 +16,29 @@
     under the License.
 
 .. _dynamic-task-mapping:
+.. _mapped-tasks:
 
-====================
-Dynamic Task Mapping
-====================
+============
+Mapped tasks
+============
 
-Dynamic Task Mapping allows a way for a workflow to create a number of tasks at runtime based upon current data, rather than the Dag author having to know in advance how many tasks would be needed.
+Task mapping, also called dynamic task mapping, allows a way for a workflow to create a number of tasks at runtime based upon current data, rather than the Dag author having to know in advance how many tasks would be needed.
 
 This is similar to defining your tasks in a for loop, but instead of having the DAG file fetch the data and do that itself, the scheduler can do this based on the output of an upstream task.
-Unlike a Python for-loop executed at DAG parse time, dynamic task mapping defers task creation until runtime, allowing the scheduler to determine the exact number of task instances based on upstream task outputs.
+Unlike a Python for-loop executed at DAG parse time, task mapping defers task creation until runtime, allowing the scheduler to determine the exact number of task instances based on upstream task outputs.
 Right before a mapped task is executed the scheduler will create *n* copies of the task, one for each input.
 
 It is also possible to have a task operate on the collected output of a mapped task, commonly known as map and reduce.
+
+.. seealso::
+   Not sure whether you need mapped tasks or a loop? See :ref:`loops-and-mapped-tasks`.
 
 Simple mapping
 ==============
 
 In its simplest form you can map over a list defined directly in your Dag file using the ``expand()`` function instead of calling your task directly.
 
-If you want to see a simple usage of Dynamic Task Mapping, you can look below:
+If you want to see a simple usage of task mapping, you can look below:
 
 .. exampleinclude:: /../src/airflow/example_dags/example_dynamic_task_mapping.py
     :language: python
