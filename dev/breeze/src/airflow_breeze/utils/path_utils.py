@@ -25,6 +25,7 @@ import os
 import platform
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -640,11 +641,49 @@ def cleanup_python_generated_files():
         console_print("[info]Cleaned")
 
 
+WORKTREE_ISOLATION_ENV = "BREEZE_WORKTREE_ISOLATION"
+SUPPRESS_WORKTREE_ISOLATION_FILE = "suppress_worktree_isolation"
+
+
+def get_shared_build_cache_path() -> Path:
+    """Return the ``.build`` directory of the main checkout, shared by all of its worktrees."""
+    main_git_dir = get_main_git_dir_for_worktree()
+    return main_git_dir.parent / ".build" if main_git_dir else BUILD_CACHE_PATH
+
+
+def is_worktree_isolation_enabled() -> bool:
+    value = os.environ.get(WORKTREE_ISOLATION_ENV, "").strip().lower()
+    if value in ("true", "1", "yes", "on"):
+        return True
+    if value in ("false", "0", "no", "off"):
+        return False
+    return not (get_shared_build_cache_path() / SUPPRESS_WORKTREE_ISOLATION_FILE).exists()
+
+
+def get_isolated_worktree_path() -> Path | None:
+    """
+    Return the path of the linked worktree that owns this checkout's Docker resources.
+
+    ``None`` means the resources are shared: the main checkout, or a worktree with isolation disabled.
+    """
+    if get_main_git_dir_for_worktree() is None or not is_worktree_isolation_enabled():
+        return None
+    return AIRFLOW_ROOT_PATH.resolve()
+
+
 def get_default_project_name() -> str:
-    if get_main_git_dir_for_worktree() is None:
+    worktree = get_isolated_worktree_path()
+    if worktree is None:
         return "breeze"
-    name = re.sub(r"[^a-z0-9_-]", "-", AIRFLOW_ROOT_PATH.resolve().name.lower())
-    return f"breeze-{name}"
+    name = re.sub(r"[^a-z0-9_-]", "-", worktree.name.lower())
+    # Worktrees with the same directory name in different locations or clones must not share a project.
+    path_hash = hashlib.sha256(str(worktree).encode()).hexdigest()[:6]
+    return f"breeze-{name}-{path_hash}"
+
+
+def get_host_id() -> str:
+    """Identify the machine whose filesystem decides whether a labelled worktree still exists."""
+    return socket.gethostname()
 
 
 def get_main_git_dir_for_worktree() -> Path | None:

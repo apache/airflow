@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 from unittest.mock import patch
 
@@ -41,9 +42,16 @@ from airflow_breeze.utils.path_utils import (
 console = Console(width=400, color_system="standard")
 
 
+@pytest.mark.parametrize("isolation", [None, "false"])
 @pytest.mark.parametrize("linked_worktree", [False, True])
 @pytest.mark.parametrize("explicit_project", [None, "foobar", "breeze"])
-def test_worktree_project_default_and_override(tmp_path, linked_worktree, explicit_project):
+def test_worktree_project_default_and_override(
+    tmp_path, monkeypatch, linked_worktree, explicit_project, isolation
+):
+    if isolation:
+        monkeypatch.setenv("BREEZE_WORKTREE_ISOLATION", isolation)
+    else:
+        monkeypatch.delenv("BREEZE_WORKTREE_ISOLATION", raising=False)
     root = tmp_path / "My Worktree"
     with (
         patch("airflow_breeze.utils.path_utils.AIRFLOW_ROOT_PATH", root),
@@ -66,8 +74,10 @@ def test_worktree_project_default_and_override(tmp_path, linked_worktree, explic
             ["--project-name", explicit_project] if explicit_project else [],
             env={"PROJECT_NAME": None},
         )
+    path_hash = hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:6]
+    isolated = linked_worktree and not isolation
     assert params.project_name == (
-        explicit_project or ("breeze-my-worktree" if linked_worktree else "breeze")
+        explicit_project or (f"breeze-my-worktree-{path_hash}" if isolated else "breeze")
     )
     assert result.exit_code == 0
     assert result.output.strip() == params.project_name
@@ -76,20 +86,29 @@ def test_worktree_project_default_and_override(tmp_path, linked_worktree, explic
     )
 
 
+@pytest.mark.parametrize("isolation", [None, "false"])
 @pytest.mark.parametrize("linked_worktree", [False, True])
-def test_worktree_label_path_is_derived_from_checkout(tmp_path, monkeypatch, linked_worktree):
+def test_worktree_labels_are_derived_from_checkout(tmp_path, monkeypatch, linked_worktree, isolation):
     monkeypatch.setenv("BREEZE_WORKTREE_PATH", "/another/checkout")
+    monkeypatch.setenv("BREEZE_HOST_ID", "another-host")
+    if isolation:
+        monkeypatch.setenv("BREEZE_WORKTREE_ISOLATION", isolation)
+    else:
+        monkeypatch.delenv("BREEZE_WORKTREE_ISOLATION", raising=False)
     with (
-        patch("airflow_breeze.params.shell_params.AIRFLOW_ROOT_PATH", tmp_path),
+        patch("airflow_breeze.utils.path_utils.AIRFLOW_ROOT_PATH", tmp_path),
         patch(
-            "airflow_breeze.params.shell_params.get_main_git_dir_for_worktree",
+            "airflow_breeze.utils.path_utils.get_main_git_dir_for_worktree",
             autospec=True,
             return_value=tmp_path / ".git" if linked_worktree else None,
         ),
+        patch("airflow_breeze.utils.path_utils.socket.gethostname", autospec=True, return_value="this-host"),
     ):
         env = ShellParams().env_variables_for_docker_commands
 
-    assert env["BREEZE_WORKTREE_PATH"] == (str(tmp_path.resolve()) if linked_worktree else "")
+    isolated = linked_worktree and not isolation
+    assert env["BREEZE_WORKTREE_PATH"] == (str(tmp_path.resolve()) if isolated else "")
+    assert env["BREEZE_HOST_ID"] == "this-host"
 
 
 @pytest.mark.parametrize(
