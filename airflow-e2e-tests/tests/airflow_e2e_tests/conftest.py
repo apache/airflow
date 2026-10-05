@@ -905,9 +905,14 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _E2ETestState.compose_instance.start()
 
         _E2ETestState.compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
-        _E2ETestState.compose_instance.exec_in_container(
-            command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
-        )
+        # A reserialize imports the stub Dag files without the Dag processor's stub-task check, so the
+        # first rows for a Lang-SDK Dag file would carry neither its probe record nor its import errors.
+        # Leaving the files to the Dag processor makes its parse the first one, and AirflowClient.trigger_dag
+        # already waits for a Dag to exist before it unpauses and triggers it.
+        if E2E_TEST_MODE not in LANG_SDK_E2E_MODES:
+            _E2ETestState.compose_instance.exec_in_container(
+                command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
+            )
 
         if E2E_TEST_MODE == "event_driven":
             console.print("[yellow]Creating Kafka topics...")
