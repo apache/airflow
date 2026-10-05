@@ -37,12 +37,15 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
     ResponseSerializer,
 )
 from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_3_PLUS
+from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
+    from datetime import timedelta
     from io import BytesIO
 
     from msgraph_core import APIVersion
 
+    from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
     from airflow.sdk import Context
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
 
@@ -62,6 +65,60 @@ class _PaginationCursor(TypedDict):
     url: str
     query_parameters: dict[str, Any] | None
     pages: int
+
+
+def _is_plain_data(value: Any) -> bool:
+    if isinstance(value, dict):
+        return all(isinstance(key, str) and _is_plain_data(item) for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return all(_is_plain_data(item) for item in value)
+    return value is None or isinstance(value, (str, int, float, bool))
+
+
+def build_start_trigger_args(
+    operator: MSGraphAsyncOperator | MSGraphSensor, timeout: timedelta | None = None
+) -> StartTriggerArgs | None:
+    """
+    Build the arguments which start the given operator from the triggerer, when that is possible.
+
+    The triggerer renders the templated fields of the trigger itself, but only since Airflow 3.3,
+    and it only gets what the serialized Dag holds.  It never resolves an ``XComArg``, and a
+    callable or a file-like object cannot be serialized.  None is returned in those cases, so the
+    operator starts on a worker instead.
+
+    :param operator: The operator to build the arguments for.
+    :param timeout: How long the trigger may run before the task times out (default is None).
+    """
+    if not AIRFLOW_V_3_3_PLUS:
+        return None
+
+    serializer = type(operator.serializer)
+    trigger_kwargs = {
+        "url": operator.url,
+        "response_type": operator.response_type,
+        "path_parameters": operator.path_parameters,
+        "url_template": operator.url_template,
+        "method": operator.method,
+        "query_parameters": operator.query_parameters,
+        "headers": operator.headers,
+        "data": operator.data,
+        "conn_id": operator.conn_id,
+        "timeout": operator.timeout,
+        "proxies": operator.proxies,
+        "scopes": operator.scopes,
+        "api_version": KiotaRequestAdapterHook.resolve_api_version_from_value(operator.api_version),
+        "serializer": f"{serializer.__module__}.{serializer.__name__}",
+    }
+
+    if not _is_plain_data(trigger_kwargs):
+        return None
+
+    return StartTriggerArgs(
+        trigger_cls=f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}",
+        trigger_kwargs=trigger_kwargs,
+        next_method=operator.execute_complete.__name__,
+        timeout=timeout,
+    )
 
 
 def default_event_handler(event: dict[Any, Any] | None = None, **context) -> Any:
@@ -137,6 +194,10 @@ class MSGraphAsyncOperator(BaseOperator):
         are removed from the store once the result is returned. Pages are stored as they are, so pages
         larger than the store's ``max_value_storage_bytes`` need a state store backend that offloads
         large values. Needs Airflow 3.3 or later.
+    :param start_from_trigger: Start the task directly from the triggerer, without first running it on a
+        worker (default is False).  This requires Airflow 3.3 or later, and arguments which only hold plain
+        values: when an argument is an ``XComArg``, a callable or a file-like object, the task starts on a
+        worker as usual.  The templated fields are then rendered by the triggerer.
     """
 
     # Durable execution implemented directly against task_state_store, without ResumableJobMixin.
@@ -175,6 +236,7 @@ class MSGraphAsyncOperator(BaseOperator):
         event_handler: Callable[[dict[Any, Any] | None, Context], Any] | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         durable: bool = False,
+        start_from_trigger: bool = False,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -200,6 +262,8 @@ class MSGraphAsyncOperator(BaseOperator):
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
         self.durable = durable
+        self.start_trigger_args = build_start_trigger_args(self) if start_from_trigger else None
+        self.start_from_trigger = self.start_trigger_args is not None
 
     def execute(self, context: Context) -> Any:
         if task_state_store := self.get_task_state_store(context):
