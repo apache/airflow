@@ -32,16 +32,15 @@ class DateTimeTrigger(BaseTrigger):
     Trigger based on a datetime.
 
     Pass either ``moment`` (a tz-aware datetime) or ``target_time`` (a string, possibly a Jinja
-    template). ``target_time`` is listed in ``template_fields`` so that, with ``start_from_trigger``,
-    the triggerer renders it in place before ``run()`` and it is parsed into ``moment`` on first use.
+    template, or a datetime). With ``start_from_trigger``, the operator lists ``target_time`` in its
+    own ``template_fields`` and puts it in ``start_trigger_args.trigger_kwargs``, so the triggerer
+    renders it in place before ``run()``; it is then parsed into ``moment`` on first use.
 
     :param moment: when to yield event
     :param target_time: raw (possibly templated) datetime string, an alternative to ``moment``
     :param end_from_trigger: whether the trigger should mark the task successful after time condition
         reached or resume the task after time condition reached.
     """
-
-    template_fields = ("target_time",)
 
     def __init__(
         self,
@@ -68,9 +67,12 @@ class DateTimeTrigger(BaseTrigger):
     def moment(self) -> pendulum.DateTime:
         if self._moment is None:
             # Resolved lazily: by now the triggerer has rendered target_time in place.
-            if not isinstance(self.target_time, str) or not self.target_time:
+            target_time: Any = self.target_time
+            if isinstance(target_time, datetime.datetime):
+                target_time = target_time.isoformat()
+            if not isinstance(target_time, str) or not target_time:
                 raise TypeError("DateTimeTrigger has neither a 'moment' nor a usable 'target_time'")
-            self._moment = timezone.convert_to_utc(timezone.parse(self.target_time))
+            self._moment = timezone.convert_to_utc(timezone.parse(target_time))
         return self._moment
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
