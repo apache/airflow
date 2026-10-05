@@ -37,7 +37,7 @@ from airflow.configuration import conf
 log = logging.getLogger(__name__)
 
 
-ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
+ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)", re.IGNORECASE)
 
 
 @overload
