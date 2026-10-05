@@ -44,7 +44,10 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     KubernetesWatch,
     task_instance_id_from_pod,
 )
-from airflow.providers.cncf.kubernetes.kube_client import get_async_kube_client, get_kube_client
+from airflow.providers.cncf.kubernetes.kube_client import (
+    _get_executor_async_kube_client,
+    _get_executor_kube_client,
+)
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_for_logging_task_metadata,
     annotations_to_key,
@@ -108,7 +111,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
-        kube_client: client.CoreV1Api = get_kube_client(use_client_factory=True, team_name=self.team_name)
+        kube_client: client.CoreV1Api = _get_executor_kube_client(team_name=self.team_name)
         while True:
             try:
                 self.resource_version = self._run(
@@ -715,9 +718,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
     ) -> list[Exception | None]:
         """Issue create_namespaced_pod calls concurrently, bounded by a semaphore; one result per pod, in order."""
         if self._async_pod_client is None:
-            self._async_pod_client = await get_async_kube_client(
-                use_client_factory=True, team_name=self.team_name
-            )
+            self._async_pod_client = await _get_executor_async_kube_client(team_name=self.team_name)
         api = self._async_pod_client
         semaphore = asyncio.Semaphore(self.pod_creation_max_concurrency)
         request_kwargs: dict[str, Any] = self.kube_config.kube_client_request_args or {}
