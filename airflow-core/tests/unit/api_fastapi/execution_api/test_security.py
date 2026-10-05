@@ -39,13 +39,20 @@ from airflow.api_fastapi.execution_api.security import (
     get_team_name_dep,
     require_auth,
 )
+from airflow.jobs.job import Job, JobState
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.models.variable import Variable
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_teams, clear_db_variables
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_jobs,
+    clear_db_teams,
+    clear_db_variables,
+)
 
 DAG_PROCESSOR_CLAIMS = TIClaims(scope="dag_processor", dag_bundles=frozenset({"granted"}))
 
@@ -339,6 +346,7 @@ def _build_client(app: FastAPI, claims: TIClaims) -> TestClient:
     return TestClient(app, headers={"Authorization": "Bearer fake"})
 
 
+@patch("airflow.api_fastapi.execution_api.security._require_open_dag_processor_session", autospec=True)
 class TestGetSelectedDagBundle:
     @pytest.fixture
     def app(self):
@@ -375,7 +383,7 @@ class TestGetSelectedDagBundle:
             ),
         ],
     )
-    def test_selected_bundle(self, app, claims, headers, expected_status, expected_body):
+    def test_selected_bundle(self, _, app, claims, headers, expected_status, expected_body):
         response = _build_client(app, claims).get("/selected", headers=headers)
 
         assert response.status_code == expected_status
@@ -403,6 +411,7 @@ def granted_and_other_dags(session):
 
 @pytest.mark.db_test
 @pytest.mark.usefixtures("granted_and_other_dags", "async_db_engine")
+@patch("airflow.api_fastapi.execution_api.security._require_open_dag_processor_session", autospec=True)
 class TestRequireDagInGrantedBundle:
     @pytest.fixture
     def app(self):
@@ -430,12 +439,12 @@ class TestRequireDagInGrantedBundle:
             pytest.param("/dags", 403, id="no-dag"),
         ],
     )
-    def test_dag_processor_token(self, app, url, expected_status):
+    def test_dag_processor_token(self, _, app, url, expected_status):
         response = _build_client(app, DAG_PROCESSOR_CLAIMS).get(url)
 
         assert response.status_code == expected_status
 
-    def test_execution_token_is_not_limited_to_bundles(self, app):
+    def test_execution_token_is_not_limited_to_bundles(self, _, app):
         response = _build_client(app, TIClaims(scope="execution")).get("/dags/other_dag")
 
         assert response.status_code == 200
@@ -462,6 +471,19 @@ class TestDagProcessorTokenOverHTTP:
         Variable.set(key="key1", value="value1")
         yield
         clear_db_variables()
+
+    @pytest.fixture(autouse=True)
+    def clean_jobs(self):
+        clear_db_jobs()
+        yield
+        clear_db_jobs()
+
+    @pytest.fixture
+    def running_session_job(self, session):
+        job = Job(job_type="DagProcessorJob", state=JobState.RUNNING)
+        job.session_id = UUID(int=1)
+        session.add(job)
+        session.commit()
 
     def _generate_token(self, *, secret: str = SECRET, valid_for: float = 300, **claims) -> str:
         generator = JWTGenerator(secret_key=secret, audience=self.AUDIENCE, valid_for=valid_for)
@@ -490,6 +512,7 @@ class TestDagProcessorTokenOverHTTP:
             ),
         ],
     )
+    @pytest.mark.usefixtures("running_session_job")
     def test_route_matrix(self, client, method, url, headers, expected_status):
         token = self._generate_processor_token()
 
@@ -512,6 +535,7 @@ class TestDagProcessorTokenOverHTTP:
             pytest.param({"scope": "workload"}, id="wrong-token-type"),
         ],
     )
+    @pytest.mark.usefixtures("running_session_job")
     def test_invalid_token_is_rejected(self, client, token_kwargs):
         token = self._generate_token(**token_kwargs)
 
@@ -522,6 +546,7 @@ class TestDagProcessorTokenOverHTTP:
 
         assert response.status_code == 403, response.text
 
+    @pytest.mark.usefixtures("running_session_job")
     def test_expiring_token_is_not_reissued(self, client):
         token = self._generate_processor_token(valid_for=30)
 
@@ -532,3 +557,28 @@ class TestDagProcessorTokenOverHTTP:
 
         assert response.status_code == 200, response.text
         assert "Refreshed-API-Token" not in response.headers
+
+    def test_requests_need_an_open_session(self, client):
+        headers = {
+            "Authorization": f"Bearer {self._generate_processor_token()}",
+            DAG_BUNDLE_HEADER: "granted",
+        }
+
+        def get_variable_status() -> int:
+            return client.get("/execution/variables/key1", headers=headers).status_code
+
+        assert get_variable_status() == 403
+
+        registered = client.post("/execution/jobs", headers=headers, json={"hostname": "processor-1"})
+        assert registered.status_code == 201, registered.text
+        job_url = f"/execution/jobs/{registered.json()['job_id']}"
+        assert get_variable_status() == 200
+        assert client.post(f"{job_url}/heartbeat", headers=headers).json() == {"state": "running"}
+
+        completed = client.post(f"{job_url}/complete", headers=headers, json={"state": "success"})
+        assert completed.status_code == 204, completed.text
+        assert get_variable_status() == 403
+        assert client.post(f"{job_url}/heartbeat", headers=headers).status_code == 403
+
+        replayed = client.post(f"{job_url}/complete", headers=headers, json={"state": "success"})
+        assert replayed.status_code == 204, replayed.text

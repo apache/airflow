@@ -71,6 +71,19 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
     "HEAD /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}": {"execution", "dag_processor"},
     "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}": {"execution", "dag_processor"},
     "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/slice": {"execution", "dag_processor"},
+    # The Job lifecycle of a Dag processor session.
+    "POST /jobs": {"dag_processor"},
+    "POST /jobs/{job_id}/heartbeat": {"dag_processor"},
+    "POST /jobs/{job_id}/complete": {"dag_processor"},
+}
+
+# Routes that check the caller's Dag processor session themselves instead of requiring an open one.
+SESSION_UNCHECKED_ROUTES = {"POST /jobs", "POST /jobs/{job_id}/complete"}
+
+DAG_PROCESSOR_LIFECYCLE_ROUTES = {
+    "POST /jobs",
+    "POST /jobs/{job_id}/heartbeat",
+    "POST /jobs/{job_id}/complete",
 }
 
 # Every message a Dag file parsing process can send its supervisor, mapped to the Execution API
@@ -171,7 +184,20 @@ class TestDagProcessorMessageRoutes:
     def test_classified_routes_are_exactly_the_dag_processor_routes(self):
         admitting = {route for route, types in _all_route_policies().items() if "dag_processor" in types}
 
-        assert admitting == {route for route in DAG_PROCESSOR_MESSAGE_ROUTES.values() if route}
+        assert (
+            admitting
+            == {route for route in DAG_PROCESSOR_MESSAGE_ROUTES.values() if route}
+            | DAG_PROCESSOR_LIFECYCLE_ROUTES
+        )
+
+    def test_only_job_registration_and_completion_skip_the_open_session_check(self):
+        skipping = {
+            key
+            for key, route in _get_api_routes().items()
+            if not getattr(route, "requires_open_session", True)
+        }
+
+        assert skipping == SESSION_UNCHECKED_ROUTES
 
     @pytest.mark.parametrize("route_key", sorted(filter(None, DAG_PROCESSOR_MESSAGE_ROUTES.values())))
     def test_dag_processor_route_is_bound_to_a_granted_bundle(self, route_key):

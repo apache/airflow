@@ -23,8 +23,9 @@ from enum import Enum
 from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
+from uuid import UUID
 
-from sqlalchemy import Index, Integer, String, case, select
+from sqlalchemy import Index, Integer, String, Uuid, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.orm.session import make_transient
@@ -103,6 +104,8 @@ class Job(Base, LoggingMixin):
     hostname: Mapped[str | None] = mapped_column(String(500))
     unixname: Mapped[str | None] = mapped_column(String(1000))
     bundle_names: Mapped[list[str] | None] = mapped_column(ExtendedJSON, nullable=True)
+    session_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
+    """Component session that registered this Job over the Execution API; ``None`` for Jobs written directly."""
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),

@@ -233,6 +233,51 @@ class IntermediateTIState(str, Enum):
     AWAITING_INPUT = "awaiting_input"
 
 
+class Unixname(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Unixname")]
+
+
+class JobRegisterBody(BaseModel):
+    """
+    Request body a Dag processor sends to register the Job of its session.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    hostname: Annotated[str, Field(max_length=500, min_length=1, title="Hostname")]
+    unixname: Annotated[Unixname | None, Field(title="Unixname")] = None
+    bundle_names: Annotated[
+        list[str] | None,
+        Field(
+            description="Bundles the processor parses; defaults to every bundle its token grants.",
+            title="Bundle Names",
+        ),
+    ] = None
+
+
+class JobRegisterResponse(BaseModel):
+    """
+    Identifier of the newly registered Job.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    job_id: Annotated[int, Field(title="Job Id")]
+
+
+class JobState(str, Enum):
+    """
+    All possible states that a Job can be in.
+    """
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -445,6 +490,15 @@ class TaskStatesResponse(BaseModel):
     """
 
     task_states: Annotated[dict[str, Any], Field(title="Task States")]
+
+
+class TerminalJobState(str, Enum):
+    """
+    States a Job can finish in.
+    """
+
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class TerminalStateNonSuccess(str, Enum):
@@ -715,6 +769,28 @@ class HITLDetailResponse(BaseModel):
 
 class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
+
+
+class JobCompleteBody(BaseModel):
+    """
+    Final state of the Job.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: TerminalJobState
+
+
+class JobHeartbeatResponse(BaseModel):
+    """
+    Current state of the Job; ``restarting`` asks the processor to stop.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: JobState
 
 
 class LiteralArgBinding(BaseModel):
