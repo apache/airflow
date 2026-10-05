@@ -180,6 +180,11 @@ class BuilderTest {
         public class TestExample {
           @Builder.Task
           public void t(long first, Client client, String second, Context ctx, Integer third) {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { t(lit(1L), lit("second"), lit(3)); }
+          }
         }
       """,
       )
@@ -197,18 +202,18 @@ class BuilderTest {
          import java.lang.Long;
          import java.lang.Override;
          import java.lang.String;
+         import java.util.List;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
-         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             dag.addTask(new TaskDef("t", T.class));
-             return dag;
+             return Refs.record(dag, List.of("t"), new TestExample.Wiring()::depends);
            }
 
            public static final class T implements Task {
@@ -240,6 +245,11 @@ class BuilderTest {
         public class TestExample {
           @Builder.Task
           public void t(boolean flag, float fraction, Double boxed, List<String> tags, Map raw) {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { t(lit(true), lit(1f), lit(2.0), lit(List.of("a")), lit(Map.of())); }
+          }
         }
       """,
       )
@@ -264,15 +274,14 @@ class BuilderTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
-         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
          import org.apache.airflow.sdk.internal.TypeRef;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             dag.addTask(new TaskDef("t", T.class));
-             return dag;
+             return Refs.record(dag, List.of("t"), new TestExample.Wiring()::depends);
            }
 
            public static final class T implements Task {
@@ -482,6 +491,11 @@ class BuilderTest {
         public class TestExample {
           @Builder.Task
           public void t(String args, int other) {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { t(lit("a"), lit(1)); }
+          }
         }
       """,
       )
@@ -498,18 +512,18 @@ class BuilderTest {
          import java.lang.Integer;
          import java.lang.Override;
          import java.lang.String;
+         import java.util.List;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
-         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             dag.addTask(new TaskDef("t", T.class));
-             return dag;
+             return Refs.record(dag, List.of("t"), new TestExample.Wiring()::depends);
            }
            public static final class T implements Task {
              @Override
@@ -532,6 +546,7 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
+        import java.util.List;
         import org.apache.airflow.sdk.Builder;
         import org.apache.airflow.sdk.TaskInput;
         @Builder.Dag
@@ -545,6 +560,11 @@ class BuilderTest {
 
           @Builder.Task
           public void named(ScoreInput context) {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { flat(lit("a"), lit(1)); named(lit(null)); }
+          }
         }
       """,
       )
@@ -561,20 +581,19 @@ class BuilderTest {
          import java.lang.Integer;
          import java.lang.Override;
          import java.lang.String;
+         import java.util.List;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
-         import org.apache.airflow.sdk.TaskDef;
          import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             dag.addTask(new TaskDef("flat", Flat.class));
-             dag.addTask(new TaskDef("named", Named.class));
-             return dag;
+             return Refs.record(dag, List.of("flat", "named"), new TestExample.Wiring()::depends);
            }
 
            public static final class Flat implements Task {
@@ -774,7 +793,13 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
         import org.apache.airflow.sdk.Builder;
-        @Builder.Dag(id = "foo") public class TestExample {}
+        @Builder.Dag(id = "foo")
+        public class TestExample {
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
       """,
       )
     assertThat(compilation)
@@ -783,9 +808,14 @@ class BuilderTest {
         "org.apache.airflow.example.TestExampleBuilder",
         """
          package org.apache.airflow.example;
+         import java.util.List;
          import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.internal.Refs;
          public final class TestExampleBuilder {
-           public static DagDef build() { var dag = new DagDef("foo"); return dag; }
+           public static DagDef build() {
+             var dag = new DagDef("foo");
+             return Refs.record(dag, List.of(), new TestExample.Wiring()::depends);
+           }
          }
         """,
       )
@@ -799,7 +829,13 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
         import org.apache.airflow.sdk.Builder;
-        @Builder.Dag(to = "Foo") public class TestExample {}
+        @Builder.Dag(to = "Foo")
+        public class TestExample {
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
       """,
       )
     assertThat(compilation)
@@ -808,9 +844,14 @@ class BuilderTest {
         "org.apache.airflow.example.Foo",
         """
          package org.apache.airflow.example;
+         import java.util.List;
          import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.internal.Refs;
          public final class Foo {
-           public static DagDef build() { var dag = new DagDef("TestExample"); return dag; }
+           public static DagDef build() {
+             var dag = new DagDef("TestExample");
+             return Refs.record(dag, List.of(), new TestExample.Wiring()::depends);
+           }
          }
         """,
       )
@@ -950,6 +991,28 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining("incompatible types")
+  }
+
+  @Test
+  @DisplayName("reject a dag class with no wiring class")
+  fun rejectDagClassWithoutWiringClass() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task public void t1() {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Dag class TestExample must declare a @Builder.Deps class implementing TestExampleDeps " +
+        "to declare its task graph; a class of task bodies for a Dag the Python file owns carries " +
+        "@Builder.TaskHandler instead",
+    )
   }
 
   @Test
@@ -1264,6 +1327,11 @@ class BuilderTest {
         @Builder.Dag
         public class TestExample {
           @Builder.Task(retryDelay = "5 minutes") public void t() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { t(); }
+          }
         }
       """,
       )
@@ -1284,6 +1352,11 @@ class BuilderTest {
         @Builder.Dag(tags = {"say \"hi\"", "back\\slash"})
         public class TestExample {
           @Builder.Task public void t() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { t(); }
+          }
         }
       """,
       )
@@ -1348,6 +1421,11 @@ class BuilderTest {
 
           @Builder.Task
           public double score(Client client, ScoreInput input) { return input.threshold; }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { score(lit(null)); }
+          }
         }
       """,
       )
@@ -1362,18 +1440,18 @@ class BuilderTest {
 
          import java.lang.Exception;
          import java.lang.Override;
+         import java.util.List;
          import org.apache.airflow.sdk.Client;
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
-         import org.apache.airflow.sdk.TaskDef;
          import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.Refs;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
              var dag = new DagDef("TestExample");
-             dag.addTask(new TaskDef("score", Score.class));
-             return dag;
+             return Refs.record(dag, List.of("score"), new TestExample.Wiring()::depends);
            }
 
            public static final class Score implements Task {

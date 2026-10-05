@@ -612,9 +612,9 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * }
             |   * ```
             |   *
-            |   * What makes the Dag native: a Dag class without one registers every
-            |   * task with no Java-side edges, which is the task-handler shape rather
-            |   * than a Dag Java owns.
+            |   * Every [Dag] class declares one, because the graph is what the Dag
+            |   * owns. A class that supplies only task bodies, for a Dag a Python
+            |   * file declares, carries [TaskHandler] instead.
             |   */
             |  @Target(AnnotationTarget.CLASS)
             |  @MustBeDocumented

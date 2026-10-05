@@ -641,8 +641,9 @@ handle in a local and reuse that.
 the wiring class ``Flow`` is inherited by simple name, so it needs no import and never collides with
 ``java.util.concurrent.Flow``.
 
-The wiring class is what makes the Dag native.  A Dag class without one registers every task with
-no Java-side edges, which is the task-handler shape rather than a Dag Java owns.
+Every ``@Builder.Dag`` class declares a wiring class, because the graph is what the Dag owns.  A
+class that supplies only task bodies, for a Dag a Python file declares, carries
+``@Builder.TaskHandler`` instead and contributes no Dag.
 
 .. note::
 

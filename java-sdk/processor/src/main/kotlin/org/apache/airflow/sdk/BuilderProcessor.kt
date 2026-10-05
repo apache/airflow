@@ -74,10 +74,9 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
  *   method (implementing [Task]), and a static `build()` that constructs the
  *   [DagDef], lowers every explicitly-written `@Builder.Dag` attribute into a
  *   `DagDef.config` call, then runs the class's [Builder.Deps] class and
- *   verifies it registered every task. When the class declares none, it
- *   registers every task with no Java-side edges.
- * - A `*Deps` wiring-view interface (only when a [Builder.Deps] class exists)
- *   whose methods mirror the task methods: injectable parameters ([Client],
+ *   verifies it registered every task.
+ * - A `*Deps` wiring-view interface whose methods mirror the task methods:
+ *   injectable parameters ([Client],
  *   [Context]) are dropped, data parameters become [Arg]-typed inputs, and the
  *   return value becomes a [TaskRef]. Calling one registers the task with its
  *   explicitly-written `@Builder.Task` attributes lowered into `TaskDef.config`
@@ -140,14 +139,12 @@ class BuilderProcessor : AbstractProcessor() {
             )
           val depsName = ClassName.get(packageName, "${el.simpleName}Deps")
           val deps = findDeps(el, depsName)
-          if (deps != null) declarations.forEach { checkViewName(it) }
+          declarations.forEach { checkViewName(it) }
           JavaFile
             .builder(packageName, buildBuilder(el, declarations, deps, builderName))
             .build()
             .writeTo(filer)
-          if (deps != null) {
-            JavaFile.builder(packageName, buildDeps(el, declarations, builderName, depsName)).build().writeTo(filer)
-          }
+          JavaFile.builder(packageName, buildDeps(el, declarations, builderName, depsName)).build().writeTo(filer)
         }.onFailure { e ->
           messager.printMessage(
             Diagnostic.Kind.ERROR,
@@ -212,7 +209,7 @@ class BuilderProcessor : AbstractProcessor() {
   private fun buildBuilder(
     el: TypeElement,
     declarations: List<TaskDeclaration>,
-    deps: TypeElement?,
+    deps: TypeElement,
     builderName: ClassName,
   ): TypeSpec {
     val ann = dagAnnotation(el)
@@ -231,22 +228,13 @@ class BuilderProcessor : AbstractProcessor() {
     explicitConfig(el, DAG_ANNOTATION, DAG_STRUCTURAL_ATTRIBUTES, SchemaFields.DAG).forEach { (key, value) ->
       buildMethod.addStatement($$"dag.config($S, $L)", key, value)
     }
-    if (deps != null) {
-      buildMethod.addStatement(
-        $$"return $T.record(dag, $T.of($L), new $T()::depends)",
-        REFS_TYPE,
-        ClassName.get(List::class.java),
-        CodeBlock.join(declarations.map { CodeBlock.of($$"$S", it.id) }, ", "),
-        ClassName.get(deps),
-      )
-    } else {
-      // No wiring class: register every task with no Java-side edges, which
-      // is the task-handler shape rather than a Dag Java owns.
-      declarations.forEach { decl ->
-        buildMethod.addStatement($$"dag.addTask($L)", taskDefCode(decl, CodeBlock.of($$"$L", decl.className)))
-      }
-      buildMethod.addStatement("return dag")
-    }
+    buildMethod.addStatement(
+      $$"return $T.record(dag, $T.of($L), new $T()::depends)",
+      REFS_TYPE,
+      ClassName.get(List::class.java),
+      CodeBlock.join(declarations.map { CodeBlock.of($$"$S", it.id) }, ", "),
+      ClassName.get(deps),
+    )
     builderClass.addMethod(buildMethod.build())
 
     declarations.forEach { builderClass.addType(buildTask(it, el)) }
@@ -346,8 +334,8 @@ class BuilderProcessor : AbstractProcessor() {
   }
 
   /**
-   * Finds and validates the class's `@Builder.Deps` wiring class. It is
-   * optional: without one, every task registers with no Java-side edges.
+   * Finds and validates the class's `@Builder.Deps` wiring class, which
+   * declares the Dag's task graph and is what makes it a Dag Java owns.
    *
    * The generated builder runs `new Wiring()::depends`, so everything that
    * expression needs is checked here, where the error can name the class.
@@ -355,12 +343,16 @@ class BuilderProcessor : AbstractProcessor() {
   private fun findDeps(
     el: TypeElement,
     view: ClassName,
-  ): TypeElement? {
+  ): TypeElement {
     val classes =
       el.enclosedElements
         .filterIsInstance<TypeElement>()
         .filter { it.getAnnotation(Builder.Deps::class.java) != null }
-    if (classes.isEmpty()) return null
+    require(classes.isNotEmpty()) {
+      "Dag class ${el.simpleName} must declare a @Builder.Deps class implementing ${view.simpleName()} " +
+        "to declare its task graph; a class of task bodies for a Dag the Python file owns carries " +
+        "@Builder.TaskHandler instead"
+    }
     val deps =
       classes.singleOrNull()
         ?: throw IllegalArgumentException(
