@@ -1317,6 +1317,56 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("reject overloaded task methods, whatever their parameters")
+  fun rejectOverloadedTaskMethods() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task(id = "a") public void extract() {}
+          @Builder.Task(id = "b") public void extract(String text) {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Dag class TestExample overloads task method 'extract'; a method's name is the name of its " +
+        "generated task class and of its wiring-view method, so rename one and keep its task id " +
+        "with @Builder.Task(id = \"b\")",
+    )
+  }
+
+  @Test
+  @DisplayName("reject overloaded task-handler methods")
+  fun rejectOverloadedTaskHandlerMethods() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        public class TestExample {
+          @Builder.TaskHandler(dag = "etl", task = "a") public void score() {}
+          @Builder.TaskHandler(dag = "etl", task = "b") public void score(String text) {}
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Class TestExample overloads task-handler method 'score'; a method's name is the name of its " +
+        "generated task class, so rename one and keep its task id with " +
+        "@Builder.TaskHandler(task = \"b\")",
+    )
+  }
+
+  @Test
   @DisplayName("reject a duration attribute that is not ISO-8601")
   fun rejectInvalidDurationAttribute() {
     val compilation =

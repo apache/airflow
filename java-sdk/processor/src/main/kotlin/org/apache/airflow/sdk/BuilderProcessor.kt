@@ -183,6 +183,7 @@ class BuilderProcessor : AbstractProcessor() {
         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
         .addParameter(BUNDLE_TYPE, "bundle")
 
+    val names = mutableSetOf<String>()
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
       val handler = inner.getAnnotation(Builder.TaskHandler::class.java) ?: continue
@@ -193,6 +194,11 @@ class BuilderProcessor : AbstractProcessor() {
         "@Builder.TaskHandler on '${inner.simpleName}' must name the Dag the Python file declares"
       }
       val decl = TaskDeclaration(inner, handler.task.ifBlank { inner.simpleName.toString() }, collectDataParams(inner))
+      require(names.add(inner.simpleName.toString())) {
+        "Class ${el.simpleName} overloads task-handler method '${inner.simpleName}'; a method's name is " +
+          "the name of its generated task class, so rename one and keep its task id with " +
+          "@Builder.TaskHandler(task = \"${decl.id}\")"
+      }
       registrar.addType(buildTask(decl, el))
       registerInto.addStatement(
         $$"bundle.register($S, $S, $L.class)",
@@ -328,6 +334,11 @@ class BuilderProcessor : AbstractProcessor() {
       if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
       val id = ann.id.ifBlank { inner.simpleName.toString() }
       require(declarations.none { it.id == id }) { "Tasks in Dag have duplicate ID: $id" }
+      require(declarations.none { it.method.simpleName.contentEquals(inner.simpleName) }) {
+        "Dag class ${el.simpleName} overloads task method '${inner.simpleName}'; a method's name is the " +
+          "name of its generated task class and of its wiring-view method, so rename one and keep its " +
+          "task id with @Builder.Task(id = \"$id\")"
+      }
       declarations += TaskDeclaration(inner, id, collectDataParams(inner))
     }
     return declarations
