@@ -938,6 +938,7 @@ class TestLocalExecutorBookkeeping:
             assert executor._worker_tasks == {pid: key}
             proc.kill()
             proc.join(timeout=5)
+            assert not proc.is_alive(), "Worker did not exit after being killed"
 
             executor.sync()
 
