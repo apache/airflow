@@ -16,16 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Button } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Box, Flex, Button } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
+import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
+
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
-import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
+
 import { useLogs } from "src/queries/useLogs";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -73,7 +78,7 @@ export const TaskLogPreview = ({
               : translate("overview.failedLogs.showLogs")}
           </Button>
           <ClearTaskInstanceButton taskInstance={taskInstance} />
-          <RouterLink fontSize="sm" to={getTaskInstanceLink(taskInstance)}>
+          <RouterLink fontSize="sm" to={getTaskInstanceLink(taskInstance, "logs")}>
             {translate("overview.failedLogs.viewFullLogs")}
           </RouterLink>
         </Flex>

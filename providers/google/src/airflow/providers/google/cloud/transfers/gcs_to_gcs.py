@@ -23,6 +23,8 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from google.api_core.exceptions import NotFound
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -188,6 +190,7 @@ class GCSToGCSOperator(BaseOperator):
         "delimiter",
         "impersonation_chain",
         "match_glob",
+        "gcp_conn_id",
     )
     ui_color = "#f0eee4"
 
@@ -607,8 +610,15 @@ class GCSToGCSOperator(BaseOperator):
             **rewrite_kwargs,
         )
 
-        if self.move_object:
-            hook.delete(self.source_bucket, source_object)
+        try:
+            if self.move_object:
+                hook.delete(self.source_bucket, source_object)
+
+        # Handle case where the file has already been deleted and a NotFound exception is raised
+        except NotFound:
+            self.log.warning(
+                "Object %s does not exist in the source bucket %s", source_object, self.source_bucket
+            )
 
         return f"gs://{dest_bucket}/{destination_object}"
 

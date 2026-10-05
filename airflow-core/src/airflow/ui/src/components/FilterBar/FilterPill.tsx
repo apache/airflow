@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import type { RefObject, KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdClose } from "react-icons/md";
 
-import { IconButton } from "../ui";
+import { IconButton } from "src/system-components";
+
 import { getDefaultFilterIcon } from "./defaultIcons";
 import type { FilterState } from "./types";
 import { isEmptyFilterValue } from "./utils";
@@ -152,10 +154,10 @@ export const FilterPill = ({
       _hover={{ bg: "colorPalette.subtle" }}
       alignItems="center"
       as="button"
-      bg={hasValue ? "blue.muted" : "gray.muted"}
+      bg={hasValue ? "brand.emphasized" : "gray.muted"}
       borderRadius="full"
       color="colorPalette.fg"
-      colorPalette={hasValue ? "blue" : "gray"}
+      colorPalette={hasValue ? "brand" : "gray"}
       cursor="pointer"
       data-testid={`${filter.config.key}-pill`}
       display="flex"

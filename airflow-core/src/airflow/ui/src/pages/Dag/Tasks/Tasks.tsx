@@ -23,12 +23,16 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskServiceGetTasks } from "openapi/queries";
 import type { TaskResponse } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
+import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
+
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
+
 import { SearchParamsKeys } from "src/constants/searchParams.ts";
-import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
 
 type TaskRow = { row: { original: TaskResponse } };
 

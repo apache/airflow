@@ -130,7 +130,7 @@ func TestCoordinatorCommCommunicateError(t *testing.T) {
 	)
 	require.Error(t, err)
 
-	apiErr, ok := err.(*ApiError)
+	apiErr, ok := err.(*APIError)
 	require.True(t, ok)
 	assert.Equal(t, "not_found", apiErr.Err)
 }
@@ -158,16 +158,16 @@ func TestCoordinatorCommCommunicateBodyError(t *testing.T) {
 	)
 	require.Error(t, err)
 
-	apiErr, ok := err.(*ApiError)
+	apiErr, ok := err.(*APIError)
 	require.True(t, ok)
 	assert.Equal(t, "server_error", apiErr.Err)
 }
 
-func TestApiErrorFormat(t *testing.T) {
-	err := &ApiError{Err: "not_found", Detail: "Variable 'x' not found"}
+func TestAPIErrorFormat(t *testing.T) {
+	err := &APIError{Err: "not_found", Detail: "Variable 'x' not found"}
 	assert.Equal(t, "[not_found] Variable 'x' not found", err.Error())
 
-	err2 := &ApiError{Err: "server_error"}
+	err2 := &APIError{Err: "server_error"}
 	assert.Equal(t, "server_error", err2.Error())
 }
 

@@ -21,6 +21,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ReactAppResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { Overview } from "./Overview";
@@ -66,7 +67,11 @@ vi.mock("src/pages/ReactPlugin", () => ({
   ReactPlugin: ({ reactApp }: { readonly reactApp: ReactAppResponse }) => <div>{reactApp.name}</div>,
 }));
 vi.mock("src/queries/useGridRuns.ts", () => ({ useGridRuns: () => ({ data: [], isLoading: false }) }));
-vi.mock("src/utils", () => ({ isStatePending: () => false, useAutoRefresh: () => false }));
+vi.mock("src/utils", () => ({
+  isStatePending: () => false,
+  useAutoRefresh: () => false,
+  useDurationFormat: () => ({ locale: "en" }),
+}));
 vi.mock("./DagDeadlines", () => ({ DagDeadlines: () => null }));
 vi.mock("./FailedLogs", () => ({ default: () => null }));
 

@@ -22,7 +22,7 @@ TypeScript SDK
 
 |experimental|
 
-The TypeScript SDK lets you group task handlers in a ``Dag`` and implement their logic in TypeScript (or
+The TypeScript SDK lets you register task handlers on a ``Bundle`` and implement their logic in TypeScript (or
 plain JavaScript), running on Node.js. A matching Python stub Dag still declares the scheduling shape and
 dependencies; individual tasks delegate to a Node.js subprocess that is spawned by
 :class:`~airflow.sdk.coordinators.node.NodeCoordinator` for each task instance.
@@ -37,7 +37,7 @@ The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in 
 
 .. seealso::
 
-  For the full TypeScript API reference (``Dag``, ``DagRegistry``, ``serveDags``, task handlers,
+  For the full TypeScript API reference (``Bundle``, ``TaskHandler``, ``Dag``, the task handler getters,
   ``TaskClient``, supporting types, and exceptions),
   see the `TypeScript SDK API reference <https://airflow.apache.org/docs/ts-sdk/stable/>`__.
 
@@ -48,9 +48,9 @@ The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in 
 Prerequisites
 -------------
 
-* Node.js 22 or later must be available on the Airflow worker nodes.
-* The packed bundle (a single ``bundle.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible from
-  the worker, under a directory the coordinator scans.
+* Node.js 22 or later must be available on the Airflow worker nodes and the Dag processor.
+* The packed bundle (a single ``bundle.min.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible
+  from the worker and the Dag processor, in the Dag bundle the coordinator scans.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 * In the TypeScript project, install the ``apache-airflow-ts-sdk`` npm package to author task handlers:
@@ -93,16 +93,19 @@ value routes the task to the Node.js coordinator.
 TypeScript implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A task is an ordinary (usually ``async``) function receiving ``TaskHandlerArgs``. Create a ``Dag`` with
-the ``dag_id`` it implements, attach each handler with ``dag.task``, collect the Dags in a ``DagRegistry``,
-then serve them to Airflow with ``serveDags``; that top-level ``await`` makes the module a runnable bundle
-entry point.
+A task is an ordinary (usually ``async``) function taking no arguments:
+``getContext()`` and ``getClient()`` reach the runtime from inside the call, so nothing the SDK supplies is a parameter.
+
+Create a ``TaskHandler`` per task, binding the function to the ``dag_id`` and ``task_id`` it implements,
+register them on a ``Bundle``, then serve it to Airflow with ``bundle.serve()``.
+That top-level ``await`` makes the module a runnable bundle entry point.
 
 .. code-block:: typescript
 
-    import { Dag, DagRegistry, serveDags, type TaskHandlerArgs } from "apache-airflow-ts-sdk";
+    import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
 
-    export async function buildMessage({ ctx, client }: TaskHandlerArgs) {
+    export async function buildMessage() {
+      const client = getClient();
       const upstream = await client.getXCom<string>({
         key: "return_value",
         taskId: "python_start",
@@ -111,79 +114,294 @@ entry point.
       return `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
     }
 
-    const dag = new Dag("typescript_example");
-    dag.task("build_message", buildMessage);
+    const bundle = new Bundle();
+    bundle.register(new TaskHandler("typescript_example", "build_message", buildMessage));
+    await bundle.serve();
 
-    await serveDags(new DagRegistry(dag));
+The ``dagId`` a handler binds must match the ``dag_id`` of the Python Dag, and the ``taskId`` a
+``@task.stub`` function in that Dag, including any TaskGroup prefix.
 
-The ``dagId`` passed to ``new Dag(...)`` must match the ``dag_id`` of the Python Dag, and each ``taskId``
-passed to ``dag.task`` must match a ``@task.stub`` function in that Dag. The registry passed to
-``serveDags`` is the bundle's complete set of Dags; a second ``serveDags`` call is rejected. A Dag left out
-of the registry is not part of the packed bundle, and its tasks are marked removed at runtime.
+``register`` takes any number of task handlers and Dags, and ``bundle.serve()`` serves exactly what is
+registered, so a task left out is not part of the packed bundle and is marked removed at runtime.
+A second ``bundle.serve()`` call is rejected.
+Registering holds no sockets and starts nothing, so a unit test can build a bundle and dispatch a handler
+through ``bundle.getTaskHandler(dagId, taskId)`` without a coordinator runtime.
 
-``DagRegistry`` holds no sockets and starts nothing, so a unit test can build one and dispatch a handler
-through ``registry.getTaskHandler(dagId, taskId)`` without a coordinator runtime. A bundle that collects
-its Dags across several modules can add them incrementally with ``registry.register(...)``.
+TaskFlow arguments
+~~~~~~~~~~~~~~~~~~
 
-``new Dag`` and ``dag.task`` take a trailing options object — ``spec`` on both, plus ``inputs`` on a task.
-These are not used yet; do not set them. Any other key is rejected.
+A Python Dag that calls a stub task TaskFlow-style passes those arguments straight to the handler, which
+destructures them by name:
+
+.. code-block:: python
+
+    @task.stub(queue="typescript")
+    def transform(region_code: str, threshold: float, dry_run: bool = False): ...
+
+
+    transform("uk", 0.75)
+
+.. code-block:: typescript
+
+    interface TransformArgs {
+      regionCode: string;
+      threshold: number;
+      dryRun: boolean;
+    }
+
+    export async function transform({ regionCode, threshold, dryRun }: TransformArgs) {
+      // ...
+    }
+
+Names bind by **folding on both sides**, lowercased with underscores removed, so ``region_code`` reaches
+``regionCode`` and ``s3_uri`` reaches ``s3Uri`` with nothing declared on either side.
+The Go SDK folds identically, so one Python signature binds the same way in either SDK.
+An argument the call leaves at its default arrives carrying the default's value.
+
+A name nothing folds to is **logged, not thrown**, naming what the handler asked for and what the call
+delivered. Two Python names that fold to the same token fail the task.
+
+``Object.keys`` and rest destructuring (``{ ...rest }``) yield Python's names, and ``in`` folds like a read.
+
+An argument the call fills from another task, as in ``transform(extract(), "uk")``,
+arrives as that task's value rather than a reference to it.
+An upstream that pushed no output fails the task, naming both the argument and the task it came from;
+one that pushed ``null`` binds ``null``.
+
+A Python ``int`` beyond the ±9007199254740991 a JavaScript number holds exactly is refused rather than
+bound, so carry such a value across the language boundary as a string.
+
+Explicit renames
+~~~~~~~~~~~~~~~~
+
+``withArgNames`` states a binding when folding cannot reach it, for a name the Python side never used:
+a clearer word than the Dag chose, or a TypeScript reserved word like ``enum``.
+The mapping comes first, the handler second:
+
+.. code-block:: typescript
+
+    interface ReportArgs {
+      summary: Summary;
+      label: string; // Python calls this `run_label`
+    }
+
+    const report = withArgNames({ label: "run_label" }, async ({ summary, label }: ReportArgs) => {
+      // `label` is the call's `run_label`; `summary` folded as usual.
+    });
+
+    bundle.register(new TaskHandler("etl", "report", report));
+
+An entry beats folding, and everything the map does not mention still folds,
+so ``withArgNames`` should be rare in a real Dag.
+A mapped name the call did not pass misses rather than falling back to folding.
+
+The map's keys are checked against the handler's own parameter type, so ``{ labl: "run_label" }`` is a
+compile error naming the right key. Its values are Python names, which ``tsc`` cannot see and does not
+check.
 
 .. note::
 
-  As with the other language SDKs, XCom *dependencies* are declared in the Python stub Dag (they define task
-  order). The value must still be read explicitly in TypeScript via ``client.getXCom``, and produced either
-  by the task's return value or by ``client.setXCom``.
+  Being upstream is not the same as being passed. As with the other language SDKs, an XCom *dependency*
+  declared with ``>>`` in the Python stub Dag defines task order only. Read a value the call did not pass
+  explicitly via ``getClient().getXCom``, and produce one either by the task's return value or by
+  ``getClient().setXCom``.
 
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Register the coordinator and route the queue to it under ``[sdk]`` in ``airflow.cfg`` (or the equivalent
-``AIRFLOW__SDK__*`` environment variables):
+Register a Dag bundle for the packed bundles, register the coordinator, and route the queue to it in
+``airflow.cfg`` (or the equivalent ``AIRFLOW__*`` environment variables):
 
 .. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+        {
+          "name": "ts-task-handlers",
+          "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+          "kwargs": {"path": "/opt/airflow/ts-bundles"}
+        }
+      ]
 
     [sdk]
     coordinators = {
       "ts": {
         "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
-        "kwargs": {"bundles_root": ["/opt/airflow/ts-bundles"]}
+        "kwargs": {"task_handler_bundle_name": "ts-task-handlers"}
       }
     }
     queue_to_coordinator = {"typescript": "ts"}
 
-``bundles_root`` is one or more directories the coordinator scans for bundles; ``queue_to_coordinator``
-routes stub tasks with ``queue="typescript"`` to this coordinator. See
-:ref:`typescript-sdk/coordinator-config` for the full list of accepted ``kwargs``.
+``task_handler_bundle_name`` names the Dag bundle the coordinator scans for packed bundles;
+``queue_to_coordinator`` routes stub tasks with ``queue="typescript"`` to this coordinator. See
+:ref:`typescript-sdk/coordinator-config` for the full list of accepted ``kwargs`` and how the bundle is
+located.
 
 There is no separate Node.js worker to run: the Airflow worker launches the bundle with ``node`` once per
 task instance.
 
 .. note::
 
-  The coordinator runs inside the Airflow worker, so the ``[sdk]`` config (and the packed ``bundle.mjs``
-  files in ``bundles_root``) only need to be present wherever tasks actually execute. With
-  ``CeleryExecutor``, setting them on the Celery workers is sufficient. With ``LocalExecutor``, tasks run
-  inside the scheduler process, so they must be present where the scheduler can read them. The API server
-  and Dag processor do not need them.
+  The ``[sdk]`` config, the packed ``*.min.mjs`` bundles and Node.js must be present wherever tasks execute
+  and on the Dag processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with
+  ``LocalExecutor``, they run inside the scheduler process. The Dag processor checks the stub tasks of each
+  Python Dag against the task handlers the packed bundles register, so it runs them too. The API server
+  does not need any of it. Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every
+  component, like your other Dag bundles: the worker and the Dag processor resolve
+  ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read it is rejected if the
+  name is missing there.
+
+.. _typescript-sdk/native-dag:
+
+Declaring a Dag in TypeScript
+-----------------------------
+
+A ``Dag`` is declared on this side rather than in Python: its schedule, its tasks, their options and
+the edges between them are all written in TypeScript. The surface is still growing, so a Dag declared
+this way is not served to Airflow yet.
+
+``dag.task(taskId, handler)`` returns a *factory*. A handler takes one object of named arguments, and
+calling the factory names each input, so the call graph is the task graph:
+
+.. code-block:: typescript
+
+    import { Dag } from "apache-airflow-ts-sdk";
+
+    const dag = new Dag("ts_etl");
+
+    const extract = dag.task("extract", async (): Promise<number> => 42);
+    const transform = dag.task(
+      "transform",
+      async ({ rows, region }: { rows: number; region: string }) => rows * 2,
+    );
+    const load = dag.task("load", async ({ total }: { total: number }) => {});
+
+    const extracted = extract();
+    const total = transform({ rows: extracted, region: "us" });
+    load({ total });
+
+Naming the inputs is how a task is called. A handler that takes no arguments is called with none, and
+a single argument is named like any other, ``load({ total })``. The compiler checks the call: it reports
+an argument left out, a misspelled one, and a literal of the wrong type.
+
+Each argument takes either an upstream reference or a literal JSON value. A reference has to be the
+argument itself: one buried inside an array or an object is a literal, and draws no edge.
+
+Every task has to be called exactly once. An uncalled task fails when the Dag is read, so none can be
+left out of the graph by accident.
+
+The task id may be omitted, in which case it is the handler's function name:
+
+.. code-block:: typescript
+
+    const extract = dag.task(async function extract(): Promise<number> {
+      return 42;
+    });
+
+``airflow-ts-pack`` keeps function names intact, so bundling cannot rename a task. A handler with no
+name of its own, such as an arrow function passed inline, has nothing to take an id from and needs
+one: either positionally or as ``taskId`` in its spec. Give it in one place only, not both.
+
+Order-only edges
+~~~~~~~~~~~~~~~~
+
+An edge that carries no value has no argument name to travel under, so it is drawn between the
+references themselves with ``before`` and ``after``, the TypeScript pair for Python's ``>>`` and
+``<<``:
+
+.. code-block:: typescript
+
+    const loaded = load({ transformed });
+    const cleaned = cleanup();
+
+    loaded.before(cleaned);                  // loaded >> cleaned
+    cleaned.after(loaded, transformed);      // [loaded, transformed] >> cleaned
+
+Both take any number of references, so one call draws several edges, and drawing an edge that
+already exists changes nothing. Each returns the reference it was called on, so
+``loaded.before(cleaned).before(notified)`` draws both edges from ``loaded``.
+
+Pass a value as an argument when the downstream task needs it, and use ``before`` or ``after`` when
+it only needs to run in order.
+
+Task groups
+~~~~~~~~~~~
+
+``dag.taskGroup(groupId)`` opens a scope with the same ``task`` and ``taskGroup`` methods as the Dag,
+prefixing the id of everything declared in it, as Python's ``prefix_group_id`` does:
+
+.. code-block:: typescript
+
+    const staging = dag.taskGroup("staging");
+    staging.task("stage_rows", stageRows)();        // task id "staging.stage_rows"
+    staging.taskGroup("checks").task("nulls", checkNulls)();  // "staging.checks.nulls"
+
+    staging.before(loaded);                          // staging >> loaded
+
+A group is an edge endpoint in its own right, so ``before`` and ``after`` order a whole group against
+a task or against another group.
+
+Tasks and groups share one id namespace, as they do in Python, so a Dag cannot hold both a task and a
+group called ``staging``. A ``.`` is what separates a group from what it holds, so it cannot appear in
+an id of either.
+
+Pass ``{ prefixGroupId: false }`` to keep the ids declared in a group as written, as ``prefix_group_id=False``
+does in Python; they then have to be unique across the Dag. A group id is made of letters, digits, dashes and
+underscores, and is at most 200 characters.
+
+Serialization
+~~~~~~~~~~~~~
+
+A native Dag serializes into the same Dag JSON a Python Dag produces, so the scheduler reads it
+without knowing which language declared it.
+
+``schedule`` accepts what maps to a stock timetable: unset, ``@once``, ``@continuous``, or a cron
+expression. A cron preset such as ``@daily`` is recorded as the expression it stands for. Anything
+else names a Python object a TypeScript bundle cannot point at, and is rejected.
+
+Every task of a native Dag runs on the Node coordinator, so it needs the queue the deployment routes
+there. Set it once on the Dag and each task inherits it:
+
+.. code-block:: typescript
+
+    const dag = new Dag("ts_etl", { schedule: "@daily", queue: "typescript" });
+
+    // ...and one task that needs its own.
+    dag.task("heavy", heavyHandler, { queue: "typescript_large" })();
+
+``queue`` on a task wins over the Dag's. See :ref:`typescript-sdk/coordinator-config` for the
+``queue_to_coordinator`` entry that sends that queue to the coordinator.
+
+``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
+``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
 Writing tasks
 -------------
 
-Every task handler receives a single ``TaskHandlerArgs`` object:
+A task handler takes no SDK-supplied argument. Two getters, valid for as long as the handler runs, supply what it needs:
 
 .. list-table::
    :header-rows: 1
-   :widths: 15 85
+   :widths: 20 80
 
-   * - Field
+   * - Getter
      - Value
-   * - ``ctx``
-     - The task's execution context: ``dagId``, ``taskId`` (including any TaskGroup prefix), ``runId``,
-       ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal`` — an ``AbortSignal`` that
-       fires when Airflow terminates the task. Pass ``signal`` to ``fetch()``, timers, or other APIs that
-       accept an ``AbortSignal`` for cooperative cancellation.
-   * - ``client``
+   * - ``getContext()``
+     - The task's execution context (a ``TaskContext``): ``dagId``, ``taskId`` (including any TaskGroup
+       prefix), ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal``, an
+       ``AbortSignal`` that fires when Airflow terminates the task. Pass ``signal`` to ``fetch()``, timers,
+       or other APIs that accept an ``AbortSignal`` for cooperative cancellation.
+   * - ``getClient()``
      - A ``TaskClient`` for Airflow Variables, Connections, and XCom.
+
+Both read a store the runtime installs around the handler call,
+which follows the handler across every ``await`` and into every promise it creates,
+so a helper several frames deep reads them without being passed anything. Both throw outside a handler.
+
+Work that outlives the handler is the one gap.
+A promise the handler never awaits still resolves, but it runs after Airflow has been told the task's terminal state,
+so await everything a handler starts.
 
 A non-``undefined`` return value becomes the task's ``return_value`` XCom, matching Python ``@task``
 behavior. An uncaught exception (or rejected promise) marks the task instance failed in Airflow, triggering
@@ -192,18 +410,28 @@ retries if configured on the stub.
 The ``TaskClient`` surface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* ``getVariable(key)`` — returns the Variable as a string, or ``null`` when it is missing;
+* ``getVariable(key)`` returns the Variable as a string, or ``null`` when it is missing;
   ``getVariableOrThrow(key)`` throws ``VariableNotFoundError`` instead, matching Python ``Variable.get``
   with no default.
-* ``getConnection(connId)`` — returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
+* ``setVariable(key, value, description?)`` stores a Variable, replacing any existing value, and
+  ``deleteVariable(key)`` removes one. Values are stored as strings, so serialize structured data (for
+  example with ``JSON.stringify``) before storing it.
+* ``getConnection(connId)`` returns a ``ConnectionResult`` with fields ``id`` and ``type``, plus the
   optional fields ``host``, ``schema``, ``login``, ``password``, ``port``, and ``extra`` (each may be
   missing or ``null``), or ``null`` when the connection does not exist;
   ``getConnectionOrThrow(connId)`` throws ``ConnectionNotFoundError`` instead, matching Python
   ``BaseHook.get_connection``.
-* ``getXCom<T>({key, ...})`` — reads an XCom value, or ``null`` when it is missing. The locator fields
+* ``getXCom<T>({key, ...})`` reads an XCom value, or ``null`` when it is missing. The locator fields
   (``dagId``, ``runId``, ``taskId``, ``mapIndex``) default to the current task; pass ``taskId`` to read an
   upstream task's XCom. See :ref:`typescript-sdk/types` for how the stored JSON maps to JavaScript types.
-* ``setXCom({key, value, ...})`` — publishes an XCom value.
+* ``setXCom({key, value, ...})`` publishes an XCom value.
+
+.. note::
+
+   A value supplied by a secrets backend (for example an ``AIRFLOW_VAR_*`` environment variable) still
+   takes precedence over the stored value when the Variable is read back. Calling ``setVariable`` without
+   a description clears the description the Variable had, and ``deleteVariable`` resolves even when the
+   key does not exist.
 
 Logging
 -------
@@ -260,9 +488,21 @@ Building and packaging
 ----------------------
 
 ``airflow-ts-pack`` (shipped with the SDK) bundles the entry module and all of its imports with esbuild into
-a single self-contained ESM file, ``bundle.mjs``, and embeds the manifest (the ``dag_id`` and ``task_id``
-map plus the supervisor schema version) as a leading ``//# airflowMetadata=<base64>`` comment — one file to
-deploy, with no separate manifest or ``node_modules``.
+a single self-contained, minified ESM file, ``bundle.min.mjs``, and embeds the manifest (the ``dag_id`` and
+``task_id`` map plus the supervisor schema version) after a leading compact JSON ``//# airflowBundle=...``
+layout header. The layout records the byte ranges and SHA-256 digests of the manifest and executable code,
+so there is one file to deploy, with no separate manifest or ``node_modules``.
+
+The code is minified because an integrity digest is only worth taking over an artifact nobody is expected to
+read or edit in place. Function names are kept through minification, since a task id defaults to its
+handler's name. The ``/*! */`` license banners of bundled dependencies are kept.
+
+Because the shipped code is not the code anyone wrote, the packer also embeds each Dag-defining source
+file verbatim in its own ``/*# airflowSource:<path> ... #*/`` block comment, verified by its own digest,
+so Airflow has something readable to display for each Dag. Each native Dag's file is embedded — the file
+its ``new Dag(...)`` constructor ran in — so a bundle that declares its Dags across several files gets one
+source region per file, mapped to their ``dag_id`` by the ``dag_source_paths`` field in the manifest. Files
+that only supply utilities or types are not embedded.
 
 ``esbuild`` is an optional peer dependency: packing is build-time only, so the runtime install of
 ``apache-airflow-ts-sdk`` skips it, and it must be installed separately before running ``airflow-ts-pack``.
@@ -272,15 +512,20 @@ deploy, with no separate manifest or ``node_modules``.
     npm install --save-dev esbuild
     npx airflow-ts-pack src/main.ts --outdir dist
 
-Use ``--outdir <dir>`` to choose the output directory (default ``dist``) and ``--source <name>`` to set the
-source name displayed in the Airflow UI (default: the entry file's basename).
+Use ``--outdir <dir>`` to choose the output directory (default ``dist``), ``--outfile <path>`` to name the
+artifact exactly, which helps when one Dag bundle holds several bundles, and ``--source <name>`` to set
+the source name displayed in the Airflow UI (default: the entry file's basename). ``--outdir`` and
+``--outfile`` are mutually exclusive, and an ``--outfile`` name must end in ``.min.mjs`` so the coordinator
+can find it.
 
 Deploying
 ~~~~~~~~~
 
-Copy or mount ``bundle.mjs`` into a directory listed in the coordinator's ``bundles_root``.
-:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches the configured directories in order and
-launches the first usable bundle with ``node``.
+Copy or mount the bundle into the Dag bundle named by the coordinator's ``task_handler_bundle_name``.
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches that Dag bundle recursively and launches the
+first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task instance's Dag. The artifact's
+name does not matter beyond that suffix, so one Dag bundle can hold several bundles and a Dag is routed to
+whichever declares it. If multiple bundles declare the same Dag, the first in sorted path order wins.
 
 .. _typescript-sdk/coordinator-config:
 
@@ -297,10 +542,13 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - Parameter
      - Default
      - Description
-   * - ``bundles_root``
-     - *(required)*
-     - One or more directories searched, in order, for a ``bundle.mjs`` with embedded metadata. Accepts a
-       string, a path, or a list of strings/paths.
+   * - ``task_handler_bundle_name``
+     - *(task's own Dag bundle)*
+     - Name of the Dag bundle searched recursively for an integrity-verified ``*.min.mjs`` bundle that
+       declares the requested Dag. It is used only by mixed-language Dags, to locate the task handlers for
+       the ``@task.stub`` tasks of a Python Dag; Dags defined natively in a language SDK do not use it. It
+       must be registered in ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]``
+       configuration is loaded, so a typo fails there rather than on the first task.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.
@@ -309,6 +557,17 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Seconds to wait for the Node.js subprocess to connect after launch. Increase this if your bundle
        startup is slow (e.g. on constrained hardware).
 
+.. note::
+
+  **Locating the bundle.** The packed bundles for the ``@task.stub`` tasks of a Python Dag are read from a
+  Dag bundle, so they are delivered, refreshed and versioned by the same machinery as your Dags.
+
+  * The expected layout is a separate Dag bundle for the packed bundles, named by
+    ``task_handler_bundle_name``, rather than the Dag bundle that holds your ``.py`` files. The task uses
+    the version that Dag bundle is on when it starts, pinned for the whole task.
+  * If ``task_handler_bundle_name`` is unset, the bundle is read from the **task's own** Dag bundle, pinned
+    to the version the run was created with.
+
 Limitations
 -----------
 
@@ -316,8 +575,5 @@ Limitations
   languages, so task names and dependencies are declared in Python with
   :func:`@task.stub <airflow.sdk.task.stub>`.
 * **Beta status.** The SDK API may change in incompatible ways between releases.
-* **One bundle per coordinator.** :class:`~airflow.sdk.coordinators.node.NodeCoordinator` launches the first
-  usable bundle found in ``bundles_root``; it does not yet route different Dags or tasks to different
-  bundles. To serve multiple bundles, register multiple coordinators on separate queues.
 * **One Node.js subprocess per task instance.** Tasks that need to share in-process state between instances
   should use XCom or an external store instead.

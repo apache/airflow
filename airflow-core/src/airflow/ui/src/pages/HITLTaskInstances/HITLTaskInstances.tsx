@@ -16,27 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+import { useState } from "react";
+
 import { HStack, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import type { ReactNode } from "react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuPanelRightOpen } from "react-icons/lu";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import type { HITLDetail } from "openapi/requests/types.gen";
+
+import { IconButton, RouterLink } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { HITLReviewDrawer } from "src/components/HITLReview/HITLReviewDrawer.tsx";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { IconButton, RouterLink } from "src/components/ui";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh, useDocumentTitle } from "src/utils";
 import { getHITLState, isHITLPending } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -56,6 +62,7 @@ const {
   RESPONSE_RECEIVED: RESPONSE_RECEIVED_PARAM,
   SUBJECT_SEARCH,
   TASK_ID_PATTERN,
+  TEAMS,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const HITLReviewDrawerButton = ({
@@ -95,12 +102,14 @@ const useHITLReviewDrawer = () => {
 
 const taskInstanceColumns = ({
   dagId,
+  multiTeam,
   renderHITLReviewDrawerButton,
   runId,
   taskId,
   translate,
 }: {
   dagId?: string;
+  multiTeam: boolean;
   renderHITLReviewDrawerButton?: (detail: HITLDetail) => ReactNode;
   runId?: string;
   taskId?: string;
@@ -122,7 +131,7 @@ const taskInstanceColumns = ({
       <RouterLink
         fontWeight="bold"
         onClick={(event) => event.stopPropagation()}
-        to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
+        to={getTaskInstanceLink(original.task_instance, "required_actions")}
       >
         <TruncatedText text={original.subject} />
       </RouterLink>
@@ -145,6 +154,18 @@ const taskInstanceColumns = ({
           enableSorting: false,
           header: translate("common:dagId"),
         },
+        ...(multiTeam
+          ? [
+              {
+                accessorKey: "team_name",
+                cell: ({ row: { original } }: HITLRow) => (
+                  <TeamName teamName={original.task_instance.team_name} />
+                ),
+                enableSorting: false,
+                header: translate("common:dagDetails.team"),
+              },
+            ]
+          : []),
       ]),
   ...(Boolean(runId)
     ? []
@@ -180,7 +201,7 @@ const taskInstanceColumns = ({
             <RouterLink
               fontWeight="bold"
               onClick={(event) => event.stopPropagation()}
-              to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
+              to={getTaskInstanceLink(original.task_instance, "required_actions")}
             >
               <TruncatedText text={original.task_instance.task_display_name} />
             </RouterLink>
@@ -222,6 +243,7 @@ export const HITLTaskInstances = ({
 }) => {
   const { t: translate } = useTranslation("hitl");
   const { dagId, runId, taskId } = useParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Only the standalone required-actions page owns the tab title; nested tabs inherit their parent's.
   useDocumentTitle(enableHITLReviewDrawer ? translate("common:browse.requiredActions") : undefined);
@@ -245,6 +267,7 @@ export const HITLTaskInstances = ({
   const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
   const respondedByUserName = searchParams.get(RESPONDED_BY_USER_NAME) ?? undefined;
   const subjectSearch = searchParams.get(SUBJECT_SEARCH) ?? undefined;
+  const teams = searchParams.getAll(TEAMS);
 
   // Use the filter value if available, otherwise fall back to the old responseReceived param
   const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
@@ -283,6 +306,7 @@ export const HITLTaskInstances = ({
       subjectSearch,
       taskId,
       ...taskIdArg,
+      teams: teams.length > 0 ? teams : undefined,
     },
     undefined,
     {
@@ -311,6 +335,7 @@ export const HITLTaskInstances = ({
 
   const columns = taskInstanceColumns({
     dagId,
+    multiTeam: multiTeamEnabled,
     renderHITLReviewDrawerButton: enableHITLReviewDrawer
       ? (detail) => <HITLReviewDrawerButton detail={detail} onOpen={openHITLReviewDrawer} />
       : undefined,

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
@@ -42,6 +42,8 @@ class BaseSqlToSlackOperator(BaseOperator):
         and receive a response from Slack. Optional
     :param slack_retry_handlers: List of handlers to customize retry logic. Optional
     """
+
+    template_fields: Sequence[str] = ("sql_conn_id",)
 
     def __init__(
         self,

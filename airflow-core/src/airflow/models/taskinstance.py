@@ -91,7 +91,6 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.hitl import HITLDetail  # noqa: F401
 from airflow.models.log import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
 from airflow.serialization.enums import stringify_encoding_keys
@@ -100,12 +99,13 @@ from airflow.task.priority_strategy import validate_and_load_priority_weight_str
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
+from airflow.utils.db import exists_query
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule
@@ -404,9 +404,7 @@ def clear_task_instances(
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     for ti in tis:
-        ti.prepare_db_for_next_try(session)
-
-        if ti.state == TaskInstanceState.RUNNING:
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING):
             if prevent_running_task:
                 raise AirflowClearRunningTaskException(
                     "AirflowClearRunningTaskException: Disable 'prevent_running_task' to proceed, or wait until the task is not running, queued, or scheduled state."
@@ -418,6 +416,12 @@ def clear_task_instances(
         # set its state to RESTARTING so that
         # the task is terminated and becomes eligible for retry.
         else:
+            if ti.state in (None, TaskInstanceState.UP_FOR_RETRY):
+                # The pending attempt hasn't run, so base its retry budget on the preceding attempt.
+                previous_try_number = max(0, ti.try_number - 1)
+            else:
+                previous_try_number = ti.try_number
+                ti.prepare_db_for_next_try(session)
             dr = ti.dag_run
             # A run with no version of its own has nothing to re-run on but the latest, and the
             # run loop below moves it there.
@@ -434,13 +438,13 @@ def clear_task_instances(
                 ti.refresh_from_task(task, dag_run=dr)
                 if TYPE_CHECKING:
                     assert ti.task
-                ti.max_tries = ti.try_number + task.retries
+                ti.max_tries = previous_try_number + task.retries
             else:
                 # Ignore errors when updating max_tries if the DAG or
                 # task are not found since database records could be
                 # outdated. We make max_tries the maximum value of its
                 # original max_tries or the last attempted try number.
-                ti.max_tries = max(ti.max_tries, ti.try_number)
+                ti.max_tries = max(ti.max_tries, previous_try_number)
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
@@ -766,6 +770,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.map_index = map_index
         if run_id is not None:
             self.run_id = run_id
+        self.try_number = 0
 
         self.refresh_from_task(task)
         if TYPE_CHECKING:
@@ -773,7 +778,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # init_on_load will config the log
         self.init_on_load()
 
-        self.try_number = 0
         self.max_tries = self.task.retries
         if not self.id:
             self.id = uuid7()
@@ -1068,12 +1072,27 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
 
     def prepare_db_for_next_try(self, session: Session):
-        """Update the metadata with all the records needed to put this TI in queued for the next try."""
+        """Archive this attempt and allocate the next attempt's UUID and try number."""
         from airflow.models.taskinstancehistory import TaskInstanceHistory
 
         TaskInstanceHistory.record_ti(self, session=session)
         session.execute(delete(TaskReschedule).filter_by(ti_id=self.id))
+        self.external_executor_id = None
         self.id = uuid7()
+        self.try_number += 1
+
+    def complete_restart(self, *, session: Session) -> None:
+        """Release a cleared attempt after termination; the caller must hold its row lock."""
+        if self.state != TaskInstanceState.RESTARTING:
+            raise ValueError("Only a restarting task instance can complete a restart")
+        if self.task is not None:
+            self.max_tries = self.try_number + self.task.retries
+        else:
+            self.max_tries = max(self.max_tries, self.try_number)
+        self.prepare_db_for_next_try(session)
+        self.state = None
+        self.clear_next_method_args()
+        session.flush()
 
     @provide_session
     def are_dependents_done(self, *, session: Session = NEW_SESSION) -> bool:
@@ -1262,6 +1281,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
+        # While waiting for retry, the live row already identifies the next attempt.
+        failed_try_number = (
+            self.try_number - 1 if self.state == TaskInstanceState.UP_FOR_RETRY else self.try_number
+        )
         delay = self.task.retry_delay
         multiplier = self.task.retry_exponential_backoff if self.task.retry_exponential_backoff != 0 else 1.0
         if multiplier != 1.0 and multiplier > 0:
@@ -1271,7 +1294,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 # will occur in the modded_hash calculation.
                 # this probably gives unexpected results if a task instance has previously been cleared,
                 # because try_number can increase without bound
-                min_backoff = math.ceil(delay.total_seconds() * (multiplier ** (self.try_number - 1)))
+                min_backoff = math.ceil(delay.total_seconds() * (multiplier ** (failed_try_number - 1)))
             except OverflowError:
                 min_backoff = MAX_RETRY_DELAY
                 self.log.warning(
@@ -1288,7 +1311,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # deterministic per task instance
             ti_hash = int(
                 hashlib.sha1(
-                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{self.try_number}".encode(),
+                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{failed_try_number}".encode(),
                     usedforsecurity=False,
                 ).hexdigest(),
                 16,
@@ -1857,7 +1880,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # Then, update ourselves so it matches the deferral request
             # Keep an eye on the logic in `check_and_change_state_before_execution()`
             # depending on self.next_method semantics
-            pre_deferral_state = self.state
             self.state = TaskInstanceState.DEFERRED
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
@@ -1871,8 +1893,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
                 else:
                     self.trigger_timeout = self.start_date + execution_timeout
-            if pre_deferral_state != TaskInstanceState.UP_FOR_RESCHEDULE:
-                self.try_number += 1
+            if self.try_number == 0:
+                self.try_number = 1
             if self.test_mode:
                 _add_log(event=self.state, task_instance=self, session=session)
             return True
@@ -1927,28 +1949,30 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # Actual callbacks are handled by the DAG processor, not the scheduler
         task = getattr(ti, "task", None)
 
+        allocate_next_try = False
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
 
             if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
-            if ti.state == TaskInstanceState.RUNNING:
-                # If the task instance is in the running state, it means it raised an exception and
-                # about to retry so we record the task instance history. For other states, the task
-                # instance was cleared and already recorded in the task instance history.
-                ti.prepare_db_for_next_try(session)
-
+            allocate_next_try = ti.state != TaskInstanceState.UP_FOR_RETRY
             ti.state = State.UP_FOR_RETRY
 
+        ti.notify_failure(error)
+        if allocate_next_try:
+            ti.prepare_db_for_next_try(session)
+
+        return ti
+
+    def notify_failure(self, error: str | None) -> None:
+        """Notify listeners before replacing this try's UUID and try number."""
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING, task_instance=self, error=error
             )
         except Exception:
             log.exception("error calling listener")
-
-        return ti
 
     @staticmethod
     @provide_session
@@ -2086,7 +2110,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     XComModel.dag_id,
                     XComModel.map_index,
                     XComModel.value,
-                )
+                ).limit(1)
             ).first()
             if first is None:  # No matching XCom at all.
                 return default
@@ -2322,7 +2346,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         tables: list[type[TaskInstanceDependencies]] = [
             XComModel,
             RenderedTaskInstanceFields,
-            TaskMap,
         ]
         tables_by_id: list[type[Base]] = [TaskInstanceNote, TaskReschedule]
         for table in tables:
@@ -2336,6 +2359,167 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             )
         for table in tables_by_id:
             session.execute(delete(table).where(table.ti_id == self.id))
+
+    def expand_mapped_task(self, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
+        """
+        Create the mapped task instances for mapped task.
+
+        :raise NotMapped: If this task does not need expansion.
+        :return: The newly created mapped task instances (if any) in ascending
+            order by map index, and the maximum map index value.
+        """
+        from airflow.models.expandinput import NotFullyPopulated
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+        from airflow.serialization.definitions.mappedoperator import (
+            SerializedMappedOperator,
+            get_mapped_ti_count,
+        )
+
+        task = self.task
+        run_id = self.run_id
+
+        if not isinstance(task, (SerializedMappedOperator, SerializedBaseOperator)):
+            raise RuntimeError(
+                f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
+            )
+
+        try:
+            total_length: int | None = get_mapped_ti_count(task, run_id, session=session)
+        except NotFullyPopulated as e:
+            if not task.dag or not task.dag.partial:
+                task.log.error(
+                    "Cannot expand %r for run %s; missing upstream values: %s",
+                    task,
+                    run_id,
+                    sorted(e.missing),
+                )
+            total_length = None
+
+        state: str | None = None
+        unmapped_ti: TaskInstance | None = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == task.dag_id,
+                TaskInstance.task_id == task.task_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.map_index == -1,
+                or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
+            )
+        ).one_or_none()
+
+        all_expanded_tis: list[TaskInstance] = []
+
+        if unmapped_ti:
+            if TYPE_CHECKING:
+                assert task.dag is None
+
+            # The unmapped task instance still exists and is unfinished, i.e. we
+            # haven't tried to run it before.
+            if total_length is None:
+                # If the DAG is partial, it's likely that the upstream tasks
+                # are not done yet, so the task can't fail yet.
+                if not task.dag or not task.dag.partial:
+                    unmapped_ti.state = TaskInstanceState.UPSTREAM_FAILED
+            elif total_length < 1:
+                # If the upstream maps this to a zero-length value, simply mark
+                # the unmapped task instance as SKIPPED (if needed).
+                task.log.info(
+                    "Marking %s as SKIPPED since the map has %d values to expand",
+                    unmapped_ti,
+                    total_length,
+                )
+                unmapped_ti.state = TaskInstanceState.SKIPPED
+            else:
+                dr = unmapped_ti.dag_run
+                zero_index_ti_exists = exists_query(
+                    TaskInstance.dag_id == task.dag_id,
+                    TaskInstance.task_id == task.task_id,
+                    TaskInstance.run_id == run_id,
+                    TaskInstance.map_index == 0,
+                    session=session,
+                )
+                if not zero_index_ti_exists:
+                    # Otherwise convert this into the first mapped index, and create
+                    # TaskInstance for other indexes.
+                    unmapped_ti.map_index = 0
+                    task.log.debug("Updated in place to become %s", unmapped_ti)
+                    all_expanded_tis.append(unmapped_ti)
+                    # execute hook for task instance map index 0
+                    task_instance_mutation_hook(unmapped_ti, dag_run=dr)
+                    session.flush()
+                else:
+                    task.log.debug("Deleting the original task instance: %s", unmapped_ti)
+                    session.delete(unmapped_ti)
+                state = unmapped_ti.state
+
+        if total_length is None or total_length < 1:
+            # Nothing to fixup.
+            indexes_to_map: Iterable[int] = ()
+        else:
+            # Only create "missing" ones.
+            current_max_mapping = (
+                session.scalar(
+                    select(func.max(TaskInstance.map_index)).where(
+                        TaskInstance.dag_id == task.dag_id,
+                        TaskInstance.task_id == task.task_id,
+                        TaskInstance.run_id == run_id,
+                    )
+                )
+                or 0
+            )
+            indexes_to_map = range(current_max_mapping + 1, total_length)
+
+        if unmapped_ti:
+            dag_version_id = unmapped_ti.dag_version_id
+        elif dag_version := DagVersion.get_latest_version(task.dag_id, session=session):
+            dag_version_id = dag_version.id
+        else:
+            dag_version_id = None
+
+        if not unmapped_ti:
+            from airflow.models import DagRun
+
+            dr = session.scalar(
+                select(DagRun).where(
+                    DagRun.dag_id == task.dag_id,
+                    DagRun.run_id == run_id,
+                )
+            )
+
+        new_tis: list[TaskInstance] = []
+        for index in indexes_to_map:
+            ti = TaskInstance(
+                task,
+                run_id=run_id,
+                map_index=index,
+                state=state,
+                dag_version_id=dag_version_id,
+            )
+            task.log.debug("Expanding TIs upserted %s", ti)
+            _add_and_prime_mapped_ti(
+                ti, task, dr, session=session, context_carrier=new_task_run_carrier(dr.context_carrier)
+            )
+            new_tis.append(ti)
+        if new_tis:
+            session.flush()
+        all_expanded_tis.extend(new_tis)
+
+        # Coerce the None case to 0 -- these two are almost treated identically,
+        # except the unmapped ti (if exists) is marked to different states.
+        total_expanded_ti_count = total_length or 0
+
+        # Any (old) task instances with inapplicable indexes (>= the total
+        # number we need) are set to "REMOVED".
+        query = select(TaskInstance).where(
+            TaskInstance.dag_id == task.dag_id,
+            TaskInstance.task_id == task.task_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.map_index >= total_expanded_ti_count,
+        )
+        to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
+        for ti in to_update:
+            ti.state = TaskInstanceState.REMOVED
+        session.flush()
+        return all_expanded_tis, total_expanded_ti_count - 1
 
     @classmethod
     def duration_expression_update(

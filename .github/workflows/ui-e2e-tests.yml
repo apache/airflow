@@ -121,7 +121,7 @@ jobs:
         uses: ./.github/actions/breeze
         if: github.event_name == 'workflow_dispatch'
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
         with:
           version: 9
           run_install: false
@@ -129,20 +129,31 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: |
+            airflow-core/src/airflow/ui/pnpm-lock.yaml
+            airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/pnpm-lock.yaml
+      - name: "Install UI dependencies"
+        working-directory: airflow-core/src/airflow/ui
+        run: pnpm install --frozen-lockfile
       - name: "Compile UI assets (for image build fallback)"
         if: github.event_name == 'workflow_dispatch'
         run: |
           cd airflow-core/src/airflow/ui
-          pnpm install --frozen-lockfile
           pnpm build
           cd ../api_fastapi/auth/managers/simple/ui
           pnpm install --frozen-lockfile
           pnpm build
-      - name: "Install Playwright browsers and dependencies"
+      # `breeze testing ui-e2e-tests` installs the browser itself but without `--with-deps`,
+      # so the runner's OS packages have to be installed here.
+      - name: "Install selected Playwright browser and dependencies"
+        working-directory: airflow-core/src/airflow/ui
         run: |
-          cd airflow-core/src/airflow/ui
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps
+          if [ "${BROWSER}" = "all" ]; then
+            pnpm exec playwright install --with-deps
+          else
+            pnpm exec playwright install --with-deps "${BROWSER}"
+          fi
       - name: "Test UI e2e tests"
         run: breeze testing ui-e2e-tests --browser "$BROWSER"
         env:

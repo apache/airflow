@@ -62,6 +62,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.sdk import Context
     from airflow.sdk.types import Operator as SdkOperator
     from airflow.serialization.definitions.mappedoperator import Operator
@@ -313,9 +314,9 @@ def task_state(args) -> None:
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def task_list(args, dag: DAG | None = None) -> None:
+def task_list(args, dag: BaggedDAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
-    dag = dag or get_bagged_dag(args.bundle_name, args.dag_id)
+    dag = dag or get_bagged_dag(args.bundle_name, args.dag_id, allow_lang_sdk_dag=True)
     tasks = sorted(t.task_id for t in dag.tasks)
     print("\n".join(tasks))
 
@@ -417,7 +418,7 @@ def task_test(args, dag: DAG | None = None) -> None:
     env_vars = {"AIRFLOW_TEST_MODE": "True"}
     if args.env_vars:
         env_vars.update(args.env_vars)
-        os.environ.update(env_vars)
+    os.environ.update(env_vars)
 
     if dag:
         sdk_dag = dag

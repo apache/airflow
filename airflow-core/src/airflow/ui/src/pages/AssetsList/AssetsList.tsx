@@ -24,6 +24,11 @@ import { useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssetsUi } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
+
+import { RouterLink } from "src/system-components";
+
+import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
+
 import { AliasesPopover, WatchersPopover } from "src/components/Assets/ListPopover";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -31,16 +36,17 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { FilterBar } from "src/components/FilterBar";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch, useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
 
 const assetsFilterKeys: Array<FilterableSearchParamsKeys> = [
+  SearchParamsKeys.DAG_ID,
   SearchParamsKeys.GROUP_PATTERN,
+  SearchParamsKeys.HAS_EVENTS,
   SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE,
 ];
 
@@ -124,7 +130,7 @@ const createColumns = (translate: TFunction): Array<ColumnDef<AssetResponse>> =>
   },
 ];
 
-const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
+const { DAG_ID, NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
 
 export const AssetsList = () => {
   const { t: translate } = useTranslation(["assets", "common"]);
@@ -133,6 +139,7 @@ export const AssetsList = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const dagId = searchParams.get(DAG_ID);
   const namePattern = searchParams.get(NAME_PATTERN) ?? "";
   const advancedSearch = useAdvancedSearch("assets");
 
@@ -142,6 +149,18 @@ export const AssetsList = () => {
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-last_asset_event_timestamp"];
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(assetsFilterKeys);
+  const assetsFilterConfigs = filterConfigs.map((config) =>
+    config.key === DAG_ID ? { ...config, supportsAdvancedSearch: false } : config,
+  );
+
+  const hasEventsParam = searchParams.get(SearchParamsKeys.HAS_EVENTS);
+  let hasEvents = undefined;
+
+  if (hasEventsParam === "true") {
+    hasEvents = true;
+  } else if (hasEventsParam === "false") {
+    hasEvents = false;
+  }
 
   const lastAssetEventTimestampGte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE);
   const lastAssetEventTimestampLte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_LTE);
@@ -155,6 +174,8 @@ export const AssetsList = () => {
   const { data, error, isFetching, isLoading } = useAssetServiceGetAssetsUi(
     {
       ...groupArg,
+      dagIds: dagId === null || dagId === "" ? undefined : [dagId],
+      hasEvents,
       lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
       lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
       limit: pagination.pageSize,
@@ -197,7 +218,7 @@ export const AssetsList = () => {
             placeholder={translate("searchPlaceholder")}
           />
           <FilterBar
-            configs={filterConfigs}
+            configs={assetsFilterConfigs}
             initialValues={initialValues}
             onFiltersChange={handleFiltersChange}
           />

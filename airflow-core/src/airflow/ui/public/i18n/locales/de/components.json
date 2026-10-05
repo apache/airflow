@@ -17,6 +17,10 @@
     "missingRuns": "Fehlende Läufe",
     "notCreatedReason": "Grund für die Nichterstellung",
     "overrideExistingParams": "Parameter bei bestehenden Läufen überschreiben",
+    "partitionRange": "Partitionsbereich",
+    "partitionsAffected_one": "{{count}} Partition wird aufgefüllt:",
+    "partitionsAffected_other": "{{count}} Partitionen werden aufgefüllt:",
+    "partitionsNone": "Keine Partitionen entsprechen dem ausgewählten Bereich.",
     "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
@@ -31,7 +35,6 @@
         "title": "Auffüllung gestartet"
       }
     },
-    "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten",
     "validation": {
       "datesRequired": "Sowohl Start- als auch Enddatum müssen angegeben werden.",
       "startBeforeEnd": "Das Startdatum muss vor oder auf dem Enddatum liegen."
@@ -107,6 +110,10 @@
     "taskGroup": "Task Gruppe",
     "zoomToTask": "Zum ausgewählten Task zoomen"
   },
+  "jsonPreview": {
+    "items_one": "{{count}} Element",
+    "items_other": "{{count}} Elemente"
+  },
   "limitedList": "+{{count}} mehr",
   "limitedList.allItems": "Alle {{count}} Einträge:",
   "limitedList.allTags_one": "Alle Markierungen ({{count}})",
@@ -129,6 +136,7 @@
     "empty": "Keine abgeschlossenen Task Instanzen in diesem Bereich",
     "title": "Langsamste Task Instanzen"
   },
+  "sortMultiColumnHint": "Mit Großschreibtaste klicken um mehrere Spalten zur Sortierung zu verwenden",
   "sortedAscending": "aufsteigend sortiert",
   "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
@@ -167,8 +175,7 @@
         "title": "Dag-Lauf ausgelöst"
       }
     },
-    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen",
-    "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
+    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen"
   },
   "trimText": {
     "details": "Details",

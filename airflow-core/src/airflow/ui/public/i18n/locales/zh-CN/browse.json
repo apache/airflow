@@ -10,6 +10,22 @@
       "eventType": "事件类型"
     }
   },
+  "dagBundles": {
+    "active": "已启用",
+    "bundle_one": "Dag 套件包",
+    "bundle_other": "Dag 套件包",
+    "columns": {
+      "active": "已启用",
+      "importErrors": "导入错误",
+      "lastRefreshed": "上次刷新时间",
+      "name": "名称",
+      "version": "版本"
+    },
+    "inactive": "已停用",
+    "neverRefreshed": "从未",
+    "notRefreshedYet": "尚未刷新",
+    "notVersioned": "未启用版本管理"
+  },
   "deadlines": {
     "columns": {
       "alertName": "警告名称",
@@ -56,6 +72,8 @@
       "successTitle": "已更新 XCom",
       "title": "编辑 XCom"
     },
+    "entry_one": "XCom 条目",
+    "entry_other": "XCom 条目",
     "key": "键",
     "title": "XCom",
     "value": "值"

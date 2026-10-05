@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Box, Button, Field, Flex, HStack, Input, Spacer, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { BackfillPostBody, DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+
+import { Alert, Checkbox, RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/system-components";
+
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
-import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
+
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
@@ -36,21 +40,21 @@ import { useTogglePause } from "src/queries/useTogglePause";
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
-import type { DagRunTriggerParams } from "../TriggerDag/types";
-import { Alert } from "../ui";
-import { Checkbox } from "../ui/Checkbox";
+import PausedDagOptions from "../TriggerDag/PausedDagOptions";
+import type { DagRunTriggerParams, PausedDagAction } from "../TriggerDag/types";
 import { getInlineMessage } from "./inlineMessage";
 
 type RunBackfillFormProps = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
+  readonly disabled?: boolean;
   readonly onClose: () => void;
 };
 type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
 
-const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
+const RunBackfillForm = ({ dag, disabled = false, onClose }: RunBackfillFormProps) => {
   const { t: translate } = useTranslation(["components", "common"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
-  const [unpause, setUnpause] = useState(true);
+  const [pausedDagAction, setPausedDagAction] = useState<PausedDagAction>("unpause");
   const [overrideParams, setOverrideParams] = useState(false);
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dag.dag_id, true);
@@ -96,7 +100,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     },
   });
   const { mutate: togglePause } = useTogglePause({ dagId: dag.dag_id });
-  const { createBackfill, dateValidationError, error, isPending } = useCreateBackfill({
+  const { createBackfill, dateValidationError, error, isPending, resetError } = useCreateBackfill({
     onSuccessConfirm: onClose,
   });
 
@@ -116,7 +120,10 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const dataIntervalInvalid = dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd));
 
   const onSubmit = (fdata: BackfillFormProps) => {
-    if (unpause && dag.is_paused) {
+    if (disabled) {
+      return;
+    }
+    if (pausedDagAction === "unpause" && dag.is_paused) {
       togglePause({
         dagId: dag.dag_id,
         requestBody: {
@@ -128,6 +135,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       requestBody: {
         ...fdata,
         dag_run_conf: overrideParams ? (JSON.parse(fdata.conf) as Record<string, unknown>) : null,
+        drain_dag: dag.is_paused && pausedDagAction === "drain",
       },
     });
   };
@@ -254,9 +262,16 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         <Spacer />
         {dag.is_paused ? (
           <>
-            <Checkbox checked={unpause} onChange={() => setUnpause(!unpause)} wordBreak="break-all">
-              {translate("backfill.unpause", { dag_display_name: dag.dag_display_name })}
-            </Checkbox>
+            <PausedDagOptions
+              dagId={dag.dag_id}
+              onChange={(action) => {
+                setPausedDagAction(action);
+                if (Boolean(error)) {
+                  resetError();
+                }
+              }}
+              value={pausedDagAction}
+            />
             <Spacer />
           </>
         ) : undefined}
@@ -278,7 +293,11 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <Button onClick={() => void handleSubmit(onCancel)()}>{translate("common:modal.cancel")}</Button>
           <Button
             disabled={
-              Boolean(errors.date) || isPendingDryRun || formError || affectedTasks.total_entries === 0
+              disabled ||
+              Boolean(errors.date) ||
+              isPendingDryRun ||
+              formError ||
+              affectedTasks.total_entries === 0
             }
             loading={isPending}
             onClick={() => void handleSubmit(onSubmit)()}

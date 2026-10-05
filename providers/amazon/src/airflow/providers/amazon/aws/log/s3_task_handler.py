@@ -84,6 +84,15 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
             local_loc = self.base_log_folder.joinpath(path)
             remote_loc = os.path.join(self.remote_base, path)
 
+        # ``joinpath``/``relative_to`` are lexical and do not normalise ``..``, so a caller-supplied
+        # path can escape ``base_log_folder``. Mirrors the check in ``CloudWatchRemoteLogIO.upload``.
+        base = self.base_log_folder.resolve()
+        try:
+            local_loc.resolve().relative_to(base)
+        except ValueError:
+            self.log.warning("Skipping upload: path %s is outside base_log_folder %s", local_loc, base)
+            return
+
         if local_loc.is_file():
             # read log and remove old logs to get just the latest additions
             log = local_loc.read_text()

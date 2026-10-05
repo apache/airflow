@@ -21,3 +21,7 @@ from airflow.providers.common.compat.sdk import AirflowException
 
 class ConnectionNotOpenedException(AirflowException):
     """Thrown when a connection has not been opened and has been tried to be used."""
+
+
+class SFTPOperationError(AirflowException):
+    """Thrown when an SFTP operation (GET, PUT, DELETE) fails during execution."""

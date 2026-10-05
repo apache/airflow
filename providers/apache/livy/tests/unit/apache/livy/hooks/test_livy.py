@@ -908,6 +908,7 @@ class TestLivyAsyncHook:
         }
         mock_run_method.assert_called_once_with(
             endpoint=f"/livy/batches/{BATCH_ID}/state",
+            method="GET",
             headers={},
         )
 
@@ -925,6 +926,7 @@ class TestLivyAsyncHook:
         }
         mock_run_method.assert_called_once_with(
             endpoint=f"/batches/{BATCH_ID}/state",
+            method="GET",
             headers=headers,
         )
 
@@ -939,6 +941,7 @@ class TestLivyAsyncHook:
         mock_run_method.assert_called_once_with(
             endpoint=f"/livy/batches/{BATCH_ID}/log",
             data={"from": 0, "size": 100},
+            method="GET",
             headers={},
         )
 
@@ -954,5 +957,6 @@ class TestLivyAsyncHook:
         mock_run_method.assert_called_once_with(
             endpoint=f"/batches/{BATCH_ID}/log",
             data={"from": 0, "size": 100},
+            method="GET",
             headers=headers,
         )

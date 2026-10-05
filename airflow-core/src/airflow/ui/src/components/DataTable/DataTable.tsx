@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { type ReactNode, useCallback, useRef } from "react";
+
 import { Box, Flex, Heading, HStack, VStack } from "@chakra-ui/react";
 import {
   getCoreRowModel,
@@ -27,10 +29,11 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { type ReactNode, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi2";
 import { useLocalStorage } from "usehooks-ts";
+
+import { IconButton, Pagination, ProgressBar, Toaster } from "src/system-components";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { FilterMenuButton } from "src/components/DataTable/FilterMenuButton";
@@ -38,13 +41,14 @@ import { TableList } from "src/components/DataTable/TableList";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
-import { IconButton, Pagination, ProgressBar, Toaster } from "src/components/ui";
 
 type DataTableProps<TData> = {
   readonly cardDef?: CardDef<TData>;
   readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
+  /** Lets shift-click on a column header add it as a secondary sort; the page must send every sort to its endpoint. */
+  readonly enableMultiSort?: boolean;
   readonly errorMessage?: ReactNode | string;
   /**
    * Controls that change *which* rows the table returns — a `SearchBar`, a `FilterBar`, or both
@@ -108,6 +112,7 @@ export const DataTable = <TData,>({
   columns,
   data,
   displayMode = "table",
+  enableMultiSort = false,
   errorMessage,
   filterActions,
   headingExtra,
@@ -172,6 +177,7 @@ export const DataTable = <TData,>({
     columns,
     data,
     enableHiding: true,
+    enableMultiSort,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,

@@ -289,6 +289,7 @@ class TestSnowflakeSqlApiHook:
         mock_requests,
     ):
         """Test execute_query method, run query by mocking post request method and return the query ids"""
+        mock_conn_param.return_value = CONN_PARAMS
         mock_requests.codes.ok = 200
         mock_requests.request.side_effect = [
             create_successful_response_mock(expected_response),
@@ -318,6 +319,7 @@ class TestSnowflakeSqlApiHook:
         expected_query_ids,
         mock_requests,
     ):
+        mock_conn_param.return_value = CONN_PARAMS
         mock_requests.codes.ok = 200
         mock_requests.request.side_effect = [
             create_successful_response_mock(expected_response),
@@ -340,6 +342,7 @@ class TestSnowflakeSqlApiHook:
         self, mock_get_header, mock_conn_param, mock_requests
     ):
         """Test execute_query method, run query by mocking post request method and return the query ids"""
+        mock_conn_param.return_value = CONN_PARAMS
         sql, statement_count, expected_response, expected_query_ids = (
             SQL_MULTIPLE_STMTS,
             4,
@@ -393,6 +396,7 @@ class TestSnowflakeSqlApiHook:
         without statementHandle in the response
         """
         # status_code, json payload without statementHandle
+        mock_conn_param.return_value = CONN_PARAMS
         mock_make_api_call.return_value = (None, {"foo": "bar"})
         hook = SnowflakeSqlApiHook("mock_conn_id")
 
@@ -521,15 +525,24 @@ class TestSnowflakeSqlApiHook:
         result = hook.get_headers()
         assert result == HEADERS
 
-    @mock.patch(f"{HOOK_PATH}.get_oauth_token")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params")
-    def test_get_headers_should_support_oauth(self, mock_conn_param, mock_oauth_token):
-        """Test get_headers method by mocking get_oauth_token and _get_conn_params method"""
-        mock_conn_param.return_value = CONN_PARAMS_OAUTH
-        mock_oauth_token.return_value = "newT0k3n"
-        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
-        result = hook.get_headers()
-        assert result == HEADERS_OAUTH
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param({"refresh_token": "secrettoken"}, id="refresh_token"),
+            pytest.param(
+                {"authenticator": "oauth", "grant_type": "client_credentials"}, id="client_credentials"
+            ),
+            pytest.param({"authenticator": "oauth", "azure_conn_id": "azure_conn"}, id="azure_conn_id"),
+        ],
+    )
+    @mock.patch(f"{HOOK_PATH}.get_azure_oauth_token", autospec=True, return_value="newT0k3n")
+    @mock.patch("requests.post", autospec=True)
+    def test_get_headers_should_support_oauth(self, requests_post, mock_azure_oauth_token, extra):
+        requests_post.return_value.json.return_value = {"access_token": "newT0k3n", "expires_in": 600}
+        connection_kwargs = {**BASE_CONNECTION_KWARGS, "extra": {**BASE_CONNECTION_KWARGS["extra"], **extra}}
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+            assert hook.get_headers() == HEADERS_OAUTH
 
     @mock.patch(f"{HOOK_PATH}._get_conn_params")
     def test_get_headers_should_support_pat(self, mock_conn_param):
@@ -1099,7 +1112,9 @@ class TestSnowflakeSqlApiHook:
         """
         Test that _make_api_call_with_retries method respects max retry attempts.
         """
-        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn", api_retry_args={"wait": tenacity.wait_none()}
+        )
 
         # Mock response that always fails with retryable error
         failed_response = mock.MagicMock()
@@ -1234,8 +1249,9 @@ class TestSnowflakeSqlApiHook:
         assert result == {"status": "queued", "info": ["a", "b"]}
         sleep_mock.assert_not_called()
 
+    @mock.patch(f"{MODULE_PATH}.time.monotonic")
     @mock.patch(f"{MODULE_PATH}.time.sleep")
-    def test_wait_for_query_timeout_error(self, sleep_mock, time_machine):
+    def test_wait_for_query_timeout_error(self, sleep_mock, monotonic_mock):
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
 
         # Simulate a query that keeps running and never finishes
@@ -1244,9 +1260,13 @@ class TestSnowflakeSqlApiHook:
         qid = "qid-789"
         timeout = 3
 
-        # Freeze the clock. Each sleep advances it explicitly so logger time.time() calls do not skew the timeout.
-        time_machine.move_to(0, tick=False)
-        sleep_mock.side_effect = lambda seconds: time_machine.shift(seconds + 0.1)
+        clock = [0.0]
+        monotonic_mock.side_effect = lambda: clock[0]
+
+        def advance_clock(seconds):
+            clock[0] += seconds + 0.1
+
+        sleep_mock.side_effect = advance_clock
 
         with pytest.raises(TimeoutError):
             hook.wait_for_query(query_id=qid, timeout=timeout, poll_interval=1)
@@ -1256,6 +1276,28 @@ class TestSnowflakeSqlApiHook:
         sleep_mock.assert_has_calls([mock.call(1)] * 3)
         assert hook.get_sql_api_query_status.call_count == 4
         hook.get_sql_api_query_status.assert_has_calls([mock.call(query_id=qid)] * 4)
+
+    @pytest.mark.parametrize("final_status", ["success", "error"])
+    @mock.patch(f"{MODULE_PATH}.time.monotonic")
+    @mock.patch(f"{MODULE_PATH}.time.sleep")
+    def test_wait_for_query_returns_finished_status_after_timeout_elapsed(
+        self, sleep_mock, monotonic_mock, final_status
+    ):
+        """A status check that outlasts the timeout still reports a query that has finished."""
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        clock = [0.0]
+        monotonic_mock.side_effect = lambda: clock[0]
+
+        def finish_after_slow_status_call(query_id):
+            clock[0] += 10
+            return {"status": final_status, "message": "done"}
+
+        hook.get_sql_api_query_status = mock.MagicMock(side_effect=finish_after_slow_status_call)
+
+        result = hook.wait_for_query(query_id="qid-slow", timeout=3, poll_interval=1)
+
+        assert result == {"status": final_status, "message": "done"}
+        sleep_mock.assert_not_called()
 
     @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
     @mock.patch(f"{HOOK_PATH}._process_response")
@@ -1485,7 +1527,9 @@ class TestSnowflakeSqlApiHook:
         """
         Test that _make_api_call_with_retries_async respects max retry attempts.
         """
-        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn", api_retry_args={"wait": tenacity.wait_none()}
+        )
         mock_request_429 = create_async_request_client_response_error(status_code=429)
 
         # Always returns 429

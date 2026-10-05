@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, HStack } from "@chakra-ui/react";
 import { useEffect, useState, type ReactNode } from "react";
+
+import { Button, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { IoFilter } from "react-icons/io5";
 import { MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
 
+import { Menu } from "src/system-components";
+
 import { PresetFiltersMenu } from "src/components/PresetFiltersMenu";
-import { Menu } from "src/components/ui";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
 import { BooleanFilter } from "./filters/BooleanFilter";
@@ -92,19 +94,30 @@ export const FilterBar = ({
       const existingKeys = new Set(prevFilters.map((filter) => filter.config.key));
       const toAdd = pillsToAdd.filter((pill) => !existingKeys.has(pill.config.key));
 
-      // Remove pills that had a committed value but whose URL param was cleared externally.
-      const afterRemove = prevFilters.filter((filter) => {
-        const pillHadValue = isValidFilterValue(filter.config.type, filter.value);
-        const urlValue = initialValues[filter.config.key];
+      const synchronizedFilters = prevFilters
+        .filter((filter) => {
+          const pillHadValue = isValidFilterValue(filter.config.type, filter.value);
+          const urlValue = initialValues[filter.config.key];
 
-        return !pillHadValue || isValidFilterValue(filter.config.type, urlValue);
-      });
+          return !pillHadValue || isValidFilterValue(filter.config.type, urlValue);
+        })
+        .map((filter) => {
+          const urlValue = initialValues[filter.config.key];
 
-      if (toAdd.length === 0 && afterRemove.length === prevFilters.length) {
+          return isValidFilterValue(filter.config.type, urlValue) && filter.value !== urlValue
+            ? { ...filter, value: urlValue }
+            : filter;
+        });
+
+      const filtersUnchanged =
+        synchronizedFilters.length === prevFilters.length &&
+        synchronizedFilters.every((filter, index) => filter === prevFilters[index]);
+
+      if (toAdd.length === 0 && filtersUnchanged) {
         return prevFilters;
       }
 
-      return [...afterRemove, ...toAdd];
+      return [...synchronizedFilters, ...toAdd];
     });
     // configs is intentionally omitted — it is structurally stable across renders and including
     // it would risk infinite re-render loops. initialValuesKey captures all relevant URL changes.

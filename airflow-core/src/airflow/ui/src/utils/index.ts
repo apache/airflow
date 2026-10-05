@@ -18,12 +18,13 @@
  */
 
 export { capitalize } from "./capitalize";
-export { getDuration, renderDuration } from "./datetimeUtils";
 export { createErrorToaster, getErrorStatus } from "./errorHandling";
 export { getMetaKey } from "./getMetaKey";
+export { hasDagRunConfig } from "./hasDagRunConfig";
 export { toNullablePartitionKey } from "./partitionKey";
 export { useContainerWidth } from "./useContainerWidth";
 export { useDocumentTitle } from "./useDocumentTitle";
+export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
 export { DocumentTitleProvider } from "./useDocumentTitleProvider";
 export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
 export * from "./query";

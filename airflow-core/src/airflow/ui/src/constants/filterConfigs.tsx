@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/* eslint-disable max-lines */
 import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { FiBarChart, FiDatabase, FiTag, FiUser, FiUsers } from "react-icons/fi";
+import { FiActivity, FiBarChart, FiDatabase, FiTag, FiUser, FiUsers } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import {
   MdBuild,
@@ -40,13 +41,21 @@ import { PiQueue } from "react-icons/pi";
 
 import { useTeamsServiceListTeams } from "openapi/queries";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
-import { DagIcon } from "src/assets/DagIcon";
-import { TaskIcon } from "src/assets/TaskIcon";
+
 import type { FilterConfig } from "src/components/FilterBar";
+import { RunStateFilter } from "src/components/FilterBar/filters/RunStateFilter";
 import { TagsFilter } from "src/components/FilterBar/filters/TagsFilter";
 import { TimetableTypeFilter } from "src/components/FilterBar/filters/TimetableTypeFilter";
+import {
+  runStateFromSearchParams,
+  runStateToSearchParams,
+} from "src/components/FilterBar/filters/runStateParams";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+
+import { DagIcon } from "src/assets/DagIcon";
+import { TaskIcon } from "src/assets/TaskIcon";
+import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import {
   dagRunStateOptions,
   dagRunTypeOptions,
@@ -116,6 +125,13 @@ export const useFilterConfigs = () => {
       label: translate("components:versionDetails.bundleVersion"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.COMPLETED_AT_RANGE]: {
+      endKey: SearchParamsKeys.COMPLETED_AT_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:filters.completedAt"),
+      startKey: SearchParamsKeys.COMPLETED_AT_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.CONF_CONTAINS]: {
       hotkeyDisabled: true,
       icon: <MdCode />,
@@ -156,13 +172,6 @@ export const useFilterConfigs = () => {
       label: translate("common:dagId"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
-    },
-    [SearchParamsKeys.DAG_RUN_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("dags:filters.anyRunState"),
-      options: runStateOptions,
-      placeholder: translate("dags:filters.anyRunStatePlaceholder"),
-      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.DAG_VERSION]: {
       hotkeyDisabled: true,
@@ -225,6 +234,13 @@ export const useFilterConfigs = () => {
       placeholder: translate("dags:filters.favoriteStatePlaceholder"),
       type: FilterTypes.SELECT,
     },
+    [SearchParamsKeys.FROM_RANGE]: {
+      endKey: SearchParamsKeys.FROM_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:table.from"),
+      startKey: SearchParamsKeys.FROM_DATE_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.GROUP_PATTERN]: {
       hotkeyDisabled: true,
       icon: <FiDatabase />,
@@ -232,6 +248,15 @@ export const useFilterConfigs = () => {
       placeholder: translate("assets:filters.groupPlaceholder"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.HAS_EVENTS]: {
+      icon: <MdCheckCircle />,
+      label: translate("assets:filters.hasEvents"),
+      options: [
+        { label: translate("common:yes"), value: "true" },
+        { label: translate("common:no"), value: "false" },
+      ],
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.HOSTNAME]: {
       hotkeyDisabled: true,
@@ -270,13 +295,6 @@ export const useFilterConfigs = () => {
       startKey: SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE,
       type: FilterTypes.DATERANGE,
     },
-    [SearchParamsKeys.LAST_DAG_RUN_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("dags:filters.lastRunState"),
-      options: runStateOptions,
-      placeholder: translate("dags:filters.lastRunStatePlaceholder"),
-      type: FilterTypes.SELECT,
-    },
     [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
       endKey: SearchParamsKeys.LOGICAL_DATE_LTE,
       icon: <MdDateRange />,
@@ -288,6 +306,18 @@ export const useFilterConfigs = () => {
       icon: <LuBrackets />,
       label: translate("common:mapIndex"),
       min: -1,
+      type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.MAX_ACTIVE_RUNS_GTE]: {
+      icon: <FiActivity />,
+      label: translate("common:filters.maxActiveRunsFrom"),
+      min: 1,
+      type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.MAX_ACTIVE_RUNS_LTE]: {
+      icon: <FiActivity />,
+      label: translate("common:filters.maxActiveRunsTo"),
+      min: 1,
       type: FilterTypes.NUMBER,
     },
     [SearchParamsKeys.MISSED]: {
@@ -364,6 +394,15 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.REPROCESS_BEHAVIOR]: {
+      icon: <MdPlayArrow />,
+      label: translate("components:backfill.reprocessBehavior"),
+      options: reprocessBehaviors.map((option) => ({
+        label: translate(option.label),
+        value: option.value,
+      })),
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.RESPONDED_BY_USER_NAME]: {
       hotkeyDisabled: true,
       icon: <FiUser />,
@@ -406,6 +445,16 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.RUN_STATE]: {
+      EditorComponent: RunStateFilter,
+      fromSearchParams: runStateFromSearchParams,
+      icon: <MdCheckCircle />,
+      label: translate("dags:filters.runState"),
+      options: runStateOptions,
+      placeholder: translate("dags:filters.runStatePlaceholder"),
+      toSearchParams: runStateToSearchParams,
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.RUN_TYPE]: {
       icon: <MdPlayArrow />,
       label: translate("common:dagRun.runType"),
@@ -418,6 +467,17 @@ export const useFilterConfigs = () => {
         ),
         value: option.value,
       })),
+      type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.SCHEDULING_STATE]: {
+      icon: <MdSchedule />,
+      label: translate("dags:schedulingState.label"),
+      options: [
+        { label: translate("dags:schedulingState.active"), value: "active" },
+        { label: translate("dags:schedulingState.draining"), value: "draining" },
+        { label: translate("dags:schedulingState.paused"), value: "paused" },
+      ],
+      placeholder: translate("dags:schedulingState.placeholder"),
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.START_DATE_RANGE]: {
@@ -480,6 +540,13 @@ export const useFilterConfigs = () => {
       icon: <MdSchedule />,
       label: translate("dags:filters.timetableType"),
       type: FilterTypes.MULTISELECT,
+    },
+    [SearchParamsKeys.TO_RANGE]: {
+      endKey: SearchParamsKeys.TO_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:table.from"),
+      startKey: SearchParamsKeys.TO_DATE_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
       hotkeyDisabled: true,

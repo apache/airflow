@@ -21,7 +21,9 @@ import { FiGlobe } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { MenuItem } from "openapi/requests/types.gen";
-import { Menu } from "src/components/ui";
+
+import { Menu } from "src/system-components";
+
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
@@ -32,6 +34,12 @@ const links = [
     href: "/events",
     key: "auditLog",
     title: "Audit Log",
+  },
+  {
+    href: "/dag_bundles",
+    key: "dagBundles",
+    // Must stay byte-identical to MenuItem.DAG_BUNDLES: the filter below matches on this string.
+    title: "Dag Bundles",
   },
   {
     href: "/deadlines",

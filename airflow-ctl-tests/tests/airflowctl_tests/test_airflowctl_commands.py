@@ -56,6 +56,12 @@ TEST_COMMANDS = [
     "assets list",
     "assets get 1",
     "assets create-event --asset-id=1",
+    "assets set-state-store 1 test_key test_value",
+    "assets get-state-store 1 test_key",
+    "assets list-state-store 1",
+    "assets delete-state-store 1 test_key",
+    "assets set-state-store 1 clear_key value",
+    "assets clear-state-store 1",
     # Backfill commands
     "backfill list example_bash_operator",
     # Config commands
@@ -101,6 +107,8 @@ TEST_COMMANDS = [
     'tasks failed-deps example_bash_operator runme_0 --logical-date "{date_param}"',
     'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
     'tasks states-for-dag-run example_bash_operator --logical-date "{date_param}"',
+    'tasks state example_bash_operator runme_0 "manual__{date_param}"',
+    'tasks state example_bash_operator runme_0 --logical-date "{date_param}"',
     'tasks clear example_bash_operator --dag-run-id "manual__{date_param}" --task-ids runme_0 -o json',
     # Task Instances commands
     'taskinstances get example_bash_operator "manual__{date_param}" runme_0',

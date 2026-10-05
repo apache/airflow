@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ReactFlowProvider } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
+
+import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiCode, FiCalendar } from "react-icons/fi";
+import { FiBarChart, FiCode, FiCalendar, FiGitCommit } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
@@ -27,9 +28,11 @@ import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
 import { ApiError } from "openapi/requests/core/ApiError";
+
+import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
@@ -51,6 +54,7 @@ export const Dag = () => {
     { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
+    { icon: <FiGitCommit />, label: translate("tabs.versions"), value: "versions" },
     { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
     ...externalTabs,
   ];
@@ -75,7 +79,10 @@ export const Dag = () => {
     {
       refetchInterval: (query) => {
         // Auto-refresh when there are active runs or pending runs
-        if (hasPendingRuns ?? (query.state.data && (query.state.data.active_runs_count ?? 0) > 0)) {
+        if (
+          query.state.data?.scheduling_state === "draining" ||
+          (hasPendingRuns ?? (query.state.data && (query.state.data.active_runs_count ?? 0) > 0))
+        ) {
           return refetchInterval;
         }
 
@@ -88,7 +95,11 @@ export const Dag = () => {
 
   // Ensures continuous refresh to detect new runs when there's no
   // pending state and new runs are initiated from other page
-  useRefreshOnNewDagRuns(dagId, hasPendingRuns, dag?.is_paused);
+  useRefreshOnNewDagRuns(
+    dagId,
+    hasPendingRuns,
+    dag?.is_paused === true || dag?.scheduling_state === "draining",
+  );
 
   const {
     data: latestRun,

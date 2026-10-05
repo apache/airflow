@@ -287,13 +287,6 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
         """
-        conn_type = getattr(self, "_prenormalized_conn_type", self.conn_type) or ""
-        if "_" in conn_type:
-            self.log.warning(
-                "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
-                conn_type,
-            )
-
         if self.conn_type:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:
@@ -390,10 +383,46 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         """Return hook based on conn_type."""
         from airflow.providers_manager import ProvidersManager
 
-        hook = ProvidersManager().hooks.get(self.conn_type, None)
+        hooks = ProvidersManager().hooks
+        hook = hooks.get(self.conn_type, None)
 
         if hook is None:
-            raise AirflowException(f'Unknown hook type "{self.conn_type}"')
+            if not self.conn_type:
+                # A URI scheme cannot contain '_' (RFC 3986), so "foo_bar://h" parses with no
+                # scheme at all and leaves conn_type empty. Name that, instead of reporting an
+                # unknown hook type of "".
+                message = (
+                    f"Connection {self.conn_id!r} has no connection type, so no hook could be "
+                    "looked up. If it was defined as a URI, note that a URI scheme cannot "
+                    "contain '_' (RFC 3986) and such a URI parses with no scheme at all: use "
+                    "'-' in the URI instead, which is decoded back to '_' on read."
+                )
+            else:
+                message = f'Unknown hook type "{self.conn_type}"'
+                # get_uri() encodes '_' as '-' because RFC 3986 forbids '_' in a scheme, and
+                # reading a connection back from a URI or from JSON decodes it again, so both
+                # characters serialize to '-' and a connection type spelled one way cannot
+                # resolve a hook registered the other way. Hooks register under the
+                # connection-type verbatim, so look the other spelling up rather than asserting
+                # which one is right, and resolve it rather than testing for membership: a
+                # registered connection type maps to None when its hook cannot be imported, and
+                # naming a spelling that still will not resolve is worse than naming none.
+                alternative = (
+                    self.conn_type.replace("-", "_")
+                    if "-" in self.conn_type
+                    else self.conn_type.replace("_", "-")
+                )
+                if alternative != self.conn_type and hooks.get(alternative) is not None:
+                    message += f", but a hook is registered for {alternative!r}. "
+                    if "-" in self.conn_type:
+                        message += "Spell this connection's type with '_' to reach it."
+                    else:
+                        message += (
+                            "Reading a connection from a URI or from JSON decodes '-' back to "
+                            "'_', so this connection cannot reach that hook; the provider has "
+                            "to declare its connection-type with '_'."
+                        )
+            raise AirflowException(message)
         try:
             hook_class = import_string(hook.hook_class_name)
         except ImportError:
