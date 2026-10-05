@@ -133,7 +133,7 @@
   },
   "pausedDag": {
     "drain": "Auslaufend",
-    "drainDescription": "nicht beendete laufen weiter, aber keine geplanten Läufe werden erstellt. Pausierte bleiben pausiert. Das Dag pausiert wieder sobald alle Läufe komplett sind.",
+    "drainDescription": "Nicht beendete Läufe werden fortgesetzt, aber es werden keine neuen geplanten Läufe erstellt. Pausierte Läufe bleiben pausiert. Das Dag pausiert wieder sobald alle Läufe komplett sind.",
     "keepPaused": "Pausiert lassen",
     "keepPausedDescription": "Neue und nicht beendete Läufe warten bis die Dag pause beendet ist.",
     "title": "Dag ist pausiert",
