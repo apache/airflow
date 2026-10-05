@@ -9323,7 +9323,6 @@ dependencies = [
     { name = "asgiref" },
     { name = "attrs" },
     { name = "babel" },
-    { name = "certifi" },
     { name = "colorlog" },
     { name = "fsspec" },
     { name = "greenback" },
@@ -9345,6 +9344,7 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "structlog" },
     { name = "tenacity" },
+    { name = "truststore" },
     { name = "typing-extensions" },
 ]
 
@@ -9399,7 +9399,6 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "attrs", specifier = ">=24.2.0,!=25.2.0" },
     { name = "babel", specifier = ">=2.17.0" },
-    { name = "certifi", specifier = ">=2024.7.4" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "datadog", marker = "extra == 'all'", specifier = ">=0.50.0" },
     { name = "datadog", marker = "extra == 'datadog'", specifier = ">=0.50.0" },
@@ -9433,6 +9432,7 @@ requires-dist = [
     { name = "statsd", marker = "extra == 'statsd'", specifier = ">=3.3.0" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "tenacity", specifier = ">=8.3.0" },
+    { name = "truststore", specifier = ">=0.10.0" },
     { name = "typing-extensions", specifier = ">=4.14.1" },
 ]
 provides-extras = ["all", "datadog", "otel", "sentry", "statsd"]

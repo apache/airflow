@@ -27,10 +27,10 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import quote
 
-import certifi
 import httpx2
 import msgspec
 import structlog
+import truststore
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, JsonValue
@@ -1202,15 +1202,20 @@ class Client(httpx2.Client):
         """
         Cache SSL context to prevent memory growth from repeated context creation.
 
-        If `client_use_public_certs` is enabled certifi.where() will be loaded into the context.
+        If `client_use_public_certs` is enabled, the system trust store is trusted alongside any
+        explicitly loaded CAs.
 
         :param ca_file: Certificate Authority, optional.
         :param ca_path: Certificate File, optional.
         """
-        ctx = ssl.create_default_context(cafile=ca_file)
+        ctx: ssl.SSLContext
         if API_CLIENT_USE_PUBLIC_CERTS:
-            log.info("Using Public CAs from certifi")
-            ctx.load_verify_locations(certifi.where())
+            log.info("Using public CAs from the system trust store")
+            ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            if ca_file:
+                ctx.load_verify_locations(ca_file)
+        else:
+            ctx = ssl.create_default_context(cafile=ca_file)
         if ca_path:
             ctx.load_verify_locations(ca_path)
         return ctx
