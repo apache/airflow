@@ -183,7 +183,6 @@ class TestTaskInstanceEndpoint:
                         TaskInstance.task_id == ti.task_id,
                         TaskInstance.run_id == ti.run_id,
                         TaskInstance.map_index == ti.map_index,
-                        TaskInstance.working_set.is_(True),
                     )
                 )
                 assert current.id != ti.id
@@ -2957,7 +2956,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             session.flush()
             session.add(RTIF(ti, render_templates=False))
         session.commit()
-        tis = session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(True))).all()
+        tis = session.scalars(select(TaskInstance)).all()
         # Record the task instance history
         from airflow.models.taskinstance import clear_task_instances
 
@@ -4707,7 +4706,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         self.create_task_instances(
             session=session, task_instances=[{"state": State.FAILED}], with_ti_history=True
         )
-        ti = session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(True))).one()
+        ti = session.scalars(select(TaskInstance)).one()
         ti.state = State.UP_FOR_RETRY
         session.commit()
 
@@ -7688,7 +7687,6 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
                 TaskInstance.dag_id == self.DAG_ID,
                 TaskInstance.run_id == self.RUN_ID,
                 TaskInstance.task_id.in_(downstream_task_ids),
-                TaskInstance.working_set.is_(True),
             )
         ).all()
         assert {ti.task_id for ti in downstream_tis} == set(downstream_task_ids)

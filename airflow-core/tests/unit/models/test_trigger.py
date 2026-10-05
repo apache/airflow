@@ -356,7 +356,7 @@ def test_submit_failure(session, create_task_instance):
     # Call submit_event
     Trigger.submit_failure(trigger.id, session=session)
     # Check that the task instance is now scheduled to fail
-    updated_task_instance = session.scalar(select(TaskInstance).where(TaskInstance.working_set.is_(True)))
+    updated_task_instance = session.scalar(select(TaskInstance))
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_method == "__fail__"
 
@@ -399,7 +399,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
 
     # now for the real test
     # first check initial state
-    ti: TaskInstance = session.scalar(select(TaskInstance).where(TaskInstance.working_set.is_(True)))
+    ti: TaskInstance = session.scalar(select(TaskInstance))
     assert ti.state == "deferred"
     assert get_xcoms(ti) == []
 
@@ -412,7 +412,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
     # Check that the task instance is now correct
-    ti = session.scalar(select(TaskInstance).where(TaskInstance.working_set.is_(True)))
+    ti = session.scalar(select(TaskInstance))
     assert ti.state == expected
     assert ti.next_kwargs is None
     assert ti.end_date == now
@@ -491,7 +491,7 @@ def test_submit_event_task_end_failed_respects_retries(
     Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
     session.flush()
 
-    ti = session.scalar(select(TaskInstance).where(TaskInstance.working_set.is_(True)))
+    ti = session.scalar(select(TaskInstance))
     assert ti.state == expected_state
 
     mock_send.assert_called_once()

@@ -92,8 +92,6 @@ def expand_mapped_task_instances(
         .order_by(TaskInstance.map_index)
         .limit(1)
     )
-    if AIRFLOW_V_3_4_PLUS:
-        query = query.where(TaskInstance.working_set.is_(True))
     ti = session.scalars(query).one()
     ti.task = mapped
     return ti.expand_mapped_task(session=session)
@@ -112,8 +110,6 @@ def expand_mapped_task(
         TaskInstance.run_id == run_id,
         TaskInstance.map_index == -1,
     )
-    if AIRFLOW_V_3_4_PLUS:
-        query = query.where(TaskInstance.working_set.is_(True))
     upstream_ti = session.scalars(query).one()
     push_mapped_length(upstream_ti, list(range(length)), session=session)
     expand_mapped_task_instances(mapped, run_id, session=session)

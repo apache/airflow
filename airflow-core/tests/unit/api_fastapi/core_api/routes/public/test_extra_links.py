@@ -446,7 +446,6 @@ class TestGetExtraLinks:
                 TaskInstance.run_id == self.dag_run_id,
                 TaskInstance.task_id == self.task_single_link,
                 TaskInstance.map_index == -1,
-                TaskInstance.working_set.is_(True),
             )
         )
         assert ti is not None

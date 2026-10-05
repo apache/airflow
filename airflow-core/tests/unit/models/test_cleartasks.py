@@ -866,7 +866,6 @@ class TestClearTasks:
                     TI.task_id == old_ti.task_id,
                     TI.map_index == old_ti.map_index,
                     TI.run_id == old_ti.run_id,
-                    TI.working_set.is_(True),
                 )
             )
 
@@ -1110,7 +1109,7 @@ class TestClearTasks:
         session.commit()
 
         dr_after = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id))
-        ti_after = session.scalar(select(TI).where(TI.dag_id == dag_id, TI.working_set.is_(True)))
+        ti_after = session.scalar(select(TI).where(TI.dag_id == dag_id))
         assert dr_after.created_dag_version_id == new_dag_version.id
         assert ti_after.dag_version_id == dr_after.created_dag_version_id, (
             "the run and its task instance must end up on the same version"

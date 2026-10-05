@@ -193,7 +193,6 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     indices = session.execute(
         select(TaskInstance.map_index, TaskInstance.state)
         .where(
-            TaskInstance.working_set.is_(True),
             TaskInstance.task_id == mapped.task_id,
             TaskInstance.dag_id == mapped.dag_id,
             TaskInstance.run_id == dr.run_id,
@@ -208,7 +207,6 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     indices = session.execute(
         select(TaskInstance.map_index, TaskInstance.state, TaskInstance.dag_version_id)
         .where(
-            TaskInstance.working_set.is_(True),
             TaskInstance.task_id == mapped.task_id,
             TaskInstance.dag_id == mapped.dag_id,
             TaskInstance.run_id == dr.run_id,

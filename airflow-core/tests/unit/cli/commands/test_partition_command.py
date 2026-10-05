@@ -102,11 +102,7 @@ def _set_tis_state(run_id: str, state: TaskInstanceState) -> None:
 
 def _get_tis(run_id: str) -> list[TaskInstance]:
     with create_session() as session:
-        return list(
-            session.scalars(
-                select(TaskInstance).where(TaskInstance.run_id == run_id, TaskInstance.working_set.is_(True))
-            )
-        )
+        return list(session.scalars(select(TaskInstance).where(TaskInstance.run_id == run_id)))
 
 
 @pytest.mark.usefixtures("setup_partitioned_runs")
@@ -1338,7 +1334,6 @@ class TestPartitionsClear:
                     select(TaskInstance).where(
                         TaskInstance.dag_id == dag_id_target,
                         TaskInstance.run_id == shared_run_id,
-                        TaskInstance.working_set.is_(True),
                     )
                 )
             )

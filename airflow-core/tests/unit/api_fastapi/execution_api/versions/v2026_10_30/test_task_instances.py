@@ -55,11 +55,7 @@ def test_retired_state_report_response_by_version(
 
     assert response.status_code == expected_status
     session.expunge_all()
-    replacement = session.scalar(
-        select(TaskInstance).where(
-            TaskInstance.task_id == "retired_state_report", TaskInstance.working_set.is_(True)
-        )
-    )
+    replacement = session.scalar(select(TaskInstance).where(TaskInstance.task_id == "retired_state_report"))
     assert replacement.id != old_id
     assert (replacement.try_number, replacement.state) == (2, State.UP_FOR_RETRY)
 

@@ -693,7 +693,6 @@ class TestSchedulerJob:
             select(TaskInstance).where(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
-                TaskInstance.working_set.is_(True),
             )
         )
         assert replacement.state is None, "Replacement should be ready to schedule after termination"
@@ -2580,7 +2579,6 @@ class TestSchedulerJob:
             session.scalar(
                 select(func.count())
                 .select_from(TaskInstance)
-                .where(TaskInstance.working_set.is_(True))
                 .where(TaskInstance.dag_id == dag_id, TaskInstance.state == State.SCHEDULED)
             )
             == 1
@@ -2589,7 +2587,6 @@ class TestSchedulerJob:
             session.scalar(
                 select(func.count())
                 .select_from(TaskInstance)
-                .where(TaskInstance.working_set.is_(True))
                 .where(TaskInstance.dag_id == dag_id, TaskInstance.state == State.QUEUED)
             )
             == 1
@@ -2708,7 +2705,7 @@ class TestSchedulerJob:
         assert queued_runs["run_3"] == 2
 
         session.commit()
-        session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(True))).all()
+        session.scalars(select(TaskInstance)).all()
 
         # now we still have max tis running so no more will be queued
         queued_tis = self.job_runner._select_task_instances_to_queue(
@@ -5028,9 +5025,7 @@ class TestSchedulerJob:
 
         # Verify the task instance was created
         initial_tis = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy")
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy")
         ).all()
         assert len(initial_tis) == 1
 
@@ -5057,9 +5052,7 @@ class TestSchedulerJob:
 
         # Verify no new task instances were created for the removed task in the new dagrun
         new_tis = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(
+            select(TaskInstance).where(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == "dummy",
                 TaskInstance.run_id == "test_run_2",
@@ -5143,16 +5136,7 @@ class TestSchedulerJob:
             run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
             # zero tasks ran
-            assert (
-                len(
-                    session.scalars(
-                        select(TaskInstance)
-                        .where(TaskInstance.working_set.is_(True))
-                        .where(TaskInstance.dag_id == dag_id)
-                    ).all()
-                )
-                == 0
-            )
+            assert len(session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).all()) == 0
             session.commit()
             assert self.null_exec.sorted_tasks == []
 
@@ -5171,16 +5155,7 @@ class TestSchedulerJob:
                 run_after=data_interval_end,
             )
             # one task "ran"
-            assert (
-                len(
-                    session.scalars(
-                        select(TaskInstance)
-                        .where(TaskInstance.working_set.is_(True))
-                        .where(TaskInstance.dag_id == dag_id)
-                    ).all()
-                )
-                == 1
-            )
+            assert len(session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).all()) == 1
             session.commit()
 
             scheduler_job = Job()
@@ -5189,16 +5164,7 @@ class TestSchedulerJob:
             run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
             # still one task
-            assert (
-                len(
-                    session.scalars(
-                        select(TaskInstance)
-                        .where(TaskInstance.working_set.is_(True))
-                        .where(TaskInstance.dag_id == dag_id)
-                    ).all()
-                )
-                == 1
-            )
+            assert len(session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).all()) == 1
             session.commit()
             assert self.null_exec.sorted_tasks == []
 
@@ -5230,14 +5196,10 @@ class TestSchedulerJob:
 
         session = settings.Session()
         ti1s = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy1")
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy1")
         ).all()
         ti2s = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy2")
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy2")
         ).all()
 
         # With catchup=True, future task start dates are respected
@@ -5273,14 +5235,10 @@ class TestSchedulerJob:
 
         session = settings.Session()
         ti1s = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy1")
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy1")
         ).all()
         ti2s = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy2")
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy2")
         ).all()
 
         # With catchup=False, future task start dates are ignored
@@ -5318,16 +5276,7 @@ class TestSchedulerJob:
         # zero tasks ran
         dag_id = "test_start_date_scheduling"
         session = settings.Session()
-        assert (
-            len(
-                session.scalars(
-                    select(TaskInstance)
-                    .where(TaskInstance.working_set.is_(True))
-                    .where(TaskInstance.dag_id == dag_id)
-                ).all()
-            )
-            == 0
-        )
+        assert len(session.scalars(select(TaskInstance).where(TaskInstance.dag_id == dag_id)).all()) == 0
 
     def test_scheduler_verify_pool_full(self, dag_maker, mock_executor):
         """
@@ -5538,23 +5487,17 @@ class TestSchedulerJob:
         assert len(task_instances_list) == 2
 
         ti0 = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t0")
+            select(TaskInstance).where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t0")
         ).first()
         assert ti0.state == State.SCHEDULED
 
         ti1 = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t1")
+            select(TaskInstance).where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t1")
         ).first()
         assert ti1.state == State.QUEUED
 
         ti2 = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t2")
+            select(TaskInstance).where(TaskInstance.task_id == "test_scheduler_verify_priority_and_slots_t2")
         ).first()
         assert ti2.state == State.QUEUED
 
@@ -5752,9 +5695,7 @@ class TestSchedulerJob:
         do_schedule()
         with create_session() as session:
             ti = session.scalars(
-                select(TaskInstance)
-                .where(TaskInstance.working_set.is_(True))
-                .where(
+                select(TaskInstance).where(
                     TaskInstance.dag_id == "test_retry_still_in_executor",
                     TaskInstance.task_id == "test_retry_handling_op",
                 )
@@ -5777,7 +5718,6 @@ class TestSchedulerJob:
             session.expire_all()
             return session.scalar(
                 select(TaskInstance).where(
-                    TaskInstance.working_set.is_(True),
                     TaskInstance.dag_id == "test_retry_still_in_executor",
                     TaskInstance.task_id == "test_retry_handling_op",
                 )
@@ -5902,7 +5842,6 @@ class TestSchedulerJob:
             select(TaskInstance).where(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
-                TaskInstance.working_set.is_(True),
             )
         )
 
@@ -7427,7 +7366,6 @@ class TestSchedulerJob:
         def complete_one_dagrun():
             ti = session.scalars(
                 select(TaskInstance)
-                .where(TaskInstance.working_set.is_(True))
                 .join(TaskInstance.dag_run)
                 .where(TaskInstance.state != State.SUCCESS)
                 .order_by(DagRun.logical_date)
@@ -8416,7 +8354,6 @@ class TestSchedulerJob:
                 session.scalar(
                     select(func.count())
                     .select_from(TaskInstance)
-                    .where(TaskInstance.working_set.is_(True))
                     .where(TaskInstance.state == State.SCHEDULED)
                 )
                 == 1
@@ -8470,7 +8407,6 @@ class TestSchedulerJob:
                 session.scalar(
                     select(func.count())
                     .select_from(TaskInstance)
-                    .where(TaskInstance.working_set.is_(True))
                     .where(TaskInstance.state == State.SCHEDULED)
                 )
                 == 1
@@ -8524,7 +8460,6 @@ class TestSchedulerJob:
                 session.scalar(
                     select(func.count())
                     .select_from(TaskInstance)
-                    .where(TaskInstance.working_set.is_(True))
                     .where(TaskInstance.state == State.SCHEDULED)
                 )
                 == 1
@@ -8585,7 +8520,6 @@ class TestSchedulerJob:
                 session.scalar(
                     select(func.count())
                     .select_from(TaskInstance)
-                    .where(TaskInstance.working_set.is_(True))
                     .where(TaskInstance.state == State.SCHEDULED)
                 )
                 == 2
@@ -8637,10 +8571,7 @@ class TestSchedulerJob:
         session.expunge_all()
         assert (
             session.scalar(
-                select(func.count())
-                .select_from(TaskInstance)
-                .where(TaskInstance.working_set.is_(True))
-                .where(TaskInstance.state == State.SCHEDULED)
+                select(func.count()).select_from(TaskInstance).where(TaskInstance.state == State.SCHEDULED)
             )
             == 2
         )
@@ -9210,7 +9141,7 @@ class TestSchedulerJob:
         self.job_runner._schedule_dag_run(dr, session)
         session.expunge_all()
         with create_session() as session:
-            tis = session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(True))).all()
+            tis = session.scalars(select(TaskInstance)).all()
 
         dags = [entry.dag for entry in self.job_runner.scheduler_dag_bag._dags.values()]
         assert [dag.dag_id for dag in dags] == ["test_only_empty_tasks"]
@@ -9238,7 +9169,7 @@ class TestSchedulerJob:
         self.job_runner._schedule_dag_run(dr, session)
         session.expunge_all()
         with create_session() as session:
-            tis = session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(True))).all()
+            tis = session.scalars(select(TaskInstance)).all()
 
         assert len(tis) == 6
         assert {

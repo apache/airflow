@@ -585,9 +585,7 @@ def select_producers(
     from airflow.models.taskinstance import TaskInstance
 
     query = select(TaskInstance.id)
-    if try_number is None:
-        query = query.where(TaskInstance.working_set.is_(True))
-    else:
+    if try_number is not None:
         query = query.where(TaskInstance.try_number == try_number)
     for column, value in ((TaskInstance.dag_id, dag_ids), (TaskInstance.task_id, task_ids)):
         if is_container(value):

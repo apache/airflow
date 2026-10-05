@@ -2768,16 +2768,11 @@ class TestTaskInstance:
         try_id = ti.id
         with pytest.raises(AirflowException):
             run_task_instance(ti, task)
-        ti = session.scalar(select(TaskInstance).where(TaskInstance.working_set.is_(True)))
+        ti = session.scalar(select(TaskInstance))
         # the ti.id should be different from the previous one
         assert ti.id != try_id
         assert ti.state == State.UP_FOR_RETRY
-        assert (
-            session.scalar(
-                select(func.count()).select_from(TaskInstance).where(TaskInstance.working_set.is_(True))
-            )
-            == 1
-        )
+        assert session.scalar(select(func.count()).select_from(TaskInstance)) == 1
         tih = session.scalars(
             select(TaskInstance)
             .where(TaskInstance.working_set.is_(None))
@@ -3591,9 +3586,7 @@ class TestTaskInstanceRelationships:
         session.merge(ti)
         session.commit()
 
-        loaded_ti = session.scalar(
-            select(TaskInstance).where(TaskInstance.working_set.is_(True)).where(TaskInstance.id == ti.id)
-        )
+        loaded_ti = session.scalar(select(TaskInstance).where(TaskInstance.id == ti.id))
 
         with pytest.raises(InvalidRequestError):
             getattr(loaded_ti, attr)
@@ -3945,7 +3938,6 @@ class TestMappedTaskInstanceReceiveValue:
 
         tis = session.scalars(
             select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
             .where(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == "show",
@@ -4147,12 +4139,7 @@ def test_taskinstance_with_note(create_task_instance, session):
     session.delete(ti)
     session.commit()
 
-    assert (
-        session.scalar(
-            select(TaskInstance).where(TaskInstance.working_set.is_(True)).where(TaskInstance.id == ti.id)
-        )
-        is None
-    )
+    assert session.scalar(select(TaskInstance).where(TaskInstance.id == ti.id)) is None
     assert session.scalar(select(TaskInstanceNote).where(TaskInstanceNote.ti_id == ti.id)) is None
 
 
@@ -4160,7 +4147,7 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
     with dag_maker():
         BashOperator(task_id="hello", bash_command="hi")
     dag_maker.create_dagrun(state="success")
-    ti = session.scalar(select(TaskInstance).where(TaskInstance.working_set.is_(True)))
+    ti = session.scalar(select(TaskInstance))
     session.get(TaskInstance, ti.id).try_number += 1
     session.commit()
     assert ti.task_id == "hello"  # just to confirm...
@@ -4182,11 +4169,7 @@ def test_delete_dagversion_restricted_when_taskinstance_exists(dag_maker, sessio
     version = session.scalar(select(DagVersion).where(DagVersion.dag_id == dag.dag_id))
     assert version is not None
 
-    ti = session.scalars(
-        select(TaskInstance)
-        .where(TaskInstance.working_set.is_(True))
-        .where(TaskInstance.dag_version_id == version.id)
-    ).first()
+    ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_version_id == version.id)).first()
     assert ti is not None
     if retired:
         ti.state = TaskInstanceState.SUCCESS
@@ -4899,7 +4882,6 @@ def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, sessi
     session.expunge_all()
     reloaded = session.scalar(
         select(TaskInstance)
-        .where(TaskInstance.working_set.is_(True))
         .where(TaskInstance.id == ti_id)
         .options(load_only(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.run_id))
     )

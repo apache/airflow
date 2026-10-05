@@ -2365,13 +2365,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool] | None:
-        """Return SQLAlchemy filter to query the current attempt of the selected task instances."""
-        if (keys_filter := TaskInstance._build_keys_filter(tis)) is None:
-            return None
-        return and_(TaskInstance.working_set.is_(True), keys_filter)
-
-    @staticmethod
-    def _build_keys_filter(tis: Iterable[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool] | None:
+        """Return SQLAlchemy filter to query selected task instances."""
         # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
         # Or it might be a generator, but we need to be able to iterate over it more than once
         tis = list(tis)

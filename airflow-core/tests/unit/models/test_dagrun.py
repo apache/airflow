@@ -3498,7 +3498,6 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
         TI.run_id == dr.run_id,
         TI.task_id == "mapped_print_value",
         TI.state == TaskInstanceState.SUCCESS,
-        TI.working_set.is_(True),
     )
     success_tis = session.execute(query).all()
     assert len(success_tis) == rerun_length
@@ -3551,12 +3550,7 @@ def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, d
 
     mapped_states = session.execute(
         select(TI.map_index, TI.state)
-        .where(
-            TI.task_id == "work",
-            TI.dag_id == dr.dag_id,
-            TI.run_id == dr.run_id,
-            TI.working_set.is_(True),
-        )
+        .where(TI.task_id == "work", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
         .order_by(TI.map_index)
     ).all()
     assert mapped_states == [
@@ -3842,9 +3836,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
     ti = dr1.get_task_instances()[0]
     ti = session.scalar(
-        select(TaskInstance)
-        .where(TaskInstance.working_set.is_(True))
-        .where(
+        select(TaskInstance).where(
             TaskInstance.dag_id == ti.dag_id,
             TaskInstance.task_id == ti.task_id,
             TaskInstance.run_id == ti.run_id,

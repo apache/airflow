@@ -364,7 +364,6 @@ class TestUpdateHITLDetailEndpoint:
                     TIModel.dag_id == sample_ti.dag_id,
                     TIModel.task_id == sample_ti.task_id,
                     TIModel.run_id == sample_ti.run_id,
-                    TIModel.working_set.is_(True),
                 )
             )
             assert current.id != sample_ti.id

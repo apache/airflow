@@ -2166,9 +2166,7 @@ my_postgres_conn:
             session=session,
         )
 
-        task_instances = session.scalars(
-            select(TI).where(TI.dag_id == dag_id, TI.working_set.is_(True))
-        ).all()
+        task_instances = session.scalars(select(TI).where(TI.dag_id == dag_id)).all()
 
         assert len(task_instances) == 1
         task_instance: TI = task_instances[0]
@@ -3615,7 +3613,6 @@ def test_set_task_instance_state(run_id, session, dag_maker):
                 TI.dag_id == dag.dag_id,
                 TI.task_id == task.task_id,
                 TI.run_id == dagrun.run_id,
-                TI.working_set.is_(True),
             )
         )
 
@@ -3695,11 +3692,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
 
     ti_query = (
         select(TI.task_id, TI.map_index, TI.run_id, TI.state)
-        .where(
-            TI.dag_id == dag.dag_id,
-            TI.task_id.in_([task_id, "downstream"]),
-            TI.working_set.is_(True),
-        )
+        .where(TI.dag_id == dag.dag_id, TI.task_id.in_([task_id, "downstream"]))
         .order_by(TI.run_id, TI.task_id, TI.map_index)
     )
 

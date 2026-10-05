@@ -1437,11 +1437,7 @@ class TestTIUpdateState:
 
         assert response.status_code == (204 if matching_worker else 409)
         session.expunge_all()
-        current = session.scalar(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.task_id == "stopped_restart")
-        )
+        current = session.scalar(select(TaskInstance).where(TaskInstance.task_id == "stopped_restart"))
         if not matching_worker:
             assert (current.id, current.try_number, current.state) == (old_id, 3, State.RESTARTING)
             return
@@ -1540,11 +1536,7 @@ class TestTIUpdateState:
                     SchedulerJobRunner.process_executor_events(executor, None, DBDagBag(), session)
                     session.commit()
             session.expunge_all()
-            current = session.scalar(
-                select(TaskInstance)
-                .where(TaskInstance.working_set.is_(True))
-                .where(TaskInstance.task_id == "restart_reports")
-            )
+            current = session.scalar(select(TaskInstance).where(TaskInstance.task_id == "restart_reports"))
             if definition == "broken_task":
                 assert (current.id, current.try_number, current.state, current.max_tries) == (
                     old_id,
@@ -2173,7 +2165,7 @@ class TestTIUpdateState:
 
             session.expire_all()
 
-            tis = session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(True))).all()
+            tis = session.scalars(select(TaskInstance)).all()
             assert len(tis) == 1
 
             assert tis[0].state == TaskInstanceState.DEFERRED
@@ -2302,7 +2294,7 @@ class TestTIUpdateState:
 
         session.expire_all()
 
-        tis = session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(True))).all()
+        tis = session.scalars(select(TaskInstance)).all()
         assert len(tis) == 1
         assert tis[0].state == TaskInstanceState.UP_FOR_RESCHEDULE
         assert tis[0].next_method is None
@@ -2456,9 +2448,7 @@ class TestTIUpdateState:
         assert response.text == ""
 
         ti = session.scalar(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
         )
         # ti = session.get(TaskInstance, ti.id)
         assert ti.state == State.UP_FOR_RETRY
@@ -2514,9 +2504,7 @@ class TestTIUpdateState:
         assert client.patch(f"/execution/task-instances/{old_id}/state", json=payload).status_code == 204
         session.expunge_all()
         replacement = session.scalar(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .where(TaskInstance.task_id == "retired_attempt_report")
+            select(TaskInstance).where(TaskInstance.task_id == "retired_attempt_report")
         )
         replacement.state = replacement_state
         replacement.external_executor_id = "replacement-worker"
@@ -2569,9 +2557,7 @@ class TestTIUpdateState:
         assert response.status_code == 204
 
         ti = session.scalar(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
         )
         assert ti.state == State.UP_FOR_RETRY
         assert ti.retry_delay_override == 42.5
@@ -2649,9 +2635,7 @@ class TestTIUpdateState:
 
         session.expire_all()
         ti = session.scalars(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
         ).one()
         assert ti.rendered_map_index is None
 
@@ -2686,9 +2670,7 @@ class TestTIUpdateState:
         assert response.status_code == 204
 
         ti = session.scalar(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
         )
         assert ti.state == State.UP_FOR_RETRY
         assert ti.retry_delay_override is None
@@ -2733,9 +2715,7 @@ class TestTIUpdateState:
 
         session.expire_all()
         ti = session.scalar(
-            select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
-            .filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
         )
         assert ti.state == State.RUNNING
         assert ti.retry_delay_override is None
@@ -2775,9 +2755,7 @@ class TestTIUpdateState:
         if target_state == State.UP_FOR_RETRY:
             # Retry creates a new TI ID, so we need to fetch by unique key
             ti = session.scalar(
-                select(TaskInstance)
-                .where(TaskInstance.working_set.is_(True))
-                .filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+                select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
             )
         else:
             session.expire_all()

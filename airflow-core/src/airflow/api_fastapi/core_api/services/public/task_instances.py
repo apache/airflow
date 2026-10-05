@@ -484,9 +484,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         # Filter at database level using exact tuple matching instead of fetching all combinations
         # and filtering in Python
         task_keys_list = list(task_keys)
-        query = select(TI).where(
-            tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(task_keys_list),
-        )
+        query = select(TI).where(tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(task_keys_list))
 
         task_instances = self.session.scalars(query).all()
         task_instances_map = {
