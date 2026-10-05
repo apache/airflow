@@ -71,10 +71,10 @@ class Client internal constructor(
   /**
    * Key-value state scoped to the current task instance.
    *
-   * Unlike XComs, entries survive retries and later runs of the same task, so
+   * Entries survive retries of the task instance within the same Dag run, so
    * they can carry things like an external job ID across attempts.
    */
-  @JvmField val taskStateStore: TaskStateStore = TaskStateStore(details, impl)
+  val taskStateStore: TaskStateStore = TaskStateStore(details, impl)
 
   /**
    * Retrieves a connection from the Airflow connection store.
@@ -227,8 +227,8 @@ class Client internal constructor(
 }
 
 /**
- * Key-value state scoped to one task instance, shared across its retries and
- * later runs.
+ * Key-value state scoped to one task instance, shared across its retries
+ * within the same Dag run.
  *
  * Values must be JSON-serializable. Keys expire at the time given when they
  * were stored; a key stored without a retention never expires and is skipped

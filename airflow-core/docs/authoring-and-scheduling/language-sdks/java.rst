@@ -688,21 +688,22 @@ fails the build for an annotation, and the ``config`` call itself for an object.
 Task state store
 ~~~~~~~~~~~~~~~~
 
-``client.taskStateStore`` gives a task key-value state that is scoped to the task instance and survives
-retries and later runs (see :doc:`/core-concepts/task-and-asset-state-store`). Use it to remember things
-like an external job ID so a retried task can resume instead of starting over:
+``client.getTaskStateStore()`` gives a task key-value state that is scoped to the task instance and
+survives retry attempts within the same Dag run (see :doc:`/core-concepts/task-state-store`). Use it to
+remember things like an external job ID so a retried task can resume instead of starting over:
 
 .. code-block:: java
 
     @Builder.Task(id = "submit")
     public void submit(Client client) throws Exception {
-      var jobId = (String) client.taskStateStore.get("job_id");
+      var store = client.getTaskStateStore();
+      var jobId = (String) store.get("job_id");
       if (jobId == null) {
         jobId = submitJob();
-        client.taskStateStore.set("job_id", jobId, Duration.ofHours(6));
+        store.set("job_id", jobId, Duration.ofHours(6));
       }
       waitForJob(jobId);
-      client.taskStateStore.delete("job_id");
+      store.delete("job_id");
     }
 
 ``get`` returns ``null`` when the key is not set. ``set`` stores any JSON-serializable value; pass a

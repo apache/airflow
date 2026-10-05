@@ -85,7 +85,7 @@ capabilities:
   task-state-store:
     supported: true
     since: "3.3"
-    note: "Client.taskStateStore get/set/delete/clear"
+    note: "Client.getTaskStateStore() get/set/delete/clear"
   asset-state-store:
     supported: false
     note: "no task-facing state-store API yet"

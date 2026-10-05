@@ -153,6 +153,15 @@ class ClientTest {
   }
 
   @Test
+  @DisplayName("taskStateStore is exposed to Java as a getter so mocking frameworks can stub it")
+  fun taskStateStoreIsExposedAsGetter() {
+    val getter = Client::class.java.getMethod("getTaskStateStore")
+
+    Assertions.assertEquals(TaskStateStore::class.java, getter.returnType)
+    Assertions.assertTrue(Client::class.java.fields.none { it.name == "taskStateStore" })
+  }
+
+  @Test
   @DisplayName("taskStateStore.get returns the stored value scoped to the current task instance")
   fun taskStateStoreGetReturnsStoredValue() {
     val (client, transport) = stateStoreClient(TaskStateStoreResult().apply { value = "job-42" })
