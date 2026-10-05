@@ -141,7 +141,7 @@ def in_process_ssh_client():
     listener.bind(("127.0.0.1", 0))
     listener.listen(1)
     port = listener.getsockname()[1]
-    host_key = paramiko.RSAKey.generate(2048)
+    host_key = paramiko.ECDSAKey.generate()
     transports = []
 
     def serve():
