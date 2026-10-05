@@ -23,7 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal, overload
 
 from deprecated import deprecated
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 from openai.auth import (
     azure_managed_identity_token_provider,
     gcp_id_token_provider,
@@ -52,7 +52,10 @@ if TYPE_CHECKING:
     from openai.types.conversations import Conversation, ConversationDeletedResource
     from openai.types.responses import Response
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+
+    from airflow.providers.common.compat.sdk import Connection
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.openai.exceptions import (
@@ -167,6 +170,7 @@ class OpenAIHook(BaseHook):
     def __init__(self, conn_id: str = default_conn_name, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
+        self._async_conn: AsyncOpenAI | None = None
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
@@ -201,8 +205,29 @@ class OpenAIHook(BaseHook):
           OpenAI client's workload identity support. See :meth:`_build_workload_identity`.
         """
         conn = self.get_connection(self.conn_id)
-        extras = conn.extra_dejson
-        openai_client_kwargs = extras.get("openai_client_kwargs", {})
+        return OpenAI(**self._client_kwargs(conn, conn.extra_dejson))
+
+    async def aget_conn(self) -> AsyncOpenAI:
+        """
+        Return an ``AsyncOpenAI`` client, for use inside an async task or trigger.
+
+        Configured exactly as :meth:`get_conn` configures its client, but the connection is
+        resolved without any synchronous call to the Task SDK. ``get_connection`` and the
+        secret masking of ``extra_dejson`` send to the supervisor synchronously, which raises
+        ``DeadlockImminentError`` on an event loop with another async call in flight.
+        """
+        conn = await get_async_connection(self.conn_id)
+        return AsyncOpenAI(**self._client_kwargs(conn, await get_async_extra_dejson(conn)))
+
+    async def _aget_cached_conn(self) -> AsyncOpenAI:
+        """Return the hook's ``AsyncOpenAI`` client, created on first use like :attr:`conn`."""
+        if self._async_conn is None:
+            self._async_conn = await self.aget_conn()
+        return self._async_conn
+
+    def _client_kwargs(self, conn: Connection, extras: dict[str, Any]) -> dict[str, Any]:
+        """Return the keyword arguments of the OpenAI client, for :meth:`get_conn` and :meth:`aget_conn`."""
+        openai_client_kwargs = dict(extras.get("openai_client_kwargs", {}))
         base_url = openai_client_kwargs.pop("base_url", None) or conn.host or None
         # Pop api_key for every path so it is never forwarded alongside ``workload_identity``
         # (the OpenAI client rejects both being set at once).
@@ -210,14 +235,14 @@ class OpenAIHook(BaseHook):
         auth_type = extras.get("auth_type", "api_key")
 
         if auth_type == "api_key":
-            return OpenAI(api_key=api_key or conn.password, base_url=base_url, **openai_client_kwargs)
+            return {"api_key": api_key or conn.password, "base_url": base_url, **openai_client_kwargs}
 
         if auth_type == "workload_identity":
-            return OpenAI(
-                workload_identity=self._build_workload_identity(extras),
-                base_url=base_url,
+            return {
+                "workload_identity": self._build_workload_identity(extras),
+                "base_url": base_url,
                 **openai_client_kwargs,
-            )
+            }
 
         raise ValueError(
             f"Unsupported auth_type {auth_type!r} for OpenAI connection {self.conn_id!r}; "
@@ -562,6 +587,43 @@ class OpenAIHook(BaseHook):
         :return: One embedding for a single text or token array; one embedding per item for a batch.
         """
         response = self.conn.embeddings.create(model=model, input=text, **kwargs)
+        if isinstance(text, str) or (text and isinstance(text[0], int)):
+            return response.data[0].embedding
+        return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]
+
+    @overload
+    async def acreate_embeddings(
+        self,
+        text: str | list[int],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float]: ...
+
+    @overload
+    async def acreate_embeddings(
+        self,
+        text: list[str] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[list[float]]: ...
+
+    async def acreate_embeddings(
+        self,
+        text: str | list[str] | list[int] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float] | list[list[float]]:
+        """
+        Generate embeddings for the given text using the given model, asynchronously.
+
+        The async counterpart of :meth:`create_embeddings`, through :meth:`aget_conn`.
+
+        :param text: The text to generate embeddings for.
+        :param model: The model to use for generating embeddings.
+        :return: One embedding for a single text or token array; one embedding per item for a batch.
+        """
+        client = await self._aget_cached_conn()
+        response = await client.embeddings.create(model=model, input=text, **kwargs)
         if isinstance(text, str) or (text and isinstance(text[0], int)):
             return response.data[0].embedding
         return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]
