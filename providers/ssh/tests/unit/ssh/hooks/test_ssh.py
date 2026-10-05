@@ -140,22 +140,25 @@ def in_process_ssh_client():
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
     listener.listen(1)
+    port = listener.getsockname()[1]
+    host_key = paramiko.RSAKey.generate(2048)
     transports = []
 
     def serve():
         sock, _ = listener.accept()
         transport = paramiko.Transport(sock)
-        transport.add_server_key(paramiko.RSAKey.generate(2048))
+        transport.add_server_key(host_key)
         transport.start_server(server=_ExecServer())
         transports.append(transport)
 
     server_thread = threading.Thread(target=serve, daemon=True)
     server_thread.start()
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # Trust exactly the server's key; any other key is rejected by the default policy.
+    client.get_host_keys().add(f"[127.0.0.1]:{port}", host_key.get_name(), host_key)
     client.connect(
         "127.0.0.1",
-        port=listener.getsockname()[1],
+        port=port,
         username="user",
         password="password",
         look_for_keys=False,
