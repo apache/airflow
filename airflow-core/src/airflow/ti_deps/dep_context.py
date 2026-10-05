@@ -107,9 +107,9 @@ class DepContext:
     fresh empty dict, so they would neither read the memo nor warm it for anything else.
     """
 
-    mapped_group_skip_decisions: dict[tuple[str, str, str | None], dict[int, list[tuple[str, dict]]]] = (
-        attr.ib(factory=dict, repr=False)
-    )
+    mapped_group_skip_decisions: dict[
+        tuple[str, str, str | None], dict[int, list[tuple[str, bool, dict]]]
+    ] = attr.ib(factory=dict, repr=False)
     """
     Per-pass memo of the skip decisions of ``SkipMixin`` tasks inside a mapped task group, keyed by
     ``(dag_id, run_id, group_id)`` and then by map index, so a group's decisions are read with one query

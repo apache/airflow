@@ -107,8 +107,14 @@ class NotPreviouslySkippedDep(BaseTIDep):
         # direct downstream, so honour any decision of the same group for this map index.
         decisions = _mapped_group_skip_decisions(ti, mapped_group, finished_tis, dep_context, session)
         upstream_task_ids = ti.task.upstream_task_ids
-        for parent_task_id, prev_result in decisions.get(ti.map_index, ()):
-            if _should_skip(prev_result, ti.task_id, is_direct_parent=parent_task_id in upstream_task_ids):
+        for parent_task_id, succeeded, prev_result in decisions.get(ti.map_index, ()):
+            is_direct_parent = parent_task_id in upstream_task_ids
+            # A direct parent's decision counts once it finished, as outside a mapped task group.
+            # Clearing keeps XComs until the task runs again, so a task further down only follows
+            # a decision whose writer succeeded, not one left by a cleared try that never re-ran.
+            if not (is_direct_parent or succeeded):
+                continue
+            if _should_skip(prev_result, ti.task_id, is_direct_parent=is_direct_parent):
                 yield from self._skip(ti, dep_context, parent_task_id, session=session)
                 return
 
@@ -152,14 +158,8 @@ def _mapped_group_skip_decisions(
     finished_tis: list[TaskInstance],
     dep_context: DepContext,
     session: Session,
-) -> dict[int, list[tuple[str, dict]]]:
-    """
-    Return the skip decisions of the group's successful SkipMixin task instances, by map index.
-
-    Clearing a task instance keeps its XComs until it runs again, so a decision is only
-    current when the task instance that wrote it succeeded; one cleared and then skipped
-    or upstream-failed without running still carries the decision of its earlier try.
-    """
+) -> dict[int, list[tuple[str, bool, dict]]]:
+    """Return ``(task_id, succeeded, decision)`` of the group's finished SkipMixin task instances, by map index."""
     memo_key = (ti.dag_id, ti.run_id, mapped_group.group_id)
     if (decisions := dep_context.mapped_group_skip_decisions.get(memo_key)) is not None:
         return decisions
@@ -170,12 +170,10 @@ def _mapped_group_skip_decisions(
         for t in mapped_group.iter_tasks()
         if t.inherits_from_skipmixin and _shares_map_indexes(t, mapped_group)
     }
-    succeeded_keys = {
-        (t.task_id, t.map_index)
-        for t in finished_tis
-        if t.state == TaskInstanceState.SUCCESS and t.task_id in skipmixin_task_ids
+    finished_states = {
+        (t.task_id, t.map_index): t.state for t in finished_tis if t.task_id in skipmixin_task_ids
     }
-    if succeeded_keys:
+    if finished_states:
         query = XComModel.get_many(
             run_id=ti.run_id, key=XCOM_SKIPMIXIN_KEY, dag_ids=ti.dag_id, task_ids=skipmixin_task_ids
         )
@@ -183,9 +181,11 @@ def _mapped_group_skip_decisions(
             query.with_only_columns(XComModel.task_id, XComModel.map_index, XComModel.value).order_by(None)
         )
         for row in rows:
-            if (row.task_id, row.map_index) not in succeeded_keys:
+            if (state := finished_states.get((row.task_id, row.map_index))) is None:
                 continue
             if (decision := XComModel.deserialize_value(row)) is not None:
-                decisions.setdefault(row.map_index, []).append((row.task_id, decision))
+                decisions.setdefault(row.map_index, []).append(
+                    (row.task_id, state == TaskInstanceState.SUCCESS, decision)
+                )
     dep_context.mapped_group_skip_decisions[memo_key] = decisions
     return decisions

@@ -324,16 +324,39 @@ def test_short_circuit_in_mapped_task_group_skips_transitive_downstream(session,
         assert tis[(task_id, 0)].state != State.SKIPPED
 
 
-@pytest.mark.parametrize(
-    "gate_state",
-    [State.SKIPPED, State.UPSTREAM_FAILED, State.FAILED, State.REMOVED, State.RUNNING, None],
-)
-def test_mapped_task_group_ignores_decision_of_gate_that_did_not_succeed(session, dag_maker, gate_state):
+@pytest.mark.parametrize("gate_state", [State.SKIPPED, State.UPSTREAM_FAILED, State.FAILED, State.REMOVED])
+def test_mapped_task_group_later_tasks_ignore_decision_of_gate_that_did_not_succeed(
+    session, dag_maker, gate_state
+):
     """
-    Clearing a task instance keeps its XComs until it runs again, so a gate that was cleared
-    and then never ran, or one still running, must not skip anything with a recorded decision.
+    Clearing a task instance keeps its XComs until it runs again, so a gate that was cleared and
+    then finished without running leaves its earlier decision behind. Its direct downstream keeps
+    honouring it, as outside a mapped task group, but tasks further down must not.
     """
     dr, tis = _short_circuit_chain_in_mapped_group(dag_maker, session, "test_mapped_group_stale_decision_dag")
+    _finish_with_skip_decisions(
+        dr,
+        tis,
+        "group.gate",
+        {1: {XCOM_SKIPMIXIN_SKIPPED: ["group.a", "group.b", "group.c"]}},
+        session=session,
+        state=gate_state,
+    )
+
+    dep = NotPreviouslySkippedDep()
+
+    assert not dep.is_met(tis[("group.a", 1)], session=session)
+    for task_id in ("group.b", "group.c"):
+        assert dep.is_met(tis[(task_id, 1)], session=session)
+        assert tis[(task_id, 1)].state != State.SKIPPED
+
+
+@pytest.mark.parametrize("gate_state", [State.RUNNING, None])
+def test_mapped_task_group_ignores_decision_of_unfinished_gate(session, dag_maker, gate_state):
+    """A decision only counts once the gate that wrote it has finished."""
+    dr, tis = _short_circuit_chain_in_mapped_group(
+        dag_maker, session, "test_mapped_group_unfinished_gate_dag"
+    )
     _finish_with_skip_decisions(
         dr,
         tis,
