@@ -623,7 +623,12 @@ class TestDagProcessorTokenOverHTTP:
         second = self._register(client, OTHER_REGISTRATION_ID)
 
         assert second.status_code == 201, second.text
-        assert self._get_variable_status(client, first.json()["token"]) == 403
+        closed = client.get(
+            "/execution/variables/key1",
+            headers={"Authorization": f"Bearer {first.json()['token']}", DAG_BUNDLE_HEADER: "granted"},
+        )
+        assert closed.status_code == 403
+        assert closed.json()["detail"]["reason"] == "job_closed"
         assert self._get_variable_status(client, second.json()["token"]) == 200
         self._mark_heartbeat_expired(session, second.json()["job_id"])
         replaced_again = self._register(client, REGISTRATION_ID)

@@ -249,7 +249,10 @@ async def _require_open_dag_processor_job(request: Request, token: TIToken) -> N
     if job_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="The Job this token was issued for is no longer open; register a new Job",
+            detail={
+                "reason": "job_closed",
+                "message": "The Job this token was issued for has completed or been replaced",
+            },
         )
     request.scope[_REQUEST_SCOPE_JOB_KEY] = job_id
 
