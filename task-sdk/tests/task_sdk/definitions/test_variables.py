@@ -29,6 +29,7 @@ from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     ErrorResponse,
+    GetVariable,
     GetVariableKeys,
     PutVariable,
     VariableKeysResult,
@@ -221,7 +222,9 @@ class TestAsyncVariables:
         mock_supervisor_comms.asend.return_value = VariableResult(key="my_key", value=value)
 
         var = await Variable.aget(key="my_key", deserialize_json=deserialize_json)
+
         assert var == expected_value
+        mock_supervisor_comms.asend.assert_any_call(GetVariable(key="my_key"))
 
     @pytest.mark.asyncio
     @patch("airflow.sdk.definitions.variable.amask_secret")
