@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import click
 import pytest
 from click import UsageError
 from click.testing import CliRunner
@@ -54,17 +55,60 @@ def test_down_preserves_volumes_without_startup_cleanup(runner, tmp_path, linked
             return_value=[],
         ) as teardown,
         patch(
-            "airflow_breeze.commands.developer_commands.get_main_git_dir_for_worktree",
+            "airflow_breeze.commands.developer_commands.find_other_worktree_projects",
+            autospec=True,
+            return_value={},
+        ),
+        patch(
+            "airflow_breeze.commands.developer_commands.get_isolated_worktree_path",
             autospec=True,
             return_value=tmp_path if linked else None,
         ),
-        patch("airflow_breeze.commands.developer_commands.AIRFLOW_ROOT_PATH", tmp_path),
     ):
         result = runner.invoke(down, ["--preserve-volumes"])
     assert result.exit_code == 0
     checks.assert_called_once_with(cleanup_stale_worktrees=False)
     assert teardown.call_args.kwargs["preserve_volumes"] is True
-    assert teardown.call_args.kwargs["current_worktree"] == (str(tmp_path.resolve()) if linked else "")
+    assert teardown.call_args.kwargs["current_worktree"] == (str(tmp_path) if linked else "")
+
+
+@pytest.mark.parametrize(
+    ("args", "listed"),
+    [
+        pytest.param([], True, id="current-checkout"),
+        pytest.param(["--all-worktrees"], False, id="all-worktrees"),
+        pytest.param(["--project-name", "foobar"], False, id="explicit-project"),
+    ],
+)
+def test_down_lists_projects_left_in_other_worktrees(runner, tmp_path, args, listed):
+    with (
+        patch("airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True),
+        patch(
+            "airflow_breeze.commands.developer_commands.bring_compose_projects_down",
+            autospec=True,
+            return_value=[],
+        ),
+        patch(
+            "airflow_breeze.commands.developer_commands.find_other_worktree_projects",
+            autospec=True,
+            return_value={"/work/other": ["breeze-other-abc123", "breeze-other-abc123-tests"]},
+        ) as find_others,
+        patch(
+            "airflow_breeze.commands.developer_commands.get_isolated_worktree_path",
+            autospec=True,
+            return_value=tmp_path,
+        ),
+    ):
+        result = runner.invoke(down, args)
+    assert result.exit_code == 0
+    output = " ".join(click.unstyle(result.output).split())
+    if listed:
+        find_others.assert_called_once_with(str(tmp_path))
+        assert "/work/other: breeze-other-abc123, breeze-other-abc123-tests" in output
+        assert "breeze down --all-worktrees" in output
+    else:
+        find_others.assert_not_called()
+        assert "/work/other" not in output
 
 
 class TestBuildDocsPythonVersion:
