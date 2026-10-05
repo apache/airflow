@@ -850,9 +850,11 @@ class TestSchedulerJob:
         job_runner = SchedulerJobRunner(Job(), executors=[executor])
         job_runner.scheduler_dag_bag = mock.MagicMock()
         job_runner.scheduler_dag_bag.get_dag_for_run.side_effect = Exception("failed")
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.FAILED, None
 
         job_runner._process_executor_events(executor=executor, session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == TaskInstanceState.FAILED
         session.rollback()
 
         ti1.refresh_from_db(session=session)
