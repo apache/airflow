@@ -372,21 +372,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
-        if self.api_client is None:
-            return list(DagBundlesManager().get_all_dag_bundles())
-        # Creating a bundle can read its connection, which the API resolves for that bundle only, and
-        # the token may not grant bundles this processor does not parse.
-        dag_bundle_manager = self._create_bundle_manager()
-        bundles = []
-        for name in dag_bundle_manager.get_all_bundle_names():
-            if self.bundle_names_to_parse and name not in self.bundle_names_to_parse:
-                continue
-            with self.api_client.use_bundle(name):
-                try:
-                    bundles.append(dag_bundle_manager.get_bundle(name))
-                except Exception:
-                    self.log.exception("Error creating bundle '%s'", name)
-        return bundles
+        return list(self._create_bundle_manager().get_all_dag_bundles())
 
     def run(self):
         """

@@ -3238,9 +3238,11 @@ dag_processor:
         bundle secrets, and parse-time requests. The API URL comes from
         ``[core] execution_api_server_url``. Each processor needs its own session token.
 
-        Result persistence and orchestration still require metadata database access.
+        This mode provides no isolation from the metadata database yet. Result persistence
+        and orchestration still require database credentials, which remain accessible to
+        parsing processes.
         Leave unset to use the in-process API and database-backed Job lifecycle.
-      version_added: 3.4.0
+      version_added: 3.5.0
       type: string
       default: ~
       example: "/run/airflow/dag-processor.jwt"

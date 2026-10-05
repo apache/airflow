@@ -5089,17 +5089,15 @@ class TestDagFileProcessorManagerWithAPIClient:
         ("bundle_names_to_parse", "expected"),
         [(None, ["bundle_a", "bundle_b"]), (["bundle_b"], ["bundle_b"])],
     )
-    @mock.patch.object(DagBundlesManager, "get_bundle", autospec=True)
+    @mock.patch("airflow.dag_processing.bundles.local.LocalDagBundle.__init__", autospec=True)
     def test_creates_each_bundle_for_its_bundle(
-        self, mock_get_bundle, make_manager, api_requests, bundle_names_to_parse, expected
+        self, mock_bundle, make_manager, api_requests, bundle_names_to_parse, expected
     ):
-        def create(_, name, version=None, version_data=None):
+        def create(bundle, *, name, **kwargs):
             _read_bundle_connection()
-            bundle = MagicMock(spec=BaseDagBundle)
             bundle.name = name
-            return bundle
 
-        mock_get_bundle.side_effect = create
+        mock_bundle.side_effect = create
 
         bundles = make_manager(bundle_names_to_parse=bundle_names_to_parse).get_all_bundles()
 

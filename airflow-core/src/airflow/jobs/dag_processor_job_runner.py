@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from time import monotonic
+from time import monotonic, sleep
 from typing import TYPE_CHECKING
 
 import httpx
@@ -75,7 +75,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
 
         self.processor.api_client = client
         self.processor.sync_bundles(include_bundle_urls=False)
-        self.job.id = client.register_job()
+        self.job.id = self._register_api_job(client)
         self.job.state = JobState.RUNNING
         self.job.start_date = self.job.latest_heartbeat = timezone.utcnow()
         self._last_api_heartbeat = monotonic()
@@ -102,6 +102,22 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.exception("Unable to record the failed Dag processor Job")
             finally:
                 stats.incr("job_end", 1, 1)
+
+    def _register_api_job(self, client: DagProcessorAPIClient) -> int:
+        from airflow.dag_processing.api_client import DagProcessorJobAlreadyRunning
+
+        deadline = monotonic() + conf.getint("dag_processor", "health_check_threshold") + self.job.heartrate
+        delay = 1.0
+        while True:
+            try:
+                return client.register_job()
+            except DagProcessorJobAlreadyRunning:
+                remaining = deadline - monotonic()
+                if remaining <= 0:
+                    raise
+                self.log.info("Waiting for the previous Dag processor Job heartbeat to expire")
+                sleep(min(delay, remaining))
+                delay = min(delay * 2, 5.0)
 
     def _heartbeat_api(self, client: DagProcessorAPIClient) -> None:
         from airflow.dag_processing.api_client import DagProcessorRegistrationRetired

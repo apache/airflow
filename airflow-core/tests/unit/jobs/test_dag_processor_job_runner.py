@@ -22,7 +22,11 @@ import httpx
 import pytest
 
 from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
-from airflow.dag_processing.api_client import DagProcessorAPIClient, DagProcessorRegistrationRetired
+from airflow.dag_processing.api_client import (
+    DagProcessorAPIClient,
+    DagProcessorJobAlreadyRunning,
+    DagProcessorRegistrationRetired,
+)
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorHeartbeatTimeout, DagProcessorJobRunner
 from airflow.jobs.job import Job, JobState
@@ -94,6 +98,59 @@ def test_failed_registration_never_starts_parsing(runner, client):
         runner.run_with_api(client)
     runner.processor.run.assert_not_called()
     client.complete_job.assert_not_called()
+
+
+@pytest.mark.parametrize("available_at", [12, 15, None])
+@conf_vars({("dag_processor", "health_check_threshold"): "10"})
+@mock.patch("airflow.jobs.dag_processor_job_runner.sleep", autospec=True)
+def test_registration_waits_for_a_crashed_job_with_a_bounded_backoff(
+    sleep, runner, client, clock, available_at
+):
+    def wait(seconds):
+        clock.return_value += seconds
+
+    def register():
+        runner.processor.run.assert_not_called()
+        if available_at is None or clock.return_value < available_at:
+            raise DagProcessorJobAlreadyRunning("Still alive")
+        return 42
+
+    sleep.side_effect = wait
+    client.register_job.side_effect = register
+
+    if available_at is None:
+        with pytest.raises(DagProcessorJobAlreadyRunning):
+            runner.run_with_api(client)
+        runner.processor.run.assert_not_called()
+        client.complete_job.assert_not_called()
+    else:
+        runner.run_with_api(client)
+        runner.processor.run.assert_called_once_with()
+        assert runner.job.id == 42
+
+    assert sleep.call_args_list == [mock.call(1), mock.call(2), mock.call(4), mock.call(5)] + (
+        [mock.call(3)] if available_at != 12 else []
+    )
+    assert clock.return_value == (available_at or 15)
+    assert client.register_job.call_count == sleep.call_count + 1
+
+
+@pytest.mark.parametrize("reason", ["registration_conflict", "registration_retired", None])
+@mock.patch("airflow.jobs.dag_processor_job_runner.sleep", autospec=True)
+def test_registration_does_not_wait_on_other_conflicts(sleep, runner, client, reason):
+    error = httpx.HTTPStatusError(
+        "conflict",
+        request=httpx.Request("POST", "http://api/jobs"),
+        response=httpx.Response(409, json={"detail": {"reason": reason}}),
+    )
+    client.register_job.side_effect = error
+
+    with pytest.raises(httpx.HTTPStatusError):
+        runner.run_with_api(client)
+
+    sleep.assert_not_called()
+    client.register_job.assert_called_once_with()
+    runner.processor.run.assert_not_called()
 
 
 @mock.patch("airflow.jobs.dag_processor_job_runner.get_listener_manager", autospec=True)

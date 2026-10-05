@@ -505,9 +505,10 @@ to reach the API server, and start the processor::
     AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE=/run/airflow/processor.jwt \
         airflow dag-processor --bundle-name dags-folder
 
-The processor still requires metadata database access for bundle metadata, result
-persistence, and orchestration. It synchronizes bundle ownership before registering
-its Job so the API can resolve teams before bundle code requests secrets.
+This mode provides no isolation from the metadata database yet. The processor still
+requires database credentials for bundle metadata, result persistence, and orchestration,
+and parsing processes can access those credentials. It synchronizes bundle ownership
+before registering its Job so the API can resolve teams before bundle code requests secrets.
 The processor does not use the shared SDK secret cache in this mode, even when
 ``[secrets] use_cache`` is enabled, because SDK cache lookups do not include the bundle
 identity that the API uses for authorization.
@@ -521,17 +522,21 @@ The returned ``dag_parse`` token binds these identifiers to the processor's sess
 Job. It authorizes parse-time operations within that bundle and has no Job-management or
 token-exchange access. A bundle header cannot override its signed bundle. The token expires
 no later than the management credential; ending or replacing the Job invalidates it.
-The supervisor caches it for the attempt and renews it through the manager when needed.
+The supervisor caches it for the attempt and attempts renewal at 80% of its lifetime.
+Transient early-renewal failures leave the existing token usable until expiry.
 
 Heartbeats use ``[scheduler] job_heartbeat_sec``. Transient API failures are retried on
 the next heartbeat interval; failures lasting ``[dag_processor] health_check_threshold``
 stop the processor. A restart request, replaced Job, or retired registration also stops
 parsing and terminates its children. The deployment's process supervisor must restart
-the command, which creates a new registration. Failed runs attempt to record failure
-without masking the original error; completion failures after a successful run are
-reported to the caller.
+the command, which creates a new registration. After a crash, registration retries
+``job_running`` with backoff for up to the health-check threshold plus one heartbeat
+interval, retaining the same registration ID while waiting for the old Job to expire.
+Failed runs attempt to record failure without masking the original error; completion
+failures after a successful run are reported to the caller.
 
-File identity provides request attribution; Connection and Variable permissions remain
+The token carries file and attempt identity, but the API does not currently use them
+for access checks or request attribution. Connection and Variable permissions remain
 bundle/team based. Archives retain one file identity under the current processor model.
 This exchange does not isolate hostile code from credentials accessible on the processor
 host. The process and deployment limitations described above still apply.

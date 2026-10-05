@@ -31,6 +31,7 @@ from airflow.dag_processing import api_client
 from airflow.dag_processing.api_client import (
     DagParseContext,
     DagProcessorAPIClient,
+    DagProcessorJobAlreadyRunning,
     DagProcessorRegistrationRetired,
     DagProcessorSecretsComms,
 )
@@ -177,6 +178,22 @@ def test_registration_errors_do_not_start_another_job(make_client, status):
     assert client.job_id is None
     assert client.registration_id == registration_id
     assert len(requests) == 1
+
+
+def test_registration_retry_after_a_crashed_job_keeps_its_identity(make_client):
+    client, requests = make_client(
+        httpx.Response(409, json={"detail": {"reason": "job_running"}}),
+        make_registration_response(),
+    )
+    registration_id = client.registration_id
+
+    with pytest.raises(DagProcessorJobAlreadyRunning):
+        client.register_job()
+    assert client.job_id is None
+    assert client.register_job() == 1
+
+    assert client.registration_id == registration_id
+    assert requests[0].content == requests[1].content
 
 
 def test_rotation_is_detected_within_the_cache_interval(make_client, token_file, clock):
@@ -786,22 +803,119 @@ def test_interleaved_parses_keep_distinct_file_credentials(make_client):
     ]
 
 
-def test_expired_parse_credential_renews_with_the_same_file_and_attempt(make_client, clock):
+@pytest.mark.parametrize("renew_at", [48, 61])
+def test_parse_credential_renews_with_the_same_file_and_attempt(make_client, clock, renew_at):
     client, requests = make_client(
         make_registration_response(),
         make_parse_token_response(),
         httpx.Response(200),
+        httpx.Response(200),
+        make_parse_token_response(iat=renew_at, exp=renew_at + 60),
+        httpx.Response(200),
+    )
+    client.register_job()
+    with client.use_parse(make_parse_context()):
+        client.get("variables/key")
+        clock.return_value = 47
+        client.get("variables/key")
+        clock.return_value = renew_at
+        client.get("variables/key")
+
+    assert requests[1].content == requests[4].content
+    assert requests[2].headers["Authorization"] == requests[3].headers["Authorization"]
+    assert requests[2].headers["Authorization"] != requests[5].headers["Authorization"]
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [httpx.ReadError("unavailable"), httpx.Response(503), httpx.Response(200, json={"token": "invalid"})],
+)
+@pytest.mark.parametrize("recovers_at_expiry", [False, True])
+def test_failed_early_parse_renewal_keeps_the_valid_token_until_expiry(
+    make_client, clock, failure, recovers_at_expiry
+):
+    token = make_parse_token_response()
+    client, requests = make_client(
+        make_registration_response(),
+        token,
+        httpx.Response(200),
+        failure,
+        httpx.Response(200),
+        httpx.Response(200),
+        make_parse_token_response(iat=60, exp=120) if recovers_at_expiry else httpx.Response(503),
+        httpx.Response(200),
+    )
+    client.register_job()
+    with client.use_parse(make_parse_context()):
+        for tick in (0, 48, 49):
+            clock.return_value = tick
+            client.request("GET", "variables/key", retry=False)
+        clock.return_value = 60
+        if recovers_at_expiry:
+            client.request("GET", "variables/key", retry=False)
+        else:
+            with pytest.raises(httpx.HTTPStatusError):
+                client.request("GET", "variables/key", retry=False)
+
+    assert [request.url.path for request in requests[:7]] == [
+        "/execution/jobs",
+        "/execution/jobs/1/parse-token",
+        "/execution/variables/key",
+        "/execution/jobs/1/parse-token",
+        "/execution/variables/key",
+        "/execution/variables/key",
+        "/execution/jobs/1/parse-token",
+    ]
+    assert all(requests[i].headers["Authorization"] == f"Bearer {token.json()['token']}" for i in (2, 4, 5))
+    assert all(value <= 1 for value in requests[3].extensions["timeout"].values())
+    if recovers_at_expiry:
+        assert requests[7].headers["Authorization"] != requests[2].headers["Authorization"]
+    else:
+        assert len(requests) == 7
+
+
+def test_parse_renewal_that_outlasts_the_token_requires_synchronous_recovery(make_client, clock):
+    def expire(request):
+        clock.return_value = 60
+        return httpx.Response(503)
+
+    client, requests = make_client(
+        make_registration_response(),
+        make_parse_token_response(),
+        httpx.Response(200),
+        expire,
         make_parse_token_response(iat=60, exp=120),
         httpx.Response(200),
     )
     client.register_job()
     with client.use_parse(make_parse_context()):
         client.get("variables/key")
-        clock.return_value = 61
+        clock.return_value = 48
         client.get("variables/key")
 
-    assert requests[1].content == requests[3].content
-    assert requests[2].headers["Authorization"] != requests[4].headers["Authorization"]
+    assert requests[1].content == requests[3].content == requests[4].content
+    assert requests[2].headers["Authorization"] != requests[5].headers["Authorization"]
+
+
+@pytest.mark.parametrize("reason", ["job_closed", "bundle_not_granted"])
+def test_early_parse_renewal_does_not_hide_authorization_errors(make_client, clock, reason):
+    client, requests = make_client(
+        make_registration_response(),
+        make_parse_token_response(),
+        httpx.Response(200),
+        httpx.Response(403, json={"detail": {"reason": reason}}),
+    )
+    client.register_job()
+    with client.use_parse(make_parse_context()):
+        client.get("variables/key")
+        clock.return_value = 48
+        with pytest.raises(
+            DagProcessorRegistrationRetired if reason == "job_closed" else httpx.HTTPStatusError
+        ):
+            client.get("variables/key")
+
+    assert client.restart_required == (reason == "job_closed")
+    assert len(requests) == 4
 
 
 @pytest.mark.parametrize(
