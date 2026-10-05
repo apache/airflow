@@ -113,6 +113,7 @@ async def get_variable_keys(
 )
 async def get_variable(
     variable_key: Annotated[str, Path(min_length=1)],
+    *,
     session: AsyncSessionDep,
     team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ) -> VariableResponse:

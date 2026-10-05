@@ -71,7 +71,7 @@ def access_denied(client):
 class TestGetVariable:
     @mock.patch(
         "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
-        new_callable=mock.AsyncMock,
+        autospec=True,
     )
     def test_variable_get_awaits_resolver_with_team_and_session(self, resolve_variable, client, exec_app):
         exec_app.dependency_overrides[get_team_name_dep] = lambda: "analytics"

@@ -58,7 +58,7 @@ def access_denied(client):
 class TestGetConnection:
     @mock.patch(
         "airflow.api_fastapi.execution_api.routes.connections.resolve_connection",
-        new_callable=mock.AsyncMock,
+        autospec=True,
     )
     def test_connection_get_awaits_resolver_with_team_and_session(self, resolve_connection, client, exec_app):
         exec_app.dependency_overrides[get_team_name_dep] = lambda: "analytics"

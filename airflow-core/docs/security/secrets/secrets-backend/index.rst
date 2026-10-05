@@ -208,8 +208,8 @@ The resolver runs these steps in worker threads because they can block:
 * Calling synchronous backend methods.
 * Reading or writing an initialized secrets cache (``[secrets] use_cache``), which a separate manager
   process holds.
-* Loading the Fernet key for the first time, which can run ``fernet_key_cmd`` or read
-  ``fernet_key_secret``.
+* Initializing the Fernet key, which can run ``fernet_key_cmd`` or read ``fernet_key_secret``.
+  Successful initialization is cached; failed loads can be retried.
 
 Masking, connection parsing, and response validation run on the event loop. Code in an async method
 must not block the event loop.
