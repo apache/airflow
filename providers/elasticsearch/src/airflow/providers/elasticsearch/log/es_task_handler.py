@@ -581,7 +581,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     ),
                     "try_number": str(ti.try_number),
                     "log_id": _render_log_id(self.log_id_template, ti, ti.try_number),
-                    **_get_ti_id_fields(ti),
                 },
             )
 

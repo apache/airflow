@@ -493,7 +493,6 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     ),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
-                    **_get_ti_id_fields(ti),
                 },
             )
 
