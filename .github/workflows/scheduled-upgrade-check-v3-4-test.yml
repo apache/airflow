@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: "[v3-3-test] Scheduled CI upgrade check"
+name: "[v3-4-test] Scheduled CI upgrade check"
 on:  # yamllint disable-line rule:truthy
   schedule:
     # Tue, Thu at 06:00 UTC — the days main does not run, so the two never overlap.
@@ -26,10 +26,10 @@ permissions:
   contents: write
   pull-requests: write
 jobs:
-  upgrade-v3-3-test:
-    name: "[v3-3-test] Upgrade"
+  upgrade-v3-4-test:
+    name: "[v3-4-test] Upgrade"
     uses: ./.github/workflows/upgrade-check.yml
     with:
-      target-branch: v3-3-test
+      target-branch: v3-4-test
     secrets:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
