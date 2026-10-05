@@ -310,10 +310,7 @@ with DAG(
         composer_external_dag_id="airflow_monitoring",
         composer_external_task_id="echo",
         allowed_states=["success"],
-        execution_range=[
-            "{{ (macros.datetime.now() - macros.timedelta(days=1)).isoformat() }}",  # type: ignore[list-item]
-            "{{ macros.datetime.now().isoformat() }}",  # type: ignore[list-item]
-        ],
+        execution_range=timedelta(days=1),
     )
     # [END howto_sensor_external_task]
 
@@ -326,10 +323,7 @@ with DAG(
         composer_external_dag_id="airflow_monitoring",
         composer_external_task_id="echo",
         allowed_states=["success"],
-        execution_range=[
-            "{{ (macros.datetime.now() - macros.timedelta(days=1)).isoformat() }}",  # type: ignore[list-item]
-            "{{ macros.datetime.now().isoformat() }}",  # type: ignore[list-item]
-        ],
+        execution_range=timedelta(days=1),
         deferrable=True,
     )
     # [END howto_sensor_external_task_deferrable_mode]
