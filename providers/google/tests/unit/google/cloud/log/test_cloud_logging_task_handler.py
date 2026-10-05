@@ -48,8 +48,9 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
     [(False, False), (True, True)],
 )
 def test_ti_id_label_is_only_written_from_airflow_3_4(is_airflow_3_4_plus, expect_ti_id):
+    now = timezone.utcnow()
     ti = SimpleNamespace(
-        id="some-ti-id", task_id="t", dag_id="d", try_number=1, logical_date=timezone.utcnow()
+        id="some-ti-id", task_id="t", dag_id="d", try_number=1, logical_date=now, execution_date=now
     )
 
     with mock.patch(
