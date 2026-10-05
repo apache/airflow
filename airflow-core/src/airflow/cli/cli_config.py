@@ -2304,6 +2304,21 @@ core_commands: list[CLICommand] = [
         help="Start a dag processor instance",
         func=lazy_load_command("airflow.cli.commands.dag_processor_command.dag_processor"),
         args=(
+            Arg(
+                ("--check-health",),
+                action="store_true",
+                help="Check the API-mode processor's local loop heartbeat and exit",
+            ),
+            Arg(
+                ("--check-ready",),
+                action="store_true",
+                help="Check the API-mode processor's loop and API heartbeat and exit",
+            ),
+            Arg(
+                ("--sync-bundles-only",),
+                action="store_true",
+                help="Provision the configured bundle catalog using trusted database and signing credentials, then exit",
+            ),
             ARG_PID,
             ARG_DAEMON,
             ARG_BUNDLE_NAME,

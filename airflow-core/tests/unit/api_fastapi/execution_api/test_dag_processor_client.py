@@ -45,6 +45,7 @@ from airflow.dag_processing.api_client import (
     DagProcessorRegistrationRetired,
 )
 from airflow.dag_processing.bundles.local import LocalDagBundle
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.jobs.job import Job
 from airflow.models.dag import DagModel
 from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
@@ -92,9 +93,19 @@ def api_requests():
 
 
 @pytest.fixture
-def api_url(async_db_engine, api_requests):
+def api_bind_host():
+    return "127.0.0.1"
+
+
+@pytest.fixture
+def api_secret():
+    return SECRET
+
+
+@pytest.fixture
+def api_url(async_db_engine, api_requests, api_bind_host, api_secret):
     ready = threading.Event()
-    lifespan.registry.register_value(JWTValidator, JWTValidator(secret_key=SECRET, audience=AUDIENCE))
+    lifespan.registry.register_value(JWTValidator, JWTValidator(secret_key=api_secret, audience=AUDIENCE))
 
     class Server(uvicorn.Server):
         async def startup(self, sockets=None):
@@ -110,14 +121,14 @@ def api_url(async_db_engine, api_requests):
     with (
         conf_vars(
             {
-                ("api_auth", "jwt_secret"): SECRET,
+                ("api_auth", "jwt_secret"): api_secret,
                 ("execution_api", "jwt_audience"): AUDIENCE,
                 ("execution_api", "jwt_expiration_time"): "300",
             }
         ),
         socket.socket() as listener,
     ):
-        listener.bind(("127.0.0.1", 0))
+        listener.bind((api_bind_host, 0))
         app = create_app(apps="execution")
 
         @app.middleware("http")
@@ -141,11 +152,11 @@ def api_url(async_db_engine, api_requests):
 
 
 @pytest.fixture
-def provision_token(tmp_path):
+def provision_token(tmp_path, api_secret):
     token_file = tmp_path / "processor.jwt"
 
     def provision(*, session_id=SESSION_ID, valid_for=600):
-        token = JWTGenerator(secret_key=SECRET, audience=AUDIENCE, valid_for=valid_for).generate(
+        token = JWTGenerator(secret_key=api_secret, audience=AUDIENCE, valid_for=valid_for).generate(
             {"sub": session_id, "scope": "dag_processor_session", "dag_bundles": ["bundle-a"]}
         )
         pending = token_file.with_suffix(".tmp")
@@ -385,6 +396,7 @@ class SecretReadingLocalBundle(LocalDagBundle):
 
 
 @pytest.mark.parametrize("multi_team", [False, True])
+@pytest.mark.parametrize("database_access", [False, True])
 def test_normal_processor_command_uses_authenticated_api(
     api_url,
     api_requests,
@@ -392,6 +404,7 @@ def test_normal_processor_command_uses_authenticated_api(
     tmp_path,
     session,
     multi_team,
+    database_access,
 ):
     clear_db_dags()
     clear_db_dag_bundles()
@@ -425,13 +438,27 @@ def test_normal_processor_command_uses_authenticated_api(
     try:
         with conf_vars(config):
             Variable.set("processor-client-key", "from-api", team_name=team_name)
+            DagBundlesManager().sync_bundles_to_db(include_bundle_urls=False)
+            processor_config = dict(config)
+            if not database_access:
+                processor_config.update(
+                    {
+                        (
+                            "database",
+                            "sql_alchemy_conn",
+                        ): "postgresql+psycopg://blocked:blocked@127.0.0.1:1/blocked",
+                        ("core", "fernet_key"): "",
+                        ("api_auth", "jwt_secret"): "",
+                        ("api_auth", "jwt_private_key_path"): "",
+                    }
+                )
             result = subprocess.run(
                 ["airflow", "dag-processor", "--num-runs", "1", "--bundle-name", "bundle-a"],
                 env={
                     **os.environ,
                     **{
                         f"AIRFLOW__{section.upper()}__{key.upper()}": value
-                        for (section, key), value in config.items()
+                        for (section, key), value in processor_config.items()
                     },
                     "PYTHONPATH": f"{Path(__file__).parents[3]}:{os.environ.get('PYTHONPATH', '')}",
                 },

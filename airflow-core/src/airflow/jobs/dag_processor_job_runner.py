@@ -25,6 +25,7 @@ import httpx
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
+from airflow.dag_processing.health import write_processor_health
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, execute_job, perform_heartbeat
 from airflow.listeners.listener import get_listener_manager
@@ -74,7 +75,6 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
 
         self.processor.api_client = client
-        self.processor.sync_bundles(include_bundle_urls=False)
         self.job.id = self._register_api_job(client)
         self.job.state = JobState.RUNNING
         self.job.start_date = self.job.latest_heartbeat = timezone.utcnow()
@@ -122,6 +122,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     def _heartbeat_api(self, client: DagProcessorAPIClient) -> None:
         from airflow.dag_processing.api_client import DagProcessorRegistrationRetired
 
+        write_processor_health(self._last_api_heartbeat)
         if client.restart_required:
             raise DagProcessorRegistrationRetired("The Dag processor registration requires a restart")
         now = monotonic()

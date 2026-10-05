@@ -85,7 +85,7 @@ def test_api_lifecycle_cleans_up_before_completion(complete, prepare, runner, cl
     assert runner.job.id == 42
     assert runner.job.state == outcome.value
     assert runner.processor.api_client is client
-    runner.processor.sync_bundles.assert_called_once_with(include_bundle_urls=False)
+    runner.processor.sync_bundles.assert_not_called()
     client.register_job.assert_called_once_with()
     assert events == ["terminate", "end", outcome]
     prepare.assert_not_called()

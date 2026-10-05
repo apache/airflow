@@ -221,3 +221,12 @@ class TestDagProcessorCommand:
             dag_processor_command._run_dag_processor_job(runner)
         assert client_class.call_args.kwargs["bundle_names"] == ["testing"]
         client_class.return_value.__exit__.assert_called_once()
+
+
+@mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
+@mock.patch.object(DagProcessorJobRunner, "_execute", autospec=True)
+def test_catalog_provisioning_does_not_start_a_processor(execute, sync):
+    args = cli_parser.get_parser().parse_args(["dag-processor", "--sync-bundles-only"])
+    dag_processor_command.dag_processor(args)
+    sync.assert_called_once()
+    execute.assert_not_called()

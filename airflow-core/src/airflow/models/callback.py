@@ -133,6 +133,10 @@ class Callback(Base, BaseWorkload):
 
     # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
+    processor_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    processor_claim_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
     # Return value of the callback if successful, otherwise exception details
     output: Mapped[str | None] = mapped_column(Text, nullable=True)

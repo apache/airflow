@@ -98,6 +98,10 @@ class AddDagProcessorJobEndpoints(VersionChange):
         endpoint("/jobs/{job_id}/complete", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/parse-token", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/parse-results", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/bundles", ["GET"]).didnt_exist,
+        endpoint("/jobs/{job_id}/bundles/{bundle_name:path}/inventory", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/requested-work/{kind}/claim", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/requested-work/{kind}/{work_id}/ack", ["POST"]).didnt_exist,
     )
 
 

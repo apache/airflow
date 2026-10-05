@@ -38,3 +38,4 @@ class DagParseCheckpoint(Base):
     dispatch_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
     payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     accepted_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    bundle_revision: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)

@@ -26,17 +26,23 @@ from uuid import UUID
 
 import pytest
 from fastapi import Request
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.collection import DagModelOperation, update_dag_parsing_results_in_db
+from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.job import Job, JobState
+from airflow.models.callback import DagProcessorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.errors import ParseImportError
@@ -46,6 +52,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_import_errors,
@@ -57,14 +64,20 @@ SESSION_ID = UUID("00000000-0000-0000-0000-0000000000aa")
 
 
 @pytest.fixture(autouse=True)
-def clean_db(time_machine):
+def clean_db(time_machine, session):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     clear_db_jobs()
+    clear_db_callbacks()
+    session.execute(delete(DagPriorityParsingRequest))
+    session.commit()
     clear_db_dags()
     clear_db_import_errors()
     clear_db_dag_bundles()
     yield
     clear_db_jobs()
+    clear_db_callbacks()
+    session.execute(delete(DagPriorityParsingRequest))
+    session.commit()
     clear_db_dags()
     clear_db_import_errors()
     clear_db_dag_bundles()
@@ -539,3 +552,228 @@ def test_concurrent_creation_cannot_overwrite_another_bundle(
     session.expire_all()
     assert session.get(DagModel, "published").bundle_name == "other"
     assert [row.job_id for row in session.scalars(select(DagParseCheckpoint))] == [other.id]
+
+
+def test_complete_inventory_reconciles_only_its_bundle_and_replays(client, session, job, body):
+    assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
+    session.add(DagModel(dag_id="other_bundle", bundle_name="other", relative_fileloc="a.py", is_stale=False))
+    session.commit()
+    inventory = {
+        "attempt_id": str(uuid7()),
+        "dispatch_sequence": 2,
+        "expected_revision": None,
+        "version": "v2",
+        "files": [],
+    }
+    url = f"/execution/jobs/{job.id}/bundles/bundle/inventory"
+    response = client.post(url, json=inventory)
+    assert response.status_code == 200, response.json()
+    assert client.post(url, json=inventory).json() == response.json()
+    session.expire_all()
+    assert session.get(DagModel, "published").is_stale
+    assert not session.get(DagModel, "other_bundle").is_stale
+    body.update(attempt_id=str(uuid7()), dispatch_sequence=3)
+    assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 409
+    assert client.post(url.replace("bundle/inventory", "other/inventory"), json=inventory).status_code == 403
+
+
+def test_inventory_revision_fences_late_refreshes(client, session, job):
+    url = f"/execution/jobs/{job.id}/bundles/bundle/inventory"
+    inventory = {
+        "attempt_id": str(uuid7()),
+        "dispatch_sequence": 1,
+        "expected_revision": None,
+        "version": "v1",
+        "files": ["a.py"],
+    }
+    first = client.post(url, json=inventory)
+    assert first.status_code == 200, first.json()
+    retry = {**inventory, "attempt_id": str(uuid7()), "dispatch_sequence": 2, "version": "v0"}
+    assert client.post(url, json=retry).status_code == 409
+    retry.update(expected_revision=first.json()["revision"], version="v1")
+    current = client.post(url, json=retry)
+    assert current.status_code == 200
+    assert current.json()["revision"] == first.json()["revision"]
+    session.expire_all()
+    assert session.get(DagBundleModel, "bundle").version == "v1"
+
+
+@pytest.mark.parametrize("files", [["../a.py"], ["a.py", "a.py"], ["/a.py"]])
+def test_invalid_inventory_cannot_remove_dags(client, session, job, body, files):
+    assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
+    response = client.post(
+        f"/execution/jobs/{job.id}/bundles/bundle/inventory",
+        json={
+            "attempt_id": str(uuid7()),
+            "dispatch_sequence": 2,
+            "expected_revision": None,
+            "files": files,
+        },
+    )
+    assert response.status_code == 422
+    session.expire_all()
+    assert not session.get(DagModel, "published").is_stale
+
+
+@pytest.mark.parametrize("rejected", [False, True])
+def test_empty_publication_deactivates_only_after_acceptance(client, session, job, body, rejected):
+    url = f"/execution/jobs/{job.id}/parse-results"
+    assert client.post(url, json=body).status_code == 200
+    body.update(attempt_id=str(uuid7()), dispatch_sequence=2, serialized_dags=[], source_codes={})
+    if rejected:
+        body["bundle_revision"] = str(uuid7())
+    response = client.post(url, json=body)
+    assert response.status_code == (409 if rejected else 200)
+    session.expire_all()
+    assert session.get(DagModel, "published").is_stale is not rejected
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_requested_work_claim_survives_response_loss_and_ack_replay(client, session, job, kind):
+    if kind == "callbacks":
+        work = DagProcessorCallback(
+            priority_weight=5,
+            callback=DagCallbackRequest(
+                filepath="a.py",
+                bundle_name="bundle",
+                bundle_version="v1",
+                dag_id="published",
+                run_id="run",
+            ),
+        )
+    else:
+        work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="a.py")
+    session.add(work)
+    session.commit()
+    base = f"/execution/jobs/{job.id}/requested-work/{kind}"
+    claim = {"claim_id": str(uuid7()), "bundle_names": ["bundle"], "limit": 1}
+    first = client.post(f"{base}/claim", json=claim)
+    assert first.status_code == 200, first.json()
+    assert len(first.json()) == 1
+    assert client.post(f"{base}/claim", json=claim).json() == first.json()
+    assert client.post(f"{base}/claim", json={**claim, "claim_id": str(uuid7())}).json() == []
+    ack = {"claim_id": claim["claim_id"], "state": "success"}
+    key = work.id
+    url = f"{base}/{key}/ack"
+    assert client.post(url, json={**ack, "claim_id": str(uuid7())}).status_code == 409
+    assert client.post(url, json=ack).status_code == 204
+    assert client.post(url, json=ack).status_code == 204
+    session.expire_all()
+    model = DagProcessorCallback if kind == "callbacks" else DagPriorityParsingRequest
+    assert session.get(model, key) is None
+
+
+@pytest.mark.parametrize("retired", [False, True])
+def test_priority_claim_preserves_live_owner_and_recovers_retired_owner(client, session, job, retired):
+    owner = Job(job_type="DagProcessorJob", state=JobState.RUNNING)
+    session.add(owner)
+    session.flush()
+    work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="recover.py")
+    work.processor_job_id = owner.id
+    work.processor_claim_id = uuid7()
+    if retired:
+        owner.end_date = timezone.utcnow()
+    session.add(work)
+    session.commit()
+    response = client.post(
+        f"/execution/jobs/{job.id}/requested-work/priority/claim",
+        json={
+            "claim_id": str(uuid7()),
+            "bundle_names": ["bundle"],
+            "limit": 1,
+        },
+    )
+    assert response.status_code == 200, response.json()
+    assert len(response.json()) == int(retired)
+    session.delete(work)
+    session.commit()
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_competing_jobs_claim_requested_work_once(client, exec_app, session, job, kind):
+    second = Job(job_type="DagProcessorJob", state=JobState.RUNNING)
+    second.session_id = uuid7()
+    second.registration_id = uuid7()
+    second.bundle_names = ["bundle"]
+    session.add(second)
+    if kind == "callbacks":
+        work = DagProcessorCallback(
+            priority_weight=1,
+            callback=DagCallbackRequest(
+                filepath="a.py", bundle_name="bundle", bundle_version=None, dag_id="dag", run_id="run"
+            ),
+        )
+    else:
+        work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="a.py")
+    session.add(work)
+    session.commit()
+    identities = {job.id: job.session_id, second.id: second.session_id}
+
+    async def authenticate(request: Request):
+        job_id = int(request.path_params["job_id"])
+        return TIToken(
+            id=identities[job_id],
+            claims=TIClaims(scope="dag_processor", job_id=job_id, dag_bundles=frozenset({"bundle"})),
+        )
+
+    exec_app.dependency_overrides[require_auth] = authenticate
+    ready = Barrier(2)
+
+    def claim(job_id):
+        ready.wait(timeout=10)
+        return client.post(
+            f"/execution/jobs/{job_id}/requested-work/{kind}/claim",
+            json={"claim_id": str(uuid7()), "bundle_names": ["bundle"]},
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(claim, job_id) for job_id in identities]
+        responses = [future.result(timeout=30) for future in futures]
+    assert [response.status_code for response in responses] == [200, 200]
+    assert sorted(len(response.json()) for response in responses) == [0, 1]
+
+
+def test_catalog_and_inventory_support_granted_bundle_with_slash(client, exec_app, session, job):
+    session.add(DagBundleModel(name="team/bundle"))
+    session.commit()
+
+    async def authenticate(request: Request):
+        return TIToken(
+            id=SESSION_ID,
+            claims=TIClaims(scope="dag_processor", job_id=job.id, dag_bundles=frozenset({"team/bundle"})),
+        )
+
+    exec_app.dependency_overrides[require_auth] = authenticate
+    response = client.get(f"/execution/jobs/{job.id}/bundles")
+    assert response.status_code == 200
+    assert [bundle["name"] for bundle in response.json()] == ["team/bundle"]
+    response = client.post(
+        f"/execution/jobs/{job.id}/bundles/team%2Fbundle/inventory",
+        json={"attempt_id": str(uuid7()), "dispatch_sequence": 1, "expected_revision": None, "files": []},
+    )
+    assert response.status_code == 200, response.json()
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+@pytest.mark.parametrize("retired", [False, True])
+def test_direct_mode_recovers_retired_api_claims_only(session, job, tmp_path, kind, retired):
+    if kind == "callbacks":
+        work = DagProcessorCallback(
+            priority_weight=1,
+            callback=DagCallbackRequest(
+                filepath="a.py", bundle_name="bundle", bundle_version=None, dag_id="dag", run_id="run"
+            ),
+        )
+    else:
+        work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="a.py")
+    work.processor_job_id = job.id
+    work.processor_claim_id = uuid7()
+    if retired:
+        job.end_date = timezone.utcnow()
+    session.add(work)
+    session.commit()
+    manager = DagFileProcessorManager(max_runs=1)
+    manager._dag_bundles = [LocalDagBundle(name="bundle", path=tmp_path)]
+    result = manager.fetch_callbacks() if kind == "callbacks" else manager.claim_priority_files()
+    assert len(result) == int(retired)

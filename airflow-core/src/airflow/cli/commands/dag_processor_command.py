@@ -27,6 +27,7 @@ from airflow.dag_processing.bundles.manager import (
     _get_configured_bundle_team_names,
     _load_bundle_config_snapshot,
 )
+from airflow.dag_processing.health import check_processor_health
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.executors.base_executor import get_execution_api_server_url
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
@@ -100,10 +101,25 @@ def _run_dag_processor_job(job_runner: DagProcessorJobRunner) -> None:
         job_runner.run_with_api(client)
 
 
-@cli_utils.action_cli
 @providers_configuration_loaded
 def dag_processor(args):
     """Start Airflow Dag Processor Job."""
+    if getattr(args, "check_health", False) or getattr(args, "check_ready", False):
+        if not conf.get("dag_processor", "execution_api_token_file", fallback=None):
+            raise SystemExit("Local health probes require Dag processor API mode")
+        return check_processor_health(readiness=getattr(args, "check_ready", False))
+    if getattr(args, "sync_bundles_only", False):
+        return cli_utils.action_cli(_sync_bundle_catalog)(args)
+    if not conf.get("dag_processor", "execution_api_token_file", fallback=None):
+        return cli_utils.action_cli(_start_dag_processor)(args)
+    return _start_dag_processor(args)
+
+
+def _sync_bundle_catalog(args):
+    DagFileProcessorManager(max_runs=0).sync_bundles()
+
+
+def _start_dag_processor(args):
     set_component_mp_start_method("dag_processor")
     job_runner = _create_dag_processor_job_runner(args)
 

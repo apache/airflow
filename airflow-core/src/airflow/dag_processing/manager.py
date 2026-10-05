@@ -37,11 +37,13 @@ from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
+from uuid import UUID
 
 import attrs
 import httpx
 import structlog
-from sqlalchemy import select, update
+from pydantic import TypeAdapter
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
@@ -51,11 +53,13 @@ from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    DagBundleInventoryBody,
     DagParseResultBody,
     ParseSourceCode,
     ParseWarning,
+    ProcessorWorkItem,
 )
-from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
@@ -71,6 +75,7 @@ from airflow.dag_processing.processor import (
     DagFileProcessorProcess,
     DagParseSource,
 )
+from airflow.jobs.job import Job
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -107,7 +112,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-    from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.api_client import DagProcessorAPIClient
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
@@ -128,6 +132,7 @@ class BundleState(NamedTuple):
 
     last_refreshed: datetime | None
     version: str | None
+    revision: UUID | None = None
 
 
 @attrs.define
@@ -296,8 +301,18 @@ class DagFileProcessorManager(LoggingMixin):
 
     _processors: dict[DagFileInfo, BaseDagFileProcessorProcess] = attrs.field(factory=dict, init=False)
     _pending_publications: dict[DagFileInfo, PendingDagPublication] = attrs.field(factory=dict, init=False)
+    _pending_inventories: dict[str, tuple[DagBundleInventoryBody, set[DagFileInfo], DagParseSource]] = (
+        attrs.field(factory=dict, init=False)
+    )
 
     _parsing_start_time: float | None = attrs.field(default=None, init=False)
+    _callback_claims: dict[int, ProcessorWorkItem] = attrs.field(factory=dict, init=False)
+    _deferred_api_callbacks: list[CallbackRequest] = attrs.field(factory=list, init=False)
+    _callback_attempts: dict[UUID, list[ProcessorWorkItem]] = attrs.field(factory=dict, init=False)
+    _priority_claims: dict[str, ProcessorWorkItem] = attrs.field(factory=dict, init=False)
+    _pending_work_acks: list[tuple[Literal["callbacks", "priority"], ProcessorWorkItem, bool]] = attrs.field(
+        factory=list, init=False
+    )
     _num_run: int = attrs.field(default=0, init=False)
 
     _callback_to_execute: dict[DagFileInfo, list[CallbackRequest]] = attrs.field(
@@ -352,7 +367,10 @@ class DagFileProcessorManager(LoggingMixin):
             return {}
         missing = [name for name in bundle_names if name not in self._bundle_name_to_team_name]
         if missing:
-            queried = DagBundleModel.get_team_names(missing)
+            if self.api_client is not None:
+                queried = {bundle.name: bundle.team_name for bundle in self.api_client.get_bundles()}
+            else:
+                queried = DagBundleModel.get_team_names(missing)
             for name in missing:
                 self._bundle_name_to_team_name[name] = queried.get(name)
         return {name: self._bundle_name_to_team_name.get(name) for name in bundle_names}
@@ -379,6 +397,16 @@ class DagFileProcessorManager(LoggingMixin):
 
     def sync_bundles(self, *, include_bundle_urls: bool = True) -> None:
         """Sync configured DAG bundles to the metadata database."""
+        if self.api_client is not None:
+            provisioned = {bundle.name for bundle in self.api_client.get_bundles()}
+            configured = set(
+                self.bundle_names_to_parse or self._create_bundle_manager().get_all_bundle_names()
+            )
+            if missing := configured - provisioned:
+                raise ValueError(
+                    f"Bundles must be provisioned before starting the processor: {sorted(missing)}"
+                )
+            return
         # When this processor only parses a subset of bundles, it does not see the full
         # bundle configuration and must not deactivate bundles owned by other processors.
         dag_bundle_manager = self._create_bundle_manager()
@@ -469,7 +497,7 @@ class DagFileProcessorManager(LoggingMixin):
         Resolve this process's own connection and variable lookups through ``api_client``.
 
         Bundle code runs in this process, for example a Git bundle reading its connection. Its secret
-        lookups use the API, while result persistence still uses the database. Parse processes replace
+        lookups use the API. Parse processes replace
         ``SUPERVISOR_COMMS`` with their own channel before running any Dag code.
         """
         from airflow.dag_processing.api_client import DagProcessorSecretsComms
@@ -477,6 +505,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         # SDK cache keys do not carry the bundle identity used to authorize these requests.
         SecretCache.reset()
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
         task_runner.SUPERVISOR_COMMS = DagProcessorSecretsComms(api_client)  # type: ignore[assignment]
 
     def _use_bundle(self, bundle_name: str) -> AbstractContextManager[object]:
@@ -515,6 +544,8 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _scan_stale_dags(self):
         """Scan and deactivate DAGs which are no longer present in files."""
+        if self.api_client is not None:
+            return
         now = time.monotonic()
         elapsed_time_since_refresh = now - self._last_deactivate_stale_dags_time
         if elapsed_time_since_refresh > self.parsing_cleanup_interval:
@@ -542,6 +573,12 @@ class DagFileProcessorManager(LoggingMixin):
 
     def cleanup_stale_bundle_versions(self) -> None:
         """Clean up stale DAG bundle version usage records."""
+        if self.api_client is not None:
+            manager = BundleUsageTrackingManager()
+            for bundle in self._dag_bundles:
+                if bundle.supports_versioning:
+                    manager._remove_stale_bundle_versions_for_bundle(bundle.name)
+            return
         BundleUsageTrackingManager().remove_stale_bundle_versions()
 
     @provide_session
@@ -567,23 +604,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         stuck_legacy_rows = 0
         for dag in dags_parsed:
-            # Dags whose bundle has been removed from config (bundle no longer active) are stale —
-            # the processor has stopped parsing their files, so the time-based check below would never fire.
-            #
-            # A NULL bundle_name means the row predates bundles (carried over from Airflow 2.x) and has not
-            # been parsed since the upgrade — parsing is what fills bundle_name in. If the file was removed
-            # as part of the upgrade, no parse will ever happen, so bundle_name stays NULL forever. Such a
-            # row can never hit the time-based check below either, because that matches on
-            # (bundle_name, relative_fileloc) and there is no bundle to match against, so without this
-            # branch the Dag stays active in the UI indefinitely. If the file does still exist, the next
-            # parse fills in bundle_name and clears is_stale, so a Dag deactivated here is reactivated.
             if dag.bundle_name is None or dag.bundle_name in inactive_bundles:
-                self.log.info(
-                    "Deactivating Dag %s. Its bundle %s is no longer active or is NULL.",
-                    dag.dag_id,
-                    dag.bundle_name,
-                )
-                to_deactivate.add(dag.dag_id)
                 continue
             # A Dag upgraded from Airflow 2.x can still have a NULL relative_fileloc:
             # the 0082 migration adds the column as nullable, and the startup repair
@@ -686,11 +707,11 @@ class DagFileProcessorManager(LoggingMixin):
             self._collect_results()
 
             self._publish_pending_results()
+            self._acknowledge_requested_work()
             for callback in self.fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
             self._cleanup_stale_bundle_versions()
-            self.purge_inactive_dag_warnings()
 
             # Update number of loop iteration.
             self._num_run += 1
@@ -747,7 +768,34 @@ class DagFileProcessorManager(LoggingMixin):
 
         Default implementation reads from the metadata DB; override to source requests from an API.
         """
-        return self._claim_priority_files()
+        if self.api_client is None:
+            return self._claim_priority_files()
+        available = (
+            self._parallelism
+            - len(self._priority_claims)
+            - sum(kind == "priority" for kind, _, _ in self._pending_work_acks)
+        )
+        if available <= 0:
+            return []
+        bundles = {bundle.name: bundle for bundle in self._dag_bundles}
+        try:
+            work = self.api_client.claim_work("priority", list(bundles), available)
+        except httpx.HTTPError:
+            self.log.warning("Unable to claim priority parses; retrying on a later loop")
+            return []
+        files = []
+        for item in work:
+            self._priority_claims[item.id] = item
+            bundle = bundles[item.bundle_name]
+            path = find_enclosing_file(bundle.path / item.relative_fileloc)
+            files.append(
+                DagFileInfo(
+                    rel_path=path.relative_to(bundle.path) if path else Path(item.relative_fileloc),
+                    bundle_name=bundle.name,
+                    bundle_path=bundle.path,
+                )
+            )
+        return files
 
     def request_bundle_refresh(self, bundle_names: str | Iterable[str]) -> None:
         """
@@ -784,7 +832,15 @@ class DagFileProcessorManager(LoggingMixin):
         files: list[DagFileInfo] = []
         bundles = {b.name: b for b in self._dag_bundles}
         requests = session.scalars(
-            select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.bundle_name.in_(bundles.keys()))
+            select(DagPriorityParsingRequest).where(
+                DagPriorityParsingRequest.bundle_name.in_(bundles.keys()),
+                or_(
+                    DagPriorityParsingRequest.processor_job_id.is_(None),
+                    DagPriorityParsingRequest.processor_job_id.in_(
+                        select(Job.id).where(Job.end_date.is_not(None))
+                    ),
+                ),
+            )
         )
         for request in requests:
             bundle = bundles[request.bundle_name]
@@ -802,7 +858,48 @@ class DagFileProcessorManager(LoggingMixin):
 
         Default implementation reads from the metadata DB; override to source callbacks from an API.
         """
-        return self._fetch_callbacks_from_db()
+        if self.api_client is None:
+            return self._fetch_callbacks_from_db()
+        available = (
+            self.max_callbacks_per_loop
+            - len(self._callback_claims)
+            - sum(len(work) for work in self._callback_attempts.values())
+            - sum(kind == "callbacks" for kind, _, _ in self._pending_work_acks)
+        )
+        if available <= 0:
+            return list(self._deferred_api_callbacks)
+        bundles = [b.name for b in self._dag_bundles if not b.supports_versioning or b.is_initialized]
+        try:
+            work = self.api_client.claim_work("callbacks", bundles, available)
+        except httpx.HTTPError:
+            self.log.warning("Unable to claim callbacks; retrying on a later loop")
+            return list(self._deferred_api_callbacks)
+        for item in work:
+            if item.callback is None:
+                raise ValueError("Callback claim returned no request")
+            request: CallbackRequest = TypeAdapter(CallbackRequest).validate_json(item.callback)
+            self._callback_claims[id(request)] = item
+            self._deferred_api_callbacks.append(request)
+        return list(self._deferred_api_callbacks)
+
+    def _acknowledge_requested_work(self) -> None:
+        if self.api_client is None or not self._pending_work_acks:
+            return
+        kind, item, failed = self._pending_work_acks[0]
+        try:
+            self.api_client.acknowledge_work(kind, item, failed=failed)
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code != 409:
+                self.log.warning("Unable to acknowledge requested work; retaining the claim")
+                return
+        except httpx.RequestError:
+            self.log.warning("Unable to acknowledge requested work; retaining the claim")
+            return
+        self._pending_work_acks.pop(0)
+
+    def _finish_callback_attempt(self, proc: BaseDagFileProcessorProcess) -> None:
+        for item in self._callback_attempts.pop(proc.id, []):
+            self._pending_work_acks.append(("callbacks", item, proc._exit_code != 0))
 
     @provide_session
     @retry_db_transaction
@@ -830,7 +927,15 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.debug("Skipping callback fetch for uninitialized bundles: %s", unready_bundles)
             query: Select[tuple[DbCallbackRequest]] = with_row_locks(
                 select(DbCallbackRequest)
-                .where(DbCallbackRequest.bundle_name.in_(bundle_names))
+                .where(
+                    DbCallbackRequest.bundle_name.in_(bundle_names),
+                    or_(
+                        DbCallbackRequest.processor_job_id.is_(None),
+                        DbCallbackRequest.processor_job_id.in_(
+                            select(Job.id).where(Job.end_date.is_not(None))
+                        ),
+                    ),
+                )
                 .order_by(DbCallbackRequest.priority_weight.desc())
                 .limit(self.max_callbacks_per_loop),
                 of=DbCallbackRequest,
@@ -894,6 +999,9 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
         if get_claiming_importer(request.filepath, request.bundle_name) is not None:
             self._log_dropped_lang_sdk_callback(request)
+            if item := self._callback_claims.pop(id(request), None):
+                self._pending_work_acks.append(("callbacks", item, True))
+                self._deferred_api_callbacks.remove(request)
             return
         bundle = self.prepare_callback_bundle(request)
         if bundle is None:
@@ -906,6 +1014,8 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_version=request.bundle_version,
         )
         self._callback_to_execute[file_info].append(request)
+        if id(request) in self._callback_claims:
+            self._deferred_api_callbacks.remove(request)
         self._add_files_to_queue([file_info], mode="front")
         team_name = self._get_team_name(file_info.bundle_name)
         stats.incr("dag_processing.other_callback_count", tags=prune_dict({"team_name": team_name}))
@@ -930,6 +1040,11 @@ class DagFileProcessorManager(LoggingMixin):
 
         Returns ``None`` if the bundle has no database record.
         """
+        if self.api_client is not None:
+            for bundle in self.api_client.get_bundles():
+                if bundle.name == bundle_name:
+                    return BundleState(bundle.last_refreshed, bundle.version, bundle.revision)
+            return None
         row = session.execute(
             select(DagBundleModel.last_refreshed, DagBundleModel.version).where(
                 DagBundleModel.name == bundle_name
@@ -967,7 +1082,34 @@ class DagFileProcessorManager(LoggingMixin):
         Default implementation deletes records from the metadata DB; override to
         source warnings from an API or skip the cleanup entirely.
         """
-        DagWarning.purge_inactive_dag_warnings()
+        if self.api_client is None:
+            DagWarning.purge_inactive_dag_warnings()
+
+    def _publish_bundle_inventory(self, bundle_name: str, known_files: dict[str, set[DagFileInfo]]) -> None:
+        if self.api_client is None:
+            raise ValueError("Inventory publication requires an API client")
+        body, found_files, source = self._pending_inventories[bundle_name]
+        try:
+            receipt = self.api_client.publish_inventory(bundle_name, body)
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code == 409:
+                del self._pending_inventories[bundle_name]
+                self.request_bundle_refresh(bundle_name)
+            elif error.response.status_code < 500:
+                raise
+            self.log.warning("Inventory publication was rejected for %s", bundle_name)
+            return
+        except httpx.RequestError:
+            self.log.warning("Unable to publish inventory for %s; retaining it for retry", bundle_name)
+            return
+        del self._pending_inventories[bundle_name]
+        self._bundle_parse_sources[bundle_name] = attrs.evolve(source, bundle_revision=receipt.revision)
+        self._bundle_versions[bundle_name] = source.bundle_version
+        known_files[bundle_name] = found_files
+        for key, item in list(self._priority_claims.items()):
+            if item.bundle_name == bundle_name and item.relative_fileloc not in body.files:
+                self._pending_work_acks.append(("priority", item, True))
+                del self._priority_claims[key]
 
     def _invalidate_bundle_parse_source(self, bundle_name: str) -> None:
         # Initialization or refresh may change files even when the provider raises afterwards.
@@ -985,6 +1127,7 @@ class DagFileProcessorManager(LoggingMixin):
             now_seconds < next_check
             and not self._force_refresh_bundles
             and not self._bundles_waiting_for_refresh
+            and not self._pending_inventories
         ):
             self.log.debug(
                 "Not time to check if DAG Bundles need refreshed yet - skipping. Next check in %.2f seconds",
@@ -1002,6 +1145,10 @@ class DagFileProcessorManager(LoggingMixin):
         }
         for bundle in self._dag_bundles:
             with self._use_bundle(bundle.name):
+                if bundle.name in self._pending_inventories:
+                    self._publish_bundle_inventory(bundle.name, known_files)
+                    any_refreshed = True
+                    continue
                 # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
                 #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
                 if not bundle.is_initialized:
@@ -1014,6 +1161,9 @@ class DagFileProcessorManager(LoggingMixin):
                         continue
                 try:
                     bundle_state = self.get_bundle_state(bundle.name)
+                except httpx.HTTPError:
+                    self.log.warning("Unable to read metadata for bundle %s; retrying later", bundle.name)
+                    continue
                 except Exception:
                     self.log.exception("Error fetching state for bundle %s", bundle.name)
                     continue
@@ -1084,7 +1234,11 @@ class DagFileProcessorManager(LoggingMixin):
                     # We can short-circuit the rest of this if (1) bundle was seen before by
                     # this dag processor and (2) the version of the bundle did not change
                     # after refreshing it
-                    if previously_seen and pre_refresh_version == version_after_refresh:
+                    if (
+                        self.api_client is None
+                        and previously_seen
+                        and pre_refresh_version == version_after_refresh
+                    ):
                         self.log.debug(
                             "Bundle %s version not changed after refresh: %s",
                             bundle.name,
@@ -1105,6 +1259,24 @@ class DagFileProcessorManager(LoggingMixin):
                     # Keep the bundle's known files and Dags, and leave its version unadvanced so the
                     # next refresh lists it again.
                     self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
+                    if self.api_client is not None:
+                        self._bundle_parse_sources.pop(bundle.name, None)
+                    continue
+
+                if self.api_client is not None:
+                    self._dispatch_sequence += 1
+                    self._pending_inventories[bundle.name] = (
+                        DagBundleInventoryBody(
+                            attempt_id=uuid7(),
+                            dispatch_sequence=self._dispatch_sequence,
+                            expected_revision=bundle_state.revision,
+                            version=version_after_refresh,
+                            files=sorted(self._get_observed_filelocs(found_files)),
+                        ),
+                        found_files,
+                        self._bundle_parse_sources.pop(bundle.name),
+                    )
+                    self._publish_bundle_inventory(bundle.name, known_files)
                     continue
 
                 # Persistence failure must not skip file scanning (bundle is already refreshed locally).
@@ -1142,6 +1314,8 @@ class DagFileProcessorManager(LoggingMixin):
         definition_locs: defaultdict[Path, set[str]] = defaultdict(set)
         for _, item in registry.list_dag_definitions(bundle, safe_mode=self.dag_discovery_safe_mode):
             if isinstance(item, DagImportError):
+                if self.api_client is not None:
+                    raise ValueError(f"Discovery did not complete for bundle {bundle.name}")
                 # Importers report a source either absolutely or relative to the bundle.
                 rel_fileloc = os.path.relpath(bundle.path / item.source_reference, bundle.path)
             else:
@@ -1376,7 +1550,12 @@ class DagFileProcessorManager(LoggingMixin):
     def purge_removed_files_from_queue(self, present: set[DagFileInfo]):
         """Remove from queue any files no longer observed locally."""
         present_keys = {file.presence_key for file in present}
-        self._file_queue = OrderedDict((x, None) for x in self._file_queue if x.presence_key in present_keys)
+        self._file_queue = OrderedDict(
+            (x, None)
+            for x in self._file_queue
+            if x.presence_key in present_keys
+            or (self.api_client is not None and self._callback_to_execute.get(x))
+        )
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
@@ -1396,6 +1575,8 @@ class DagFileProcessorManager(LoggingMixin):
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
 
         for file in list(self._processors.keys()):
+            if self.api_client is not None and self._processors[file].id in self._callback_attempts:
+                continue
             if file.presence_key not in present_keys:
                 processor = self._processors.pop(file, None)
                 if not processor:
@@ -1547,6 +1728,13 @@ class DagFileProcessorManager(LoggingMixin):
                 self._record_failed_publication(file, pending.stat)
             else:
                 self._file_stats[file] = pending.stat
+                for key, item in list(self._priority_claims.items()):
+                    if item.bundle_name == file.bundle_name and (
+                        item.relative_fileloc == str(file.rel_path)
+                        or item.relative_fileloc.startswith(str(file.rel_path) + "/")
+                    ):
+                        self._pending_work_acks.append(("priority", item, False))
+                        del self._priority_claims[key]
             del self._pending_publications[file]
             return
 
@@ -1578,6 +1766,7 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_name=file.bundle_name,
             relative_fileloc=str(file.rel_path),
             bundle_version=proc.parse_source.bundle_version,
+            bundle_revision=proc.parse_source.bundle_revision,
             version_data=proc.parse_source.version_data,
             parse_duration=run_duration,
             serialized_dags=[dag.data for dag in result.serialized_dags],
@@ -1641,6 +1830,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         for file in finished:
             processor = self._processors.pop(file)
+            self._finish_callback_attempt(processor)
             processor.close()
 
     def _get_log_dir(self) -> str:
@@ -1704,15 +1894,22 @@ class DagFileProcessorManager(LoggingMixin):
         return client
 
     def _create_process(self, dag_file: DagFileInfo) -> BaseDagFileProcessorProcess:
-        id = uuid7()
+        process_id = uuid7()
 
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
+        claims = [
+            self._callback_claims.pop(id(request))
+            for request in callback_to_execute_for_file
+            if id(request) in self._callback_claims
+        ]
+        if claims:
+            self._callback_attempts[process_id] = claims
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
         subprocess_logs_to_stdout = conf.get("logging", "dag_processor_log_target") == "stdout"
 
         if get_claiming_importer(dag_file.absolute_path, dag_file.bundle_name) is not None:
             return LangSDKDagFileProcessorProcess.start(
-                id=id,
+                id=process_id,
                 path=dag_file.absolute_path,
                 bundle_path=cast("Path", dag_file.bundle_path),
                 bundle_name=dag_file.bundle_name,
@@ -1725,7 +1922,7 @@ class DagFileProcessorManager(LoggingMixin):
             )
 
         return DagFileProcessorProcess.start(
-            id=id,
+            id=process_id,
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
             bundle_name=dag_file.bundle_name,
@@ -1994,6 +2191,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
             processor = self._processors.pop(proc)
+            self._finish_callback_attempt(processor)
             processor.close()
 
     def _add_files_to_queue(
@@ -2034,6 +2232,15 @@ class DagFileProcessorManager(LoggingMixin):
         if self._num_run < self.max_runs:
             return False
         if self._pending_publications:
+            return False
+        if self._pending_inventories:
+            return False
+        if (
+            self._pending_work_acks
+            or self._callback_claims
+            or self._callback_attempts
+            or self._priority_claims
+        ):
             return False
         if any(file not in self._callback_to_execute for file in self._file_queue) or any(
             not proc.had_callbacks for proc in self._processors.values()

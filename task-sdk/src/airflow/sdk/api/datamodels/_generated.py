@@ -109,6 +109,53 @@ class ConnectionTestState(str, Enum):
     FAILED = "failed"
 
 
+class Version(RootModel[str]):
+    root: Annotated[str, Field(max_length=200, title="Version")]
+
+
+class DagBundleInventoryBody(BaseModel):
+    """
+    A complete discovery snapshot, conditional on the previously observed revision.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    dispatch_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Dispatch Sequence")]
+    expected_revision: Annotated[UUID | None, Field(title="Expected Revision")]
+    version: Annotated[Version | None, Field(title="Version")] = None
+    files: Annotated[list[str], Field(max_length=100000, title="Files")]
+
+
+class DagBundleInventoryResponse(BaseModel):
+    """
+    The source revision to attach to imports dispatched from this inventory.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    accepted_at: Annotated[AwareDatetime, Field(title="Accepted At")]
+    revision: Annotated[UUID, Field(title="Revision")]
+
+
+class DagBundleStateResponse(BaseModel):
+    """
+    Server-owned metadata for an authorized bundle.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(title="Name")]
+    version: Annotated[str | None, Field(title="Version")]
+    last_refreshed: Annotated[AwareDatetime | None, Field(title="Last Refreshed")]
+    revision: Annotated[UUID | None, Field(title="Revision")]
+    team_name: Annotated[str | None, Field(title="Team Name")]
+
+
 class BundleVersion(RootModel[str]):
     root: Annotated[str, Field(max_length=200, title="Bundle Version")]
 
@@ -410,6 +457,51 @@ class PreviousTIResponse(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     duration: Annotated[float | None, Field(title="Duration")] = None
+
+
+class State(str, Enum):
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class ProcessorWorkAckBody(BaseModel):
+    """
+    Acknowledge delivery, retaining the claim identity across retries.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    state: Annotated[State, Field(title="State")]
+
+
+class ProcessorWorkClaimBody(BaseModel):
+    """
+    A retryable bounded claim for requested work in ready bundles.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    bundle_names: Annotated[list[str], Field(max_length=1000, min_length=1, title="Bundle Names")]
+    limit: Annotated[int | None, Field(ge=1, le=100, title="Limit")] = 20
+
+
+class ProcessorWorkItem(BaseModel):
+    """
+    A claimed callback or priority parse request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[str, Field(title="Id")]
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(title="Relative Fileloc")]
+    callback: Annotated[str | None, Field(title="Callback")] = None
 
 
 class TIAwaitingInputStatePayload(BaseModel):
@@ -858,6 +950,7 @@ class DagParseResultBody(BaseModel):
     bundle_name: Annotated[str, Field(max_length=250, min_length=1, title="Bundle Name")]
     relative_fileloc: Annotated[str, Field(max_length=2000, min_length=1, title="Relative Fileloc")]
     dispatch_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Dispatch Sequence")]
+    bundle_revision: Annotated[UUID | None, Field(title="Bundle Revision")] = None
     bundle_version: Annotated[BundleVersion | None, Field(title="Bundle Version")] = None
     version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
     parse_duration: Annotated[float, Field(ge=0.0, title="Parse Duration")]

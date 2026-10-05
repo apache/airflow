@@ -48,6 +48,11 @@ from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    DagBundleInventoryBody,
+    DagBundleInventoryResponse,
+    ProcessorWorkItem,
+)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.dag_processing.api_client import DagProcessorAPIClient, DagProcessorSecretsComms
@@ -1426,7 +1431,7 @@ class TestDagFileProcessorManager:
         assert serialized_dag_count == 1
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_stale_dags_marks_dags_in_inactive_bundles(self, session):
+    def test_deactivate_stale_dags_leaves_inactive_bundles_to_scheduler(self, session):
         """Dags whose bundle is no longer active should be marked stale even without a parse signal."""
         session.add(DagBundleModel(name="gone-bundle"))
         session.flush()
@@ -1463,7 +1468,7 @@ class TestDagFileProcessorManager:
                 )
             ).all()
         )
-        assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+        assert is_stale_by_dag == {"dag_in_inactive_bundle": False, "dag_in_active_bundle": False}
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_matches_dags_nested_in_a_container(self, session):
@@ -1489,7 +1494,7 @@ class TestDagFileProcessorManager:
         assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "nested_dag"))
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self, session):
+    def test_deactivate_stale_dags_leaves_null_bundle_to_scheduler(self, session):
         """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
 
         Their files were removed during the upgrade, so nothing will ever parse them and fill the
@@ -1526,7 +1531,7 @@ class TestDagFileProcessorManager:
         with mock.patch.object(session, "execute", side_effect=execute_with_null_bundle_name):
             manager.deactivate_stale_dags(last_parsed={}, session=session)
 
-        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
+        assert not session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_tolerates_null_relative_fileloc(self, session):
@@ -1598,9 +1603,6 @@ class TestDagFileProcessorManager:
 
         session.add(DagBundleModel(name="gone-bundle"))
         session.flush()
-        session.execute(
-            DagBundleModel.__table__.update().where(DagBundleModel.name == "gone-bundle").values(active=False)
-        )
         session.add(
             DagModel(
                 dag_id="dag_in_inactive_bundle",
@@ -1625,7 +1627,12 @@ class TestDagFileProcessorManager:
         mock_is_lock_not_available.return_value = True
 
         with mock.patch.object(session, "execute", side_effect=mock_execute):
-            manager.deactivate_stale_dags(last_parsed={})
+            manager.deactivate_stale_dags(
+                last_parsed={
+                    DagFileInfo(rel_path=Path("some_file.py"), bundle_name="gone-bundle"): timezone.utcnow()
+                    + timedelta(hours=1)
+                }
+            )
 
         assert "Lock not available when deactivating stale DAGs" in caplog.text
 
@@ -4222,8 +4229,9 @@ class TestDagFileProcessorManager:
             manager.purge_inactive_dag_warnings()
         purge_mock.assert_called_once_with()
 
-    def test_run_parsing_loop_uses_overridable_purge(self, tmp_path, configure_testing_dag_bundle):
-        """`_run_parsing_loop` calls the overridable `purge_inactive_dag_warnings` seam."""
+    def test_run_parsing_loop_leaves_warning_cleanup_to_scheduler(
+        self, tmp_path, configure_testing_dag_bundle
+    ):
         with configure_testing_dag_bundle(tmp_path):
             manager = DagFileProcessorManager(max_runs=1)
             with (
@@ -4233,7 +4241,7 @@ class TestDagFileProcessorManager:
                 ) as direct_mock,
             ):
                 manager.run()
-            purge_mock.assert_called()
+            purge_mock.assert_not_called()
             direct_mock.assert_not_called()
 
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
@@ -4463,6 +4471,8 @@ class TestDagFileProcessorManager:
     @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
     def test_periodic_refresh_drains_imports_before_admitting_more(self, persist, create, api_mode):
         client = mock.create_autospec(DagProcessorAPIClient, instance=True) if api_mode else None
+        if client is not None:
+            client.publish_inventory.return_value.revision = uuid7()
         manager = DagFileProcessorManager(max_runs=1, bundle_refresh_check_interval=300, api_client=client)
         bundle = self._make_refresh_bundle(supports_versioning=True, current_version="v2")
         bundle.refresh_interval = 300
@@ -5567,3 +5577,100 @@ class TestDagFileProcessorManagerWithAPIClient:
 
         assert make_manager().prepare_callback_bundle(request) is not None
         assert self._get_connection_bundles(api_requests) == ["bundle_b"]
+
+
+@pytest.mark.parametrize("status_code", [409, 503])
+def test_api_inventory_failure_preserves_known_files(status_code):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    body = DagBundleInventoryBody(attempt_id=uuid7(), dispatch_sequence=1, expected_revision=None, files=[])
+    manager._pending_inventories["testing"] = (body, set(), DagParseSource())
+    known_files = {"testing": set(_get_file_infos(["previous.py"]))}
+    previous = known_files.copy()
+    response = httpx.Response(status_code, request=httpx.Request("POST", "http://api/inventory"))
+    client.publish_inventory.side_effect = httpx.HTTPStatusError(
+        "Unavailable", request=response.request, response=response
+    )
+    manager._publish_bundle_inventory("testing", known_files)
+    assert known_files == previous
+    assert not manager._bundle_parse_sources
+    if status_code == 409:
+        assert not manager._pending_inventories
+        assert "testing" in manager._force_refresh_bundles
+    else:
+        assert manager._pending_inventories["testing"][0] is body
+        revision = uuid7()
+        client.publish_inventory.side_effect = None
+        client.publish_inventory.return_value = DagBundleInventoryResponse(
+            attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=revision
+        )
+        manager._publish_bundle_inventory("testing", known_files)
+        assert client.publish_inventory.call_args.args[1] is body
+        assert known_files == {"testing": set()}
+        assert manager._bundle_parse_sources["testing"].bundle_revision == revision
+
+
+@pytest.mark.parametrize("status_code", [409, 503])
+def test_requested_work_ack_retains_only_retryable_failures(status_code):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
+    )
+    manager._pending_work_acks.append(("callbacks", work, False))
+    response = httpx.Response(status_code, request=httpx.Request("POST", "http://api/ack"))
+    client.acknowledge_work.side_effect = httpx.HTTPStatusError(
+        "Unavailable", request=response.request, response=response
+    )
+    manager._acknowledge_requested_work()
+    assert bool(manager._pending_work_acks) == (status_code == 503)
+    if status_code == 503:
+        client.acknowledge_work.side_effect = None
+        manager._acknowledge_requested_work()
+        assert not manager._pending_work_acks
+        assert client.acknowledge_work.call_args.args == ("callbacks", work)
+
+
+def test_api_inventory_cleanup_preserves_claimed_callbacks():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["removed.py"])[0]
+    request = DagCallbackRequest(
+        filepath="removed.py", bundle_name="testing", bundle_version="older", dag_id="dag", run_id="run"
+    )
+    manager._callback_to_execute[file].append(request)
+    manager._file_queue[file] = None
+    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    processor.id = uuid7()
+    manager._processors[file] = processor
+    manager._callback_attempts[processor.id] = [
+        ProcessorWorkItem(
+            id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="removed.py"
+        )
+    ]
+    manager.purge_removed_files_from_queue(set())
+    manager.terminate_orphan_processes(set())
+    assert list(manager._file_queue) == [file]
+    processor.kill.assert_not_called()
+    processor.close.assert_not_called()
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_pending_requested_work_does_not_block_other_available_capacity(kind):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.claim_work.return_value = []
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, parallelism=2, max_callbacks_per_loop=2)
+    bundle = mock.create_autospec(BaseDagBundle, instance=True)
+    bundle.name = "testing"
+    bundle.supports_versioning = False
+    manager._dag_bundles = [bundle]
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="missing.py"
+    )
+    if kind == "priority":
+        manager._priority_claims[work.id] = work
+        manager.claim_priority_files()
+    else:
+        manager._callback_claims[1] = work
+        manager.fetch_callbacks()
+    client.claim_work.assert_called_once_with(kind, ["testing"], 1)

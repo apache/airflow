@@ -434,6 +434,17 @@ class TestDagProcessor:
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
 
+    def test_api_mode_uses_local_liveness_probe(self):
+        docs = render_chart(
+            values={"config": {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}}},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        command = jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+        assert "airflow dag-processor --check-health" in command
+        readiness = docs[0]["spec"]["template"]["spec"]["containers"][0]["readinessProbe"]["exec"]["command"]
+        assert "airflow dag-processor --check-ready" in readiness[-1]
+        assert "airflow jobs check" not in command
+
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),
         [

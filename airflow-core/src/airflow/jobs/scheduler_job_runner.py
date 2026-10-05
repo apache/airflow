@@ -66,6 +66,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.dag_processing.maintenance import cleanup_processor_metadata
 from airflow.exceptions import DagNotFound, TaskNotFound
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
@@ -1939,6 +1940,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
         timers.call_regular_interval(5.0, self._finalize_draining_dags)
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"), cleanup_processor_metadata, non_fatal=True
+        )
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_queued_timeout_check_interval"),

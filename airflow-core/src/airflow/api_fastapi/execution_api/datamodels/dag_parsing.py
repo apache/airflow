@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -47,6 +47,7 @@ class DagParseResultBody(DagParseTokenBody):
     """One completed file or container import, including an empty result."""
 
     dispatch_sequence: int = Field(ge=1, le=2**53 - 1)
+    bundle_revision: UUID | None = None
     bundle_version: str | None = Field(default=None, max_length=200)
     version_data: dict[str, Any] | None = None
     parse_duration: float = Field(ge=0, allow_inf_nan=False)
@@ -94,3 +95,64 @@ class DagParseResultResponse(StrictBaseModel):
 
     attempt_id: UUID
     accepted_at: datetime
+
+
+class DagBundleStateResponse(StrictBaseModel):
+    """Server-owned metadata for an authorized bundle."""
+
+    name: str
+    version: str | None
+    last_refreshed: datetime | None
+    revision: UUID | None
+    team_name: str | None
+
+
+class DagBundleInventoryBody(StrictBaseModel):
+    """A complete discovery snapshot, conditional on the previously observed revision."""
+
+    attempt_id: UUID
+    dispatch_sequence: int = Field(ge=1, le=2**53 - 1)
+    expected_revision: UUID | None
+    version: str | None = Field(default=None, max_length=200)
+    files: list[str] = Field(max_length=100000)
+
+    @model_validator(mode="after")
+    def validate_files(self) -> DagBundleInventoryBody:
+        for path in self.files:
+            if len(path) > 2000:
+                raise ValueError("Definition location exceeds 2000 characters")
+            DagParseTokenBody.validate_relative_fileloc(path)
+        if len(set(self.files)) != len(self.files):
+            raise ValueError("Inventory contains duplicate definitions")
+        return self
+
+
+class DagBundleInventoryResponse(DagParseResultResponse):
+    """The source revision to attach to imports dispatched from this inventory."""
+
+    revision: UUID
+
+
+class ProcessorWorkClaimBody(StrictBaseModel):
+    """A retryable bounded claim for requested work in ready bundles."""
+
+    claim_id: UUID
+    bundle_names: list[str] = Field(min_length=1, max_length=1000)
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class ProcessorWorkItem(StrictBaseModel):
+    """A claimed callback or priority parse request."""
+
+    id: str
+    claim_id: UUID
+    bundle_name: str
+    relative_fileloc: str
+    callback: str | None = None
+
+
+class ProcessorWorkAckBody(StrictBaseModel):
+    """Acknowledge delivery, retaining the claim identity across retries."""
+
+    claim_id: UUID
+    state: Literal["success", "failed"]

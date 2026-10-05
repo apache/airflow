@@ -491,12 +491,15 @@ Dag processor HTTP client credentials
 
 Set ``[dag_processor] execution_api_token_file`` to run ``airflow dag-processor`` with
 authenticated HTTP requests. Job registration, heartbeats, completion, bundle secret
-lookups, and parse-time requests then use the Execution API. The API client is created
+lookups, bundle metadata, result publication, and callback and priority delivery then use
+the Execution API. The API client is created
 in the processor process, after any daemon or hot-reload fork. Leaving the setting
 unset preserves the in-process API and database-backed Job lifecycle.
 
-On a trusted host with the signing key, provision a separate token file for each processor::
+On a trusted host with database access and the server keys, synchronize the configured
+bundle catalog and provision a separate token file for each processor::
 
+    airflow dag-processor --sync-bundles-only
     airflow dag-processor-token --token-file /run/airflow/processor.jwt --bundle-name dags-folder --rotate
 
 Make the file readable by that processor, configure ``[core] execution_api_server_url``
@@ -505,10 +508,12 @@ to reach the API server, and start the processor::
     AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE=/run/airflow/processor.jwt \
         airflow dag-processor --bundle-name dags-folder
 
-This mode provides no isolation from the metadata database yet. The processor still
-requires database credentials for bundle metadata and orchestration,
-and parsing processes can access those credentials. It synchronizes bundle ownership
-before registering its Job so the API can resolve teams before bundle code requests secrets.
+The processor does not need metadata database credentials, the Fernet key, or API signing
+keys. Remove them from its environment and mounted configuration, and block its database
+network path. Enabling the setting alone does not remove existing credentials or isolate
+code from other secrets on the processor host. Catalog synchronization is a trusted
+deployment operation: repeat it when bundle configuration changes. It loads provider
+classes for bundle URLs; the API server does not construct bundles or access their sources.
 The processor does not use the shared SDK secret cache in this mode, even when
 ``[secrets] use_cache`` is enabled, because SDK cache lookups do not include the bundle
 identity that the API uses for authorization.
@@ -541,6 +546,22 @@ imports still publish a receipt and clear the file's earlier import errors. Ordi
 bundle refresh waits for active imports; a forced refresh invalidates and requeues any
 older in-flight result from that manager.
 
+Complete inventories update bundle metadata and deactivate definitions that disappeared.
+Each inventory carries the previously observed server revision; conflicting refreshes must
+rediscover before retrying. Imports carry the accepted revision, so an older snapshot cannot
+publish after a changed inventory. Only accepted publications establish missing Dags within
+a file. Import errors use the server's clock and stale threshold; rejected requests and
+incomplete discovery do not establish absence. The scheduler performs bounded cleanup of
+inactive or unassigned bundles, stale warnings, and expired processor Jobs in both modes.
+
+Callback and priority requests remain stored while claimed. A lost claim response or
+acknowledgment can be retried, and requests from a retired Job become available to another
+processor. A callback acknowledgment confirms delivery, not successful execution of user
+code. As with other at-least-once delivery, a crash after a callback's side effect and before
+acknowledgment can repeat that side effect. A requested bundle version that is temporarily
+unavailable remains pending. Priority requests are acknowledged after accepted publication
+or after complete discovery confirms that their definition is absent.
+
 The manager retains a bounded queue of pending publications and sends at most one
 short HTTP attempt per loop. Retries keep the same payload and identity while
 heartbeats and subprocess supervision continue between attempts. Pending results
@@ -563,6 +584,18 @@ the command, which creates a new registration. After a crash, registration retri
 interval, retaining the same registration ID while waiting for the old Job to expire.
 Failed runs attempt to record failure without masking the original error; completion
 failures after a successful run are reported to the caller.
+
+Use ``airflow dag-processor --check-health`` for local liveness and ``--check-ready`` for
+local liveness plus a recent API heartbeat. Both read ``[dag_processor] health_check_file``
+without querying the database. Give each processor its own writable health file. A paused
+manager fails liveness even while the API remains healthy; a transient API outage affects
+readiness without immediately failing liveness.
+
+For Helm, set the token-file option under ``config.dag_processor`` to select the local
+probe. Disable the processor's migration-wait init container, provision the catalog
+separately, and remove server credentials from the pod. The Compose example selects the
+local probe when ``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` is set. Neither
+example removes shared credentials or adds database-denying network policies automatically.
 
 The token carries file and attempt identity, but the API does not currently use them
 for access checks or request attribution. Connection and Variable permissions remain
