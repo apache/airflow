@@ -1910,7 +1910,7 @@ class TestSkippedRowLifecycle:
                 {},
                 None,
                 set(),
-                session,
+                session=session,
             )
             session.commit()
 

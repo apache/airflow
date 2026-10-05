@@ -576,6 +576,15 @@ def in_process_api_server() -> InProcessExecutionAPI:
     return api
 
 
+@attrs.frozen
+class DagParseSource:
+    """Bundle metadata captured for one import of the local source tree."""
+
+    bundle_version: str | None = None
+    version_data: dict | None = None
+    refresh_generation: int = 0
+
+
 @attrs.define(kw_only=True)
 class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     """
@@ -592,6 +601,8 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     )
     """The file's parse log, which the process closes. Without one, the output is discarded."""
     parsing_result: DagFileParsingResult | None = None
+    parse_source: DagParseSource = attrs.field(factory=DagParseSource)
+    dispatch_sequence: int = 0
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 

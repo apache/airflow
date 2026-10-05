@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 import structlog
 from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import Session, joinedload, load_only
 
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
@@ -50,6 +50,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -68,22 +69,42 @@ from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
-from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
+from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name, with_row_locks
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Iterator
 
-    from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
     from airflow.models.serialized_dag import DagWriteMetadata
     from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
-    from airflow.typing_compat import Self, Unpack
+    from airflow.typing_compat import Self
 
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
 log = structlog.get_logger(__name__)
+
+
+class DagBundleOwnershipError(ValueError):
+    """A publication would replace a Dag owned by another bundle."""
+
+
+def validate_dag_bundle_ownership(dags: Iterable[DagModel], bundle_name: str, *, session: Session) -> None:
+    """Check locked Dag rows, allowing recovery of orphaned, unversioned legacy rows."""
+    for dag in dags:
+        if dag.bundle_name == bundle_name:
+            continue
+        if dag.is_stale and dag.relative_fileloc is None:
+            previous_bundle = session.scalar(
+                select(DagBundleModel).where(DagBundleModel.name == dag.bundle_name).with_for_update()
+            )
+            has_version = session.scalar(
+                select(DagVersion.id).where(DagVersion.dag_id == dag.dag_id).limit(1)
+            )
+            if previous_bundle is not None and not previous_bundle.active and has_version is None:
+                continue
+        raise DagBundleOwnershipError(f"Dag {dag.dag_id!r} belongs to bundle {dag.bundle_name!r}")
 
 
 def _create_orm_dags(
@@ -256,11 +277,13 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
 def _serialize_dag_capturing_errors(
     dag: LazyDeserializedDAG,
     bundle_name,
+    *,
     session: Session,
     bundle_version: str | None,
     version_data: dict | None = None,
     _prefetched: DagWriteMetadata | None = None,
     dag_source_code: DagSourceCode | None = None,
+    atomic: bool = False,
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
@@ -292,12 +315,30 @@ def _serialize_dag_capturing_errors(
                 dag.dag_id, dag.fileloc, dag_source_code=dag_source_code, session=session
             )
         if "FabAuthManager" in conf.get("core", "auth_manager"):
-            _sync_dag_perms(dag, session=session)
+            if atomic:
+                # FAB commits internally. Savepoints keep those commits inside the publication transaction.
+                session.flush()
+                connection = session.connection()
+                driver_connection = connection.connection.driver_connection
+                if (
+                    connection.dialect.name == "sqlite"
+                    and driver_connection is not None
+                    and not driver_connection.in_transaction
+                ):
+                    # SQLite's legacy transaction mode does not start a transaction for SELECTs.
+                    connection.exec_driver_sql("BEGIN")
+                with Session(bind=connection, join_transaction_mode="create_savepoint") as perms:
+                    _sync_dag_perms(dag, session=perms)
+                    perms.commit()
+            else:
+                _sync_dag_perms(dag, session=session)
 
         return []
     except OperationalError:
         raise
     except Exception:
+        if atomic:
+            raise
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
         return [
@@ -588,8 +629,10 @@ def update_dag_parsing_results_in_db(
     import_errors: dict[tuple[str, str], str],
     parse_duration: float | None,
     warnings: set[DagWarning],
-    session: Session,
     *,
+    session: Session,
+    atomic: bool = False,
+    enforce_bundle_ownership: bool = False,
     version_data: dict | None = None,
     warning_types: tuple[DagWarningType, ...] = (
         DagWarningType.DUPLICATE_DAG_ID,
@@ -621,6 +664,9 @@ def update_dag_parsing_results_in_db(
         import errors are cleared for files that were parsed but no longer contain DAGs.
     :param dag_source_codes: Source code read by the Dag importers, keyed by Dag fileloc. Dags
         without an entry have their source read from ``fileloc``.
+    :param atomic: Let the caller roll back and retry the whole transaction, including authorization
+        and a publication receipt. Persistence and diagnostic failures propagate in this mode.
+    :param enforce_bundle_ownership: Check ownership on the locked rows used for persistence.
     """
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
     if len(accepted) != len(dags):
@@ -636,11 +682,13 @@ def update_dag_parsing_results_in_db(
     try:
         duplicate_warnings = _build_duplicate_dag_id_warnings(dags, bundle_name, session)
     except Exception:
+        if atomic:
+            raise
         log.exception("Error building duplicate dag_id warnings.")
     else:
         warnings = set(warnings) | duplicate_warnings
 
-    for attempt in run_with_db_retries(logger=log):
+    for attempt in run_with_db_retries(max_retries=1 if atomic else MAX_DB_RETRIES, logger=log):
         with attempt:
             serialize_errors = []
             log.debug(
@@ -651,7 +699,12 @@ def update_dag_parsing_results_in_db(
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
                 SerializedDAG.bulk_write_to_db(
-                    bundle_name, bundle_version, dags, parse_duration, session=session
+                    bundle_name,
+                    bundle_version,
+                    dags,
+                    parse_duration,
+                    enforce_bundle_ownership=enforce_bundle_ownership,
+                    session=session,
                 )
                 # Bulk prefetch metadata for all DAGs to avoid the standard per-DAG
                 # metadata lookups in write_dag. This replaces the update-interval,
@@ -671,10 +724,12 @@ def update_dag_parsing_results_in_db(
                             session=session,
                             _prefetched=prefetched_metadata.get(dag.dag_id),
                             dag_source_code=dag_source_codes.get(dag.fileloc),
+                            atomic=atomic,
                         )
                     )
             except OperationalError:
-                session.rollback()
+                if not atomic:
+                    session.rollback()
                 raise
             # Only now we are "complete" do we update import_errors - don't want to record errors from
             # previous failed attempts
@@ -687,12 +742,16 @@ def update_dag_parsing_results_in_db(
             session=session,
         )
     except Exception:
+        if atomic:
+            raise
         log.exception("Error logging import errors!")
 
     # Record DAG warnings in the metadatabase.
     try:
         _update_dag_warnings([dag.dag_id for dag in dags], warnings, warning_types, session)
     except Exception:
+        if atomic:
+            raise
         log.exception("Error logging DAG warnings.")
 
     session.flush()
@@ -704,26 +763,56 @@ class DagModelOperation(NamedTuple):
     dags: dict[str, LazyDeserializedDAG]
     bundle_name: str
     bundle_version: str | None
+    enforce_bundle_ownership: bool = False
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
-        stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
-            (
-                select(DagModel)
-                .options(joinedload(DagModel.tags, innerjoin=False))
-                .where(DagModel.dag_id.in_(self.dags))
-                .options(joinedload(DagModel.schedule_asset_references))
-                .options(joinedload(DagModel.schedule_asset_alias_references))
-                .options(joinedload(DagModel.task_outlet_asset_references))
-                .options(joinedload(DagModel.dag_owner_links))
-            ),
-            of=DagModel,
-            session=session,
+        stmt = (
+            select(DagModel)
+            .options(joinedload(DagModel.tags, innerjoin=False))
+            .where(DagModel.dag_id.in_(self.dags))
+            .order_by(DagModel.dag_id)
+            .options(joinedload(DagModel.schedule_asset_references))
+            .options(joinedload(DagModel.schedule_asset_alias_references))
+            .options(joinedload(DagModel.task_outlet_asset_references))
+            .options(joinedload(DagModel.dag_owner_links))
         )
+        if self.enforce_bundle_ownership:
+            stmt = stmt.with_for_update(of=DagModel).execution_options(populate_existing=True)
+        else:
+            stmt = with_row_locks(stmt, of=DagModel, session=session)
         return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
 
     def add_dags(self, *, session: Session) -> dict[str, DagModel]:
         orm_dags = self.find_orm_dags(session=session)
+        if self.enforce_bundle_ownership:
+            for dag_id in sorted(self.dags.keys() - orm_dags.keys()):
+                model = DagModel(
+                    dag_id=dag_id, bundle_name=self.bundle_name, bundle_version=self.bundle_version
+                )
+                values = {
+                    key: getattr(model, key)
+                    for key in (
+                        "dag_id",
+                        "bundle_name",
+                        "bundle_version",
+                        "max_active_tasks",
+                        "max_active_runs",
+                        "max_consecutive_failed_dag_runs",
+                        "has_task_concurrency_limits",
+                    )
+                }
+                if self.dags[dag_id].is_paused_upon_creation is not None:
+                    values["is_paused"] = self.dags[dag_id].is_paused_upon_creation
+                # A competing insert must retain its ownership until we inspect the locked row.
+                session.execute(
+                    build_upsert_stmt(
+                        get_dialect_name(session), DagModel, ["dag_id"], values, {"dag_id": DagModel.dag_id}
+                    )
+                )
+            orm_dags = self.find_orm_dags(session=session)
+            validate_dag_bundle_ownership(orm_dags.values(), self.bundle_name, session=session)
+            return orm_dags
         orm_dags.update(
             (model.dag_id, model)
             for model in _create_orm_dags(

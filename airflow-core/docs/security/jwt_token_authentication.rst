@@ -506,7 +506,7 @@ to reach the API server, and start the processor::
         airflow dag-processor --bundle-name dags-folder
 
 This mode provides no isolation from the metadata database yet. The processor still
-requires database credentials for bundle metadata, result persistence, and orchestration,
+requires database credentials for bundle metadata and orchestration,
 and parsing processes can access those credentials. It synchronizes bundle ownership
 before registering its Job so the API can resolve teams before bundle code requests secrets.
 The processor does not use the shared SDK secret cache in this mode, even when
@@ -517,6 +517,35 @@ The externally provisioned ``dag_processor_session`` token registers one process
 Its ``dag_processor`` token manages that Job, reads Connections and Variables needed for
 bundle preparation, and exchanges credentials through ``POST /jobs/{job_id}/parse-token``.
 The manager chooses the bundle, bundle-relative file location, and parsing-attempt UUID.
+
+The manager publishes completed imports through ``POST /jobs/{job_id}/parse-results``
+using its Job credential. Parsing tokens cannot publish. A request contains one file or
+container's serialized Dags, diagnostics, source text (or an explicit unavailable marker),
+and the bundle version captured at dispatch. The API never reads the processor's source
+paths. It checks bundle access, existing Dag ownership and team-scoped plugin classes
+before deserializing results and rechecks ownership on the rows used for persistence.
+A Dag can move between files within its bundle. Recovery from a removed bundle is
+limited to stale legacy rows with neither a relative file location nor a Dag version.
+
+Each request carries an attempt UUID and a dispatch sequence within its Job. A checkpoint
+and the metadata writes commit together. Replaying the latest identical request returns
+the saved receipt; conflicting payloads and superseded sequences are rejected. Checkpoints
+retain one entry per Job and source and are removed with Job cleanup. There is no total
+ordering between different Jobs publishing an unversioned source; an already-accepted
+request's retry does not overwrite another Job's result. Listener side effects are not
+transactional and may repeat after a failed transaction.
+
+The publication envelope is limited to 16 MiB. A rejected publication does not fall back
+to direct database writes, and does not prevent other files from being processed. Empty
+imports still publish a receipt and clear the file's earlier import errors. Ordinary
+bundle refresh waits for active imports; a forced refresh invalidates and requeues any
+older in-flight result from that manager.
+
+The manager retains a bounded queue of pending publications and sends at most one
+short HTTP attempt per loop. Retries keep the same payload and identity while
+heartbeats and subprocess supervision continue between attempts. Pending results
+count against parsing capacity. Failed publication attempts throttle reparsing but
+do not advance the timestamps used to detect stale Dags.
 
 The returned ``dag_parse`` token binds these identifiers to the processor's session and
 Job. It authorizes parse-time operations within that bundle and has no Job-management or

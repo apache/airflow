@@ -31,6 +31,7 @@ import sys
 import time
 from collections import OrderedDict, defaultdict
 from contextlib import AbstractContextManager, nullcontext
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
@@ -38,6 +39,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 
 import attrs
+import httpx
 import structlog
 from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
@@ -48,6 +50,11 @@ from uuid6 import uuid7
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    DagParseResultBody,
+    ParseSourceCode,
+    ParseWarning,
+)
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
@@ -62,6 +69,7 @@ from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    DagParseSource,
 )
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
@@ -132,6 +140,18 @@ class DagFileStat:
     last_duration: float | None = None
     run_count: int = 0
     last_num_of_db_queries: int = 0
+    last_attempt_time: datetime | None = None
+
+
+@attrs.define
+class PendingDagPublication:
+    """A completed import retained until publication succeeds or exhausts its retries."""
+
+    body: DagParseResultBody
+    stat: DagFileStat
+    refresh_generation: int
+    attempts: int = 0
+    next_attempt_time: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -267,11 +287,15 @@ class DagFileProcessorManager(LoggingMixin):
 
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
-    _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
+    _bundle_parse_sources: dict[str, DagParseSource] = attrs.field(factory=dict, init=False)
+    _bundle_refresh_generations: dict[str, int] = attrs.field(factory=lambda: defaultdict(int), init=False)
+    _bundles_waiting_for_refresh: set[str] = attrs.field(factory=set, init=False)
+    _dispatch_sequence: int = attrs.field(default=0, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
     _processors: dict[DagFileInfo, BaseDagFileProcessorProcess] = attrs.field(factory=dict, init=False)
+    _pending_publications: dict[DagFileInfo, PendingDagPublication] = attrs.field(factory=dict, init=False)
 
     _parsing_start_time: float | None = attrs.field(default=None, init=False)
     _num_run: int = attrs.field(default=0, init=False)
@@ -645,6 +669,8 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._queue_requested_files_for_parsing()
 
+            self._service_processor_sockets(timeout=0)
+            self._collect_results()
             self._refresh_dag_bundles(known_files=known_files)
 
             if not self._file_queue:
@@ -659,6 +685,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._collect_results()
 
+            self._publish_pending_results()
             for callback in self.fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
@@ -942,6 +969,11 @@ class DagFileProcessorManager(LoggingMixin):
         """
         DagWarning.purge_inactive_dag_warnings()
 
+    def _invalidate_bundle_parse_source(self, bundle_name: str) -> None:
+        # Initialization or refresh may change files even when the provider raises afterwards.
+        self._bundle_refresh_generations[bundle_name] += 1
+        self._bundle_parse_sources.pop(bundle_name, None)
+
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
@@ -949,7 +981,11 @@ class DagFileProcessorManager(LoggingMixin):
         # we don't need to check if it's time to refresh every loop - that is way too often
         next_check = self._bundles_last_refreshed + self.bundle_refresh_check_interval
         now_seconds = time.monotonic()
-        if now_seconds < next_check and not self._force_refresh_bundles:
+        if (
+            now_seconds < next_check
+            and not self._force_refresh_bundles
+            and not self._bundles_waiting_for_refresh
+        ):
             self.log.debug(
                 "Not time to check if DAG Bundles need refreshed yet - skipping. Next check in %.2f seconds",
                 next_check - now_seconds,
@@ -959,11 +995,17 @@ class DagFileProcessorManager(LoggingMixin):
         self._bundles_last_refreshed = now_seconds
 
         any_refreshed = False
+        active_bundles = {
+            file.bundle_name
+            for file in self._processors.keys() | self._pending_publications.keys()
+            if file.bundle_version is None
+        }
         for bundle in self._dag_bundles:
             with self._use_bundle(bundle.name):
                 # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
                 #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
                 if not bundle.is_initialized:
+                    self._invalidate_bundle_parse_source(bundle.name)
                     try:
                         bundle.initialize()
                         any_refreshed = True
@@ -994,17 +1036,27 @@ class DagFileProcessorManager(LoggingMixin):
                     current_version_matches_db = True
 
                 previously_seen = bundle.name in self._bundle_versions
-                if self.should_skip_refresh(
-                    bundle=bundle,
-                    elapsed_time_since_refresh=elapsed_time_since_refresh,
-                    current_version_matches_db=current_version_matches_db,
-                    previously_seen=previously_seen,
+                if (
+                    bundle.name not in self._bundles_waiting_for_refresh
+                    and bundle.name in self._bundle_parse_sources
+                    and self.should_skip_refresh(
+                        bundle=bundle,
+                        elapsed_time_since_refresh=elapsed_time_since_refresh,
+                        current_version_matches_db=current_version_matches_db,
+                        previously_seen=previously_seen,
+                    )
                 ):
                     self.log.debug("Not time to refresh bundle %s", bundle.name)
                     continue
 
+                if bundle.name in active_bundles and bundle.name not in self._force_refresh_bundles:
+                    self._bundles_waiting_for_refresh.add(bundle.name)
+                    continue
+
+                self._bundles_waiting_for_refresh.discard(bundle.name)
                 self.log.info("Refreshing bundle %s", bundle.name)
 
+                self._invalidate_bundle_parse_source(bundle.name)
                 try:
                     bundle.refresh()
                     any_refreshed = True
@@ -1015,12 +1067,23 @@ class DagFileProcessorManager(LoggingMixin):
                 self._force_refresh_bundles.discard(bundle.name)
 
                 if bundle.supports_versioning:
-                    # We can short-circuit the rest of this if (1) bundle was seen before by
-                    # this dag processor and (2) the version of the bundle did not change
-                    # after refreshing it
                     version_after_refresh, version_data_after_refresh = unpack_bundle_version(
                         bundle.get_current_version(), bundle
                     )
+                else:
+                    version_after_refresh = None
+                    version_data_after_refresh = None
+
+                self._bundle_parse_sources[bundle.name] = DagParseSource(
+                    bundle_version=version_after_refresh,
+                    version_data=deepcopy(version_data_after_refresh),
+                    refresh_generation=self._bundle_refresh_generations[bundle.name],
+                )
+
+                if bundle.supports_versioning:
+                    # We can short-circuit the rest of this if (1) bundle was seen before by
+                    # this dag processor and (2) the version of the bundle did not change
+                    # after refreshing it
                     if previously_seen and pre_refresh_version == version_after_refresh:
                         self.log.debug(
                             "Bundle %s version not changed after refresh: %s",
@@ -1036,10 +1099,6 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.info(
                         "Version changed for %s, new version: %s", bundle.name, version_after_refresh
                     )
-                else:
-                    version_after_refresh = None
-                    version_data_after_refresh = None
-
                 try:
                     found_files = self._find_files_in_bundle(bundle)
                 except Exception:
@@ -1056,7 +1115,6 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.exception("Error persisting state for bundle %s", bundle.name)
                 else:
                     self._bundle_versions[bundle.name] = version_after_refresh
-                    self._bundle_version_data[bundle.name] = version_data_after_refresh
 
                 known_files[bundle.name] = found_files
 
@@ -1327,6 +1385,9 @@ class DagFileProcessorManager(LoggingMixin):
         stats_to_remove = {file for file in self._file_stats if file.presence_key not in present_keys}
         for file in stats_to_remove:
             del self._file_stats[file]
+        for file in list(self._pending_publications):
+            if file.presence_key not in present_keys:
+                del self._pending_publications[file]
 
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
@@ -1386,6 +1447,19 @@ class DagFileProcessorManager(LoggingMixin):
         if is_callback_only:
             self.log.debug("Detected callback-only processing for %s", file)
 
+        if (
+            proc.parsing_result is not None
+            and proc.parse_source.refresh_generation
+            != self._bundle_refresh_generations.get(file.bundle_name, 0)
+        ):
+            self.log.info("Discarding parse of %s after its bundle refreshed; requeuing", file.rel_path)
+            stats.incr(
+                "dag_processing.results_discarded_on_refresh",
+                tags={"bundle_name": normalize_name_for_stats(file.bundle_name)},
+            )
+            self._add_files_to_queue([file], mode="front")
+            return
+
         run_duration = time.monotonic() - proc.start_time
         finish_time = timezone.utcnow()
         team_name = self._get_team_name(file.bundle_name)
@@ -1402,10 +1476,17 @@ class DagFileProcessorManager(LoggingMixin):
 
         if proc.parsing_result is not None:
             try:
+                if self.api_client is not None:
+                    self._pending_publications[file] = PendingDagPublication(
+                        body=self._build_parse_result(file, proc, run_duration),
+                        stat=next_stat,
+                        refresh_generation=proc.parse_source.refresh_generation,
+                    )
+                    return
                 self.persist_parsing_result(
                     bundle_name=file.bundle_name,
-                    bundle_version=self._bundle_versions[file.bundle_name],
-                    version_data=self._bundle_version_data.get(file.bundle_name),
+                    bundle_version=proc.parse_source.bundle_version,
+                    version_data=proc.parse_source.version_data,
                     parsing_result=proc.parsing_result,
                     run_duration=run_duration,
                     relative_fileloc=str(file.rel_path),
@@ -1419,18 +1500,92 @@ class DagFileProcessorManager(LoggingMixin):
                     str(file.rel_path),
                     file.bundle_name,
                 )
-                current_stat = self._file_stats[file]
-                self._file_stats[file] = DagFileStat(
-                    num_dags=current_stat.num_dags,
-                    import_errors=current_stat.import_errors,
-                    last_finish_time=finish_time,
-                    last_duration=run_duration,
-                    run_count=current_stat.run_count + 1,
-                    last_num_of_db_queries=current_stat.last_num_of_db_queries,
-                )
+                self._record_failed_publication(file, next_stat)
                 return
 
         self._file_stats[file] = next_stat
+
+    def _record_failed_publication(self, file: DagFileInfo, stat: DagFileStat) -> None:
+        self._file_stats[file] = attrs.evolve(
+            self._file_stats[file],
+            last_attempt_time=timezone.utcnow(),
+            last_duration=stat.last_duration,
+            run_count=stat.run_count,
+        )
+
+    def _publish_pending_results(self) -> None:
+        """Make at most one HTTP attempt per loop, leaving supervision running between retries."""
+        if self.api_client is None:
+            return
+        for file, pending in list(self._pending_publications.items()):
+            if pending.refresh_generation != self._bundle_refresh_generations.get(file.bundle_name, 0):
+                del self._pending_publications[file]
+                self._add_files_to_queue([file], mode="front")
+                continue
+            if time.monotonic() < pending.next_attempt_time:
+                continue
+            pending.attempts += 1
+            try:
+                self.api_client.publish_parse_result(pending.body)
+            except Exception as error:
+                retryable = isinstance(error, httpx.RequestError) or (
+                    isinstance(error, httpx.HTTPStatusError) and error.response.status_code >= 500
+                )
+                if retryable and pending.attempts < conf.getint("workers", "execution_api_retries"):
+                    pending.next_attempt_time = time.monotonic() + min(
+                        conf.getfloat("workers", "execution_api_retry_wait_max"),
+                        max(
+                            conf.getfloat("workers", "execution_api_retry_wait_min"),
+                            2 ** (pending.attempts - 1),
+                        ),
+                    )
+                    self.log.warning("Unable to publish %s; retrying on a later loop", file)
+                    del self._pending_publications[file]
+                    self._pending_publications[file] = pending
+                    return
+                self.log.exception("Failed to publish parsing result for %s", file)
+                self._record_failed_publication(file, pending.stat)
+            else:
+                self._file_stats[file] = pending.stat
+            del self._pending_publications[file]
+            return
+
+    def _build_parse_result(
+        self, file: DagFileInfo, proc: BaseDagFileProcessorProcess, run_duration: float
+    ) -> DagParseResultBody:
+        result = proc.parsing_result
+        if result is None or self.api_client is None:
+            raise ValueError("API publication requires a client and completed parse result")
+        warnings = [
+            ParseWarning(
+                **{
+                    key: warning[key] if isinstance(warning, dict) else getattr(warning, key)
+                    for key in ("dag_id", "warning_type", "message")
+                }
+            )
+            for warning in result.warnings or []
+        ]
+        source_codes = {}
+        for dag in result.serialized_dags:
+            source = result.dag_source_codes.get(dag.fileloc)
+            source_codes[dag.fileloc] = ParseSourceCode(
+                source_code=source.source_code if source else None,
+                language=source.language if source else "python",
+            )
+        return DagParseResultBody(
+            attempt_id=proc.id,
+            dispatch_sequence=proc.dispatch_sequence,
+            bundle_name=file.bundle_name,
+            relative_fileloc=str(file.rel_path),
+            bundle_version=proc.parse_source.bundle_version,
+            version_data=proc.parse_source.version_data,
+            parse_duration=run_duration,
+            serialized_dags=[dag.data for dag in result.serialized_dags],
+            import_errors=result.import_errors or {},
+            parsed_definitions=result.parsed_definitions,
+            warnings=warnings,
+            source_codes=source_codes,
+        )
 
     def persist_parsing_result(
         self,
@@ -1587,13 +1742,27 @@ class DagFileProcessorManager(LoggingMixin):
         """Start more processors if we have enough slots and files to process."""
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._file_queue})
 
-        while self._parallelism > len(self._processors) and self._file_queue:
+        for _ in range(len(self._file_queue)):
+            if len(self._processors) + len(self._pending_publications) >= self._parallelism:
+                break
             file, _ = self._file_queue.popitem(last=False)
             # Stop creating duplicate processor i.e. processor with the same filepath
-            if file in self._processors:
+            if file in self._processors or file in self._pending_publications:
                 continue
 
+            source = self._bundle_parse_sources.get(file.bundle_name)
+            if file.bundle_name in self._bundles_waiting_for_refresh:
+                source = None
+            if file.bundle_version is not None and file in self._callback_to_execute:
+                source = DagParseSource(bundle_version=file.bundle_version)
+            if source is None:
+                self._file_queue[file] = None
+                continue
+            source = deepcopy(source)
             processor = self._create_process(file)
+            processor.parse_source = source
+            self._dispatch_sequence += 1
+            processor.dispatch_sequence = self._dispatch_sequence
             stats.incr(
                 "dag_processing.processes",
                 tags=prune_dict(
@@ -1619,6 +1788,7 @@ class DagFileProcessorManager(LoggingMixin):
         tracked_presence_keys = {file.presence_key for file in self._file_queue}
         tracked_presence_keys.update(file.presence_key for file in self._file_stats)
         tracked_presence_keys.update(file.presence_key for file in self._processors)
+        tracked_presence_keys.update(file.presence_key for file in self._pending_publications)
         for files in known_files.values():
             for file in files:
                 if file.presence_key not in tracked_presence_keys:
@@ -1657,7 +1827,7 @@ class DagFileProcessorManager(LoggingMixin):
                 modified_datetime = datetime.fromtimestamp(modified_timestamp, tz=timezone.utc)
                 files_with_mtime[file] = modified_timestamp
                 stat = file_stats_by_presence_key.get(file.presence_key)
-                last_time = stat.last_finish_time if stat else None
+                last_time = (stat.last_attempt_time or stat.last_finish_time) if stat else None
                 if not last_time:
                     continue
                 if modified_datetime > last_time:
@@ -1684,7 +1854,7 @@ class DagFileProcessorManager(LoggingMixin):
             ),
             None,
         )
-        last_time = stat.last_finish_time if stat else None
+        last_time = (stat.last_attempt_time or stat.last_finish_time) if stat else None
         if not last_time:
             return False
         elapsed_ss = (now - last_time).total_seconds()
@@ -1710,6 +1880,7 @@ class DagFileProcessorManager(LoggingMixin):
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
         in_progress_keys = {file.presence_key for file in self._processors}
+        in_progress_keys.update(file.presence_key for file in self._pending_publications)
         file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
         now = timezone.utcnow()
 
@@ -1721,7 +1892,7 @@ class DagFileProcessorManager(LoggingMixin):
             for file in bundle_files:
                 files.append(file)
                 stat = file_stats_by_presence_key.get(file.presence_key)
-                last_time = stat.last_finish_time if stat else None
+                last_time = (stat.last_attempt_time or stat.last_finish_time) if stat else None
                 if last_time and (now - last_time).total_seconds() < self._file_process_interval:
                     recently_processed.add(file)
 
@@ -1861,6 +2032,12 @@ class DagFileProcessorManager(LoggingMixin):
         if self.max_runs == -1:  # Unlimited runs.
             return False
         if self._num_run < self.max_runs:
+            return False
+        if self._pending_publications:
+            return False
+        if any(file not in self._callback_to_execute for file in self._file_queue) or any(
+            not proc.had_callbacks for proc in self._processors.values()
+        ):
             return False
         return all(stat.run_count >= self.max_runs for stat in self._file_stats.values())
 

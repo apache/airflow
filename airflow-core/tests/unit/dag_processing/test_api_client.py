@@ -25,7 +25,9 @@ import httpx
 import jwt
 import pytest
 from tenacity import wait_none
+from uuid6 import uuid7
 
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import DagParseResultBody
 from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody, JobState, TerminalJobState
 from airflow.dag_processing import api_client
 from airflow.dag_processing.api_client import (
@@ -956,3 +958,42 @@ def test_exchange_failure_restores_context_and_signals_a_closed_job(make_client)
     assert client.restart_required
     assert client.heartbeat() == JobState.RESTARTING
     assert requests[-1].headers["Authorization"] == f"Bearer {make_job_token()}"
+
+
+@pytest.mark.parametrize("expired", [False, True])
+@pytest.mark.parametrize("failure", [httpx.ReadTimeout("Lost response"), httpx.Response(503)])
+def test_publication_attempt_does_not_sleep_through_heartbeats(make_client, clock, expired, failure):
+    body = DagParseResultBody(
+        attempt_id=uuid7(),
+        dispatch_sequence=1,
+        bundle_name="bundle-a",
+        relative_fileloc="dag.py",
+        parse_duration=0.1,
+        serialized_dags=[],
+        source_codes={},
+    )
+    responses = [make_registration_response()]
+    if expired:
+        responses.append(make_registration_response())
+    responses.extend(
+        [
+            failure,
+            httpx.Response(200, json={"state": "running"}),
+            httpx.Response(
+                200, json={"attempt_id": str(body.attempt_id), "accepted_at": "2026-10-05T12:00:00Z"}
+            ),
+        ]
+    )
+    client, requests = make_client(*responses)
+    client.register_job()
+    if expired:
+        clock.return_value = 300
+    with pytest.raises(httpx.HTTPError):
+        client.publish_parse_result(body)
+    assert len(requests) == (3 if expired else 2)
+    assert all(value <= 1 for value in requests[-1].extensions["timeout"].values())
+    if expired:
+        assert all(value <= 1 for value in requests[1].extensions["timeout"].values())
+    assert client.heartbeat() == JobState.RUNNING
+    assert client.publish_parse_result(body).attempt_id == body.attempt_id
+    assert requests[-1].content == requests[-3].content

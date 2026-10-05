@@ -206,6 +206,7 @@ class SerializedDAG:
         dags: Collection[DAG | LazyDeserializedDAG],
         parse_duration: float | None = None,
         *,
+        enforce_bundle_ownership: bool = False,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -225,6 +226,7 @@ class SerializedDAG:
             bundle_name=bundle_name,
             bundle_version=bundle_version,
             dags={d.dag_id: LazyDeserializedDAG.from_dag(d) for d in dags},
+            enforce_bundle_ownership=enforce_bundle_ownership,
         )
 
         orm_dags = dag_op.add_dags(session=session)

@@ -33,6 +33,10 @@ import jwt
 import structlog
 from uuid6 import uuid7
 
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    DagParseResultBody,
+    DagParseResultResponse,
+)
 from airflow.api_fastapi.execution_api.datamodels.job import (
     DagParseTokenBody,
     DagParseTokenResponse,
@@ -174,7 +178,7 @@ class DagProcessorAPIClient(Client):
             if monotonic() < context.renew_at:
                 return context.token
             try:
-                self._exchange_parse_token(context, retry=False, timeout=self._get_renewal_timeout())
+                self._exchange_parse_token(context, retry=False, timeout=self._get_bounded_timeout())
             except (httpx.HTTPError, ValueError) as error:
                 if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
                     raise
@@ -323,7 +327,7 @@ class DagProcessorAPIClient(Client):
         self._retry_renewal_at = 0.0
         return registered.job_id
 
-    def _get_renewal_timeout(self) -> httpx.Timeout:
+    def _get_bounded_timeout(self) -> httpx.Timeout:
         return httpx.Timeout(
             **{
                 key: min(value if value is not None else 1.0, 1.0)
@@ -334,14 +338,14 @@ class DagProcessorAPIClient(Client):
     def _ensure_job_token(self, *, retry: bool) -> None:
         self._require_job_id()
         if monotonic() >= self._expires_at:
-            self._register_job(retry=retry)
+            self._register_job(retry=retry, timeout=None if retry else self._get_bounded_timeout())
             return
         if self.restart_required or monotonic() < self._retry_renewal_at:
             return
         try:
             if self._read_session_token() != self._registered_with or monotonic() >= self._renew_at:
                 # Do not spend the runtime request's retry budget on an optional early renewal.
-                self._register_job(retry=False, timeout=self._get_renewal_timeout())
+                self._register_job(retry=False, timeout=self._get_bounded_timeout())
         except (httpx.HTTPError, OSError, ValueError, DagProcessorRegistrationRetired) as error:
             self._retry_renewal_at = monotonic() + 30
             log.warning(
@@ -351,7 +355,7 @@ class DagProcessorAPIClient(Client):
                 restart_required=self.restart_required,
             )
         if monotonic() >= self._expires_at:
-            self._register_job(retry=retry)
+            self._register_job(retry=retry, timeout=None if retry else self._get_bounded_timeout())
 
     def request(self, *args, retry: bool = True, **kwargs) -> httpx.Response:
         """Use a parsing credential for subprocess requests, and the Job credential for manager work."""
@@ -382,6 +386,18 @@ class DagProcessorAPIClient(Client):
         job_id = self._require_job_id()
         response = self.request("POST", f"jobs/{job_id}/heartbeat", retry=False, headers=_JOB_API_HEADERS)
         return JobHeartbeatResponse.model_validate_json(response.content).state
+
+    def publish_parse_result(self, body: DagParseResultBody) -> DagParseResultResponse:
+        """Publish once; the manager retains the request and schedules acknowledgment recovery."""
+        response = self.request(
+            "POST",
+            f"jobs/{self._require_job_id()}/parse-results",
+            content=body.model_dump_json(),
+            headers=_JOB_API_HEADERS,
+            retry=False,
+            timeout=self._get_bounded_timeout(),
+        )
+        return DagParseResultResponse.model_validate_json(response.content)
 
     def complete_job(self, state: TerminalJobState) -> None:
         """Complete this Job, retaining its identity and outcome across lost acknowledgments."""

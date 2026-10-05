@@ -26,7 +26,10 @@ MISSING_JOB_HEARTBEAT_URL = "/execution/jobs/0/heartbeat"
 class TestDagProcessorJobEndpointsVersioning:
     """The jobs endpoints didn't exist before the 2026-10-30 API version."""
 
-    @pytest.mark.parametrize("path", [MISSING_JOB_HEARTBEAT_URL, "/execution/jobs/0/parse-token"])
+    @pytest.mark.parametrize(
+        "path",
+        [MISSING_JOB_HEARTBEAT_URL, "/execution/jobs/0/parse-token", "/execution/jobs/0/parse-results"],
+    )
     def test_old_version_returns_404(self, client, path):
         client.headers["Airflow-API-Version"] = "2026-06-30"
 

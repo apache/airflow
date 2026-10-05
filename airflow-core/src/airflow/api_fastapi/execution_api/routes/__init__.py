@@ -26,6 +26,7 @@ from airflow.api_fastapi.execution_api.routes import (
     callbacks,
     connection_tests,
     connections,
+    dag_parsing,
     dag_runs,
     dags,
     health,
@@ -66,6 +67,7 @@ authenticated_router.include_router(variables.router, prefix="/variables", tags=
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
 authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])
 authenticated_router.include_router(jobs.router, prefix="/jobs", tags=["Jobs"])
+authenticated_router.include_router(dag_parsing.router, prefix="/jobs", tags=["Dag Parsing"])
 authenticated_router.include_router(task_state_store.router, prefix="/store/ti", tags=["Task State Store"])
 authenticated_router.include_router(
     asset_state_store.router, prefix="/store/asset", tags=["Asset State Store"]

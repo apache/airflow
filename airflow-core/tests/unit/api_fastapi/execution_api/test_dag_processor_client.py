@@ -36,6 +36,7 @@ from uuid6 import uuid7
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import DagParseResultBody
 from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody, JobState, TerminalJobState
 from airflow.configuration import conf
 from airflow.dag_processing.api_client import (
@@ -46,6 +47,8 @@ from airflow.dag_processing.api_client import (
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.jobs.job import Job
 from airflow.models.dag import DagModel
+from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.models.variable import Variable
@@ -199,8 +202,9 @@ class LostAcknowledgmentTransport(httpx.BaseTransport):
     def handle_request(self, request):
         response = self.transport.handle_request(request)
         if (
-            request.url.path.endswith(("/jobs", "/complete", "/parse-token"))
+            request.url.path.endswith(("/jobs", "/complete", "/parse-token", "/parse-results"))
             and request.url.path not in self.lost
+            and response.is_success
         ):
             self.lost.add(request.url.path)
             response.read()
@@ -215,6 +219,8 @@ class LostAcknowledgmentTransport(httpx.BaseTransport):
 def test_lost_registration_and_completion_responses_over_http(api_url, provision_token, session, monkeypatch):
     monkeypatch.setattr(Client._request_with_retry.retry, "wait", wait_none())
     transport = LostAcknowledgmentTransport()
+    session.merge(DagBundleModel(name="bundle-a"))
+    session.commit()
     with DagProcessorAPIClient(
         base_url=api_url, token_file=provision_token(), hostname="processor-1", transport=transport
     ) as processor:
@@ -229,12 +235,32 @@ def test_lost_registration_and_completion_responses_over_http(api_url, provision
             with pytest.raises(httpx.HTTPStatusError) as error:
                 processor.post(f"jobs/{job_id}/heartbeat")
             assert error.value.response.status_code == 403
+            with pytest.raises(httpx.HTTPStatusError) as publication_error:
+                processor.post(f"jobs/{job_id}/parse-results", json={})
+            assert publication_error.value.response.status_code == 403
+        body = DagParseResultBody(
+            attempt_id=uuid7(),
+            dispatch_sequence=1,
+            bundle_name="bundle-a",
+            relative_fileloc="dag.py",
+            parse_duration=0.1,
+            serialized_dags=[],
+            source_codes={},
+        )
+        with pytest.raises(httpx.ReadError):
+            processor.publish_parse_result(body)
+        processor.heartbeat()
+        receipt = processor.publish_parse_result(body)
+        assert receipt.attempt_id == body.attempt_id
+        assert session.scalar(select(DagParseCheckpoint)).attempt_id == body.attempt_id
+        assert processor.publish_parse_result(body) == receipt
         processor.complete_job(TerminalJobState.SUCCESS)
         assert session.get(Job, job_id).state == JobState.SUCCESS.value
         assert transport.lost == {
             "/execution/jobs",
             f"/execution/jobs/{job_id}/parse-token",
             f"/execution/jobs/{job_id}/complete",
+            f"/execution/jobs/{job_id}/parse-results",
         }
 
 
@@ -432,6 +458,7 @@ def test_normal_processor_command_uses_authenticated_api(
         assert ("/execution/jobs", "dag_processor_session") in requests
         assert (f"/execution/jobs/{job.id}/heartbeat", "dag_processor") in requests
         assert (f"/execution/jobs/{job.id}/complete", "dag_processor") in requests
+        assert (f"/execution/jobs/{job.id}/parse-results", "dag_processor") in requests
         assert ("/execution/variables/processor-client-key", "dag_processor") in requests
         assert ("/execution/variables/processor-client-key", "dag_parse") in requests
         parsing = [claims for _, claims in api_requests if claims.get("scope") == "dag_parse"]

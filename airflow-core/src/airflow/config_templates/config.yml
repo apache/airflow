@@ -3235,10 +3235,10 @@ dag_processor:
       description: |
         Path to a session token written by ``airflow dag-processor-token``. When set,
         ``airflow dag-processor`` uses the authenticated Execution API for its Job lifecycle,
-        bundle secrets, and parse-time requests. The API URL comes from
+        bundle secrets, parse-time requests, and result publication. The API URL comes from
         ``[core] execution_api_server_url``. Each processor needs its own session token.
 
-        This mode provides no isolation from the metadata database yet. Result persistence
+        This mode provides no isolation from the metadata database yet. Bundle metadata
         and orchestration still require database credentials, which remain accessible to
         parsing processes.
         Leave unset to use the in-process API and database-backed Job lifecycle.
