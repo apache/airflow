@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from datafusion import SessionContext
+from datafusion.object_store import LocalFileSystem
 
 from airflow.models import Connection
 from airflow.providers.common.sql.config import ConnectionConfig, DataSourceConfig
@@ -112,7 +113,9 @@ class TestDataFusionEngine:
         mock_provider.create_object_store.assert_called_once_with(
             f"{scheme}://bucket/path", connection_config=mock_get_conn.return_value
         )
-        engine.df_ctx.register_object_store.assert_called_once_with(schema=scheme, store=mock_store)
+        engine.df_ctx.register_object_store.assert_called_once_with(
+            schema=scheme, store=mock_store, host="bucket"
+        )
 
         if format == "parquet":
             engine.df_ctx.register_parquet.assert_called_once_with("test_table", f"{scheme}://bucket/path")
@@ -235,6 +238,44 @@ class TestDataFusionEngine:
         finally:
             os.unlink(csv_path)
 
+    @patch.object(DataFusionEngine, "_get_connection_config")
+    def test_execute_query_with_bucket_style_uri_matches_real_registry(self, mock_get_conn):
+        """
+        Regression test: register_object_store never passed `host`, so DataFusion's
+        registry only matched file:// URIs (empty authority) and silently failed to
+        resolve any bucket/container-style URI (s3://, gs://, az://, abfs(s)://) at
+        query time with "No suitable object store found". Only the object-store
+        *construction* step is mocked here (to avoid needing real AWS credentials);
+        schema/host derivation and DataFusion's real object-store registry run unmocked.
+        """
+        mock_get_conn.return_value = None
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("name,age\nAlice,30\nBob,25\n")
+            csv_path = f.name
+
+        try:
+            engine = DataFusionEngine()
+            datasource_config = DataSourceConfig(
+                table_name="bucket_csv",
+                uri=f"s3://some-bucket{csv_path}",
+                format="csv",
+                conn_id="aws_default",
+            )
+
+            with patch(
+                "airflow.providers.common.sql.datafusion.object_storage_provider"
+                ".S3ObjectStorageProvider.create_object_store",
+                return_value=LocalFileSystem(),
+            ):
+                engine.register_datasource(datasource_config)
+
+            result = engine.execute_query("SELECT * FROM bucket_csv ORDER BY name")
+
+            assert result == {"name": ["Alice", "Bob"], "age": [30, 25]}
+        finally:
+            os.unlink(csv_path)
+
     @patch("airflow.providers.common.sql.datafusion.engine.get_object_storage_provider", autospec=True)
     @patch.object(DataFusionEngine, "_get_connection_config")
     def test_register_datasource_with_options(self, mock_get_conn, mock_factory):
@@ -263,7 +304,9 @@ class TestDataFusionEngine:
         mock_provider.create_object_store.assert_called_once_with(
             "s3://bucket/path/", connection_config=mock_get_conn.return_value
         )
-        engine.df_ctx.register_object_store.assert_called_once_with(schema="s3", store=mock_store)
+        engine.df_ctx.register_object_store.assert_called_once_with(
+            schema="s3", store=mock_store, host="bucket"
+        )
 
         engine.df_ctx.register_parquet.assert_called_once_with(
             "test_table",
