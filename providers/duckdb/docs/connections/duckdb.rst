@@ -98,16 +98,14 @@ Extra (JSON)
 
 .. warning:: **Installing an extension needs a home directory**
 
-    DuckDB installs extensions under the operating system user's home directory, in
+    DuckDB installs extensions under the Airflow user's home directory, in
     ``~/.duckdb/extensions/<duckdb_version>/<platform>/``, so installing one requires the
     environment to provide a home directory that exists and is writable. When ``HOME`` is unset,
     empty, or points at a directory that does not exist, the install fails with
     ``IO Error: Can't find the home directory``.
 
     Providing a writable home directory is part of configuring the environment, and is the
-    deployment administrator's responsibility. This provider does not invent one, because a
-    directory it picked would be discarded when the task exits and would re-download every
-    extension on the next task.
+    deployment administrator's responsibility.
 
     Setting ``extension_directory`` is not a reliable substitute. On DuckDB 1.5.0 and later an
     install still resolves the home directory when ``HOME`` is unset or empty, even with

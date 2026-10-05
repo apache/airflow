@@ -178,19 +178,15 @@ function, anything that has to write at runtime has to write under ``/tmp``.
 A Lambda function also starts with no ``HOME`` set. Airflow itself does not need one, but third
 party libraries commonly write caches, credentials or downloaded components under the user's home
 directory and fail outright when it is missing. DuckDB is one example: installing an extension
-fails with ``IO Error: Can't find the home directory``. The provided Dockerfile therefore sets
-``HOME=/tmp`` as well.
+fails with ``IO Error: Can't find the home directory``. The provided Dockerfile sets ``HOME=/tmp/home``,
+and the provided ``app.py`` creates that directory when the function starts.
 
-If you build your own image rather than extending the provided one, set ``HOME`` yourself. Two
-constraints decide where it can point:
+It has to be created at runtime rather than in the image, because each execution environment gets a
+fresh ``/tmp`` and anything written there at build time is gone by the time the function runs.
 
--  It has to be writable, which on Lambda means ``/tmp``, a directory below it, or a path on an
-   attached EFS file system.
--  It has to exist when the function runs. Each execution environment gets a fresh ``/tmp``, so a
-   directory created at image build time will not be there at runtime. ``/tmp`` itself always
-   exists, which is why the provided Dockerfile points ``HOME`` at it rather than at something like
-   ``/tmp/home``. A subdirectory works too, as long as your function code creates it before
-   anything needs it.
+If you build your own image or supply your own handler, keep both halves. ``HOME`` has to point
+somewhere writable, which on Lambda means ``/tmp``, a directory below it, or a path on an attached
+EFS file system, and whatever you point it at has to exist before a task runs.
 
 
 .. include:: general.rst
