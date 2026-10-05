@@ -25,6 +25,7 @@ import pytest
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
 from airflow.providers.common.sql.datafusion.object_storage_provider import (
+    AzureObjectStorageProvider,
     GCSObjectStorageProvider,
     LocalObjectStorageProvider,
     S3ObjectStorageProvider,
@@ -141,6 +142,52 @@ class TestObjectStorageProvider:
         with pytest.raises(ValueError, match="connection_config must be provided for gcs"):
             provider.create_object_store("gs://demo-data/path")
 
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_success(self, mock_azure):
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="wasb_default",
+            credentials={"account": "myaccount", "access_key": "fake_key"},
+        )
+
+        store = provider.create_object_store("az://demo-container/path", connection_config)
+
+        mock_azure.assert_called_once_with(
+            container_name="demo-container", account="myaccount", access_key="fake_key"
+        )
+        assert store == mock_azure.return_value
+        assert provider.get_storage_type == StorageType.AZURE
+        assert provider.get_scheme() == "az://"
+
+    def test_azure_provider_failure(self):
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(conn_id="wasb_default")
+
+        with patch(
+            "airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure",
+            side_effect=Exception("Error"),
+        ):
+            with pytest.raises(ObjectStoreCreationException, match="Failed to create Azure object store"):
+                provider.create_object_store("az://demo-container/path", connection_config)
+
+    def test_azure_provider_requires_connection_config(self):
+        provider = AzureObjectStorageProvider()
+
+        with pytest.raises(ValueError, match="connection_config must be provided for azure"):
+            provider.create_object_store("az://demo-container/path")
+
+    def test_azure_provider_partial_service_principal_raises_clear_error(self):
+        """Uses the real MicrosoftAzure binding, not a mock, since it's the one that panics
+        on a partial client_id/client_secret/tenant_id combination."""
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="wasb_default",
+            credentials={"client_id": "only-this-one-set"},
+        )
+
+        with pytest.raises(ObjectStoreCreationException, match="Failed to create Azure object store"):
+            provider.create_object_store("az://demo-container/path", connection_config)
+
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.LocalFileSystem")
     def test_local_provider(self, mock_local):
         provider = LocalObjectStorageProvider()
@@ -152,6 +199,7 @@ class TestObjectStorageProvider:
     def test_get_object_storage_provider(self):
         assert isinstance(get_object_storage_provider(StorageType.S3), S3ObjectStorageProvider)
         assert isinstance(get_object_storage_provider(StorageType.GCS), GCSObjectStorageProvider)
+        assert isinstance(get_object_storage_provider(StorageType.AZURE), AzureObjectStorageProvider)
         assert isinstance(get_object_storage_provider(StorageType.LOCAL), LocalObjectStorageProvider)
 
         with pytest.raises(ValueError, match="Unsupported storage type"):

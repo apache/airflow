@@ -37,6 +37,8 @@ from airflow.sdk.execution_time.coordinator import (
     reset_coordinator_manager,
 )
 
+from tests_common.test_utils.config import conf_vars
+
 
 class _CoordinatorA(BaseCoordinator):
     def __init__(self, *, label: str = "a"):
@@ -133,6 +135,76 @@ class TestCoordinatorManager:
             match=r"queue_to_coordinator references invalid coordinator key: 'nonexistent'",
         ):
             CoordinatorManager.from_config()
+
+    @pytest.mark.parametrize("bundle_name", ["ghost", ["ghost"]], ids=["unconfigured", "not-a-string"])
+    def test_from_config_rejects_invalid_task_handler_bundle_name(self, sdk_config, bundle_name):
+        """Validated without importing or constructing the coordinator."""
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "boom": {
+                        "classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator",
+                        "kwargs": {"task_handler_bundle_name": bundle_name},
+                    }
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-boom": "boom"}),
+        )
+        with pytest.raises(InvalidCoordinatorError, match=r"'boom' sets task_handler_bundle_name="):
+            CoordinatorManager.from_config()
+
+    def test_from_config_accepts_configured_task_handler_bundle_name(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "boom": {
+                        "classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator",
+                        "kwargs": {"task_handler_bundle_name": "handlers"},
+                    }
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-boom": "boom"}),
+        )
+        bundles = [
+            {
+                "name": "handlers",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {},
+            }
+        ]
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundles)}):
+            manager = CoordinatorManager.from_config()
+        assert manager._queue_to_coordinator == {"queue-boom": "boom"}
+        assert manager._created_coordinators == {}
+
+    def test_from_config_ignores_task_handler_bundle_name_of_unrouted_coordinator(self, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "boom": {
+                        "classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator",
+                        "kwargs": {"task_handler_bundle_name": "ghost"},
+                    }
+                }
+            ),
+        )
+        manager = CoordinatorManager.from_config()
+        assert set(manager._coordinator_specs) == {"boom"}
+
+    @mock.patch(
+        "airflow.sdk.execution_time.coordinator.DagBundlesManager.is_bundle_configured", autospec=True
+    )
+    def test_from_config_skips_bundle_lookup_without_task_handler_bundle_name(
+        self, is_bundle_configured, sdk_config
+    ):
+        sdk_config(
+            coordinators=json.dumps(
+                {"alpha": {"classpath": f"{_CoordinatorA.__module__}._CoordinatorA", "kwargs": {}}}
+            ),
+            queue_to_coordinator=json.dumps({"queue-a": "alpha"}),
+        )
+        CoordinatorManager.from_config()
+        is_bundle_configured.assert_not_called()
 
     @pytest.mark.parametrize(
         ("coordinator_spec", "expected_match"),
@@ -261,8 +333,8 @@ class TestCoordinatorManager:
 class TestConfigYamlCoordinatorsExample:
     """Guard the ``[sdk] coordinators`` example in ``config.yml`` against drift.
 
-    Nothing else exercises the example, so a broken one (e.g. dropping the
-    required ``jars_root`` kwarg) can ship unnoticed. Loading it through
+    Nothing else exercises the example, so a broken one (e.g. a kwarg the
+    coordinator does not accept) can ship unnoticed. Loading it through
     CoordinatorManager and constructing every entry keeps the example honest.
     """
 
@@ -279,7 +351,14 @@ class TestConfigYamlCoordinatorsExample:
             coordinators=coordinators_example,
             queue_to_coordinator=json.dumps(queue_to_coordinator),
         )
-        manager = CoordinatorManager.from_config()
+        # The deployment registers the Dag bundles the example names.
+        artifact_bundles = [
+            {"name": name, "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}}
+            for spec in specs.values()
+            if (name := spec.get("kwargs", {}).get("task_handler_bundle_name"))
+        ]
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(artifact_bundles)}):
+            manager = CoordinatorManager.from_config()
         assert set(manager._coordinator_specs) == set(specs)
 
         for queue, key in queue_to_coordinator.items():

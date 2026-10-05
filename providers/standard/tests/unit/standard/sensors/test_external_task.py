@@ -2409,3 +2409,35 @@ def dag_bag_head_tail_mapped_tasks(session):
         dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     return dag_bag
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="URL layout is different on Airflow 2")
+class TestExternalDagLink:
+    @pytest.mark.parametrize(
+        "operator_class",
+        [
+            pytest.param(ExternalTaskSensor, id="sensor"),
+            pytest.param(ExternalTaskMarker, id="marker"),
+        ],
+    )
+    def test_link_points_to_external_dag_run(self, operator_class, dag_maker):
+        from airflow.configuration import conf
+
+        with dag_maker("test_external_dag_link", serialized=True):
+            task = operator_class(
+                task_id="task_with_link",
+                external_dag_id="external_dag",
+                external_task_id="external_task",
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id)
+
+        assert len(task.operator_extra_links) == 1
+        link = task.operator_extra_links[0]
+        assert link.name == "External DAG"
+
+        url = link.get_link(operator=task, ti_key=ti.key)
+
+        base_url = conf.get("api", "base_url", fallback="/").lower()
+        assert url == f"{base_url}dags/external_dag/runs/{dr.run_id}"

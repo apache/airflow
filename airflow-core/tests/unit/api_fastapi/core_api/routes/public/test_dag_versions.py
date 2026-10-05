@@ -16,11 +16,33 @@
 # under the License.
 from __future__ import annotations
 
+from typing import get_args
 from unittest import mock
+from urllib.parse import urlencode
 
 import pytest
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.api_fastapi.core_api.datamodels.dag_versions import (
+    DagVersionDiffCategory,
+    DagVersionDiffImpact,
+    DagVersionDiffMode,
+    DagVersionDiffOperation,
+    DagVersionDiffValuesStatus,
+)
+from airflow.models.dag_version import DagVersion, ValuesStatus
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.serialization.dag_version_diff import (
+    DEFAULT_MAX_CHANGES,
+    DIFF_SCHEMA_VERSION,
+    MAX_ALLOWED_CHANGES,
+    DiffCategory,
+    DiffImpact,
+    DiffOperation,
+    build_serialized_dag_diff,
+    build_unavailable_dag_diff,
+)
+from airflow.serialization.serialized_objects import BaseSerialization
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
@@ -355,3 +377,277 @@ class TestGetDagVersions(TestDagVersionEndpoint):
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/dags/~/dagVersions", params={})
         assert response.status_code == 403
+
+
+class TestGetDagVersionDiff(TestDagVersionEndpoint):
+    """The endpoint reports observed state, with values gated on CODE access."""
+
+    DAG_ID = "dag_with_multiple_versions"
+
+    @staticmethod
+    def _path(base, target, dag_id=DAG_ID, **params):
+        query = urlencode({"base_version_number": base, "target_version_number": target, **params})
+        return f"/dags/{dag_id}/dagVersions/diff?{query}"
+
+    PATH = _path(1, 2)
+    # Spans two edits, so redacted records merge and their occurrence counts exceed the record
+    # count — the only shape in which `total_changes` is distinguishable from `len(changes)`.
+    AGGREGATING_PATH = _path(1, 3)
+
+    @staticmethod
+    def _withhold_code_access(mock_get_auth_manager):
+        """Refuse only the CODE read values require; the route dependency resolves its own manager."""
+        mock_get_auth_manager.return_value.is_authorized_dag.side_effect = lambda *, access_entity=None, **_: (
+            access_entity is not DagAccessEntity.CODE
+        )
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_withholds_values_without_code_access(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        self._withhold_code_access(mock_get_auth_manager)
+
+        response = test_client.get(self.PATH)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["mode"] == "observed_state"
+        assert body["values_status"] == "unavailable"
+        assert body["base_version_number"] == 1
+        assert body["target_version_number"] == 2
+        assert body["diff_schema_version"] == DIFF_SCHEMA_VERSION
+        assert body["serializer_versions"] == {
+            "base": BaseSerialization.SERIALIZER_VERSION,
+            "target": BaseSerialization.SERIALIZER_VERSION,
+        }
+        # A values decision made against another Dag, or with the team dropped, would disclose
+        # under the wrong tenant's permissions.
+        mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
+            method="GET",
+            access_entity=DagAccessEntity.CODE,
+            details=DagDetails(id=self.DAG_ID, team_name=None),
+            user=mock.ANY,
+        )
+        assert body["changes"], "a task was added between these versions"
+        for change in body["changes"]:
+            assert "before_value" not in change
+            assert "after_value" not in change
+            assert "before_digest" not in change
+            assert "after_digest" not in change
+            assert "task2" not in change["path"], "an identifying component must stay masked"
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_discloses_values_with_code_access(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        # Both payloads come from one eager-loaded query; a lost eager-load would show up here.
+        with assert_queries_count(3):
+            response = test_client.get(self.PATH)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["values_status"] == "available"
+        paths = [change["path"] for change in body["changes"]]
+        assert any("task2" in path for path in paths), "the added task is named for a CODE reader"
+        assert any(change["after_digest"] is not None for change in body["changes"])
+
+    @pytest.mark.parametrize(
+        ("base", "target", "operation", "present", "absent"),
+        [
+            pytest.param(1, 2, "added", "after_value", "before_value", id="added"),
+            pytest.param(2, 1, "removed", "before_value", "after_value", id="removed"),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_omits_the_value_a_side_does_not_have(
+        self,
+        mock_get_auth_manager,
+        base,
+        target,
+        operation,
+        present,
+        absent,
+        test_client,
+        make_dag_with_multiple_versions,
+    ):
+        """Omission is what tells a missing side apart from a stored null, so it must reach the wire."""
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        body = test_client.get(self._path(base, target)).json()
+
+        one_sided = [change for change in body["changes"] if change["operation"] == operation]
+        assert one_sided, f"a task was {operation} between these versions"
+        for change in one_sided:
+            assert absent not in change
+            assert present in change
+            assert change[f"{absent.removesuffix('_value')}_digest"] is None
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_reports_total_changes_as_underlying_occurrences(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        """A redacted record stands for every change sharing its path, so records are not the count."""
+        self._withhold_code_access(mock_get_auth_manager)
+
+        body = test_client.get(self.AGGREGATING_PATH).json()
+
+        assert len(body["changes"]) == 3
+        assert body["total_changes"] == 5
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_reports_total_changes_as_a_lower_bound_when_truncated(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        """A dropped path takes its occurrences with it, so the total stops being exact."""
+        self._withhold_code_access(mock_get_auth_manager)
+
+        full = test_client.get(self.AGGREGATING_PATH).json()
+        bounded = test_client.get(self._path(1, 3, max_changes=1)).json()
+
+        assert full["truncated"] is False
+        assert full["total_changes"] == 5
+        assert bounded["truncated"] is True
+        assert len(bounded["changes"]) == 1
+        assert bounded["total_changes"] == 2, "the surviving record still reports its own occurrences"
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_returns_404_for_a_version_that_does_not_exist(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get(self._path(1, 99))
+
+        assert response.status_code == 404
+        assert "99" in response.json()["detail"]
+
+    @pytest.mark.parametrize(("base", "target"), [(0, 2), (2, 0), (-1, 2)])
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_rejects_a_version_number_below_the_first_version(
+        self, mock_get_auth_manager, base, target, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get(self._path(base, target))
+
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(("base", "target"), [(99999999999999999999, 2), (1, 99999999999999999999)])
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_returns_400_for_a_version_number_above_the_storable_range(
+        self, mock_get_auth_manager, base, target, test_client, make_dag_with_multiple_versions
+    ):
+        """Too large to store is a lookup the database cannot answer, not a malformed request."""
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get(self._path(base, target))
+
+        assert response.status_code == 400
+
+    @pytest.mark.parametrize(
+        "query", ["", "base_version_number=1", "target_version_number=2"], ids=["neither", "base", "target"]
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_requires_both_versions_to_be_named(
+        self, mock_get_auth_manager, query, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get(f"/dags/{self.DAG_ID}/dagVersions/diff?{query}")
+
+        assert response.status_code == 422
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_diff_is_not_shadowed_by_the_single_version_route(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        """`/{version_number}` would swallow `diff` as a version number if it were registered first."""
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get(self.PATH)
+
+        assert response.status_code == 200
+        assert "changes" in response.json(), "the single-version route answered instead"
+
+    @pytest.mark.parametrize("max_changes", [0, -1, MAX_ALLOWED_CHANGES + 1])
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_rejects_a_change_bound_outside_the_allowed_range(
+        self, mock_get_auth_manager, max_changes, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get(self._path(1, 2, max_changes=max_changes))
+
+        assert response.status_code == 422
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_returns_404_for_a_dag_that_does_not_exist(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        response = test_client.get(self._path(1, 2, dag_id="no_such_dag"))
+
+        assert response.status_code == 404
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    def test_reports_no_changes_when_a_version_is_compared_with_itself(
+        self, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+        body = test_client.get(self._path(2, 2)).json()
+
+        assert body["mode"] == "observed_state"
+        assert body["changes"] == []
+        assert body["total_changes"] == 0
+        assert body["truncated"] is False
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_versions.get_auth_manager")
+    @mock.patch.object(DagVersion, "get_diff", autospec=True)
+    def test_reports_why_no_comparison_could_be_made(
+        self, mock_get_diff, mock_get_auth_manager, test_client, make_dag_with_multiple_versions
+    ):
+        """An undecodable stored payload is a 200 carrying the reason, not an error."""
+        mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+        mock_get_diff.return_value = build_unavailable_dag_diff(
+            base_data=None, target_data=None, reason="serialized_dag_decode_failed"
+        )
+
+        response = test_client.get(self.PATH)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["mode"] == "unavailable"
+        assert body["unavailable_reason"] == "serialized_dag_decode_failed"
+        assert body["values_status"] == "unavailable", "values cannot be disclosed without a comparison"
+        assert body["changes"] == []
+        assert body["total_changes"] == 0
+        assert mock_get_diff.call_args.kwargs["max_changes"] == DEFAULT_MAX_CHANGES
+
+    def test_requires_authentication(self, unauthenticated_test_client):
+        assert unauthenticated_test_client.get(self.PATH).status_code == 401
+
+    def test_requires_authorization(self, unauthorized_test_client):
+        assert unauthorized_test_client.get(self.PATH).status_code == 403
+
+
+def test_diff_enums_mirror_the_engine_literals():
+    """The response enums exist to name the generated client's types; they must not drift."""
+    assert {member.value for member in DagVersionDiffCategory} == set(get_args(DiffCategory))
+    assert {member.value for member in DagVersionDiffImpact} == set(get_args(DiffImpact))
+    assert {member.value for member in DagVersionDiffOperation} == set(get_args(DiffOperation))
+    assert {member.value for member in DagVersionDiffValuesStatus} == set(get_args(ValuesStatus))
+
+
+def test_diff_mode_enum_mirrors_what_the_engine_emits():
+    """Mode has no engine literal to mirror, so the builders themselves are the source of truth."""
+    payload = {"__version": BaseSerialization.SERIALIZER_VERSION, "dag": {"dag_id": "d"}}
+    emitted = {
+        build_serialized_dag_diff(base_data=payload, target_data=payload)["mode"],
+        build_unavailable_dag_diff(base_data=None, target_data=None, reason="whatever")["mode"],
+    }
+
+    assert emitted == {member.value for member in DagVersionDiffMode}

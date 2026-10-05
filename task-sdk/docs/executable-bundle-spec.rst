@@ -283,10 +283,10 @@ Code Signing
 
 The bundle format itself does not require OS-level code signing.
 ``binary_sha256`` provides integrity against truncation, in-flight
-corruption, and naive tampering, and Airflow's threat model treats
-``executables_root`` as Deployment-Manager-controlled — *authenticity*
-(signed by a trusted identity) is a deployment-time concern rather than a
-bundle-format one.
+corruption, and naive tampering, and Airflow's threat model treats the Dag
+bundle holding the bundles as Deployment-Manager-controlled, so
+*authenticity* (signed by a trusted identity) is a deployment-time concern
+rather than a bundle-format one.
 
 **Compressors** such as UPX are NOT supported. They rewrite the file
 end-to-end, destroying both the trailer and the hash invariant.
@@ -299,22 +299,23 @@ yields a byte-identical bundle file (and therefore a stable
 Deployment Layout
 -----------------
 
-Bundle files are placed **as-is** in any of the directories configured as the
-``executables_root`` kwarg on the
+Bundle files are placed **as-is** in the Dag bundle named by the
+``task_handler_bundle_name`` kwarg on the
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` entry
-under ``[sdk] coordinators``. The scanner walks each directory **recursively**
-and considers only regular files whose **executable bit is set** for the
-invoking user; files without the executable bit are skipped without reading
-their trailer. For each candidate it reads the last 64 bytes and treats files
-whose magic matches ``"AFBNDL01"`` as bundles. Matched files are then
-SHA-256-verified per the reader algorithm; a mismatch demotes the file back
-to "ignored, with an error log." Files without the magic are silently
-ignored, so non-bundle files (READMEs, dotfiles) MAY share the directory
+under ``[sdk] coordinators`` (or, when it is unset, in the task's own Dag
+bundle). The scanner walks the Dag bundle **recursively** and considers only
+regular files whose **executable bit is set** for the invoking user; files
+without the executable bit are skipped without reading their trailer, so the
+Dag bundle must preserve it. For each candidate it reads the last 64 bytes and
+treats files whose magic matches ``"AFBNDL01"`` as bundles. Matched files are
+then SHA-256-verified per the reader algorithm; a mismatch demotes the file
+back to "ignored, with an error log." Files without the magic are silently
+ignored, so non-bundle files (READMEs, dotfiles) MAY share the Dag bundle
 without interfering with the scan.
 
 ::
 
-    /opt/airflow/executable-bundles/
+    /opt/airflow/go-task-handlers/
     ├── example
     ├── team-a/
     │   └── pipeline
