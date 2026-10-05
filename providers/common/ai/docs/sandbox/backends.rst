@@ -259,6 +259,7 @@ does, and the warning says so.
 A missing file, a directory passed as a file, a relative path, and a write onto a
 directory or a read-only mount come back to the model as a recoverable error it
 can correct, once the backend has confirmed the sandbox itself is still usable.
+
 .. _sandbox-backend-opensandbox:
 
 OpenSandbox (self-hosted remote)
