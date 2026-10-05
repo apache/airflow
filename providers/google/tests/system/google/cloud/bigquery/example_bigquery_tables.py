@@ -26,6 +26,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from google.cloud.bigquery import SchemaField, Table
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
@@ -40,7 +42,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from google.cloud.bigquery import SchemaField, Table
 
 try:
     from airflow.sdk import TriggerRule
