@@ -489,9 +489,28 @@ guidance, and the planned strategic and tactical improvements.
 Dag processor HTTP client credentials
 -------------------------------------
 
-When a manager is supplied with a registered ``DagProcessorAPIClient``, its subprocess
-requests use file-scoped credentials. This client integration does not yet replace the
-manager's database-backed result persistence and orchestration.
+Set ``[dag_processor] execution_api_token_file`` to run ``airflow dag-processor`` with
+authenticated HTTP requests. Job registration, heartbeats, completion, bundle secret
+lookups, and parse-time requests then use the Execution API. The API client is created
+in the processor process, after any daemon or hot-reload fork. Leaving the setting
+unset preserves the in-process API and database-backed Job lifecycle.
+
+On a trusted host with the signing key, provision a separate token file for each processor::
+
+    airflow dag-processor-token --token-file /run/airflow/processor.jwt --bundle-name dags-folder --rotate
+
+Make the file readable by that processor, configure ``[core] execution_api_server_url``
+to reach the API server, and start the processor::
+
+    AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE=/run/airflow/processor.jwt \
+        airflow dag-processor --bundle-name dags-folder
+
+The processor still requires metadata database access for bundle metadata, result
+persistence, and orchestration. It synchronizes bundle ownership before registering
+its Job so the API can resolve teams before bundle code requests secrets.
+The processor does not use the shared SDK secret cache in this mode, even when
+``[secrets] use_cache`` is enabled, because SDK cache lookups do not include the bundle
+identity that the API uses for authorization.
 
 The externally provisioned ``dag_processor_session`` token registers one processor Job.
 Its ``dag_processor`` token manages that Job, reads Connections and Variables needed for
@@ -503,6 +522,14 @@ Job. It authorizes parse-time operations within that bundle and has no Job-manag
 token-exchange access. A bundle header cannot override its signed bundle. The token expires
 no later than the management credential; ending or replacing the Job invalidates it.
 The supervisor caches it for the attempt and renews it through the manager when needed.
+
+Heartbeats use ``[scheduler] job_heartbeat_sec``. Transient API failures are retried on
+the next heartbeat interval; failures lasting ``[dag_processor] health_check_threshold``
+stop the processor. A restart request, replaced Job, or retired registration also stops
+parsing and terminates its children. The deployment's process supervisor must restart
+the command, which creates a new registration. Failed runs attempt to record failure
+without masking the original error; completion failures after a successful run are
+reported to the caller.
 
 File identity provides request attribution; Connection and Variable permissions remain
 bundle/team based. Archives retain one file identity under the current processor model.

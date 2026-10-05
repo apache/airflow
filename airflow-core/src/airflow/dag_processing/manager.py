@@ -345,12 +345,24 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("Finished terminating DAG processors.")
         sys.exit(os.EX_OK)
 
-    def sync_bundles(self) -> None:
+    def _create_bundle_manager(self) -> DagBundlesManager:
+        if self.api_client is None:
+            return DagBundlesManager()
+        return DagBundlesManager(
+            bundle_names=self.bundle_names_to_parse,
+            bundle_context=self.api_client.use_bundle,
+        )
+
+    def sync_bundles(self, *, include_bundle_urls: bool = True) -> None:
         """Sync configured DAG bundles to the metadata database."""
         # When this processor only parses a subset of bundles, it does not see the full
         # bundle configuration and must not deactivate bundles owned by other processors.
-        dag_bundle_manager = DagBundlesManager()
-        dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
+        dag_bundle_manager = self._create_bundle_manager()
+        dag_bundle_manager.sync_bundles_to_db(
+            deactivate_missing=not self.bundle_names_to_parse, include_bundle_urls=include_bundle_urls
+        )
+        if not include_bundle_urls:
+            return
         # Best-effort legacy repair: a failure here must not crash DFP startup.
         # Affected Dags self-heal on the next successful parse.
         try:
@@ -364,7 +376,7 @@ class DagFileProcessorManager(LoggingMixin):
             return list(DagBundlesManager().get_all_dag_bundles())
         # Creating a bundle can read its connection, which the API resolves for that bundle only, and
         # the token may not grant bundles this processor does not parse.
-        dag_bundle_manager = DagBundlesManager()
+        dag_bundle_manager = self._create_bundle_manager()
         bundles = []
         for name in dag_bundle_manager.get_all_bundle_names():
             if self.bundle_names_to_parse and name not in self.bundle_names_to_parse:
@@ -383,8 +395,8 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
-        self.before_run()
         try:
+            self.before_run()
             return self._run_parsing_loop()
         finally:
             self.after_run()
@@ -419,7 +431,8 @@ class DagFileProcessorManager(LoggingMixin):
         """Build each bundle's Dag importers, so parse processes forked later share them."""
         for bundle in self._dag_bundles:
             try:
-                get_importer_registry(bundle.name).warm_importers()
+                with self._use_bundle(bundle.name):
+                    get_importer_registry(bundle.name).warm_importers()
             except Exception:
                 # The importer fails again when the bundle is listed, which reports it per refresh.
                 self.log.exception("Error loading Dag importers for bundle %s", bundle.name)
@@ -445,13 +458,15 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Resolve this process's own connection and variable lookups through ``api_client``.
 
-        Bundle code runs in this process, for example a Git bundle reading its connection, and with an
-        API client the process has no metadata database access. Parse processes forked from it replace
+        Bundle code runs in this process, for example a Git bundle reading its connection. Its secret
+        lookups use the API, while result persistence still uses the database. Parse processes replace
         ``SUPERVISOR_COMMS`` with their own channel before running any Dag code.
         """
         from airflow.dag_processing.api_client import DagProcessorSecretsComms
         from airflow.sdk.execution_time import task_runner
 
+        # SDK cache keys do not carry the bundle identity used to authorize these requests.
+        SecretCache.reset()
         task_runner.SUPERVISOR_COMMS = DagProcessorSecretsComms(api_client)  # type: ignore[assignment]
 
     def _use_bundle(self, bundle_name: str) -> AbstractContextManager[object]:
@@ -628,7 +643,8 @@ class DagFileProcessorManager(LoggingMixin):
     def _run_parsing_loop(self):
         # initialize cache to mutualize calls to Variable.get in DAGs
         # needs to be done before this process is forked to create the DAG parsing processes.
-        SecretCache.init()
+        if self.api_client is None:
+            SecretCache.init()
 
         poll_time = 0.0
 
@@ -841,7 +857,7 @@ class DagFileProcessorManager(LoggingMixin):
             return loaded
         with self._use_bundle(request.bundle_name):
             try:
-                bundle = DagBundlesManager().get_bundle(
+                bundle = self._create_bundle_manager().get_bundle(
                     name=request.bundle_name,
                     version=request.bundle_version,
                     version_data=request.version_data,

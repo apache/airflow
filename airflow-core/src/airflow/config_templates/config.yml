@@ -3231,6 +3231,19 @@ dag_processor:
          - how often to refresh DAGs from those sources
          - how many files to parse concurrently
   options:
+    execution_api_token_file:
+      description: |
+        Path to a session token written by ``airflow dag-processor-token``. When set,
+        ``airflow dag-processor`` uses the authenticated Execution API for its Job lifecycle,
+        bundle secrets, and parse-time requests. The API URL comes from
+        ``[core] execution_api_server_url``. Each processor needs its own session token.
+
+        Result persistence and orchestration still require metadata database access.
+        Leave unset to use the in-process API and database-backed Job lifecycle.
+      version_added: 3.4.0
+      type: string
+      default: ~
+      example: "/run/airflow/dag-processor.jwt"
     dag_bundle_storage_path:
       description: |
         String path to folder where Airflow bundles can store files locally. Not templated.

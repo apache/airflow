@@ -23,12 +23,17 @@ from typing import Any
 
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import _get_configured_bundle_team_names
+from airflow.dag_processing.bundles.manager import (
+    _get_configured_bundle_team_names,
+    _load_bundle_config_snapshot,
+)
 from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.executors.base_executor import get_execution_api_server_url
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
 from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
+from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import set_component_mp_start_method
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
@@ -60,7 +65,12 @@ def _get_team_names(bundle_names: list[str] | None) -> list[str]:
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
     if args.bundle_name:
-        cli_utils.validate_dag_bundle_arg(args.bundle_name)
+        if conf.get("dag_processor", "execution_api_token_file", fallback=None):
+            # Bundle constructors can read secrets; defer them until the API client is registered.
+            if unknown := set(args.bundle_name) - _load_bundle_config_snapshot().names:
+                raise SystemExit(f"Bundles not found: {', '.join(sorted(unknown))}")
+        else:
+            cli_utils.validate_dag_bundle_arg(args.bundle_name)
     return DagProcessorJobRunner(
         job=Job(bundle_names=args.bundle_name, team_names=_get_team_names(args.bundle_name)),
         processor=DagFileProcessorManager(
@@ -72,7 +82,22 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
 
 @enable_memray_trace(component=MemrayTraceComponents.dag_processor)
 def _run_dag_processor_job(job_runner: DagProcessorJobRunner) -> None:
-    run_job(job=job_runner.job, execute_callable=job_runner._execute)
+    if not (token_file := conf.get("dag_processor", "execution_api_token_file", fallback=None)):
+        run_job(job=job_runner.job, execute_callable=job_runner._execute)
+        return
+
+    # Create the connection pool after the daemon or hot-reload fork.
+    from airflow.dag_processing.api_client import DagProcessorAPIClient
+
+    with DagProcessorAPIClient(
+        base_url=get_execution_api_server_url(),
+        token_file=token_file,
+        hostname=get_hostname(),
+        unixname=job_runner.job.unixname,
+        bundle_names=job_runner.processor.bundle_names_to_parse
+        or sorted(_load_bundle_config_snapshot().names),
+    ) as client:
+        job_runner.run_with_api(client)
 
 
 @cli_utils.action_cli

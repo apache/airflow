@@ -87,7 +87,7 @@ class DagProcessorAPIClient(Client):
     ``RESTARTING``. Closing this client closes the HTTP connection pool; call ``complete_job`` explicitly
     to record the outcome before closing it.
 
-    Wrap each subprocess's SDK request in ``with client.use_bundle(bundle_name)``. Early renewal is
+    Wrap subprocess requests in ``use_parse`` and manager secret lookups in ``use_bundle``. Early renewal is
     best effort; ``restart_required`` tells the manager to drain and restart after registration retirement,
     or once a request finds the Job completed or replaced, which raises ``DagProcessorRegistrationRetired``.
     The existing token remains usable until expiry, subject to the API's ownership checks.

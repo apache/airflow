@@ -76,7 +76,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG as SdkDAG, BaseOperator, Connection
+from airflow.sdk import DAG as SdkDAG, BaseOperator, Connection, SecretCache
 from airflow.sdk.execution_time import task_runner
 from airflow.sdk.importers import DagDefinition, DagImporterRegistry, DagImportError, DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -559,14 +559,18 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             manager.sync_bundles()
-        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(
+            deactivate_missing=True, include_bundle_urls=True
+        )
 
     def test_sync_bundles_does_not_deactivate_missing_when_filtered(self):
         """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
         manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             manager.sync_bundles()
-        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(
+            deactivate_missing=False, include_bundle_urls=True
+        )
 
     @pytest.mark.parametrize(
         "safe_mode",
@@ -5032,6 +5036,35 @@ class TestDagFileProcessorManagerWithAPIClient:
 
         assert manager.client is api_client
         assert manager._api_server is None
+
+    @conf_vars({("secrets", "use_cache"): "True"})
+    def test_api_mode_does_not_share_sdk_secret_cache_between_bundles(self, make_manager, monkeypatch):
+        monkeypatch.setattr(SecretCache, "_cache", {"inherited": "secret"})
+        manager = make_manager()
+        manager.heartbeat = mock.Mock(spec=lambda: None, side_effect=SystemExit)
+        with pytest.raises(SystemExit):
+            manager._run_parsing_loop()
+        assert SecretCache._cache is None
+
+    @mock.patch("airflow.dag_processing.manager.get_importer_registry", autospec=True)
+    def test_importer_warmup_selects_its_bundle(self, registry, make_manager, api_requests):
+        manager = make_manager(bundle_names_to_parse=["bundle_b"])
+        manager._dag_bundles = manager.get_all_bundles()
+        registry.return_value.warm_importers.side_effect = _read_bundle_connection
+        manager.warm_importers()
+        assert self._get_connection_bundles(api_requests) == ["bundle_b"]
+
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "prepare_process_context",
+        autospec=True,
+        side_effect=ValueError("startup failed"),
+    )
+    def test_startup_failure_clears_the_api_secrets_context(self, prepare, api_client):
+        manager = DagFileProcessorManager(max_runs=1, api_client=api_client)
+        with pytest.raises(ValueError, match="startup failed"):
+            manager.run()
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
 
     @mock.patch("airflow.dag_processing.manager.gc", autospec=True)
     def test_run_resolves_secrets_through_the_api_client_instead_of_the_database(self, _, api_client):
