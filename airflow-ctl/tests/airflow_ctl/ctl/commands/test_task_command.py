@@ -705,6 +705,7 @@ class TestState:
             trigger=None,
             triggerer_job=None,
             dag_version=None,
+            ignore_upstream_deps=False,
         )
 
     def _make_api_client(self, state: TaskInstanceState | None = TaskInstanceState.SUCCESS) -> mock.MagicMock:
