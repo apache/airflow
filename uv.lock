@@ -3335,7 +3335,7 @@ dev = [
     { name = "apache-airflow-providers-ssh", editable = "providers/ssh" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "aws-xray-sdk", specifier = ">=2.12.0" },
-    { name = "moto", extras = ["cloudformation", "glue"], specifier = ">=5.1.2" },
+    { name = "moto", extras = ["cloudformation", "glue"], specifier = ">=5.2.2" },
     { name = "mypy-boto3-appflow", specifier = ">=1.37.0" },
     { name = "mypy-boto3-rds", specifier = ">=1.34.90" },
     { name = "mypy-boto3-redshift-data", specifier = ">=1.34.0" },
