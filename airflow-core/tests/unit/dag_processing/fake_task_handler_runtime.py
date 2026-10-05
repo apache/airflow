@@ -29,13 +29,17 @@ from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import attrs
+import structlog
 from pydantic import TypeAdapter
 
 from airflow.dag_processing.processor import (
+    DagFileParseRequest,
+    DagFileParsingResult,
     TaskHandlerParseRequest,
     TaskHandlerParsingResult,
     ToManager,
     ToSDKTaskHandlerProcessor,
+    _parse_file,
 )
 from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle
 from airflow.sdk.coordinators._subprocess import TASK_HANDLER_PARSING_SCHEMA_VERSION, SubprocessCoordinator
@@ -157,6 +161,14 @@ def task_handler_config(
 def write_artifact(path: Path, **spec: Any) -> Path:
     path.write_text(json.dumps(spec))
     return path
+
+
+def parse_dag_file(dag_file: Path) -> DagFileParsingResult:
+    """Parse *dag_file* as the Dag processor's child does, in the Dag bundle ``dags`` at its directory."""
+    request = DagFileParseRequest(file=os.fspath(dag_file), bundle_path=dag_file.parent, bundle_name="dags")
+    result = _parse_file(request, log=structlog.get_logger())
+    assert result is not None
+    return result
 
 
 def reply_with_task_handlers(

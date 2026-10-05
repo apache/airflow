@@ -35,8 +35,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
 
     from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import ArgValueSchema, TaskArgBinding
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.dag_processing.processor import TaskHandlerDeclaration, TaskHandlerParam
-    from airflow.sdk.definitions.dag import DAG  # noqa: SDK001
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 # Every top-level JSON type, in the order messages list them.
@@ -120,7 +120,9 @@ class TaskHandlerMatch:
     warnings: list[StubTaskWarning]
 
 
-def collect_stub_tasks(dags: Iterable[DAG], serialized_dags: Iterable[LazyDeserializedDAG]) -> list[StubTask]:
+def collect_stub_tasks(
+    dags: Iterable[BaggedDAG], serialized_dags: Iterable[LazyDeserializedDAG]
+) -> list[StubTask]:
     """
     Return the stub tasks of every Dag in *serialized_dags*.
 
