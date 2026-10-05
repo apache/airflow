@@ -674,6 +674,8 @@ class CloudSqlProxyRunner(LoggingMixin):
 
     def _build_v2_command_line_parameters(self) -> None:
         self.command_line_parameters.extend(["--unix-socket", self.cloud_sql_proxy_socket_directory])
+        # v2 connects to the public IP only by default; --auto-ip keeps v1's fallback to the private IP.
+        self.command_line_parameters.append("--auto-ip")
         if self.sql_proxy_enable_iam_login:
             self.command_line_parameters.append("--auto-iam-authn")
         self.command_line_parameters.append(self.instance_specification)
