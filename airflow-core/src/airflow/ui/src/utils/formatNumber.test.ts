@@ -16,17 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { describe, expect, it } from "vitest";
 
-export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { formatNumber } from "./formatNumber";
-export { getMetaKey } from "./getMetaKey";
-export { hasDagRunConfig } from "./hasDagRunConfig";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+import { formatNumber } from "./formatNumber";
+
+describe("formatNumber", () => {
+  it.each([
+    ["en", "1,234"],
+    ["de", "1.234"],
+  ])("groups digits for %s", (locale, expected) => {
+    expect(formatNumber(1234, locale)).toBe(expected);
+  });
+
+  it("falls back to the default locale instead of throwing on a malformed tag", () => {
+    expect(formatNumber(1234, "pt_BR")).toBe("1,234");
+  });
+});
