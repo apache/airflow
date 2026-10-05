@@ -36,7 +36,12 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager, rese
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
-from unit.dag_processing.fake_task_handler_runtime import LOCAL_BUNDLE, parse_dag_file, task_handler_config
+from unit.dag_processing.fake_task_handler_runtime import (
+    LOCAL_BUNDLE,
+    parse_dag_file,
+    require_toolchain,
+    task_handler_config,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -57,8 +62,7 @@ def _make_nullable(schema: dict) -> dict:
 
 @pytest.fixture(scope="module")
 def go_bundle(tmp_path_factory) -> Path:
-    if shutil.which("go") is None:
-        pytest.skip("needs a Go toolchain on PATH")
+    require_toolchain("needs a Go toolchain on PATH" if shutil.which("go") is None else None)
     bundle = tmp_path_factory.mktemp("go-task-handlers") / "example_dags"
     completed = subprocess.run(
         ["go", "tool", "airflow-go-pack", "--output", os.fspath(bundle), "./example/bundle"],

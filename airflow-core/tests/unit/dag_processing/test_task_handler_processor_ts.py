@@ -37,7 +37,12 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager, rese
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
-from unit.dag_processing.fake_task_handler_runtime import LOCAL_BUNDLE, parse_dag_file, task_handler_config
+from unit.dag_processing.fake_task_handler_runtime import (
+    LOCAL_BUNDLE,
+    parse_dag_file,
+    require_toolchain,
+    task_handler_config,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -81,8 +86,7 @@ def _get_toolchain_problem() -> str | None:
 @pytest.fixture(scope="module")
 def example_bundle(tmp_path_factory) -> Path:
     """Pack ``ts-sdk/example`` from a copy of the SDK sources, so the checkout gets no build output."""
-    if (problem := _get_toolchain_problem()) is not None:
-        pytest.skip(problem)
+    require_toolchain(_get_toolchain_problem())
     sdk = tmp_path_factory.mktemp("ts-sdk") / "ts-sdk"
     shutil.copytree(TS_SDK_PATH, sdk, ignore=shutil.ignore_patterns("node_modules", "dist", ".pnpm-store"))
     env = {**os.environ, "CI": "true", "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"}
