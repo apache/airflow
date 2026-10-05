@@ -235,7 +235,7 @@ def _get_ti_id_fields(ti: TaskInstance | TaskInstanceKey) -> dict[str, str]:
     return {"ti_id": str(ti_id)} if (ti_id := getattr(ti, "id", None)) else {}
 
 
-def _build_log_query(log_id: str, ti: TaskInstance) -> list[dict[str, Any]]:
+def _build_log_query(log_id: str, ti: RuntimeTI) -> list[dict[str, Any]]:
     log_id_match = {"match_phrase": {"log_id": log_id}}
     # Before 3.4 a cleared task instance gets a new id, which can differ from the id its logs were written under.
     if not AIRFLOW_V_3_4_PLUS:
