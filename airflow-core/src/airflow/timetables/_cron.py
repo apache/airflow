@@ -110,7 +110,7 @@ class CronMixin:
             self._offset = datetime.timedelta(microseconds=h % max_jitter_us)
         else:
             self._offset = datetime.timedelta(0)
-        self._seed = seed
+        self._seed = seed if max_jitter else ""
         self._max_jitter = max_jitter
 
         try:
@@ -124,9 +124,13 @@ class CronMixin:
         except (CroniterBadCronError, FormatException, MissingFieldException):
             self.description = ""
 
-        if self._offset and self.description:
-            rounded = datetime.timedelta(seconds=int(self._offset.total_seconds()))
-            self.description = f"{self.description}, jittered by {rounded}"
+        if self.description:
+            self.description += self._jitter_suffix()
+
+    def _jitter_suffix(self) -> str:
+        if not self._offset:
+            return ""
+        return f", jittered by {datetime.timedelta(seconds=int(self._offset.total_seconds()))}"
 
     def _apply(self, t: DateTime) -> DateTime:
         """Shift a cron-aligned time forward by this timetable's jitter offset."""
@@ -216,16 +220,26 @@ class CronMixin:
         """
         return convert_to_utc(make_aware(dt.replace(tzinfo=None), self._timezone))
 
+    def _tick_of(self, run: DateTime) -> DateTime:
+        """
+        Map a previous run time onto the cron tick it was scheduled for.
+
+        A run that already carries the current offset maps back to its own tick. Anything else, such as
+        a run from before jitter was enabled or its settings changed, maps to the latest tick at or before it.
+        """
+        stripped = self._strip(run)
+        if self._align_to_prev_cron(stripped) == stripped:
+            return stripped
+        return self._align_to_prev_cron(run)
+
     def _get_next(self, current: DateTime) -> DateTime:
         """
-        Get the first (jittered) schedule after the specified time.
+        Get the first (jittered) schedule after the run at the specified time.
 
-        ``current`` may already carry the jitter offset, so it is stripped back onto
-        the plain cron timeline before the next boundary is found, and the offset is
-        applied once to the result. This keeps the shift from compounding when
-        results are fed back in (e.g. by ``_align_to_next``).
+        ``current`` is mapped onto the tick it belongs to before stepping, so the jitter offset never
+        compounds and a run from before jitter was enabled is not scheduled a second time.
         """
-        return self._apply(self._get_next_cron(self._strip(current)))
+        return self._apply(self._get_next_cron(self._tick_of(current)))
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first (jittered) schedule strictly before the specified time; see ``_get_next``."""

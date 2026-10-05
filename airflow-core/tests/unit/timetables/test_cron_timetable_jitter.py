@@ -31,7 +31,7 @@ from airflow.sdk import (
 )
 from airflow.serialization.decoders import decode_timetable
 from airflow.serialization.encoders import encode_timetable
-from airflow.timetables.base import DataInterval, TimeRestriction
+from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.trigger import (
     CronPartitionTimetable,
@@ -340,13 +340,10 @@ def test_partition_key_stays_on_cron_boundary_with_jitter():
     assert jittered._get_partition_info(jittered_run)[1] == "2026-03-06"
 
 
-@pytest.mark.parametrize("run_offset", [0, 1, -1])
-def test_iter_partition_dagrun_infos_unaffected_by_jitter(run_offset):
+def test_iter_partition_dagrun_infos_unaffected_by_jitter():
     """Backfill iteration walks the cron boundaries, so the partitions are identical with and without jitter."""
-    plain = CronPartitionTimetable(CRON, timezone=utc, run_offset=run_offset)
-    jittered = CronPartitionTimetable(
-        CRON, timezone=utc, run_offset=run_offset, seed=SEED, max_jitter=MAX_JITTER
-    )
+    plain = CronPartitionTimetable(CRON, timezone=utc)
+    jittered = CronPartitionTimetable(CRON, timezone=utc, seed=SEED, max_jitter=MAX_JITTER)
     window = {
         "earliest": pendulum.datetime(2026, 3, 6, tz="UTC"),
         "latest": pendulum.datetime(2026, 3, 8, tz="UTC"),
@@ -381,3 +378,91 @@ def test_description_mentions_jitter_offset():
     assert "jittered" not in plain.description
     rounded = timedelta(seconds=int(jittered._offset.total_seconds()))
     assert jittered.description == f"{plain.description}, jittered by {rounded}"
+
+
+@pytest.mark.parametrize("run_offset", [1, -1])
+def test_partition_info_with_run_offset_steps_cron_ticks(run_offset):
+    """With a run offset the partition is still counted in cron ticks, so jitter must not shift it."""
+    plain = CronPartitionTimetable(CRON, timezone=utc, run_offset=run_offset)
+    jittered = CronPartitionTimetable(
+        CRON, timezone=utc, run_offset=run_offset, seed=SEED, max_jitter=MAX_JITTER
+    )
+    plain_run = pendulum.datetime(2026, 3, 6, tz="UTC")
+    assert jittered._get_partition_info(plain_run + jittered._offset) == plain._get_partition_info(plain_run)
+
+
+# The last run happened on the plain cron tick, before jitter was switched on.
+UNJITTERED_LAST_RUN = pendulum.datetime(2026, 10, 1, tz="UTC")
+# Shortly after that tick, but before the jittered fire time for the same day.
+NOW_BEFORE_JITTERED_RUN = UNJITTERED_LAST_RUN + timedelta(minutes=25)
+
+
+@pytest.mark.parametrize("catchup", [True, False])
+def test_enabling_jitter_does_not_rerun_last_trigger_tick(catchup):
+    timetable = CronTriggerTimetable(CRON, timezone=utc, seed=SEED, max_jitter=MAX_JITTER)
+    assert timetable._offset > NOW_BEFORE_JITTERED_RUN - UNJITTERED_LAST_RUN
+    with time_machine.travel(NOW_BEFORE_JITTERED_RUN, tick=False):
+        info = timetable.next_dagrun_info(
+            last_automated_data_interval=DataInterval.exact(UNJITTERED_LAST_RUN),
+            restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=catchup),
+        )
+    assert info is not None
+    assert info.run_after == UNJITTERED_LAST_RUN + timedelta(days=1) + timetable._offset
+
+
+def test_enabling_jitter_does_not_overlap_last_data_interval():
+    timetable = CronDataIntervalTimetable(CRON, timezone=utc, seed=SEED, max_jitter=MAX_JITTER)
+    last = DataInterval(UNJITTERED_LAST_RUN - timedelta(days=1), UNJITTERED_LAST_RUN)
+    info = timetable.next_dagrun_info(
+        last_automated_data_interval=last,
+        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=True),
+    )
+    assert info is not None
+    assert info.data_interval.start >= last.end
+    assert info.data_interval == DataInterval(
+        UNJITTERED_LAST_RUN + timetable._offset,
+        UNJITTERED_LAST_RUN + timedelta(days=1) + timetable._offset,
+    )
+
+
+@pytest.mark.parametrize("catchup", [True, False])
+def test_enabling_jitter_does_not_duplicate_last_partition(catchup):
+    timetable = CronPartitionTimetable(CRON, timezone=utc, seed=SEED, max_jitter=MAX_JITTER)
+    with time_machine.travel(NOW_BEFORE_JITTERED_RUN, tick=False):
+        info = timetable.next_dagrun_info_v2(
+            last_dagrun_info=DagRunInfo.exact(UNJITTERED_LAST_RUN),
+            restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=catchup),
+        )
+    assert info is not None
+    assert info.run_after == UNJITTERED_LAST_RUN + timedelta(days=1) + timetable._offset
+    assert info.partition_key == "2026-10-02T00:00:00"
+
+
+def test_raising_max_jitter_does_not_rerun_last_tick():
+    old = CronTriggerTimetable(CRON, timezone=utc, seed="other", max_jitter=timedelta(hours=1))
+    new = CronTriggerTimetable(CRON, timezone=utc, seed="other", max_jitter=timedelta(hours=2))
+    assert new._offset > old._offset, "seed/windows must move the fire time later"
+    info = new.next_dagrun_info(
+        last_automated_data_interval=DataInterval.exact(UNJITTERED_LAST_RUN + old._offset),
+        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=True),
+    )
+    assert info is not None
+    assert info.run_after == UNJITTERED_LAST_RUN + timedelta(days=1) + new._offset
+
+
+def test_multiple_cron_description_mentions_jitter_once():
+    timetable = MultipleCronTriggerTimetable(
+        "0 0 * * *", "0 12 * * *", timezone=utc, seed=SEED, max_jitter=MAX_JITTER
+    )
+    assert timetable.description.count("jittered by") == 1
+    assert timetable.description.endswith(
+        f", jittered by {timedelta(seconds=int(timetable._timetables[0]._offset.total_seconds()))}"
+    )
+
+
+def test_seed_without_jitter_round_trips_to_an_equal_timetable():
+    """The seed is not serialized when jitter is off, so it must not affect equality or hashing either."""
+    timetable = CronTriggerTimetable(CRON, timezone=utc, seed=SEED)
+    restored = CronTriggerTimetable.deserialize(timetable.serialize())
+    assert restored == timetable
+    assert hash(restored) == hash(timetable)

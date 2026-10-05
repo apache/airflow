@@ -61,6 +61,10 @@ class _DataIntervalTimetable(Timetable):
         """
         raise NotImplementedError()
 
+    def _align_last_end(self, end: DateTime) -> DateTime:
+        """Align the end of the previous data interval onto the schedule."""
+        return self._align_to_prev(end)
+
     def _align_to_prev(self, current: DateTime) -> DateTime:
         """
         Align given time to the previous scheduled time.
@@ -102,7 +106,7 @@ class _DataIntervalTimetable(Timetable):
             start = earliest
         else:  # There's a previous run.
             # Alignment is needed when DAG has new schedule interval.
-            align_last_data_interval_end = self._align_to_prev(last_automated_data_interval.end)
+            align_last_data_interval_end = self._align_last_end(last_automated_data_interval.end)
             if earliest is not None:
                 # Catchup is False or DAG has new start date in the future.
                 # Make sure we get the later one.
@@ -150,6 +154,9 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
     starts exactly on the cron time (e.g. 00:35 to 00:35 instead of 00:00 to 00:00). Keep
     ``max_jitter`` small relative to the schedule period.
     """
+
+    def _align_last_end(self, end: DateTime) -> DateTime:
+        return self._apply(self._tick_of(end))
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:

@@ -294,7 +294,8 @@ class MultipleCronTriggerTimetable(Timetable):
             )
             for cron in crons
         ]
-        self.description = ", ".join(t.description for t in self._timetables)
+        suffix = self._timetables[0]._jitter_suffix()
+        self.description = ", ".join(t.description.removesuffix(suffix) for t in self._timetables) + suffix
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
