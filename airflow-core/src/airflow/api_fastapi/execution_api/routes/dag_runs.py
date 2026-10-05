@@ -33,7 +33,12 @@ from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.security import CurrentTIToken
+from airflow.api_fastapi.execution_api.security import (
+    CurrentTIToken,
+    DagInGrantedBundle,
+    ExecutionAPIRoute,
+    ExecutionOrDagProcessorToken,
+)
 from airflow.exceptions import DagNotPartitionedError, DagRunAlreadyExists, InvalidPartitionKeyError
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DagRunModel
@@ -41,7 +46,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-router = VersionedAPIRouter()
+router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
 
 log = logging.getLogger(__name__)
 
@@ -265,7 +270,11 @@ async def get_dr_count(
     return (await session.scalar(stmt)) or 0
 
 
-@router.get("/previous", status_code=status.HTTP_200_OK)
+@router.get(
+    "/previous",
+    status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagProcessorToken, DagInGrantedBundle],
+)
 def get_previous_dagrun(
     dag_id: str,
     logical_date: UtcDateTime,

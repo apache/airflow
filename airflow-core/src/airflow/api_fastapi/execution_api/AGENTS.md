@@ -77,4 +77,4 @@ Adding a new Execution API feature touches multiple packages. All of these must 
 
 ## Token Scope Infrastructure
 
-Token types (`"execution"`, `"workload"`), route-level enforcement via `ExecutionAPIRoute` + `require_auth`, and the `ti:self` path-parameter validation are documented in the module docstring of `security.py`.
+Token types (`"execution"`, `"workload"`, `"callback"`, `"dag_processor"`), route-level enforcement via `ExecutionAPIRoute` + `require_auth`, and the `ti:self` path-parameter validation are documented in the module docstring of `security.py`. A route that admits `dag_processor` tokens must also bind the request to a granted Dag bundle; `test_token_scope_boundaries.py` lists those routes and the parse-time messages that use them.

@@ -17,27 +17,36 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.typing_compat import Self
 
-TokenScope = Literal["execution", "workload", "callback"]
+TokenScope = Literal["execution", "workload", "callback", "dag_processor"]
 
 
 class TIClaims(BaseModel):
     """
     Validated JWT claims for a task identity token.
 
-    Only fields used by the Execution API (sub, scope) are explicitly typed.
+    Only fields used by the Execution API (sub, scope, dag_bundles) are explicitly typed.
     JWTValidator already validates exp/iat/nbf/aud/etc. Extra claims are allowed.
     """
 
     model_config = ConfigDict(extra="allow")
 
     scope: TokenScope = "execution"
+    dag_bundles: frozenset[Annotated[str, Field(min_length=1)]] | None = None
+    """Dag bundles a ``dag_processor`` token may act for, granted by the trusted component that issued it."""
+
+    @model_validator(mode="after")
+    def validate_dag_bundle_grant(self) -> Self:
+        if self.scope == "dag_processor" and not self.dag_bundles:
+            raise ValueError("A dag_processor token must grant at least one Dag bundle")
+        return self
 
 
 class TIToken(BaseModel):

@@ -28,6 +28,14 @@ Token types (``TokenType``):
     Restricted scope, only accepted on routes that opt in via
     ``Security(require_auth, scopes=["token:workload"])``.
 
+``"dag_processor"``
+    Issued to a Dag processor session by trusted provisioning, never by the
+    processor itself. ``sub`` identifies the session and the ``dag_bundles``
+    claim lists the bundles it may act for. Only accepted on routes that opt in
+    via ``token:dag_processor``; requests that need a bundle's team name it in
+    the ``Airflow-Dag-Bundle`` header, and requests about a Dag are limited to
+    Dags in granted bundles. Never refreshed by ``JWTReissueMiddleware``.
+
 Tokens without a ``scope`` claim default to ``"execution"`` for backwards
 compatibility (``claims.setdefault("scope", "execution")``).
 
@@ -71,7 +79,7 @@ from typing import Any, get_args
 
 import structlog
 import svcs
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, HTTPException, Request, Response, Security, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.security import HTTPBearer, SecurityScopes
@@ -210,6 +218,59 @@ async def require_auth(
 
 CurrentTIToken: TIToken = Depends(require_auth)
 
+DAG_BUNDLE_HEADER = "Airflow-Dag-Bundle"
+
+ExecutionOrDagProcessorToken = Security(require_auth, scopes=["token:execution", "token:dag_processor"])
+"""Route dependency that also admits ``dag_processor`` tokens; the router must use ``ExecutionAPIRoute``."""
+
+
+async def get_selected_dag_bundle(request: Request, token=CurrentTIToken) -> str | None:
+    """Return the granted Dag bundle a ``dag_processor`` request acts for, or ``None`` for other tokens."""
+    if token.claims.scope != "dag_processor":
+        return None
+    bundle_name = request.headers.get(DAG_BUNDLE_HEADER)
+    if not bundle_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A dag_processor token must name its Dag bundle in the {DAG_BUNDLE_HEADER} header",
+        )
+    if bundle_name not in token.claims.dag_bundles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Token is not granted Dag bundle {bundle_name!r}",
+        )
+    return bundle_name
+
+
+SelectedDagBundle = Depends(get_selected_dag_bundle)
+
+
+async def require_dag_in_granted_bundle(request: Request, token=CurrentTIToken) -> None:
+    """
+    Limit a ``dag_processor`` request to Dags in the bundles its token grants.
+
+    The Dag comes from the ``dag_id`` path or query parameter. A Dag that does not exist is refused
+    like one in an ungranted bundle, so the response does not reveal Dags in other bundles.
+    """
+    if token.claims.scope != "dag_processor":
+        return
+
+    from airflow.models import DagModel
+    from airflow.utils.session import create_session_async
+
+    bundle_name = None
+    if dag_id := request.path_params.get("dag_id") or request.query_params.get("dag_id"):
+        async with create_session_async() as session:
+            bundle_name = await session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
+    if bundle_name is None or bundle_name not in token.claims.dag_bundles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token is not granted the Dag bundle of this Dag",
+        )
+
+
+DagInGrantedBundle = Depends(require_dag_in_granted_bundle)
+
 
 def issue_execution_token(services: svcs.Container, response: Response, sub: str) -> None:
     """Mint an ``execution``-scoped token and set it on the ``Refreshed-API-Token`` header."""
@@ -247,8 +308,8 @@ class ExecutionAPIRoute(APIRoute):
         self.allowed_token_types = frozenset(token_scopes) if token_scopes else frozenset({"execution"})
 
 
-async def get_team_name_dep(token=CurrentTIToken) -> str | None:
-    """Return the team name associated to the task (if any)."""
+async def get_team_name_dep(token=CurrentTIToken, dag_bundle=SelectedDagBundle) -> str | None:
+    """Return the team of the task, or of the Dag bundle a ``dag_processor`` request acts for (if any)."""
     from airflow.configuration import conf
 
     if not conf.getboolean("core", "multi_team"):
@@ -257,6 +318,8 @@ async def get_team_name_dep(token=CurrentTIToken) -> str | None:
     from airflow.utils.session import create_session_async
 
     async with create_session_async() as session:
+        if token.claims.scope == "dag_processor":
+            return await session.scalar(_team_name_for_bundle_stmt(dag_bundle))
         return await session.scalar(_team_name_for_ti_stmt(token.id))
 
 
@@ -288,6 +351,14 @@ def _team_name_for_ti_stmt(ti_id):
         .join(DagBundleModel.teams)
         .where(TaskInstance.id == ti_id)
     )
+
+
+def _team_name_for_bundle_stmt(bundle_name):
+    """Build the select statement resolving ``DagBundleModel.name -> Team.name``."""
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.models.team import Team
+
+    return select(Team.name).join(DagBundleModel.teams).where(DagBundleModel.name == bundle_name)
 
 
 def _team_name_for_dag_stmt(dag_id):
