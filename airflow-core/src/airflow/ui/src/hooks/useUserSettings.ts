@@ -27,6 +27,7 @@ import {
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
   DAGS_LIST_SHOW_RECENT_TASKS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_MATCH_ANYWHERE_KEY,
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
@@ -49,6 +50,12 @@ export const useDefaultGraphDirection = () =>
 
 export const useDefaultTaskGroupsExpanded = () =>
   useLocalStorage<boolean>(DEFAULT_TASK_GROUPS_EXPANDED_KEY, false);
+
+/**
+ * Fallback for the per-searchbar "match anywhere" (substring) toggle: the value a searchbar uses
+ * when neither the URL nor its own localStorage entry says otherwise. Defaults to off (prefix).
+ */
+export const useDefaultMatchAnywhere = () => useLocalStorage<boolean>(DEFAULT_MATCH_ANYWHERE_KEY, false);
 
 /** Default selection for the Dag-run Clear dialog toggle (existing / only-failed / queue-new). */
 export const useClearRunDefaultOptions = () =>

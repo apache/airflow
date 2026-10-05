@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+.. warning::
+    ``GCSToSFTPOperator`` no longer writes GCS folder markers, the objects whose name ends with
+    ``/``, as files. They were written as an empty file at the folder's path, so the folder's
+    contents could not be transferred after them. With ``create_intermediate_dirs=True``, the
+    default, each marker is now created as a directory on the SFTP server, and deleted from the
+    bucket when ``move_object=True``. With ``create_intermediate_dirs=False``, markers are skipped
+    and left in the bucket. An empty file that an earlier version wrote at a marker's path blocks
+    the directory and fails the task; remove it from the SFTP server before the next run.
+
 22.6.0
 ......
 

@@ -40,6 +40,7 @@ export const CLEAR_KEEP_TASK_STATE_KEY = "clear_keep_task_state";
 export const MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY = "mark_task_instance_default_options";
 export const DEFAULT_TASK_INSTANCE_TAB_KEY = "default_task_instance_tab";
 export const DEFAULT_LANDING_PAGE_KEY = "default_landing_page";
+export const DEFAULT_MATCH_ANYWHERE_KEY = "default_match_anywhere";
 export const DAGS_LIST_SHOW_RECENT_TASKS_KEY = "dags_list_show_recent_tasks";
 
 // Dag-scoped keys

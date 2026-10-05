@@ -29,8 +29,9 @@ build: pack
 # DAG/task identity via --airflow-metadata, and appends the source plus
 # airflow-metadata.yaml plus AFBNDL01 trailer. The output is a single
 # self-contained executable bundle, named after the bundle's package
-# directory and written to the current directory. Drop it into
-# ExecutableCoordinator's executables_root to deploy.
+# directory and written to the current directory. Drop it into the
+# Dag bundle named by ExecutableCoordinator's task_handler_bundle_name
+# to deploy.
 pack:
     @echo "Packing example DAG bundle..."
     go tool airflow-go-pack --output ../../bin/example_dags

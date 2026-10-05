@@ -24,7 +24,6 @@
         "title": "Backfill gerado"
       }
     },
-    "unpause": "Despausar {{dag_display_name}} ao acionar",
     "validation": {
       "datesRequired": "Ambas as datas de início e fim do intervalo devem ser fornecidas.",
       "startBeforeEnd": "A Data Inicial do Intervalo deve ser menor ou igual à Data Final do Intervalo."
@@ -163,8 +162,7 @@
         "title": "Execução do Dag acionada"
       }
     },
-    "triggerAgainWithConfig": "Acionar novamente com esta configuração",
-    "unpause": "Despausar {{dagDisplayName}} ao acionar"
+    "triggerAgainWithConfig": "Acionar novamente com esta configuração"
   },
   "trimText": {
     "details": "Detalhes",

@@ -33,6 +33,7 @@ import {
   useClearTaskInstanceDefaultOptions,
   useDefaultGraphDirection,
   useDefaultLandingPage,
+  useDefaultMatchAnywhere,
   useDefaultTaskInstanceTab,
   useDefaultTaskGroupsExpanded,
   useMarkTaskInstanceDefaultOptions,
@@ -181,6 +182,7 @@ export const Settings = () => {
   const [markTaskOptions, setMarkTaskOptions] = useMarkTaskInstanceDefaultOptions();
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
+  const [matchAnywhere, setMatchAnywhere] = useDefaultMatchAnywhere();
   const [showRecentTasks, setShowRecentTasks] = useShowDagsListRecentTasks();
 
   const taskInstanceTabOptions: Array<SelectOption<DefaultTaskInstanceTab>> = [
@@ -235,6 +237,20 @@ export const Settings = () => {
             options={landingPageOptions}
             testId="default-landing-page"
             value={defaultLandingPage}
+          />
+        </Section>
+        <Section title={translate("settings.search.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.search.matchAnywhere.label")}
+                checked={matchAnywhere}
+                data-testid="default-match-anywhere"
+                onCheckedChange={(event) => setMatchAnywhere(event.checked)}
+              />
+            }
+            helper={translate("settings.search.matchAnywhere.helper")}
+            label={translate("settings.search.matchAnywhere.label")}
           />
         </Section>
         <Section title={translate("settings.dagsList.title")}>
