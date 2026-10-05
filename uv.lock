@@ -169,6 +169,7 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
+boat-sdk = "2026-10-02T00:00:00Z"
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
 typesafe-sdk = "2026-09-19T00:00:00Z"
@@ -4752,7 +4753,7 @@ requires-dist = [
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-git", marker = "extra == 'skills'", editable = "providers/git" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
-    { name = "boat-sdk", marker = "extra == 'boat'", specifier = ">=1.0.0" },
+    { name = "boat-sdk", marker = "extra == 'boat'", specifier = ">=1.5.0" },
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
@@ -4793,7 +4794,7 @@ dev = [
     { name = "apache-airflow-providers-git", editable = "providers/git" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
-    { name = "boat-sdk", specifier = ">=1.0.0" },
+    { name = "boat-sdk", specifier = ">=1.5.0" },
     { name = "langchain", specifier = ">=1.0.0" },
     { name = "llama-index-core", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
@@ -10891,7 +10892,7 @@ wheels = [
 
 [[package]]
 name = "boat-sdk"
-version = "1.0.1"
+version = "1.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -10899,9 +10900,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/44/1a/857f47b40b53e02917fe1beb21065bfc4e497c3376067ccb49df4d63b3d6/boat_sdk-1.0.1.tar.gz", hash = "sha256:051158ec0afb21449ef719b881835834425a906b5560e95cb1e778d7529e8148", size = 133764, upload-time = "2026-09-25T07:45:05.073Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/ff/f1c5fc77cdca3be42eba8c5c0c024814bf74502b84d1b4739655eef8f417/boat_sdk-1.5.0.tar.gz", hash = "sha256:da1aa88d6bdd4f40bd6a5b3f203166fdfc8a72785cc5f029f5317ba0ef372817", size = 141158, upload-time = "2026-10-01T17:48:56.9Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/36/c5/359c55be02fe622aa35fbebdbac2cef7976b113e97b2c2c2f68dbbfcd2ab/boat_sdk-1.0.1-py3-none-any.whl", hash = "sha256:2b2d57d237b98aad08edcbb5864dd14c7bb14f072cb7649ef8198c1340d1d3e6", size = 288088, upload-time = "2026-09-25T07:45:03.572Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/05/59f22a7f7a4069a02af9da95c0cf0788792f51e80ce7d95a4d7d7ec7c55e/boat_sdk-1.5.0-py3-none-any.whl", hash = "sha256:def211852c8bf7228faf1e396c1d744769e2360ca124660173aa8315eaf9be06", size = 298672, upload-time = "2026-10-01T17:48:55.155Z" },
 ]
 
 [[package]]
