@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -35,6 +35,9 @@ if TYPE_CHECKING:
 class ObjectStorageProvider(LoggingMixin, ABC):
     """Abstract base class for object storage providers."""
 
+    #: URL schemes this provider recognizes, e.g. ``("s3://",)``.
+    SCHEMES: ClassVar[tuple[str, ...]] = ()
+
     @property
     def get_storage_type(self) -> StorageType:
         """Return storage type handled by this provider (e.g., 's3', 'gcs', 'local')."""
@@ -45,16 +48,18 @@ class ObjectStorageProvider(LoggingMixin, ABC):
         """Create and return a DataFusion object store instance."""
         raise NotImplementedError
 
-    @abstractmethod
-    def get_scheme(self) -> str:
-        """Return URL scheme for this storage type (e.g., 's3://', 'gs://')."""
-        raise NotImplementedError
+    def get_scheme(self, uri: str) -> str:
+        """Return whichever of ``SCHEMES`` this ``uri`` starts with."""
+        for scheme in self.SCHEMES:
+            if uri.startswith(scheme):
+                return scheme
+        raise ValueError(f"{uri!r} does not match any known scheme: {self.SCHEMES}")
 
     def get_bucket(self, path: str) -> str | None:
         """Extract the bucket name from the given path."""
-        if path and path.startswith(self.get_scheme()):
-            path_parts = path[len(self.get_scheme()) :].split("/", 1)
-            return path_parts[0]
+        for scheme in self.SCHEMES:
+            if path and path.startswith(scheme):
+                return path[len(scheme) :].split("/", 1)[0]
         return None
 
 
