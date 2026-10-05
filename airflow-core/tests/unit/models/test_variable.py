@@ -27,8 +27,8 @@ from cryptography.fernet import Fernet
 from sqlalchemy import select
 
 from airflow.models import Variable, crypto, variable
-from airflow.sdk import SecretCache
 from airflow.secrets import BaseSecretsBackend
+from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.sqlalchemy import prohibit_commit
 
@@ -95,8 +95,7 @@ class TestVariable:
     def setup_test_cases(self):
         db.clear_db_variables()
         SecretCache.reset()
-        with conf_vars({("secrets", "use_cache"): "true"}):
-            SecretCache.init()
+        SecretCache._initialize(ttl_seconds=15 * 60)
         with mock.patch("airflow.models.variable.mask_secret", autospec=True) as m:
             self.mask_secret = m
             yield
