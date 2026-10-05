@@ -480,7 +480,7 @@ see in CI in your local environment.
       breeze --python 3.11 --backend postgres
 
 
-5. When you enter the Breeze environment you should see a prompt similar to ``[Breeze:3.10.19] root@e4756f6ac886:/opt/airflow#``. This
+5. When you enter the Breeze environment you should see a prompt similar to ``[Breeze:3.11.16] root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command
 
@@ -490,11 +490,11 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# airflow db reset
+  [Breeze:3.11.16] root@b76fcb399bb6:/opt/airflow# airflow db reset
 
 .. code-block:: bash
 
-   [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# airflow users create \
+   [Breeze:3.11.16] root@b76fcb399bb6:/opt/airflow# airflow users create \
                 --username admin \
                 --firstname FIRST_NAME \
                 --lastname LAST_NAME \
@@ -510,7 +510,7 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# exit
+  [Breeze:3.11.16] root@b76fcb399bb6:/opt/airflow# exit
 
 8. You can stop the environment (which means deleting the databases and database servers running in the
    background) via ``breeze down`` command
@@ -649,7 +649,7 @@ Breeze container stops and releases its forwarded ports:
 
 .. code-block:: bash
 
-  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# stop_airflow
+  [Breeze:3.11.16] root@f3619b74c59a:/opt/airflow# stop_airflow
 
 After returning to the host shell, stop the remaining Docker Compose services:
 
@@ -661,7 +661,7 @@ If ``breeze`` was started with ``breeze --python 3.11 --backend postgres`` (or s
 
 .. code-block:: bash
 
-  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# exit
+  [Breeze:3.11.16] root@f3619b74c59a:/opt/airflow# exit
   breeze down
 
 .. note::
@@ -757,9 +757,9 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   [Breeze:3.10.19] root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
+   [Breeze:3.11.16] root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
    ============================================================= test session starts ==============================================================
-   platform linux -- Python 3.10.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/python/bin/python
+   platform linux -- Python 3.11.16, pytest-8.3.3, pluggy-1.5.0 -- /usr/python/bin/python
    cachedir: .pytest_cache
    rootdir: /opt/airflow
    configfile: pyproject.toml

@@ -736,7 +736,7 @@ Building from PyPI packages
 
 This is the basic way of building the custom images from sources.
 
-The following example builds the production image in version ``3.11`` with latest PyPI-released Airflow,
+The following example builds the production image for the default Python version with latest PyPI-released Airflow,
 with default set of Airflow extras and dependencies. The latest PyPI-released Airflow constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/stable-airflow.sh
@@ -744,7 +744,7 @@ with default set of Airflow extras and dependencies. The latest PyPI-released Ai
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.11`` with default extras from ``2.3.0`` Airflow
+The following example builds the production image for the default Python version with default extras from ``2.3.0`` Airflow
 package. The ``2.3.0`` constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/pypi-selected-version.sh
@@ -752,7 +752,7 @@ package. The ``2.3.0`` constraints are used automatically.
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.11`` with additional Airflow extras
+The following example builds the production image for the default Python version with additional Airflow extras
 (``mssql,hdfs``) from ``2.3.0`` PyPI package, and additional dependency (``oauth2client``).
 
 .. exampleinclude:: docker-examples/customizing/pypi-extras-and-deps.sh
@@ -779,7 +779,7 @@ have more complex dependencies to build.
 Building optimized images
 .........................
 
-The following example builds the production image in version ``3.11`` with additional Airflow extras from
+The following example builds the production image for the default Python version with additional Airflow extras from
 PyPI package but it includes additional apt dev and runtime dependencies.
 
 The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling

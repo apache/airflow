@@ -220,7 +220,7 @@ suffix and they need to also be paired with corresponding runtime dependency add
 
 .. code-block:: bash
 
-     breeze prod-image build --python 3.11 --additional-dev-deps "libasound2-dev" \
+     breeze prod-image build --python 3.11 --additional-dev-apt-deps "libasound2-dev" \
         --additional-runtime-apt-deps "libasound2"
 
 Same as above but uses python 3.11.

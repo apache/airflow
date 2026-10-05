@@ -102,11 +102,11 @@ Installing Python versions
 
    This step can be skipped - ``uv`` will automatically install the Python version you need when you create a virtualenv.
 
-You can install Python versions using ``uv python install`` command. For example, to install Python 3.10.7, you can run:
+You can install Python versions using ``uv python install`` command. For example, to install Python 3.11.16, you can run:
 
 .. code:: bash
 
-    uv python install 3.10.7
+    uv python install 3.11.16
 
 This is optional step - ``uv`` will automatically install the Python version you need when you create a virtualenv.
 
@@ -126,7 +126,7 @@ with a specific Python version by running:
 
 .. code:: bash
 
-    uv venv --python 3.10.7
+    uv venv --python 3.11.16
 
 You can also create a venv with a different venv directory name by running:
 

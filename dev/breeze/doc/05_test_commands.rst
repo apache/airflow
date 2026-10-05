@@ -804,7 +804,7 @@ be created and Airflow deployed to it before running the tests):
 
     (kind-airflow-python-3.11-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
-    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/kubernetes-tests/.venv/bin/python
+    platform linux -- Python 3.11.16, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/kubernetes-tests/.venv/bin/python
     cachedir: .pytest_cache
     rootdir: /home/jarek/code/airflow, configfile: pytest.ini
     plugins: anyio-3.6.1
