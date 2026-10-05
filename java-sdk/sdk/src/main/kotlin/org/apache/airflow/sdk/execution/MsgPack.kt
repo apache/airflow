@@ -41,11 +41,6 @@ import java.math.BigInteger
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
-private fun MessagePacker.packByteArray(data: ByteArray) {
-  packBinaryHeader(data.size)
-  data.forEach { packByte(it) }
-}
-
 private fun MessagePacker.packMap(data: Map<*, *>) {
   packMapHeader(data.size)
   data.forEach { (k, v) ->
@@ -71,7 +66,13 @@ fun MessagePacker.packAny(data: Any?) {
     is BigInteger -> packBigInteger(data)
     is Float -> packFloat(data)
     is Double -> packDouble(data)
-    is ByteArray -> packByteArray(data)
+    // The supervisor rejects bytes in values such as XCom values. It does not reply
+    // to a request it cannot decode, so the task that sent the request would wait forever.
+    is ByteArray ->
+      throw IllegalArgumentException(
+        "Airflow does not accept byte arrays because they are not JSON values. " +
+          "Encode the bytes as a string first, for example with java.util.Base64.",
+      )
     is String -> packString(data)
     is Map<*, *> -> packMap(data)
     is Collection<*> -> packCollection(data)
