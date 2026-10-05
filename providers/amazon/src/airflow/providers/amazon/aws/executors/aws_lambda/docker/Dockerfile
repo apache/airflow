@@ -43,6 +43,11 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir apache-airflow[amazon,postgres]
 # /tmp is the only writable directory in Lambda, so we need to set the AIRFLOW_HOME there.
 ENV AIRFLOW_HOME=/tmp/airflow
+# Lambda does not set HOME and many third party libraries write caches or downloaded components under
+# the user's home directory, so point it at /tmp as well. Use /tmp itself rather than a subdirectory
+# created here: each execution environment gets a fresh /tmp, so a directory made at build time
+# will not exist at runtime.
+ENV HOME=/tmp
 # Dags are read-only, so they can be stored in opt (or another path provided).
 ARG container_dag_path=/opt/airflow/dags
 ENV AIRFLOW__CORE__DAGS_FOLDER=$container_dag_path

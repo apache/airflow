@@ -96,6 +96,26 @@ Extra (JSON)
     ``autoinstall_extensions=True`` if downloading on demand is acceptable. Loading an extension that
     is already present needs neither setting.
 
+.. warning:: **Installing an extension needs a home directory**
+
+    DuckDB installs extensions under the operating system user's home directory, in
+    ``~/.duckdb/extensions/<duckdb_version>/<platform>/``, so installing one requires the
+    environment to provide a home directory that exists and is writable. When ``HOME`` is unset,
+    empty, or points at a directory that does not exist, the install fails with
+    ``IO Error: Can't find the home directory``.
+
+    Providing a writable home directory is part of configuring the environment, and is the
+    deployment administrator's responsibility. This provider does not invent one, because a
+    directory it picked would be discarded when the task exits and would re-download every
+    extension on the next task.
+
+    Setting ``extension_directory`` is not a reliable substitute. On DuckDB 1.5.0 and later an
+    install still resolves the home directory when ``HOME`` is unset or empty, even with
+    ``extension_directory`` set, so it fails anyway. What does work on every supported DuckDB
+    version is not installing at task runtime at all: pre-populate ``extension_directory`` and set
+    ``autoinstall_extensions=False``. Loading an extension that is already present needs no home
+    directory.
+
 .. warning:: **Extensions are native code**
 
     A DuckDB extension is a shared library loaded into the task process. Community extensions come

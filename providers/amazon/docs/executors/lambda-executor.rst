@@ -168,6 +168,30 @@ needed for your use case.
 It is also possible to build the image based of ``apache/airflow:latest``
  and the Lambda runtime can be included separately (follow steps `here <https://docs.aws.amazon.com/lambda/latest/dg/images-create.html#images-ric>`__).
 
+Writable paths and ``HOME``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A Lambda function's file system is read-only apart from ``/tmp``, which is why the provided
+Dockerfile sets ``AIRFLOW_HOME=/tmp/airflow``. Unless you attach an Amazon EFS file system to the
+function, anything that has to write at runtime has to write under ``/tmp``.
+
+A Lambda function also starts with no ``HOME`` set. Airflow itself does not need one, but third
+party libraries commonly write caches, credentials or downloaded components under the user's home
+directory and fail outright when it is missing. DuckDB is one example: installing an extension
+fails with ``IO Error: Can't find the home directory``. The provided Dockerfile therefore sets
+``HOME=/tmp`` as well.
+
+If you build your own image rather than extending the provided one, set ``HOME`` yourself. Two
+constraints decide where it can point:
+
+-  It has to be writable, which on Lambda means ``/tmp``, a directory below it, or a path on an
+   attached EFS file system.
+-  It has to exist when the function runs. Each execution environment gets a fresh ``/tmp``, so a
+   directory created at image build time will not be there at runtime. ``/tmp`` itself always
+   exists, which is why the provided Dockerfile points ``HOME`` at it rather than at something like
+   ``/tmp/home``. A subdirectory works too, as long as your function code creates it before
+   anything needs it.
+
 
 .. include:: general.rst
   :start-after: .. BEGIN LOADING_DAGS_OVERVIEW
