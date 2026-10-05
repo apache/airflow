@@ -107,6 +107,19 @@ class DepContext:
     fresh empty dict, so they would neither read the memo nor warm it for anything else.
     """
 
+    mapped_group_skip_decisions: dict[tuple[str, str, str | None], dict[int, list[tuple[str, dict]]]] = (
+        attr.ib(factory=dict, repr=False)
+    )
+    """
+    Per-pass memo of the skip decisions recorded by ``SkipMixin`` tasks inside a mapped task group,
+    keyed by ``(dag_id, run_id, group_id)`` and then by map index, so the decisions for every map index
+    of a group are read with one query per pass instead of one per downstream task instance.
+
+    Only decisions of task instances that succeeded in ``finished_tis`` are kept. It is an ``init=True``
+    field for the same reasons as :attr:`upstream_task_id_counts`. Expanding a mapped task mid-pass adds
+    task instances but not skip decisions, so it does not need invalidating.
+    """
+
     def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
         """
         Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
