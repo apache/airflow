@@ -158,10 +158,10 @@
     "empty": "Aucune instance de tâche terminée dans cette période",
     "title": "Instances de tâche les plus lentes"
   },
+  "sortMultiColumnHint": "Maj+clic pour trier par plusieurs colonnes",
   "sortedAscending": "tri croissant",
   "sortedDescending": "tri décroissant",
   "sortedUnsorted": "non trié",
-  "sortMultiColumnHint": "Maj+clic pour trier par plusieurs colonnes",
   "taskTries": "Essais de tâche",
   "taskTryPlaceholder": "Essai de tâche",
   "team": {
@@ -178,6 +178,7 @@
     "dataInterval": "Intervalle de données",
     "dataIntervalAuto": "Déduit de la date logique et du calendrier",
     "dataIntervalManual": "Spécifier manuellement",
+    "editConfigAndTrigger": "Modifier la configuration et déclencher",
     "intervalEnd": "Fin",
     "intervalStart": "Début",
     "loading": "Chargement des informations du Dag...",
@@ -197,7 +198,8 @@
         "title": "Dag déclenché"
       }
     },
-    "triggerAgainWithConfig": "Déclencher à nouveau avec cette configuration"
+    "triggerAgainWithConfig": "Déclencher à nouveau avec cette configuration",
+    "triggerOptions": "Options de déclenchement"
   },
   "trimText": {
     "details": "Détails",

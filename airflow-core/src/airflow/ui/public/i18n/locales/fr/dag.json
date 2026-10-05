@@ -188,11 +188,11 @@
       "direction": "Direction",
       "label": "Filtre",
       "mode": "Mode",
+      "modeTooltip": "Le mode Statique conserve la vue actuelle lors de la navigation vers d'autres tâches, tandis que le mode Parcourir met automatiquement à jour le filtre actif vers la tâche cliquée pour faciliter la traversée du Dag.",
       "modes": {
         "static": "Statique",
         "traverse": "Parcourir"
       },
-      "modeTooltip": "Le mode Statique conserve la vue actuelle lors de la navigation vers d'autres tâches, tandis que le mode Parcourir met automatiquement à jour le filtre actif vers la tâche cliquée pour faciliter la traversée du Dag.",
       "options": {
         "both": "En amont et en aval",
         "downstream": "En aval",

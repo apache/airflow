@@ -176,12 +176,12 @@
   "generateToken": "Générer un jeton",
   "includedIn": "Inclus dans",
   "key": "Clé",
-  "logicalDate": "Date logique",
   "logLevel": {
     "hide": "Masquer les niveaux de journalisation",
     "hotkey": "l",
     "show": "Afficher les niveaux de journalisation"
   },
+  "logicalDate": "Date logique",
   "logout": "Déconnexion",
   "logoutConfirmation": "Vous êtes sur le point de vous déconnecter de l'application.",
   "mapIndex": "Map Index",
@@ -279,8 +279,8 @@
     "roles": "Rôles",
     "users": "Utilisateurs"
   },
-  "selected": "Sélectionné",
   "selectLanguage": "Choisir la langue",
+  "selected": "Sélectionné",
   "settings": {
     "clearing": {
       "keepTaskState": {
