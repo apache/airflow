@@ -355,16 +355,24 @@ class TestTraceContextPropagation:
         [
             pytest.param("unsafe-always", "/health", False, True, 200, id="always-unauthenticated"),
             pytest.param("unsafe-always", "/variables/k", False, True, 401, id="always-auth-failure"),
-            pytest.param("unsafe-always", "/variables/k", True, True, None, id="always-authenticated"),
+            pytest.param("unsafe-always", "/variables/k", True, True, 200, id="always-authenticated"),
             pytest.param("only-authenticated", "/health", False, False, 200, id="onlyauth-unauthenticated"),
             pytest.param("only-authenticated", "/variables/k", False, False, 401, id="onlyauth-auth-failure"),
-            pytest.param("only-authenticated", "/variables/k", True, True, None, id="onlyauth-authenticated"),
+            pytest.param("only-authenticated", "/variables/k", True, True, 200, id="onlyauth-authenticated"),
             pytest.param("never", "/health", False, False, 200, id="never-unauthenticated"),
             pytest.param("never", "/variables/k", False, False, 401, id="never-auth-failure"),
-            pytest.param("never", "/variables/k", True, False, None, id="never-authenticated"),
+            pytest.param("never", "/variables/k", True, False, 200, id="never-authenticated"),
         ],
     )
-    def test_trace_context_extraction(self, mode, path, valid_auth, expect_extract, expect_status):
+    # The bare app's lifespan does not dispose the async engine, so keep the route off the database.
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
+        autospec=True,
+        return_value="value",
+    )
+    def test_trace_context_extraction(
+        self, resolve_variable, mode, path, valid_auth, expect_extract, expect_status
+    ):
         app = self._build_app(mode)
 
         if valid_auth:
@@ -386,8 +394,7 @@ class TestTraceContextPropagation:
             response = test_client.get(path, headers=headers)
 
         assert spy.called is expect_extract
-        if expect_status is not None:
-            assert response.status_code == expect_status
+        assert response.status_code == expect_status
 
     def test_trace_context_dep_cleans_up_on_route_exception(self):
         """Verify extract and cleanup run correctly when a route handler raises."""
@@ -405,7 +412,11 @@ class TestTraceContextPropagation:
         # where AsyncExitStack unwinds the generator in the correct asyncio context.
         with (
             mock.patch.object(otel_propagate, "extract", wraps=real_extract) as extract_spy,
-            mock.patch("airflow.models.variable.Variable.get", side_effect=RuntimeError("boom")),
+            mock.patch(
+                "airflow.api_fastapi.execution_api.routes.variables.resolve_variable",
+                autospec=True,
+                side_effect=RuntimeError("boom"),
+            ),
             TestClient(app, raise_server_exceptions=False) as test_client,
         ):
             response = test_client.get("/variables/k", headers={"Authorization": "Bearer fake"})

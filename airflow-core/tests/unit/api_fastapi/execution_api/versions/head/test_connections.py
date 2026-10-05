@@ -21,8 +21,12 @@ from unittest import mock
 
 import pytest
 from fastapi import FastAPI, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from airflow.api_fastapi.execution_api.security import get_team_name_dep
 from airflow.models.connection import Connection
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -52,6 +56,26 @@ def access_denied(client):
 
 
 class TestGetConnection:
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.connections.resolve_connection",
+        new_callable=mock.AsyncMock,
+    )
+    def test_connection_get_awaits_resolver_with_team_and_session(self, resolve_connection, client, exec_app):
+        exec_app.dependency_overrides[get_team_name_dep] = lambda: "analytics"
+        resolve_connection.return_value = Connection(conn_id="test_conn", conn_type="http")
+
+        try:
+            with conf_vars({("core", "multi_team"): "True"}):
+                response = client.get("/execution/connections/test_conn")
+        finally:
+            exec_app.dependency_overrides.pop(get_team_name_dep)
+
+        assert response.status_code == 200
+        resolve_connection.assert_awaited_once()
+        assert resolve_connection.call_args.args == ("test_conn",)
+        assert resolve_connection.call_args.kwargs["team_name"] == "analytics"
+        assert isinstance(resolve_connection.call_args.kwargs["session"], AsyncSession)
+
     def test_connection_get_from_db(self, client, session):
         connection = Connection(
             conn_id="test_conn",
