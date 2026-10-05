@@ -253,9 +253,9 @@ def _dag_ids(metadata: dict[str, Any]) -> set[str]:
     return set(dags.keys())
 
 
-def _find_executables(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
+def _find_bundle_files(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
     """
-    Yield executable regular files under *items*, descending into directories.
+    Yield regular files under *items*, descending into directories.
 
     A symlink loop or a directory that hardlinks into one of its ancestors
     would otherwise recurse until the interpreter stack is exhausted, so
@@ -263,10 +263,10 @@ def _find_executables(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
     of a single scan.
     """
     seen_dirs: set[tuple[int, int]] = set()
-    yield from _walk_executables(items, seen_dirs)
+    yield from _walk_bundle_files(items, seen_dirs)
 
 
-def _walk_executables(
+def _walk_bundle_files(
     items: Iterable[pathlib.Path], seen_dirs: set[tuple[int, int]]
 ) -> Iterator[pathlib.Path]:
     for item in items:
@@ -284,9 +284,36 @@ def _walk_executables(
                 children = list(item.iterdir())
             except OSError:
                 continue
-            yield from _walk_executables(children, seen_dirs)
-        elif stat.S_ISREG(st.st_mode) and os.access(item, os.X_OK):
+            yield from _walk_bundle_files(children, seen_dirs)
+        elif stat.S_ISREG(st.st_mode):
             yield item
+
+
+def _mark_executable(path: pathlib.Path) -> bool:
+    """
+    Add the execute bit for each read bit already set on *path*, if missing.
+
+    An object-store Dag bundle (for example ``S3DagBundle``) has no concept of
+    file permissions, so a bundle synced from one always loses its execute bit.
+    By the time this is called the file has already passed the footer-magic and
+    binary_sha256 checks in :func:`_read_bundle_metadata`, so marking it
+    executable is safe.
+    """
+    try:
+        mode = path.stat().st_mode
+    except OSError as exc:
+        log.debug("Cannot stat bundle file; skipping", path=str(path), error=str(exc))
+        return False
+
+    wanted = mode | ((mode & 0o444) >> 2)
+    if wanted == mode:
+        return True
+    try:
+        path.chmod(wanted)
+    except OSError as exc:
+        log.debug("Cannot set executable bit on bundle; skipping", path=str(path), error=str(exc))
+        return False
+    return True
 
 
 @attrs.define
@@ -295,10 +322,12 @@ class _Bundle(ResolvedBundle):
     def find(cls, roots: Sequence[pathlib.Path], dag_id: str) -> Self:
         log.debug("Finding executable bundles recursively", roots=roots)
         rejected: list[tuple[pathlib.Path, str]] = []
-        for p in _find_executables(roots):
+        for p in _find_bundle_files(roots):
             if (metadata := _read_bundle_metadata(p)) is None:
                 continue
             if dag_id not in _dag_ids(metadata):
+                continue
+            if not _mark_executable(p):
                 continue
 
             try:
@@ -339,8 +368,10 @@ class ExecutableCoordinator(SubprocessCoordinator):
     :param task_handler_bundle_name: Name of the Dag bundle holding the
         executable bundles a Python stub Dag delegates task execution to. It must
         be registered in ``[dag_processor] dag_bundle_config_list``. If unset,
-        the task's own Dag bundle is used. Only files with the executable bit set
-        are considered.
+        the task's own Dag bundle is used. Bundles are identified by their footer
+        trailer, not by the execute bit; a matching file is marked executable
+        before it is run, so an object-store Dag bundle (which has no concept of
+        file permissions) works too.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """

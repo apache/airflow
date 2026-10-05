@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import socket
 import stat
 import struct
@@ -39,6 +40,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     _BinaryDigestCache,
     _Bundle,
     _digest_cache,
+    _mark_executable,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -194,6 +196,45 @@ class TestBinaryDigestCache:
         assert cache.get(key) is None
 
 
+class TestMarkExecutable:
+    def test_adds_execute_bit_matching_read_bits(self, tmp_path):
+        path = tmp_path / "bundle"
+        path.write_bytes(b"payload")
+        path.chmod(0o644)
+
+        assert _mark_executable(path) is True
+        assert path.stat().st_mode & 0o777 == 0o755
+
+    def test_leaves_mode_unchanged_when_already_executable(self, tmp_path):
+        path = tmp_path / "bundle"
+        path.write_bytes(b"payload")
+        path.chmod(0o755)
+
+        assert _mark_executable(path) is True
+        assert path.stat().st_mode & 0o777 == 0o755
+
+    def test_returns_false_when_path_cannot_be_stat_ed(self, tmp_path):
+        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
+            assert _mark_executable(tmp_path / "missing") is False
+
+        mock_log.debug.assert_called_once_with(
+            "Cannot stat bundle file; skipping", path=mock.ANY, error=mock.ANY
+        )
+
+    def test_returns_false_when_chmod_fails(self, tmp_path):
+        path = tmp_path / "bundle"
+        path.write_bytes(b"payload")
+        path.chmod(0o644)
+
+        with patch.object(Path, "chmod", side_effect=OSError("read-only filesystem")):
+            with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
+                assert _mark_executable(path) is False
+
+        mock_log.debug.assert_called_once_with(
+            "Cannot set executable bit on bundle; skipping", path=str(path), error=mock.ANY
+        )
+
+
 class TestBundleFind:
     def test_finds_matching_dag_id(self, tmp_path):
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag", "other_dag"])
@@ -236,12 +277,24 @@ class TestBundleFind:
         bundle = _Bundle.find([tmp_path], "tutorial_dag")
         assert bundle.path == binary.resolve()
 
-    def test_skips_non_executable_files(self, tmp_path):
+    def test_finds_and_marks_executable_a_non_executable_bundle(self, tmp_path):
+        # An object-store Dag bundle has no concept of file permissions, so a synced
+        # bundle file commonly arrives without its execute bit.
         non_exec = _build_bundle(tmp_path / "non_exec", dag_ids=["tutorial_dag"])
         non_exec.chmod(non_exec.stat().st_mode & ~(stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
-        with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-            _Bundle.find([tmp_path], "tutorial_dag")
+        bundle = _Bundle.find([tmp_path], "tutorial_dag")
+
+        assert bundle.path == non_exec.resolve()
+        assert os.access(non_exec, os.X_OK)
+
+    def test_skips_bundle_when_marking_executable_fails(self, tmp_path):
+        non_exec = _build_bundle(tmp_path / "non_exec", dag_ids=["tutorial_dag"])
+        non_exec.chmod(non_exec.stat().st_mode & ~(stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
+
+        with patch.object(Path, "chmod", side_effect=OSError("read-only filesystem")):
+            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
+                _Bundle.find([tmp_path], "tutorial_dag")
 
     def test_raises_when_not_found(self, tmp_path):
         with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
