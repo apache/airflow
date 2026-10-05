@@ -321,6 +321,7 @@ class LocalExecutor(BaseExecutor):
             removed = self.executor_queues[workload.type].pop(key, None)
             if not removed:
                 raise KeyError(f"Workload {key} was not found in any queue")
+            self.running.add(key)
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()

@@ -107,6 +107,30 @@ class TestLocalExecutor:
 
     TEST_SUCCESS_COMMANDS = 5
 
+    def test_task_coordinates_are_kept_until_dispatched_task_result(self):
+        executor = LocalExecutor(parallelism=1)
+        with mock.patch.object(executor, "_spawn_workers_with_gc_freeze"):
+            executor.start()
+
+        workload = _make_task_workload()
+        key = executor.get_workload_key(workload)
+        try:
+            executor.queue_workload(workload, session=mock.MagicMock(spec=Session))
+            with mock.patch.object(executor, "_check_workers"):
+                executor._process_workloads([workload])
+
+            # The scheduler can drain an empty event buffer after dispatch but before
+            # the worker reports the attempt's final state.
+            executor.get_event_buffer()
+            executor.change_state(key, State.FAILED)
+
+            events, event_coordinates = executor._drain_events_with_task_ids()
+
+            assert events[key] == (State.FAILED, None)
+            assert event_coordinates[key] == workload.ti.key
+        finally:
+            executor.end()
+
     def test_sentry_integration(self):
         assert not LocalExecutor.sentry_integration
 
