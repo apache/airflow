@@ -131,6 +131,17 @@
     "hide": "Wert ausblenden",
     "show": "Wert anzeigen"
   },
+  "pausedDag": {
+    "drain": "Auslaufend",
+    "drainDescription": "nicht beendete laufen weiter, aber keine geplanten Läufe werden erstellt. Pausierte bleiben pausiert. Das Dag pausiert wieder sobald alle Läufe komplett sind.",
+    "keepPaused": "Pausiert lassen",
+    "keepPausedDescription": "Neue und nicht beendete Läufe warten bis die Dag pause beendet ist.",
+    "title": "Dag ist pausiert",
+    "unfinishedRunsWillRun_one": "{{count}} offener Dag Lauf wird starten oder weiterlaufen.",
+    "unfinishedRunsWillRun_other": "{{count}} offene Dag Läufe werden starten oder weiterlaufen.",
+    "unpause": "Unpausieren",
+    "unpauseDescription": "Das Dag wird aktiv: nicht komplettierte Läufe starten wieder und die Planung wird aufgenommen. Pausierte Auffüllungen bleiben pausiert."
+  },
   "reparseDag": "Dag neu parsen",
   "slowestTaskInstances": {
     "empty": "Keine abgeschlossenen Task Instanzen in diesem Bereich",
@@ -192,6 +203,7 @@
   "versionSelect": {
     "allVersions": "Alle Versionen",
     "dagVersion": "Dag Version",
+    "placeholder": "Version wählen",
     "versionCode": "v{{versionCode}}"
   }
 }

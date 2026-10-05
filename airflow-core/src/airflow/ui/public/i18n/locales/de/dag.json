@@ -225,6 +225,7 @@
     "taskInstances": "Task Instanzen",
     "taskStateStore": "Task Status Zwischenspeicher",
     "tasks": "Tasks",
+    "versions": "Versionen",
     "xcom": "Task Kommunikation (XComs)"
   },
   "taskGroups": {
@@ -252,5 +253,67 @@
       "never": "Nie"
     },
     "title": "Task Status Zwischenspeicher"
+  },
+  "versions": {
+    "aboutThisComparison": "Über diesen Vergleich",
+    "base": "Vergleichen von",
+    "categories": {
+      "asset": "Datensatz (Asset)",
+      "authorization": "Autorisierung",
+      "callback": "Callback",
+      "deadline": "Termin",
+      "dependency": "Abhängigkeit",
+      "metadata": "Metadaten",
+      "param": "Parameter",
+      "provenance": "Ursprung",
+      "schedule": "Zeitplan",
+      "task": "Aufgabe",
+      "unknown": "Unbekannt"
+    },
+    "codeAccess": "Werte erfordern Zugriff auf Dag Source Code",
+    "columns": {
+      "after": "Nach",
+      "before": "Vor",
+      "category": "Kategorie",
+      "impact": "Auswirkung",
+      "occurrences": "Auftritte",
+      "operation": "Einsatz",
+      "path": "Pfad"
+    },
+    "heading": "Version {{base}} → Version {{target}}",
+    "impacts": {
+      "authorization": "Autorisierung",
+      "execution": "Ausführung",
+      "metadata": "Meta Daten",
+      "provenance": "Ursprung",
+      "unknown": "Unbekannt"
+    },
+    "maxChanges": "Maximale Änderungen",
+    "maxChangesDefault": "Standard",
+    "noChanges": "Diese Versionen halten den gleichen Status.",
+    "observedState": "Beachteter Status",
+    "observedStateBoundary": "Vergleicht aktuell gespeichterten Status, nicht zur Erstellzeit. Quellcodevergleich ist nicht verfügbar für alte Versionen; Code-Tab nutzen um quellen zu vergleichen.",
+    "operations": {
+      "added": "Hinzugefügt",
+      "changed": "Geändert",
+      "removed": "Entfernt"
+    },
+    "record_one": "Datensatz",
+    "record_other": "Datensatz",
+    "selectPrompt": "Zwei Verssionen Auswählen um Änderungen zwischen diesen zu sehen.",
+    "summary_one": "{{count}} Änderung · Serialisiertes Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count}} Änderungen · Serialisiertes Schema {{baseSchema}} → {{targetSchema}}",
+    "target": "Vergleichen zu",
+    "truncated": {
+      "description": "Änderungen an Pfaden werden nicht gezeigt um das Limit zu halten, die Anzahl ist das untere Ende.",
+      "title": "Einige Änderungen wurden nicht zurück gegeben"
+    },
+    "unavailable": {
+      "description": "Diese Versionen können nicht verglichen werden. Grund:",
+      "title": "Vergleich nicht Verfügbar",
+      "withoutReason": "Diese Versionen können nicht verglichen werden."
+    },
+    "valuesHidden": "Werte verstecken",
+    "valuesShown": "Werte anzeigen"
   }
 }
