@@ -73,6 +73,7 @@ dependencies = [
     "azure-keyvault-secrets>=4.10.0",
     "azure-mgmt-datalake-store>=0.5.0",
     "azure-mgmt-resource>=25.0.0",
+    "azure-search-documents>=11.6.0",
     "azure-storage-blob>=12.28.0",
     "azure-mgmt-storage>=24.0.1",
     "azure-storage-file-share>=12.24.0",
