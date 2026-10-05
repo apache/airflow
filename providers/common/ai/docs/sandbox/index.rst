@@ -55,8 +55,9 @@ model a disposable workspace for that code instead. It exposes four tools:
 
 The sandbox is provisioned by a
 :class:`~airflow.providers.common.ai.sandbox.SandboxBackend` on the model's first
-tool call and torn down when the agent run ends. Three backends ship: a hosted one on
-`Modal <https://modal.com/docs/guide/sandbox>`__ and a self-hosted one on
+tool call and torn down when the agent run ends. Four backends ship: hosted ones on
+`Modal <https://modal.com/docs/guide/sandbox>`__ and
+`Boat <https://docs.boat.dev/quickstart>`__ and a self-hosted one on
 `OpenSandbox <https://open-sandbox.ai/>`__ for production and Kubernetes, and a local
 microVM one on `Docker Sandboxes <https://docs.docker.com/ai/sandboxes/>`__ for
 development. The four tool names and shapes match pydantic-ai's own sandbox
@@ -286,9 +287,14 @@ sandbox, and every other toolset stays on the worker.
        Kubernetes.
      - Your OpenSandbox server's Docker host or Kubernetes cluster, off the worker.
      - Ended by the OpenSandbox server at ``sandbox_timeout``.
+   * - ``BoatSandboxBackend``
+     - A full Linux VM that Boat provisions per sandbox.
+     - Boat's infrastructure, off the worker.
+     - Archived by Boat at ``ttl_seconds``; an archived sandbox keeps its snapshot
+       until an operator deletes it.
 
 When a run ends normally, the task calls the backend's ``destroy``. ``sbx`` runs its
-removal command and waits up to two minutes for it; Modal and OpenSandbox each send a
+removal command and waits up to two minutes for it; Modal, OpenSandbox and Boat each send a
 termination request and return without waiting for the sandbox to stop. Any of them
 can return with the sandbox still present, and none of those cases fails the task. A SIGKILL, an
 out-of-memory kill or a lost node skips that teardown entirely, and then only the
@@ -368,18 +374,20 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
 
 **What it cannot do**
 
-- One of its three backends does not run on Kubernetes. ``SbxSandboxBackend`` drives
+- One of its four backends does not run on Kubernetes. ``SbxSandboxBackend`` drives
   Docker Sandboxes on the worker host, and its own documentation says to use it
   for local development: it wants the ``sbx`` binary on the host, an
   authenticated Docker account, a one-time ``sbx policy init``, and on Linux KVM
   or nested virtualization, which an unprivileged container cannot provide.
   Production and Kubernetes use a remote backend instead, either
   :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` behind
-  the ``modal`` extra for a managed service, or
+  the ``modal`` extra or
+  :class:`~airflow.providers.common.ai.sandbox.boat.BoatSandboxBackend` behind
+  ``boat`` for a managed service, or
   :class:`~airflow.providers.common.ai.sandbox.opensandbox.OpenSandboxBackend`
-  behind ``opensandbox`` for a self-hosted one. Neither installs anything on the
-  worker, and each reclaims a sandbox at its own server-side lifetime if the
-  worker dies. All three implement
+  behind ``opensandbox`` for a self-hosted one. None of them installs anything on
+  the worker, and each reclaims a sandbox at its own server-side lifetime if the
+  worker dies. All four implement
   :class:`~airflow.providers.common.ai.sandbox.SandboxBackend`, and another
   vendor can too.
 - It does not contain the agent. Only what these tools do runs in the sandbox;
@@ -401,7 +409,10 @@ within reach whether or not code mode is on. See :ref:`code-mode` and
   opted into, for the reasons set out on :doc:`backends`. OpenSandbox enforces
   hostname allowlists with its egress sidecar, but refuses
   ``allow_egress_to_cidrs`` because the SDK cannot prove the sidecar is in the
-  ``dns+nft`` mode required for CIDR enforcement.
+  ``dns+nft`` mode required for CIDR enforcement. Boat cannot restrict egress at
+  all, so it refuses every network restriction, including the default
+  ``block_network=True``: pass ``SandboxSpec(block_network=False)`` to accept open
+  egress there.
 - Reclamation depends on the backend. A failed teardown is logged as a warning
   rather than raised, deliberately, so that a teardown blip cannot fail a
   finished run. On ``sbx`` nothing else picks up the slack: there is no

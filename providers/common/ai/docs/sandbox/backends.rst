@@ -240,6 +240,60 @@ The runtime remains a deployment choice. The default Docker runtime shares the
 host kernel; choose a stronger runtime such as Kata when your threat model needs
 a VM boundary.
 
+.. _sandbox-backend-boat:
+
+Boat (hosted)
+-------------
+
+:class:`~airflow.providers.common.ai.sandbox.boat.BoatSandboxBackend` runs each
+sandbox on `Boat <https://docs.boat.dev/quickstart>`__, the hosted cloud-computer
+API formerly called Ascii Box. The Airflow worker needs only network access and
+an API key: no local daemon, Docker socket, KVM or nested virtualization, so it
+runs from a containerized worker and on Kubernetes.
+
+Install the SDK extra:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[boat]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import BoatSandboxBackend, SandboxSpec
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(
+        BoatSandboxBackend(),
+        spec=SandboxSpec(block_network=False),
+    )
+
+Credentials are ambient, the same way Modal's are. On first use the backend
+reads ``BOAT_API_KEY`` (required) and optional ``BOAT_BASE_URL`` from the worker
+environment. A connection type waits for a Boat provider.
+
+Constructor parameters:
+
+- ``machine_type``: ``"small"``, ``"default"`` or ``"large"``.
+- ``ttl_seconds``: server-side archive TTL. Default ``3600``.
+- ``ready_timeout``: provisioning deadline. Default ``300``.
+- ``request_timeout``: HTTP request timeout in seconds. Default ``30``.
+- ``no_env``: withhold account-stored secrets. Default ``True``.
+
+``SandboxSpec.env`` is passed when the sandbox is created. **Boat cannot enforce
+a deny-all network policy, a per-domain egress allowlist, or a CIDR egress
+allowlist**, so the backend refuses ``block_network=True``, ``allow_egress_to``,
+and ``allow_egress_to_cidrs`` rather than silently provisioning something weaker
+than the spec asked for. Since ``block_network`` defaults to ``True``, that
+includes a bare ``SandboxSpec()``: pass ``SandboxSpec(block_network=False)`` to
+state that open egress is acceptable, or use Modal when it is not.
+
+Writes use Boat's native file API. Reads deliberately keep the inherited bounded
+shell implementation, so ``max_bytes`` is enforced inside the guest before file
+contents reach worker memory. Command timeouts are capped at 600 seconds; a
+sandbox whose command times out, or that never becomes ready, is torn down
+immediately. If the worker dies first, the server-side TTL archives the sandbox
+rather than deleting it, preserving its snapshot until an operator removes it.
+
 sbx (Docker Sandboxes, local)
 -----------------------------
 
@@ -291,24 +345,27 @@ do not change. Four behaviours do, so read them before assuming the same Dag
 behaves identically everywhere:
 
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
-  0.125 of one, so set ``cpu``; OpenSandbox takes ``cpu`` as a limit the server enforces.
+  0.125 of one, so set ``cpu``; OpenSandbox takes ``cpu`` as a limit the server enforces;
+  Boat sizes by ``machine_type``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
   into; OpenSandbox enforces it in an egress sidecar, and the backend reads the
   enforced policy back rather than trusting the create request. ``allow_egress_to_cidrs``
   is enforced at the address layer on Modal, refused on ``sbx``, and refused by
   OpenSandbox because its SDK cannot prove that the sidecar is running in the
-  ``dns+nft`` mode required for CIDR enforcement.
-- **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files;
+  ``dns+nft`` mode required for CIDR enforcement. Boat has no form of egress control
+  at all and refuses every network restriction rather than provisioning something
+  weaker.
+- **Command timeouts.** A timeout destroys an ``sbx`` or Boat sandbox and its files;
   Modal and a server-enforced OpenSandbox timeout preserve the sandbox and files.
   OpenSandbox destroys it only if the command event stream itself stalls past the
   client-side grace period.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  replaces it on Modal and OpenSandbox.
+  replaces it on Modal, OpenSandbox and Boat.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an
   agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
-  that created it and cannot be reached from another task, and OpenSandbox has no
-  per-sandbox metadata the ownership rules could be kept in, so both refuse
+  that created it and cannot be reached from another task, and OpenSandbox and Boat
+  have no per-sandbox metadata the ownership rules could be kept in, so all three refuse
   ``SandboxSpec.owner`` and the toolset refuses ``attach_to`` for them.
 
 .. _sandbox-byo:
