@@ -485,6 +485,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         return AwsTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=awslog_info["awslogs_region"],
+            verify=self.verify,
+            botocore_config=self.botocore_config,
             log_group=awslog_info["awslogs_group"],
             log_stream_name=awslog_info["awslogs_stream_name"],
             fetch_interval=self.awslogs_fetch_interval,

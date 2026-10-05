@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+.. warning::
+  ``EcsRunTaskOperator`` and ``BatchOperator`` now pass ``verify`` and ``botocore_config`` to the
+  CloudWatch client that streams task logs, which previously used boto3 defaults. A deployment that
+  sets an aggressive ``botocore_config`` timeout for the task client will now apply it to log
+  streaming as well, and one that points ``verify`` at a private CA bundle will now use it there
+  too. ``EcsRunTaskOperator`` already honoured both settings when reading the final log line, so
+  this makes the two log paths agree.
+
 9.37.0
 ......
 
