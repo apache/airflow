@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import os
 import pathlib
+import signal
 import socket
 import subprocess
 import sys
@@ -39,6 +40,7 @@ from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
     _accept_connections,
     _connection_owned_by_process_tree,
+    _is_connection_from_pid,
     _is_connection_from_process,
     _PopenActivitySubprocess,
     _ResourceTracker,
@@ -494,13 +496,22 @@ class TestConnectionFromProcess:
             )
 
     def test_owned_by_tree_returns_false_when_process_gone(self):
-        mock_proc = MagicMock(spec=subprocess.Popen)
-        mock_proc.pid = 999999
         with patch(
             "airflow.sdk.coordinators._subprocess.psutil.Process",
             side_effect=psutil.NoSuchProcess(999999),
         ):
-            assert _connection_owned_by_process_tree(("127.0.0.1", 1), ("127.0.0.1", 2), mock_proc) is False
+            assert _connection_owned_by_process_tree(("127.0.0.1", 1), ("127.0.0.1", 2), 999999) is False
+
+    @pytest.mark.parametrize("owned", [True, False])
+    @patch("airflow.sdk.coordinators._subprocess._connection_owned_by_process_tree", autospec=True)
+    def test_is_connection_from_pid_checks_once(self, mock_owned, owned):
+        conn = MagicMock(spec=socket.socket)
+        conn.getpeername.return_value = ("127.0.0.1", 5000)
+        conn.getsockname.return_value = ("127.0.0.1", 6000)
+        mock_owned.return_value = owned
+
+        assert _is_connection_from_pid(conn, 999) is owned
+        mock_owned.assert_called_once_with(("127.0.0.1", 5000), ("127.0.0.1", 6000), 999)
 
 
 class TestResourceTracker:
@@ -848,6 +859,40 @@ class TestPopenActivitySubprocessStart:
         env = popen_mock.call_args.kwargs["env"]
         assert env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] == ""
 
+    @pytest.mark.parametrize(
+        ("config", "expected"),
+        [
+            pytest.param(
+                {("api", "base_url"): None},
+                {
+                    "AIRFLOW__API__BASE_URL": "/",
+                    "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": "False",
+                    "AIRFLOW__TRIGGERER__QUEUES_ENABLED": "False",
+                },
+                id="defaults",
+            ),
+            pytest.param(
+                {
+                    ("api", "base_url"): "https://airflow.example.com/sub/",
+                    ("operators", "default_deferrable"): "true",
+                    ("triggerer", "queues_enabled"): "1",
+                },
+                {
+                    "AIRFLOW__API__BASE_URL": "https://airflow.example.com/sub/",
+                    "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": "True",
+                    "AIRFLOW__TRIGGERER__QUEUES_ENABLED": "True",
+                },
+                id="set",
+            ),
+        ],
+    )
+    def test_resolved_options_passed_to_subprocess_env(self, mock_client, config, expected):
+        """The runtime gets the options as Python reads them, and each boolean as True or False."""
+        with conf_vars(config):
+            _, popen_mock, _ = self._start_with_mocks(mock_client, command=["/bin/true"])
+        env = popen_mock.call_args.kwargs["env"]
+        assert {key: env[key] for key in expected} == expected
+
     def test_register_pipe_readers_called_with_four_sockets(self, mock_client):
         """Both socketpair read-ends and both TCP sockets must be registered, with a data kwarg."""
         with (
@@ -1020,3 +1065,67 @@ class TestGetScanRoots:
                     client=mock_client,
                     subprocess_logs_to_stdout=False,
                 )
+
+
+@attrs.define(kw_only=True)
+class _ParsingCoordinator(_StubSubprocessCoordinator):
+    def _build_parse_dag_command(self, *, path):
+        self.recorded_roots.append(list(self._get_scan_roots()))
+        return [*self.command, os.fspath(path)], self.schema_version
+
+
+class TestParseDag:
+    def test_build_parse_dag_command_default_raises(self, tmp_path):
+        with pytest.raises(NotImplementedError):
+            _StubSubprocessCoordinator(command=["x"])._build_parse_dag_command(path=tmp_path / "dag.native")
+
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch(
+        "airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec failed")
+    )
+    def test_resolves_the_command_under_the_bundle_root_then_execs_it(
+        self, mock_execvpe, mock_signal, tmp_path
+    ):
+        coordinator = _ParsingCoordinator(command=["runtime"], schema_version="2026-06-16")
+        reported: list[str | None] = []
+
+        with pytest.raises(OSError, match="exec failed"):
+            coordinator.parse_dag(
+                path=tmp_path / "dag.native",
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=reported.append,
+            )
+
+        assert coordinator.recorded_roots == [[tmp_path]]
+        assert coordinator._active_scan_roots is None
+        assert reported == ["2026-06-16"]
+        argv = [
+            "runtime",
+            os.fspath(tmp_path / "dag.native"),
+            "--comm=127.0.0.1:1001",
+            "--logs=127.0.0.1:1002",
+        ]
+        mock_execvpe.assert_called_once_with("runtime", argv, ANY)
+        assert "AIRFLOW__LOGGING__LOGGING_LEVEL" in mock_execvpe.call_args.args[2]
+        restored = {c.args[0] for c in mock_signal.call_args_list if c.args[1] == signal.SIG_DFL}
+        assert {signal.SIGPIPE, signal.SIGXFSZ} <= restored
+
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
+    def test_rejects_an_unknown_schema_version_before_reporting(self, mock_execvpe, mock_signal, tmp_path):
+        coordinator = _ParsingCoordinator(command=["runtime"], schema_version="1999-01-01")
+        reported: list[str | None] = []
+
+        with pytest.raises(ValueError, match="'1999-01-01' not found"):
+            coordinator.parse_dag(
+                path=tmp_path / "dag.native",
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=reported.append,
+            )
+
+        assert reported == []
+        mock_execvpe.assert_not_called()

@@ -516,3 +516,62 @@ func TestCoordinatorClientSkipDownstreamTasks(t *testing.T) {
 		})
 	}
 }
+
+// TestCoordinatorClientDeleteXCom verifies the DeleteXCom frame sent to the supervisor, and that
+// deleteXCom returns a supervisor ErrorResponse as an error. Like PushXCom, it leaves map_index out
+// for an unmapped task instance and sends index 0.
+func TestCoordinatorClientDeleteXCom(t *testing.T) {
+	tests := []struct {
+		name         string
+		mapIndex     *int
+		errBody      map[string]any
+		wantMapIndex any
+	}{
+		{name: "nil map_index is omitted"},
+		{name: "-1 map_index is omitted", mapIndex: ptr(-1)},
+		{name: "map_index 0 is sent", mapIndex: ptr(0), wantMapIndex: int8(0)},
+		{name: "map_index 3 is sent", mapIndex: ptr(3), wantMapIndex: int8(3)},
+		{
+			name: "supervisor error",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 500},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, encodeResponseFrame(t, 0, nil, tc.errBody)))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(NewCoordinatorComm(&responseBuf, &requestBuf, logger))
+
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t", MapIndex: tc.mapIndex}
+			err := client.deleteXCom(context.Background(), ti, "skipmixin_key")
+			if tc.errBody != nil {
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			want := map[string]any{
+				"type":    "DeleteXCom",
+				"dag_id":  "d",
+				"run_id":  "r",
+				"task_id": "t",
+				"key":     "skipmixin_key",
+			}
+			if tc.wantMapIndex != nil {
+				want["map_index"] = tc.wantMapIndex
+			}
+			assert.Equal(t, want, rawToMap(t, sent.Body))
+		})
+	}
+}
