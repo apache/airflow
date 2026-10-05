@@ -222,6 +222,18 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs.task_log_fetcher.stop.assert_called_once_with()
         client_mock.assert_not_called()
 
+    @pytest.mark.parametrize("missing", ["client", "arn"], ids=["missing-client", "missing-arn"])
+    @mock.patch.object(EcsBaseOperator, "client", new_callable=PropertyMock)
+    def test_on_kill_stops_log_fetcher_without_ecs_task_details(self, client_mock, missing):
+        client_mock.return_value = None if missing == "client" else self.client
+        self.ecs.arn = None if missing == "arn" else f"arn:aws:ecs:eu-west-3:012345678910:task/{TASK_ID}"
+        self.ecs.task_log_fetcher = mock.Mock(spec=AwsTaskLogFetcher)
+
+        with Stubber(self.client):
+            self.ecs.on_kill()
+
+        self.ecs.task_log_fetcher.stop.assert_called_once_with()
+
     def test_get_task_log_fetcher_uses_region_name_when_awslogs_region_not_set(self):
         self.set_up_operator(
             awslogs_group="awslogs-group", awslogs_stream_prefix="prefix", region_name="region"

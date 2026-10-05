@@ -819,13 +819,13 @@ class EcsRunTaskOperator(EcsBaseOperator):
                     )
 
     def on_kill(self) -> None:
-        if self.stop_task_on_kill and (not self.client or not self.arn):
-            return
-
         if self.task_log_fetcher:
             self.task_log_fetcher.stop()
 
         if not self.stop_task_on_kill:
+            return
+
+        if not self.client or not self.arn:
             return
 
         response = self.client.stop_task(
