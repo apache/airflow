@@ -93,20 +93,36 @@ Now `cd example` into the example project, and
 
 * Put the [DAG with stub tasks](./example/src/resources/dags) to somewhere Airflow can find.
 
-* Ensure the `java` command is available in the same environment the Airflow
-  task worker is in.
+* Ensure the `java` command is available in the same environments the Airflow
+  task worker and the Dag processor are in.
 
-* Configure Airflow to route tasks in the *java* queue to be run with Java:
+* Register the packaged example as a Dag bundle, and configure Airflow to route tasks in the *java*
+  queue to be run with Java from it:
 
   ```bash
+  export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+    {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+    {
+      "name": "java-task-handlers",
+      "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+      "kwargs": {"path": "/opt/airflow/java-sdk/example/build/bundle"}
+    }
+  ]'
   export AIRFLOW__SDK__COORDINATORS='{
     "java": {
       "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-      "kwargs": {"jars_root": ["/opt/airflow/java-sdk/example/build/bundle"]}
+      "kwargs": {"task_handler_bundle_name": "java-task-handlers"}
     }
   }'
   export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"java": "java"}'
   ```
+
+  Set these, and make the bundle directory available, for the Dag processor
+  as well as the worker: the Dag processor checks the stub tasks against the
+  task handlers the JARs register. The API server does not need them.
+  `task_handler_bundle_name` is used only by mixed-language Dags, to locate
+  the task handlers for the `@task.stub` tasks of a Python Dag; Dags defined
+  natively in a language SDK do not use it.
 
 * Ensure the Connection and Variable needed by the example DAG are available:
 
@@ -644,9 +660,9 @@ where Airflow can find it.
 When the Airflow supervisor identifies that a task should run with Java, it
 launches the JVM application as a subprocess. The flow is:
 
-1. `JavaCoordinator.execute_task()` (Python) scans `jars_root`, builds the
-   classpath, and spawns `java -cp <jars> <MainClass> --comm=<host>:<port>
-   --logs=<host>:<port>`.
+1. `JavaCoordinator.execute_task()` (Python) scans the Dag bundle named by
+   `task_handler_bundle_name`, builds the classpath, and spawns
+   `java -cp <jars> <MainClass> --comm=<host>:<port> --logs=<host>:<port>`.
 2. `Server.kt` connects to both sockets immediately on startup.
 3. The supervisor sends a `StartupDetails` MessagePack message; the JVM reads
    it, looks up the matching task by `dag_id` + `task_id`, and calls the

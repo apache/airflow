@@ -19,10 +19,9 @@
 
 from __future__ import annotations
 
-import os
 import pathlib
 import stat
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any
 
 import attrs
 import structlog
@@ -36,24 +35,6 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators")
-
-
-class _UnsetArtifactRoots:
-    """Sentinel distinguishing an omitted artifact-roots option from an empty value."""
-
-
-ARTIFACT_ROOTS_NOT_CONFIGURED: Final = _UnsetArtifactRoots()
-
-
-def convert_roots(
-    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    """Normalize a coordinator's root-directories kwarg into a list of expanded paths."""
-    if value is None:
-        return []
-    if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value).expanduser()]
-    return [pathlib.Path(v).expanduser() for v in value]
 
 
 def walk_files(
@@ -101,30 +82,6 @@ def _sorted_children(directory: pathlib.Path) -> list[pathlib.Path]:
         return sorted(directory.iterdir())
     except OSError:
         return []
-
-
-def convert_configured_roots(
-    value: _UnsetArtifactRoots
-    | None
-    | os.PathLike[str]
-    | pathlib.Path
-    | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    """Normalize configured roots while rejecting explicitly empty values."""
-    if isinstance(value, _UnsetArtifactRoots):
-        return []
-    if isinstance(value, (str, os.PathLike)):
-        values = [value]
-    elif value:
-        values = value
-    else:
-        values = []
-    if not values or any(not os.fspath(v).strip() for v in values):
-        raise ValueError(
-            "Artifact roots must contain at least one path when provided, and each path must be non-empty; "
-            "omit the option to use the task's Dag bundle."
-        )
-    return convert_roots(values)
 
 
 def validate_schema_version(instance, _, value) -> str:
