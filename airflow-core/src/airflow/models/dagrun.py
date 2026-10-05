@@ -1272,15 +1272,12 @@ class DagRun(Base, LoggingMixin):
 
             @property
             def should_schedule(self) -> bool:
+                # max_active_tis_per_dag and max_active_tis_per_dagrun are not dependencies here, so a
+                # task waiting on one still counts as runnable. Excluding those tasks skipped deadlock
+                # detection for the whole run, including when a deleted task instance can never be created.
                 return (
                     bool(self.tis)
                     and all(not getattr(t.task, "depends_on_past", False) for t in self.tis if t.task)
-                    and all(
-                        getattr(t.task, "max_active_tis_per_dag", None) is None for t in self.tis if t.task
-                    )
-                    and all(
-                        getattr(t.task, "max_active_tis_per_dagrun", None) is None for t in self.tis if t.task
-                    )
                     and all(
                         t.state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)
                         for t in self.tis
