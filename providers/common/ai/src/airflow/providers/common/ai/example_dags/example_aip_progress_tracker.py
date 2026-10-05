@@ -177,6 +177,33 @@ AIP_REGISTRY: dict[int, dict] = {
             "java-sdk",
         ],
     },
+    85: {
+        "page_id": "315494137",
+        "topic": "Dag Importer (native Dag parsing for Lang-SDK languages)",
+        "search_terms": [
+            "Dag importer",
+            "native Dag",
+            "NodeDagImporter",
+            "JavaDagImporter",
+            "lang_sdk_processor",
+            "CoordinatorDagImporter",
+            "importer registry",
+            "DagDef",
+        ],
+        "codebase_paths": [
+            "airflow-core/src/airflow/dag_processing/lang_sdk_processor.py",
+            "airflow-core/src/airflow/dag_processing/importer_routing.py",
+            "task-sdk/src/airflow/sdk/coordinators/_dag_importer.py",
+            "task-sdk/src/airflow/sdk/coordinators/node",
+            "task-sdk/src/airflow/sdk/coordinators/java",
+            "task-sdk/src/airflow/sdk/importers/base.py",
+            "airflow-core/adr/lang-sdk/0010-native-dag-processing.md",
+            "kubernetes-tests/lang_sdk",
+            "ts-sdk/src/sdk",
+            "go-sdk/airflow",
+            "java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk",
+        ],
+    },
 }
 # [END aip_registry]
 
