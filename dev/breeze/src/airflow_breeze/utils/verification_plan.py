@@ -93,8 +93,8 @@ NOT_RUNNABLE_LOCALLY: frozenset[str] = frozenset(
 )
 
 # Gated CI jobs that run a prek hook a default `prek install` never triggers (the hooks are
-# manual or pre-push stage), mapped to that hook. They are not plan items; the hooks are
-# reported separately so the user can run them with `--stage manual`.
+# manual or pre-push stage), mapped to that hook. They are not plan items; breeze verify lists
+# the hooks separately and runs them with `--stage manual` after the plan items.
 PREK_JOBS: dict[str, str] = {
     "run_mypy_providers": "mypy-providers",
     "has_migrations": "migration-round-trip",
