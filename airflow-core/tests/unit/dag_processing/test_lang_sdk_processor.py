@@ -613,6 +613,19 @@ def test_an_invalid_message_after_the_parse_result_keeps_it(mock_send_msg, mock_
 
 
 @patch.object(LangSDKDagFileProcessorProcess, "send_msg", autospec=True)
+def test_a_runtime_that_dies_before_its_parse_request_is_sent_is_not_fatal(mock_send_msg):
+    mock_send_msg.side_effect = BrokenPipeError
+    proc = _make_process()
+    runtime, conn = socket.socketpair()
+    with runtime:
+        proc._register_comm(conn)
+
+    proc.selector.unregister.assert_called_once_with(conn)
+    assert conn not in proc._open_sockets
+    assert conn.fileno() == -1
+
+
+@patch.object(LangSDKDagFileProcessorProcess, "send_msg", autospec=True)
 def test_the_schema_version_is_reported_once(mock_send_msg):
     proc = _make_process()
 

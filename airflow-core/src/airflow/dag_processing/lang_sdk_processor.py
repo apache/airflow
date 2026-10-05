@@ -296,7 +296,13 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         # The parse child reports the version and waits for the reply before it execs the runtime,
         # so the version is known here. It is set only now, so the child's messages are not migrated.
         self._subprocess_schema_version = self._runtime_schema_version
-        self.send_msg(self._parse_request, request_id=0)
+        try:
+            self.send_msg(self._parse_request, request_id=0)
+        except (BrokenPipeError, ConnectionResetError):
+            # The runtime can die after connecting but before this send; `_check_subprocess_exit`
+            # reports why on the next `is_ready` poll, once the process has actually exited.
+            self._on_socket_closed(conn)
+            conn.close()
 
     def _handle_valid_requests(self) -> Generator[None, _RequestFrame, None]:
         """
