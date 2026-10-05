@@ -69,6 +69,8 @@ repos:
         require_serial: true
       - id: check-ts-sdk-serialization-conformance
         name: Check the TS SDK serializes Dags the way Airflow does
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: "Serialize the shared test Dags with the TS SDK and with Airflow, and compare the two"
         entry: ./scripts/ci/prek/check_serialization_conformance.py
         language: node

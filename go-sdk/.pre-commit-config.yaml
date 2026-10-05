@@ -80,6 +80,8 @@ repos:
         language: golang
       - id: staticcheck
         name: Check naming in Go code
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: staticcheck -checks ST1003 ./...
         additional_dependencies: [honnef.co/go/tools/cmd/staticcheck@v0.7.0]
         types: [go]

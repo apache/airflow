@@ -199,6 +199,8 @@ repos:
           ^tests/unit/utils/test_serve_logs\.py$
       - id: check-openapi-exception-doc-in-sync
         name: Check API routes declare the HTTP statuses they raise
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_openapi_exception_doc_in_sync.py
         language: python
         pass_filenames: true
