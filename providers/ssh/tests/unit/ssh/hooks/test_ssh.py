@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import random
 import string
 import textwrap
@@ -953,11 +955,12 @@ class TestSSHHook:
         mock_client = mock.MagicMock(spec=paramiko.SSHClient)
         mock_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
 
-        def fake_select(rlist, wlist, xlist, timeout=None):
-            assert timeout == pytest.approx(0.001), f"Expected cmd_timeout passed to select, got {timeout}"
-            return [], [], []
+        def fake_select(timeout=None):
+            assert timeout == pytest.approx(0.001), f"Expected cmd_timeout passed to selector, got {timeout}"
+            return []
 
-        with mock.patch("airflow.providers.ssh.hooks.ssh.select", side_effect=fake_select):
+        with mock.patch("airflow.providers.ssh.hooks.ssh.selectors.DefaultSelector") as mock_selector_cls:
+            mock_selector_cls.return_value.select.side_effect = fake_select
             with pytest.raises(AirflowException, match="SSH command timed out"):
                 hook.exec_ssh_client_command(mock_client, "sleep 1", False, None)
 
@@ -970,6 +973,89 @@ class TestSSHHook:
         assert mock.call() in mock_channel.close.call_args_list
         assert mock.call() in mock_stdout.close.call_args_list
         assert mock.call() in mock_stderr.close.call_args_list
+
+    def test_exec_ssh_client_command_high_fd_number(self):
+        """
+        Regression test for the FD_SETSIZE ceiling (GH-74205).
+
+        When the SSH channel's file-descriptor number is >= 1024, the previous
+        select.select()-based read loop raised
+        "ValueError: filedescriptor out of range in select()". The selectors
+        (epoll/poll) based loop has no such ceiling, so the command must read
+        and complete normally even at a high fd number.
+        """
+        hook = SSHHook(
+            ssh_conn_id="ssh_default",
+            conn_timeout=30,
+            banner_timeout=100,
+        )
+
+        # Create a real high-numbered, readable fd for the selector to register.
+        r, w = os.pipe()
+        high_fd = 1100
+        try:
+            os.dup2(r, high_fd)
+            os.close(r)
+            r = high_fd
+        except OSError:
+            os.close(r)
+            os.close(w)
+            pytest.skip("cannot allocate a high-numbered fd on this platform")
+
+        try:
+            os.write(w, b"x")  # make the fd readable so the selector returns it
+
+            # Scripted channel that returns output across two reads, then exits.
+            state = {"stdout": [b"first\n", b"second\n"], "exit": None}
+
+            mock_channel = mock.MagicMock(spec=paramiko.Channel)
+            type(mock_channel).closed = mock.PropertyMock(
+                side_effect=lambda: not state["stdout"] and state["exit"] is not None
+            )
+            mock_channel.fileno.return_value = r
+
+            def recv_ready():
+                return bool(state["stdout"])
+
+            def recv(_n):
+                chunk = state["stdout"].pop(0)
+                if not state["stdout"]:
+                    state["exit"] = 0
+                return chunk
+
+            def exit_status_ready():
+                return not state["stdout"] and state["exit"] is not None
+
+            mock_channel.recv_ready.side_effect = recv_ready
+            mock_channel.recv_stderr_ready.return_value = False
+            mock_channel.recv.side_effect = recv
+            mock_channel.exit_status_ready.side_effect = exit_status_ready
+            mock_channel.recv_exit_status.return_value = 0
+            type(mock_channel).in_buffer = mock.PropertyMock(
+                side_effect=lambda: state["stdout"][0] if state["stdout"] else b""
+            )
+            mock_channel.in_stderr_buffer = b""
+
+            mock_stdout = mock.MagicMock(spec=paramiko.ChannelFile)
+            mock_stdout.channel = mock_channel
+            mock_stdin = mock.MagicMock(spec=paramiko.ChannelStdinFile)
+            mock_stderr = mock.MagicMock(spec=paramiko.ChannelStderrFile)
+            mock_stderr.channel = mock_channel
+
+            mock_client = mock.MagicMock(spec=paramiko.SSHClient)
+            mock_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
+
+            # Must not raise "filedescriptor out of range in select()".
+            exit_status, agg_stdout, agg_stderr = hook.exec_ssh_client_command(
+                mock_client, "cmd", False, None, 5
+            )
+            assert exit_status == 0
+            assert agg_stdout == b"first\nsecond\n"
+            assert agg_stderr == b""
+        finally:
+            for fd in (r, w):
+                with contextlib.suppress(OSError):
+                    os.close(fd)
 
     def test_command_timeout_not_set(self, monkeypatch):
         hook = SSHHook(
