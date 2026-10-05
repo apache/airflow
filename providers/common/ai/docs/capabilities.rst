@@ -37,12 +37,6 @@ Pass capabilities to ``AgentOperator`` or ``@task.agent`` with ``capabilities=``
 
 Capabilities and toolsets work together: the agent gets the tools from both.
 
-When ``enable_tool_logging=True`` (the default), ``AgentOperator`` includes
-tools contributed by capabilities in real-time tool-call logging, including
-MCP toolsets. Output tools and provider-native tools, including native MCP,
-are not covered. See :doc:`toolsets/logging` for configuration details and the
-complete limitations.
-
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py
     :language: python
     :start-after: [START howto_operator_agent_capabilities_composed]
@@ -91,9 +85,13 @@ templated inside a ``Toolset`` capability the same way as in ``toolsets=``:
 A ``Toolset`` capability built from a function is resolved when the run starts, so its
 connection IDs are not templated.
 
-Tool results from a ``Toolset`` capability are masked like those from ``toolsets=``, but
-``enable_tool_logging`` only logs calls to ``toolsets=``. Pass a toolset in ``toolsets=`` unless
-you need it inside the capability list, for example to order it against a guardrail.
+Tool results from a ``Toolset`` capability are masked like those from ``toolsets=``.
+When ``enable_tool_logging=True`` (the default), ``AgentOperator`` logs calls to
+these toolsets and other tools contributed by capabilities, including MCP
+toolsets. Output tools and provider-native tools, including native MCP, are not
+covered. See :doc:`toolsets/logging` for configuration details and the complete
+limitations. Put a toolset in the capability list when you need to order it
+against another capability, such as a guardrail.
 
 With durable execution
 ----------------------

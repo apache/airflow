@@ -820,7 +820,8 @@ class TestAgentOperatorExecute:
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["toolsets"] == [MaskingToolset(wrapped=mock_toolset)]
-        assert isinstance(create_call[1]["capabilities"][0], ToolLoggingCapability)
+        assert create_call[1]["capabilities"][0] == PromptCaching()
+        assert isinstance(create_call[1]["capabilities"][1], ToolLoggingCapability)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_enable_tool_logging_false_skips_wrapping(self, mock_hook_cls, make_mock_run_result):
@@ -841,11 +842,11 @@ class TestAgentOperatorExecute:
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call[1]["toolsets"] == [MaskingToolset(wrapped=mock_toolset)]
-        assert "capabilities" not in create_call[1]
+        assert create_call[1]["capabilities"] == [PromptCaching()]
 
-    @pytest.mark.parametrize("tool_source", ["tools", "capabilities"])
+    @pytest.mark.parametrize("tool_source", ["tools", "agent_params", "capabilities"])
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_tool_logging_wraps_agent_param_tools(self, mock_hook_cls, caplog, tool_source):
+    def test_tool_logging_wraps_tools_from_all_sources(self, mock_hook_cls, caplog, tool_source):
         """Tool logging wraps the complete toolset assembled by pydantic-ai."""
 
         def my_tool() -> str:
@@ -860,12 +861,20 @@ class TestAgentOperatorExecute:
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(model_fn), **kw
         )
-        configured_tools = [my_tool] if tool_source == "tools" else [Toolset(FunctionToolset([my_tool]))]
+        if tool_source == "tools":
+            kwargs = {"agent_params": {"tools": [my_tool]}}
+        else:
+            capability = Toolset(FunctionToolset([my_tool]))
+            kwargs = (
+                {"agent_params": {"capabilities": [capability]}}
+                if tool_source == "agent_params"
+                else {"capabilities": [capability]}
+            )
         op = AgentOperator(
             task_id="test",
             prompt="Do something",
             llm_conn_id="my_llm",
-            agent_params={tool_source: configured_tools},
+            **kwargs,
         )
 
         with caplog.at_level(logging.INFO):
@@ -1001,7 +1010,11 @@ class TestAgentOperatorExecute:
         )
 
         op = AgentOperator(
-            task_id="t", prompt="hi", llm_conn_id="my_llm", agent_params={"capabilities": ["existing"]}
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="my_llm",
+            agent_params={"capabilities": ["existing"]},
+            enable_tool_logging=False,
         )
         op.execute(context=_make_context())
 
@@ -1321,7 +1334,13 @@ class TestAgentOperatorCapabilities:
         )
         thinking, search = Thinking(effort="high"), WebSearch()
 
-        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[thinking, search])
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            capabilities=[thinking, search],
+            enable_tool_logging=False,
+        )
         op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
@@ -1634,15 +1653,22 @@ class TestAgentOperatorDurable:
 
         assert result[0] is cap
 
-    def test_toolset_capability_logging_wraps_durable_cache(self):
+    @pytest.mark.parametrize("passed_as", ["capabilities", "agent_params"])
+    def test_toolset_capability_logging_wraps_durable_cache(self, passed_as):
         """Concrete ``Toolset`` capabilities receive durable caching before agent creation."""
         inner = FunctionToolset()
+        capability = Toolset(inner)
+        kwargs = (
+            {"capabilities": [capability]}
+            if passed_as == "capabilities"
+            else {"agent_params": {"capabilities": [capability]}}
+        )
         op = AgentOperator(
             task_id="t",
             prompt="p",
             llm_conn_id="c",
             durable=True,
-            agent_params={"capabilities": [Toolset(inner)]},
+            **kwargs,
         )
         op._durable_storage = MagicMock(spec=DurableStorageProtocol)
         op._durable_counter = DurableStepCounter()
@@ -1655,6 +1681,7 @@ class TestAgentOperatorDurable:
         assert isinstance(capabilities[0].toolset, CachingToolset)
         assert isinstance(capabilities[0].toolset.wrapped, MaskingToolset)
         assert capabilities[0].toolset.wrapped.wrapped is inner
+        assert isinstance(capabilities[-1], ToolLoggingCapability)
 
     def test_toolset_capability_tool_replayed_on_retry(self):
         """A tool supplied via a ``Toolset`` capability is cached and replayed on a
