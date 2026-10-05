@@ -27,8 +27,8 @@ from cryptography.fernet import Fernet
 from sqlalchemy import select
 
 from airflow.models import Variable, crypto, variable
-from airflow.sdk import SecretCache
 from airflow.secrets import BaseSecretsBackend
+from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.sqlalchemy import prohibit_commit
 

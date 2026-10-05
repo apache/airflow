@@ -50,6 +50,7 @@ except ImportError:
         """Compat stub — never raised by task-sdk <1.2.2."""
 
 
+from airflow.secrets.cache import SecretCache
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -564,8 +565,6 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             raise ValueError(
                 "Multi-team mode is not configured in the Airflow environment but the task trying to access the connection belongs to a team"
             )
-
-        from airflow.sdk import SecretCache
 
         # check cache first
         # enabled only if SecretCache.init() has been called first
