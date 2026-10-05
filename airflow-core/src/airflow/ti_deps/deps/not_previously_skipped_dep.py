@@ -35,8 +35,8 @@ class NotPreviouslySkippedDep(BaseTIDep):
     """
     Determine if this task should be skipped.
 
-    Based on any of the task's direct upstream relatives have decided this task should
-    be skipped.
+    Based on whether any of the task's upstream relatives have decided this task
+    should be skipped.
     """
 
     NAME = "Not Previously Skipped"
