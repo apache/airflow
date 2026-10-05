@@ -170,7 +170,6 @@ apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-openshell = "2026-09-29T00:00:00Z"
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
 typesafe-sdk = "2026-09-19T00:00:00Z"
 
