@@ -36,6 +36,7 @@ from sqlalchemy.orm import Session
 from urllib3 import HTTPConnectionPool, HTTPResponse
 from urllib3.exceptions import MaxRetryError, ProtocolError
 
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.job import Job
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -4148,6 +4149,51 @@ class TestClientFactoryCallSites:
         await AirflowKubernetesScheduler._create_pods_async(scheduler, [])
 
         mock_get_async_kube_client.assert_awaited_once_with(use_client_factory=True, team_name="team_a")
+
+
+@pytest.mark.skipif(AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed")
+class TestAsyncClientFactoryValidation:
+    @pytest.mark.parametrize(
+        ("async_pod_creation", "async_client_factory", "expect_raise"),
+        [
+            pytest.param("True", "", True, id="async-without-async-factory"),
+            pytest.param("False", "", False, id="sync-only"),
+            pytest.param("True", "my_company.build_async_client", False, id="async-with-both-factories"),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client", autospec=True)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler",
+        autospec=True,
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.multiprocessing.Manager",
+        autospec=True,
+    )
+    def test_start_requires_async_client_factory(
+        self,
+        mock_manager,
+        mock_scheduler,
+        mock_get_kube_client,
+        async_pod_creation,
+        async_client_factory,
+        expect_raise,
+    ):
+        config = {
+            ("kubernetes_executor", "async_pod_creation"): async_pod_creation,
+            ("kubernetes_executor", "client_factory"): "my_company.build_client",
+            ("kubernetes_executor", "async_client_factory"): async_client_factory,
+        }
+        with conf_vars(config):
+            executor = KubernetesExecutor()
+            executor.job_id = 1
+            if expect_raise:
+                with pytest.raises(AirflowConfigException, match="async_client_factory is required"):
+                    executor.start()
+                mock_get_kube_client.assert_not_called()
+            else:
+                executor.start()
+                mock_get_kube_client.assert_called_once()
 
 
 @pytest.fixture

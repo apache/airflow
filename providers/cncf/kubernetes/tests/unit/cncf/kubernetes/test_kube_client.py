@@ -139,12 +139,6 @@ class TestGetAsyncKubeClient:
         assert api != FACTORY_MARKER
         mock_load_incluster.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_sync_factory_without_async_factory_raises(self):
-        with conf_vars({("kubernetes_executor", "client_factory"): f"{__name__}.build_fake_client"}):
-            with pytest.raises(ValueError, match="async_client_factory"):
-                await get_async_kube_client(use_client_factory=True)
-
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team config requires Airflow 3.2+")
     @pytest.mark.asyncio
     async def test_team_async_factory_takes_precedence_over_the_global_one(self, monkeypatch):
@@ -156,13 +150,3 @@ class TestGetAsyncKubeClient:
             client = await get_async_kube_client(use_client_factory=True, team_name="team_a")
 
         assert client == FACTORY_MARKER
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team config requires Airflow 3.2+")
-    @pytest.mark.asyncio
-    async def test_team_sync_factory_without_team_async_factory_raises(self, monkeypatch):
-        """A team setting only the sync factory must fail the same way the global setting does."""
-        monkeypatch.setenv(
-            "AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__CLIENT_FACTORY", f"{__name__}.build_fake_client"
-        )
-        with pytest.raises(ValueError, match="async_client_factory"):
-            await get_async_kube_client(use_client_factory=True, team_name="team_a")

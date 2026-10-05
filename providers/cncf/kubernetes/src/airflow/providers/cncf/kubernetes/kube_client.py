@@ -271,12 +271,6 @@ async def get_async_kube_client(
             "kubernetes_executor", "async_client_factory", fallback=None, **team_kwargs
         ):
             return async_client_factory()
-        if conf.get("kubernetes_executor", "client_factory", fallback=None, **team_kwargs):
-            raise ValueError(
-                "client_factory is set but async_client_factory is not. Concurrent pod creation "
-                "uses a separate kubernetes_asyncio client that would not carry the factory's "
-                "credentials. Set async_client_factory, or disable async_pod_creation."
-            )
     if not has_kubernetes:
         raise _import_err
     if in_cluster is None:

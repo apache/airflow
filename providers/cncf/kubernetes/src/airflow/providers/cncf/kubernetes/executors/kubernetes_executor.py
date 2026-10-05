@@ -45,7 +45,7 @@ from kubernetes.client.rest import ApiException
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -276,6 +276,15 @@ class KubernetesExecutor(BaseExecutor):
         )
         from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 
+        if (
+            self.kube_config.async_pod_creation
+            and self.conf.get("kubernetes_executor", "client_factory", fallback=None)
+            and not self.conf.get("kubernetes_executor", "async_client_factory", fallback=None)
+        ):
+            raise AirflowConfigException(
+                "In the [kubernetes_executor] Airflow config, async_client_factory is required "
+                "when client_factory is set and async_pod_creation is enabled."
+            )
         self.kube_client = get_kube_client(use_client_factory=True, team_name=self.team_name)
         self.kube_scheduler = AirflowKubernetesScheduler(
             kube_config=self.kube_config,

@@ -280,7 +280,7 @@ def get_provider_info():
                         "default": None,
                     },
                     "async_client_factory": {
-                        "description": "Import path of a zero-argument callable returning the ``kubernetes_asyncio.client.CoreV1Api``\nused for concurrent pod creation. Required when ``client_factory`` is set and\n``async_pod_creation`` is enabled, so that both clients carry the same credentials;\nthe executor refuses to build a default async client next to a factory-built sync one.\n",
+                        "description": "Import path of a zero-argument callable returning the ``kubernetes_asyncio.client.CoreV1Api``\nused for concurrent pod creation. Required when ``client_factory`` is set and\n``async_pod_creation`` is enabled, so that both clients carry the same credentials;\nthe executor refuses to start without it.\n",
                         "version_added": "10.24.0",
                         "type": "string",
                         "example": "my_company.kubernetes.build_async_client",
