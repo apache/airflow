@@ -148,22 +148,15 @@ class DateTimeSensorAsync(DateTimeSensor):
                 )
 
     def execute(self, context: Context) -> NoReturn:
-
-        if AIRFLOW_V_3_3_PLUS:
-            trigger = DateTimeTrigger(
-                target_time=self.target_time,
-                end_from_trigger=self.end_from_trigger,
-            )
-
-        elif AIRFLOW_V_3_0_PLUS:
-            trigger = DateTimeTrigger(
+        self.defer(
+            method_name="execute_complete",
+            trigger=DateTimeTrigger(
                 moment=self._moment,
                 end_from_trigger=self.end_from_trigger,
             )
-        else:
-            trigger = DateTimeTrigger(moment=self._moment)
-
-        self.defer(method_name="execute_complete", trigger=trigger)
+            if AIRFLOW_V_3_0_PLUS
+            else DateTimeTrigger(moment=self._moment),
+        )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """Handle the event when the trigger fires and return immediately."""
