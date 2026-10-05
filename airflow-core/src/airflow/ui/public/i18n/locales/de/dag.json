@@ -270,7 +270,7 @@
       "task": "Aufgabe",
       "unknown": "Unbekannt"
     },
-    "codeAccess": "Werte erfordern Zugriff auf Dag Source Code",
+    "codeAccess": "Werte erfordern Zugriff auf Dag-Quellcode",
     "columns": {
       "after": "Nach",
       "before": "Vor",
@@ -284,33 +284,33 @@
     "impacts": {
       "authorization": "Autorisierung",
       "execution": "Ausführung",
-      "metadata": "Meta Daten",
+      "metadata": "Metadaten",
       "provenance": "Ursprung",
       "unknown": "Unbekannt"
     },
     "maxChanges": "Maximale Änderungen",
     "maxChangesDefault": "Standard",
-    "noChanges": "Diese Versionen halten den gleichen Status.",
+    "noChanges": "Es gibt keinen Unterschied zwischen diesen Versionen.",
     "observedState": "Beachteter Status",
-    "observedStateBoundary": "Vergleicht aktuell gespeichterten Status, nicht zur Erstellzeit. Quellcodevergleich ist nicht verfügbar für alte Versionen; Code-Tab nutzen um quellen zu vergleichen.",
+    "observedStateBoundary": "Vergleicht aktuell gespeichterte Dagversionen. Quellcodevergleich ist nicht verfügbar für alte Versionen; Code-Tab nutzen um Quellcode zu vergleichen.",
     "operations": {
       "added": "Hinzugefügt",
       "changed": "Geändert",
       "removed": "Entfernt"
     },
     "record_one": "Datensatz",
-    "record_other": "Datensatz",
-    "selectPrompt": "Zwei Verssionen Auswählen um Änderungen zwischen diesen zu sehen.",
+    "record_other": "Datensätze",
+    "selectPrompt": "Zwei Versionen auswählen um Änderungen zwischen diesen zu sehen.",
     "summary_one": "{{count}} Änderung · Serialisiertes Schema {{baseSchema}} → {{targetSchema}}",
     "summary_other": "{{count}} Änderungen · Serialisiertes Schema {{baseSchema}} → {{targetSchema}}",
-    "target": "Vergleichen zu",
+    "target": "Vergleichen mit",
     "truncated": {
-      "description": "Änderungen an Pfaden werden nicht gezeigt um das Limit zu halten, die Anzahl ist das untere Ende.",
-      "title": "Einige Änderungen wurden nicht zurück gegeben"
+      "description": "Einige Änderungen werden nicht gezeigt um unter dem Limit zu bleiben, die angezeigte Anzahl ist ein Minimum an Änderungen.",
+      "title": "Einige Änderungen wurden nicht angezeigt"
     },
     "unavailable": {
       "description": "Diese Versionen können nicht verglichen werden. Grund:",
-      "title": "Vergleich nicht Verfügbar",
+      "title": "Vergleich nicht verfügbar",
       "withoutReason": "Diese Versionen können nicht verglichen werden."
     },
     "valuesHidden": "Werte verstecken",

@@ -135,12 +135,12 @@
     "drain": "Auslaufend",
     "drainDescription": "Nicht beendete Läufe werden fortgesetzt, aber es werden keine neuen geplanten Läufe erstellt. Pausierte Läufe bleiben pausiert. Das Dag pausiert wieder sobald alle Läufe komplett sind.",
     "keepPaused": "Pausiert lassen",
-    "keepPausedDescription": "Neue und nicht beendete Läufe warten bis die Dag pause beendet ist.",
+    "keepPausedDescription": "Neue und nicht beendete Läufe warten bis die Dag-Pause beendet ist.",
     "title": "Dag ist pausiert",
     "unfinishedRunsWillRun_one": "{{count}} offener Dag Lauf wird starten oder weiterlaufen.",
     "unfinishedRunsWillRun_other": "{{count}} offene Dag Läufe werden starten oder weiterlaufen.",
     "unpause": "Unpausieren",
-    "unpauseDescription": "Das Dag wird aktiv: nicht komplettierte Läufe starten wieder und die Planung wird aufgenommen. Pausierte Auffüllungen bleiben pausiert."
+    "unpauseDescription": "Das Dag wird aktiv: nicht komplettierte Läufe starten wieder und die Planung neuer Dag Läufe wird aufgenommen. Pausierte Auffüllungen bleiben pausiert."
   },
   "reparseDag": "Dag neu parsen",
   "slowestTaskInstances": {
