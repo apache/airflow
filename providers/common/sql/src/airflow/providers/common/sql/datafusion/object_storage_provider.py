@@ -121,7 +121,7 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
         return StorageType.AZURE
 
     def get_bucket(self, path: str) -> str | None:
-        """Extract the container name, from either the az:// or abfs(s):// URI shape."""
+        """Extract the container name, from either the ``az://`` or ``abfs(s)://`` URI shape."""
         if match := _ABFS_URI_RE.match(path):
             return match.group("container")
         if path.startswith(_ABFS_SCHEMES):
@@ -131,7 +131,7 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
         return super().get_bucket(path)
 
     def _get_uri_account(self, path: str) -> str | None:
-        """Return the storage account embedded in an abfs(s):// URI, if any."""
+        """Return the storage account embedded in an ``abfs(s)://`` URI, if any."""
         match = _ABFS_URI_RE.match(path)
         return match.group("account") if match else None
 
