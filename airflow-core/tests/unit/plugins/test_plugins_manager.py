@@ -1067,7 +1067,7 @@ class TestExtraLinkTeamVisibility:
     ("version", "direct_url", "allowed"),
     [
         pytest.param("0.10.0", None, False, id="released-0.10.0"),
-        pytest.param("1.0.0rc1", None, False, id="released-1.0.0rc1"),
+        pytest.param("1.0.0rc1", None, True, id="release-candidate-1.0.0rc1"),
         pytest.param("1.0.0", None, True, id="released-1.0.0"),
         pytest.param("1.1.0", None, True, id="released-1.1.0"),
         pytest.param("0.10.0", {"dir_info": {"editable": True}}, True, id="editable-source-install"),
