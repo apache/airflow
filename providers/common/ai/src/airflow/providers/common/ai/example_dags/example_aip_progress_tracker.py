@@ -1124,31 +1124,39 @@ def example_aip_progress_tracker_skills():
         tools=[fetch_confluence_page, search_github_prs, get_repo_file_tree],
     )
 
-    aip_info = "\n".join(
-        f"- AIP-{num}: {info['topic']} (page_id={info['page_id']}, "
-        f"paths: {', '.join(info['codebase_paths'][:3])})"
-        for num, info in AIP_REGISTRY.items()
-    )
+    # Built in a task, not at parse time: the Dag function runs once at parse time, before a
+    # run's `aip_numbers` conf exists, so filtering the registry needs to happen at task
+    # execution. The result reaches AgentOperator through its templated `prompt` field.
+    @task
+    def build_agent_prompt(params: dict) -> str:
+        requested = {int(n.strip()) for n in params["aip_numbers"].split(",") if n.strip()}
+        scoped_registry = {num: info for num, info in AIP_REGISTRY.items() if num in requested}
+        aip_info = "\n".join(
+            f"- AIP-{num}: {info['topic']} (page_id={info['page_id']}, "
+            f"paths: {', '.join(info['codebase_paths'][:3])})"
+            for num, info in scoped_registry.items()
+        )
+        return (
+            "Track the implementation progress of these AIPs and produce a "
+            "cross-AIP progress report:\n\n"
+            f"{aip_info}\n\n"
+            "Use the aip-tracker skill for detailed instructions on how to "
+            "gather evidence and structure your assessment."
+        )
 
-    prompt = (
-        "Track the implementation progress of these AIPs and produce a "
-        "cross-AIP progress report:\n\n"
-        f"{aip_info}\n\n"
-        "Use the aip-tracker skill for detailed instructions on how to "
-        "gather evidence and structure your assessment."
-    )
+    agent_prompt = build_agent_prompt()
 
     # [START aip_tracker_skills_operator]
     report = AgentOperator(
         task_id="track_aip_progress",
         llm_conn_id=LLM_CONN_ID,
         system_prompt=AGENT_SYSTEM_PROMPT,
-        prompt=prompt,
+        prompt="{{ ti.xcom_pull(task_ids='build_agent_prompt') }}",
         toolsets=[
             AgentSkillsToolset(sources=[SKILLS_DIR]),
             aip_toolset,
         ],
-        agent_params={"model_settings": {"temperature": 0}},
+        agent_params={"model_settings": {"temperature": 0, "max_tokens": 16_000}},
         usage_limits=UsageLimits(
             request_limit=30,
             input_tokens_limit=200_000,
@@ -1156,6 +1164,7 @@ def example_aip_progress_tracker_skills():
         ),
     )
     # [END aip_tracker_skills_operator]
+    agent_prompt >> report
 
     # [START aip_tracker_skills_hitl]
     ApprovalOperator(
