@@ -22,7 +22,6 @@ Example Airflow DAG for Google BigQuery service testing tables.
 from __future__ import annotations
 
 import os
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -178,7 +177,7 @@ with DAG(
         dataset_id=DATASET_NAME,
         table_resource={
             "tableReference": {"tableId": "test_table_id"},
-            "expirationTime": (int(time.time()) + 300) * 1000,
+            "expirationTime": "{{ (macros.datetime.now().timestamp() | int + 300) * 1000 }}",
         },
     )
     # [END howto_operator_bigquery_upsert_table]

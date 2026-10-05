@@ -634,6 +634,7 @@ def _create_backfill(
     triggering_user_name: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
+    drain_dag: bool = False,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -726,6 +727,8 @@ def _create_backfill(
                     run_on_latest_version=run_on_latest_version,
                     session=session,
                 )
+            if drain_dag:
+                DagModel.start_drain(dag_id, session=session)
         except OperationalError as e:
             if is_lock_not_available_error(e):
                 # Lock error: clean up the orphan so the user can retry. The

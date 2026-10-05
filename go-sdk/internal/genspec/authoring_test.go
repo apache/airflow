@@ -306,7 +306,7 @@ func TestShapeForAuthoringShapesTheCoreSchema(t *testing.T) {
 	require.NoError(t, normalize(doc, specTitles))
 
 	definitions := doc["definitions"].(map[string]any)
-	assert.Equal(t, []string{"dag", "operator"}, sortedKeys(definitions))
+	assert.Equal(t, []string{"dag", "operator", "task_group"}, sortedKeys(definitions))
 	dag := definitions["dag"].(map[string]any)["properties"].(map[string]any)
 	assert.Contains(t, dag, "schedule", "Schedule is injected over the serialized timetable")
 	task := definitions["operator"].(map[string]any)["properties"].(map[string]any)
@@ -325,5 +325,25 @@ func TestShapeForAuthoringShapesTheCoreSchema(t *testing.T) {
 		task["task_id"].(map[string]any)["description"],
 		"the name of the Go function",
 		"the serialized property says nothing about how a task_id is defaulted",
+	)
+	group := definitions["task_group"].(map[string]any)["properties"].(map[string]any)
+	assert.Equal(
+		t,
+		[]string{
+			"doc_md",
+			"group_display_name",
+			"prefix_group_id",
+			"tooltip",
+			"ui_color",
+			"ui_fgcolor",
+		},
+		sortedKeys(group),
+	)
+	prefix := group["prefix_group_id"].(map[string]any)["goJSONSchema"].(map[string]any)
+	assert.Equal(
+		t,
+		true,
+		prefix["pointer"],
+		"a group_id prefixes by default, so false has to be expressible",
 	)
 }
