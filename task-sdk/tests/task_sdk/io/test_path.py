@@ -24,6 +24,7 @@ from typing import Any, ClassVar
 from unittest import mock
 
 import pytest
+from fsspec.callbacks import Callback
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 from upath import UPath
@@ -378,6 +379,22 @@ class TestRecursiveCopyToLocal:
 
         assert (tmp_path / "dest" / "a.txt").read_bytes() == b"a"
         assert (tmp_path / "dest" / "sub" / "b.txt").read_bytes() == b"b"
+
+    def test_keeps_transfer_kwargs_out_of_the_listing(self, remote_fs, tmp_path):
+        remote_fs.pipe_file("bucket/srcdir/a.txt", b"a")
+        src = ObjectStoragePath("ffs2://my_conn@bucket/srcdir", conn_id="my_conn")
+        real_find = remote_fs.find
+
+        # Like s3fs, the listing takes no transfer-only kwargs such as ``callback``.
+        def strict_find(path, maxdepth=None, withdirs=False, detail=False):
+            return real_find(path, maxdepth=maxdepth, withdirs=withdirs, detail=detail)
+
+        with mock.patch.object(remote_fs, "find", side_effect=strict_find):
+            src.copy(
+                ObjectStoragePath(f"file://{tmp_path.as_posix()}/dest"), recursive=True, callback=Callback()
+            )
+
+        assert (tmp_path / "dest" / "a.txt").read_bytes() == b"a"
 
 
 class TestRemotePath:

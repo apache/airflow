@@ -340,16 +340,19 @@ class ObjectStoragePath(ProxyUPath):
         """Size in bytes of the file at this path."""
         return self.fs.size(self.path)
 
-    def _raise_if_remote_keys_escape(self, local_dir: str, **kwargs) -> None:
+    def _raise_if_remote_keys_escape(self, local_dir: str, maxdepth: int | None = None) -> None:
         """
         Refuse a recursive download when a remote object key resolves outside ``local_dir``.
 
         Object-store keys are arbitrary strings and may contain ``..`` segments written by
         anyone who can put objects in the source prefix; ``fs.get`` follows them verbatim and
         would write outside the destination directory.
+
+        Only ``maxdepth`` reaches the listing, as in ``fs.get`` itself; s3fs rejects
+        transfer-only kwargs such as ``callback`` there.
         """
         dst_root = os.path.realpath(local_dir)
-        for src_key in self.fs.find(self.path, **kwargs):
+        for src_key in self.fs.find(self.path, maxdepth=maxdepth):
             target = os.path.realpath(os.path.join(local_dir, os.path.relpath(src_key, self.path)))
             if target != dst_root and os.path.commonpath([dst_root, target]) != dst_root:
                 raise ValueError(
@@ -406,7 +409,7 @@ class ObjectStoragePath(ProxyUPath):
 
         if dst.protocol == "file":
             if recursive:
-                self._raise_if_remote_keys_escape(dst.path, **kwargs)
+                self._raise_if_remote_keys_escape(dst.path, maxdepth=kwargs.get("maxdepth"))
             self.fs.get(self.path, dst.path, recursive=recursive, **kwargs)
             return
 
