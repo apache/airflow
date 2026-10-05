@@ -19,15 +19,19 @@ from __future__ import annotations
 
 import json
 import pickle
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
-import certifi
 import httpx2
 import pytest
 import time_machine
+import truststore
 import uuid6
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
@@ -115,15 +119,6 @@ class TestClient:
             make_client(httpx2.MockTransport(handle_request))
 
         assert isinstance(err.value, FileNotFoundError)
-
-    @mock.patch("ssl.create_default_context")
-    @mock.patch("airflow.sdk.api.client.API_CLIENT_USE_PUBLIC_CERTS", True)
-    def test_use_public_certs(self, mock_default_context):
-        def handle_request(request: httpx2.Request) -> httpx2.Response:
-            return httpx2.Response(status_code=200)
-
-        make_client(httpx2.MockTransport(handle_request))
-        mock_default_context.return_value.load_verify_locations.assert_called_with(certifi.where())
 
     @mock.patch("airflow.sdk.api.client.API_TIMEOUT", 60.0)
     def test_timeout_configuration(self):
@@ -1939,29 +1934,53 @@ class TestHITLOperations:
         assert result.responded_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
 
 
-class TestSSLContextCaching:
+class TestSSLContext:
     @pytest.fixture(autouse=True)
     def clear_ssl_context_cache(self):
         Client._get_ssl_context_cached.cache_clear()
         yield
         Client._get_ssl_context_cached.cache_clear()
 
-    def test_cache_hit_on_same_parameters(self):
-        ca_file = certifi.where()
+    @pytest.fixture
+    def ca_file(self, tmp_path):
+        key = ec.generate_private_key(ec.SECP256R1())
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "test-ca")])
+        now = datetime.now(UTC)
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(name)
+            .issuer_name(name)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now)
+            .not_valid_after(now + timedelta(days=1))
+            .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+            .sign(key, hashes.SHA256())
+        )
+        path = tmp_path / "ca.pem"
+        path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+        return str(path)
+
+    @mock.patch.object(truststore.SSLContext, "load_verify_locations", autospec=True)
+    @mock.patch("airflow.sdk.api.client.API_CLIENT_USE_PUBLIC_CERTS", True)
+    def test_use_public_certs(self, mock_load_verify_locations):
+        ctx = Client._get_ssl_context_cached("/ca/file.pem", None)
+
+        assert isinstance(ctx, truststore.SSLContext)
+        mock_load_verify_locations.assert_called_once_with(ctx, "/ca/file.pem")
+
+    def test_cache_hit_on_same_parameters(self, ca_file):
         ctx1 = Client._get_ssl_context_cached(ca_file, None)
         ctx2 = Client._get_ssl_context_cached(ca_file, None)
         assert ctx1 is ctx2
 
-    def test_cache_miss_if_cache_cleared(self):
-        ca_file = certifi.where()
+    def test_cache_miss_if_cache_cleared(self, ca_file):
         ctx1 = Client._get_ssl_context_cached(ca_file, None)
         Client._get_ssl_context_cached.cache_clear()
         ctx2 = Client._get_ssl_context_cached(ca_file, None)
         assert ctx1 is not ctx2
 
-    def test_cache_miss_on_different_parameters(self):
-        ca_file = certifi.where()
-
+    def test_cache_miss_on_different_parameters(self, ca_file):
         ctx1 = Client._get_ssl_context_cached(ca_file, None)
         ctx2 = Client._get_ssl_context_cached(ca_file, ca_file)
 
