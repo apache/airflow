@@ -16,17 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { createIntlCache } from "./intlCache";
 
-export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { formatNumber } from "./formatNumber";
-export { getMetaKey } from "./getMetaKey";
-export { hasDagRunConfig } from "./hasDagRunConfig";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+const numberFormatter = createIntlCache<Intl.NumberFormat>();
+
+/**
+ * Locale digit grouping for counters rendered outside translations; use instead of `toLocaleString`.
+ *
+ * Components pass `i18n.language` from `useTranslation`, which the React Compiler tracks (react-i18next
+ * hands out a new `i18n` wrapper on every language switch). A language read from the i18next singleton
+ * in here is invisible to the compiler, so a memoized counter would keep its old grouping.
+ */
+export const formatNumber = (value: number, locale: string): string =>
+  numberFormatter("number", locale, (forLocale) => new Intl.NumberFormat(forLocale)).format(value);

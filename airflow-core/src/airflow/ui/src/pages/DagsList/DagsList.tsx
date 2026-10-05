@@ -60,7 +60,7 @@ import { useConfig } from "src/queries/useConfig";
 import { useDagFolders } from "src/queries/useDagFolders";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
-import { useDocumentTitle } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import BulkPauseDrainDagsButton from "./BulkPauseDrainDagsButton";
@@ -279,7 +279,7 @@ const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithL
 });
 
 export const DagsList = () => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
 
   useDocumentTitle(translate("common:nav.dags"));
 
@@ -530,7 +530,7 @@ export const DagsList = () => {
             >
               <ActionBar.Content>
                 <ActionBar.SelectionTrigger>
-                  {selectedRows.size} {translate("selected")}
+                  {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
                 </ActionBar.SelectionTrigger>
                 <ActionBar.Separator />
                 <BulkPauseDrainDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />

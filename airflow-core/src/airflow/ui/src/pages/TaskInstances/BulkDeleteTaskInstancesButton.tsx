@@ -29,6 +29,7 @@ import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
 
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
+import { formatNumber } from "src/utils";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -36,7 +37,7 @@ type Props = {
 };
 
 const BulkDeleteTaskInstancesButton = ({ deselectKeys, selectedTaskInstances }: Props) => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
   const { bulkAction, data, error, isPending } = useBulkTaskInstances({
     deselectKeys,
@@ -111,7 +112,7 @@ const BulkDeleteTaskInstancesButton = ({ deselectKeys, selectedTaskInstances }: 
                     <Text fontSize="sm" fontWeight="semibold">
                       {translate("runId")}: {runId}{" "}
                       <Text as="span" color="fg.subtle" fontWeight="normal">
-                        ({tis.length})
+                        ({formatNumber(tis.length, i18n.language)})
                       </Text>
                     </Text>
                   </Accordion.ItemTrigger>
