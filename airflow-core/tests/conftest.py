@@ -163,6 +163,37 @@ if TYPE_CHECKING:
     def time_machine() -> TimeMachineFixture: ...
 
 
+@pytest.fixture
+def in_process_execution_api():
+    """
+    Provide an in-process Execution API server with its own async engine.
+
+    Pooled async connections are bound to the event loop that opened them. A fresh engine keeps the
+    server's loop from checking out connections that earlier tests opened on other loops.
+    """
+    import asyncio
+
+    from a2wsgi import ASGIMiddleware
+
+    from airflow import settings
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    previous_engine, previous_session_factory = settings.async_engine, settings.AsyncSession
+    settings._configure_async_session()
+    engine = settings.async_engine
+    try:
+        api = InProcessExecutionAPI()
+        middleware = api.transport.app
+        yield api
+        # The WSGI transport wraps the a2wsgi middleware that runs the server's loop. Close the engine's
+        # connections there while that loop is still running.
+        assert isinstance(middleware, ASGIMiddleware)
+        if engine is not None:
+            asyncio.run_coroutine_threadsafe(engine.dispose(), middleware.loop).result(timeout=5)
+    finally:
+        settings.async_engine, settings.AsyncSession = previous_engine, previous_session_factory
+
+
 @pytest.fixture(autouse=True)
 def _clear_in_process_api_cache():
     """Clear the cached InProcessExecutionAPI after each test to prevent state leakage."""

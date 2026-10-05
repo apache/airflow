@@ -2399,8 +2399,12 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
 
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
-async def test_trigger_can_call_variables_connections_and_xcoms_methods(session, dag_maker):
+@mock.patch("airflow.jobs.triggerer_job_runner.in_process_api_server", autospec=True)
+async def test_trigger_can_call_variables_connections_and_xcoms_methods(
+    in_process_api_server, session, dag_maker, in_process_execution_api
+):
     """Checks that the trigger will successfully call Variables, Connections and XComs methods."""
+    in_process_api_server.return_value = in_process_execution_api
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
         EmptyOperator(task_id="dummy1")

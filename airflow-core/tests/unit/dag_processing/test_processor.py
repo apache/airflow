@@ -38,7 +38,6 @@ from sqlalchemy import select
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun as DRDataModel,
     TaskInstance as TIDataModel,
@@ -129,10 +128,9 @@ def disable_load_example():
 
 
 @pytest.fixture
-def inprocess_client():
+def inprocess_client(in_process_execution_api):
     """Provides an in-process Client backed by a single API server."""
-    api = InProcessExecutionAPI()
-    client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
+    client = Client(base_url=None, token="", dry_run=True, transport=in_process_execution_api.transport)
     client.base_url = "http://in-process.invalid/"
     return client
 
