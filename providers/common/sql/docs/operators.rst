@@ -36,6 +36,13 @@ different databases. Parameters of the operators are:
 - ``split_statements`` (optional) if split single SQL string into statements and run separately (default: False).
 - ``return_last`` (optional) depends ``split_statements`` and if it's ``True`` this parameter is used to return the result of only last statement or all split statements (default: True).
 
+When the task instance is killed while a statement is still running (for example because the task was marked as
+failed or its ``execution_timeout`` elapsed), the operator asks the hook to cancel that statement through
+:meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.cancel_query`. The default implementation uses the
+``cancel()`` extension of the DB-API cursor or connection when the database driver provides one; when it does not,
+a warning is logged and the statement keeps running on the database until it completes. Hooks can override
+``cancel_query`` to cancel the statement in a database specific way.
+
 The example below shows how to instantiate the SQLExecuteQueryOperator task.
 
 .. exampleinclude:: /../tests/system/common/sql/example_sql_execute_query.py

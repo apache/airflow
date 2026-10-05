@@ -580,6 +580,22 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.log.info("result: %s", result)
         return result
 
+    def on_kill(self) -> None:
+        """
+        Cancel the SQL statement that is still running when the task instance is killed.
+
+        Airflow calls this method from the ``SIGTERM`` handler of the task process, i.e. while ``execute``
+        may still be blocked in the database driver waiting for the statement to finish, and after the
+        ``execution_timeout`` of the task elapsed. Cancellation is delegated to
+        :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.cancel_query`, so every database hook can
+        use the mechanism its driver offers. It is best effort and never raises.
+        """
+        self.log.info("Task instance is being killed, cancelling the running SQL statement if there is one")
+        try:
+            self.get_db_hook().cancel_query()
+        except Exception:
+            self.log.exception("Failed to cancel the running SQL statement")
+
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""
         if isinstance(self.parameters, str):
