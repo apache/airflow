@@ -20,6 +20,7 @@
 package org.apache.airflow.sdk.execution
 
 import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.exhausted
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
 import kotlinx.coroutines.async
@@ -384,6 +385,39 @@ class CommsTest {
     val (_, failure) = roundTrip(::errorResponseFrame) { it.deleteVariable("k") }
 
     Assertions.assertInstanceOf(ApiError::class.java, failure)
+  }
+
+  @Test
+  @DisplayName("setXCom rejects a byte array nested in the value without writing anything to the supervisor")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComRejectsByteArrayBeforeWriting() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val details =
+      StartupDetails().also {
+        it.ti =
+          TaskInstance().also { ti ->
+            ti.dagId = "d"
+            ti.taskId = "t"
+            ti.runId = "r"
+          }
+      }
+    val client = PublicClient(details, CoordinatorClient(comm))
+    // Answer the first request in advance. If setXCom sent the byte array anyway,
+    // this reply would let setXCom return. Then assertThrows would fail at once
+    // instead of the test waiting for its 30-second timeout.
+    runBlocking { toClient.writeFrame(emptyResponseFrame(0)) }
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        client.setXCom(value = mapOf("blob" to byteArrayOf(1)))
+      }
+
+    Assertions.assertTrue("Base64" in error.message.orEmpty(), "the error should suggest an encoding: $error")
+    runBlocking { fromClient.flushAndClose() }
+    Assertions.assertTrue(runBlocking { fromClient.exhausted() }, "nothing should be written to the supervisor")
+    comm.close()
   }
 
   @Test
