@@ -922,15 +922,17 @@ class TestLocalExecutorBookkeeping:
         executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
         try:
             executor.heartbeat()
+            # Spawned workers re-import the airflow stack before dequeuing; ~10s observed on loaded CI runners.
             timeout = 30
             deadline = time.monotonic() + timeout
             while not marker.exists():
                 assert time.monotonic() < deadline, f"Worker process failed to start within {timeout}s"
                 assert any(proc.is_alive() for proc in executor.workers.values()), (
-                    "Worker died before entering workload"
+                    "Worker died before entering workload: "
+                    f"{[proc.exitcode for proc in executor.workers.values()]}"
                 )
                 executor.sync()
-                time.sleep(0.02)
+                time.sleep(0.01)
             executor.sync()
             pid, proc = next(iter(executor.workers.items()))
             assert executor._worker_tasks == {pid: key}
