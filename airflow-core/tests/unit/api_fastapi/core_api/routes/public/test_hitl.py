@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.serialization import CLASSNAME, FORBIDDEN_XCOM_KEYS
 from airflow._shared.timezones.timezone import utc, utcnow
+from airflow.api_fastapi.core_api.routes.public import hitl as hitl_routes
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.hitl import HITLDetail
@@ -37,6 +38,7 @@ from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TIModel
 from airflow.models.team import Team
 from airflow.sdk.execution_time.hitl import HITLUser
+from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import TaskInstanceState
 
@@ -288,7 +290,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "trigger": None,
             "triggerer_job": None,
             "try_number": 0,
-            "unixname": "root",
+            "unixname": getuser(),
         },
     }
 
@@ -425,6 +427,33 @@ class TestUpdateHITLDetailEndpoint:
         )
         assert response.status_code == 400
         assert "Invalid options" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_should_validate_against_row_refreshed_under_lock(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_ti: TaskInstance,
+    ) -> None:
+        original = hitl_routes._get_task_instance_with_hitl_detail
+
+        def load_then_rewrite_options(**kwargs: Any) -> Any:
+            ti = original(**kwargs)
+            kwargs["session"].execute(
+                update(HITLDetail).where(HITLDetail.ti_id == sample_ti.id).values(options=["Retry"]),
+                execution_options={"synchronize_session": False},
+            )
+            return ti
+
+        with mock.patch.object(
+            hitl_routes, "_get_task_instance_with_hitl_detail", side_effect=load_then_rewrite_options
+        ):
+            response = test_client.patch(
+                f"{sample_ti_url_identifier}/hitlDetails",
+                json={"chosen_options": ["Retry"], "params_input": {}},
+            )
+        assert response.status_code == 200
+        assert response.json()["chosen_options"] == ["Retry"]
 
     @pytest.mark.usefixtures("sample_hitl_detail")
     @pytest.mark.parametrize("reserved_key", sorted(FORBIDDEN_XCOM_KEYS))

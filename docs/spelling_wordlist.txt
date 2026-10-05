@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractCapability
 AbstractFileSystem
 AbstractToolset
 accessor
@@ -841,6 +842,7 @@ ideation
 idempotence
 idempotency
 IdP
+idp
 ie
 iframe
 iframes
@@ -877,7 +879,9 @@ instafail
 installable
 InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceGroupManager
 InstanceSelection
+InstanceTemplate
 instanceTemplates
 InstanceType
 instanceType
@@ -1501,6 +1505,7 @@ rtype
 ru
 ruleset
 runAsUser
+RunContext
 runnable
 RunQueryOperator
 RunQuerySensor

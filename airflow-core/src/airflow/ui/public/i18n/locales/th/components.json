@@ -21,7 +21,6 @@
         "title": "สร้าง Backfill แล้ว"
       }
     },
-    "unpause": "ยกเลิกการหยุดพัก {{dag_display_name}} เมื่อทริกเกอร์",
     "validation": {
       "datesRequired": "จำเป็นต้องระบุวันเริ่มต้นและวันสิ้นสุดทั้งสองวัน",
       "startBeforeEnd": "วันเริ่มต้นต้องน้อยกว่าหรือเท่ากับวันสิ้นสุด"
@@ -109,8 +108,7 @@
         "description": "Dag Run ถูกทริกเกอร์สำเร็จแล้ว",
         "title": "ทริกเกอร์ Dag Run แล้ว"
       }
-    },
-    "unpause": "ยกเลิกการหยุดพัก {{dagDisplayName}} เมื่อทริกเกอร์"
+    }
   },
   "trimText": {
     "details": "รายละเอียด",

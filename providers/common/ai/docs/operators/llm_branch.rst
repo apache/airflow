@@ -224,7 +224,7 @@ Four situations, each with a defined outcome:
 
 Without a ``min_confidence`` on the policy nothing here applies and the
 operator behaves as before. ``on_uncertain="review"`` needs Airflow 3.1+, like
-``require_approval``, and is rejected at construction on an older core. The
+``require_approval``, and is rejected at construction on an older Airflow version. The
 review it opens is the same one ``require_approval`` opens: ``approval_timeout``,
 ``on_approval_timeout``, ``allow_modifications``, ``approval_notifiers`` and
 ``approval_assigned_users`` all apply to it.

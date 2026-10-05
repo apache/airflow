@@ -23,10 +23,10 @@ runs the same ``get_bundle(name).initialize()`` download step that
 parse), so the Go binary / Java jar stored in an S3 (localstack) bucket is pulled
 into ``bundle.path`` = ``{dag_bundle_storage_path}/{name}``.
 
-That path is the ``emptyDir`` shared with the worker container and is exactly the
-``executables_root`` / ``jars_root`` the coordinator scans. Coordinator mode never
-runs the Python task-runner in the worker pod, so without this step the artifact
-would never reach the pod.
+That path is the ``emptyDir`` shared with the worker container, where it is registered
+as the ``LocalDagBundle`` the coordinator's ``task_handler_bundle_name`` names. The
+coordinator does not name the S3 bundle directly because its download drops the Go
+binary's execute bit, which the coordinator requires; Java is staged the same way.
 
 Configuration is read from the environment (set by the pod template):
 

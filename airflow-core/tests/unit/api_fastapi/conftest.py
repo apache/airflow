@@ -133,11 +133,12 @@ def _authed_test_client(app: FastAPI, request):
             ),
         )
     with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-        yield TestClient(
+        with TestClient(
             app,
             headers={"Authorization": f"Bearer {token}"},
             base_url=f"{BASE_URL}{get_api_path(request)}",
-        )
+        ) as test_client:
+            yield test_client
 
 
 @pytest.fixture
@@ -167,22 +168,41 @@ def fresh_test_client(request):
 
 @pytest.fixture
 def unauthenticated_test_client(request, _isolated_shared_app):
-    return TestClient(_isolated_shared_app, base_url=f"{BASE_URL}{get_api_path(request)}")
+    with TestClient(_isolated_shared_app, base_url=f"{BASE_URL}{get_api_path(request)}") as test_client:
+        yield test_client
 
 
 @pytest.fixture
-def unauthorized_test_client(request, _isolated_shared_app):
-    app = _isolated_shared_app
-    auth_manager: SimpleAuthManager = app.state.auth_manager
+def unauthorized_headers(_isolated_shared_app):
+    auth_manager: SimpleAuthManager = _isolated_shared_app.state.auth_manager
     token = auth_manager._get_token_signer().generate(
         auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
     )
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def unauthorized_test_client(request, _isolated_shared_app, unauthorized_headers):
     with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-        yield TestClient(
-            app,
-            headers={"Authorization": f"Bearer {token}"},
+        with TestClient(
+            _isolated_shared_app,
+            headers=unauthorized_headers,
             base_url=f"{BASE_URL}{get_api_path(request)}",
-        )
+        ) as test_client:
+            yield test_client
+
+
+@pytest.fixture
+def deny_dag_edit_access():
+    """Let the test client's user do everything with a Dag but edit the Dag itself (``PUT``)."""
+    with mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_dag",
+        autospec=True,
+        side_effect=lambda _self, *, method, user, access_entity=None, details=None: (
+            not (method == "PUT" and access_entity is None)
+        ),
+    ) as mock_is_authorized_dag:
+        yield mock_is_authorized_dag
 
 
 @pytest.fixture

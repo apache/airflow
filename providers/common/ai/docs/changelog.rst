@@ -39,6 +39,18 @@ Changelog
   attempt is checked and counted on its own, unchanged. See :ref:`the cross-attempt usage
   budget <agent-usage-budget>`.
 
+.. note::
+  ``get_schema`` on ``SQLToolset`` and ``DataFusionToolset`` now returns a JSON object
+  ``{"columns": [{"name", "type"}, ...], "column_count": N}`` instead of a bare JSON array of
+  columns. The tool also accepts an optional ``name_contains`` substring filter, and on a table
+  with more columns than ``max_columns`` (default 100), or one whose serialized columns exceed
+  ``max_result_bytes``, it returns a bounded summary (``column_count``, a ``type_histogram`` and a
+  ``sample_columns`` preview, with ``truncated``, ``truncated_by`` and a ``hint``) in place of the
+  full list. Update any system prompt or direct ``call_tool("get_schema", ...)`` caller that read
+  the old top-level array: check ``truncated`` first, then read ``result["columns"]`` on a full
+  result or ``result["sample_columns"]`` on a summary. A summary carries no ``columns`` key, so
+  ``result["columns"]`` raises ``KeyError`` on any table wide enough to be summarized.
+
 0.10.0
 ......
 
