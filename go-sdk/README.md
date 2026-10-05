@@ -109,11 +109,15 @@ Every parameter after the Context is a **data parameter**, filled in declaration
 arguments of the Python stub Task's TaskFlow call. A literal in the Dag file (`transform("uk", ...)`)
 decodes straight into the parameter; an upstream task's output (`transform(..., extract())`) is
 pulled from that task's XCom in the current Dag run. If the argument count doesn't match, or an
-argument's declared type can't fill the Go type, the task fails before its body runs.
+argument's declared type can't fill the Go type, the Python Dag file fails to import when the Dag
+processor checks it. A value that still can't fill the Go type when the task runs fails the task
+before its body runs.
 
 Stub parameters the Dag author left at their Python defaults are the exception: they reach the wire
-but need no Go parameter, so adding a defaulted parameter to a stub doesn't break the Go functions
-already bound to it.
+but need no Go parameter. Adding a defaulted parameter to a stub doesn't break a struct handler, or a
+function that declares none of the stub's defaulted parameters. When a function's parameter count
+doesn't match, every defaulted argument is dropped and the count is compared again, so a function
+that declares only some of the defaulted parameters doesn't bind.
 
 ```go
 func extract(actx airflow.Context) (any, error) {

@@ -280,11 +280,13 @@ Restart the affected Airflow components after changing this configuration. The c
 and a JRE must be available wherever tasks execute and on the Dag processor. With ``CeleryExecutor``, tasks
 execute on the Celery workers; with ``LocalExecutor``, they run in subprocesses on the scheduler's host. The
 Dag processor checks the stub tasks of ``sales_pipeline.py`` against the task handlers the JARs register, so
-it runs them too. The API server does not need any of it. Register the Dag bundle in
-``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker and
-the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read
-it is rejected if the name is missing there. The Dag processor still receives ``sales_pipeline.py`` through
-the separate Dag delivery process.
+it runs them too; the probe runs the same command as a task, so set ``main_class`` to pin which JAR runs
+when several in the bundle set ``Main-Class``. A JAR built before this check existed answers no parse
+request and is a warning in the parse log until it is rebuilt. The API server does not need any of it.
+Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every component, like your other
+Dag bundles: the worker and the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever
+the ``[sdk]`` config is read it is rejected if the name is missing there. The Dag processor still receives
+``sales_pipeline.py`` through the separate Dag delivery process.
 
 A Dag processor with this ``[sdk]`` configuration also parses the executable JARs of every Dag bundle,
 and needs a JRE to do so (see :ref:`java-sdk/native-dag-parsing`).
@@ -482,10 +484,13 @@ so renaming one in an IDE never rebinds an input.
 A primitive parameter cannot hold ``null``, so the task fails with ``MissingXComException`` when its
 binding resolves to nothing; declare a boxed type (``Long``, ``Double``, …) to receive ``null``
 instead.  The method must declare as many data parameters as the call site bound: positions carry
-the whole meaning of a flat binding, so any other count has already shifted them, and the task fails
-rather than running on arguments it has mistaken for others.  A parameter the Python call omitted
-does not count towards that.  Its default still arrives, but a method that does not declare it is
-not reading shifted arguments, so the SDK drops it before comparing the two counts.
+the whole meaning of a flat binding, so any other count has already shifted them.  The Dag processor
+reports it as an import error of the Python Dag file (see :ref:`language-sdks/dag-processor-checks`),
+and a task that runs anyway fails rather than running on arguments it has mistaken for others.  A
+parameter the Python call omitted does not count towards that when the counts differ.  Its default
+still arrives, but a method that declares none of the omitted parameters is not reading shifted
+arguments, so they are all dropped and the counts are compared again.  A method that declares only
+some of them still fails.
 
 Generic parameters are decoded element by element.  Declare ``List<Double>`` and ``values.get(0)``
 really is a ``Double``, even though the call site passed whole numbers and the wire carries them as

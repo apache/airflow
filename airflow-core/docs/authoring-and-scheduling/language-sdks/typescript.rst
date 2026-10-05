@@ -125,7 +125,9 @@ The ``dagId`` a handler binds must match the ``dag_id`` of the Python Dag, and t
 ``@task.stub`` function in that Dag, including any TaskGroup prefix.
 
 ``register`` takes any number of task handlers and Dags, and ``bundle.serve()`` serves exactly what is
-registered, so a task left out is not part of the packed bundle and is marked removed at runtime.
+registered, so a task left out is not part of the packed bundle. A stub task whose handler is left out
+fails the import of its Python Dag file (see :ref:`language-sdks/dag-processor-checks`), and a task that
+still reaches a bundle without its handler is marked removed at runtime.
 A second ``bundle.serve()`` call is rejected.
 Registering holds no sockets and starts nothing, so a unit test can build a bundle and dispatch a handler
 through ``bundle.getTaskHandler(dagId, taskId)`` without a coordinator runtime.
@@ -258,7 +260,10 @@ so keep the Dag processor from parsing it by listing ``*`` in its ``.airflowigno
   The ``[sdk]`` config, the packed ``*.min.mjs`` bundles and Node.js must be present wherever tasks execute
   and on the Dag processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with
   ``LocalExecutor``, they run inside the scheduler process. The Dag processor checks the stub tasks of each
-  Python Dag against the task handlers the packed bundles register, so it runs them too.
+  Python Dag against the task handlers the packed bundles register, so it runs them too. The runtime does
+  not list a handler's parameters, so the check is presence only: a stub task either has a matching handler
+  in the bundle or it does not. A bundle packed before this check existed must be packed again before it can
+  answer.
   It also runs them to parse the bundles of every Dag bundle, see :ref:`typescript-sdk/native-parsing`.
   The API server does not need any of it.
   Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every
