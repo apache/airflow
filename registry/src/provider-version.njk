@@ -308,18 +308,9 @@ eleventyComputed:
     {% endif %}
   </section>
 
-  {# URI schemes the provider registers with ObjectStoragePath, Asset URIs and remote logging #}
-  {% macro schemeSupport(detail) %}
-    {% if detail %}
-    <svg class="registered" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="Registered">
-      <title>{{ detail }}</title>
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-    </svg>
-    {% else %}
-    <span class="unregistered" aria-hidden="true">&ndash;</span><span class="sr-only">Not registered</span>
-    {% endif %}
-  {% endmacro %}
-  {% if uriSchemes.length > 0 %}
+  {# URI schemes grouped by the Airflow feature that routes them to the provider #}
+  {% set schemeGroups = uriSchemes | uriSchemeGroups %}
+  {% if schemeGroups.length > 0 %}
   <section class="uri-schemes card">
     <h3>
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -327,31 +318,19 @@ eleventyComputed:
       </svg>
       URI Schemes ({{ uriSchemes.length }})
     </h3>
-    <p>Schemes this release registers in provider.yaml. Airflow routes paths and URIs with these schemes to the provider.</p>
-    <table>
-      <thead>
-        <tr>
-          <th scope="col">Scheme</th>
-          <th scope="col"><a href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/objectstorage.html" target="_blank" rel="noopener">ObjectStoragePath</a></th>
-          <th scope="col"><a href="https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/assets.html#what-is-valid-uri" target="_blank" rel="noopener">Asset URIs</a></th>
-          <th scope="col"><a href="https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/logging-tasks.html" target="_blank" rel="noopener">Remote logging</a></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in uriSchemes %}
-        {% set assetDetail = none %}
-        {% if s.asset %}
-          {% set assetDetail = ([s.asset.handler, s.asset.factory, s.asset.to_openlineage_converter] | select | join(", ")) or "No-op handler" %}
-        {% endif %}
-        <tr>
-          <th scope="row"><code>{{ s.scheme }}://</code></th>
-          <td>{{ schemeSupport(s.filesystem) }}</td>
-          <td>{{ schemeSupport(assetDetail) }}</td>
-          <td>{{ schemeSupport(s.remote_logging) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <p>Schemes this release registers in provider.yaml, grouped by the Airflow feature that routes them to the provider.</p>
+    <dl>
+      {% for group in schemeGroups %}
+      <div>
+        <dt><a href="{{ group.docsUrl }}" target="_blank" rel="noopener">{{ group.label }}</a></dt>
+        <dd>
+          {% for s in group.schemes %}
+          <code title="{{ s.detail }}">{{ s.scheme }}://</code>
+          {% endfor %}
+        </dd>
+      </div>
+      {% endfor %}
+    </dl>
   </section>
   {% endif %}
 

@@ -4075,7 +4075,6 @@ main {
 .provider-detail-page .uri-schemes {
   padding: var(--space-5);
   margin-bottom: var(--space-6);
-  overflow-x: auto;
 }
 
 .provider-detail-page .uri-schemes > h3 {
@@ -4100,58 +4099,53 @@ main {
   margin-bottom: var(--space-3);
 }
 
-.provider-detail-page .uri-schemes table {
-  width: 100%;
-  border-collapse: collapse;
+.provider-detail-page .uri-schemes dl {
+  display: grid;
+  gap: var(--space-3);
 }
 
-.provider-detail-page .uri-schemes th,
-.provider-detail-page .uri-schemes td {
-  padding: var(--space-2) var(--space-3);
-  text-align: left;
-  white-space: nowrap;
+.provider-detail-page .uri-schemes dl > div {
+  display: grid;
+  gap: var(--space-2);
 }
 
-.provider-detail-page .uri-schemes thead th {
+@media (min-width: 640px) {
+  .provider-detail-page .uri-schemes dl > div {
+    grid-template-columns: 10rem 1fr;
+    align-items: baseline;
+  }
+}
+
+.provider-detail-page .uri-schemes dt {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--text-secondary);
-  background: var(--bg-tertiary);
 }
 
-.provider-detail-page .uri-schemes thead a {
+.provider-detail-page .uri-schemes dt a {
   color: inherit;
   text-decoration: underline dotted;
   text-underline-offset: 3px;
 }
 
-.provider-detail-page .uri-schemes thead a:hover {
+.provider-detail-page .uri-schemes dt a:hover {
   color: var(--accent-primary);
 }
 
-.provider-detail-page .uri-schemes tbody tr {
-  border-top: 1px solid var(--border-primary);
+.provider-detail-page .uri-schemes dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-.provider-detail-page .uri-schemes tbody th {
-  font-weight: var(--font-normal);
-}
-
-.provider-detail-page .uri-schemes tbody code {
+.provider-detail-page .uri-schemes dd code {
+  padding: var(--space-1) var(--space-3);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--text-primary);
-}
-
-.provider-detail-page .uri-schemes .registered {
-  width: 1.125rem;
-  height: 1.125rem;
-  color: var(--color-green-400);
-  vertical-align: middle;
-}
-
-.provider-detail-page .uri-schemes .unregistered {
-  color: var(--text-muted);
+  color: var(--color-blue-400);
+  background: rgb(from var(--color-blue-500) r g b / 0.05);
+  border: 1px solid rgb(from var(--color-blue-500) r g b / 0.2);
+  border-radius: var(--radius-full);
 }
 
 /* Search Modal */
