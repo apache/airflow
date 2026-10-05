@@ -24,6 +24,7 @@ import pytest
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
 from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+from airflow.sdk.definitions.partition_mappers.rerun_policy import RerunPolicy
 from airflow.sdk.definitions.partition_mappers.temporal import StartOfDayMapper
 from airflow.sdk.definitions.partition_mappers.window import (
     DayWindow,
@@ -65,6 +66,75 @@ class TestSdkRollupMapperInit:
 
         # Should not raise.
         RollupMapper(upstream_mapper=_StringOnlyMapper(), window=_AlphaWindow())
+
+
+class TestSdkRollupMapperRerunPolicy:
+    """``rerun_policy`` defaults to HOLD, coerces strings, and rejects junk."""
+
+    def _make_mapper(self, **kwargs):
+        return RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow(), **kwargs)
+
+    def test_defaults_to_hold(self):
+        assert self._make_mapper().rerun_policy is RerunPolicy.HOLD
+
+    @pytest.mark.parametrize("policy", list(RerunPolicy))
+    def test_accepts_enum_member(self, policy):
+        assert self._make_mapper(rerun_policy=policy).rerun_policy is policy
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("refresh", RerunPolicy.REFRESH),
+            ("hold", RerunPolicy.HOLD),
+            ("ignore", RerunPolicy.IGNORE),
+        ],
+    )
+    def test_coerces_string(self, value, expected):
+        assert self._make_mapper(rerun_policy=value).rerun_policy is expected
+
+    def test_rejects_unknown_value(self):
+        with pytest.raises(ValueError, match="reprocess"):
+            self._make_mapper(rerun_policy="reprocess")
+
+    def test_non_rollup_mapper_reports_hold(self):
+        """A non-rollup mapper carries the neutral HOLD default, which the scheduler reads off any mapper."""
+        assert IdentityMapper().rerun_policy is RerunPolicy.HOLD
+        assert FixedKeyMapper("all").rerun_policy is RerunPolicy.HOLD
+
+    @pytest.mark.parametrize(
+        "make_mapper",
+        [
+            pytest.param(lambda **kw: IdentityMapper(**kw), id="identity"),
+            pytest.param(lambda **kw: StartOfDayMapper(**kw), id="temporal"),
+            pytest.param(lambda **kw: FixedKeyMapper("all", **kw), id="fixed_key"),
+        ],
+    )
+    def test_only_rollup_accepts_rerun_policy_kwarg(self, make_mapper):
+        """``rerun_policy`` is a constructor field only on RollupMapper; other mappers reject it."""
+        assert (
+            RollupMapper(
+                upstream_mapper=StartOfDayMapper(), window=DayWindow(), rerun_policy=RerunPolicy.REFRESH
+            ).rerun_policy
+            is RerunPolicy.REFRESH
+        )
+        with pytest.raises(TypeError, match="rerun_policy"):
+            make_mapper(rerun_policy=RerunPolicy.REFRESH)
+
+
+class TestRerunPolicyMethods:
+    """The behavior lives on the enum so the scheduler/manager ask it directly."""
+
+    @pytest.mark.parametrize(
+        ("policy", "fires", "drops"),
+        [
+            (RerunPolicy.REFRESH, True, False),
+            (RerunPolicy.HOLD, False, False),
+            (RerunPolicy.IGNORE, False, True),
+        ],
+    )
+    def test_behavior(self, policy, fires, drops):
+        assert policy.fires_immediately is fires
+        assert policy.drops_event is drops
 
 
 class TestSdkDirectionValidation:

@@ -22,6 +22,7 @@ from airflow.partition_mappers.chain import ChainMapper
 from airflow.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.product import ProductMapper
+from airflow.partition_mappers.rerun_policy import RerunPolicy
 from airflow.partition_mappers.temporal import (
     FanOutMapper,
     StartOfDayMapper,
@@ -56,6 +57,7 @@ __all__ = [
     "PartitionMapper",
     "ProductMapper",
     "QuarterWindow",
+    "RerunPolicy",
     "RollupMapper",
     "SegmentWindow",
     "StartOfDayMapper",
