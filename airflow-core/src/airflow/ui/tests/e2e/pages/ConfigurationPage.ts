@@ -40,6 +40,12 @@ export class ConfigurationPage extends BasePage {
     });
   }
 
+  public getRowByKey(key: string): Locator {
+    return this.rows.filter({
+      has: this.page.getByTestId("table-cell-key").filter({ hasText: new RegExp(`^${key}$`) }),
+    });
+  }
+
   public async navigate(): Promise<void> {
     await expect(async () => {
       await this.navigateTo("/configs");

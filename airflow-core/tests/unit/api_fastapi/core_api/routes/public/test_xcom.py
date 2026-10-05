@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
@@ -31,7 +32,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, AssetAlias
 from airflow.sdk.bases.xcom import BaseXCom
@@ -39,7 +40,7 @@ from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import (
@@ -773,6 +774,19 @@ class TestCreateXComEntry(TestXComEndpoint):
             assert current_data["map_index"] == request_body.map_index
         check_last_log(session, dag_id=TEST_DAG_ID, event="create_xcom_entry", logical_date=None)
 
+    def test_create_xcom_entry_duplicate_check_is_bounded(self, test_client):
+        """Checking for an existing XCom before inserting must ask the database for one row."""
+        with capture_orm_selects("xcom") as statements:
+            response = test_client.post(
+                f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+                json=XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE).model_dump(),
+            )
+
+        assert response.status_code == 201
+        assert statements, "expected the endpoint to query the xcom table"
+        for sql in statements:
+            assert re.search(r"\bLIMIT 1\b", sql), f"XCom lookup is not bounded to one row: {sql}"
+
     @conf_vars({("core", "multi_team"): "True"})
     def test_create_xcom_entry_with_team_name(self, test_client):
         _attach_dag_to_team(TEST_DAG_ID, "team-xcom-create")
@@ -853,7 +867,7 @@ class TestCreateXComEntry(TestXComEndpoint):
     def test_create_xcom_entry_blocks_forbidden_keys_in_json_string(self, test_client, value):
         """A forbidden payload submitted as a JSON string literal is blocked too.
 
-        ``_check_forbidden_xcom_keys._walk`` previously descended dict/list/tuple but not
+        The reserved-key walk previously descended dict/list/tuple but not
         ``str``, so a value like ``json.dumps({"__classname__": ...})`` slipped past the
         filter and was reconstructed into a dict on a ``deserialize=true`` read.
         """
@@ -1072,3 +1086,36 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert data["value"] == patch_value
         assert isinstance(data["value"], int), f"Expected int type but got {type(data['value'])}"
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    def test_patch_xcom_preserves_mapped_length(self, test_client, session):
+        """set() replaces the row, so an edit must not drop the recorded expansion length."""
+        key = XCOM_RETURN_KEY
+        XComModel.set(
+            key=key,
+            value=[1, 2, 3],
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=run_id,
+            mapped_length=3,
+            session=session,
+        )
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
+            json={"value": [9, 9, 9]},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["value"] == [9, 9, 9]
+        assert (
+            session.scalar(
+                select(XComModel.mapped_length).where(
+                    XComModel.dag_id == TEST_DAG_ID,
+                    XComModel.task_id == TEST_TASK_ID,
+                    XComModel.run_id == run_id,
+                    XComModel.key == key,
+                )
+            )
+            == 3
+        )

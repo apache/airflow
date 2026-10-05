@@ -28,6 +28,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "cleanup",
         "generate-migration-file",
         "doctor",
+        "verify",
     ],
 }
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -322,6 +323,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Other options",
             "options": [
                 "--forward-credentials",
+                "--include-mypy-volume",
                 "--skip-image-upgrade-check",
             ],
         },
@@ -332,13 +334,14 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--cleanup-pycache",
                 "--cleanup-build-cache",
             ],
         },
         {
             "name": "Project selection",
             "options": [
-                "--all-projects",
+                "--all-worktrees",
                 "--project-name",
             ],
         },
@@ -395,6 +398,16 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--message",
                 "--github-repository",
                 "--builder",
+            ],
+        },
+    ],
+    "breeze verify": [
+        {
+            "name": "Verify flags",
+            "options": [
+                "--base-ref",
+                "--full",
+                "--json",
             ],
         },
     ],

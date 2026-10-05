@@ -223,6 +223,14 @@ core:
         * ``False``: Execute via forking of the parent process
         * ``True``: Spawning a new python process, slower than fork, but means plugin changes picked
           up by tasks straight away
+
+        On Airflow 3 this applies to the task process only. When ``True`` the supervisor starts
+        the task in a fresh interpreter with ``exec`` right after forking it, so the task cannot
+        inherit a lock a supervisor thread held at fork time (which can otherwise hang it at its
+        first TLS call). The Dag processor, the triggerer and task callbacks are not affected and
+        keep bare fork. Each task pays an interpreter start plus re-import. The task process reads
+        the global value; Edge workers, which resolve it per team, already start a fresh interpreter
+        for the supervisor when it is ``True`` and start a second one for the task.
       default: "False"
       example: ~
       version_added: 2.0.0
@@ -728,9 +736,12 @@ database:
     sql_alchemy_connect_args_async:
       description: |
         Import path for connect args in SQLAlchemy. Defaults to an empty dict.
-        This is similar to ``sql_alchemy_connect_args``, but only for async connections.
+        This is similar to ``sql_alchemy_connect_args``, but only for async connections and must be a dict.
 
-        This configuration is only applied to async engines, such as asyncpg.
+        This is applied to the async engine only. The default async Postgres driver (psycopg3) needs
+        no extra args. If you opt in to the ``asyncpg`` driver behind transaction-mode pgbouncer, set
+        ``statement_cache_size`` and ``prepared_statement_cache_size`` to ``0`` here to avoid "prepared
+        statement does not exist" errors. See the async driver section of the Postgres setup guide.
       version_added: 3.1.0
       type: string
       example: 'airflow_local_settings.connect_args_async'
@@ -748,9 +759,9 @@ database:
       default: ~
     max_db_retries:
       description: |
-        Number of times the code should be retried in case of DB Operational Errors.
-        Not all transactions will be retried as it can cause undesired state.
-        Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
+        Maximum number of attempts, including the first one, for operations retried on DB
+        operational errors. The default of 3 means one initial attempt plus up to 2 retries.
+        Not all transactions are retried, since retrying some of them can leave undesired state.
       version_added: 2.3.0
       type: integer
       example: ~
@@ -1901,6 +1912,16 @@ api:
       type: string
       example: "required"
       default: "none"
+    ssl_ciphers:
+      description: |
+        OpenSSL cipher list used by the api server when SSL is enabled.
+        See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-list-format
+        for the format. When left empty, the default cipher list of Python's ``ssl``
+        module is used.
+      version_added: 3.4.0
+      type: string
+      example: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+      default: ""
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -2079,13 +2100,19 @@ workers:
     max_failed_heartbeats:
       description: |
         The maximum number of consecutive failed heartbeats before terminating the task instance process.
+
+        Unlike other calls to the execution API, heartbeats are not retried. This setting and
+        ``min_heartbeat_interval`` together determine how long a worker tolerates an unreachable API server
+        before killing running tasks.
       version_added: 3.0.0
       type: integer
       example: ~
-      default: "3"
+      default: "30"
     execution_api_retries:
       description: |
         The maximum number of retry attempts to the execution API server.
+
+        Note that task instance heartbeats are not retried.
       version_added: 3.0.0
       type: integer
       example: ~
@@ -2164,6 +2191,19 @@ sdk:
         example, two ``JavaCoordinator`` instances pinned to different JDK
         versions).
 
+        The language SDK coordinators read the task handlers for the
+        ``@task.stub`` tasks of a Python Dag from the Dag bundle named by the
+        ``task_handler_bundle_name`` kwarg. Dags defined natively in a language
+        SDK do not use it. It must name a bundle in
+        ``[dag_processor] dag_bundle_config_list`` and is checked when this
+        option is loaded. When it is unset, a task reads its handlers from its
+        own Dag bundle.
+
+        The Dag processor needs this option too, with the language runtime the
+        coordinator starts and the files of that Dag bundle, because it checks
+        the stub tasks of each Python Dag against the task handlers those files
+        register. The API server does not need it.
+
         An entry may also carry an optional ``extra`` object for additional
         information associated with the coordinator that the coordinator itself
         does not receive; other components read it as needed. For example,
@@ -2178,7 +2218,7 @@ sdk:
           "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
-              "jars_root": ["/opt/airflow/java-bundles"],
+              "task_handler_bundle_name": "java-task-handlers",
               "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
               "jvm_args": ["-Xmx1024m"]
             },
@@ -2191,7 +2231,7 @@ sdk:
           "go-sdk": {
             "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
             "kwargs": {
-              "executables_root": ["/opt/airflow/executable-bundles"]
+              "task_handler_bundle_name": "go-task-handlers"
             }
           }
         }
@@ -2208,6 +2248,20 @@ sdk:
       version_added: 3.3.0
       type: string
       example: '{"legacy-java": "jdk-11", "modern-java": "jdk-17"}'
+      default: ~
+    dag_bundle_to_coordinator:
+      description: |
+        JSON object mapping a Dag bundle name to one key of ``[sdk] coordinators``. It picks the coordinator
+        that parses the bundle's native Dag files when several coordinators of that runtime are configured.
+
+        With one coordinator of a runtime, that coordinator parses the runtime's native Dag files in every
+        Dag bundle, and this option is not read. With several, a bundle that holds such files must map to
+        one of them, otherwise each file fails to parse with an import error. A bundle maps to one
+        coordinator, so it can hold native Dag files of only one runtime that has several coordinators.
+        Tasks do not read this option; ``queue_to_coordinator`` routes them.
+      version_added: 3.4.0
+      type: string
+      example: '{"dags-folder": "java-native"}'
       default: ~
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
@@ -2715,6 +2769,19 @@ scheduler:
       type: float
       example: ~
       default: "30.0"
+    dagrun_metrics_per_dag_id:
+      description: |
+        If true, the ``scheduler.dagruns.running`` and ``scheduler.dagruns.queued`` metrics are
+        emitted once per ``dag_id`` (tagged by ``dag_id``) instead of as a single aggregate value
+        across all Dags. This gives per-Dag visibility into running/queued backlog, at the cost of
+        emitting one metric series per Dag with an active DagRun on every
+        ``[scheduler] dagrun_metrics_interval``. On deployments with a large number of Dags, enabling
+        this can significantly increase the number of metric series sent to StatsD/OpenTelemetry, so
+        it is disabled by default.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
@@ -3183,6 +3250,10 @@ dag_processor:
 
         The default is the dags folder dag bundle.
 
+        A backend config may also supply ``importers`` (experimental): Dag importers for that
+        bundle only, in the format of ``[dag_processor] dag_importer_configs``, taking precedence
+        over it.
+
         Note: As shown below, you can split your json config over multiple lines by indenting.
         See configparser documentation for an example:
         https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
@@ -3208,6 +3279,39 @@ dag_processor:
                 "kwargs": {{}}
               }}
             ]
+
+    dag_importer_configs:
+      description: |
+        .. note:: |experimental|
+
+        List of Dag importer configs. Each entry must supply ``classpath`` and may supply
+        ``extensions`` and ``kwargs``.
+
+        Importers turn the contents of a bundle into Dag definitions. Airflow registers
+        importers for ``.py`` and ``.zip`` out of the box; use this option to register
+        importers for other formats, or to replace a built-in one.
+
+        An importer registered here applies to every bundle. To register an importer for a
+        single bundle only, add an ``importers`` key to that bundle's entry in
+        ``dag_bundle_config_list``, which takes the same format and takes precedence over
+        this option.
+
+        If ``extensions`` is omitted, the extensions declared by the importer class are used.
+
+        An entry may also be given as a bare classpath string when it needs no other
+        settings, so ``["my_company.importers.YamlDagImporter"]`` is equivalent to
+        ``[{"classpath": "my_company.importers.YamlDagImporter"}]``.
+      version_added: 3.4.0
+      type: string
+      example: >
+        [
+              {
+                "classpath": "my_company.importers.YamlDagImporter",
+                "extensions": [".yaml", ".yml"],
+                "kwargs": {}
+              }
+            ]
+      default: ~
     refresh_interval:
       description: |
         How often (in seconds) to refresh, or look for new files, in a DAG bundle.

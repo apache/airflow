@@ -26,6 +26,26 @@
 Changelog
 ---------
 
+2.20.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix OpenLineage emitting duplicate START events for rescheduled sensors (#73144)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document Databricks parent-job propagation in the Spark guide (#72643)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Prepare providers release 2026-09-09 (#72834)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
 2.20.1
 ......
 

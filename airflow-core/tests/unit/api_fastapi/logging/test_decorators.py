@@ -18,11 +18,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from unittest.mock import MagicMock
 
 import pytest
 from fastapi import Request
-from sqlalchemy import select
+from fastapi.dependencies.utils import get_flat_dependant
+from fastapi.routing import APIRoute
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -440,3 +443,135 @@ class TestActionLoggingResourceTeamName:
         log = self._log_action(session, {"dag_id": "dag_owned_by_infra", "pool_name": "team_pool"})
 
         assert log.team_name == "infra"
+
+
+class TestActionLoggingUnparsableBody:
+    """
+    An unparsable body is logged as an access with no body, never raised.
+
+    The dependency runs before the route, so it must never fail the request. On a route
+    declaring no body it is the only thing that parses one, where an error became a 500.
+    """
+
+    @staticmethod
+    def _request(body: bytes) -> Request:
+        async def receive():
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        return Request(
+            {
+                "type": "http",
+                "method": "DELETE",
+                "headers": [(b"content-type", b"application/json")],
+                "query_string": b"",
+                "path_params": {},
+            },
+            receive=receive,
+        )
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param(b"{bad", id="malformed_json"),
+            pytest.param(b'{"a": ', id="truncated_json"),
+            pytest.param(b'"\xff"', id="invalid_utf8_in_string"),
+            pytest.param(b"\xff\xfe\xfd", id="invalid_utf8_bare"),
+        ],
+    )
+    def test_the_access_is_logged_with_no_body(self, body):
+        session = MagicMock(spec=Session)
+
+        asyncio.run(
+            action_logging(event="test_event")(
+                request=self._request(body), session=session, user=MagicMock(spec=BaseUser)
+            )
+        )
+
+        (logged,) = session.add.call_args.args
+        assert logged.event == "test_event"
+
+
+def _bodyless_action_logging_routes(app) -> list[tuple[str, str]]:
+    """Every ``action_logging`` route that declares no request body of its own."""
+    found = set()
+
+    def _collect(route):
+        if not isinstance(route, APIRoute):
+            return
+        uses_logging = any(
+            getattr(dep.call, "__qualname__", "").startswith("action_logging")
+            for dep in route.dependant.dependencies
+        )
+        if not uses_logging:
+            return
+        if get_flat_dependant(route.dependant, skip_repeats=True).body_params:
+            return
+        for method in route.methods or []:
+            found.add((method, route.path))
+
+    for route in app.routes:
+        _collect(route)
+        for sub in getattr(getattr(route, "app", None), "routes", []) or []:
+            _collect(sub)
+    return sorted(found)
+
+
+@pytest.mark.db_test
+class TestNoActionLoggingRouteRejectsAnUnparsableBody:
+    """
+    No route may turn an unparsable body into a 500, asserted across all of them.
+
+    Three earlier fixes to this line each patched the shape just reported -- an empty body
+    (#49035), a list (#62354), then non-dict bodies again -- each covered by a test naming that
+    report's endpoint. Enumerating routes from the app, over every shape that makes
+    ``json.loads`` raise, is what makes the next one fail here instead of in production.
+    """
+
+    # One per exception type: JSONDecodeError, UnicodeDecodeError, bare ValueError
+    # (int_max_str_digits) and RecursionError.
+    PAYLOADS = {
+        "malformed": b"{bad",
+        "invalid_utf8": b"\xff\xfe\xfd",
+        "oversized_int": b"9" * 4301,
+        "deeply_nested": b"[" * 10000 + b"]" * 10000,
+    }
+
+    # Authorized before ``action_logging`` and rejected on the placeholder path value, so it never
+    # reaches the parse. Listed rather than skipped, since it must still not 500.
+    REJECTED_BEFORE_LOGGING = {("PUT", "/api/v2/parseDagFile/{file_token}")}
+
+    @pytest.mark.parametrize("payload_name", list(PAYLOADS))
+    def test_every_bodyless_route_tolerates_it(self, test_client, session, payload_name):
+        routes = _bodyless_action_logging_routes(test_client.app)
+        assert routes, "found no bodyless action_logging routes, so this would pass vacuously"
+
+        failures = []
+        for method, path in routes:
+            url = re.sub(r"\{[^}]+\}", "does-not-exist", path)
+            session.execute(delete(Log))
+            session.commit()
+            try:
+                response = test_client.request(
+                    method,
+                    url,
+                    content=self.PAYLOADS[payload_name],
+                    headers={"Content-Type": "application/json"},
+                )
+            except BaseException as exc:
+                # The client re-raises server exceptions (anyio may group them), so catch per
+                # route to report every offender instead of stopping at the first.
+                failures.append(f"{method} {path} -> raised {type(exc).__name__}")
+                continue
+            if response.status_code == 500:
+                failures.append(f"{method} {path} -> 500")
+                continue
+            # A route rejected by an earlier dependency never reached the parse, so requiring its
+            # audit row keeps it from passing vacuously -- one of them silently did.
+            if (method, path) in self.REJECTED_BEFORE_LOGGING:
+                continue
+            if not session.scalar(select(func.count()).select_from(Log)):
+                failures.append(f"{method} {path} -> {response.status_code} but wrote no audit row")
+
+        assert not failures, f"an unparsable body ({payload_name}) must not fail these routes:\n" + "\n".join(
+            failures
+        )

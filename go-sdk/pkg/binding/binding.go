@@ -17,12 +17,15 @@
 
 // Package binding resolves TaskFlow arguments for Go task functions.
 //
-// Runtime values are injected by type. Other parameters bind positionally,
-// except a sole struct whose fields bind by `arg:` tag or folded Go name.
+// A task function takes an airflow.Context first, and every parameter after it is data.
+// Data parameters bind positionally, except a sole struct whose fields bind by `arg:` tag
+// or folded Go name.
 // Captured defaults may go unclaimed, and a sole untagged struct can decode one
 // unclaimed argument as a whole value.
 //
 // Analyze validates a function once. Resolve binds each execution.
+// AnalyzePositional builds a plan in which a sole struct binds positionally too, as one whole
+// argument.
 package binding
 
 import (
@@ -69,10 +72,7 @@ func (LiteralArg) sealedArg() {}
 type paramKind int
 
 const (
-	paramTIRunContext paramKind = iota
-	paramContext
-	paramLogger
-	paramClient
+	paramAirflowContext paramKind = iota
 	paramData
 	paramLoneStruct
 )
@@ -103,18 +103,9 @@ type Plan struct {
 
 // Analyze validates a task function and builds its binding plan.
 func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
-	p := &Plan{fnName: fnName, params: make([]paramPlan, fnType.NumIn())}
-	var dataIdxs []int
-	for i := range fnType.NumIn() {
-		plan, err := classifyParam(fnName, fnType.In(i), i)
-		if err != nil {
-			return nil, err
-		}
-		if plan.kind == paramData {
-			p.numData++
-			dataIdxs = append(dataIdxs, i)
-		}
-		p.params[i] = plan
+	p, dataIdxs, err := analyzeParams(fnType, fnName)
+	if err != nil {
+		return nil, err
 	}
 
 	if p.numData == 1 {
@@ -147,6 +138,38 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 	return p, nil
 }
 
+// AnalyzePositional checks each parameter of a task function as Analyze does, but builds a plan
+// in which every data parameter takes one whole argument, in order. A sole struct takes one
+// whole argument too, where Analyze would bind its fields by name. So AnalyzePositional does
+// not check the fields of a struct, and `arg:` tags have no effect.
+func AnalyzePositional(fnType reflect.Type, fnName string) (*Plan, error) {
+	p, _, err := analyzeParams(fnType, fnName)
+	return p, err
+}
+
+func analyzeParams(fnType reflect.Type, fnName string) (p *Plan, dataIdxs []int, err error) {
+	if fnType.NumIn() == 0 {
+		return nil, nil, fmt.Errorf(
+			"task function %s: takes no parameters, but the first parameter must be "+
+				"airflow.Context",
+			fnName,
+		)
+	}
+	p = &Plan{fnName: fnName, params: make([]paramPlan, fnType.NumIn())}
+	for i := range fnType.NumIn() {
+		plan, err := classifyParam(fnName, fnType.In(i), i)
+		if err != nil {
+			return nil, nil, err
+		}
+		if plan.kind == paramData {
+			p.numData++
+			dataIdxs = append(dataIdxs, i)
+		}
+		p.params[i] = plan
+	}
+	return p, dataIdxs, nil
+}
+
 // Resolve builds the ordered values for one task call.
 func (p *Plan) Resolve(
 	ctx context.Context,
@@ -154,39 +177,23 @@ func (p *Plan) Resolve(
 	client sdk.Client,
 	args []Arg,
 ) ([]reflect.Value, error) {
-	out := p.resolveInjectables(ctx, logger, client)
+	out := make([]reflect.Value, len(p.params))
+	// Bound to the live task context, so actx.Done() fires on supervisor shutdown.
+	ti, dagRun := storedRunMetadata(ctx)
+	out[0] = newAirflowContext(ctx, logger, client, ti, dagRun)
 	if p.loneStruct {
-		return p.resolveLoneStructParam(ctx, client, args, out)
+		return p.resolveLoneStructParam(ctx, logger, client, args, out)
 	}
 	return p.resolveFlatParams(ctx, client, args, out)
 }
 
-func (p *Plan) resolveInjectables(
-	ctx context.Context,
-	logger *slog.Logger,
-	client sdk.Client,
-) []reflect.Value {
-	out := make([]reflect.Value, len(p.params))
-	for i, plan := range p.params {
-		switch plan.kind {
-		case paramTIRunContext:
-			// Rebuild the stored metadata around the live task context.
-			var ti sdk.TaskInstance
-			var dagRun sdk.DagRun
-			if stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext); ok {
-				ti, dagRun = stored.TaskInstance(), stored.DagRun()
-			}
-			out[i] = reflect.ValueOf(sdk.NewTIRunContext(ctx, ti, dagRun))
-		case paramContext:
-			out[i] = reflect.ValueOf(ctx)
-		case paramLogger:
-			out[i] = reflect.ValueOf(logger)
-		case paramClient:
-			out[i] = reflect.ValueOf(client)
-		case paramData, paramLoneStruct:
-		}
+// storedRunMetadata reads the task instance and Dag run recorded on the task context.
+func storedRunMetadata(ctx context.Context) (sdk.TaskInstance, sdk.DagRun) {
+	stored, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
+	if !ok {
+		return sdk.TaskInstance{}, sdk.DagRun{}
 	}
-	return out
+	return stored.TaskInstance(), stored.DagRun()
 }
 
 func (p *Plan) resolveFlatParams(
@@ -230,6 +237,7 @@ func (p *Plan) resolveFlatParams(
 
 func (p *Plan) resolveLoneStructParam(
 	ctx context.Context,
+	logger *slog.Logger,
 	c sdk.XComClient,
 	args []Arg,
 	out []reflect.Value,
@@ -266,6 +274,7 @@ func (p *Plan) resolveLoneStructParam(
 		argIdx int
 	}
 	binds := make([]fieldBind, 0, len(plan.fields))
+	var unfilled []string
 	for _, sf := range plan.fields {
 		idx, ok := byName[sf.argName]
 		if !ok && !sf.tagged {
@@ -275,6 +284,7 @@ func (p *Plan) resolveLoneStructParam(
 			}
 		}
 		if !ok {
+			unfilled = append(unfilled, fmt.Sprintf("%s (argument %q)", sf.goName, sf.argName))
 			continue
 		}
 		claimed[idx] = true
@@ -288,14 +298,25 @@ func (p *Plan) resolveLoneStructParam(
 		}
 	}
 
-	if len(args) == 0 && len(plan.fields) > 0 {
-		return nil, fmt.Errorf(
-			"task function %s: no TaskFlow arg bindings arrived but the struct declares "+
-				"%d bindable field(s); nothing can fill them on this execution path",
-			p.fnName, len(plan.fields),
+	// Neither direction of a name mismatch is fatal, because a struct binds by
+	// name: an unfilled field keeps its Go zero value and an unclaimed argument
+	// changes nothing the handler reads. Both are logged so the mismatch is still
+	// visible, since the spec carries one entry per stub parameter and either side
+	// of it means the Go signature and the stub signature disagree.
+	//
+	// A spec that arrived empty is the same thing with every field unfilled, and
+	// is what an argless call looks like: build_arg_bindings sends nothing at all
+	// when a stub is called with no arguments.
+	if len(unfilled) > 0 {
+		logger.Warn(
+			"Task handler declares argument(s) the Dag's call did not pass",
+			"function", p.fnName,
+			"declared_not_passed", unfilled,
+			"passed", passedArgNames(args),
 		)
 	}
 
+	// Captured defaults are the normal case of an unclaimed argument and stay silent.
 	var unclaimed []string
 	for i, c := range claimed {
 		if c {
@@ -306,15 +327,16 @@ func (p *Plan) resolveLoneStructParam(
 		}
 		name := "<nil>"
 		if args[i] != nil {
-			name = fmt.Sprintf("%q", args[i].ArgName())
+			name = args[i].ArgName()
 		}
 		unclaimed = append(unclaimed, name)
 	}
 	if len(unclaimed) > 0 {
-		return nil, fmt.Errorf(
-			"task function %s: %d TaskFlow call argument(s) not claimed by any struct "+
-				"field: %s",
-			p.fnName, len(unclaimed), strings.Join(unclaimed, ", "),
+		logger.Warn(
+			"Dag's call passed argument(s) the task handler does not declare",
+			"function", p.fnName,
+			"passed_not_declared", unclaimed,
+			"declared", declaredFieldNames(plan.fields),
 		)
 	}
 
@@ -346,6 +368,25 @@ func (p *Plan) resolveLoneStructParam(
 		out[paramIdx] = structVal
 	}
 	return out, nil
+}
+
+func declaredFieldNames(fields []structField) []string {
+	names := make([]string, 0, len(fields))
+	for _, sf := range fields {
+		names = append(names, sf.argName)
+	}
+	return names
+}
+
+func passedArgNames(args []Arg) []string {
+	names := make([]string, 0, len(args))
+	for _, a := range args {
+		if a == nil {
+			continue
+		}
+		names = append(names, a.ArgName())
+	}
+	return names
 }
 
 func dropDefaultedArgs(args []Arg) []Arg {
@@ -493,29 +534,36 @@ func (p *Plan) decodeArg(
 }
 
 func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error) {
-	switch {
-	case isTIRunContext(in):
-		// TIRunContext also satisfies context.Context, so check it first.
-		return paramPlan{kind: paramTIRunContext, index: index}, nil
-	case isContext(in):
-		if !contextType.Implements(in) {
+	if index == 0 {
+		if in == airflowContextType {
+			return paramPlan{kind: paramAirflowContext, index: index}, nil
+		}
+		if in == airflowContextPtrType {
 			return paramPlan{}, fmt.Errorf(
-				"task function %s: parameter %d: interface %s adds methods on top of "+
-					"context.Context; declare sdk.TIRunContext or a separate parameter instead",
-				fnName, index, in,
+				"task function %s: parameter 0 is %s, but airflow.Context is taken by value",
+				fnName, in,
 			)
 		}
-		return paramPlan{kind: paramContext, index: index}, nil
-	case isLogger(in):
-		return paramPlan{kind: paramLogger, index: index}, nil
-	case isClient(in):
-		return paramPlan{kind: paramClient, index: index}, nil
+		return paramPlan{}, fmt.Errorf(
+			"task function %s: parameter 0 is %s, but the first parameter must be airflow.Context",
+			fnName, in,
+		)
+	}
+	// A logger is a pointer to a struct, so it passes isDecodableType. Without this check
+	// the handler would get a pointer to a zero slog.Logger, and the first log call would panic.
+	if in.AssignableTo(slogLoggerType) {
+		return paramPlan{}, fmt.Errorf(
+			"task function %s: parameter %d: %s cannot receive a task argument (the task's "+
+				"logger comes from the Logger method of the leading airflow.Context)",
+			fnName, index, in,
+		)
 	}
 	if in.Kind() == reflect.Interface && in.NumMethod() > 0 {
 		return paramPlan{}, fmt.Errorf(
-			"task function %s: parameter %d: interface %s is not injectable "+
-				"(want context.Context, sdk.TIRunContext, or a subset of sdk.Client): %s",
-			fnName, index, in, explainClientMismatch(in),
+			"task function %s: parameter %d: %s cannot receive a task argument (an interface "+
+				"with methods cannot be decoded, and the task's context and client come from "+
+				"the leading airflow.Context)",
+			fnName, index, in,
 		)
 	}
 	if !isDecodableType(in) {
@@ -840,43 +888,8 @@ func implementsUnmarshaler(t reflect.Type) bool {
 }
 
 var (
-	contextType      = reflect.TypeFor[context.Context]()
-	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
-	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
-	clientType       = reflect.TypeFor[sdk.Client]()
+	slogLoggerType = reflect.TypeFor[*slog.Logger]()
 
 	jsonUnmarshalerType = reflect.TypeFor[json.Unmarshaler]()
 	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 )
-
-func isContext(inType reflect.Type) bool {
-	return inType != nil && inType.Implements(contextType)
-}
-
-func isTIRunContext(inType reflect.Type) bool {
-	return inType == tiRunContextType
-}
-
-func isLogger(inType reflect.Type) bool {
-	return inType != nil && inType.AssignableTo(slogLoggerType)
-}
-
-// isClient reports whether inType is a non-empty subset of sdk.Client.
-func isClient(inType reflect.Type) bool {
-	return inType != nil && inType.Kind() == reflect.Interface &&
-		inType.NumMethod() > 0 && clientType.Implements(inType)
-}
-
-func explainClientMismatch(in reflect.Type) string {
-	for i := range in.NumMethod() {
-		m := in.Method(i)
-		cm, ok := clientType.MethodByName(m.Name)
-		if !ok {
-			return fmt.Sprintf("sdk.Client has no method %s", m.Name)
-		}
-		if cm.Type != m.Type {
-			return fmt.Sprintf("method %s is %s on sdk.Client, not %s", m.Name, cm.Type, m.Type)
-		}
-	}
-	return "its method set is not a subset of sdk.Client"
-}

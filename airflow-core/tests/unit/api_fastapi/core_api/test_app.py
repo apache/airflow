@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import inspect
+import json
 import typing
 
 import pytest
@@ -29,13 +30,15 @@ from starlette.routing import Mount
 from starlette.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.core_api.app import init_config
+from airflow.api_fastapi.core_api.app import init_config, init_ui_translation_views
 from airflow.api_fastapi.core_api.routes.public import authenticated_router
 from airflow.api_fastapi.core_api.routes.ui import ui_router
 from airflow.api_fastapi.core_api.security import get_user
+from airflow.plugins_manager import AirflowPlugin
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
 
@@ -199,3 +202,120 @@ class TestCorsMiddlewareConfig:
         blocked = client.get("/ping", headers={"Origin": "https://evil.com"})
         assert blocked.status_code == 200
         assert "access-control-allow-origin" not in blocked.headers
+
+
+class TestUiTranslationViews:
+    @staticmethod
+    def _client(plugins, tmp_path) -> TestClient:
+        app = FastAPI()
+        with mock_plugin_manager(plugins=plugins):
+            init_ui_translation_views(app, dev_mode=False, dist_directory=tmp_path)
+        return TestClient(app)
+
+    def test_languages_manifest_lists_plugin_languages_sorted(self, tmp_path):
+        class TranslationPlugin(AirflowPlugin):
+            name = "translations"
+            ui_translations = [{"eo": {"common": {"greeting": "Saluton"}}, "en": {"common": {"a": "A"}}}]
+
+        response = self._client([TranslationPlugin()], tmp_path).get("/static/i18n/languages.json")
+
+        assert response.status_code == 200
+        assert response.json() == {"languages": ["en", "eo"]}
+
+    def test_no_locale_route_without_plugin_translations(self, tmp_path):
+        client = self._client([], tmp_path)
+
+        assert client.get("/static/i18n/languages.json").json() == {"languages": []}
+        # With nothing to override, the per-locale route is not registered, so the bundled files
+        # keep being served straight from the static mount.
+        assert client.get("/static/i18n/locales/en/common.json").status_code == 404
+
+    def test_override_is_deep_merged_over_the_bundled_file(self, tmp_path):
+        (tmp_path / "i18n/locales/en").mkdir(parents=True)
+        (tmp_path / "i18n/locales/en/common.json").write_text(
+            json.dumps({"a": "base", "nested": {"x": "bx", "deep": {"p": "bp", "q": "bq"}}}),
+            encoding="utf-8",
+        )
+
+        class TranslationPlugin(AirflowPlugin):
+            name = "translations"
+            # Override a key three levels deep; siblings at every level must survive.
+            ui_translations = [{"en": {"common": {"a": "override", "nested": {"deep": {"q": "oq"}}}}}]
+
+        response = self._client([TranslationPlugin()], tmp_path).get("/static/i18n/locales/en/common.json")
+
+        assert response.status_code == 200
+        assert response.json() == {"a": "override", "nested": {"x": "bx", "deep": {"p": "bp", "q": "oq"}}}
+
+    def test_only_the_overridden_namespace_is_intercepted(self, tmp_path):
+        # A bundled language override must not intercept its other namespaces; those keep being
+        # served from the static mount (here, the bare app has none, so they simply 404).
+        (tmp_path / "i18n/locales/en").mkdir(parents=True)
+        (tmp_path / "i18n/locales/en/common.json").write_text(json.dumps({"a": "base"}), encoding="utf-8")
+
+        class TranslationPlugin(AirflowPlugin):
+            name = "translations"
+            ui_translations = [{"en": {"common": {"a": "override"}}}]
+
+        client = self._client([TranslationPlugin()], tmp_path)
+
+        assert client.get("/static/i18n/locales/en/common.json").json() == {"a": "override"}
+        assert client.get("/static/i18n/locales/en/dags.json").status_code == 404
+
+    def test_new_language_without_a_bundled_file_serves_its_translations(self, tmp_path):
+        class TranslationPlugin(AirflowPlugin):
+            name = "translations"
+            ui_translations = [{"eo": {"common": {"greeting": "Saluton"}}}]
+
+        client = self._client([TranslationPlugin()], tmp_path)
+
+        assert client.get("/static/i18n/locales/eo/common.json").json() == {"greeting": "Saluton"}
+        # A namespace the new language does not provide returns an empty object so i18next falls
+        # back to English rather than receiving a 404.
+        assert client.get("/static/i18n/locales/eo/dags.json").json() == {}
+
+    def test_invalid_namespace_segment_is_rejected(self, tmp_path):
+        class TranslationPlugin(AirflowPlugin):
+            name = "translations"
+            ui_translations = [{"eo": {"common": {"greeting": "Saluton"}}}]
+
+        # A namespace outside [A-Za-z0-9_-] cannot escape the locales directory.
+        response = self._client([TranslationPlugin()], tmp_path).get("/static/i18n/locales/eo/foo.bar.json")
+
+        assert response.status_code == 404
+
+    def test_unreadable_bundled_file_falls_back_to_the_plugin_translations(self, tmp_path):
+        (tmp_path / "i18n/locales/en").mkdir(parents=True)
+        (tmp_path / "i18n/locales/en/common.json").write_text("{ not valid json", encoding="utf-8")
+
+        class TranslationPlugin(AirflowPlugin):
+            name = "translations"
+            ui_translations = [{"en": {"common": {"a": "override"}}}]
+
+        response = self._client([TranslationPlugin()], tmp_path).get("/static/i18n/locales/en/common.json")
+
+        assert response.status_code == 200
+        assert response.json() == {"a": "override"}
+
+    def test_locale_response_supports_conditional_get(self, tmp_path):
+        class TranslationPlugin(AirflowPlugin):
+            name = "translations"
+            ui_translations = [{"eo": {"common": {"greeting": "Saluton"}}}]
+
+        client = self._client([TranslationPlugin()], tmp_path)
+
+        first = client.get("/static/i18n/locales/eo/common.json")
+        assert first.status_code == 200
+        etag = first.headers["etag"]
+
+        revalidated = client.get("/static/i18n/locales/eo/common.json", headers={"If-None-Match": etag})
+        assert revalidated.status_code == 304
+
+    def test_manifest_asks_the_browser_to_revalidate(self, tmp_path):
+        class TranslationPlugin(AirflowPlugin):
+            name = "translations"
+            ui_translations = [{"eo": {"common": {"greeting": "Saluton"}}}]
+
+        response = self._client([TranslationPlugin()], tmp_path).get("/static/i18n/languages.json")
+
+        assert response.headers["cache-control"] == "no-cache"

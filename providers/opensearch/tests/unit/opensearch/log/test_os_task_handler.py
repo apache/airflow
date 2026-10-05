@@ -24,7 +24,7 @@ import os
 import re
 from io import StringIO
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pendulum
 import pytest
@@ -287,6 +287,37 @@ class TestOpensearchTaskHandler:
             index_patterns=patterns,
         )
         assert handler.index_patterns == patterns
+
+    @pytest.mark.parametrize(
+        ("username", "password", "expect_http_auth"),
+        [
+            ("admin", "secret", True),
+            ("admin", "", True),
+            ("", "secret", True),
+        ],
+    )
+    def test_client_with_auth(self, username, password, expect_http_auth):
+        """If either username or password are provided, the handler should pass http_auth to the client."""
+        handler = OpensearchTaskHandler(
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            host="localhost",
+            port=9200,
+            username=username,
+            password=password,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
+        )
+
+        transport_args = handler.client.transport.kwargs
+        if expect_http_auth:
+            assert "http_auth" in transport_args
+            assert transport_args["http_auth"] == (username, password)
+        else:
+            assert "http_auth" not in handler.client.transport.kwargs
 
     @pytest.mark.db_test
     @pytest.mark.parametrize("metadata_mode", ["provided", "none", "empty"])
@@ -625,6 +656,29 @@ class TestTaskHandlerHelpers:
             assert "http_compress" in args_from_config
             assert "self" not in args_from_config
 
+    @conf_vars(
+        {
+            ("opensearch_configs", "use_ssl"): "True",
+            ("opensearch_configs", "verify_certs"): "True",
+            ("opensearch_configs", "ca_certs"): "",
+        }
+    )
+    def test_empty_ca_certs_is_not_forwarded_to_client(self):
+        """The provider default for ``ca_certs`` is an empty string, which opensearch-py treats as
+        "no root certificates" rather than "use certifi" once TLS verification is enabled."""
+        from airflow.providers.opensearch.log.os_task_handler import _create_opensearch_client
+
+        os_kwargs = get_os_kwargs_from_config()
+
+        assert "ca_certs" not in os_kwargs
+        # Raises ImproperlyConfigured("Root certificates are missing ...") if ca_certs="" is forwarded.
+        client = _create_opensearch_client("localhost", 9200, "admin", "admin", os_kwargs)
+        assert isinstance(client, opensearchpy.OpenSearch)
+
+    @conf_vars({("opensearch_configs", "ca_certs"): "/etc/ssl/certs/ca.pem"})
+    def test_configured_ca_certs_is_forwarded_to_client(self):
+        assert get_os_kwargs_from_config()["ca_certs"] == "/etc/ssl/certs/ca.pem"
+
 
 class TestOpensearchRemoteLogIO:
     @pytest.fixture(autouse=True)
@@ -769,6 +823,46 @@ class TestOpensearchRemoteLogIO:
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Opensearch" in log_messages[0]
 
+    def test_read_returns_all_logs_when_exceeding_page_size(self, ti):
+        log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+
+        first_page = [
+            {
+                "event": f"log line {i}",
+                "log_id": log_id,
+                "offset": i + 1,
+            }
+            for i in range(1000)
+        ]
+        second_page = [
+            {
+                "event": f"log line {1000 + i}",
+                "log_id": log_id,
+                "offset": 1001 + i,
+            }
+            for i in range(500)
+        ]
+
+        responses = [
+            _make_os_response(self.opensearch_io, *first_page),
+            _make_os_response(self.opensearch_io, *second_page),
+            None,
+        ]
+
+        with patch.object(self.opensearch_io, "_os_read", side_effect=responses) as mock_os_read:
+            log_source_info, log_messages = self.opensearch_io.read("", ti)
+
+        assert log_source_info == ["http://localhost"]
+        assert len(log_messages) == 1500
+        assert json.loads(log_messages[0])["event"] == "log line 0"
+        assert json.loads(log_messages[-1])["event"] == "log line 1499"
+
+        assert mock_os_read.call_args_list == [
+            call(log_id, 0, ti),
+            call(log_id, 1000, ti),
+            call(log_id, 1500, ti),
+        ]
+
     def test_get_index_patterns_with_callable(self):
         with patch("airflow.providers.opensearch.log.os_task_handler.import_string") as mock_import_string:
             mock_callable = Mock(return_value="callable_index_pattern")
@@ -785,6 +879,35 @@ class TestOpensearchRemoteLogIO:
         log_file = tmp_path / "1.log"
         log_file.write_text('{"message": "test"}\n')
         self.opensearch_io.upload(log_file, ti=None)
+
+    @pytest.mark.parametrize(
+        ("username", "password", "expect_http_auth"),
+        [
+            ("admin", "secret", True),
+            ("admin", "", True),
+            ("", "secret", True),
+        ],
+    )
+    def test_client_with_auth(self, username, password, expect_http_auth):
+        """If either username or password are provided, the IO should pass http_auth to the client."""
+        opensearch_io = OpensearchRemoteLogIO(
+            write_to_opensearch=True,
+            write_stdout=True,
+            delete_local_copy=True,
+            host="localhost",
+            port=9200,
+            username=username,
+            password=password,
+            base_log_folder=self.opensearch_io.base_log_folder,
+            log_id_template="{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+        )
+
+        transport_args = opensearch_io.client.transport.kwargs
+        if expect_http_auth:
+            assert "http_auth" in transport_args
+            assert transport_args["http_auth"] == (username, password)
+        else:
+            assert "http_auth" not in opensearch_io.client.transport.kwargs
 
 
 class TestOpensearchRemoteLogIOFromConfig:

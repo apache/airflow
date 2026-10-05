@@ -23,14 +23,65 @@ Common Data Models for Airflow REST API.
 from __future__ import annotations
 
 import enum
+import json
 import logging
+from collections.abc import Mapping
 from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 
 from pydantic import BeforeValidator, Discriminator, Field, Tag, TypeAdapter, ValidationError
 
+from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 log = logging.getLogger(__name__)
+
+
+def find_reserved_keys(
+    value: Any,
+    *,
+    root: str = "value",
+    decode_json_strings: bool = False,
+) -> tuple[str, list[str]] | None:
+    """
+    Find the first mapping under ``value`` that holds one of ``FORBIDDEN_XCOM_KEYS``.
+
+    Returns the dotted path to that mapping and the reserved keys it holds, or ``None`` if there
+    are none.
+
+    Write paths that take arbitrary user data use this to turn away bad input while there is still
+    a request to fail. Storing it instead pushes the failure into whatever reads the value back,
+    where the error surfaces far from the person who submitted it.
+
+    Pass ``decode_json_strings`` when the read path parses stored strings back into containers, the
+    way XCom's does. Without it, a payload sent as ``json.dumps({...})`` slips through and comes
+    back out as a dict holding the reserved key. Leave it off where a string stays a string, as
+    with ``serde.serialize``.
+    """
+
+    def walk(obj: Any, path: str) -> tuple[str, list[str]] | None:
+        if isinstance(obj, str):
+            if not decode_json_strings:
+                return None
+            try:
+                decoded = json.loads(obj)
+            except (ValueError, TypeError):
+                return None
+            return walk(decoded, path) if isinstance(decoded, (dict, list)) else None
+        if isinstance(obj, Mapping):
+            found = FORBIDDEN_XCOM_KEYS & obj.keys()
+            if found:
+                return path, sorted(found)
+            for key, item in obj.items():
+                if hit := walk(item, f"{path}.{key}"):
+                    return hit
+        elif isinstance(obj, (list, tuple)):
+            for index, item in enumerate(obj):
+                if hit := walk(item, f"{path}[{index}]"):
+                    return hit
+        return None
+
+    return walk(value, root)
+
 
 # Asset Scheduling Expression Data Models
 #
@@ -50,12 +101,17 @@ class AssetExpressionAssetInfo(BaseModel):
     persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
     optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
     degrades gracefully instead of failing response validation.
+
+    A leaf the caller is not authorized to read is served with ``hidden`` set and ``uri``, ``name``
+    and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``), so the shape of the
+    schedule stays visible without revealing which asset it waits on.
     """
 
-    uri: str
-    name: str
+    uri: str | None
+    name: str | None
     group: str
     id: int | None = None
+    hidden: bool = False
 
 
 class AssetExpressionAliasInfo(BaseModel):
@@ -219,8 +275,16 @@ class BulkDeleteAction(BulkBaseAction[T]):
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
-def _action_discriminator(action: Any) -> str:
-    return BulkAction(action["action"]).value
+def _action_discriminator(action: Any) -> str | None:
+    """Select a bulk action variant, returning ``None`` for anything unrecognised."""
+    value = action.get("action") if isinstance(action, Mapping) else getattr(action, "action", None)
+    try:
+        return BulkAction(value).value
+    except ValueError:
+        return None
+
+
+_BULK_ACTION_TAGS = ", ".join(repr(action.value) for action in BulkAction)
 
 
 class BulkBody(StrictBaseModel, Generic[T]):
@@ -233,7 +297,11 @@ class BulkBody(StrictBaseModel, Generic[T]):
                 Annotated[BulkUpdateAction[T], Tag(BulkAction.UPDATE.value)],
                 Annotated[BulkDeleteAction[T], Tag(BulkAction.DELETE.value)],
             ],
-            Discriminator(_action_discriminator),
+            Discriminator(
+                _action_discriminator,
+                custom_error_type="bulk_action_invalid",
+                custom_error_message=f"Each entry needs an 'action' of {_BULK_ACTION_TAGS}",
+            ),
         ]
     ]
 

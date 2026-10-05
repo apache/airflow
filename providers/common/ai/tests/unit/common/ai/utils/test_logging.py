@@ -17,25 +17,41 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 from unittest.mock import MagicMock
 
+import pytest
 from pydantic import BaseModel
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.messages import (
     ModelResponse,
     ModelResponsePart,
     ToolCallPart,
 )
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.utils.logging import (
     _log_output_debug,
+    format_usage_for_xcom,
     log_run_summary,
+    log_run_usage,
     wrap_toolsets_for_logging,
 )
 
 
-def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
-    """Build a mock AgentRunResult with usage, response, and messages."""
+def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None, cost=None):
+    """Build a mock AgentRunResult with usage, response, and messages.
+
+    ``cost`` defaults to ``None`` and must be set explicitly -- a MagicMock
+    attribute left unconfigured returns a new (truthy, ``is not None``)
+    MagicMock, which would silently push every caller through
+    ``log_run_summary``'s cost-logging branch.
+    """
     usage_kwargs = usage_kwargs or {
         "requests": 4,
         "tool_calls": 3,
@@ -44,7 +60,9 @@ def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None):
         "total_tokens": 3359,
     }
     result = MagicMock()
-    result.usage = MagicMock(**usage_kwargs)
+    result.usage = MagicMock(
+        spec=RunUsage, cost=cost, **{"cache_read_tokens": 0, "cache_write_tokens": 0, **usage_kwargs}
+    )
     result.response = MagicMock(model_name=model_name)
 
     messages: list = []
@@ -86,6 +104,30 @@ class TestLogRunSummary:
         assert tool_line == "Tool call sequence: list_tables -> get_schema -> query"
         assert records[-1].message == "::endgroup::"
 
+    def test_names_the_model_that_served_a_failed_over_run(self):
+        """
+        After a failover the summary names the model that actually answered.
+
+        A silent failover still reporting the primary would hide the cost and quality
+        change from whoever has to account for which model produced an output.
+        """
+
+        def _primary_is_down(messages, info):
+            raise ModelAPIError("openai:gpt-5", "provider outage")
+
+        agent = Agent(
+            FallbackModel(FunctionModel(_primary_is_down), TestModel()),
+            instructions="classify",
+        )
+        result = agent.run_sync("hello")
+
+        logger = MagicMock(spec=logging.Logger)
+        log_run_summary(logger, result)
+
+        summary_format, *summary_args = logger.info.call_args_list[0].args
+        assert "model=%s" in summary_format
+        assert summary_args[0] == "test"
+
     def test_no_tools_skips_sequence_line(self, caplog):
         logger = logging.getLogger("test.log_run_summary")
         result = _make_mock_result(tool_names=None)
@@ -96,6 +138,162 @@ class TestLogRunSummary:
         records = [r for r in caplog.records if r.name == "test.log_run_summary"]
         assert len(records) == 2  # summary line + endgroup (no tool sequence)
         assert records[-1].message == "::endgroup::"
+
+    def test_cost_none_does_not_log_cost_line(self, caplog):
+        """cost is None means "unpriceable", not "free" -- no fragment, not a $0 line."""
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(cost=None)
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert not any("LLM run cost" in r.message for r in records)
+
+    def test_no_cache_tokens_skips_cache_line(self, caplog):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result()
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert not any("prompt cache" in r.message for r in records)
+
+    @pytest.mark.parametrize(
+        ("cache_read_tokens", "cache_write_tokens"),
+        [
+            pytest.param(2900, 0, id="read-only"),
+            pytest.param(0, 3000, id="write-only"),
+            pytest.param(2900, 3000, id="read-and-write"),
+        ],
+    )
+    def test_cache_tokens_logged_after_the_usage_line(self, caplog, cache_read_tokens, cache_write_tokens):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(
+            usage_kwargs={
+                "requests": 2,
+                "tool_calls": 1,
+                "input_tokens": 6000,
+                "output_tokens": 40,
+                "total_tokens": 6040,
+                "cache_read_tokens": cache_read_tokens,
+                "cache_write_tokens": cache_write_tokens,
+            }
+        )
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == (
+            f"LLM prompt cache: cache_read_tokens={cache_read_tokens}, cache_write_tokens={cache_write_tokens}"
+        )
+
+    def test_cost_set_logs_cost_line_with_value(self, caplog):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(cost=Decimal("0.0123"))
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == "LLM run cost: $0.0123 (USD, best-effort)"
+
+    def test_small_cost_logs_plain_decimal_not_scientific_notation(self, caplog):
+        """A cheap single-call run's cost must not render as e.g. "$7.5E-7"."""
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(cost=Decimal("0.00000075"))
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == "LLM run cost: $0.00000075 (USD, best-effort)"
+
+
+class TestLogRunSummaryUsageOverride:
+    def test_usage_override_is_logged_instead_of_result_usage(self):
+        """A ``usage=`` override -- e.g. this attempt's delta -- is logged instead of
+        ``result.usage``, which reports the cross-attempt cumulative total once a usage
+        budget is active."""
+        logger = MagicMock(spec=logging.Logger)
+        result = _make_mock_result(usage_kwargs={"requests": 99, "tool_calls": 0, "input_tokens": 0})
+        override = RunUsage(requests=1, input_tokens=10, cost=Decimal("0.1"))
+
+        log_run_summary(logger, result, usage=override)
+
+        summary_format, *summary_args = logger.info.call_args_list[0].args
+        rendered = summary_format % tuple(summary_args)
+        assert "requests=1" in rendered
+        assert "requests=99" not in rendered
+        cost_call = logger.info.call_args_list[1]
+        assert cost_call.args[1] == "0.1"
+
+    def test_no_override_falls_back_to_result_usage(self):
+        """Omitting ``usage=`` keeps today's behavior: ``result.usage`` is logged."""
+        logger = MagicMock(spec=logging.Logger)
+        result = _make_mock_result(usage_kwargs={"requests": 7, "tool_calls": 0, "input_tokens": 0})
+
+        log_run_summary(logger, result)
+
+        summary_format, *summary_args = logger.info.call_args_list[0].args
+        assert "requests=7" in (summary_format % tuple(summary_args))
+
+
+class TestLogRunUsage:
+    def test_logs_cache_tokens_on_the_failure_path(self, caplog):
+        logger = logging.getLogger("test.log_run_usage")
+        usage = RunUsage(requests=1, input_tokens=5000, cache_write_tokens=4000)
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_usage"):
+            log_run_usage(logger, usage, outcome="failed")
+
+        records = [r for r in caplog.records if r.name == "test.log_run_usage"]
+        assert records[1].message == "LLM prompt cache: cache_read_tokens=0, cache_write_tokens=4000"
+
+    def test_logs_usage_fields_and_outcome(self):
+        logger = MagicMock(spec=logging.Logger)
+        usage = RunUsage(requests=2, tool_calls=1, input_tokens=10, output_tokens=5)
+
+        log_run_usage(logger, usage, outcome="failed")
+
+        summary_format, *summary_args = logger.info.call_args_list[0].args
+        rendered = summary_format % tuple(summary_args)
+        assert "failed" in rendered
+        assert "requests=2" in rendered
+        assert "tool_calls=1" in rendered
+        assert "input_tokens=10" in rendered
+        assert "output_tokens=5" in rendered
+
+    def test_cost_none_does_not_log_cost_line(self):
+        logger = MagicMock(spec=logging.Logger)
+        log_run_usage(logger, RunUsage(cost=None), outcome="failed")
+        assert logger.info.call_count == 1
+
+    def test_cost_set_logs_cost_line_with_plain_decimal(self):
+        """Same "$%s (USD, best-effort)" formatting as log_run_summary -- no scientific notation."""
+        logger = MagicMock(spec=logging.Logger)
+        log_run_usage(logger, RunUsage(cost=Decimal("0.00000075")), outcome="failed")
+        cost_call = logger.info.call_args_list[1]
+        assert cost_call.args[1] == "0.00000075"
+
+
+class TestFormatUsageForXcom:
+    def test_builds_expected_dict_shape(self):
+        usage = RunUsage(requests=3, tool_calls=1, input_tokens=10, output_tokens=5, cost=Decimal("0.25"))
+
+        assert format_usage_for_xcom(usage) == {
+            "requests": 3,
+            "input_tokens": 10,
+            "output_tokens": 5,
+            "total_tokens": 15,
+            "tool_calls": 1,
+            "cost": "0.25",
+        }
+
+    def test_none_cost_stays_none_not_stringified(self):
+        assert format_usage_for_xcom(RunUsage(cost=None))["cost"] is None
 
 
 class TestLogOutputDebug:

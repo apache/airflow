@@ -90,6 +90,10 @@ Not all volume plugins have support for ``ReadWriteMany`` access mode.
 Refer `Persistent Volume Access Modes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes>`__
 for details.
 
+.. warning::
+
+   When upgrading a chart from 1.19.0 or older make sure to remove any non airflow-chart managed gitSync processes or pods, having multiple gitSync processes can and will cause sync conflicts when using a ReadWriteMany PVC.
+
 .. code-block:: bash
 
    helm upgrade --install airflow apache-airflow/airflow \
@@ -214,7 +218,7 @@ To configure mounting Dags from private GitHub repository, follow below steps:
       ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
 
 3. Add the public key to your private repo under ``Settings > Deploy keys``.
-4. Convert the private ssh key to a base64 string and save it's value.
+4. Convert the private ssh key to a base64 string and save its value.
 
    .. note::
 

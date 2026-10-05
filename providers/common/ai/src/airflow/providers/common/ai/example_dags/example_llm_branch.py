@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
+from airflow.providers.common.ai.operators.llm_branch import BranchOption, DecisionPolicy, LLMBranchOperator
 from airflow.providers.common.compat.sdk import dag, task
 
 
@@ -52,6 +52,98 @@ def example_llm_branch_operator():
 # [END howto_operator_llm_branch_basic]
 
 example_llm_branch_operator()
+
+
+# [START howto_operator_llm_branch_descriptions]
+@dag(tags=["example"])
+def example_llm_branch_descriptions():
+    route = LLMBranchOperator(
+        task_id="route_ticket",
+        prompt="User says: 'My password reset email never arrived.'",
+        llm_conn_id="pydanticai_default",
+        system_prompt=(
+            "Route the ticket to the team responsible for resolving it. "
+            "Use the reported problem rather than the team the user asks for."
+        ),
+        # A string is shorthand for BranchOption(description=...).
+        branches={
+            "handle_auth": (
+                "Sign-in, passwords, 2FA and account lockouts. This team owns missing password-reset emails."
+            ),
+            "handle_billing": "Invoices, charges, refunds and plan changes.",
+            "handle_general": (
+                "General support triage: product questions, issues outside the other "
+                "teams' responsibilities, and tickets that need clarification."
+            ),
+        },
+    )
+
+    @task
+    def handle_billing():
+        return "Handling billing issue"
+
+    @task
+    def handle_auth():
+        return "Handling auth issue"
+
+    @task
+    def handle_general():
+        return "Handling general issue"
+
+    route >> [handle_billing(), handle_auth(), handle_general()]
+
+
+# [END howto_operator_llm_branch_descriptions]
+
+example_llm_branch_descriptions()
+
+
+# [START howto_operator_llm_branch_decision_policy]
+@dag(tags=["example"])
+def example_llm_branch_decision_policy():
+    # A classifier model reports how sure it is of each pick; a text model does not, and
+    # with a min_confidence set every pick would count as uncertain and go to review.
+    route = LLMBranchOperator(
+        task_id="triage_failure",
+        prompt=(
+            "Task load_orders failed: psycopg2.OperationalError: could not connect to server: "
+            "Connection timed out. Is the server running on host db.internal (10.0.4.12)?"
+        ),
+        llm_conn_id="pydanticai_default",
+        model_id="typesafe:jev-1.13.0",
+        system_prompt="Pick the remediation that addresses the cause of the failure.",
+        branches={
+            "rerun": "The failure looks transient: a timeout, a dropped connection, a rate limit.",
+            # Paging someone on a wrong pick costs more than an extra rerun, so this branch needs more.
+            "page_oncall": BranchOption(
+                "Something a person has to fix now: data corruption, an outage, a security issue.",
+                min_confidence=0.9,
+            ),
+            "ignore": "Expected or harmless: a known flaky check, a duplicate alert.",
+        },
+        decision_policy=DecisionPolicy(min_confidence=0.6, on_uncertain="review"),
+        approval_timeout=timedelta(hours=4),
+        allow_modifications=True,
+    )
+
+    @task
+    def rerun():
+        return "Clearing the failed task"
+
+    @task
+    def page_oncall():
+        return "Paging on-call"
+
+    @task
+    def ignore():
+        return "Leaving it"
+
+    route >> [rerun(), page_oncall(), ignore()]
+
+
+# [END howto_operator_llm_branch_decision_policy]
+
+example_llm_branch_decision_policy()
 
 
 # [START howto_operator_llm_branch_multi]

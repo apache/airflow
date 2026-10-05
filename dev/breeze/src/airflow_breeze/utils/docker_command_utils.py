@@ -28,6 +28,7 @@ import subprocess
 import sys
 import time
 from functools import lru_cache
+from pathlib import Path
 from subprocess import DEVNULL, CompletedProcess
 from typing import TYPE_CHECKING
 
@@ -39,9 +40,10 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
+    create_pycache_volume_if_needed,
     get_main_git_dir_for_worktree,
 )
-from airflow_breeze.utils.shared_options import get_verbose
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
 try:
@@ -113,12 +115,17 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("registry", "/opt/airflow/registry"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
-    ("uv.lock", "/opt/airflow/uv.lock"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("shared", "/opt/airflow/shared"),
     ("task-sdk", "/opt/airflow/task-sdk"),
     ("ts-sdk", "/opt/airflow/ts-sdk"),
 ]
+
+# ``uv.lock`` is deliberately absent above: it is mounted from ``mount-uv-lock.yml``, which
+# ShellParams skips for ``--force-lowest-dependencies`` so that the lowest-direct ``uv sync``
+# run in the container cannot write its re-resolved lock back over the host's.
+
+DOCKER_INFO_TIMEOUT = 30
 
 
 def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
@@ -145,6 +152,30 @@ def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
     )
 
 
+def _run_docker_info_or_exit(command: list[str]) -> RunCommandResult:
+    try:
+        return run_command(
+            command,
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=DOCKER_INFO_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        console_print(
+            f"[error]Docker did not respond within {DOCKER_INFO_TIMEOUT} seconds.[/]\n"
+            "[warning]Please make sure Docker is running and responsive.[/]"
+        )
+        sys.exit(1)
+    except FileNotFoundError:
+        console_print(
+            "[error]Docker executable was not found.[/]\n"
+            "[warning]Please install Docker and ensure `docker` is available on PATH.[/]"
+        )
+        sys.exit(1)
+
+
 def check_docker_permission_denied() -> bool:
     """
     Checks if we have permission to write to docker socket. By default, on Linux you need to add your user
@@ -155,14 +186,7 @@ def check_docker_permission_denied() -> bool:
     :return: True if permission is denied
     """
     permission_denied = False
-    docker_permission_command = ["docker", "info"]
-    command_result = run_command(
-        docker_permission_command,
-        no_output_dump_on_exception=True,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    command_result = _run_docker_info_or_exit(["docker", "info"])
     if command_result.returncode != 0:
         permission_denied = True
         if command_result.stdout and "Got permission denied while trying to connect" in command_result.stdout:
@@ -183,13 +207,7 @@ def check_docker_is_running():
     Checks if docker is running. Suppressed Dockers stdout and stderr output.
 
     """
-    response = run_command(
-        ["docker", "info"],
-        no_output_dump_on_exception=True,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    response = _run_docker_info_or_exit(["docker", "info"])
     if response.returncode != 0:
         console_print(
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
@@ -607,7 +625,7 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
 
 
 @lru_cache
-def perform_environment_checks(quiet: bool = False):
+def perform_environment_checks(quiet: bool = False, *, cleanup_stale_worktrees: bool = True):
     check_docker_is_running()
     container_engine_is_docker = check_container_engine_is_docker(quiet)
     if not container_engine_is_docker:
@@ -622,6 +640,11 @@ def perform_environment_checks(quiet: bool = False):
     check_uv_version(quiet)
     if not quiet:
         console_print(f"[success]Host python version is {sys.version}[/]")
+    if cleanup_stale_worktrees:
+        projects = bring_compose_projects_down(stale_only=True)
+        if projects:
+            action = "Would clean up" if get_dry_run() else "Cleaned up"
+            console_print(f"[info]{action} projects from deleted worktrees: {projects}[/]")
 
 
 def get_docker_syntax_version() -> str:
@@ -697,7 +720,7 @@ def fix_ownership_using_docker(quiet: bool = True):
             "-e",
             f"VERBOSE={str(get_verbose()).lower()}",
             "-e",
-            f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
+            f"DOCKER_IS_ROOTLESS={str(is_docker_rootless()).lower()}",
             "--rm",
             "-t",
             OWNERSHIP_CLEANUP_DOCKER_TAG,
@@ -785,22 +808,61 @@ def pull_images_with_retries(
     return all_pulled
 
 
+def remove_stale_worktree_containers() -> None:
+    result = run_command(
+        [
+            "docker",
+            "ps",
+            "--all",
+            "--filter",
+            "label=org.apache.airflow.breeze=true",
+            "--format",
+            '{{.ID}}\t{{.Label "org.apache.airflow.breeze.worktree"}}',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print("[error]Unable to discover containers belonging to deleted worktrees.[/]")
+        return
+    for line in result.stdout.splitlines():
+        container_id, _, worktree = line.partition("\t")
+        if _worktree_is_missing(worktree):
+            console_print(f"Removing container {container_id} for deleted worktree {worktree}")
+            run_command(["docker", "rm", "--force", "--volumes", container_id], check=False)
+
+
+def _worktree_is_missing(worktree: str) -> bool:
+    path = Path(worktree)
+    if not path.is_absolute():
+        return False
+    try:
+        path.stat()
+    except FileNotFoundError:
+        return True
+    except OSError as error:
+        console_print(f"[warning]Cannot check worktree {worktree}: {error}. Keeping its resources.[/]")
+    return False
+
+
 def remove_docker_networks(networks: list[str] | None = None) -> None:
     """
     Removes specified docker networks. If no networks are specified, it removes all networks created by breeze.
-    Any network with label "com.docker.compose.project=breeze" are removed when no networks are specified.
+    Prunes unused Breeze-labelled networks, including the legacy default project.
     Errors are ignored (not even printed in the output), so you can safely call it without checking
     if the networks exist.
 
     :param networks: list of networks to remove
     """
     if networks is None:
-        run_command(
-            ["docker", "network", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
-            check=False,
-            stderr=DEVNULL,
-            quiet=True,
-        )
+        for label in ("org.apache.airflow.breeze=true", "com.docker.compose.project=breeze"):
+            run_command(
+                ["docker", "network", "prune", "-f", "--filter", f"label={label}"],
+                check=False,
+                stderr=DEVNULL,
+                quiet=True,
+            )
     else:
         for network in networks:
             run_command(
@@ -814,18 +876,19 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
 def remove_docker_volumes(volumes: list[str] | None = None) -> None:
     """
     Removes specified docker volumes. If no volumes are specified, it removes all volumes created by breeze.
-    Any volume with label "com.docker.compose.project=breeze" are removed when no volumes are specified.
+    Prunes unused Breeze-labelled volumes, including the legacy default project.
     Errors are ignored (not even printed in the output), so you can safely call it without checking
     if the volumes exist.
 
     :param volumes: list of volumes to remove
     """
     if volumes is None:
-        run_command(
-            ["docker", "volume", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
-            check=False,
-            stderr=DEVNULL,
-        )
+        for label in ("org.apache.airflow.breeze=true", "com.docker.compose.project=breeze"):
+            run_command(
+                ["docker", "volume", "prune", "-f", "-a", "--filter", f"label={label}"],
+                check=False,
+                stderr=DEVNULL,
+            )
     else:
         for volume in volumes:
             run_command(
@@ -921,82 +984,120 @@ def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams
     )
 
 
-def discover_running_compose_projects() -> set[str]:
-    """
-    Return the set of compose project names of every container on the host.
-
-    Reads the ``com.docker.compose.project`` label that ``docker compose``
-    sets on every container/network/volume it creates. Returns an empty set
-    if docker is unreachable or no compose-managed containers exist.
-    """
+def _get_compose_resources(
+    kind: str, *, stale_only: bool = False
+) -> tuple[list[tuple[str, dict[str, str]]], bool]:
+    cmd = ["docker", kind, "ls", "--quiet", "--filter", "label=com.docker.compose.project"]
+    if stale_only:
+        cmd.extend(
+            [
+                "--filter",
+                "label=org.apache.airflow.breeze=true",
+                "--filter",
+                "label=org.apache.airflow.breeze.worktree",
+            ]
+        )
+    if kind == "container":
+        cmd.append("--all")
+    result = run_command(cmd, capture_output=True, text=True, check=not stale_only, dry_run_override=False)
+    if result.returncode != 0:
+        return [], True
+    identifiers = result.stdout.split()
+    if not identifiers:
+        return [], False
     result = run_command(
-        [
-            "docker",
-            "ps",
-            "--all",
-            "--filter",
-            "label=com.docker.compose.project",
-            "--format",
-            '{{ .Label "com.docker.compose.project" }}',
-        ],
+        ["docker", kind, "inspect", *identifiers],
         capture_output=True,
         text=True,
-        check=False,
+        check=not stale_only,
+        dry_run_override=False,
     )
-    if result.returncode != 0 or not result.stdout:
-        console_print(f"[error] Unable to find running docker container projects: {result.stderr}")
-        return set()
-    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+    return [
+        (
+            resource["Name"] if kind == "volume" else resource["Id"],
+            resource["Config"]["Labels"] if kind == "container" else resource["Labels"],
+        )
+        for resource in json.loads(result.stdout or "[]")
+    ], result.returncode != 0
 
 
-def is_known_breeze_compose_project(name: str) -> bool:
-    """Return True if ``name`` matches a project breeze knows it owns."""
-    if name in KNOWN_DOCKER_COMPOSE_PROJECT_NAMES:
-        return True
-    return any(name.startswith(prefix) for prefix in KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES)
-
-
-def bring_all_compose_projects_down(
+def bring_compose_projects_down(
     *,
     preserve_volumes: bool = False,
-    include_unknown: bool = False,
+    all_worktrees: bool = False,
     only_project: str | None = None,
-) -> tuple[list[str], list[str]]:
-    """
-    Discover and bring down every docker compose project breeze manages.
+    current_worktree: str = "",
+    stale_only: bool = False,
+) -> list[str]:
+    targets: dict[str, list[str]] = {"container": [], "volume": [], "network": []}
+    projects: set[str] = set()
+    failed = False
+    for kind in targets:
+        if kind == "volume" and preserve_volumes:
+            continue
+        resources, discovery_failed = _get_compose_resources(kind, stale_only=stale_only)
+        failed |= discovery_failed
+        for identifier, labels in resources:
+            project = labels["com.docker.compose.project"]
+            breeze_owned = labels.get("org.apache.airflow.breeze") == "true"
+            legacy = (
+                "org.apache.airflow.breeze" not in labels
+                and "org.apache.airflow.breeze.worktree" not in labels
+                and (
+                    project in KNOWN_DOCKER_COMPOSE_PROJECT_NAMES
+                    or any(project.startswith(prefix) for prefix in KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES)
+                )
+            )
+            if only_project:
+                selected = project == only_project
+            elif all_worktrees:
+                selected = breeze_owned or legacy
+            else:
+                worktree = labels.get("org.apache.airflow.breeze.worktree", "")
+                selected = breeze_owned and (
+                    (not stale_only and worktree in ("", current_worktree)) or _worktree_is_missing(worktree)
+                )
+                if not stale_only and legacy:
+                    selected = True
+            if selected:
+                targets[kind].append(identifier)
+                projects.add(project)
 
-    :param preserve_volumes: if True, pass ``--volumes`` is omitted so DB
-        volumes survive (matches the existing ``--preserve-volumes`` flag
-        on ``breeze down``).
-    :param include_unknown: if True, also bring down projects whose names
-        do not match any known breeze prefix. Useful as an emergency
-        cleanup; can wipe out unrelated docker compose projects on the
-        host, so off by default.
-    :param only_project: if set, restrict to exactly this project name and
-        skip discovery entirely (for the ``--project-name`` flag).
-    :returns: ``(brought_down, skipped)`` lists of project names, both
-        sorted, suitable for printing in a session summary.
-    """
-    if only_project:
-        targets = {only_project}
-        skipped: set[str] = set()
-    else:
-        running = discover_running_compose_projects()
-        if include_unknown:
-            targets = running
-            skipped = set()
-        else:
-            targets = {name for name in running if is_known_breeze_compose_project(name)}
-            skipped = running - targets
-    brought_down: list[str] = []
-    for name in sorted(targets):
-        console_print(f"[info]Bringing down docker compose project: {name}[/]")
-        cmd = ["docker", "compose", "--project-name", name, "down", "--remove-orphans"]
-        if not preserve_volumes:
-            cmd.append("--volumes")
-        run_command(cmd, text=True, check=False)
-        brought_down.append(name)
-    return brought_down, sorted(skipped)
+    if targets["container"]:
+        # A `breeze shell` or `breeze start-airflow` container can exit later than `docker container stop`
+        # waits for, and it removes itself once it exits. So the exit is awaited separately, and only the
+        # containers that are still there afterwards are removed.
+        console_print("[info]Stopping Breeze containers, this can take a while.[/]")
+        for action in ("stop", "wait"):
+            run_command(
+                ["docker", "container", action, *targets["container"]], check=False, capture_output=True
+            )
+        remaining, discovery_failed = _get_compose_resources("container", stale_only=stale_only)
+        failed |= discovery_failed
+        remaining_ids = {identifier for identifier, _ in remaining}
+        targets["container"] = [
+            identifier for identifier in targets["container"] if identifier in remaining_ids
+        ]
+    for kind, identifiers in targets.items():
+        if not identifiers:
+            continue
+        cmd = ["docker", kind, "rm"]
+        if kind == "container":
+            cmd.append("--force")
+            if not preserve_volumes:
+                cmd.append("--volumes")
+        result = run_command(
+            [*cmd, *identifiers],
+            check=not stale_only,
+            capture_output=stale_only,
+        )
+        failed |= result.returncode != 0
+    if failed:
+        console_print(
+            "[warning]Unable to clean up some deleted-worktree resources; continuing. Breeze will retry on the next Docker command.[/]"
+        )
+        return []
+    return sorted(projects)
 
 
 def execute_command_in_shell(
@@ -1097,6 +1198,8 @@ def enter_shell(
         bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
+    if shell_params.include_pycache_volume:
+        create_pycache_volume_if_needed()
     shell_params.print_badge_info()
     cmd = ["docker", "compose"]
     if shell_params.quiet:

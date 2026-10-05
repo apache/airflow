@@ -32,7 +32,6 @@ import structlog
 
 from airflow.sdk.coordinators._bundle_metadata import (
     ResolvedBundle,
-    convert_roots,
     extract_supervisor_schema_version,
     parse_metadata_mapping,
 )
@@ -293,10 +292,10 @@ def _walk_executables(
 @attrs.define
 class _Bundle(ResolvedBundle):
     @classmethod
-    def find(cls, executables_root: Sequence[pathlib.Path], dag_id: str) -> Self:
-        log.debug("Finding executable bundles recursively", roots=executables_root)
+    def find(cls, roots: Sequence[pathlib.Path], dag_id: str) -> Self:
+        log.debug("Finding executable bundles recursively", roots=roots)
         rejected: list[tuple[pathlib.Path, str]] = []
-        for p in _find_executables(executables_root):
+        for p in _find_executables(roots):
             if (metadata := _read_bundle_metadata(p)) is None:
                 continue
             if dag_id not in _dag_ids(metadata):
@@ -309,7 +308,7 @@ class _Bundle(ResolvedBundle):
                 rejected.append((p.resolve(), str(exc)))
                 continue
 
-        resolved_paths = os.pathsep.join(str(r.resolve()) for r in executables_root)
+        resolved_paths = os.pathsep.join(str(r.resolve()) for r in roots)
         if rejected:
             details = "; ".join(f"{path}: {reason}" for path, reason in rejected)
             tp = (
@@ -333,22 +332,20 @@ class ExecutableCoordinator(SubprocessCoordinator):
         "go": {
             "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
             "kwargs": {
-                "executables_root": ["~/airflow/executable-bundles"]
+                "task_handler_bundle_name": "go-task-handlers"
             }
         }
 
-    :param executables_root: A list of directories scanned for executable
-        bundles when a Python stub DAG delegates task execution to a native
-        runtime.
+    :param task_handler_bundle_name: Name of the Dag bundle holding the
+        executable bundles a Python stub Dag delegates task execution to. It must
+        be registered in ``[dag_processor] dag_bundle_config_list``. If unset,
+        the task's own Dag bundle is used. Only files with the executable bit set
+        are considered.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
 
-    executables_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        validator=attrs.validators.min_len(1),
-    )
-
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        bundle = _Bundle.find(self.executables_root, what.dag_id)
+        roots = self._get_scan_roots()
+        bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version

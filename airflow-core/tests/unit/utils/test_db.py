@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
 import logging
 import os
 import re
@@ -46,8 +45,8 @@ from airflow.utils.db import (
     check_team_names_can_be_lower_cased,
     compare_server_default,
     compare_type,
-    create_default_connections,
     downgrade,
+    get_default_connections,
     initdb,
     reflect_tables,
     resetdb,
@@ -232,10 +231,9 @@ class TestDb:
         check(config)
 
     def test_default_connections_sort(self):
-        pattern = re.compile("conn_id=[\"|'](.*?)[\"|']", re.DOTALL)
-        source = inspect.getsource(create_default_connections)
-        src = pattern.findall(source)
-        assert sorted(src) == src
+        conn_ids = [c.conn_id for c in get_default_connections()]
+        assert conn_ids
+        assert conn_ids == sorted(conn_ids)
 
     @pytest.mark.usefixtures("initialized_db")
     def test_check_migrations(self):

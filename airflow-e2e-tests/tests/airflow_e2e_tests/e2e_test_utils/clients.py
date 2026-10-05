@@ -159,6 +159,10 @@ class AirflowClient:
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{key}?map_index={map_index}",
         )
 
+    def get_variable(self, key: str):
+        """Get an Airflow Variable via API."""
+        return self._make_request(method="GET", endpoint=f"variables/{key}")
+
     def trigger_dag_and_wait(self, dag_id: str, json=None):
         """Trigger a DAG and wait for it to complete."""
         self.un_pause_dag(dag_id)
