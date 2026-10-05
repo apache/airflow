@@ -46,7 +46,12 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import (
+    AirflowNotFoundException,
+    AirflowRuntimeError,
+    AirflowSecretsBackendAccessDenied,
+    ErrorType,
+)
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     AssetEventResult,
@@ -1377,6 +1382,30 @@ class TestAsyncVariableContext:
                 await _async_get_variable("missing_key", deserialize_json=False)
 
         assert exc_info.value.error.error == ErrorType.VARIABLE_NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_async_get_variable_does_not_fall_through_after_deny(self, mock_supervisor_comms):
+        """An authoritative deny from the Execution API raises; the next backend is never asked."""
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.PERMISSION_DENIED,
+            detail={"key": "denied_var", "status_code": 403},
+        )
+
+        later_backend = MagicMock(name="LaterBackend")
+        # the dispatcher prefers aget_variable when present, so spy on both
+        later_backend.aget_variable = mock.AsyncMock(return_value="leaked-value")
+        later_backend.get_variable = MagicMock(return_value="leaked-value")
+
+        with patch(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", autospec=True
+        ) as mock_load:
+            mock_load.return_value = [ExecutionAPISecretsBackend(), later_backend]
+
+            with pytest.raises(AirflowSecretsBackendAccessDenied, match="variable 'denied_var'"):
+                await _async_get_variable("denied_var", deserialize_json=False)
+
+        later_backend.aget_variable.assert_not_awaited()
+        later_backend.get_variable.assert_not_called()
 
     @pytest.mark.asyncio
     @mock.patch("airflow.sdk.execution_time.context.amask_secret")
