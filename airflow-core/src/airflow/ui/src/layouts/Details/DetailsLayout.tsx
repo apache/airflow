@@ -49,6 +49,7 @@ import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
+import { useDagRunsLimit } from "src/hooks/useDagRunsLimit";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { formatNumber, useAutoRefresh } from "src/utils";
 
@@ -104,6 +105,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
     undefined,
     { enabled: dag?.scheduling_state === "active" },
   );
+  const { limit, setLimit } = useDagRunsLimit(dagId);
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
   const panelGroupRef = useGroupRef();
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
@@ -141,7 +143,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   };
 
   // --- Read state from URL ---
-  const limit = Number(searchParams.get(SearchParamsKeys.LIMIT) ?? "10");
   const runAfterGte = searchParams.get(SearchParamsKeys.RUN_AFTER_GTE) ?? undefined;
   const runAfterLte = searchParams.get(SearchParamsKeys.RUN_AFTER_LTE) ?? undefined;
   const runTypeFilter = (searchParams.get(SearchParamsKeys.RUN_TYPE) as DagRunType | null) ?? undefined;
@@ -150,7 +151,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const dagRunStateFilter = (searchParams.get(SearchParamsKeys.STATE) as DagRunState | null) ?? undefined;
 
   // --- Setters that write back to URL ---
-  const setLimit = (value: number) => setParam(SearchParamsKeys.LIMIT, String(value));
   // Only LTE is needed directly: ceiling logic and jump-to-latest both touch it.
   // GTE and the filter params (state, run_type, triggering_user) are managed by GridFilters/FilterBar.
   const setRunAfterLte = (value: string | undefined) => setParam(SearchParamsKeys.RUN_AFTER_LTE, value);
