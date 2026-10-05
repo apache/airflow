@@ -222,46 +222,9 @@ def test_unmapped_parent_skip_mapped_downstream(session, dag_maker):
     assert tis["op2"].state == State.SKIPPED
 
 
-def test_parent_in_mapped_task_group_skips_same_map_index(session, dag_maker):
-    """
-    A SkipMixin parent inside a mapped task group writes XCom per map index, so
-    each child TI in the group must read the decision for its own map index.
-    """
-    with dag_maker("test_mapped_group_skip_dag", schedule=None, session=session):
-
-        @task.short_circuit(task_id="gate")
-        def gate(value):
-            return value
-
-        @task_group
-        def group(value):
-            gate(value) >> EmptyOperator(task_id="child")
-
-        group.expand(value=[True, False])
-
+def _create_run(dag_maker):
     dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
-    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
-    for map_index in (0, 1):
-        tis[("group.gate", map_index)].state = State.SUCCESS
-        session.merge(tis[("group.gate", map_index)])
-    # Only the map index 1 gate short-circuited, as SkipMixin.skip records it.
-    XComModel.set(
-        key=XCOM_SKIPMIXIN_KEY,
-        value={XCOM_SKIPMIXIN_SKIPPED: ["group.child"]},
-        dag_id=dr.dag_id,
-        task_id="group.gate",
-        run_id=dr.run_id,
-        map_index=1,
-        session=session,
-    )
-    session.flush()
-
-    dep = NotPreviouslySkippedDep()
-
-    assert not dep.is_met(tis[("group.child", 1)], session=session)
-    assert tis[("group.child", 1)].state == State.SKIPPED
-    assert dep.is_met(tis[("group.child", 0)], session=session)
-    assert tis[("group.child", 0)].state != State.SKIPPED
+    return dr, {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
 
 
 def _finish_with_skip_decisions(dr, tis, task_id, decisions, *, session, state=State.SUCCESS):
@@ -301,8 +264,38 @@ def _short_circuit_chain_in_mapped_group(dag_maker, session, dag_id, map_count=2
 
         group.expand(value=[map_index % 2 == 0 for map_index in range(map_count)])
 
-    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
-    return dr, {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    return _create_run(dag_maker)
+
+
+def test_parent_in_mapped_task_group_skips_same_map_index(session, dag_maker):
+    """
+    A SkipMixin parent inside a mapped task group writes XCom per map index, so
+    each child TI in the group must read the decision for its own map index.
+    """
+    with dag_maker("test_mapped_group_skip_dag", schedule=None, session=session):
+
+        @task.short_circuit(task_id="gate")
+        def gate(value):
+            return value
+
+        @task_group
+        def group(value):
+            gate(value) >> EmptyOperator(task_id="child")
+
+        group.expand(value=[True, False])
+
+    dr, tis = _create_run(dag_maker)
+    # Only the map index 1 gate short-circuited, as SkipMixin.skip records it.
+    _finish_with_skip_decisions(
+        dr, tis, "group.gate", {1: {XCOM_SKIPMIXIN_SKIPPED: ["group.child"]}}, session=session
+    )
+
+    dep = NotPreviouslySkippedDep()
+
+    assert not dep.is_met(tis[("group.child", 1)], session=session)
+    assert tis[("group.child", 1)].state == State.SKIPPED
+    assert dep.is_met(tis[("group.child", 0)], session=session)
+    assert tis[("group.child", 0)].state != State.SKIPPED
 
 
 def test_short_circuit_in_mapped_task_group_skips_transitive_downstream(session, dag_maker):
@@ -331,7 +324,10 @@ def test_short_circuit_in_mapped_task_group_skips_transitive_downstream(session,
         assert tis[(task_id, 0)].state != State.SKIPPED
 
 
-@pytest.mark.parametrize("gate_state", [State.SKIPPED, State.UPSTREAM_FAILED, State.RUNNING, None])
+@pytest.mark.parametrize(
+    "gate_state",
+    [State.SKIPPED, State.UPSTREAM_FAILED, State.FAILED, State.REMOVED, State.RUNNING, None],
+)
 def test_mapped_task_group_ignores_decision_of_gate_that_did_not_succeed(session, dag_maker, gate_state):
     """
     Clearing a task instance keeps its XComs until it runs again, so a gate that was cleared
@@ -371,8 +367,7 @@ def test_unmapped_short_circuit_skips_first_task_of_mapped_task_group(session, d
 
         gate() >> group.expand(value=[1, 2])
 
-    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
-    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    dr, tis = _create_run(dag_maker)
     _finish_with_skip_decisions(dr, tis, "gate", {-1: {XCOM_SKIPMIXIN_SKIPPED: ["group.a"]}}, session=session)
 
     dep = NotPreviouslySkippedDep()
@@ -403,38 +398,26 @@ def test_short_circuit_does_not_skip_other_mapped_task_group(session, dag_maker)
 
         first.expand(value=[True, False]) >> second.expand(value=[1, 2])
 
-    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
-    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    dr, tis = _create_run(dag_maker)
     _finish_with_skip_decisions(
         dr, tis, "first.gate", {1: {XCOM_SKIPMIXIN_SKIPPED: ["first.a", "second.b"]}}, session=session
     )
 
+    # Both groups are evaluated in one pass, as the scheduler does, so the memo is shared.
+    dep_context = DepContext()
     dep = NotPreviouslySkippedDep()
 
-    assert not dep.is_met(tis[("first.a", 1)], session=session)
-    assert dep.is_met(tis[("second.b", 1)], session=session)
+    assert not dep.is_met(tis[("first.a", 1)], dep_context, session=session)
+    assert dep.is_met(tis[("second.b", 1)], dep_context, session=session)
     assert tis[("second.b", 1)].state != State.SKIPPED
 
 
-def test_short_circuit_respecting_trigger_rules_in_mapped_task_group(session, dag_maker):
+def test_mapped_task_group_does_not_skip_task_missing_from_decision(session, dag_maker):
     """
-    With ignore_downstream_trigger_rules=False the short-circuit only lists its direct downstream,
-    so a task further down the mapped task group is left to its trigger rule.
+    A decision that lists only the direct downstream, as ignore_downstream_trigger_rules=False
+    writes it, leaves a task further down the mapped task group to its trigger rule.
     """
-    with dag_maker("test_mapped_group_respect_trigger_rules_dag", schedule=None, session=session):
-
-        @task.short_circuit(task_id="gate", ignore_downstream_trigger_rules=False)
-        def gate(value):
-            return value
-
-        @task_group
-        def group(value):
-            gate(value) >> EmptyOperator(task_id="a") >> EmptyOperator(task_id="b", trigger_rule="all_done")
-
-        group.expand(value=[True, False])
-
-    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
-    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    dr, tis = _short_circuit_chain_in_mapped_group(dag_maker, session, "test_mapped_group_partial_decision")
     _finish_with_skip_decisions(
         dr, tis, "group.gate", {1: {XCOM_SKIPMIXIN_SKIPPED: ["group.a"]}}, session=session
     )
@@ -464,8 +447,7 @@ def test_branch_in_mapped_task_group_does_not_skip_join(session, dag_maker):
 
         group.expand(value=["group.t1", "group.t2"])
 
-    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
-    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    dr, tis = _create_run(dag_maker)
     _finish_with_skip_decisions(
         dr,
         tis,
@@ -500,8 +482,7 @@ def test_short_circuit_in_mapped_task_group_does_not_skip_task_after_group(sessi
 
         group.expand(value=[True, False]) >> EmptyOperator(task_id="after", trigger_rule="all_done")
 
-    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
-    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    dr, tis = _create_run(dag_maker)
     _finish_with_skip_decisions(
         dr, tis, "group.gate", {1: {XCOM_SKIPMIXIN_SKIPPED: ["group.a", "after"]}}, session=session
     )
@@ -556,12 +537,8 @@ def test_mapped_task_group_without_skipmixin_reads_no_xcom(session, dag_maker):
 
         group.expand(value=[1, 2, 3])
 
-    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
-    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
-    for map_index in range(3):
-        tis[("group.a", map_index)].state = State.SUCCESS
-        session.merge(tis[("group.a", map_index)])
-    session.flush()
+    dr, tis = _create_run(dag_maker)
+    _finish_with_skip_decisions(dr, tis, "group.a", {}, session=session)
     dep_context = DepContext(finished_tis=dr.get_task_instances(state=State.finished, session=session))
 
     dep = NotPreviouslySkippedDep()

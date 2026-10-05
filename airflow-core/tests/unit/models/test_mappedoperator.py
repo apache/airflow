@@ -1676,6 +1676,51 @@ def test_one_failed_trigger_rule_runs_on_indirect_failure_in_mapped_task_group(d
     assert states["deliver_records.handle_failed_delivery"] == {0: "success", 1: "success", 2: "success"}
 
 
+@pytest.mark.parametrize("trigger_rule", [TriggerRule.ALL_DONE, TriggerRule.NONE_FAILED])
+def test_short_circuit_skips_later_tasks_in_task_group_mapped_over_upstream_output(dag_maker, trigger_rule):
+    """
+    A short-circuit inside a task group expanded over an upstream task's output skips every
+    later task of the same map index, although none of them is expanded when it runs.
+    """
+    with dag_maker(dag_id="test_short_circuit_in_task_group_mapped_over_output") as dag:
+
+        @task
+        def get_values():
+            return [True, False]
+
+        @task.short_circuit
+        def gate(value):
+            return value
+
+        @task
+        def a():
+            pass
+
+        @task(trigger_rule=trigger_rule)
+        def b():
+            pass
+
+        @task(trigger_rule=trigger_rule)
+        def c():
+            pass
+
+        @task_group
+        def group(value):
+            gate(value) >> a() >> b() >> c()
+
+        group.expand(value=get_values())
+
+    dr = dag.test()
+
+    states: dict[str, dict[int, str | None]] = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        states[ti.task_id][ti.map_index] = ti.state
+
+    assert states["group.gate"] == {0: "success", 1: "success"}
+    for task_id in ("group.a", "group.b", "group.c"):
+        assert states[task_id] == {0: "success", 1: "skipped"}
+
+
 def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(dag_maker):
     """Regression test for #39801.
 

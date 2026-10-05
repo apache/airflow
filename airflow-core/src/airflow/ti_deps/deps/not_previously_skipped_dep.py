@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
-
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.models.xcom import XComModel
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -137,9 +135,7 @@ def _should_skip(prev_result: dict, task_id: str, *, is_direct_parent: bool) -> 
     # "followed" only lists a branch operator's direct downstream tasks, so it says nothing
     # about a task further down, which follows its own trigger rule instead.
     if is_direct_parent and XCOM_SKIPMIXIN_FOLLOWED in prev_result:
-        # Skip any tasks that are not in "followed"
         return task_id not in prev_result[XCOM_SKIPMIXIN_FOLLOWED]
-    # Skip any tasks that are in "skipped"
     return XCOM_SKIPMIXIN_SKIPPED in prev_result and task_id in prev_result[XCOM_SKIPMIXIN_SKIPPED]
 
 
@@ -180,14 +176,11 @@ def _mapped_group_skip_decisions(
         if t.state == TaskInstanceState.SUCCESS and t.task_id in skipmixin_task_ids
     }
     if succeeded_keys:
+        query = XComModel.get_many(
+            run_id=ti.run_id, key=XCOM_SKIPMIXIN_KEY, dag_ids=ti.dag_id, task_ids=skipmixin_task_ids
+        )
         rows = session.execute(
-            select(XComModel.task_id, XComModel.map_index, XComModel.value).where(
-                XComModel.dag_id == ti.dag_id,
-                XComModel.run_id == ti.run_id,
-                XComModel.key == XCOM_SKIPMIXIN_KEY,
-                XComModel.task_id.in_(skipmixin_task_ids),
-                XComModel.map_index >= 0,
-            )
+            query.with_only_columns(XComModel.task_id, XComModel.map_index, XComModel.value).order_by(None)
         )
         for row in rows:
             if (row.task_id, row.map_index) not in succeeded_keys:
