@@ -438,6 +438,7 @@ function install_python() {
 function install_golang() {
     curl --retry 3 --retry-delay 5 "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+    rm -f go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
 function install_jdk() {
@@ -511,7 +512,9 @@ function install_rustup() {
         -o /tmp/rustup-init
     echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
     chmod +x /tmp/rustup-init
-    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    # Building wheels from source needs only rustc and cargo. The default profile also adds
+    # rust-docs, clippy and rustfmt, which add tens of thousands of files to the image.
+    /tmp/rustup-init -y --profile minimal --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
     rm -f /tmp/rustup-init
 }
 
@@ -1476,16 +1479,13 @@ function check_boto_upgrade() {
 }
 
 function check_upgrade_sqlalchemy() {
-    # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. Is should be removed once we
-    # upgrade FAB to v5 (PR #50960).
-    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
+    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" ]]; then
         return
     fi
     echo
     echo "${COLOR_BLUE}Upgrading sqlalchemy to the latest version to run tests with it${COLOR_RESET}"
     echo
-    uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest \
-        --no-python-downloads --no-managed-python
+    uv sync --all-packages --resolution highest --no-python-downloads --no-managed-python
 }
 
 function check_downgrade_sqlalchemy() {
@@ -1550,7 +1550,7 @@ function reinstall_shared_distributions() {
     uv pip install --no-deps $(ls -d /opt/airflow/shared/*/)
 }
 
-PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=("ibm.mq")
+PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
 
 function run_pre_extras_install_if_registered() {
     local provider_id="${1}"

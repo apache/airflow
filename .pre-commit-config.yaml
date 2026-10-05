@@ -340,14 +340,39 @@ repos:
       - id: sync-java-sdk-dag-schema
         name: Sync Java SDK Dag serialization schema with airflow-core
         description: "Copy airflow-core's serialization schema when Java SDK's vendored dag-schema.json drifts"
-        entry: ./java-sdk/gradlew -p ./java-sdk :sdk:syncDagSchema
+        entry: ./java-sdk/gradlew -p ./java-sdk :sdk:syncDagSchema -PfailOnDagSchemaDrift
         language: system
         pass_filenames: false
-        # Re-vendoring is a java-sdk maintainer's deliberate step after an airflow-core
-        # schema change, not something every commit should do, so this is manual only:
-        #   prek run sync-java-sdk-dag-schema --hook-stage manual
-        stages: ['manual']
-        files: ^java-sdk/sdk/schema/dag-schema\.json$
+        # Runs on every commit: a stale vendored copy is exactly the drift that broke a
+        # vendored Go copy unnoticed (see sync-go-sdk-schemas below), so this fails
+        # loudly instead of silently falling behind. -PfailOnDagSchemaDrift is what makes
+        # it fail here; generateDagDsl's own dependency on this same task never passes it,
+        # so an ordinary in-repo build keeps refreshing the copy without breaking on a
+        # schema someone is mid-edit on. The task refreshes the file and fails when it
+        # had to, so `git add` the refreshed copy and recommit.
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^java-sdk/sdk/schema/dag-schema\.json$
+      - id: sync-go-sdk-schemas
+        name: Sync Go SDK vendored schemas with the distributions that own them
+        description: "Copy airflow-core's Dag schema and task-sdk's supervisor schema when go-sdk's vendored copies drift"
+        entry: ./scripts/ci/prek/sync_go_sdk_schemas.py
+        language: python
+        pass_filenames: false
+        # Runs on every commit: it used to be manual, "a go-sdk maintainer's deliberate
+        # step," so a Python-only schema change could ship with the vendored Go copy
+        # silently left behind — no hook caught it, because this one was never invoked
+        # and check-go-sdk-generated-drift below only watched the Go side. This refreshes
+        # the copy and fails when it had to, so `git add` the refreshed file(s) and
+        # recommit; check-go-sdk-generated-drift then catches the generated code that
+        # needs regenerating from the refreshed copy.
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^go-sdk/schema/.*\.json$|
+          ^scripts/ci/prek/sync_go_sdk_schemas\.py$
       - id: check-go-sdk-generated-drift
         name: Check Go SDK generated files against the schemas they generate from
         description: "Regenerate the Dag specs and the coordinator-protocol models, and fail when a committed file differs"
@@ -355,10 +380,16 @@ repos:
         # golang so prek provisions the toolchain the generators need, the way the
         # other checks that shell out to `go` in go-sdk get theirs.
         language: golang
+        # Also triggered by the Python schemas themselves, not just the vendored copies:
+        # sync-go-sdk-schemas (which runs first, see hook order above) refreshes the
+        # vendored copy in the same commit a Python schema changes, and this regenerates
+        # from whatever that copy now holds, so the two together catch both a stale copy
+        # and generated code that copy was never regenerated from.
         files: >
           (?x)
           ^airflow-core/src/airflow/serialization/schema\.json$|
           ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^go-sdk/schema/.*\.json$|
           ^go-sdk/airflow/spec\.gen\.go$|
           ^go-sdk/airflow/spec\.go$|
           ^go-sdk/internal/genspec/.*\.go$|

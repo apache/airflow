@@ -65,6 +65,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SCHEDULER_DAG_CACHE_SIZE, SchedulerJobRunner
 from airflow.listeners.listener import get_listener_manager
@@ -387,11 +388,13 @@ class TestSchedulerJob:
         default_executor.jwt_generator = mock_jwt_generator
         default_executor.team_name = None  # Global executor
         default_executor.sentry_integration = ""
+        default_executor._drain_events_with_task_ids.return_value = {}, {}
         second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
         second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
         second_executor.jwt_generator = mock_jwt_generator
         second_executor.team_name = None  # Global executor
         second_executor.sentry_integration = ""
+        second_executor._drain_events_with_task_ids.return_value = {}, {}
 
         # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_workload
         # interface from executors
@@ -549,7 +552,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.FAILED, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -560,7 +563,7 @@ class TestSchedulerJob:
         ti1.state = State.SUCCESS
         session.merge(ti1)
         session.commit()
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -662,7 +665,7 @@ class TestSchedulerJob:
             ti1.queued_by_job_id = -1
             session.commit()
         elif bookkeeping == "still_running":
-            executor.running.add(retiring_key)
+            executor.running.add(TaskInstanceUuid(retiring_id))
         if missing_definition == "dag":
             mocker.patch.object(
                 job_runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None
@@ -673,7 +676,7 @@ class TestSchedulerJob:
             )
 
         # Simulate executor reporting task completion (this triggers the bug scenario)
-        executor.event_buffer[retiring_key] = executor_state, None
+        executor.event_buffer[TaskInstanceUuid(retiring_id)] = executor_state, None
 
         # Process the executor event
         with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
@@ -704,7 +707,7 @@ class TestSchedulerJob:
         assert (history.task_instance_id, history.try_number, history.state) == (retiring_id, 4, State.FAILED)
         assert history.end_date is not None
         replacement_id = ti1.id
-        executor.event_buffer[retiring_key] = executor_state, None
+        executor.event_buffer[TaskInstanceUuid(retiring_id)] = executor_state, None
         job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
         assert (ti1.id, ti1.try_number, ti1.state) == (replacement_id, 5, None)
@@ -718,7 +721,7 @@ class TestSchedulerJob:
         old_id = ti.id
         session.commit()
         executor = MockExecutor(do_update=False)
-        executor.event_buffer[ti.key] = event_state, "worker"
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = event_state, "worker"
         runner = SchedulerJobRunner(Job(), executors=[executor])
 
         runner._process_executor_events(executor=executor, session=session)
@@ -738,20 +741,30 @@ class TestSchedulerJob:
 
     @pytest.mark.parametrize("event_state", [State.QUEUED, State.RUNNING, State.SUCCESS, State.FAILED])
     @pytest.mark.parametrize("include_current", [False, True])
+    @pytest.mark.parametrize("uuid_keys", [False, True])
     def test_retired_attempt_events_do_not_modify_replacement(
-        self, dag_maker, session, event_state, include_current
+        self, dag_maker, session, event_state, include_current, uuid_keys, monkeypatch, caplog
     ):
         with dag_maker(dag_id="retired_attempt_event"):
             EmptyOperator(task_id="task")
         ti = dag_maker.create_dagrun().get_task_instance("task", session=session)
-        ti.try_number = 2
+        ti.try_number = 1
+        ti.state = State.RUNNING
+        retired_id = ti.id
+        monkeypatch.setattr(MockExecutor, "supports_task_instance_uuid", uuid_keys)
+        executor = MockExecutor(do_update=False)
+        executor._register_task(ti)
+        retired_key = executor.get_task_key(ti)
+        retired_coordinates = ti.key
+        clear_task_instances([ti], session=session)
+        ti.complete_restart(session=session)
         ti.state = State.QUEUED
         ti.external_executor_id = "replacement"
         session.flush()
-        executor = MockExecutor(do_update=False)
         if include_current:
-            executor.event_buffer[ti.key] = State.RUNNING, "current_worker"
-        executor.event_buffer[ti.key.with_try_number(1)] = event_state, "retired_worker"
+            executor._register_task(ti)
+            executor.event_buffer[executor.get_task_key(ti)] = State.RUNNING, "current_worker"
+        executor.event_buffer[retired_key] = event_state, "retired_worker"
         runner = SchedulerJobRunner(Job(), executors=[executor])
 
         runner._process_executor_events(executor=executor, session=session)
@@ -759,8 +772,58 @@ class TestSchedulerJob:
         session.refresh(ti)
 
         assert ti.state == State.QUEUED
+        assert ti.id != retired_id
         assert ti.try_number == 2
         assert ti.external_executor_id == ("current_worker" if include_current else "replacement")
+        assert any(
+            "Received executor event" in record.message
+            and str(retired_id) in record.message
+            and str(retired_coordinates) in record.message
+            for record in caplog.records
+        )
+        assert any(
+            "Discarding executor event" in record.message
+            and str(retired_id) in record.message
+            and str(retired_coordinates) in record.message
+            for record in caplog.records
+        )
+        if include_current:
+            assert not any(
+                "Discarding executor event" in record.message and str(ti.id) in record.message
+                for record in caplog.records
+            )
+
+    @pytest.mark.parametrize("event_state", [State.SUCCESS, State.UP_FOR_RETRY])
+    def test_executor_event_diagnostic_distinguishes_locked_row_from_nonprocessable_state(
+        self, dag_maker, session, mocker, caplog, event_state
+    ):
+        with dag_maker(dag_id="locked_executor_event"):
+            EmptyOperator(task_id="task")
+        ti = dag_maker.create_dagrun().get_task_instance("task", session=session)
+        executor = MockExecutor(do_update=False)
+        executor._register_task(ti)
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = event_state, None
+        scalars = mocker.patch.object(session, "scalars", autospec=True, return_value=iter(()))
+        runner = SchedulerJobRunner(Job(), executors=[executor])
+
+        runner._process_executor_events(executor=executor, session=session)
+
+        assert any(
+            "Received executor event" in record.message
+            and str(ti.id) in record.message
+            and str(ti.key) in record.message
+            for record in caplog.records
+        )
+        assert any(
+            "Discarding executor event" in record.message
+            and "no matching task instance was returned" in record.message
+            and "may be locked by another scheduler" in record.message
+            for record in caplog.records
+        ) == (event_state == State.SUCCESS)
+        if event_state == State.SUCCESS:
+            scalars.assert_called_once()
+        else:
+            scalars.assert_not_called()
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
@@ -796,7 +859,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.FAILED, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -807,7 +870,7 @@ class TestSchedulerJob:
         ti1.state = State.SUCCESS
         session.merge(ti1)
         session.commit()
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -897,7 +960,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.FAILED, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db()
@@ -939,11 +1002,12 @@ class TestSchedulerJob:
             callback_lookups = [c for c in spy_get.call_args_list if c.args and c.args[0] is Callback]
             assert callback_lookups == []
 
-    def test_process_executor_events_raises_on_unknown_key_type(self, session):
+    @pytest.mark.parametrize("key", ["not-a-workload-key", uuid4()])
+    def test_process_executor_events_raises_on_unknown_key_type(self, session, key):
         """An unrecognised key must fail loudly, matching run_workload and state_class_for_key."""
         executor = MockExecutor(do_update=False)
         self.job_runner = SchedulerJobRunner(Job(), executors=[executor])
-        executor.event_buffer["not-a-workload-key"] = (TaskInstanceState.SUCCESS, None)
+        executor.event_buffer[key] = (TaskInstanceState.SUCCESS, None)
 
         with pytest.raises(TypeError, match="Unknown workload key type in event buffer"):
             self.job_runner._process_executor_events(executor=executor, session=session)
@@ -978,7 +1042,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.FAILED, None
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db()
         assert ti1.state == State.FAILED
@@ -1015,14 +1079,13 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key.with_try_number(1)] = State.SUCCESS, None
+        executor.event_buffer[TaskInstanceUuid(uuid4())] = State.SUCCESS, None
 
         with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
             self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.QUEUED
         self.job_runner.executor.callback_sink.send.assert_not_called()
-        assert any("Ignoring executor event for a different attempt" in rec.message for rec in caplog.records)
 
         # ti is queued by another scheduler - do not fail it
         ti1.state = State.QUEUED
@@ -1030,7 +1093,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
@@ -1043,7 +1106,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
         executor.has_task = mock.MagicMock(return_value=True)
 
         self.job_runner._process_executor_events(executor=executor, session=session)
@@ -1089,7 +1152,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
         executor.has_task = mock.MagicMock(return_value=False)
         mock_stats.incr.reset_mock()
 
@@ -1106,7 +1169,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
         mock_stats.incr.reset_mock()
 
         self.job_runner._process_executor_events(executor=executor, session=session)
@@ -1151,7 +1214,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
         executor.has_task = mock.MagicMock(return_value=False)
         mock_stats.incr.reset_mock()
 
@@ -1168,7 +1231,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
         mock_stats.incr.reset_mock()
 
         self.job_runner._process_executor_events(executor=executor, session=session)
@@ -1202,13 +1265,12 @@ class TestSchedulerJob:
         session.merge(ti)
         session.commit()
 
-        executor.event_buffer[ti.key.with_try_number(1)] = State.RUNNING, "first_executor_id"
-        executor.event_buffer[ti.key.with_try_number(2)] = State.RUNNING, "second_executor_id"
+        executor.event_buffer[TaskInstanceUuid(uuid4())] = State.RUNNING, "first_executor_id"
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = State.RUNNING, "second_executor_id"
 
         with caplog.at_level(logging.INFO, logger="airflow.jobs.scheduler_job_runner"):
             self.job_runner._process_executor_events(executor=executor, session=session)
 
-        assert any("Ignoring executor event for a different attempt" in rec.message for rec in caplog.records)
         session.flush()
         ti.refresh_from_db(session=session)
         assert ti.external_executor_id == "second_executor_id"
@@ -1269,7 +1331,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.FAILED, None
 
         # This should not raise DetachedInstanceError
         self.job_runner._process_executor_events(executor=executor, session=session)
@@ -1341,7 +1403,7 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.commit()
 
-        executor.event_buffer[ti1.key] = State.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.FAILED, None
 
         callback = self.job_runner._schedule_dag_run(dr, session)
         session.flush()
@@ -1467,7 +1529,7 @@ class TestSchedulerJob:
             session.merge(ti)
             session.flush()
 
-            executor.running.add(ti.key)
+            executor.running.add(TaskInstanceUuid(ti.id))
 
             tis_without_heartbeats = self.job_runner._find_task_instances_without_heartbeats(session=session)
             assert len(tis_without_heartbeats) == 1
@@ -1499,17 +1561,15 @@ class TestSchedulerJob:
         task_id_1 = "dummy_task"
 
         with dag_maker(dag_id=dag_id):
-            task1 = EmptyOperator(task_id=task_id_1)
+            EmptyOperator(task_id=task_id_1)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[self.null_exec])
         session = settings.Session()
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
-        dag_version = DagVersion.get_latest_version(dr1.dag_id)
 
-        ti1 = create_task_instance(task1, run_id=dr1.run_id, dag_version_id=dag_version.id)
-        ti1.refresh_from_db()
+        ti1 = dr1.get_task_instance(task_id_1, session=session)
         ti1.state = State.SCHEDULED
         session.merge(ti1)
         session.flush()
@@ -1592,7 +1652,7 @@ class TestSchedulerJob:
             self.job_runner._execute()
 
             for executor in self.job_runner.executors:
-                executor.get_event_buffer.assert_called_once()
+                executor._drain_events_with_task_ids.assert_called_once()
 
     @patch("traceback.extract_stack")
     def test_executor_debug_dump(self, patch_traceback_extract_stack, mock_executors):
@@ -4268,12 +4328,13 @@ class TestSchedulerJob:
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
 
+        class NoRevokeExecutor(BaseExecutor):
+            pass
+
         assert "revoke_task" in BaseExecutor.__dict__
-        # this is just verifying that LocalExecutor is good enough for this test
-        # in that it does not implement revoke_task
-        assert "revoke_task" not in LocalExecutor.__dict__
+        assert "revoke_task" not in NoRevokeExecutor.__dict__
         scheduler_job = Job()
-        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0, executors=[LocalExecutor()])
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0, executors=[NoRevokeExecutor()])
         job_runner._task_queued_timeout = 300
         job_runner._handle_tasks_stuck_in_queued()
 
@@ -4483,6 +4544,70 @@ class TestSchedulerJob:
         assert callback.dag_id == dr.dag_id
         assert callback.run_id == dr.run_id
         assert callback.msg == "timed_out"
+
+        session.rollback()
+        session.close()
+
+    def test_dagrun_timeout_skips_running_task_with_end_date_and_duration(self, dag_maker):
+        """A task still running when its Dag run times out must be skipped with an end_date and duration."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_scheduler_dagrun_timeout_running_task",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        now = timezone.utcnow().replace(microsecond=0)
+        dr = dag_maker.create_dagrun(start_date=now - datetime.timedelta(days=1))
+        ti = dr.get_task_instance("dummy", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.start_date = now - datetime.timedelta(minutes=10)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with time_machine.travel(now, tick=False):
+            self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(ti)
+        assert ti.state == TaskInstanceState.SKIPPED
+        assert ti.end_date == now
+        assert ti.duration == 600.0
+
+        session.rollback()
+        session.close()
+
+    def test_dagrun_timeout_skips_unstarted_task_with_start_and_end_date(self, dag_maker):
+        """A task that never started gets start_date == end_date and a zero duration, like other skips."""
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_scheduler_dagrun_timeout_unstarted_task",
+            dagrun_timeout=datetime.timedelta(seconds=60),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        now = timezone.utcnow().replace(microsecond=0)
+        dr = dag_maker.create_dagrun(start_date=now - datetime.timedelta(days=1))
+        ti = dr.get_task_instance("dummy", session=session)
+        ti.state = None
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with time_machine.travel(now, tick=False):
+            self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        session.refresh(ti)
+        assert ti.state == TaskInstanceState.SKIPPED
+        assert ti.start_date == now
+        assert ti.end_date == now
+        assert ti.duration == 0.0
 
         session.rollback()
         session.close()
@@ -5642,6 +5767,7 @@ class TestSchedulerJob:
         dag_id = "test_queued_ti_retry_history"
         task_id = "dummy"
         hostname = "worker-node-42"
+        external_executor_id = "previous-worker"
 
         with dag_maker(dag_id=dag_id, fileloc="/test_path/"):
             task = EmptyOperator(task_id=task_id, retries=2)
@@ -5650,6 +5776,7 @@ class TestSchedulerJob:
         ti = dr.get_task_instance(task.task_id, session=session)
         ti.state = ti_state
         ti.hostname = hostname
+        ti.external_executor_id = external_executor_id
         ti.start_date = DEFAULT_DATE
         ti.try_number = 1
         ti.max_tries = 2
@@ -5659,7 +5786,7 @@ class TestSchedulerJob:
         old_ti_id = ti.id
 
         executor = MockExecutor(do_update=False)
-        executor.event_buffer[ti.key] = TaskInstanceState.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = TaskInstanceState.FAILED, None
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor])
@@ -5671,6 +5798,7 @@ class TestSchedulerJob:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 2
         assert ti.id != old_ti_id, "prepare_db_for_next_try must assign a new UUID"
+        assert ti.external_executor_id is None
 
         from airflow.models.taskinstancehistory import TaskInstanceHistory
 
@@ -5680,6 +5808,7 @@ class TestSchedulerJob:
         assert tih is not None, "TaskInstanceHistory must be created for non-RUNNING retry"
         assert tih.try_number == 1
         assert tih.hostname == hostname
+        assert tih.external_executor_id == external_executor_id
         assert tih.start_date == DEFAULT_DATE
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
@@ -8118,9 +8247,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
 
-        dag_version = DagVersion.get_latest_version(dag_id=dag.dag_id)
-        ti = create_task_instance(task=task1, run_id=dr1_running.run_id, dag_version_id=dag_version.id)
-        ti.refresh_from_db()
+        ti = dr1_running.get_task_instance(task1.task_id, session=session)
         ti.state = State.SUCCESS
         session.merge(ti)
         session.flush()
@@ -8751,9 +8878,9 @@ class TestSchedulerJob:
 
             ti.queued_by_job_id = scheduler_job.id
             session.flush()
-            executor.running.add(ti.key)  # The executor normally does this during heartbeat.
+            executor.running.add(TaskInstanceUuid(ti.id))  # The executor normally does this during heartbeat.
             self.job_runner._find_and_purge_task_instances_without_heartbeats()
-            assert ti.key not in executor.running
+            assert ti.id not in executor.running
 
         executor.callback_sink.send.assert_called_once()
         callback_requests = executor.callback_sink.send.call_args.args
@@ -9767,7 +9894,7 @@ class TestSchedulerJob:
         session.commit()
 
         # Executor reports task finished (FAILED) while TI still QUEUED -> external kill path
-        executor.event_buffer[ti.key] = State.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = State.FAILED, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
 
@@ -9810,7 +9937,7 @@ class TestSchedulerJob:
         executor = MockExecutor(do_update=False)
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
-        executor.event_buffer[ti.key] = State.FAILED, None
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = State.FAILED, None
 
         self.job_runner._process_executor_events(executor=executor, session=session)
 
@@ -9893,8 +10020,18 @@ class TestSchedulerJob:
         ("retries", "cleared_try", "next_try", "expected_max_tries"),
         [(0, 1, 2, 1), (2, 3, 4, 5)],
     )
+    @pytest.mark.parametrize("uuid_keys", [False, True])
     def test_heartbeat_timeout_completes_clear_with_fresh_retry_budget(
-        self, dag_maker, session, mocker, retries, cleared_try, next_try, expected_max_tries
+        self,
+        dag_maker,
+        session,
+        mocker,
+        retries,
+        cleared_try,
+        next_try,
+        expected_max_tries,
+        uuid_keys,
+        monkeypatch,
     ):
         with dag_maker(dag_id="hb_timeout_cleared", session=session):
             EmptyOperator(
@@ -9906,6 +10043,7 @@ class TestSchedulerJob:
             )
 
         dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        monkeypatch.setattr(MockExecutor, "supports_task_instance_uuid", uuid_keys)
         executor = MockExecutor(do_update=False)
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
@@ -9926,7 +10064,9 @@ class TestSchedulerJob:
         ti = session.merge(ti)
         session.commit()
         assert ti.state == TaskInstanceState.RESTARTING
-        executor.running.add(old_key)
+        executor._register_task(ti)
+        executor_key = executor.get_task_key(ti)
+        executor.running.add(executor_key)
 
         received = []
 
@@ -9948,8 +10088,12 @@ class TestSchedulerJob:
         assert ti.try_number == next_try
         assert ti.id != old_id
         assert ti.external_executor_id is None
-        assert old_key not in executor.running
-        assert executor.event_buffer == {old_key: (TaskInstanceState.FAILED, None)}
+        assert executor_key not in executor.running
+        assert executor.event_buffer == {executor_key: (TaskInstanceState.FAILED, None)}
+        assert executor._drain_events_with_task_ids() == (
+            {TaskInstanceUuid(old_id): (TaskInstanceState.FAILED, None)},
+            {TaskInstanceUuid(old_id): old_key},
+        )
         requests = [call.args[0] for call in executor.callback_sink.send.call_args_list]
         assert len(requests) == 2
         callback, email = requests
@@ -9981,11 +10125,11 @@ class TestSchedulerJob:
         ti.try_number = 3
         ti.max_tries = max_tries
         ti.external_executor_id = "retiring"
-        old_id, old_key = ti.id, ti.key
+        old_id = ti.id
         session.commit()
         executor = MockExecutor(do_update=False)
         runner = SchedulerJobRunner(Job(), executors=[executor])
-        executor.running.add(old_key)
+        executor.running.add(TaskInstanceUuid(old_id))
         if missing_definition == "dag":
             mocker.patch.object(runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None)
         else:
@@ -10005,8 +10149,8 @@ class TestSchedulerJob:
         assert ti.id != old_id
         assert (ti.try_number, ti.state, ti.max_tries) == (4, None, expected_max_tries)
         assert ti.external_executor_id is None
-        assert old_key not in executor.running
-        assert executor.event_buffer == {old_key: (State.FAILED, None)}
+        assert TaskInstanceUuid(old_id) not in executor.running
+        assert executor.event_buffer == {TaskInstanceUuid(old_id): (State.FAILED, None)}
 
         history = session.scalars(
             select(TaskInstanceHistory).where(TaskInstanceHistory.dag_id == ti.dag_id)
@@ -10190,8 +10334,8 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
 
         # Simulate executor reporting task as failed
-        executor_event = {ti.key: (TaskInstanceState.FAILED, None)}
-        mock_executor.get_event_buffer.return_value = executor_event
+        executor_event = {TaskInstanceUuid(ti.id): (TaskInstanceState.FAILED, None)}
+        mock_executor._drain_events_with_task_ids.return_value = executor_event, {}
 
         # Process the executor events
         self.job_runner._process_executor_events(mock_executor, session)
@@ -15134,8 +15278,8 @@ class TestSchedulerObservabilityMetrics:
     def test_executor_events_batch_metrics_emitted_on_success(self):
         """batch_size gauge and processed counter are emitted via the early-return path."""
         # Empty event buffer → tis_with_right_state is empty → early return with num_events=0
-        mock_executor = MagicMock()
-        mock_executor.get_event_buffer.return_value = {}
+        mock_executor = MagicMock(spec=BaseExecutor)
+        mock_executor._drain_events_with_task_ids.return_value = {}, {}
 
         with mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats:
             result = SchedulerJobRunner.process_executor_events(

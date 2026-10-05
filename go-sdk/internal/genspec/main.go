@@ -15,10 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Command genspec rewrites Airflow core's Dag serialization schema
-// (airflow-core/src/airflow/serialization/schema.json) into the schema the airflow
-// package's DagSpec and TaskSpec generate from, so that the two structs are not
-// hand-maintained.
+// Command genspec rewrites Airflow core's Dag serialization schema (go-sdk's vendored
+// copy of it, schema/dag-schema.json) into the schema the airflow package's DagSpec,
+// TaskSpec and TaskGroupSpec generate from, so that the structs are not hand-maintained.
 //
 // The schema is owned by Python and stays untouched; the rewritten copy is a build
 // artifact. genspec rewrites it in two passes: shapeForAuthoring turns the
@@ -45,7 +44,7 @@ func main() {
 	schemaPath := flag.String(
 		"schema",
 		"",
-		"path to airflow-core's Dag serialization schema.json",
+		"path to the vendored copy of airflow-core's Dag serialization schema",
 	)
 	outPath := flag.String("out", "", "path to write the rewritten schema to")
 	licensePath := flag.String(

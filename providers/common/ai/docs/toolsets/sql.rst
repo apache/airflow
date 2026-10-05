@@ -30,7 +30,8 @@ Curated toolset wrapping
    * - ``list_tables``
      - Lists available table names (filtered by ``allowed_tables`` if set)
    * - ``get_schema``
-     - Returns column names and types for a table
+     - Returns a table's columns as JSON, with a ``name_contains`` filter and a
+       bounded summary on very wide tables (see :ref:`bounded-schema-results`)
    * - ``query``
      - Executes a SQL query and returns bounded, columnar JSON (see
        :ref:`bounded-query-results`)
@@ -203,8 +204,11 @@ Parameters
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
   Rows beyond it are not read out of a DBAPI cursor; what the driver has already
   transferred is its own call. See :ref:`bounded-query-results`.
-- ``max_result_bytes``: Budget for the serialized ``query`` result. Default 64 KiB.
-  See :ref:`bounded-query-results`.
+- ``max_result_bytes``: Budget for the serialized ``query`` result, and the byte backstop
+  that also triggers the ``get_schema`` summary. Default 64 KiB.
+  See :ref:`bounded-query-results` and :ref:`bounded-schema-results`.
+- ``max_columns``: Maximum columns ``get_schema`` returns in full. Default ``100``.
+  Above it the result becomes a bounded summary. See :ref:`bounded-schema-results`.
 - ``max_retries``: How many times the model may correct a failed call to these
   tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
@@ -262,6 +266,37 @@ The default budget is deliberately generous: the columnar shape alone shrinks a 
 result several-fold, so results that fit before still fit. Lower ``max_result_bytes``
 when an agent makes many queries in one run, since every result is re-paid on every
 later request.
+
+.. _bounded-schema-results:
+
+Bounded schema results
+----------------------
+
+``get_schema`` has the same context problem as ``query`` but cannot be solved the same
+way. Column names are what the agent needs to write SQL, so truncating to the first N
+columns would leave it unable to reference or discover the rest. The tool filters and
+summarizes instead.
+
+**Filter with** ``name_contains``. Pass a case-insensitive substring to get back only
+the columns whose name contains it, so on a very wide table the agent asks for the
+columns relevant to its question rather than all of them.
+
+**A summary replaces a very wide list.** Above ``max_columns`` (default ``100``), or when
+the serialized columns exceed ``max_result_bytes``, the full list is replaced by a
+summary that reports the shape and points at the filter:
+
+.. code-block:: json
+
+    {"column_count": 3200, "truncated": true, "truncated_by": "max_columns",
+     "hint": "...", "type_histogram": {"VARCHAR": 2000, "NUMBER": 1200},
+     "sample_columns": [{"name": "id", "type": "NUMBER"}]}
+
+``truncated_by`` is ``max_columns`` or ``max_result_bytes``. ``type_histogram`` counts
+columns per type (capped to the most common, the tail folded into one entry), and
+``sample_columns`` previews the first columns -- both only while they fit the budget, so
+a pathologically small budget still returns the ``column_count`` and ``hint``. A filtered
+call echoes ``name_contains`` and adds ``total_columns`` so a subset is never mistaken for
+the whole table.
 
 When to choose it
 -----------------

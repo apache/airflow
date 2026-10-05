@@ -35,7 +35,6 @@
         "title": "백필 생성됨"
       }
     },
-    "unpause": "트리거 시 {{dag_display_name}} 일시 중지 해제",
     "validation": {
       "datesRequired": "데이터 구간 시작일과 종료일이 모두 제공되어야 합니다.",
       "startBeforeEnd": "데이터 구간 시작일은 데이터 구간 종료일보다 작거나 같아야 합니다."
@@ -175,8 +174,7 @@
         "title": "Dag 트리거에 성공했습니다."
       }
     },
-    "triggerAgainWithConfig": "현재 구성으로 다시 트리거",
-    "unpause": "트리거 시 {{dagDisplayName}} 일시 중지 해제"
+    "triggerAgainWithConfig": "현재 구성으로 다시 트리거"
   },
   "trimText": {
     "details": "세부 정보",

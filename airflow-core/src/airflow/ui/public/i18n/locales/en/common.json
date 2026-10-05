@@ -320,6 +320,13 @@
       },
       "title": "Marking"
     },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Per-searchbar choices and shared links still take precedence.",
+        "label": "Match anywhere by default"
+      },
+      "title": "Search"
+    },
     "taskInstance": {
       "defaultTab": {
         "helper": "Tab shown first when you open a task instance. Links to a specific tab still open that tab.",
