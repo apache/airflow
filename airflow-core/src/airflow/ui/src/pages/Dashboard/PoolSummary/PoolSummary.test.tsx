@@ -43,6 +43,7 @@ vi.mock("openapi/queries/queries", () => ({
 }));
 
 vi.mock("src/utils", () => ({
+  formatNumber: String,
   useAutoRefresh: () => false,
 }));
 

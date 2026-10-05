@@ -16,17 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { describe, expect, it } from "vitest";
 
-export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
-export { formatNumber } from "./formatNumber";
-export { getMetaKey } from "./getMetaKey";
-export { hasDagRunConfig } from "./hasDagRunConfig";
-export { toNullablePartitionKey } from "./partitionKey";
-export { useContainerWidth } from "./useContainerWidth";
-export { useDocumentTitle } from "./useDocumentTitle";
-export { type DurationFormat, useDurationFormat } from "./useDurationFormat";
-export { DocumentTitleProvider } from "./useDocumentTitleProvider";
-export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export * from "./query";
-export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";
+import { countDagWarnings } from "./DAGWarningsModal";
+
+describe("countDagWarnings", () => {
+  it.each([
+    [undefined, null, 0],
+    [3, null, 3],
+    [undefined, new Error("boom"), 1],
+    [0, new Error("boom"), 1],
+    [3, new Error("boom"), 4],
+  ])("counts %s warnings and error %s as %s", (warningsTotal, error, expected) => {
+    expect(countDagWarnings(warningsTotal, error)).toBe(expected);
+  });
+});
