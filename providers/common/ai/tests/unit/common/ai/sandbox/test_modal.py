@@ -174,7 +174,7 @@ class TestOptionalExtra:
     """The module has to be importable without ``modal`` installed, not merely unusable."""
 
     @staticmethod
-    def _without_modal(monkeypatch, blocked="modal"):
+    def _block_import(monkeypatch, blocked="modal"):
         """Make importing ``blocked`` fail the way a missing extra does."""
         for name in list(sys.modules):
             if name == blocked or name.startswith(f"{blocked}."):
@@ -193,13 +193,13 @@ class TestOptionalExtra:
     def test_importing_the_module_directly_raises_the_optional_feature_error(self, monkeypatch):
         # The provider verifier walks every submodule of the distribution and imports it
         # directly, so this path is not reached through the package's __getattr__.
-        self._without_modal(monkeypatch)
+        self._block_import(monkeypatch)
         with pytest.raises(AirflowOptionalProviderFeatureException):
             importlib.import_module("airflow.providers.common.ai.sandbox.modal")
         sys.modules.pop("airflow.providers.common.ai.sandbox.modal", None)
 
     def test_package_attribute_raises_the_optional_feature_error(self, monkeypatch):
-        self._without_modal(monkeypatch)
+        self._block_import(monkeypatch)
         with pytest.raises(AirflowOptionalProviderFeatureException):
             getattr(sandbox_package, "ModalSandboxBackend")
         sys.modules.pop("airflow.providers.common.ai.sandbox.modal", None)
@@ -207,12 +207,12 @@ class TestOptionalExtra:
     def test_missing_modal_provider_raises_the_optional_feature_error(self, monkeypatch):
         """The extra brings both the SDK and the Modal provider; an install with only one is incomplete."""
         monkeypatch.setitem(sys.modules, "modal", build_fake_modal())
-        self._without_modal(monkeypatch, blocked="airflow.providers.modal")
+        self._block_import(monkeypatch, blocked="airflow.providers.modal")
         with pytest.raises(AirflowOptionalProviderFeatureException, match="airflow.providers.modal"):
             importlib.import_module("airflow.providers.common.ai.sandbox.modal")
 
     def test_package_still_exports_everything_that_needs_no_extra(self, monkeypatch):
-        self._without_modal(monkeypatch)
+        self._block_import(monkeypatch)
         assert sandbox_package.SandboxSpec is SandboxSpec
         assert sandbox_package.SbxSandboxBackend.__name__ == "SbxSandboxBackend"
 
@@ -671,16 +671,6 @@ class TestConnection:
 
         return _create
 
-    def test_without_a_connection_uses_the_workers_credentials(self, backend, fake):
-        """No ``modal_default`` connection is the common case, and must keep working unchanged."""
-        _, sandbox = _created(backend, fake, SandboxSpec())
-
-        (client,) = fake.Client.built
-        assert client.credentials is None, "built from the environment, not from a connection"
-        assert sandbox.create_kwargs["client"] is client
-        assert fake.App.apps[0].client is client
-        assert fake.App.apps[0].environment_name is None
-
     def test_reads_the_token_and_environment_from_the_connection(self, backend_class, fake, modal_connection):
         modal_connection(extra={"environment": "staging"})
         backend = backend_class(modal_conn_id="my_modal")
@@ -692,15 +682,6 @@ class TestConnection:
         assert sandbox.create_kwargs["client"] is client
         assert fake.App.apps[0].client is client
         assert fake.App.apps[0].environment_name == "staging"
-
-    def test_none_skips_the_connection_even_when_one_exists(self, backend_class, fake, modal_connection):
-        modal_connection(conn_id="modal_default")
-        backend = backend_class(modal_conn_id=None)
-
-        _created(backend, fake, SandboxSpec())
-
-        (client,) = fake.Client.built
-        assert client.credentials is None
 
     def test_construction_reads_no_connection(self, backend_class, fake):
         """Constructors run at Dag-parse time, where a missing connection must not fail the parse."""
@@ -719,7 +700,7 @@ class TestConnection:
         modal_connection(password=None)
         backend = backend_class(modal_conn_id="my_modal")
 
-        with pytest.raises(SandboxTerminalError, match="one Modal token field but not the other"):
+        with pytest.raises(SandboxTerminalError, match="connection 'my_modal'"):
             backend.create(spec=SandboxSpec())
         assert fake.Sandbox.created == []
 

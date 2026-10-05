@@ -109,12 +109,11 @@ is the only change between this Dag and production:
 
 Install the Modal extra, which also installs the Modal provider, and create a
 ``modal`` connection with the Modal token id as its login and the token secret as
-its password. The backend reads ``modal_default`` unless you pass ``modal_conn_id``.
-Without a ``modal_default`` connection it falls back to Modal's own CLI credentials:
-``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` in the worker environment, or
-``~/.modal.toml`` from ``modal token new``. Nothing is read until the first sandbox
-is created, so a Dag file that constructs the backend parses without credentials
-present:
+its password. The backend reads ``modal_default`` unless you pass ``modal_conn_id``;
+without that connection it uses the worker's own Modal credentials, as the
+:ref:`Modal connection page <howto/connection:modal>` describes. Nothing is read until
+the first sandbox is created, so a Dag file that constructs the backend parses without
+credentials present:
 
 .. code-block:: bash
 
@@ -434,10 +433,8 @@ reachable from the System Tests entry in the sidebar.
 variables or worker environment into the sandbox; only what you pass through
 :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` goes in, and the
 credential that provisions the sandbox never enters it. For Modal that credential
-is a ``modal`` connection (``modal_conn_id``, default ``modal_default``), falling
-back to ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` or ``~/.modal.toml`` on the
-worker when no ``modal_default`` connection exists; any other connection id must exist.
-For ``sbx`` it sits outside Airflow:
+is a ``modal`` connection (``modal_conn_id``; see the
+:ref:`Modal connection page <howto/connection:modal>`). For ``sbx`` it sits outside Airflow:
 ``sbx login`` on the machine. Work runs in a per-run microVM on the worker host with
 ``sbx``, or off the worker entirely in Modal's infrastructure. Its tool calls
 act as barriers, as they do for the other

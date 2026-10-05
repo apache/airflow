@@ -40,14 +40,13 @@ credentials, from a ``modal`` connection or the worker environment, as under
 
 Constructor parameters:
 
-- ``modal_conn_id``: ``modal`` connection to read the token id, token secret and,
-  optionally, the Modal ``environment`` from. Default ``"modal_default"``, which falls
-  back to ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` or ``~/.modal.toml`` when no such
-  connection exists; any other connection that does not exist, or one with only half
-  of the token, fails the task, except in the toolset's own teardown, which logs it so a
-  finished run is not failed. ``None`` uses the worker's credentials without looking
-  for a connection. The connection comes from the Modal provider, which the ``modal``
-  extra installs and which needs Airflow 3.
+- ``modal_conn_id``: ``modal`` connection the token and, optionally, the Modal
+  ``environment`` come from. Default ``"modal_default"``; ``None`` uses the worker's
+  credentials without looking for a connection. How a missing or partial connection
+  resolves is on the :ref:`Modal connection page <howto/connection:modal>`. A credential
+  problem fails the task, except in the toolset's own teardown, which logs it so a
+  finished run is not failed. The connection type comes from the Modal provider, which
+  the ``modal`` extra installs and which needs Airflow 3.
 - ``image``: Registry tag for the sandbox image, or a prepared ``modal.Image``
   carrying pre-installed packages. Default ``"python:3.12-slim"``.
 - ``app_name``: Modal app the sandboxes are created under. Default

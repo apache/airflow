@@ -113,6 +113,11 @@ EgressEnforcement = Literal["strict", "sni"]
 # What reading credentials from the connection can raise before Modal is reached at all: a
 # named connection that does not exist, or one that sets only half of the token.
 _CREDENTIAL_ERRORS = (AirflowNotFoundException, ModalConnectionError)
+# Serializes building a backend's Modal client. ModalHook resolves its connection and builds
+# its client without a lock, so concurrent first calls on a backend shared by several agent
+# runs would each open a gRPC client and keep one. Module-level rather than per instance
+# because a lock cannot be deep-copied, and operators holding a backend are.
+_CLIENT_BUILD_LOCK = threading.Lock()
 
 
 @dataclass
@@ -204,15 +209,12 @@ class ModalSandboxBackend(AttachableSandboxBackend):
     tags; keys starting with ``airflow_`` are reserved for them and overwrite any
     ``tags`` of the same name.
 
-    **Credentials come from a** ``modal`` **connection**, through
-    :class:`~airflow.providers.modal.hooks.modal.ModalHook`: the token id and secret, and
-    optionally the Modal environment. Without one, Modal is authenticated the way its CLI
-    is: ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` in the worker environment, or
-    ``~/.modal.toml`` from ``modal token new``. The default ``modal_default`` connection
-    falls back to those when it does not exist, so a worker that already carries Modal
-    credentials needs no Airflow configuration. Nothing is read until the first sandbox
-    is created or attached to, so a Dag file that constructs this backend parses without
-    the connection or any credentials present.
+    **Credentials come from a** ``modal`` **connection**, resolved by
+    :class:`~airflow.providers.modal.hooks.modal.ModalHook` in the order the
+    :ref:`Modal connection page <howto/connection:modal>` sets out; without a
+    ``modal_default`` connection that is the worker's own Modal credentials. Nothing is
+    read until the first sandbox is created or attached to, so a Dag file that constructs
+    this backend parses without the connection or any credentials present.
 
     **What the network policy can and cannot promise.** ``SandboxSpec(block_network=True)``
     maps to Modal's own ``block_network``, which drops all outbound traffic including DNS.
@@ -247,11 +249,9 @@ class ModalSandboxBackend(AttachableSandboxBackend):
     :meth:`read_file`, which deliberately stays on the base class's shell implementation
     (see that method). Any Debian or Ubuntu based image, including ``python:*-slim``, does.
 
-    :param modal_conn_id: :ref:`Modal connection <howto/connection:modal>` to read the
-        token and environment from. Default ``"modal_default"``, which falls back to the
-        worker's ambient Modal credentials when no such connection exists; any other
-        connection id that does not exist fails the task. ``None`` skips the connection
-        lookup and uses the ambient credentials directly.
+    :param modal_conn_id: The ``modal`` connection to authenticate with. Default
+        ``"modal_default"``. ``None`` uses the worker's Modal credentials without looking
+        for a connection.
     :param image: Registry tag for the sandbox image, or a prepared ``modal.Image``.
         Default ``"python:3.12-slim"``. An image carrying the packages an agent needs is
         the alternative to opening egress so it can install them:
@@ -348,10 +348,8 @@ class ModalSandboxBackend(AttachableSandboxBackend):
             _validate_positive_finite(memory, "memory")
         if egress_enforcement not in ("strict", "sni"):
             raise ValueError(f"egress_enforcement must be 'strict' or 'sni', got {egress_enforcement!r}.")
-        self._modal_conn_id = modal_conn_id
-        # Constructing the hook reads no connection and opens no client; both wait for the
-        # first sandbox. Built here rather than lazily so concurrent first calls on a
-        # shared backend cannot each open a client of their own.
+        # Constructing the hook reads no connection and opens no client, so this is safe at
+        # Dag-parse time; both wait for _connected_hook.
         self._hook = ModalHook(modal_conn_id=modal_conn_id)
         self._image = image
         self._app_name = app_name
@@ -370,12 +368,24 @@ class ModalSandboxBackend(AttachableSandboxBackend):
         # runs never has two of them touching the same entry.
         self._tracked: dict[str, _TrackedSandbox] = {}
 
-    def _credential_error(self, error: Exception) -> SandboxTerminalError:
-        # Nothing the model does can fix a missing or half-filled connection, so it fails
-        # the task, naming the connection the author set.
-        return SandboxTerminalError(
-            f"Could not read Modal credentials from connection {self._modal_conn_id!r}: {error}"
-        )
+    def _connected_hook(self) -> ModalHook:
+        """
+        Return the hook with its client built, the one place every Modal call goes through.
+
+        Nothing the model does can fix a missing or half-filled connection, so it fails the
+        task, naming the connection the author set. That includes ``destroy``: the sandbox
+        would otherwise bill until its lifetime ends, and the toolset's own teardown catches
+        and logs it, so it still never fails a finished agent run. A Modal error from
+        building the client propagates unchanged for the caller to classify.
+        """
+        with _CLIENT_BUILD_LOCK:
+            try:
+                self._hook.get_conn()
+            except _CREDENTIAL_ERRORS as e:
+                raise SandboxTerminalError(
+                    f"Could not read Modal credentials from connection {self._hook.modal_conn_id!r}: {e}"
+                ) from e
+        return self._hook
 
     # ------------------------------------------------------------------
     # Lifecycle.
@@ -396,7 +406,7 @@ class ModalSandboxBackend(AttachableSandboxBackend):
             # rather than memoizing it: the lookup is idempotent server-side, and one round
             # trip per sandbox is cheaper than the locking a shared cache would need, given
             # the toolset shares one backend across concurrent runs.
-            sandbox = self._hook.create_sandbox(
+            sandbox = self._connected_hook().create_sandbox(
                 app_name=self._app_name,
                 create_app_if_missing=self._create_app_if_missing,
                 image=image,
@@ -413,8 +423,6 @@ class ModalSandboxBackend(AttachableSandboxBackend):
                 cloud=self._cloud,
                 **network,
             )
-        except _CREDENTIAL_ERRORS as e:
-            raise self._credential_error(e) from e
         except modal.exception.Error as e:
             error = self._as_sandbox_error(e)
             if isinstance(error, SandboxTerminalError):
@@ -529,17 +537,13 @@ class ModalSandboxBackend(AttachableSandboxBackend):
         self._check_handle(sandbox)
         tracked = self._tracked.pop(sandbox, None)
         try:
-            target = tracked.handle if tracked and tracked.handle else self._hook.get_sandbox(sandbox)
+            target = (
+                tracked.handle if tracked and tracked.handle else self._connected_hook().get_sandbox(sandbox)
+            )
             target.terminate()
         except modal.exception.NotFoundError:
             # Already gone, which is what destroy is for. Idempotent by contract.
             pass
-        except _CREDENTIAL_ERRORS as e:
-            # Unlike a blip, this will not clear up on its own, and the sandbox keeps
-            # billing until its lifetime ends, so a task whose job is to destroy it fails.
-            # The toolset's own teardown catches this and logs it, so it still never
-            # fails a finished agent run.
-            raise self._credential_error(e) from e
         except modal.exception.Error:
             # Terminating a sandbox that is already finished, or a control-plane blip.
             # Modal reclaims it at sandbox_timeout or idle_timeout either way, so log
@@ -1022,9 +1026,7 @@ class ModalSandboxBackend(AttachableSandboxBackend):
         try:
             # Reachable when the handle came from another backend instance, or from a
             # caller that created the sandbox elsewhere.
-            found = self._hook.get_sandbox(sandbox)
-        except _CREDENTIAL_ERRORS as e:
-            raise self._credential_error(e) from e
+            found = self._connected_hook().get_sandbox(sandbox)
         except modal.exception.Error as e:
             raise self._as_sandbox_error(e, sandbox=sandbox) from e
         if tracked is None:
@@ -1093,7 +1095,7 @@ class ModalSandboxBackend(AttachableSandboxBackend):
             if self._hook.credentials is not None:
                 # The token came from the connection, so worker settings would change nothing.
                 return SandboxTerminalError(
-                    f"Modal rejected the token on connection {self._modal_conn_id!r}. Update its "
+                    f"Modal rejected the token on connection {self._hook.modal_conn_id!r}. Update its "
                     f"login and password: {error}"
                 )
             return SandboxTerminalError(
