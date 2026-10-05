@@ -567,8 +567,12 @@ class TestGetDagDeadlineAlerts:
     def test_alert_response_fields(self, test_client):
         """Alert response includes expected fields with correct values."""
         response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
+
         assert response.status_code == 200
-        alert = response.json()["deadline_alerts"][0]
+
+        data = response.json()
+        alert = next(alert for alert in data["deadline_alerts"] if alert["name"] == ALERT_NAME)
+
         assert alert["name"] == ALERT_NAME
         assert alert["interval"] == 3600.0
         assert alert["reference_type"] == "DagRunQueuedAtDeadline"
