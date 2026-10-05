@@ -31,6 +31,7 @@ from airflow.api_fastapi.execution_api.datamodels.task_state_store import (
     TaskStateStoreResponse,
 )
 from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
+from airflow.api_fastapi.execution_api.versions.v2026_10_30 import ReturnNotFoundForMissingDagRun
 from airflow.exceptions import DagRunNotFound
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.state import get_state_backend
@@ -93,6 +94,8 @@ def set_task_state_store(
             scope=scope, key=key, value=json.dumps(body.value), expires_at=body.expires_at, session=session
         )
     except DagRunNotFound as e:
+        if not ReturnNotFoundForMissingDagRun.is_applied:
+            raise
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={

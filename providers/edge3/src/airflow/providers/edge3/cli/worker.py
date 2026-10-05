@@ -672,7 +672,13 @@ class EdgeWorker:
     async def fetch_and_run_job(self) -> None:
         """Fetch, start and monitor a new job."""
         logger.debug("Attempting to fetch a new job...")
-        edge_job = await jobs_fetch(self.hostname, self.queues, self.free_concurrency, self.team_name)
+        edge_job = await jobs_fetch(
+            self.hostname,
+            self.queues,
+            self.free_concurrency,
+            self.team_name,
+            supports_task_instance_uuid=True,
+        )
         if not edge_job:
             logger.debug(
                 "No new job to process%s",
@@ -689,7 +695,9 @@ class EdgeWorker:
         job = self._launch_job(edge_job, workload, logfile)
         self.jobs.append(job)
         try:
-            await jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
+            await jobs_set_state(
+                edge_job.key, TaskInstanceState.RUNNING, task_instance_id=edge_job.task_instance_id
+            )
 
             # As we got one job, directly fetch another one if possible
             if self.free_concurrency > 0:
@@ -707,7 +715,11 @@ class EdgeWorker:
 
             if job.is_success:
                 logger.info("Job completed: %s", job.edge_job.identifier)
-                await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
+                await jobs_set_state(
+                    job.edge_job.key,
+                    TaskInstanceState.SUCCESS,
+                    task_instance_id=job.edge_job.task_instance_id,
+                )
             else:
                 ex_txt = job.failure_details()
                 logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
@@ -718,7 +730,9 @@ class EdgeWorker:
                     log_chunk_time=timezone.utcnow(),
                     log_chunk_data=f"Error executing job:\n{ex_txt}",
                 )
-                await jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
+                await jobs_set_state(
+                    job.edge_job.key, TaskInstanceState.FAILED, task_instance_id=job.edge_job.task_instance_id
+                )
         finally:
             self.jobs.remove(job)
             # Cleanup temp files used for the job

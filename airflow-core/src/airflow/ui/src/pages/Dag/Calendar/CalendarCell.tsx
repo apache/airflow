@@ -21,6 +21,8 @@ import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { RouterLink, Tooltip } from "src/system-components";
 
+import { RunTypeIcon } from "src/components/RunTypeIcon";
+
 import { CalendarTooltip } from "./CalendarTooltip";
 import type { CalendarCellData, CalendarColorMode } from "./types";
 
@@ -63,7 +65,11 @@ export const CalendarCell = ({
   const runStates = cellData
     ? Object.entries(cellData.counts)
         .filter(
-          ([key, value]) => key !== "total" && value > 0 && (viewMode === "failed" ? key === "failed" : true),
+          ([key, value]) =>
+            key !== "total" &&
+            key !== "backfill" &&
+            value > 0 &&
+            (viewMode === "failed" ? key === "failed" : true),
         )
         .map(([key]) => key)
     : [];
@@ -92,6 +98,27 @@ export const CalendarCell = ({
       width="100%"
     >
       <DeadlineIcon />
+    </Box>
+  ) : undefined;
+
+  const hasBackfill = (cellData?.counts.backfill ?? 0) > 0;
+  const backfillIndicator = hasBackfill ? (
+    <Box
+      alignItems="center"
+      color="white"
+      data-testid="backfill-indicator"
+      display="flex"
+      filter="drop-shadow(0 0 1px rgba(0, 0, 0, 0.7))"
+      fontSize="9px"
+      height="100%"
+      justifyContent="center"
+      left="0"
+      lineHeight={1}
+      position="absolute"
+      top="0"
+      width="100%"
+    >
+      <RunTypeIcon runType="backfill" />
     </Box>
   ) : undefined;
 
@@ -125,6 +152,7 @@ export const CalendarCell = ({
         width="100%"
       />
       {deadlineIndicator}
+      {backfillIndicator}
     </Box>
   ) : (
     <Box
@@ -142,6 +170,7 @@ export const CalendarCell = ({
       width="14px"
     >
       {deadlineIndicator}
+      {backfillIndicator}
     </Box>
   );
 

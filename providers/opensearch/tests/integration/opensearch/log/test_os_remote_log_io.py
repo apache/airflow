@@ -104,6 +104,24 @@ class TestOpensearchRemoteLogIOIntegration:
             assert "event" in log_entry
             assert log_entry["event"] == expected
 
+    @patch(
+        "airflow.providers.opensearch.log.os_task_handler.TASK_LOG_FIELDS",
+        ["message"],
+    )
+    def test_read_returns_all_logs_when_exceeding_page_size(self, ti, tmp_path):
+        log_file = tmp_path / "large.log"
+        sample_logs = [{"message": f"log line {i}"} for i in range(1500)]
+        log_file.write_text("\n".join(json.dumps(log) for log in sample_logs) + "\n")
+
+        self.opensearch_io.upload(log_file, ti)
+        self.opensearch_io.client.indices.refresh(index=self.target_index)
+
+        _, log_messages = self.opensearch_io.read("", ti)
+
+        assert len(log_messages) == 1500
+        assert json.loads(log_messages[0])["event"] == "log line 0"
+        assert json.loads(log_messages[-1])["event"] == "log line 1499"
+
     def test_read_missing_log(self, ti):
         self.opensearch_io.client.indices.create(index=self.target_index)
 

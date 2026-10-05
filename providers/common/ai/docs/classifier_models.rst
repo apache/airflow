@@ -18,6 +18,11 @@
 Classifier models
 =================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Every other model in this provider writes text. A classifier model does not: you give it
 some text and a typed question, and it answers with a value from a set you named in
 advance, plus a confidence. Ask it for a string and the request is refused before it

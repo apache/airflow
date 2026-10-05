@@ -50,8 +50,9 @@ subclasses must only import from `org.apache.airflow.sdk`; any import of
 
 ## Bundle composition and coordinator discovery
 
-A **bundle** is a directory of JAR files (typically `build/bundle/`) placed on the coordinator's
-`jars_root`. The coordinator scans the directory at task-dispatch time to find:
+A **bundle** is a directory of JAR files (typically `build/bundle/`) placed in the Dag bundle named
+by the coordinator's `task_handler_bundle_name` (the task's own Dag bundle when unset). The
+coordinator scans that Dag bundle at task-dispatch time to find:
 
 1. **`Main-Class`** (standard JAR manifest attribute) — the fully-qualified class name of the
    entry point that the coordinator invokes with `java -classpath … <Main-Class> --comm … --logs …`.
@@ -65,7 +66,7 @@ A **bundle** is a directory of JAR files (typically `build/bundle/`) placed on t
    `runtimeClasspath` and copies it into the shadow JAR manifest. In thin-JAR mode (`fatJar =
    false`), the value stays in the `airflow-sdk` JAR deployed alongside the bundle JAR.
 
-The Python coordinator (`JavaCoordinator`) scans every JAR under `jars_root` with
+The Python coordinator (`JavaCoordinator`) scans every JAR in that Dag bundle with
 `_JarInfo.find()`, reads `META-INF/MANIFEST.MF` out of each ZIP, and collects `Main-Class` and
 `Airflow-Supervisor-Schema-Version` from whichever JARs carry them. The resolved schema version
 is then passed as the `schema_version` return value from `_build_execute_task_command`, which
@@ -74,7 +75,7 @@ the base `SubprocessCoordinator` uses to negotiate the supervisor wire protocol.
 If `main_class` is set explicitly on the `JavaCoordinator` instance (via `[sdk] coordinators`
 kwargs), the scan uses it as a filter; otherwise the first JAR with a `Main-Class` attribute
 wins. Either way, `Airflow-Supervisor-Schema-Version` must be present in at least one JAR in
-`jars_root` or startup fails.
+the Dag bundle or startup fails. Every JAR in the Dag bundle goes on one classpath.
 
 ---
 
@@ -117,7 +118,7 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 
 `coordinator.py` extends `SubprocessCoordinator`. The only method subclasses must implement is
 `_build_execute_task_command`, which returns `(argv, schema_version)`. Look at the existing
-implementation for how `jars_root`, `java_executable`, `jvm_args`, and `main_class` are
+implementation for how the scanned Dag bundle, `java_executable`, `jvm_args`, and `main_class` are
 assembled into the command. Do not reach into the JVM process from Python beyond what this
 method provides.
 
