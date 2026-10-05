@@ -421,6 +421,7 @@ repos:
           (?x)
           ^go-sdk/go\.mod$|
           ^kubernetes-tests/lang_sdk/go_example/go\.mod$|
+          ^airflow-e2e-tests/go-test-bundle/go\.mod$|
           ^\.github/workflows/ci-(arm|amd)\.yml$|
           ^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$|
           ^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$|
@@ -443,20 +444,21 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-go-example-mod-tidy
-        name: Check lang-SDK Go example module is tidy against the Go SDK
+        name: Check lang-SDK Go modules are tidy against the Go SDK
         entry: ./scripts/ci/prek/check_go_example_mod_tidy.py
         # golang so prek provisions the toolchain the check needs: static checks run on a
         # runner whose preinstalled toolchains are wiped to free disk space, and the SDK's
         # own `go mod tidy` hook gets its Go the same way.
         language: golang
-        # The example module keeps its own copy of the SDK's indirect requirements
-        # (it resolves the SDK through a `replace`), so a dependency moving in
-        # go-sdk/go.mod leaves it stale. Watching both modules' manifests is enough:
+        # The example modules keep their own copy of the SDK's indirect requirements
+        # (they resolve the SDK through a `replace`), so a dependency moving in
+        # go-sdk/go.mod leaves them stale. Watching all the manifests is enough:
         # any new requirement in the SDK necessarily lands in go-sdk/go.mod first.
         files: >
           (?x)
           ^go-sdk/go\.(mod|sum)$|
-          ^kubernetes-tests/lang_sdk/go_example/go\.(mod|sum)$
+          ^kubernetes-tests/lang_sdk/go_example/go\.(mod|sum)$|
+          ^airflow-e2e-tests/go-test-bundle/go\.(mod|sum)$
         pass_filenames: false
         require_serial: true
       - id: check-partition-mapper-defaults-in-sync
