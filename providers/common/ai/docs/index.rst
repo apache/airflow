@@ -202,6 +202,7 @@ Dependent package                                                               
 ============================================================================================================  ==============
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
 `apache-airflow-providers-git <https://airflow.apache.org/docs/apache-airflow-providers-git>`_                ``git``
+`apache-airflow-providers-modal <https://airflow.apache.org/docs/apache-airflow-providers-modal>`_            ``modal``
 ============================================================================================================  ==============
 
 Optional dependencies
@@ -224,7 +225,7 @@ Extra            Dependencies
 ``openai``       ``pydantic-ai-slim[openai]>=2.33.0``, ``openai>=2.47.0``
 ``typesafe``     ``typesafe-sdk>=0.6.0``
 ``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
-``modal``        ``modal>=1.5.2``
+``modal``        ``apache-airflow-providers-modal``, ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``

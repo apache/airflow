@@ -34,11 +34,20 @@ provider, **this is the managed one to use in production**, and with
 :ref:`OpenSandbox <sandbox-backend-opensandbox>` one of the two that run on
 Kubernetes: nothing has to be installed on the worker, model-written code never
 executes on the worker host, and Modal reclaims a sandbox at its own lifetime
-whether or not the worker survives. It needs the ``modal`` extra and ambient
-credentials, as under :ref:`Quick start <sandbox-quick-start>`.
+whether or not the worker survives. It needs the ``modal`` extra and Modal
+credentials, from a ``modal`` connection or the worker environment, as under
+:ref:`Quick start <sandbox-quick-start>`.
 
 Constructor parameters:
 
+- ``modal_conn_id``: ``modal`` connection to read the token id, token secret and,
+  optionally, the Modal ``environment`` from. Default ``"modal_default"``, which falls
+  back to ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` or ``~/.modal.toml`` when no such
+  connection exists; any other connection that does not exist, or one with only half
+  of the token, fails the task, except in the toolset's own teardown, which logs it so a
+  finished run is not failed. ``None`` uses the worker's credentials without looking
+  for a connection. The connection comes from the Modal provider, which the ``modal``
+  extra installs and which needs Airflow 3.
 - ``image``: Registry tag for the sandbox image, or a prepared ``modal.Image``
   carrying pre-installed packages. Default ``"python:3.12-slim"``.
 - ``app_name``: Modal app the sandboxes are created under. Default

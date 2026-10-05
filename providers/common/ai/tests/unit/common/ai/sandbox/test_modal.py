@@ -27,6 +27,7 @@ import pytest
 import time_machine
 
 import airflow.providers.common.ai.sandbox as sandbox_package
+from airflow.models import Connection
 from airflow.providers.common.ai.sandbox.base import (
     EXPIRES_AT_TAG,
     HOLDER_TAG,
@@ -45,6 +46,11 @@ from unit.common.ai.sandbox.fake_modal import (
     build_fake_modal,
 )
 
+_BOUND_TO_MODAL = (
+    "airflow.providers.common.ai.sandbox.modal",
+    "airflow.providers.modal.hooks.modal",
+)
+
 
 @pytest.fixture
 def modal_module(monkeypatch):
@@ -55,15 +61,26 @@ def modal_module(monkeypatch):
     fake is in ``sys.modules``. Re-importing also keeps the tests honest about not sharing
     state, and lets the suite run whether or not the real SDK is installed.
     """
+    # The backend needs the Modal provider, which needs Airflow 3; the Airflow 2 compatibility
+    # job removes it. Its exceptions module is checked rather than the hook, which would
+    # import the real SDK this suite replaces.
+    pytest.importorskip("airflow.providers.modal.exceptions")
     fake = build_fake_modal()
     monkeypatch.setitem(sys.modules, "modal", fake)
     monkeypatch.setitem(sys.modules, "modal.exception", fake.exception)
-    monkeypatch.delitem(sys.modules, "airflow.providers.common.ai.sandbox.modal", raising=False)
+    # ModalHook binds ``modal`` at import too, and the backend builds its clients through it.
+    for name in _BOUND_TO_MODAL:
+        monkeypatch.delitem(sys.modules, name, raising=False)
+    # Re-importing the hook also rebinds it on its package, which sys.modules restoration does
+    # not undo; left in place, the Modal provider's own tests, which patch targets by their
+    # dotted path under that package, would patch this fake-bound copy on Python 3.10.
+    monkeypatch.delattr(importlib.import_module("airflow.providers.modal.hooks"), "modal", raising=False)
     import airflow.providers.common.ai.sandbox.modal as backend_module
 
     yield fake, backend_module
     # The next test re-imports from scratch, so nothing here should linger.
-    sys.modules.pop("airflow.providers.common.ai.sandbox.modal", None)
+    for name in _BOUND_TO_MODAL:
+        sys.modules.pop(name, None)
 
 
 @pytest.fixture
@@ -157,16 +174,17 @@ class TestOptionalExtra:
     """The module has to be importable without ``modal`` installed, not merely unusable."""
 
     @staticmethod
-    def _without_modal(monkeypatch):
-        """Make ``import modal`` fail the way a missing extra does."""
+    def _without_modal(monkeypatch, blocked="modal"):
+        """Make importing ``blocked`` fail the way a missing extra does."""
         for name in list(sys.modules):
-            if name == "modal" or name.startswith("modal."):
+            if name == blocked or name.startswith(f"{blocked}."):
                 monkeypatch.delitem(sys.modules, name, raising=False)
-        monkeypatch.delitem(sys.modules, "airflow.providers.common.ai.sandbox.modal", raising=False)
+        for name in _BOUND_TO_MODAL:
+            monkeypatch.delitem(sys.modules, name, raising=False)
         real_import = builtins.__import__
 
         def guarded(name, *args, **kwargs):
-            if name == "modal" or name.startswith("modal."):
+            if name == blocked or name.startswith(f"{blocked}."):
                 raise ModuleNotFoundError(f"No module named {name!r}")
             return real_import(name, *args, **kwargs)
 
@@ -185,6 +203,13 @@ class TestOptionalExtra:
         with pytest.raises(AirflowOptionalProviderFeatureException):
             getattr(sandbox_package, "ModalSandboxBackend")
         sys.modules.pop("airflow.providers.common.ai.sandbox.modal", None)
+
+    def test_missing_modal_provider_raises_the_optional_feature_error(self, monkeypatch):
+        """The extra brings both the SDK and the Modal provider; an install with only one is incomplete."""
+        monkeypatch.setitem(sys.modules, "modal", build_fake_modal())
+        self._without_modal(monkeypatch, blocked="airflow.providers.modal")
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="airflow.providers.modal"):
+            importlib.import_module("airflow.providers.common.ai.sandbox.modal")
 
     def test_package_still_exports_everything_that_needs_no_extra(self, monkeypatch):
         self._without_modal(monkeypatch)
@@ -493,7 +518,9 @@ class TestAddressAllowlist:
 
         _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=["1.1.1.1/32"]))
 
-        assert not caplog.records
+        # The hook reports at INFO that it fell back to ambient credentials; only a warning
+        # would mean the network policy was weakened.
+        assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
 
     def test_surrounding_whitespace_is_tolerated(self, backend, fake):
         _, sandbox = _created(backend, fake, SandboxSpec(allow_egress_to_cidrs=[" 10.20.0.0/16 "]))
@@ -630,6 +657,124 @@ class TestCreate:
 
         with pytest.raises(SandboxTerminalError, match="could not find"):
             backend.create(spec=SandboxSpec())
+
+
+class TestConnection:
+    """Credentials come from a ``modal`` connection through ModalHook, or from the worker."""
+
+    @pytest.fixture
+    def modal_connection(self, create_connection_without_db):
+        def _create(conn_id="my_modal", login="ak-test", password="as-test", extra=None):
+            create_connection_without_db(
+                Connection(conn_id=conn_id, conn_type="modal", login=login, password=password, extra=extra)
+            )
+
+        return _create
+
+    def test_without_a_connection_uses_the_workers_credentials(self, backend, fake):
+        """No ``modal_default`` connection is the common case, and must keep working unchanged."""
+        _, sandbox = _created(backend, fake, SandboxSpec())
+
+        (client,) = fake.Client.built
+        assert client.credentials is None, "built from the environment, not from a connection"
+        assert sandbox.create_kwargs["client"] is client
+        assert fake.App.apps[0].client is client
+        assert fake.App.apps[0].environment_name is None
+
+    def test_reads_the_token_and_environment_from_the_connection(self, backend_class, fake, modal_connection):
+        modal_connection(extra={"environment": "staging"})
+        backend = backend_class(modal_conn_id="my_modal")
+
+        _, sandbox = _created(backend, fake, SandboxSpec())
+
+        (client,) = fake.Client.built
+        assert client.credentials == ("ak-test", "as-test")
+        assert sandbox.create_kwargs["client"] is client
+        assert fake.App.apps[0].client is client
+        assert fake.App.apps[0].environment_name == "staging"
+
+    def test_none_skips_the_connection_even_when_one_exists(self, backend_class, fake, modal_connection):
+        modal_connection(conn_id="modal_default")
+        backend = backend_class(modal_conn_id=None)
+
+        _created(backend, fake, SandboxSpec())
+
+        (client,) = fake.Client.built
+        assert client.credentials is None
+
+    def test_construction_reads_no_connection(self, backend_class, fake):
+        """Constructors run at Dag-parse time, where a missing connection must not fail the parse."""
+        backend_class(modal_conn_id="does_not_exist")
+
+        assert fake.Client.built == []
+
+    def test_a_named_connection_that_does_not_exist_fails_the_task(self, backend_class, fake):
+        backend = backend_class(modal_conn_id="does_not_exist")
+
+        with pytest.raises(SandboxTerminalError, match="connection 'does_not_exist'"):
+            backend.create(spec=SandboxSpec())
+        assert fake.Sandbox.created == []
+
+    def test_a_half_filled_connection_fails_the_task(self, backend_class, fake, modal_connection):
+        modal_connection(password=None)
+        backend = backend_class(modal_conn_id="my_modal")
+
+        with pytest.raises(SandboxTerminalError, match="one Modal token field but not the other"):
+            backend.create(spec=SandboxSpec())
+        assert fake.Sandbox.created == []
+
+    def test_a_sandbox_from_another_instance_is_reached_through_the_connection(
+        self, backend_class, fake, modal_connection
+    ):
+        """The collecting task holds only the handle, so the lookup must carry its credentials."""
+        modal_connection()
+        handle, _ = _created(backend_class(modal_conn_id="my_modal"), fake, SandboxSpec())
+        collector = backend_class(modal_conn_id="my_modal")
+
+        collector.destroy(handle)
+
+        assert fake.Sandbox.from_id_clients[-1].credentials == ("ak-test", "as-test")
+
+    def test_reaching_a_sandbox_with_a_missing_connection_fails_the_task(self, backend, backend_class, fake):
+        handle, _ = _created(backend, fake, SandboxSpec())
+        stranger = backend_class(modal_conn_id="does_not_exist")
+
+        with pytest.raises(SandboxTerminalError, match="connection 'does_not_exist'"):
+            stranger.run_command(handle, "true", timeout=5, max_output_bytes=1024)
+
+    def test_destroy_with_a_missing_connection_fails_instead_of_leaving_it_billing(
+        self, backend, backend_class, fake
+    ):
+        """
+        A cleanup task with a misspelled connection must not succeed while the sandbox runs on.
+
+        The toolset's own teardown catches this and logs it, so an agent run still never fails
+        on teardown; a task that calls ``destroy`` itself hears about it.
+        """
+        handle, sandbox = _created(backend, fake, SandboxSpec())
+        stranger = backend_class(modal_conn_id="does_not_exist")
+
+        with pytest.raises(SandboxTerminalError, match="connection 'does_not_exist'"):
+            stranger.destroy(handle)
+        assert not sandbox.terminated
+
+    def test_a_rejected_connection_token_points_at_the_connection(
+        self, backend_class, fake, modal_connection
+    ):
+        """Worker settings are ignored while the connection carries a token, so advice to set them misleads."""
+        modal_connection()
+        fake.Sandbox.create_error = fake.exception.AuthError("token revoked")
+
+        with pytest.raises(SandboxTerminalError, match="token on connection 'my_modal'") as raised:
+            backend_class(modal_conn_id="my_modal").create(spec=SandboxSpec())
+        assert "MODAL_TOKEN_ID" not in str(raised.value)
+
+    def test_rejected_ambient_credentials_point_at_both_ways_in(self, backend, fake):
+        fake.Sandbox.create_error = fake.exception.AuthError("token missing")
+
+        with pytest.raises(SandboxTerminalError, match="Create a 'modal' connection") as raised:
+            backend.create(spec=SandboxSpec())
+        assert "MODAL_TOKEN_ID" in str(raised.value)
 
 
 class TestRunCommand:
