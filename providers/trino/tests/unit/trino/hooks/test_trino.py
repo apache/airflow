@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from unittest import mock
 from unittest.mock import patch
@@ -290,11 +291,13 @@ class TestTrinoHookConn:
     @patch(HOOK_GET_CONNECTION)
     @patch(TRINO_DBAPI_CONNECT)
     def test_get_conn_allow_insecure_auth(
-        self, mock_connect, mock_get_connection, extras, expected_connect_kwargs
+        self, mock_connect, mock_get_connection, extras, expected_connect_kwargs, caplog
     ):
         self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
-        TrinoHook().get_conn()
+        with caplog.at_level(logging.WARNING):
+            TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, **expected_connect_kwargs)
+        assert ("allow_insecure_auth" in caplog.text) == bool(expected_connect_kwargs)
 
     @staticmethod
     def set_get_connection_return_value(mock_get_connection, extra=None, password=None):
