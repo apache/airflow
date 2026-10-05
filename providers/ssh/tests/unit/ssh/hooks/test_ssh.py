@@ -18,9 +18,14 @@
 from __future__ import annotations
 
 import json
+import os
 import random
+import resource
+import selectors
+import socket
 import string
 import textwrap
+import threading
 from io import StringIO
 from unittest import mock
 
@@ -101,6 +106,87 @@ TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASS
 TEST_DISABLED_ALGORITHMS = {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
 
 TEST_CIPHERS = ["aes128-ctr", "aes192-ctr", "aes256-ctr"]
+
+
+class _ExecServer(paramiko.ServerInterface):
+    """Answers every exec request with stdout, stderr and exit status 3, then closes the channel."""
+
+    def get_allowed_auths(self, username):
+        return "password"
+
+    def check_auth_password(self, username, password):
+        return paramiko.AUTH_SUCCESSFUL
+
+    def check_channel_request(self, kind, chanid):
+        return paramiko.OPEN_SUCCEEDED
+
+    def check_channel_exec_request(self, channel, command):
+        def respond():
+            # Give the client time to see the exec request succeed before the channel closes.
+            threading.Event().wait(0.2)
+            channel.sendall(b"out-1\n")
+            channel.sendall_stderr(b"err-1\n")
+            channel.sendall(b"out-2\n")
+            channel.send_exit_status(3)
+            channel.close()
+
+        threading.Thread(target=respond, daemon=True).start()
+        return True
+
+
+@pytest.fixture
+def in_process_ssh_client():
+    """Yield an SSH client connected to an in-process paramiko server over a loopback socket."""
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    host_key = paramiko.ECDSAKey.generate()
+    transports = []
+
+    def serve():
+        sock, _ = listener.accept()
+        transport = paramiko.Transport(sock)
+        transport.add_server_key(host_key)
+        transport.start_server(server=_ExecServer())
+        transports.append(transport)
+
+    server_thread = threading.Thread(target=serve, daemon=True)
+    server_thread.start()
+    client = paramiko.SSHClient()
+    # Trust exactly the server's key; any other key is rejected by the default policy.
+    client.get_host_keys().add(f"[127.0.0.1]:{port}", host_key.get_name(), host_key)
+    client.connect(
+        "127.0.0.1",
+        port=port,
+        username="user",
+        password="password",
+        look_for_keys=False,
+        allow_agent=False,
+    )
+    yield client
+    client.close()
+    server_thread.join(timeout=10)
+    for transport in transports:
+        transport.close()
+    listener.close()
+
+
+@pytest.fixture
+def over_1024_open_fds():
+    """Hold enough descriptors that new ones are numbered above select()'s FD_SETSIZE of 1024."""
+    count = 1100
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    if soft < count + 256:
+        if hard != resource.RLIM_INFINITY and hard < count + 256:
+            pytest.skip(f"RLIMIT_NOFILE hard limit {hard} is too low to open {count} descriptors")
+        resource.setrlimit(resource.RLIMIT_NOFILE, (count + 256, hard))
+    fds = [os.open(os.devnull, os.O_RDONLY) for _ in range(count)]
+    assert max(fds) > 1024
+    yield
+    for fd in fds:
+        os.close(fd)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
 
 
 class TestSSHHook:
@@ -953,13 +1039,17 @@ class TestSSHHook:
         mock_client = mock.MagicMock(spec=paramiko.SSHClient)
         mock_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
 
-        def fake_select(rlist, wlist, xlist, timeout=None):
-            assert timeout == pytest.approx(0.001), f"Expected cmd_timeout passed to select, got {timeout}"
-            return [], [], []
+        mock_selector = mock.create_autospec(selectors.BaseSelector, instance=True)
+        mock_selector.__enter__.return_value = mock_selector
+        mock_selector.select.return_value = []
 
-        with mock.patch("airflow.providers.ssh.hooks.ssh.select", side_effect=fake_select):
+        with mock.patch(
+            "airflow.providers.ssh.hooks.ssh.selectors.DefaultSelector", return_value=mock_selector
+        ):
             with pytest.raises(AirflowException, match="SSH command timed out"):
                 hook.exec_ssh_client_command(mock_client, "sleep 1", False, None)
+
+        assert mock_selector.select.call_args_list == [mock.call(pytest.approx(0.001))]
 
         assert mock_client.exec_command.call_args_list == [
             mock.call(command="sleep 1", get_pty=False, timeout=0.001, environment=None)
@@ -970,6 +1060,14 @@ class TestSSHHook:
         assert mock.call() in mock_channel.close.call_args_list
         assert mock.call() in mock_stdout.close.call_args_list
         assert mock.call() in mock_stderr.close.call_args_list
+
+    @pytest.mark.usefixtures("over_1024_open_fds")
+    def test_exec_ssh_client_command_with_descriptors_above_fd_setsize(self, in_process_ssh_client):
+        hook = SSHHook(remote_host="localhost", cmd_timeout=10)
+
+        ret = hook.exec_ssh_client_command(in_process_ssh_client, "anything", False, None)
+
+        assert ret == (3, b"out-1\nout-2\n", b"err-1\n")
 
     def test_command_timeout_not_set(self, monkeypatch):
         hook = SSHHook(

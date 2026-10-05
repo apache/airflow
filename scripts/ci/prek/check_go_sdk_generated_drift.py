@@ -21,8 +21,9 @@ Keep the Go SDK's generated files in step with the schemas they generate from.
 Two of the Go SDK's surfaces are generated from schemas Python owns, and both are
 committed, so nothing regenerates them when the schema moves:
 
-* ``go-sdk/airflow/spec.gen.go`` — ``airflow.DagSpec`` and ``airflow.TaskSpec``, the
-  structs a Dag author fills in, from ``go-sdk/schema/dag-schema.json``.
+* ``go-sdk/airflow/spec.gen.go`` — ``airflow.DagSpec``, ``airflow.TaskSpec`` and
+  ``airflow.TaskGroupSpec``, the structs a Dag author fills in, from
+  ``go-sdk/schema/dag-schema.json``.
 * ``go-sdk/pkg/execution/genmodels/*.gen.go`` — the coordinator-protocol messages,
   from ``go-sdk/schema/supervisor-schema.json``.
 

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 import threading
 import time
 from contextlib import suppress
@@ -650,7 +651,16 @@ class TestDBCleanup:
         assert latest_id in remaining  # kept by keep_last
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
-    def test_do_delete_skip_if_referenced_guards_against_race(self):
+    @pytest.mark.parametrize(
+        ("extra_unreferenced", "expected_count"),
+        [
+            pytest.param(0, "1 of 1", id="whole-batch-skipped"),
+            pytest.param(1, "1 of 2", id="partial-skip"),
+        ],
+    )
+    def test_do_delete_skip_if_referenced_guards_against_race(
+        self, extra_unreferenced, expected_count, cap_structlog
+    ):
         """_do_delete must not issue a DELETE that violates an ON DELETE RESTRICT FK.
 
         Reproduces the real race: the dag_version row passes the SELECT filter and is
@@ -658,6 +668,12 @@ class TestDBCleanup:
         skip_if_referenced guard on the DELETE must skip the row instead of failing with
         IntegrityError, and the loop must still drain because the next SELECT pass
         re-evaluates the same NOT EXISTS guard and excludes it.
+
+        Parametrized over how many *unreferenced* rows share the pass, because the guard
+        skipping part of a batch is not the same as it skipping all of it.  The archive has
+        already committed a copy of every row the SELECT found, so a skipped row is both
+        archived and still live and must be reported either way.  The partial case is the
+        one a ``deleted == 0`` condition stays silent for.
         """
         from airflow.utils.db import reflect_tables
 
@@ -671,26 +687,33 @@ class TestDBCleanup:
             session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
             session.flush()
 
-            raced_old = DagVersion(
-                dag_id=dag_id,
-                version_number=1,
-                bundle_name=bundle_name,
-                created_at=base_date,
-                last_updated=base_date,
-            )
-            # dag_version is keep_last per dag_id, so a lone version is always the
-            # keep_last survivor and is never eligible for deletion.  A second, newer
-            # version takes that role and leaves raced_old as the deletion candidate.
+            # The first is the row the race pins mid-pass; any extras are unreferenced and
+            # must still be deleted in the same pass, which is what makes the skip partial.
+            eligible = [
+                DagVersion(
+                    dag_id=dag_id,
+                    version_number=n + 1,
+                    bundle_name=bundle_name,
+                    created_at=base_date.add(minutes=n),
+                    last_updated=base_date.add(minutes=n),
+                )
+                for n in range(1 + extra_unreferenced)
+            ]
+            # dag_version is keep_last per dag_id, so the newest version is always the
+            # keep_last survivor and is never eligible for deletion.  It is what leaves
+            # the versions above as deletion candidates.
             latest = DagVersion(
                 dag_id=dag_id,
-                version_number=2,
+                version_number=len(eligible) + 1,
                 bundle_name=bundle_name,
-                created_at=base_date.add(minutes=1),
-                last_updated=base_date.add(minutes=1),
+                created_at=base_date.add(minutes=len(eligible)),
+                last_updated=base_date.add(minutes=len(eligible)),
             )
-            session.add_all([raced_old, latest])
+            session.add_all([*eligible, latest])
             session.flush()
-            raced_old_id, latest_id = raced_old.id, latest.id
+            raced_old_id = eligible[0].id
+            unreferenced_ids = {version.id for version in eligible[1:]}
+            latest_id = latest.id
 
             # Query built while nothing references raced_old, so the first SELECT pass
             # returns it and _do_delete archives it.
@@ -742,6 +765,13 @@ class TestDBCleanup:
         assert raced, "the TI was never inserted mid-pass; the race was not reproduced"
         assert raced_old_id in remaining, "dag_version referenced by a task_instance must not be deleted"
         assert latest_id in remaining, "the keep_last survivor must not be deleted"
+        assert not unreferenced_ids & remaining, "unreferenced dag_versions must still be deleted"
+        # The count is what distinguishes a partial skip from a whole-batch one, and the
+        # partial case is what ``deleted == 0`` reported nothing for.
+        assert {
+            "event": re.compile(rf"{expected_count} rows from dag_version are still referenced"),
+            "log_level": "warning",
+        } in cap_structlog, cap_structlog.entries
 
     def test_table_config_skip_if_referenced_requires_pk_column(self):
         """A misconfigured skip_if_referenced (pk not in columns) must fail fast at construction."""

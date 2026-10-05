@@ -250,15 +250,15 @@ the full range of task states, and alternate XCom backends without implementing 
   go tool airflow-go-pack ./example/bundle -- -trimpath -tags=prod
   ```
 
-  Use `--output <path>` to write the packed bundle straight into a directory the coordinator scans
-  (`executables_root`), and pass extra `go build` flags after `--`.
+  Use `--output <path>` to write the packed bundle straight into the directory of the Dag bundle the
+  coordinator scans (`task_handler_bundle_name`), and pass extra `go build` flags after `--`.
 
   For cross-compiling (e.g. deploy to a Linux host from an Apple-silicon (darwin/arm64) machine), pass `--goos`/`--goarch` and the
   packer cross-builds for you:
 
   ```bash
   go tool airflow-go-pack --goos linux --goarch amd64 \
-    --output ~/airflow/executable-bundles/sample-dag-bundle \
+    --output /opt/airflow/go-task-handlers/sample-dag-bundle \
     ./example/bundle
   ```
 
@@ -280,24 +280,37 @@ the full range of task states, and alternate XCom backends without implementing 
   > `tool github.com/apache/airflow/go-sdk/cmd/airflow-go-pack` to your bundle module's `go.mod` and run
   > it with `go tool airflow-go-pack`. This pins the packer version per project.
 
-- Register the coordinator and route the queue to it, under `[sdk]` in `airflow.cfg` (or the equivalent
-  `AIRFLOW__SDK__*` env vars):
+- Register a Dag bundle for the packed bundles, register the coordinator, and route the queue to it, in
+  `airflow.cfg` (or the equivalent `AIRFLOW__*` env vars):
 
   ```ini
+  [dag_processor]
+  dag_bundle_config_list = [
+      {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+      {"name": "go-task-handlers", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {"path": "/opt/airflow/go-task-handlers"}}
+    ]
+
   [sdk]
-  coordinators = {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"executables_root": ["~/airflow/executable-bundles"]}}}
+  coordinators = {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"task_handler_bundle_name": "go-task-handlers"}}}
   queue_to_coordinator = {"golang": "go"}
   ```
 
-  `executables_root` is one or more directories the coordinator scans for bundles; `queue_to_coordinator`
-  routes stub tasks with `queue="golang"` to this Go coordinator.
+  `task_handler_bundle_name` names the Dag bundle the coordinator scans for packed bundles (the task's own
+  Dag bundle when unset). It is used only by mixed-language Dags, to locate the task handlers for the
+  `@task.stub` tasks of a Python Dag; Dags defined natively in a language SDK do not use it.
+  `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator. Only files with the
+  executable bit are considered, so use a Dag bundle that keeps it: a `LocalDagBundle` does, object-store
+  Dag bundles such as `S3DagBundle` do not.
 
   > [!IMPORTANT]
-  > The coordinator is part of the Airflow worker, so the `[sdk]` config (and the bundle files in
-  > `executables_root`) only need to be present wherever tasks actually execute. With `CeleryExecutor`,
-  > setting it on the Celery workers is sufficient. With `LocalExecutor`, tasks run inside the scheduler
-  > process, so it must be set where the scheduler can read it. The API server and Dag processor do not
-  > need it.
+  > The `[sdk]` config and the packed bundle files must be present wherever tasks execute and on the Dag
+  > processor. With `CeleryExecutor`, tasks execute on the Celery workers; with `LocalExecutor`, they run
+  > inside the scheduler process. The Dag processor checks the stub tasks of each Python Dag against the
+  > task handlers the packed bundles register, so it runs them too and needs bundles built for its
+  > operating system and CPU architecture. The API server does not need any of it. Register the Dag bundle
+  > in `[dag_processor] dag_bundle_config_list` on every component, like your other Dag bundles: the worker
+  > and the Dag processor resolve `task_handler_bundle_name` through it, and wherever the `[sdk]` config is
+  > read it is rejected if the name is missing there.
 
 - Deploy the matching Python stub Dag (above) into Airflow. There is no separate Go worker to run: the
   Airflow worker forks the bundle binary once per task instance.
@@ -420,12 +433,13 @@ a Dag author does not import `genmodels`. `TestDagRunStateMatchesGenmodels` fail
 the models adds, renames or removes a `DagRunState` constant. The test keeps failing until
 `airflow/enums.go` declares the same constants as `genmodels`.
 
-## Regenerating the Dag and task specs
+## Regenerating the Dag, task and task group specs
 
-`airflow.DagSpec` and `airflow.TaskSpec` in [`airflow/spec.gen.go`](./airflow/spec.gen.go) are
-generated from `schema/dag-schema.json`, this module's vendored copy of airflow-core's Dag
-serialization schema (`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do
-not edit either by hand. Refresh the copy with `prek run sync-go-sdk-schemas --hook-stage manual`,
+`airflow.DagSpec`, `airflow.TaskSpec` and `airflow.TaskGroupSpec` in
+[`airflow/spec.gen.go`](./airflow/spec.gen.go) are generated from `schema/dag-schema.json`, this
+module's vendored copy of airflow-core's Dag serialization schema
+(`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do not edit any of them
+by hand. Refresh the copy with `prek run sync-go-sdk-schemas --hook-stage manual`,
 then run `just generate-specs` after changing the schema or the generator.
 
 The schema is the serialized shape rather than the authoring one, so

@@ -552,6 +552,25 @@ export const ensureUseExperimentalServiceWaitDagRunUntilFinishedData = (queryCli
   result?: string[];
 }) => queryClient.ensureQueryData({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) });
 /**
+* Experimental: Compare what two stored versions of a Dag currently hold.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.baseVersionNumber Version to compare from.
+* @param data.targetVersionNumber Version to compare to.
+* @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+* @returns DagVersionDiffResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseExperimentalServiceGetDagVersionDiffData = (queryClient: QueryClient, { baseVersionNumber, dagId, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseExperimentalServiceGetDagVersionDiffKeyFn({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }), queryFn: () => ExperimentalService.getDagVersionDiff({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }) });
+/**
 * Get Dag Source
 * Get source code using file token.
 * @param data The data for the request.
@@ -828,6 +847,7 @@ export const ensureUseDagServiceGetDagTagsData = (queryClient: QueryClient, { li
 * @param data.dagRunStateWithinHours Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
 * @param data.bundleName
 * @param data.bundleVersion
+* @param data.relativeFilelocPrefix Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
 * @param data.isFavorite
 * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
@@ -837,7 +857,7 @@ export const ensureUseDagServiceGetDagTagsData = (queryClient: QueryClient, { li
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }: {
+export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -860,12 +880,13 @@ export const ensureUseDagServiceGetDagsUiData = (queryClient: QueryClient, { ass
   orderBy?: string[];
   owners?: string[];
   paused?: boolean;
+  relativeFilelocPrefix?: string;
   schedulingState?: DagSchedulingState;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
   teams?: string[];
   timetableType?: string[];
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }) });
 /**
 * Get Dag Timetable Types
 * Get timetable types used by readable Dags.
@@ -881,6 +902,25 @@ export const ensureUseDagServiceGetDagTimetableTypesUiData = (queryClient: Query
   offset?: number;
   timetableTypePrefixPattern?: string;
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagTimetableTypesUiKeyFn({ limit, offset, timetableTypePrefixPattern }), queryFn: () => DagService.getDagTimetableTypesUi({ limit, offset, timetableTypePrefixPattern }) });
+/**
+* Get Dag Folders
+* Get the distinct folders the readable Dags live in, scoped to their bundle.
+*
+* A folder is the directory part of a Dag's ``relative_fileloc`` (relative to its
+* bundle root). Because ``relative_fileloc`` is relative to each bundle, the same
+* path can exist in several bundles, so every folder is paired with its bundle
+* name to keep them apart. Dags located directly at the bundle root have no folder
+* and are not represented here. The result powers the folder navigation tree in
+* the UI, which reconstructs the hierarchy by splitting each path on ``/`` and
+* groups it under its bundle when more than one bundle is present.
+*
+* Stale Dags are left out to match the Dag list, which hides them by default: keeping
+* them would surface folders (or whole bundles, once they stop being parsed) that
+* select down to an empty list.
+* @returns DagFolderCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagServiceGetDagFoldersData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseDagServiceGetDagFoldersKeyFn(), queryFn: () => DagService.getDagFolders() });
 /**
 * Get Latest Run Info
 * Get latest run.
@@ -1866,6 +1906,25 @@ export const ensureUseVariableServiceGetVariablesData = (queryClient: QueryClien
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }), queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }) });
+/**
+* Experimental: Compare what two stored versions of a Dag currently hold.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.baseVersionNumber Version to compare from.
+* @param data.targetVersionNumber Version to compare to.
+* @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+* @returns DagVersionDiffResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagVersionServiceGetDagVersionDiffData = (queryClient: QueryClient, { baseVersionNumber, dagId, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDagVersionServiceGetDagVersionDiffKeyFn({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }), queryFn: () => DagVersionService.getDagVersionDiff({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }) });
 /**
 * Get Dag Version
 * Get one Dag Version.

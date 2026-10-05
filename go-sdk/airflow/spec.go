@@ -19,8 +19,8 @@ package airflow
 
 import "reflect"
 
-// DagSpec and TaskSpec are generated from Airflow core's Dag serialization schema,
-// which Python owns, so that neither struct drifts from it silently. genspec
+// DagSpec, TaskSpec and TaskGroupSpec are generated from Airflow core's Dag serialization
+// schema, which Python owns, so that no struct drifts from it silently. genspec
 // rewrites the schema into the authoring shape, go-jsonschema writes the structs,
 // and genspec puts the license header back on what it wrote. The rewritten schema
 // is a build artifact under .build; spec.gen.go is committed.
@@ -36,7 +36,7 @@ import "reflect"
 // json.Marshal(spec) to skip that step and produce a shape core misreads.
 
 //go:generate go run ../internal/genspec -schema ../schema/dag-schema.json -out ../../.build/go-sdk/spec.schema.json
-//go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags "" --capitalization ID --capitalization JSON --capitalization MD --capitalization XCom -p airflow -o spec.gen.go ../../.build/go-sdk/spec.schema.json
+//go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags "" --capitalization ID --capitalization JSON --capitalization FgColor --capitalization MD --capitalization UI --capitalization XCom -p airflow -o spec.gen.go ../../.build/go-sdk/spec.schema.json
 //go:generate go run ../internal/genspec -license spec.gen.go
 
 // copySpec returns a copy of spec that shares no slice, map or pointer with it, so that a

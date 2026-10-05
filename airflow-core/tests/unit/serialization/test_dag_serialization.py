@@ -5155,3 +5155,218 @@ class TestWeightRule:
         op = BaseOperator(task_id="empty_task", weight_rule=NotRegisteredPriorityWeightStrategy())
         with pytest.raises(ValueError, match="Unknown priority strategy"):
             OperatorSerialization.serialize(op)
+
+
+class TestValidateSerializedDag:
+    @staticmethod
+    def _serialize() -> dict:
+        with DAG(dag_id="checked_dag", schedule=None) as dag:
+            BaseOperator(task_id="extract") >> BaseOperator(task_id="load")
+        return DagSerialization.to_dict(dag)
+
+    def test_accepts_a_dag_that_loads(self):
+        data = self._serialize()
+        data["__version"] = 2
+        before = copy.deepcopy(data)
+
+        DagSerialization.validate_serialized_dag(data)
+
+        assert data == before
+
+    @pytest.mark.parametrize(
+        ("change", "error"),
+        [
+            pytest.param(
+                {"max_active_runs": "many"},
+                "Dag 'checked_dag' does not match the schema at $.dag.max_active_runs: "
+                "'many' is not of type 'number'",
+                id="schema",
+            ),
+            pytest.param(
+                {"timetable": {"__type": "no.such.Timetable", "__var": {}}},
+                "Dag 'checked_dag' cannot be deserialized: TimetableNotRegistered: ",
+                id="deserialize",
+            ),
+        ],
+    )
+    def test_rejects_a_dag_that_does_not_load(self, change, error):
+        data = self._serialize()
+        data["dag"].update(change)
+
+        with pytest.raises(DeserializationError, match=f"^{re.escape(error)}"):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_returns_the_deserialized_dag(self):
+        dag = DagSerialization.validate_serialized_dag(self._serialize())
+
+        assert isinstance(dag, SerializedDAG)
+        assert dag.dag_id == "checked_dag"
+        assert dag.task_dict["extract"].downstream_task_ids == {"load"}
+
+    @pytest.mark.parametrize(
+        ("entry", "json_path"),
+        [
+            pytest.param({}, "$.dag.tasks[2]", id="empty"),
+            pytest.param("x", "$.dag.tasks[2]", id="not-an-object"),
+            pytest.param(
+                {"__type": "dag", "__var": {"task_id": "t"}}, "$.dag.tasks[2].__type", id="wrong-type"
+            ),
+            pytest.param({"__type": "operator", "__var": {}}, "$.dag.tasks[2].__var", id="no-task-id"),
+            pytest.param(
+                {"__type": "operator", "__var": {"task_id": 5}},
+                "$.dag.tasks[2].__var.task_id",
+                id="task-id-not-a-string",
+            ),
+        ],
+    )
+    def test_rejects_a_task_entry_that_is_not_an_operator(self, entry, json_path):
+        data = self._serialize()
+        data["dag"]["tasks"].append(entry)
+
+        with pytest.raises(
+            DeserializationError,
+            match=rf"^Dag 'checked_dag' does not match the schema at {re.escape(json_path)}: ",
+        ):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_rejects_a_repeated_task_id(self):
+        data = self._serialize()
+        data["dag"]["tasks"].append(copy.deepcopy(data["dag"]["tasks"][0]))
+
+        with pytest.raises(
+            DeserializationError, match="^Dag 'checked_dag' has more than one task with id 'extract'$"
+        ):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_reports_the_cause_of_a_deserialization_error(self):
+        data = self._serialize()
+        data["dag"]["tasks"][0]["__var"]["downstream_task_ids"] = ["ghost"]
+
+        with pytest.raises(
+            DeserializationError, match="^Dag 'checked_dag' cannot be deserialized: KeyError: 'ghost'$"
+        ):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_rejects_a_dag_with_a_cycle(self):
+        data = self._serialize()
+        load = next(task for task in data["dag"]["tasks"] if task["__var"]["task_id"] == "load")
+        load["__var"]["downstream_task_ids"] = ["extract"]
+
+        with pytest.raises(DeserializationError, match="^Dag 'checked_dag' has a cycle through task 'load'$"):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_rejects_a_cycle_in_the_legacy_downstream_key(self):
+        data = self._serialize()
+        load = next(task for task in data["dag"]["tasks"] if task["__var"]["task_id"] == "load")
+        load["__var"]["_downstream_task_ids"] = ["extract"]
+
+        with pytest.raises(DeserializationError, match="^Dag 'checked_dag' has a cycle through task 'load'$"):
+            DagSerialization.validate_serialized_dag(data)
+
+    @pytest.mark.parametrize(
+        ("change", "error"),
+        [
+            pytest.param(
+                {},
+                "Dag 'checked_dag' sets max_active_runs 16, but ContinuousTimetable allows at most 1",
+                id="unset",
+            ),
+            pytest.param(
+                {"max_active_runs": 2},
+                "Dag 'checked_dag' sets max_active_runs 2, but ContinuousTimetable allows at most 1",
+                id="above-the-limit",
+            ),
+        ],
+    )
+    def test_rejects_max_active_runs_above_the_timetable_limit(self, change, error):
+        data = DagSerialization.to_dict(DAG(dag_id="checked_dag", schedule="@continuous", max_active_runs=1))
+        del data["dag"]["max_active_runs"]
+        data["dag"].update(change)
+
+        with pytest.raises(DeserializationError, match=f"^{re.escape(error)}$"):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_rejects_catchup_without_a_start_date(self):
+        data = DagSerialization.to_dict(DAG(dag_id="checked_dag", schedule="@daily"))
+        data["dag"]["catchup"] = True
+
+        with pytest.raises(DeserializationError, match="^Dag 'checked_dag' sets catchup but no start_date$"):
+            DagSerialization.validate_serialized_dag(data)
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param(
+                {
+                    "schedule": "@daily",
+                    "default_args": {"start_date": datetime(2024, 1, 1, tzinfo=dt_timezone.utc)},
+                },
+                id="start-date-in-default-args",
+            ),
+            pytest.param({"schedule": None}, id="unscheduled"),
+        ],
+    )
+    def test_accepts_catchup_the_sdk_dag_accepts(self, kwargs):
+        dag = DAG(dag_id="checked_dag", catchup=True, **kwargs)
+
+        assert DagSerialization.validate_serialized_dag(DagSerialization.to_dict(dag)).catchup is True
+
+
+class TestFillConfigDefaults:
+    CONFIG = {
+        ("core", "max_active_tasks_per_dag"): "7",
+        ("core", "max_active_runs_per_dag"): "3",
+        ("core", "max_consecutive_failed_dag_runs_per_dag"): "5",
+        ("scheduler", "catchup_by_default"): "True",
+        ("dag_processor", "disable_bundle_versioning"): "False",
+    }
+    FIELDS = (
+        "max_active_tasks",
+        "max_active_runs",
+        "max_consecutive_failed_dag_runs",
+        "catchup",
+        "disable_bundle_versioning",
+    )
+
+    @staticmethod
+    def _serialize() -> dict:
+        return DagSerialization.to_dict(DAG(dag_id="native_dag", schedule=None))
+
+    @conf_vars(CONFIG)
+    def test_fills_an_unset_setting_from_the_config(self):
+        data = self._serialize()
+        for field in self.FIELDS:
+            del data["dag"][field]
+
+        DagSerialization.fill_config_defaults(data)
+
+        assert {field: data["dag"][field] for field in self.FIELDS} == {
+            "max_active_tasks": 7,
+            "max_active_runs": 3,
+            "max_consecutive_failed_dag_runs": 5,
+            "catchup": True,
+            "disable_bundle_versioning": False,
+        }
+
+    @conf_vars(CONFIG)
+    def test_keeps_a_setting_the_dag_sets(self):
+        data = self._serialize()
+        data["dag"].update(
+            max_active_tasks=16,
+            max_active_runs=16,
+            max_consecutive_failed_dag_runs=0,
+            catchup=False,
+            disable_bundle_versioning=True,
+        )
+        before = copy.deepcopy(data)
+
+        DagSerialization.fill_config_defaults(data)
+
+        assert data == before
+
+    def test_leaves_a_payload_without_a_dag_to_validation(self):
+        data = {"__version": 3}
+
+        DagSerialization.fill_config_defaults(data)
+
+        assert data == {"__version": 3}

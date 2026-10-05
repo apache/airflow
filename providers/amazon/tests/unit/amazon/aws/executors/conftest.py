@@ -14,22 +14,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: "[v3-3-test] Scheduled CI upgrade check"
-on:  # yamllint disable-line rule:truthy
-  schedule:
-    # Tue, Thu at 06:00 UTC — the days main does not run, so the two never overlap.
-    - cron: '0 6 * * 2,4'
-  workflow_dispatch:
-permissions:
-  contents: write
-  pull-requests: write
-jobs:
-  upgrade-v3-3-test:
-    name: "[v3-3-test] Upgrade"
-    uses: ./.github/workflows/upgrade-check.yml
-    with:
-      target-branch: v3-3-test
-    secrets:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+from __future__ import annotations
+
+from uuid import uuid4
+
+import pytest
+
+
+@pytest.fixture
+def task_identity_workloads():
+    from airflow.executors.workloads import BundleInfo, ExecuteTask, TaskInstanceDTO
+
+    first = ExecuteTask(
+        ti=TaskInstanceDTO(
+            id=uuid4(),
+            dag_version_id=uuid4(),
+            dag_id="dag",
+            task_id="task",
+            run_id="run",
+            try_number=1,
+            pool_slots=1,
+            priority_weight=1,
+            queue="default",
+        ),
+        dag_rel_path="dag.py",
+        bundle_info=BundleInfo(name="bundle"),
+        token="",
+        log_path=None,
+    )
+    return [first, first.model_copy(update={"ti": first.ti.model_copy(update={"id": uuid4()})})]

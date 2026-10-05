@@ -41,7 +41,7 @@ with DAG(
     dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule=MultipleCronTriggerTimetable("21 13 29 2 4", "9 27 29 2 4", timezone="UTC"),
+    schedule=MultipleCronTriggerTimetable("21 13 29 2 4", "9 17 29 2 4", timezone="UTC"),
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
