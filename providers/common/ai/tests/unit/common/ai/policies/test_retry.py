@@ -1220,7 +1220,7 @@ class TestLLMRetryPolicy:
 
     @patch(HOOK, autospec=True)
     def test_classifier_refusal_logs_the_categories_hint(self, mock_hook_cls, caplog):
-        """A classifier model refuses ErrorClassification's text fields; the log says what to do."""
+        """A decision model refuses ErrorClassification's text fields; the log says what to do."""
         agent = _install(mock_hook_cls, MagicMock(spec=Agent))
         agent.run_sync.side_effect = RuntimeError("Output field 'reasoning' is not supported by this model")
         policy = LLMRetryPolicy(llm_conn_id="test", model_id="typesafe:jev-1.13.0")
