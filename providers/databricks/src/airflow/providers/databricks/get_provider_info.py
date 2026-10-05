@@ -121,7 +121,10 @@ def get_provider_info():
         "triggers": [
             {
                 "integration-name": "Databricks",
-                "python-modules": ["airflow.providers.databricks.triggers.databricks"],
+                "python-modules": [
+                    "airflow.providers.databricks.triggers.databricks",
+                    "airflow.providers.databricks.triggers.databricks_delta_table",
+                ],
             }
         ],
         "sensors": [
@@ -131,6 +134,7 @@ def get_provider_info():
                     "airflow.providers.databricks.sensors.databricks",
                     "airflow.providers.databricks.sensors.databricks_sql",
                     "airflow.providers.databricks.sensors.databricks_partition",
+                    "airflow.providers.databricks.sensors.databricks_delta_table",
                 ],
             }
         ],
