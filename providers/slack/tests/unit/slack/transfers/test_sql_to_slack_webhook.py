@@ -162,6 +162,33 @@ class TestSqlToSlackWebhookOperator:
         sql_to_slack_operator.execute(context)
         assert sql_to_slack_operator.sql == "SELECT '{{ leaked }}'"
 
+    def test_send_does_not_rerender_fields_after_mapped_first_render(self, mocked_hook):
+        """A mapped task's first render bypasses ``render_template_fields`` and leaves
+        ``times_rendered`` at 0; sending must still render only ``slack_message``."""
+        mock_dbapi_hook = mock.Mock()
+        mock_dbapi_hook.return_value.get_df.return_value = pd.DataFrame({"a": "1"}, index=[0])
+
+        sql_to_slack_operator = self._construct_operator(
+            sql_conn_id="snowflake_connection",
+            slack_webhook_conn_id="slack_connection",
+            slack_message="message: {{ results_df }}",
+            slack_channel="#test",
+            sql="SELECT '{{ ds }}'",
+        )
+        sql_to_slack_operator._get_hook = mock_dbapi_hook
+        context = {"ds": "{{ leaked }}", "leaked": "SECRET"}
+
+        # What MappedOperator.render_template_fields does for the unmapped task.
+        sql_to_slack_operator._do_render_template_fields(
+            sql_to_slack_operator, ("sql",), context, sql_to_slack_operator.get_template_env(), set()
+        )
+        assert sql_to_slack_operator.times_rendered == 0
+
+        sql_to_slack_operator.execute(context)
+
+        assert sql_to_slack_operator.sql == "SELECT '{{ leaked }}'"
+        assert sql_to_slack_operator.slack_message.startswith("message: ")
+
     @pytest.mark.parametrize(
         ("slack_webhook_conn_id", "warning_expected", "expected_conn_id"),
         [
