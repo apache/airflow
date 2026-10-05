@@ -757,3 +757,34 @@ async def test_owned_metastore_session_closes_on_cancellation(mock_create_sessio
         await task
 
     assert exited.is_set()
+
+
+@mock.patch("airflow.secrets.resolver.ensure_secrets_loaded", autospec=True)
+@pytest.mark.parametrize("backend_base", [BaseSecretsBackend, MetastoreBackend], ids=["custom", "metastore"])
+@pytest.mark.parametrize("resolver", [resolve_variable, resolve_connection], ids=["variable", "connection"])
+@pytest.mark.asyncio
+async def test_resolver_passes_borrowed_session_only_to_native_metastore(
+    mock_ensure_secrets_loaded, backend_base, resolver
+):
+    borrowed = mock.AsyncMock(spec=AsyncSession)
+    loop_thread = threading.get_ident()
+    observed = []
+    connection = Connection(conn_id="key", uri="http://example.com")
+
+    class Backend(backend_base):
+        async def aget_variable(self, key, team_name=None, *, session=None):
+            observed.append((session, threading.get_ident()))
+            return "value"
+
+        async def aget_connection(self, conn_id, team_name=None, *, session=None):
+            observed.append((session, threading.get_ident()))
+            return connection
+
+    mock_ensure_secrets_loaded.return_value = [Backend()]
+
+    result = await resolver("key", session=borrowed)
+
+    assert result == ("value" if resolver is resolve_variable else connection)
+    assert observed == [(borrowed if backend_base is MetastoreBackend else None, loop_thread)]
+    borrowed.commit.assert_not_awaited()
+    borrowed.close.assert_not_awaited()
