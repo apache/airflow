@@ -286,6 +286,44 @@ class TestWaiter:
         assert mock_waiter.wait.call_count == 2
 
     @mock.patch("time.sleep")
+    def test_wait_zero_attempts_raise_max_attempts_error(self, mock_sleep):
+        mock_waiter = mock.MagicMock()
+
+        with pytest.raises(WaiterMaxAttemptsError) as exc:
+            wait(
+                waiter=mock_waiter,
+                waiter_delay=123,
+                waiter_max_attempts=0,
+                args={"test_arg": "test_value"},
+                failure_message="test failure message",
+                status_message="test status message",
+                status_args=["Status.State"],
+            )
+
+        assert type(exc.value) is WaiterMaxAttemptsError
+        mock_waiter.wait.assert_not_called()
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_wait_zero_attempts_raise_max_attempts_error(self):
+        mock_waiter = mock.MagicMock()
+        mock_waiter.wait = AsyncMock()
+
+        with pytest.raises(WaiterMaxAttemptsError) as exc:
+            await async_wait(
+                waiter=mock_waiter,
+                waiter_delay=0,
+                waiter_max_attempts=0,
+                args={"test_arg": "test_value"},
+                failure_message="test failure message",
+                status_message="test status message",
+                status_args=["Status.State"],
+            )
+
+        assert type(exc.value) is WaiterMaxAttemptsError
+        mock_waiter.wait.assert_not_called()
+
+    @mock.patch("time.sleep")
     def test_wait_with_failure(self, mock_sleep):
         mock_sleep.return_value = True
         mock_waiter = mock.MagicMock()

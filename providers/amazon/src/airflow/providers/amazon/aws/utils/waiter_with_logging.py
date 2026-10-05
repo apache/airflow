@@ -143,7 +143,7 @@ def wait(
             break
         attempt += 1
     else:
-        if all_attempts_no_credentials:
+        if all_attempts_no_credentials and last_no_credentials_error is not None:
             raise WaiterNoCredentialsError(
                 f"Waiter error: max attempts reached due to missing credentials: {last_no_credentials_error}"
             )
@@ -234,7 +234,7 @@ async def async_wait(
             break
         attempt += 1
     else:
-        if all_attempts_no_credentials:
+        if all_attempts_no_credentials and last_no_credentials_error is not None:
             raise WaiterNoCredentialsError(
                 f"Waiter error: max attempts reached due to missing credentials: {last_no_credentials_error}"
             )
