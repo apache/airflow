@@ -1047,6 +1047,9 @@ class KubernetesExecutor(BaseExecutor):
                 namespace=namespace,
                 label_selector=selector,
             ).items
+            if self.supports_task_instance_uuid:
+                # Annotations cannot be label-selected, so the attempt's UUID is checked on the listed pods.
+                pod_list = [pod for pod in pod_list if task_instance_id_from_pod(pod) == ti.id]
             if not pod_list:
                 raise RuntimeError("Cannot find pod for ti %s", ti)
             if len(pod_list) > 1:
