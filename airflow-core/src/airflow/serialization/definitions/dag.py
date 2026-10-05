@@ -540,7 +540,6 @@ class SerializedDAG:
 
         total_tasks = session.scalar(
             select(func.count(TaskInstance.task_id)).where(
-                TaskInstance.working_set.is_(True),
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.state == TaskInstanceState.RUNNING,
             )
@@ -1068,10 +1067,10 @@ class SerializedDAG:
                 TaskInstance.task_id,
                 TaskInstance.run_id,
                 TaskInstance.map_index,
-            ).where(TaskInstance.working_set.is_(True))
+            )
             tis_pk = tis_pk.join(TaskInstance.dag_run)
         else:
-            tis_full = select(TaskInstance).where(TaskInstance.working_set.is_(True))
+            tis_full = select(TaskInstance)
             tis_full = tis_full.join(TaskInstance.dag_run)
 
         # Apply common filters
@@ -1148,7 +1147,7 @@ class SerializedDAG:
             # We've been asked for objects, lets combine it all back in to a result set
             ti_filters = TaskInstance.filter_for_tis(result)
             if ti_filters is not None:
-                tis_final = select(TaskInstance).where(TaskInstance.working_set.is_(True), ti_filters)
+                tis_final = select(TaskInstance).where(ti_filters)
                 return session.scalars(tis_final)
         elif exclude_task_ids is None:
             pass  # Disable filter if not set.

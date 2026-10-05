@@ -339,9 +339,9 @@ class TestAttemptLiveness:
         if retirement == "retry":
             assert (
                 session.scalar(
-                    select(TaskInstance.id).where(
-                        TaskInstance.id == old_id, TaskInstance.working_set.is_(None)
-                    )
+                    select(TaskInstance.id)
+                    .where(TaskInstance.id == old_id, TaskInstance.working_set.is_(None))
+                    .execution_options(include_all_attempts=True)
                 )
                 == old_id
             )

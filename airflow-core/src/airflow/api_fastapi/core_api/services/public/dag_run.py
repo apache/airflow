@@ -112,7 +112,6 @@ def dry_run_clear_dag_run(
         existing_task_ids = set(
             session.scalars(
                 select(TaskInstance.task_id).where(
-                    TaskInstance.working_set.is_(True),
                     TaskInstance.dag_id == dag_id,
                     TaskInstance.run_id == dag_run_id,
                 )
@@ -121,9 +120,7 @@ def dry_run_clear_dag_run(
         new_task_ids = sorted(set(latest_dag.task_ids) - existing_task_ids)
         return [NewTaskResponse(task_id=task_id, task_display_name=task_id) for task_id in new_task_ids]
 
-    ti_query = eager_load_task_instance_for_validation(
-        select(TaskInstance).where(TaskInstance.working_set.is_(True))
-    )
+    ti_query = eager_load_task_instance_for_validation(select(TaskInstance))
     ti_query = ti_query.where(
         TaskInstance.dag_id == dag_id,
         TaskInstance.run_id == dag_run_id,

@@ -113,7 +113,6 @@ def get_all_dag_task_query(
 ):
     """Get all tasks of the main dag that will be affected by a state change."""
     qry_dag = select(TaskInstance).where(
-        TaskInstance.working_set.is_(True),
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id.in_(run_ids),
     )
@@ -262,7 +261,6 @@ def _set_dag_run_terminal_state(
     running_tis: list[TaskInstance] = list(
         session.scalars(
             select(TaskInstance).where(
-                TaskInstance.working_set.is_(True),
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id.in_(task_ids),
@@ -285,7 +283,6 @@ def _set_dag_run_terminal_state(
     pending_tis: list[TaskInstance] = list(
         session.scalars(
             select(TaskInstance).filter(
-                TaskInstance.working_set.is_(True),
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id.in_(task_ids),

@@ -52,6 +52,7 @@ from sqlalchemy import (
     case,
     cast,
     delete,
+    event as sqlalchemy_event,
     extract,
     false,
     func,
@@ -68,10 +69,19 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relationship
+from sqlalchemy.orm import (
+    Mapped,
+    Session,
+    lazyload,
+    mapped_column,
+    reconstructor,
+    relationship,
+    with_loader_criteria,
+)
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.orm.exc import DetachedInstanceError, ObjectDeletedError
-from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql import visitors
+from sqlalchemy.sql.elements import BindParameter, ColumnElement
 
 from airflow import settings
 from airflow._shared.observability.metrics import stats
@@ -123,7 +133,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from sqlalchemy.engine import Connection as SAConnection, Engine
-    from sqlalchemy.orm.session import Session
+    from sqlalchemy.orm import ORMExecuteState
     from sqlalchemy.sql import Update
     from sqlalchemy.sql.elements import ColumnElement
 
@@ -367,7 +377,6 @@ def _pin_versionless_tis_to_run_version(dag_run: DagRun, dag_version_id: UUID, s
     session.execute(
         update(TaskInstance)
         .where(
-            TaskInstance.working_set.is_(True),
             TaskInstance.dag_id == dag_run.dag_id,
             TaskInstance.run_id == dag_run.run_id,
             TaskInstance.dag_version_id.is_(None),
@@ -656,6 +665,24 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     A value of -1 in map_index represents any of: a TI without mapped tasks;
     a TI with mapped tasks that has yet to be expanded (state=pending);
     a TI with mapped tasks that expanded to an empty list (state=skipped).
+
+    Every try of a task is its own row with its own UUID. Only the latest try is live (``working_set`` is
+    true); earlier tries are retired (``working_set`` is NULL) and kept as history.
+
+    ORM queries see only live rows by default: a session hook adds ``working_set IS TRUE`` to every ORM
+    select, update and delete, including joins to this model. To include retired rows, set the execution
+    option on the statement::
+
+        session.scalars(select(TaskInstance).where(...).execution_options(include_all_attempts=True))
+
+    The default does not apply to:
+
+    * primary key lookups (``Session.get``, ``merge``, ``refresh``), which return the row with that UUID
+      whether or not it is retired;
+    * relationship loads, which follow the join the relationship defines (``DagRun.task_instances`` is live,
+      ``DagRun.historical_task_instances`` is retired);
+    * Core statements on ``TaskInstance.__table__``, and an ``exists()`` that does not name this model in a
+      FROM clause. These see every row unless they filter ``working_set`` themselves.
     """
 
     __tablename__ = "task_instance"
@@ -982,7 +1009,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     ) -> TaskInstance | None:
         query = (
             select(TaskInstance)
-            .where(TaskInstance.working_set.is_(True))
             .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
             .filter_by(
                 dag_id=dag_id,
@@ -1019,10 +1045,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         :param keep_local_changes: Force all attributes to the values from the database if False (the default),
             or if True don't overwrite locally set attributes
         """
-        query = select(
-            # Select the columns, not the ORM object, to bypass any session/ORM caching layer
-            *TaskInstance.__table__.columns
-        ).where(TaskInstance.id == self.id)
+        query = (
+            select(
+                # Select the columns, not the ORM object, to bypass any session/ORM caching layer
+                *TaskInstance.__table__.columns
+            )
+            .where(TaskInstance.id == self.id)
+            .execution_options(include_all_attempts=True)
+        )
 
         if lock_for_update:
             query = query.with_for_update()
@@ -1100,7 +1130,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         :param session: SQLAlchemy ORM Session
         :return: Was the state changed
         """
-        if self.state == state:
+        if self.state == state or (self.working_set is None and inspect(self).has_identity):
             return False
 
         current_time = timezone.utcnow()
@@ -1150,7 +1180,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         session: Session,
     ) -> None:
         """Delete every attempt, current and retired, of a task; all map indexes if ``map_index`` is None."""
-        statement = delete(cls).where(cls.dag_id == dag_id, cls.run_id == run_id, cls.task_id == task_id)
+        statement = (
+            delete(cls)
+            .where(cls.dag_id == dag_id, cls.run_id == run_id, cls.task_id == task_id)
+            .execution_options(include_all_attempts=True)
+        )
         if map_index is not None:
             statement = statement.where(cls.map_index == map_index)
         session.execute(statement)
@@ -1172,6 +1206,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             select(cls.map_index, func.max(cls.try_number))
             .where(cls.dag_id == dag_id, cls.task_id == task_id, cls.run_id == run_id)
             .group_by(cls.map_index)
+            .execution_options(include_all_attempts=True)
         )
         if map_indexes is not None:
             statement = statement.where(cls.map_index.in_(map_indexes))
@@ -1242,7 +1277,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             return True
 
         ti = select(func.count(TaskInstance.task_id)).where(
-            TaskInstance.working_set.is_(True),
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.run_id == self.run_id,
@@ -1950,7 +1984,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         with create_session() as session:
             session.execute(
                 update(TaskInstance)
-                .where(TaskInstance.working_set.is_(True), TaskInstance.id == self.id)
+                .where(TaskInstance.id == self.id)
                 .values(last_heartbeat_at=timezone.utcnow())
             )
 
@@ -2320,7 +2354,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             select(func.count())
             .select_from(TaskInstance)
             .where(
-                TaskInstance.working_set.is_(True),
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
             )
@@ -2525,7 +2558,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
-                TaskInstance.working_set.is_(True),
                 TaskInstance.dag_id == task.dag_id,
                 TaskInstance.task_id == task.task_id,
                 TaskInstance.run_id == run_id,
@@ -2597,7 +2629,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             current_max_mapping = (
                 session.scalar(
                     select(func.max(TaskInstance.map_index)).where(
-                        TaskInstance.working_set.is_(True),
                         TaskInstance.dag_id == task.dag_id,
                         TaskInstance.task_id == task.task_id,
                         TaskInstance.run_id == run_id,
@@ -2651,7 +2682,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # Any (old) task instances with inapplicable indexes (>= the total
         # number we need) are set to "REMOVED".
         query = select(TaskInstance).where(
-            TaskInstance.working_set.is_(True),
             TaskInstance.dag_id == task.dag_id,
             TaskInstance.task_id == task.task_id,
             TaskInstance.run_id == run_id,
@@ -2954,6 +2984,40 @@ class TaskInstanceNote(Base):
         if self.task_instance.map_index != -1:
             prefix += f" map_index={self.task_instance.map_index}"
         return prefix + f" TI ID: {self.ti_id}>"
+
+
+_CURRENT_ATTEMPTS = with_loader_criteria(
+    TaskInstance, TaskInstance.working_set.is_(True), include_aliases=True, propagate_to_loaders=False
+)
+
+
+def _is_primary_key_lookup(statement) -> bool:
+    criteria: Sequence[Any] = getattr(statement, "_where_criteria", ())
+    if len(criteria) != 1:
+        return False
+    binds = [node for node in visitors.iterate(criteria[0]) if isinstance(node, BindParameter)]
+    return bool(binds) and all(bind.key.startswith("pk_") for bind in binds)
+
+
+@sqlalchemy_event.listens_for(Session, "do_orm_execute")
+def _restrict_to_current_attempts(state: ORMExecuteState) -> None:
+    """
+    Hide retired attempts from ORM queries over task instances unless ``include_all_attempts`` is set.
+
+    Primary key lookups (``Session.get``, ``merge`` and ``refresh``) are exempt: asking for an attempt by
+    its UUID returns it whether or not it has been retired.
+    """
+    if (
+        state.is_column_load
+        or state.is_relationship_load
+        or state.execution_options.get("include_all_attempts")
+    ):
+        return
+    if not (state.is_select or state.is_update or state.is_delete):
+        return
+    if state.is_select and _is_primary_key_lookup(state.statement):
+        return
+    state.statement = state.statement.options(_CURRENT_ATTEMPTS)
 
 
 STATICA_HACK = True

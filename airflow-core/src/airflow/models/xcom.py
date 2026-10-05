@@ -214,8 +214,8 @@ class _XComOperations:
         if key is not None:
             v1_delete = v1_delete.where(legacy.c.key == key)
             v2_delete = v2_delete.where(XComModelV2.key == key)
-        session.execute(v1_delete)
-        session.execute(v2_delete.execution_options(synchronize_session="fetch"))
+        session.execute(v1_delete.execution_options(include_all_attempts=True))
+        session.execute(v2_delete.execution_options(synchronize_session="fetch", include_all_attempts=True))
 
     @classmethod
     @provide_session
@@ -362,6 +362,8 @@ class _XComOperations:
         statement = statement.order_by(entity.logical_date.desc(), entity.timestamp.desc())
         if limit:
             statement = statement.limit(limit)
+        if try_number is not None:
+            statement = statement.execution_options(include_all_attempts=True)
         return statement
 
     @staticmethod

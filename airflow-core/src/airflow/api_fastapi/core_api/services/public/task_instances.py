@@ -204,7 +204,7 @@ def _patch_ti_validate_request(
 
     query = (
         select(TI)
-        .where(TI.working_set.is_(True), TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
     if map_index is not None:
@@ -247,7 +247,6 @@ def _get_task_group_task_instances(
     query = (
         select(TI)
         .where(
-            TI.working_set.is_(True),
             TI.dag_id == dag_id,
             TI.run_id == dag_run_id,
             TI.task_id.in_(task_ids),
@@ -486,7 +485,6 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         # and filtering in Python
         task_keys_list = list(task_keys)
         query = select(TI).where(
-            TI.working_set.is_(True),
             tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(task_keys_list),
         )
 
@@ -608,7 +606,6 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
                 batch_task_instances = self.session.scalars(
                     select(TI).where(
-                        TI.working_set.is_(True),
                         TI.dag_id.in_(all_dag_ids),
                         TI.run_id.in_(all_run_ids),
                         TI.task_id.in_(all_task_ids),
@@ -697,7 +694,6 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
                 batch_task_instances = self.session.scalars(
                     select(TI).where(
-                        TI.working_set.is_(True),
                         TI.dag_id.in_(all_dag_ids),
                         TI.run_id.in_(all_run_ids),
                         TI.task_id.in_(all_task_ids),

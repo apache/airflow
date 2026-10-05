@@ -146,7 +146,7 @@ def get_task_instance(
     """Get task instance."""
     query = (
         select(TI)
-        .where(TI.working_set.is_(True), TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
@@ -243,7 +243,6 @@ def get_mapped_task_instances(
     """Get list of mapped task instances."""
     query = eager_load_task_instance_for_validation(
         select(TI).where(
-            TI.working_set.is_(True),
             TI.dag_id == dag_id,
             TI.run_id == dag_run_id,
             TI.task_id == task_id,
@@ -325,9 +324,7 @@ def get_task_instance_dependencies(
     map_index: int = -1,
 ) -> TaskDependencyCollectionResponse:
     """Get dependencies blocking task from getting scheduled."""
-    query = select(TI).where(
-        TI.working_set.is_(True), TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id
-    )
+    query = select(TI).where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
     query = query.where(TI.map_index == map_index)
 
     result = session.execute(query).one_or_none()
@@ -390,6 +387,7 @@ def get_task_instance_tries(
         )
         .options(joinedload(TI.hitl_detail))
         .order_by(TI.try_number)
+        .execution_options(include_all_attempts=True)
     )
     task_instances = list(session.scalars(query))
 
@@ -442,7 +440,6 @@ def get_mapped_task_instance(
     query = (
         select(TI)
         .where(
-            TI.working_set.is_(True),
             TI.dag_id == dag_id,
             TI.run_id == dag_run_id,
             TI.task_id == task_id,
@@ -571,7 +568,7 @@ def get_task_instances(
     """
     use_cursor = cursor is not None
     dag_run = None
-    query = eager_load_task_instance_for_validation(select(TI).where(TI.working_set.is_(True)))
+    query = eager_load_task_instance_for_validation(select(TI))
     if dag_run_id != "~":
         if dag_id == "~":
             raise HTTPException(
@@ -771,7 +768,7 @@ def get_task_instances_batch(
         TI,
     ).set_value([body.order_by] if body.order_by else None)
 
-    query = eager_load_task_instance_for_validation(select(TI).where(TI.working_set.is_(True)))
+    query = eager_load_task_instance_for_validation(select(TI))
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -818,13 +815,15 @@ def get_task_instance_try_details(
 ) -> TaskInstanceHistoryResponse:
     """Get task instance details by try number."""
     query = eager_load_task_instance_for_validation(
-        select(TI).where(
+        select(TI)
+        .where(
             TI.dag_id == dag_id,
             TI.run_id == dag_run_id,
             TI.task_id == task_id,
             TI.try_number == task_try_number,
             TI.map_index == map_index,
         )
+        .execution_options(include_all_attempts=True)
     )
     ti = session.scalar(query)
     if ti is None:
@@ -1299,7 +1298,6 @@ def delete_task_instance(
 ) -> None:
     """Delete a task instance."""
     query = select(TI).where(
-        TI.working_set.is_(True),
         TI.dag_id == dag_id,
         TI.run_id == dag_run_id,
         TI.task_id == task_id,

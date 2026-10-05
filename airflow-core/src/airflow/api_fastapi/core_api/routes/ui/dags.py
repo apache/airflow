@@ -261,7 +261,6 @@ def get_dags(
                 defaultload(HITLDetail.task_instance).joinedload(TaskInstance.rendered_task_instance_fields)
             )
             .where(
-                TaskInstance.working_set.is_(True),
                 HITLDetail.responded_at.is_(None),
                 TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
             )

@@ -197,7 +197,9 @@ def test_joinedload_resolves_relationships_for_rows_from_both_stores(
 
     with assert_no_cartesian_products():
         rows = session.scalars(
-            query.options(joinedload(entity.task), joinedload(entity.dag_run).joinedload(DagRun.dag_model))
+            query.options(
+                joinedload(entity.task), joinedload(entity.dag_run).joinedload(DagRun.dag_model)
+            ).execution_options(include_all_attempts=True)
         ).unique()
         by_ti = {row.task_instance_id: row for row in rows}
 
@@ -459,6 +461,7 @@ def test_load_legacy_rendered_fields_fills_only_attempts_without_a_joined_row(ow
             sa.select(TaskInstance)
             .where(TaskInstance.id.in_([CURRENT_ID, HISTORY_ID]))
             .options(joinedload(TaskInstance.rendered_task_instance_fields))
+            .execution_options(include_all_attempts=True)
         )
     )
 

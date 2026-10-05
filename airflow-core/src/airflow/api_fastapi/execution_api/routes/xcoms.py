@@ -342,6 +342,7 @@ def get_xcom(
             TaskInstance.map_index == params.map_index,
         )
         .limit(1)
+        .execution_options(include_all_attempts=True)
     ).first()
     if (
         owner is not None
@@ -553,10 +554,14 @@ def _find_writer_id(
         TaskInstance.task_id == task_id,
         TaskInstance.map_index == map_index,
     )
-    own = session.scalar(select(TaskInstance.id).where(TaskInstance.id == attempt_id, *coordinates))
+    own = session.scalar(
+        select(TaskInstance.id)
+        .where(TaskInstance.id == attempt_id, *coordinates)
+        .execution_options(include_all_attempts=True)
+    )
     if own is not None:
         return own
-    return session.scalar(select(TaskInstance.id).where(TaskInstance.working_set.is_(True), *coordinates))
+    return session.scalar(select(TaskInstance.id).where(*coordinates))
 
 
 def _get_writer_id(

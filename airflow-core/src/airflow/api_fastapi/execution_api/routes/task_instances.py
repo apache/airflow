@@ -187,7 +187,7 @@ def ti_run(
         .select_from(TI)
         .join(DR, and_(TI.dag_id == DR.dag_id, TI.run_id == DR.run_id))
         .join(DagModel, TI.dag_id == DagModel.dag_id)
-        .where(TI.id == task_instance_id, TI.working_set.is_(True))
+        .where(TI.id == task_instance_id)
         .with_for_update(of=TI)
     )
     try:
@@ -404,7 +404,7 @@ def ti_update_state(
             select(TI)
             .where(TI.id == task_instance_id)
             .with_for_update(of=TI)
-            .execution_options(populate_existing=True)
+            .execution_options(populate_existing=True, include_all_attempts=True)
         )
         if ti is None:
             raise HTTPException(status_code=404, detail={"reason": "not_found"})
@@ -446,6 +446,7 @@ def ti_update_state(
         .join(DagModel, TI.dag_id == DagModel.dag_id)
         .where(TI.id == task_instance_id)
         .with_for_update(of=TI)
+        .execution_options(include_all_attempts=True)
     )
     try:
         (
@@ -518,7 +519,7 @@ def ti_update_state(
     )
     if "rendered_map_index" in data:
         data["_rendered_map_index"] = data.pop("rendered_map_index")
-    query = update(TI).where(TI.working_set.is_(True), TI.id == task_instance_id).values(data)
+    query = update(TI).where(TI.id == task_instance_id).values(data)
 
     asset_callbacks: Sequence[Callable[[], None]] = ()
     try:
@@ -540,9 +541,7 @@ def ti_update_state(
             payload=ti_patch_payload,
         )
         session.rollback()
-        ti = session.scalar(
-            select(TI).where(TI.id == task_instance_id, TI.working_set.is_(True)).with_for_update(of=TI)
-        )
+        ti = session.scalar(select(TI).where(TI.id == task_instance_id).with_for_update(of=TI))
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
         query = query.values(state=(updated_state := TaskInstanceState.FAILED))
@@ -901,9 +900,7 @@ def ti_skip_downstream(
     now = timezone.utcnow()
     tasks = ti_patch_payload.tasks
 
-    query_result = session.execute(
-        select(TI.dag_id, TI.run_id).where(TI.working_set.is_(True), TI.id == task_instance_id)
-    )
+    query_result = session.execute(select(TI.dag_id, TI.run_id).where(TI.id == task_instance_id))
     row_result = query_result.fetchone()
     if row_result is None:
         raise HTTPException(
@@ -935,7 +932,6 @@ def ti_skip_downstream(
     query = (
         update(TI)
         .where(
-            TI.working_set.is_(True),
             TI.dag_id == dag_id,
             TI.run_id == run_id,
             or_(TI.task_id.in_(task_ids), tuple_(TI.task_id, TI.map_index).in_(ti_keys)),
@@ -1058,7 +1054,6 @@ async def ti_heartbeat(
         await session.execute(
             update(TI)
             .where(
-                TI.working_set.is_(True),
                 TI.id == task_instance_id,
                 TI.state == TaskInstanceState.RUNNING,
                 TI.hostname == ti_payload.hostname,
@@ -1078,6 +1073,7 @@ async def ti_heartbeat(
         select(TI.state, TI.hostname, TI.pid, TI.working_set)
         .where(TI.id == task_instance_id)
         .with_for_update()
+        .execution_options(include_all_attempts=True)
     )
 
     try:
@@ -1123,9 +1119,7 @@ async def ti_heartbeat(
 
     # Update the last heartbeat time!
     await session.execute(
-        update(TI)
-        .where(TI.working_set.is_(True), TI.id == task_instance_id)
-        .values(last_heartbeat_at=timezone.utcnow())
+        update(TI).where(TI.id == task_instance_id).values(last_heartbeat_at=timezone.utcnow())
     )
     log.debug("Heartbeat updated", state=previous_state)
 
@@ -1161,7 +1155,9 @@ def ti_put_rtif(
     bind_contextvars(ti_id=str(task_instance_id))
     log.info("Updating RenderedTaskInstanceFields", field_count=len(put_rtif_payload))
 
-    task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
+    task_instance = session.scalar(
+        select(TI).where(TI.id == task_instance_id).execution_options(include_all_attempts=True)
+    )
     if task_instance is None or task_instance.working_set is None:
         # On retry/clear, the server regenerates the TI id. Return 410 for the stale id.
         _raise_ti_not_in_live_table(task_instance_id, archived_in_history=task_instance is not None)
@@ -1274,7 +1270,7 @@ def get_task_instance_count(
     states: Annotated[list[str] | None, Query()] = None,
 ) -> int:
     """Get the count of task instances matching the given criteria."""
-    query = select(func.count()).select_from(TI).where(TI.dag_id == dag_id, TI.working_set.is_(True))
+    query = select(func.count()).select_from(TI).where(TI.dag_id == dag_id)
 
     if task_ids:
         query = query.where(TI.task_id.in_(task_ids))
@@ -1340,9 +1336,7 @@ async def get_previous_task_instance(
         select(TI)
         .join(DR, (TI.dag_id == DR.dag_id) & (TI.run_id == DR.run_id))
         .options(contains_eager(TI.dag_run).load_only(DR.logical_date))
-        .where(
-            TI.dag_id == dag_id, TI.task_id == task_id, TI.map_index == map_index, TI.working_set.is_(True)
-        )
+        .where(TI.dag_id == dag_id, TI.task_id == task_id, TI.map_index == map_index)
         .order_by(DR.logical_date.desc())
     )
 
@@ -1386,7 +1380,7 @@ def get_task_instance_states(
     """Get the states for Task Instances with the given criteria."""
     run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
 
-    query = select(TI).where(TI.working_set.is_(True), TI.dag_id == dag_id)
+    query = select(TI).where(TI.dag_id == dag_id)
 
     if task_ids:
         query = query.where(TI.task_id.in_(task_ids))
@@ -1429,7 +1423,6 @@ async def get_task_instance_breadcrumbs(
         await session.execute(
             select(TI.task_id, TI.map_index, TI.state, TI.operator, TI.duration)
             .where(
-                TI.working_set.is_(True),
                 TI.dag_id == dag_id,
                 TI.run_id == run_id,
                 TI.state.in_(TerminalTIState),
@@ -1481,7 +1474,6 @@ def _get_group_tasks(
     # First get all task instances to get the task_id, map_index pairs
     group_tasks = session.scalars(
         select(TI).where(
-            TI.working_set.is_(True),
             TI.dag_id == dag_id,
             TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
             *([TI.logical_date.in_(logical_dates)] if logical_dates else []),

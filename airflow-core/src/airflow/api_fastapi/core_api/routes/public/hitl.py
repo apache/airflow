@@ -99,7 +99,8 @@ def _get_task_instance_with_hitl_detail(
         )
         .options(joinedload(TI.hitl_detail), joinedload(TI.rendered_task_instance_fields))
     )
-    query = query.where(TI.working_set.is_(True) if try_number is None else TI.try_number == try_number)
+    if try_number is not None:
+        query = query.where(TI.try_number == try_number).execution_options(include_all_attempts=True)
     ti = session.scalar(query)
 
     if ti is None:
@@ -351,7 +352,6 @@ def get_hitl_details(
     query = (
         select(HITLDetailModel)
         .join(TI, HITLDetailModel.ti_id == TI.id)
-        .where(TI.working_set.is_(True))
         .join(TI.dag_run)
         .options(
             joinedload(HITLDetailModel.task_instance).options(

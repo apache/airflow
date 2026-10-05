@@ -653,7 +653,10 @@ class TestTaskInstance:
         assert ti.try_number == try_number + 1
         assert ti.next_retry_datetime() == deadline
         history = session.scalar(
-            select(TaskInstance).where(TaskInstance.working_set.is_(None)).where(TaskInstance.id == old_id)
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.id == old_id)
+            .execution_options(include_all_attempts=True)
         )
         assert history.try_number == try_number
 
@@ -2775,7 +2778,11 @@ class TestTaskInstance:
             )
             == 1
         )
-        tih = session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(None))).all()
+        tih = session.scalars(
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .execution_options(include_all_attempts=True)
+        ).all()
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
         assert tih[0].id == try_id
@@ -2799,7 +2806,11 @@ class TestTaskInstance:
             ti.retire(reason="retry", session=session)
         session.flush()
 
-        tih = session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(None))).one()
+        tih = session.scalars(
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .execution_options(include_all_attempts=True)
+        ).one()
         assert tih.state == str(TaskInstanceState.FAILED)
         assert tih.end_date == archive_time
         assert tih.duration == (archive_time - start).total_seconds()
@@ -2943,20 +2954,34 @@ class TestTaskInstance:
         assert successor.working_set is True
         assert successor.state == TaskInstanceState.UP_FOR_RETRY
         assert successor.end_date == attempt.end_date
-        assert session.scalar(sa.select(sa.func.count()).select_from(TaskInstance)) == 3
+        assert (
+            session.scalar(
+                sa.select(sa.func.count())
+                .select_from(TaskInstance)
+                .execution_options(include_all_attempts=True)
+            )
+            == 3
+        )
         assert session.scalar(sa.text("SELECT ti_id FROM task_reschedule")) is not None
         for owner, expected in [(attempt, 1), (successor, 0)]:
             query = build_xcom_read_query(
                 producer_ids=sa.select(TaskInstance.id).where(TaskInstance.id == owner.id)
             )
-            assert len(session.scalars(query).all()) == expected
+            assert len(session.scalars(query.execution_options(include_all_attempts=True)).all()) == expected
         XComModel.set_for_attempt(task_instance_id=attempt.id, key="late", value=1, session=session)
         assert XComModelV2.get_for_attempt(successor.id, "late", session=session) is None
 
         with pytest.raises(ValueError, match="retired"):
             attempt.prepare_db_for_next_try(session)
 
-        assert session.scalar(sa.select(sa.func.count()).select_from(TaskInstance)) == 3
+        assert (
+            session.scalar(
+                sa.select(sa.func.count())
+                .select_from(TaskInstance)
+                .execution_options(include_all_attempts=True)
+            )
+            == 3
+        )
         assert successor.working_set is True
 
     def test_retirement_carries_the_note_to_the_successor(self, ownership_session):
@@ -3013,9 +3038,69 @@ class TestTaskInstance:
         session.commit()
 
         expected = set() if deleted else {CURRENT_ID, HISTORY_ID}
-        assert set(session.scalars(select(TaskInstance.id))) == expected
+        assert (
+            set(session.scalars(select(TaskInstance.id).execution_options(include_all_attempts=True)))
+            == expected
+        )
         assert set(session.scalars(select(XComModelV2.task_instance_id))) == expected
         assert set(session.scalars(select(RenderedTaskInstanceFields.task_instance_id))) == expected
+
+    def test_orm_statements_ignore_retired_attempts_unless_asked(self, ownership_session):
+        session = ownership_session
+        session.expunge_all()
+        include_all_attempts = {"include_all_attempts": True}
+
+        assert set(session.scalars(select(TaskInstance.id))) == {CURRENT_ID}
+        assert session.scalar(select(func.min(TaskInstance.try_number))) == 2
+        assert session.scalar(select(TaskInstance.id).where(TaskInstance.id == HISTORY_ID)) is None
+        assert set(session.scalars(select(TaskInstance.id).execution_options(**include_all_attempts))) == {
+            CURRENT_ID,
+            HISTORY_ID,
+        }
+        assert session.scalar(
+            select(TaskInstance.id)
+            .where(TaskInstance.id == HISTORY_ID)
+            .execution_options(**include_all_attempts)
+        )
+
+    def test_primary_key_lookups_see_retired_attempts(self, ownership_session):
+        session = ownership_session
+        session.expunge_all()
+
+        retired = session.get(TaskInstance, HISTORY_ID)
+
+        assert retired is not None
+        assert retired.working_set is None
+        retired.state = TaskInstanceState.SKIPPED
+        merged = session.merge(retired)
+        assert merged is retired
+
+    def test_bulk_update_ignores_retired_attempts(self, ownership_session):
+        session = ownership_session
+
+        updated = session.execute(update(TaskInstance).values(pid=99)).rowcount
+
+        assert updated == 1
+        pids = {
+            row.id: row.pid
+            for row in session.execute(
+                select(TaskInstance.id, TaskInstance.pid).execution_options(include_all_attempts=True)
+            )
+        }
+        assert pids[CURRENT_ID] == 99
+        assert pids[HISTORY_ID] != 99
+
+    def test_retired_attempt_loads_through_relationships_and_refresh(self, ownership_session):
+        session = ownership_session
+        retired = session.get(TaskInstance, HISTORY_ID, execution_options={"include_all_attempts": True})
+        retired.note = "kept"
+        session.flush()
+        session.expire_all()
+
+        note = session.scalar(select(TaskInstanceNote).where(TaskInstanceNote.ti_id == HISTORY_ID))
+        assert note.task_instance.id == HISTORY_ID
+        retired.refresh_from_db(session=session)
+        assert retired.working_set is None
 
     def test_filter_for_tis_selects_only_the_current_attempt(self, ownership_session):
         session = ownership_session
@@ -3050,13 +3135,27 @@ class TestTaskInstance:
         assert current is attempt
         assert current.state == TaskInstanceState.RESTARTING
         assert current.working_set is True
-        assert session.scalar(sa.select(sa.func.count()).select_from(TaskInstance)) == 2
+        assert (
+            session.scalar(
+                sa.select(sa.func.count())
+                .select_from(TaskInstance)
+                .execution_options(include_all_attempts=True)
+            )
+            == 2
+        )
         successor = current.complete_restart(session=session)
         assert successor.state is None
         assert successor.external_executor_id is None
         assert current.id == CURRENT_ID
         assert current.working_set is None
-        assert session.scalar(sa.select(sa.func.count()).select_from(TaskInstance)) == 3
+        assert (
+            session.scalar(
+                sa.select(sa.func.count())
+                .select_from(TaskInstance)
+                .execution_options(include_all_attempts=True)
+            )
+            == 3
+        )
         with pytest.raises(ValueError, match="current restarting"):
             current.complete_restart(session=session)
 
@@ -3132,7 +3231,11 @@ class TestTaskInstance:
         if delete_method == "orm":
             session.delete(target)
         else:
-            session.execute(sa.delete(TaskInstance).where(TaskInstance.id == target.id))
+            session.execute(
+                sa.delete(TaskInstance)
+                .where(TaskInstance.id == target.id)
+                .execution_options(include_all_attempts=True)
+            )
         session.flush()
         session.expire_all()
 
@@ -4958,6 +5061,7 @@ def test_failure_listener_receives_failed_try_before_rotation(
             select(TaskInstance)
             .where(TaskInstance.working_set.is_(None))
             .where(TaskInstance.id == original_id)
+            .execution_options(include_all_attempts=True)
         )
         assert history.try_number == 1
         assert history.state == State.FAILED

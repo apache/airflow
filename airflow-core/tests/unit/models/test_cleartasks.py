@@ -131,6 +131,7 @@ class TestClearTasks:
                     TaskInstance.run_id == attempt.run_id,
                     TaskInstance.task_id == attempt.task_id,
                 )
+                .execution_options(include_all_attempts=True)
             )
             == expected_rows
         )
@@ -152,7 +153,10 @@ class TestClearTasks:
             assert (ti.id, ti.try_number, ti.state) == (attempt_id, 4, TaskInstanceState.RESTARTING)
             assert (
                 session.scalar(
-                    select(func.count()).select_from(TaskInstance).where(TaskInstance.working_set.is_(None))
+                    select(func.count())
+                    .select_from(TaskInstance)
+                    .where(TaskInstance.working_set.is_(None))
+                    .execution_options(include_all_attempts=True)
                 )
                 == 0
             )
@@ -214,8 +218,10 @@ class TestClearTasks:
         assert (ti.try_number, ti.state) == (2, TaskInstanceState.UP_FOR_RETRY)
         retry_dep = NotInRetryPeriodDep()
         assert not retry_dep.is_met(ti, session=session)
-        history_query = select(TaskInstance.id, TaskInstance.try_number).where(
-            TaskInstance.dag_id == ti.dag_id, TaskInstance.working_set.is_(None)
+        history_query = (
+            select(TaskInstance.id, TaskInstance.try_number)
+            .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.working_set.is_(None))
+            .execution_options(include_all_attempts=True)
         )
         history_before = session.execute(history_query).mappings().all()
         assert [(row.id, row.try_number) for row in history_before] == [(failed_id, 1)]
@@ -253,6 +259,7 @@ class TestClearTasks:
                     select(func.count())
                     .select_from(TaskInstance)
                     .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.working_set.is_(None))
+                    .execution_options(include_all_attempts=True)
                 )
                 == 0
             )
@@ -399,11 +406,27 @@ class TestClearTasks:
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
         qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
-        assert session.scalar(select(func.count()).select_from(TI).where(TI.working_set.is_(None))) == 0
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(TI)
+                .where(TI.working_set.is_(None))
+                .execution_options(include_all_attempts=True)
+            )
+            == 0
+        )
         clear_task_instances(qry, session, dag_run_state=state)
         session.flush()
         # 2 TIs were cleared so 2 history records should be created
-        assert session.scalar(select(func.count()).select_from(TI).where(TI.working_set.is_(None))) == 2
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(TI)
+                .where(TI.working_set.is_(None))
+                .execution_options(include_all_attempts=True)
+            )
+            == 2
+        )
 
         session.refresh(dr)
 
@@ -758,7 +781,9 @@ class TestClearTasks:
         session.flush()
 
         session.refresh(dr)
-        ti_history = session.scalars(select(TI.state).where(TI.working_set.is_(None))).all()
+        ti_history = session.scalars(
+            select(TI.state).where(TI.working_set.is_(None)).execution_options(include_all_attempts=True)
+        ).all()
 
         assert ti_history == ([str(state_recorded)] * 2 if state_recorded else [])
 

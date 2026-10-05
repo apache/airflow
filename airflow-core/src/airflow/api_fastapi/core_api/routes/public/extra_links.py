@@ -73,17 +73,17 @@ def get_extra_links(
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
 
-    ti = session.scalar(
-        select(TaskInstance).where(
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == dag_run_id,
-            TaskInstance.task_id == task_id,
-            TaskInstance.map_index == map_index,
-            TaskInstance.working_set.is_(True)
-            if try_number is None
-            else TaskInstance.try_number == try_number,
-        )
+    query = select(TaskInstance).where(
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.run_id == dag_run_id,
+        TaskInstance.task_id == task_id,
+        TaskInstance.map_index == map_index,
     )
+    if try_number is not None:
+        query = query.where(TaskInstance.try_number == try_number).execution_options(
+            include_all_attempts=True
+        )
+    ti = session.scalar(query)
 
     if not ti:
         raise HTTPException(

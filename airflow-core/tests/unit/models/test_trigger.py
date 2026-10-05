@@ -510,6 +510,7 @@ def test_submit_event_task_end_failed_respects_retries(
             TaskInstance.task_id == ti.task_id,
             TaskInstance.run_id == ti.run_id,
         )
+        .execution_options(include_all_attempts=True)
     ).all()
     if expect_history_row:
         assert len(tih) == 1

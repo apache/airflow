@@ -4580,7 +4580,11 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         self.create_task_instances(
             session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
         )
-        historical = session.scalar(select(TaskInstance).where(TaskInstance.working_set.is_(None)))
+        historical = session.scalar(
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .execution_options(include_all_attempts=True)
+        )
         historical.dag_version_id = None
         session.commit()
 
@@ -6439,11 +6443,13 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         session.delete(next(ti for ti in current_tis if ti.map_index == 2))
         session.flush()
         task_rows = session.scalars(
-            select(TaskInstance).where(
+            select(TaskInstance)
+            .where(
                 TaskInstance.dag_id == self.DAG_ID,
                 TaskInstance.run_id == self.RUN_ID,
                 TaskInstance.task_id == self.TASK_ID,
             )
+            .execution_options(include_all_attempts=True)
         ).all()
         ids_by_index = {
             map_index: {ti.id for ti in task_rows if ti.map_index == map_index} for map_index in (0, 1, 2)
@@ -6457,7 +6463,11 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 == 404
             )
             assert (
-                session.scalar(select(TaskInstance.id).where(TaskInstance.id.in_(ids_by_index[2])))
+                session.scalar(
+                    select(TaskInstance.id)
+                    .where(TaskInstance.id.in_(ids_by_index[2]))
+                    .execution_options(include_all_attempts=True)
+                )
                 in ids_by_index[2]
             )
             response = test_client.delete(f"{self.ENDPOINT_URL}/{self.TASK_ID}", params={"map_index": 0})
@@ -6481,11 +6491,13 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         assert (
             set(
                 session.scalars(
-                    select(TaskInstance.id).where(
+                    select(TaskInstance.id)
+                    .where(
                         TaskInstance.dag_id == self.DAG_ID,
                         TaskInstance.run_id == self.RUN_ID,
                         TaskInstance.task_id == self.TASK_ID,
                     )
+                    .execution_options(include_all_attempts=True)
                 )
             )
             == remaining_ids

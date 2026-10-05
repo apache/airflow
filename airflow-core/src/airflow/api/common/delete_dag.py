@@ -57,7 +57,6 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, *, session: Sessio
         select(models.TaskInstance.state)
         .where(
             models.TaskInstance.dag_id == dag_id,
-            models.TaskInstance.working_set.is_(True),
             models.TaskInstance.state == TaskInstanceState.RUNNING,
         )
         .limit(1)

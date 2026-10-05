@@ -261,7 +261,9 @@ class TestDBCleanup:
 
     def test_task_instance_history_alias_cleans_only_retired_attempts(self, ownership_session):
         session = ownership_session
-        session.execute(sa.update(TaskInstance).values(start_date=NOW))
+        session.execute(
+            sa.update(TaskInstance).values(start_date=NOW).execution_options(include_all_attempts=True)
+        )
         session.commit()
 
         run_cleanup(
@@ -1563,7 +1565,9 @@ class TestDBCleanup:
         self, ownership_session, parent, dry_run, skip_archive
     ):
         session = ownership_session
-        session.execute(sa.update(TaskInstance).values(start_date=NOW))
+        session.execute(
+            sa.update(TaskInstance).values(start_date=NOW).execution_options(include_all_attempts=True)
+        )
         XComModel.set_for_attempt(task_instance_id=CURRENT_ID, key="new", value=123, session=session)
         session.execute(sa.update(XComModelV2).values(timestamp=NOW + timedelta(days=30)))
         session.execute(
@@ -1619,7 +1623,9 @@ class TestDBCleanup:
     @pytest.mark.execution_timeout(10)
     def test_cleanup_reuses_child_archives_across_parent_batches(self, ownership_session):
         session = ownership_session
-        session.execute(sa.update(TaskInstance).values(start_date=NOW))
+        session.execute(
+            sa.update(TaskInstance).values(start_date=NOW).execution_options(include_all_attempts=True)
+        )
         for attempt in session.scalars(sa.select(TaskInstance)):
             XComModel.set_for_attempt(
                 task_instance_id=attempt.id, key="per_attempt", value=str(attempt.id), session=session

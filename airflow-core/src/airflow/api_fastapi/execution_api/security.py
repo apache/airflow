@@ -250,7 +250,11 @@ async def _require_live_attempt(token: TIToken, *, allow_callback: bool) -> None
     """
     async with create_session_async() as session:
         attempt = (
-            await session.execute(select(TaskInstance.working_set).where(TaskInstance.id == token.id))
+            await session.execute(
+                select(TaskInstance.working_set)
+                .where(TaskInstance.id == token.id)
+                .execution_options(include_all_attempts=True)
+            )
         ).one_or_none()
         if attempt is not None and attempt.working_set:
             return

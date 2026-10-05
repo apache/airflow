@@ -303,7 +303,6 @@ class TriggerRuleDep(BaseTIDep):
                 task_id_counts = session.execute(
                     select(TaskInstance.task_id, func.count(TaskInstance.task_id))
                     .where(
-                        TaskInstance.working_set.is_(True),
                         TaskInstance.dag_id == ti.dag_id,
                         TaskInstance.run_id == ti.run_id,
                     )
@@ -415,7 +414,6 @@ class TriggerRuleDep(BaseTIDep):
                         for task_id, count in session.execute(
                             select(TaskInstance.task_id, func.count(TaskInstance.task_id))
                             .where(
-                                TaskInstance.working_set.is_(True),
                                 TaskInstance.dag_id == ti.dag_id,
                                 TaskInstance.run_id == ti.run_id,
                             )
@@ -715,7 +713,6 @@ class TriggerRuleDep(BaseTIDep):
                     session.scalar(
                         select(func.count(TaskInstance.task_id))
                         .where(
-                            TaskInstance.working_set.is_(True),
                             TaskInstance.dag_id == ti.dag_id,
                             TaskInstance.run_id == ti.run_id,
                         )

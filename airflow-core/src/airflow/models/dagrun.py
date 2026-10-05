@@ -591,6 +591,7 @@ class DagRun(Base, LoggingMixin):
                 TI.run_id == self.run_id,
             )
             .limit(1)
+            .execution_options(include_all_attempts=True)
         )
         return session.scalar(select_stmt)
 
@@ -973,7 +974,6 @@ class DagRun(Base, LoggingMixin):
             select(TI)
             .options(joinedload(TI.dag_run))
             .where(
-                TI.working_set.is_(True),
                 TI.dag_id == dag_id,
                 TI.run_id == run_id,
             )
@@ -1102,9 +1102,7 @@ class DagRun(Base, LoggingMixin):
         :param session: Sqlalchemy ORM Session
         """
         return session.scalars(
-            select(TI)
-            .where(TI.working_set.is_(True))
-            .filter_by(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
+            select(TI).filter_by(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
         ).one_or_none()
 
     def get_dag(self) -> SerializedDAG:
@@ -1788,7 +1786,7 @@ class DagRun(Base, LoggingMixin):
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)
         if tis_filter is not None:
-            fresh_tis = session.scalars(select(TI).where(TI.working_set.is_(True), tis_filter)).all()
+            fresh_tis = session.scalars(select(TI).where(tis_filter)).all()
             changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
 
         return ready_tis, changed_tis, expansion_happened
@@ -2181,7 +2179,6 @@ class DagRun(Base, LoggingMixin):
 
         query = session.scalars(
             select(TI.map_index).where(
-                TI.working_set.is_(True),
                 TI.dag_id == self.dag_id,
                 TI.task_id == task.task_id,
                 TI.run_id == self.run_id,
@@ -2194,7 +2191,6 @@ class DagRun(Base, LoggingMixin):
             session.execute(
                 update(TI)
                 .where(
-                    TI.working_set.is_(True),
                     TI.dag_id == self.dag_id,
                     TI.task_id == task.task_id,
                     TI.run_id == self.run_id,
@@ -2309,7 +2305,7 @@ class DagRun(Base, LoggingMixin):
             for id_chunk in schedulable_ti_ids_chunks:
                 result = session.execute(
                     update(TI)
-                    .where(TI.working_set.is_(True), TI.id.in_(id_chunk), schedulable_state_clause)
+                    .where(TI.id.in_(id_chunk), schedulable_state_clause)
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
@@ -2320,9 +2316,7 @@ class DagRun(Base, LoggingMixin):
                 count += getattr(result, "rowcount", 0)
                 if debug_try_number_check:
                     rows = session.execute(
-                        select(TI.id, TI.try_number, TI.state).where(
-                            TI.working_set.is_(True), TI.id.in_(id_chunk)
-                        )
+                        select(TI.id, TI.try_number, TI.state).where(TI.id.in_(id_chunk))
                     ).all()
                     rows_by_ti_id = {
                         ti_id: (db_try_number, db_state) for ti_id, db_try_number, db_state in rows
@@ -2359,7 +2353,7 @@ class DagRun(Base, LoggingMixin):
             for id_chunk in dummy_ti_ids_chunks:
                 result = session.execute(
                     update(TI)
-                    .where(TI.working_set.is_(True), TI.id.in_(id_chunk), schedulable_state_clause)
+                    .where(TI.id.in_(id_chunk), schedulable_state_clause)
                     .values(
                         state=TaskInstanceState.SUCCESS,
                         start_date=timezone.utcnow(),
@@ -2528,7 +2522,6 @@ def clear_partition_runs(
             chunk_tis = list(
                 session.scalars(
                     select(TI).where(
-                        TI.working_set.is_(True),
                         TI.dag_id == dag_id,
                         TI.run_id.in_(ti_buffer_run_ids),
                     )
@@ -2577,7 +2570,6 @@ def clear_partition_runs(
                         select(func.count())
                         .select_from(TI)
                         .where(
-                            TI.working_set.is_(True),
                             TI.dag_id == dag_id,
                             TI.run_id.in_(chunk),
                         )

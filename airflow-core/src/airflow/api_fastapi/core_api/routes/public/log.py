@@ -134,6 +134,7 @@ def get_log(
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
         .options(joinedload(TaskInstance.dag_model))
+        .execution_options(include_all_attempts=True)
     )
     ti = session.scalar(query)
     if ti is None:

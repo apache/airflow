@@ -1451,7 +1451,10 @@ class TestTIUpdateState:
         assert current.max_tries == expected_max_tries
         assert current.state is None
         history = session.scalar(
-            select(TaskInstance).where(TaskInstance.working_set.is_(None)).where(TaskInstance.id == old_id)
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.id == old_id)
+            .execution_options(include_all_attempts=True)
         )
         assert history.try_number == 3
         assert history.end_date == DEFAULT_END_DATE
@@ -1462,7 +1465,10 @@ class TestTIUpdateState:
         assert (current.id, current.try_number, current.state) == (new_id, 4, None)
         assert current.max_tries == expected_max_tries
         assert session.scalars(
-            select(TaskInstance).where(TaskInstance.working_set.is_(None)).where(TaskInstance.id == old_id)
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.id == old_id)
+            .execution_options(include_all_attempts=True)
         ).all() == [history]
 
     @pytest.mark.parametrize("first_report", ["api", "executor"])
@@ -1551,6 +1557,7 @@ class TestTIUpdateState:
                         select(TaskInstance)
                         .where(TaskInstance.working_set.is_(None))
                         .where(TaskInstance.task_id == "restart_reports")
+                        .execution_options(include_all_attempts=True)
                     )
                     is None
                 )
@@ -1564,6 +1571,7 @@ class TestTIUpdateState:
                 select(TaskInstance)
                 .where(TaskInstance.working_set.is_(None))
                 .where(TaskInstance.task_id == "restart_reports")
+                .execution_options(include_all_attempts=True)
             ).one()
             assert (history.id, history.try_number, history.state) == (old_id, 3, State.FAILED)
 
@@ -2461,6 +2469,7 @@ class TestTIUpdateState:
             select(TaskInstance)
             .where(TaskInstance.working_set.is_(None))
             .where(TaskInstance.task_id == ti.task_id, TaskInstance.run_id == ti.run_id)
+            .execution_options(include_all_attempts=True)
         ).one()
         assert tih.id
         assert tih.id != ti.id
@@ -2535,6 +2544,7 @@ class TestTIUpdateState:
             select(TaskInstance)
             .where(TaskInstance.working_set.is_(None))
             .where(TaskInstance.task_id == "retired_attempt_report")
+            .execution_options(include_all_attempts=True)
         ).all()
         assert [(attempt.id, attempt.try_number) for attempt in history] == [(old_id, 3)]
 
@@ -2600,6 +2610,7 @@ class TestTIUpdateState:
                 TaskInstance.task_id == ti.task_id,
                 TaskInstance.run_id == ti.run_id,
             )
+            .execution_options(include_all_attempts=True)
         ).one()
         assert tih.retry_delay_override == 42.5
         assert tih.retry_reason == "Rate limit: backing off"
@@ -2652,6 +2663,7 @@ class TestTIUpdateState:
                 TaskInstance.task_id == ti.task_id,
                 TaskInstance.run_id == ti.run_id,
             )
+            .execution_options(include_all_attempts=True)
         ).one()
         assert tih.rendered_map_index is None
 
@@ -2690,6 +2702,7 @@ class TestTIUpdateState:
                 TaskInstance.task_id == ti.task_id,
                 TaskInstance.run_id == ti.run_id,
             )
+            .execution_options(include_all_attempts=True)
         ).one()
         assert tih.retry_delay_override is None
         assert tih.retry_reason is None
@@ -3435,7 +3448,10 @@ class TestTIHealthEndpoint:
 
         assert session.get(TaskInstance, old_ti_id) is not None
         tih = session.scalar(
-            select(TaskInstance).where(TaskInstance.working_set.is_(None)).where(TaskInstance.id == old_ti_id)
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.id == old_ti_id)
+            .execution_options(include_all_attempts=True)
         )
         assert tih is not None
 
@@ -3553,13 +3569,7 @@ class TestTIHealthEndpoint:
 
         assert response.status_code == 204
         assert len(task_instance_updates) == 1
-        assert _where_column_keys(task_instance_updates[0]) == {
-            "id",
-            "state",
-            "hostname",
-            "pid",
-            "working_set",
-        }
+        assert _where_column_keys(task_instance_updates[0]) == {"id", "state", "hostname", "pid"}
         assert len(for_update_selects) == 0
         session.refresh(ti)
         assert ti.last_heartbeat_at == new_time

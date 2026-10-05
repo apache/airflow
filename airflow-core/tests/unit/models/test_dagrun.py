@@ -2171,7 +2171,10 @@ def test_restoring_removed_task_allocates_attempt_once(dag_maker, session, try_n
         session.flush()
 
     history = session.scalar(
-        select(TaskInstance).where(TaskInstance.working_set.is_(None)).where(TaskInstance.id == old_id)
+        select(TaskInstance)
+        .where(TaskInstance.working_set.is_(None))
+        .where(TaskInstance.id == old_id)
+        .execution_options(include_all_attempts=True)
     )
     current = dr.get_task_instance("task", map_index=0 if mapped else -1, session=session)
     assert current.state is None
@@ -2214,7 +2217,10 @@ def test_verifying_removed_map_index_does_not_allocate_attempt(dag_maker, sessio
     assert ti.try_number == 2
     assert (
         session.scalar(
-            select(TaskInstance).where(TaskInstance.working_set.is_(None)).where(TaskInstance.id == old_id)
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.id == old_id)
+            .execution_options(include_all_attempts=True)
         )
         is None
     )

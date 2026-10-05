@@ -245,7 +245,6 @@ class Trigger(Base):
                 session.execute(
                     update(TaskInstance)
                     .where(
-                        TaskInstance.working_set.is_(True),
                         TaskInstance.state != TaskInstanceState.DEFERRED,
                         TaskInstance.trigger_id.is_not(None),
                     )
@@ -282,7 +281,6 @@ class Trigger(Base):
         # Resume deferred tasks
         for task_instance in session.scalars(
             select(TaskInstance).where(
-                TaskInstance.working_set.is_(True),
                 TaskInstance.trigger_id == trigger_id,
                 TaskInstance.state == TaskInstanceState.DEFERRED,
             )
@@ -323,7 +321,6 @@ class Trigger(Base):
         """
         for task_instance in session.scalars(
             select(TaskInstance).where(
-                TaskInstance.working_set.is_(True),
                 TaskInstance.trigger_id == trigger_id,
                 TaskInstance.state == TaskInstanceState.DEFERRED,
             )
@@ -475,7 +472,6 @@ class Trigger(Base):
             .prefix_with("STRAIGHT_JOIN", dialect="mysql")
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
             .where(
-                TaskInstance.working_set.is_(True),
                 or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
             )
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),

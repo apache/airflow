@@ -711,6 +711,7 @@ class TestSchedulerJob:
             select(TaskInstance)
             .where(TaskInstance.working_set.is_(None))
             .where(TaskInstance.dag_id == dag_id)
+            .execution_options(include_all_attempts=True)
         ).one()
         assert (history.id, history.try_number, history.state) == (retiring_id, 4, State.FAILED)
         assert history.max_tries == max_tries
@@ -722,7 +723,10 @@ class TestSchedulerJob:
         assert (replacement.id, replacement.try_number, replacement.state) == (replacement_id, 5, None)
         assert (
             session.scalar(
-                select(func.count()).select_from(TaskInstance).where(TaskInstance.dag_id == dag_id)
+                select(func.count())
+                .select_from(TaskInstance)
+                .where(TaskInstance.dag_id == dag_id)
+                .execution_options(include_all_attempts=True)
             )
             == 2
         )
@@ -751,6 +755,7 @@ class TestSchedulerJob:
                 .select_from(TaskInstance)
                 .where(TaskInstance.working_set.is_(None))
                 .where(TaskInstance.dag_id == ti.dag_id)
+                .execution_options(include_all_attempts=True)
             )
             == 0
         )
@@ -887,8 +892,12 @@ class TestSchedulerJob:
         self.job_runner.executor.callback_sink.send.assert_not_called()
 
         # ti in success state
-        ti1.state = State.SUCCESS
-        session.merge(ti1)
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti1.id)
+            .values(state=State.SUCCESS)
+            .execution_options(include_all_attempts=True)
+        )
         session.commit()
         executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
 
@@ -5844,6 +5853,7 @@ class TestSchedulerJob:
                     TaskInstance.try_number == old_try_number,
                     TaskInstance.id == old_ti_id,
                 )
+                .execution_options(include_all_attempts=True)
             )
             is not None
         )
@@ -5903,7 +5913,10 @@ class TestSchedulerJob:
         assert (ti.id, ti.state, ti.working_set) == (old_ti_id, State.FAILED, None)
 
         tih = session.scalar(
-            select(TaskInstance).where(TaskInstance.working_set.is_(None)).where(TaskInstance.id == old_ti_id)
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.id == old_ti_id)
+            .execution_options(include_all_attempts=True)
         )
         assert tih is not None, "TaskInstanceHistory must be created for non-RUNNING retry"
         assert tih.try_number == 1
@@ -10283,6 +10296,7 @@ class TestSchedulerJob:
             select(TaskInstance)
             .where(TaskInstance.working_set.is_(None))
             .where(TaskInstance.dag_id == ti.dag_id)
+            .execution_options(include_all_attempts=True)
         ).one()
         assert (history.id, history.try_number, history.state) == (old_id, 3, State.FAILED)
 

@@ -208,11 +208,11 @@ class RenderedTaskInstanceFields(Base):
             )
             .exists()
         )
-        session.execute(delete(legacy).where(owns_legacy))
+        session.execute(delete(legacy).where(owns_legacy).execution_options(include_all_attempts=True))
         session.execute(
             delete(cls)
             .where(cls.task_instance_id.in_(producer_ids))
-            .execution_options(synchronize_session="fetch")
+            .execution_options(synchronize_session="fetch", include_all_attempts=True)
         )
 
     @staticmethod
@@ -222,13 +222,15 @@ class RenderedTaskInstanceFields(Base):
         from airflow.models.taskinstance import TaskInstance
 
         return session.scalar(
-            select(TaskInstance.id).where(
+            select(TaskInstance.id)
+            .where(
                 TaskInstance.dag_id == ti.dag_id,
                 TaskInstance.task_id == ti.task_id,
                 TaskInstance.run_id == ti.run_id,
                 TaskInstance.map_index == ti.map_index,
                 TaskInstance.try_number == ti.try_number,
             )
+            .execution_options(include_all_attempts=True)
         )
 
     def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
