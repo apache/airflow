@@ -1,4 +1,10 @@
 {
+  "alerts": {
+    "seeLessContext": "Bekijk minder",
+    "seeMoreContext": "Bekijk meer",
+    "showMoreAlerts_one": "+{{count}} andere waarschuwing",
+    "showMoreAlerts_other": "+{{count}} meer waarschuwingen"
+  },
   "deadlines": {
     "pending": {
       "empty": "Geen aankomende deadlines",
@@ -22,14 +28,29 @@
   "group": "Groep",
   "health": {
     "dagProcessor": "Dag Processor",
+    "degraded": "Verminderd",
+    "degradedHint": {
+      "dagProcessor": "Sommige geconfigureerde Dag-bundels hebben geen Dag Processor die ze analyseert.",
+      "triggerer": "Sommige teams hebben geen triggerer die uitgestelde taken voor hen uitvoert."
+    },
+    "down": "Uitgevallen",
     "health": "Status",
     "healthy": "OK",
+    "instances": {
+      "bundles": "Bundels",
+      "hostname": "Host",
+      "team": "Team",
+      "title_one": "{{title}} — {{status}} ({{count}} instantie)",
+      "title_other": "{{title}} — {{status}} ({{count}} instanties)",
+      "unknownHostname": "Onbekende host"
+    },
     "lastHeartbeat": "Laatste hartslag",
     "metaDatabase": "MetaDatabase",
     "scheduler": "Scheduler",
     "status": "Status",
     "triggerer": "Triggerer",
-    "unhealthy": "Fout"
+    "unhealthy": "Fout",
+    "unknownStatus": "Onbekend"
   },
   "history": "Geschiedenis",
   "importErrors": {
