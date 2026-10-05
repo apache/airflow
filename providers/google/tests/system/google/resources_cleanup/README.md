@@ -111,6 +111,15 @@ Example configuration:
 -   To clean up only resources that are old enough:
     `python -m airflow_google_provider_resource_cleanup delete --project-id <PROJECT_ID> --asset-type dataproc --min-age-days 3`
 
+-   To clean up AlloyDB instances, clusters, and eligible backups:
+    `python -m airflow_google_provider_resource_cleanup delete --project-id <PROJECT_ID> --asset-type alloydb`
+
+    AlloyDB cleanup processes instances, clusters, and then backups. Cluster
+    deletion sets `force=True` to remove any remaining instances. AlloyDB can
+    reject deletion of backups protected by an active retention policy or a
+    dependency chain; see the
+    [AlloyDB backup deletion restrictions](https://cloud.google.com/alloydb/docs/backup/delete).
+
 -   To skip a service group during deletion, for example Composer:
     `python -m airflow_google_provider_resource_cleanup delete --project-id <PROJECT_ID> --skip-asset-type composer`
 

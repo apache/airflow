@@ -139,7 +139,7 @@ def get_resource_name_for_compute(resource: dict) -> str:
     return resource_path.replace("//compute.googleapis.com/", "")
 
 
-async def curl(url, method="DELETE", log_prefix=""):
+async def curl(url, log_prefix="", method="DELETE"):
     cmd = f"""
         curl -X {method} \
             -H "Authorization: Bearer $(gcloud auth print-access-token)" \

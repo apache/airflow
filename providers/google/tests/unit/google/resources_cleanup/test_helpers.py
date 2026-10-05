@@ -237,6 +237,15 @@ def test_run_command():
 
 
 @pytest.mark.anyio
+@patch.object(helpers, "run_command_async", new_callable=AsyncMock)
+async def test_curl_accepts_log_prefix_as_second_positional_argument(mock_run_command_async):
+    await helpers.curl("https://example.test/resource", "[test] ")
+
+    command = mock_run_command_async.await_args.args[0]
+    assert "curl -X DELETE" in command
+
+
+@pytest.mark.anyio
 async def test_run_command_async():
     process = MagicMock()
     process.returncode = 0
