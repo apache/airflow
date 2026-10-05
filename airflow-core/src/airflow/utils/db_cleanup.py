@@ -364,9 +364,9 @@ _HISTORY_CONFIG = dataclasses.replace(
 )
 
 
-def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
+def _check_for_rows(*, session: Session, query: Select, table_name: str, print_rows: bool = False) -> int:
     num_entities = session.scalars(select(func.count()).select_from(query.subquery())).one()
-    print(f"Found {num_entities} rows meeting deletion criteria.")
+    print(f"Found {num_entities} rows in table {table_name} meeting deletion criteria.")
     if not print_rows or num_entities == 0:
         return num_entities
 
@@ -499,9 +499,9 @@ def _do_delete(
         suffix = f"__b{batch_no}" if batch_size else ""
 
         if batch_size:
-            print(f"Performing Delete (batch {batch_no}, max {batch_size} rows)...")
+            print(f"Performing Delete from {source_table_name} (batch {batch_no}, max {batch_size} rows)...")
         else:
-            print("Performing Delete...")
+            print(f"Performing Delete from {source_table_name}...")
 
         # using bulk delete
         # create a new table and copy the rows there
@@ -510,7 +510,7 @@ def _do_delete(
             orm_model.schema,
             f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}",
         )
-        print(f"Moving data to table {target_table_name}")
+        print(f"Moving data from {source_table_name} to table {target_table_name}")
         target_table = None
         # Lets the ``finally`` cleanup below tell the failure path (don't let a
         # cleanup error mask the original) from the success path (a cleanup error
@@ -574,6 +574,11 @@ def _do_delete(
             logger.debug("delete statement:\n%s", delete.compile())
             deleted = cast("CursorResult", session.execute(delete)).rowcount
             session.commit()
+            row_label = "row" if deleted == 1 else "rows"
+            if batch_size:
+                print(f"Deleted {deleted} {row_label} from {source_table_name} (batch {batch_no}).")
+            else:
+                print(f"Deleted {deleted} {row_label} from {source_table_name}.")
 
             # A guarded DELETE (skip_if_referenced) may delete fewer rows than the SELECT
             # found. The SELECT includes the same NOT EXISTS guard, so the skipped row is
@@ -636,7 +641,7 @@ def _do_delete(
                         exc_info=True,
                     )
 
-    print("Finished Performing Delete")
+    print(f"Finished Performing Delete from {source_table_name}")
 
 
 def _subquery_keep_last(
@@ -811,7 +816,12 @@ def _cleanup_table(
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
     print(f"Checking table {orm_model.name}")
-    num_rows = _check_for_rows(session=session, query=query, print_rows=False)
+    num_rows = _check_for_rows(
+        session=session,
+        query=query,
+        table_name=orm_model.name,
+        print_rows=False,
+    )
 
     if num_rows and not dry_run:
         if orm_model.name == "xcom_v2":
