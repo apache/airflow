@@ -52,6 +52,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
     TASK_INSTANCE_ID_ANNOTATION,
+    TASK_INSTANCE_ID_LABEL,
     FailureDetails,
     KubernetesJob,
     KubernetesResults,
@@ -1042,14 +1043,13 @@ class KubernetesExecutor(BaseExecutor):
                 run_id=ti.run_id,
                 airflow_worker=ti.queued_by_job_id,
             )
+            if self.supports_task_instance_uuid:
+                selector += f",{TASK_INSTANCE_ID_LABEL}={ti.id}"
             namespace = self._get_pod_namespace(ti)
             pod_list = client.list_namespaced_pod(
                 namespace=namespace,
                 label_selector=selector,
             ).items
-            if self.supports_task_instance_uuid:
-                # Annotations cannot be label-selected, so the attempt's UUID is checked on the listed pods.
-                pod_list = [pod for pod in pod_list if task_instance_id_from_pod(pod) == ti.id]
             if not pod_list:
                 raise RuntimeError("Cannot find pod for ti %s", ti)
             if len(pod_list) > 1:
