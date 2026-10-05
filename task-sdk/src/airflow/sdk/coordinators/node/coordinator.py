@@ -111,6 +111,8 @@ class NodeCoordinator(SubprocessCoordinator):
     :param task_handler_bundle_name: Name of the Dag bundle searched recursively for the first
         verified ``*.min.mjs`` bundle declaring the task instance's Dag. It must be registered in
         ``[dag_processor] dag_bundle_config_list``. If unset, the task's own Dag bundle is used.
+        The ``*.min.mjs`` bundle found also answers a task handler parse request with the task
+        handlers it registers.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
 
@@ -139,4 +141,18 @@ class NodeCoordinator(SubprocessCoordinator):
         return self._build_bundle_command(path)
 
     def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        return self._build_bundle_command(path)
+
+    def _find_task_handler_artifact(self, *, bundle_path: pathlib.Path, dag_id: str) -> ResolvedBundle:
+        """
+        Return the bundle a task of *dag_id* runs, with symlinks in its path resolved.
+
+        Compute its path in the Dag bundle relative to ``bundle_path.resolve()``, since *bundle_path*
+        may contain symlinks. A bundle with a supervisor schema version this Task SDK does not know
+        is skipped like any unusable bundle, so it leads to ``FileNotFoundError``, never ``ValueError``.
+        """
+        bundle = _Bundle.find([bundle_path], dag_id)
+        return ResolvedBundle(bundle.path.resolve(), bundle.schema_version)
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         return self._build_bundle_command(path)

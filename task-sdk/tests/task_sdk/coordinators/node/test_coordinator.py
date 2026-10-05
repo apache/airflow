@@ -34,7 +34,7 @@ from task_sdk.coordinators.node._bundle_test_utils import (
 from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
-from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
+from airflow.sdk.coordinators._subprocess import TASK_HANDLER_PARSING_SCHEMA_VERSION, _PopenActivitySubprocess
 from airflow.sdk.coordinators.node import _bundle_reader as _reader
 from airflow.sdk.coordinators.node._bundle_reader import _digest_cache
 from airflow.sdk.coordinators.node.coordinator import NodeCoordinator, _Bundle
@@ -216,6 +216,128 @@ class TestNodeCoordinatorParseDagCommand:
 
         with pytest.raises(ValueError, match="code SHA-256 mismatch"):
             NodeCoordinator()._build_parse_dag_command(path=bundle)
+
+
+class TestNodeCoordinatorFindTaskHandlerArtifact:
+    def test_finds_the_bundle_a_task_of_the_dag_runs(self, tmp_path):
+        write_bundle(tmp_path, "other_dag", name="a.min.mjs")
+        write_bundle(tmp_path, "sales", name="b.min.mjs", schema_version="2026-10-30")
+        write_bundle(tmp_path, "sales", name="c.min.mjs")
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
+
+        artifact = coordinator._find_task_handler_artifact(bundle_path=tmp_path, dag_id="sales")
+
+        assert artifact.path == pathlib.Path(command[1]).resolve()
+        assert artifact.schema_version == schema_version == "2026-10-30"
+
+    def test_resolves_a_symlinked_bundle_root(self, tmp_path):
+        target = write_bundle(tmp_path / "real" / "team-a", "sales")
+        root = tmp_path / "bundle"
+        try:
+            root.symlink_to(tmp_path / "real", target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks not supported on this platform")
+
+        artifact = NodeCoordinator()._find_task_handler_artifact(bundle_path=root, dag_id="sales")
+
+        assert artifact.path == target.resolve()
+        assert artifact.path.relative_to(root.resolve()) == pathlib.Path("team-a", BUNDLE_NAME)
+
+    @pytest.mark.parametrize(
+        ("dag_id", "schema_version", "message"),
+        [
+            pytest.param(
+                "other_dag",
+                SCHEMA_VERSION,
+                r"verified bundle declares dag_ids=\['other_dag'\]",
+                id="no-bundle-declares-the-dag",
+            ),
+            pytest.param(
+                "sales",
+                "1999-01-01",
+                "Version '1999-01-01' not found",
+                id="unknown-schema-version",
+            ),
+        ],
+    )
+    def test_raises_file_not_found_when_no_bundle_can_run_the_dag(
+        self, tmp_path, dag_id, schema_version, message
+    ):
+        write_bundle(tmp_path, dag_id, schema_version=schema_version)
+
+        with pytest.raises(FileNotFoundError, match=message):
+            NodeCoordinator()._find_task_handler_artifact(bundle_path=tmp_path, dag_id="sales")
+
+
+def _write_plain_file(root: pathlib.Path) -> pathlib.Path:
+    path = root / BUNDLE_NAME
+    path.write_bytes(b"export {};\n")
+    return path
+
+
+def _write_tampered_bundle(root: pathlib.Path) -> pathlib.Path:
+    bundle = write_bundle(root, "sales")
+    mutate_section(bundle, "code")
+    return bundle
+
+
+class TestNodeCoordinatorParseTaskHandlerCommand:
+    def test_returns_node_and_the_bundle_schema_version(self, tmp_path):
+        # A bundle that declares no Dag: the Dag processor names the bundle, so its Dags play no part.
+        bundle = write_bundle(tmp_path)
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
+
+        command, schema_version = coordinator._build_parse_task_handler_command(path=bundle)
+
+        assert command == ["/opt/node/bin/node", str(bundle)]
+        assert schema_version == SCHEMA_VERSION
+
+    @pytest.mark.parametrize(
+        ("write", "error"),
+        [
+            pytest.param(_write_plain_file, "has no airflow bundle layout", id="not-a-bundle"),
+            pytest.param(_write_tampered_bundle, "code SHA-256 mismatch", id="tampered-code"),
+        ],
+    )
+    def test_rejects_a_bundle_that_fails_verification(self, tmp_path, write, error):
+        path = write(tmp_path)
+
+        with pytest.raises(ValueError, match=error):
+            NodeCoordinator()._build_parse_task_handler_command(path=path)
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch(
+        "airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec failed")
+    )
+    def test_the_probe_execs_what_a_task_of_the_dag_runs(
+        self, mock_execvpe, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        write_bundle(tmp_path, "sales", schema_version=TASK_HANDLER_PARSING_SCHEMA_VERSION)
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
+        with coordinator._set_scan_roots([tmp_path]):
+            command, _ = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
+        artifact = coordinator._find_task_handler_artifact(bundle_path=tmp_path, dag_id="sales")
+        reported: list[str | None] = []
+
+        with pytest.raises(OSError, match="exec failed"):
+            coordinator.parse_task_handler(
+                path=artifact.path,
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=reported.append,
+            )
+
+        assert reported == [TASK_HANDLER_PARSING_SCHEMA_VERSION]
+        # Node runs a symlinked bundle under its real path, so the resolved path runs the same module.
+        argv = [command[0], str(pathlib.Path(command[1]).resolve())]
+        mock_execvpe.assert_called_once_with(
+            argv[0], [*argv, "--comm=127.0.0.1:1001", "--logs=127.0.0.1:1002"], mock.ANY
+        )
 
 
 class TestBundleFind:
