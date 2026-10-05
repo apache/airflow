@@ -38,9 +38,9 @@ func (in inputs) applyTask(c *taskConfig) error {
 	return nil
 }
 
-// Inputs passes the results of tasks to the task that [DagRef.Task] or [DagRef.If] adds, and
-// makes each of those tasks an upstream task of the new one. It is the Go form of a Python
-// TaskFlow call such as transform(extract()):
+// Inputs passes the results of tasks to the task that [DagRef.Task], [DagRef.If], or one of the
+// methods of the same names on [TaskGroupRef] adds, and makes each of those tasks an upstream task
+// of the new one. It is the Go form of a Python TaskFlow call such as transform(extract()):
 //
 //	extracted := dag.Task(extract)
 //	transformed := dag.Task(transform, airflow.Inputs(extracted))
@@ -58,9 +58,9 @@ func (in inputs) applyTask(c *taskConfig) error {
 // fills. So each field of a struct parameter comes from the matching JSON key. A parameter of
 // type any gets a map[string]any when the result is a struct.
 //
-// When [DagRef.Task] or [DagRef.If] adds the task, it panics unless each parameter after the
-// Context gets exactly one task of the same Dag, and the result type of that task is assignable
-// to the parameter type, as in a Go function call. Pass at most one Inputs to a task.
+// The method that adds the task panics unless each parameter after the Context gets exactly one
+// task of the same Dag, inside a task group or not, and the result type of that task is
+// assignable to the parameter type, as in a Go function call. Pass at most one Inputs to a task.
 func Inputs(refs ...*TaskRef) TaskOption { return inputs(refs) }
 
 // checkInputs returns the tasks that task taskID got through Inputs, in a new slice. It panics if
@@ -89,7 +89,7 @@ func (d *DagRef) checkInputs(
 		case d.tasksByID[upstream.taskID] != upstream:
 			panic(fmt.Sprintf(
 				"%s: task %q of Dag %q: airflow.Inputs got a *airflow.TaskRef "+
-					"at index %d that DagRef.Task did not return",
+					"at index %d that DagRef.Task or TaskGroupRef.Task did not return",
 				method, taskID, d.dagID, i,
 			))
 		}

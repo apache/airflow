@@ -16,8 +16,8 @@
 // under the License.
 
 // Command genspec rewrites Airflow core's Dag serialization schema (go-sdk's vendored
-// copy of it, schema/dag-schema.json) into the schema the airflow package's DagSpec
-// and TaskSpec generate from, so that the two structs are not hand-maintained.
+// copy of it, schema/dag-schema.json) into the schema the airflow package's DagSpec,
+// TaskSpec and TaskGroupSpec generate from, so that the structs are not hand-maintained.
 //
 // The schema is owned by Python and stays untouched; the rewritten copy is a build
 // artifact. genspec rewrites it in two passes: shapeForAuthoring turns the

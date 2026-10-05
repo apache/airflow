@@ -420,12 +420,13 @@ a Dag author does not import `genmodels`. `TestDagRunStateMatchesGenmodels` fail
 the models adds, renames or removes a `DagRunState` constant. The test keeps failing until
 `airflow/enums.go` declares the same constants as `genmodels`.
 
-## Regenerating the Dag and task specs
+## Regenerating the Dag, task and task group specs
 
-`airflow.DagSpec` and `airflow.TaskSpec` in [`airflow/spec.gen.go`](./airflow/spec.gen.go) are
-generated from `schema/dag-schema.json`, this module's vendored copy of airflow-core's Dag
-serialization schema (`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do
-not edit either by hand. Refresh the copy with `prek run sync-go-sdk-schemas --hook-stage manual`,
+`airflow.DagSpec`, `airflow.TaskSpec` and `airflow.TaskGroupSpec` in
+[`airflow/spec.gen.go`](./airflow/spec.gen.go) are generated from `schema/dag-schema.json`, this
+module's vendored copy of airflow-core's Dag serialization schema
+(`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do not edit any of them
+by hand. Refresh the copy with `prek run sync-go-sdk-schemas --hook-stage manual`,
 then run `just generate-specs` after changing the schema or the generator.
 
 The schema is the serialized shape rather than the authoring one, so
