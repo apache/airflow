@@ -622,6 +622,7 @@ class TestWriteXcom:
             session, dag_id="d", run_id="r", task_id="t", map_index=-1, key=XCOM_AGENT_SESSION
         )
         assert result == expected
+        _clear_db()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Attempt ownership starts in Airflow 3.4")
     def test_write_uses_current_attempt_after_retry(self, session, dag_maker):

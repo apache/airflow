@@ -2456,6 +2456,21 @@ class TestTaskInstance:
         ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
 
+    @mock.patch("airflow.models.taskinstance._log_state", autospec=True)
+    def test_handle_failure_logs_the_attempt_that_continues(self, mock_log_state, dag_maker, session):
+        with dag_maker():
+            task = EmptyOperator(task_id="mytask", retries=1)
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.state = State.RUNNING
+        session.flush()
+
+        retried = ti.handle_failure("test retry", session=session)
+
+        assert retried.id != ti.id
+        mock_log_state.assert_called_once_with(task_instance=retried)
+        assert retried.state == State.UP_FOR_RETRY
+
     @patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_handle_failure_no_task(self, mock_get_backend, dag_maker):
         """

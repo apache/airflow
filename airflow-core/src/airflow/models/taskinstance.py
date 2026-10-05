@@ -2142,7 +2142,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             fail_fast=fail_fast,
         )
 
-        _log_state(task_instance=self)
+        _log_state(task_instance=ti)
 
         if not test_mode:
             TaskInstance.save_to_db(ti, session=session)

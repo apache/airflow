@@ -243,6 +243,22 @@ class TestDBCleanup:
                 inspect_mock.return_value.get_table_names.return_value = [archive]
                 assert _get_archived_table_names([requested], session) == [archive]
 
+    def test_history_alias_selects_only_history_archives(self):
+        history_archive = f"{ARCHIVE_TABLE_PREFIX}task_instance_history__20260929"
+        attempt_archives = [
+            f"{ARCHIVE_TABLE_PREFIX}{name}__20261005"
+            for name in ("task_instance", "xcom_v2", "rtif_v2", "task_instance_note", "hitl_detail")
+        ]
+
+        with create_session() as session:
+            with patch("airflow.utils.db_cleanup.inspect", autospec=True) as inspect_mock:
+                inspect_mock.return_value.get_table_names.return_value = [history_archive, *attempt_archives]
+                assert _get_archived_table_names(["task_instance_history"], session) == [history_archive]
+                assert set(_get_archived_table_names(["task_instance"], session)) == {
+                    history_archive,
+                    *attempt_archives,
+                }
+
     def test_task_instance_history_alias_cleans_only_retired_attempts(self, ownership_session):
         session = ownership_session
         session.execute(sa.update(TaskInstance).values(start_date=NOW))

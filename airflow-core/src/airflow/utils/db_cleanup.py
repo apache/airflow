@@ -982,7 +982,11 @@ def _get_archived_table_names(table_names: list[str] | None, session: Session) -
     inspector = inspect(session.bind)
     _, effective_config_dict = _effective_table_names(table_names=table_names)
     schemas = {config.schema_name for config in effective_config_dict.values()}
-    archive_sources = {config.bare_table_name for config in effective_config_dict.values()}
+    archive_sources = {
+        config.bare_table_name
+        for name, config in effective_config_dict.items()
+        if name != "task_instance_history"
+    }
     if "xcom_v2" in archive_sources:
         archive_sources.add("xcom_v1")
     if "xcom_v1" in archive_sources or "xcom_v2" in archive_sources:
