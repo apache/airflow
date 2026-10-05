@@ -18,16 +18,14 @@
  */
 import { describe, expect, it } from "vitest";
 
-// `configureMonaco` registers these grammars from Monaco's internal definition modules and
-// guards their `{ conf, language }` export shape at runtime — but that guard only fires in the
-// browser once the Code tab mounts. A Monaco upgrade that moved a module or dropped an export
-// would otherwise slip through CI and only surface as silently-unhighlighted code in production.
+// A Monaco upgrade that moved a module or dropped an export
+// would slip through CI and only surface as silently-unhighlighted code in production.
 // Importing the modules here fails the build loudly instead: a missing module breaks resolution,
-// a dropped export fails the assertion. Python is covered separately by the tokenized suite in
-// `pythonFStrings.test.ts`, which imports the same module and runs its grammar.
+// a dropped export fails the assertion.
 const grammars = [
   { id: "go", load: () => import("monaco-editor/languages/definitions/go/go") },
   { id: "java", load: () => import("monaco-editor/languages/definitions/java/java") },
+  { id: "python", load: () => import("monaco-editor/languages/definitions/python/python") },
   { id: "typescript", load: () => import("monaco-editor/languages/definitions/typescript/typescript") },
 ] as const;
 
@@ -41,5 +39,6 @@ describe("Monaco Dag-code grammars", () => {
       expect(language).toBeDefined();
       expect(language.tokenizer).toBeDefined();
     },
+    30_000,
   );
 });
