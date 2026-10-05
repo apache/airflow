@@ -17,6 +17,9 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tarfile
+import tempfile
 from pathlib import Path
 
 import structlog
@@ -24,7 +27,7 @@ import structlog
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 
 class S3DagBundle(BaseDagBundle):
@@ -36,10 +39,20 @@ class S3DagBundle(BaseDagBundle):
     :param aws_conn_id: Airflow connection ID for AWS.  Defaults to AwsBaseHook.default_conn_name.
     :param bucket_name: The name of the S3 bucket containing the Dag files.
     :param prefix:  Optional subdirectory within the S3 bucket where the Dags are stored.
-                    If None, Dags are assumed to be at the root of the bucket (Optional).
+                    If None, Dags are assumed to be at the root of the bucket. Mutually exclusive
+                    with ``archive_key`` (Optional).
+    :param archive_key: Optional S3 key of a ``.tar.gz`` archive holding the Dag files. When set,
+                    the bundle is staged by downloading this single object and unpacking it
+                    locally, instead of downloading every object under a prefix one at a time.
+                    The archive is then the only source of the Dags: ``archive_key`` is mutually
+                    exclusive with ``prefix``, so there is no second copy to keep in sync and no
+                    fallback to a per-object sync. Members are extracted relative to the bundle
+                    root, e.g. created with ``tar -C <dags_dir> -czf dags.tar.gz .`` (Optional).
     """
 
     supports_versioning = False
+
+    archive_etag_marker = ".airflow_bundle_archive_etag"
 
     def __init__(
         self,
@@ -47,12 +60,19 @@ class S3DagBundle(BaseDagBundle):
         aws_conn_id: str = AwsBaseHook.default_conn_name,
         bucket_name: str,
         prefix: str = "",
+        archive_key: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if prefix and archive_key:
+            raise ValueError(
+                "S3DagBundle accepts either 'prefix' or 'archive_key', not both. When "
+                "'archive_key' is set the archive is the only staging source."
+            )
         self.aws_conn_id = aws_conn_id
         self.bucket_name = bucket_name
         self.prefix = prefix
+        self.archive_key = archive_key
         # Local path where S3 Dags are downloaded
         self.s3_dags_dir: Path = self.base_dir
 
@@ -62,6 +82,7 @@ class S3DagBundle(BaseDagBundle):
             version=self.version,
             bucket_name=self.bucket_name,
             prefix=self.prefix,
+            archive_key=self.archive_key,
             aws_conn_id=self.aws_conn_id,
         )
         self._s3_hook: S3Hook | None = None
@@ -78,7 +99,12 @@ class S3DagBundle(BaseDagBundle):
             if not self.s3_hook.check_for_bucket(bucket_name=self.bucket_name):
                 raise AirflowException(f"S3 bucket '{self.bucket_name}' does not exist.")
 
-            if self.prefix:
+            if self.archive_key:
+                if not self.s3_hook.check_for_key(key=self.archive_key, bucket_name=self.bucket_name):
+                    raise AirflowNotFoundException(
+                        f"S3 archive 's3://{self.bucket_name}/{self.archive_key}' does not exist."
+                    )
+            elif self.prefix:
                 # don't check when prefix is ""
                 if not self.s3_hook.check_for_prefix(
                     bucket_name=self.bucket_name, prefix=self.prefix, delimiter="/"
@@ -107,6 +133,7 @@ class S3DagBundle(BaseDagBundle):
             f"name={self.name!r}, "
             f"bucket_name={self.bucket_name!r}, "
             f"prefix={self.prefix!r}, "
+            f"archive_key={self.archive_key!r}, "
             f"version={self.version!r}"
             f")>"
         )
@@ -126,6 +153,9 @@ class S3DagBundle(BaseDagBundle):
             raise AirflowException("Refreshing a specific version is not supported")
 
         with self.lock():
+            if self.archive_key:
+                self._refresh_from_archive()
+                return
             self._log.debug(
                 "Downloading Dags from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
             )
@@ -135,6 +165,60 @@ class S3DagBundle(BaseDagBundle):
                 local_dir=self.s3_dags_dir,
                 delete_stale=True,
             )
+
+    def _refresh_from_archive(self) -> None:
+        """Stage the Dag bundle by downloading and unpacking the single archive object."""
+        client = self.s3_hook.get_conn()
+        head = client.head_object(Bucket=self.bucket_name, Key=self.archive_key)
+        etag: str = head.get("ETag", "")
+
+        marker = self.s3_dags_dir / self.archive_etag_marker
+        if etag and marker.is_file() and marker.read_text() == etag:
+            self._log.debug(
+                "Dag bundle archive 's3://%s/%s' is unchanged (ETag %s), skipping staging",
+                self.bucket_name,
+                self.archive_key,
+                etag,
+            )
+            return
+
+        staging_dir = Path(tempfile.mkdtemp(dir=self.s3_dags_dir.parent, prefix=".s3-archive-staging-"))
+        try:
+            archive_path = staging_dir / "_bundle_archive"
+            client.download_file(self.bucket_name, self.archive_key, os.fspath(archive_path))
+
+            unpack_dir = staging_dir / "unpacked"
+            unpack_dir.mkdir()
+            with tarfile.open(archive_path, "r:*") as tar:
+                tar.extractall(unpack_dir, filter="data")
+            archive_path.unlink()
+
+            if etag:
+                (unpack_dir / self.archive_etag_marker).write_text(etag)
+
+            # Swap the freshly unpacked tree into place so a partially staged bundle is
+            # never observable at self.s3_dags_dir. The previous tree is kept inside the
+            # staging directory: a failed swap restores it, and the staging cleanup below
+            # removes it once the swap succeeded.
+            backup_dir = staging_dir / "previous"
+            if self.s3_dags_dir.exists():
+                self.s3_dags_dir.rename(backup_dir)
+            try:
+                unpack_dir.rename(self.s3_dags_dir)
+            except Exception:
+                if backup_dir.exists():
+                    backup_dir.rename(self.s3_dags_dir)
+                raise
+
+            self._log.debug(
+                "Staged Dag bundle from archive 's3://%s/%s' (%s bytes) to %s",
+                self.bucket_name,
+                self.archive_key,
+                head.get("ContentLength"),
+                self.s3_dags_dir,
+            )
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)
 
     def view_url(self, version: str | None = None) -> str | None:
         """
