@@ -49,7 +49,6 @@ from airflow.providers.common.ai.sandbox.islo import (
 )
 
 _MODULE = "airflow.providers.common.ai.sandbox.islo"
-_HOOK_PATH = f"{_MODULE}.IsloHook"
 _ISLO_PATH = "islo.Islo"
 
 
@@ -76,48 +75,21 @@ def _backend_with_client(**kwargs) -> tuple[IsloSandboxBackend, mock.MagicMock]:
 
 
 class TestCredentials:
-    @mock.patch(_HOOK_PATH, autospec=True)
-    def test_client_comes_from_the_hook(self, hook):
-        backend = IsloSandboxBackend(islo_conn_id="my_islo")
+    @mock.patch(_ISLO_PATH, autospec=True)
+    def test_client_comes_from_the_sdk_environment(self, islo):
+        client = IsloSandboxBackend()._get_client()
 
-        client = backend._get_client()
+        islo.assert_called_once_with()
+        assert client is islo.return_value
 
-        hook.assert_called_once_with(islo_conn_id="my_islo")
-        assert client is hook.return_value.get_conn.return_value
-
-    @mock.patch(_HOOK_PATH, autospec=True)
-    def test_client_is_resolved_once_and_cached(self, hook):
+    @mock.patch(_ISLO_PATH, autospec=True)
+    def test_client_is_resolved_once_and_cached(self, islo):
         backend = IsloSandboxBackend()
 
         backend._get_client()
         backend._get_client()
 
-        hook.assert_called_once_with(islo_conn_id="islo_default")
-        hook.return_value.get_conn.assert_called_once_with()
-
-    @mock.patch(_HOOK_PATH, autospec=True)
-    def test_a_connection_the_hook_rejects_is_terminal_and_actionable(self, hook):
-        hook.return_value.get_conn.side_effect = ValueError(
-            "Connection 'islo_default' has no password; set it to the Islo API key."
-        )
-
-        with pytest.raises(SandboxTerminalError, match="has no password"):
-            IsloSandboxBackend()._get_client()
-
-    @mock.patch(_ISLO_PATH, autospec=True)
-    def test_none_conn_id_defers_to_the_sdk_environment(self, islo):
-        backend = IsloSandboxBackend(islo_conn_id=None)
-
-        backend._get_client()
-
         islo.assert_called_once_with()
-
-    @mock.patch(_HOOK_PATH, autospec=True)
-    def test_connection_resolution_failure_is_terminal(self, hook):
-        hook.return_value.get_conn.side_effect = RuntimeError("secret backend down")
-
-        with pytest.raises(SandboxTerminalError, match="initialize its client"):
-            IsloSandboxBackend()._get_client()
 
     def test_missing_sdk_error_is_actionable(self):
         real_import = builtins.__import__
@@ -127,7 +99,7 @@ class TestCredentials:
                 raise ImportError("blocked for test")
             return real_import(name, *args, **kwargs)
 
-        backend = IsloSandboxBackend(islo_conn_id=None)
+        backend = IsloSandboxBackend()
         with mock.patch("builtins.__import__", side_effect=blocked_import):
             with pytest.raises(SandboxTerminalError, match=r"\[islo\]"):
                 backend.create()

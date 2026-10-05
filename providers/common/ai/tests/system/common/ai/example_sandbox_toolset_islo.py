@@ -117,7 +117,7 @@ def example_sandbox_toolset_islo():
         agent = Agent(
             FunctionModel(model_function),
             instructions="Use the sandbox tools as requested.",
-            toolsets=[SandboxToolset(IsloSandboxBackend(islo_conn_id=None, delete_after=900))],
+            toolsets=[SandboxToolset(IsloSandboxBackend(delete_after=900))],
         )
         result = agent.run_sync("Run the sandbox boundary system test.")
         if result.output != "sandbox boundary e2e passed":

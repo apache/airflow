@@ -80,7 +80,6 @@ Pages in this section
 
     Configuration and lifecycle <configuration>
     Backends <backends>
-    Islo connection <../connections/islo>
 
 .. _sandbox-quick-start:
 

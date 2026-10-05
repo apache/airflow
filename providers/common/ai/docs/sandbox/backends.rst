@@ -199,20 +199,14 @@ Install the SDK extra:
     from airflow.providers.common.ai.sandbox import IsloSandboxBackend
     from airflow.providers.common.ai.toolsets import SandboxToolset
 
-    SandboxToolset(IsloSandboxBackend(islo_conn_id="islo_default"))
+    SandboxToolset(IsloSandboxBackend())
 
-Credentials come from an ``islo`` connection (see :doc:`../connections/islo`),
-resolved lazily on first use through
-:class:`~airflow.providers.common.ai.sandbox.islo.IsloHook`, so the API key lives in
-your configured secrets backend rather than the worker environment.
+Credentials are ambient, the same way Modal's are. On first use the SDK reads
+``ISLO_API_KEY``, and optionally ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``, from
+the worker environment. A connection type waits for an Islo provider.
 
 Constructor parameters:
 
-- ``islo_conn_id``: Connection ID. Default ``"islo_default"``. Passing ``None``
-  instead hands credential resolution to the SDK, which reads ``ISLO_API_KEY``,
-  ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL`` from the worker environment --
-  convenient for a local trial, but it puts the key outside your secrets backend,
-  so prefer a connection in a deployment.
 - ``image``, ``vcpus``, ``memory_mb``: image and sizing. ``None`` (default) uses
   the server default for each. The server default image is Debian based, and any
   Debian or Ubuntu based image, including ``python:*-slim``, has the GNU ``find``,
