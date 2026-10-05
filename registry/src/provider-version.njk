@@ -18,6 +18,7 @@ eleventyComputed:
   {% set deps = pv.provider.dependencies or [] %}
   {% set extras = pv.provider.optional_extras or {} %}
   {% set conns = pv.provider.connection_types or [] %}
+  {% set uriSchemes = pv.provider.uri_schemes or [] %}
   {% set providerModules = pv.modules %}
   {% set currentVersion = pv.provider.version %}
   {% set pythonVersion = pv.provider.requires_python %}
@@ -28,6 +29,7 @@ eleventyComputed:
   {% set deps = pv.versionData.dependencies or [] %}
   {% set extras = pv.versionData.optional_extras or {} %}
   {% set conns = pv.versionData.connection_types or [] %}
+  {% set uriSchemes = pv.versionData.uri_schemes or [] %}
   {% set providerModules = pv.versionData.modules or [] %}
   {% set currentVersion = pv.version %}
   {% set pythonVersion = pv.versionData.requires_python %}
@@ -305,6 +307,53 @@ eleventyComputed:
       <span class="no-connections">No connections</span>
     {% endif %}
   </section>
+
+  {# URI schemes the provider registers with ObjectStoragePath, Asset URIs and remote logging #}
+  {% macro schemeSupport(detail) %}
+    {% if detail %}
+    <svg class="registered" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="Registered">
+      <title>{{ detail }}</title>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+    </svg>
+    {% else %}
+    <span class="unregistered" aria-hidden="true">&ndash;</span><span class="sr-only">Not registered</span>
+    {% endif %}
+  {% endmacro %}
+  {% if uriSchemes.length > 0 %}
+  <section class="uri-schemes card">
+    <h3>
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+      </svg>
+      URI Schemes ({{ uriSchemes.length }})
+    </h3>
+    <p>Schemes this release registers in provider.yaml. Airflow routes paths and URIs with these schemes to the provider.</p>
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Scheme</th>
+          <th scope="col"><a href="https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/objectstorage.html" target="_blank" rel="noopener">ObjectStoragePath</a></th>
+          <th scope="col"><a href="https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/assets.html#what-is-valid-uri" target="_blank" rel="noopener">Asset URIs</a></th>
+          <th scope="col"><a href="https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/logging-tasks.html" target="_blank" rel="noopener">Remote logging</a></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in uriSchemes %}
+        {% set assetDetail = none %}
+        {% if s.asset %}
+          {% set assetDetail = ([s.asset.handler, s.asset.factory, s.asset.to_openlineage_converter] | select | join(", ")) or "No-op handler" %}
+        {% endif %}
+        <tr>
+          <th scope="row"><code>{{ s.scheme }}://</code></th>
+          <td>{{ schemeSupport(s.filesystem) }}</td>
+          <td>{{ schemeSupport(assetDetail) }}</td>
+          <td>{{ schemeSupport(s.remote_logging) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
 
   {% if totalModules > 0 %}
   {# Module Type Tabs: sorted by module count (busiest first), overflow into a "More" menu #}
