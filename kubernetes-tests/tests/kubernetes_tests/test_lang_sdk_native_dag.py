@@ -15,14 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-End-to-end test of the lang-SDK coordinators on KubernetesExecutor.
+End-to-end tests of Dags declared entirely in a language SDK (no Python file at all) on
+KubernetesExecutor.
 
-Triggers the ``lang_sdk_combined`` Dag (Python + Go + Java tasks in one graph)
-and asserts every task instance and the Dag run reach ``success``. This exercises
-the full path the worktree-1 feature enables: the ``golang``/``java`` queues are
-routed to their coordinators, each coordinator's ``pod_template_file`` launches a
-worker pod whose init-container stages the artifact from localstack S3 via the
-DagBundle interface, and the coordinator then runs the Go binary / Java jar.
+The Dag processor parses each native Dag through the coordinator its language routes to,
+from a Dag bundle holding only that language's artifact (``lang-sdk-native-java`` /
+``lang-sdk-native-ts``). The same coordinators also serve the mixed-language Dag's stub
+tasks (see ``test_lang_sdk_mixed_language.py``); a native task ignores
+``task_handler_bundle_name`` and reads its own Dag bundle instead, so one coordinator per
+language is enough -- no ``[sdk] dag_bundle_to_coordinator`` is configured.
 
 Prerequisites are provisioned by ``breeze k8s setup-lang-sdk-test``.
 """
@@ -36,65 +37,46 @@ import pytest
 from kubernetes_tests.test_base import EXECUTOR, BaseK8STest
 
 _RUN_LANG_SDK = os.environ.get("RUN_LANG_SDK_K8S_TESTS", "").lower() in ("true", "1")
-
-DAG_ID = "lang_sdk_combined"
-# Declared entirely in TypeScript: the Dag processor asks the bundle to parse
-# itself, so no Python file in the bundles folder mentions it.
-NATIVE_TS_DAG_ID = "typescript_native_example"
-# The Dag its trigger_downstream task starts; see ts-sdk/example/src/native.ts.
-NATIVE_TS_DOWNSTREAM_DAG_ID = "typescript_example"
-NATIVE_TS_TASK_IDS = [
-    "extract.north",
-    "extract.south",
-    "summarize",
-    "has_rows",
-    "load_rows",
-    "pick_cadence",
-    "publish_weekly",
-    "cleanup",
-    "trigger_downstream",
-]
-TASK_IDS = [
-    "python_task_1",
-    "go_extract",
-    "go_transform",
-    "java_extract",
-    "java_transform",
-    "python_task_2",
-]
-# Each task is a fresh pod (KubernetesExecutor) and the lang tasks also pull an
-# artifact + start a coordinator subprocess, so allow generous headroom.
 _TIMEOUT = 600
 
-# The Dag processor cannot parse the native Dag here yet: the bundle is uploaded
-# only to ``ts-artifacts``, which only worker pods stage, and the Dag processor
-# image has no Node.
-_RUN_NATIVE_TS = os.environ.get("RUN_TS_SDK_NATIVE_DAG_K8S_TESTS", "").lower() in ("true", "1")
-
-
-@pytest.mark.skipif(
+_skip_unless_lang_sdk = pytest.mark.skipif(
     EXECUTOR != "KubernetesExecutor" or not _RUN_LANG_SDK,
     reason="Runs only on KubernetesExecutor with the lang-SDK env provisioned (RUN_LANG_SDK_K8S_TESTS)",
 )
-class TestLangSdkCoordinatorExecutor(BaseK8STest):
-    def _ensure_variable(self, key: str, value: str) -> None:
-        """Create the Airflow Variable the Go/Java transform tasks read (idempotent)."""
-        resp = self.session.post(f"http://{self.host}/variables", json={"key": key, "value": value})
-        # 409 == already exists from a previous run; both are acceptable.
-        assert resp.status_code in (200, 201, 409), f"Could not create variable {key}: {resp.text}"
+
+
+@pytest.mark.skip(
+    reason="Native Go Dag parsing is not supported yet: there is no Go Dag importer, and "
+    "ExecutableCoordinator has no parse-Dag command. Unskip once a Go bundle can answer a "
+    "Dag-parse request."
+)
+class TestNativeGoDagOnKubernetes(BaseK8STest):
+    def test_native_go_dag_succeeds(self):
+        pass
+
+
+@_skip_unless_lang_sdk
+class TestNativeJavaDagOnKubernetes(BaseK8STest):
+    """Declared entirely in Java; the interface API half of ``airflow-e2e-tests/java-native-bundle``.
+
+    Covers the path a Dag with no Python file takes: the Dag processor parses the
+    ``airflow-e2e-java-native-bundle`` jar through the Java coordinator, the scheduler reads
+    the serialized Dag, and each task runs in its own pod on the ``java-native`` queue.
+    """
+
+    DAG_ID = "java_native_e2e"
+    TASK_IDS = ["extract", "transform", "load"]
 
     @pytest.mark.execution_timeout(900)
-    def test_lang_sdk_combined_dag_succeeds(self):
-        self._ensure_variable("my_variable", "value_from_test")
+    def test_native_java_dag_succeeds(self):
+        dag_run_id, logical_date = self.start_job_in_kubernetes(self.DAG_ID, self.host)
+        print(f"Triggered {self.DAG_ID} run {dag_run_id} (logical_date={logical_date})")
 
-        dag_run_id, logical_date = self.start_job_in_kubernetes(DAG_ID, self.host)
-        print(f"Triggered {DAG_ID} run {dag_run_id} (logical_date={logical_date})")
-
-        for task_id in TASK_IDS:
+        for task_id in self.TASK_IDS:
             self.monitor_task(
                 host=self.host,
                 dag_run_id=dag_run_id,
-                dag_id=DAG_ID,
+                dag_id=self.DAG_ID,
                 task_id=task_id,
                 expected_final_state="success",
                 timeout=_TIMEOUT,
@@ -103,17 +85,13 @@ class TestLangSdkCoordinatorExecutor(BaseK8STest):
         self.ensure_dag_expected_state(
             host=self.host,
             logical_date=logical_date,
-            dag_id=DAG_ID,
+            dag_id=self.DAG_ID,
             expected_final_state="success",
             timeout=_TIMEOUT,
         )
 
 
-@pytest.mark.skipif(
-    EXECUTOR != "KubernetesExecutor" or not _RUN_NATIVE_TS,
-    reason="Runs only on KubernetesExecutor with a Dag processor that parses Lang SDK bundles "
-    "(RUN_TS_SDK_NATIVE_DAG_K8S_TESTS)",
-)
+@_skip_unless_lang_sdk
 class TestNativeTypeScriptDagOnKubernetes(BaseK8STest):
     """The same Dag the SDK and Airflow e2e suites run, under the Node coordinator.
 
@@ -124,6 +102,21 @@ class TestNativeTypeScriptDagOnKubernetes(BaseK8STest):
     exercised against branches that skip rather than a linear chain. ``trigger_downstream`` defers
     to ``DagStateTrigger``, which the Python triggerer runs, and resumes in a pod of its own.
     """
+
+    DAG_ID = "typescript_native_example"
+    # The Dag its trigger_downstream task starts; see ts-sdk/example/src/native.ts.
+    DOWNSTREAM_DAG_ID = "typescript_example"
+    TASK_IDS = [
+        "extract.north",
+        "extract.south",
+        "summarize",
+        "has_rows",
+        "load_rows",
+        "pick_cadence",
+        "publish_weekly",
+        "cleanup",
+        "trigger_downstream",
+    ]
 
     def _ensure_variable(self, key: str, value: str) -> None:
         resp = self.session.post(f"http://{self.host}/variables", json={"key": key, "value": value})
@@ -142,16 +135,16 @@ class TestNativeTypeScriptDagOnKubernetes(BaseK8STest):
         self._ensure_variable("typescript_native_south_rows", "2")
         self._ensure_variable("typescript_native_cadence", "weekly")
         # trigger_downstream waits for the run it starts, which stays queued while its Dag is paused.
-        self._unpause_dag(NATIVE_TS_DOWNSTREAM_DAG_ID)
+        self._unpause_dag(self.DOWNSTREAM_DAG_ID)
 
-        dag_run_id, logical_date = self.start_job_in_kubernetes(NATIVE_TS_DAG_ID, self.host)
-        print(f"Triggered {NATIVE_TS_DAG_ID} run {dag_run_id} (logical_date={logical_date})")
+        dag_run_id, logical_date = self.start_job_in_kubernetes(self.DAG_ID, self.host)
+        print(f"Triggered {self.DAG_ID} run {dag_run_id} (logical_date={logical_date})")
 
-        for task_id in NATIVE_TS_TASK_IDS:
+        for task_id in self.TASK_IDS:
             self.monitor_task(
                 host=self.host,
                 dag_run_id=dag_run_id,
-                dag_id=NATIVE_TS_DAG_ID,
+                dag_id=self.DAG_ID,
                 task_id=task_id,
                 expected_final_state="success",
                 timeout=_TIMEOUT,
@@ -163,7 +156,7 @@ class TestNativeTypeScriptDagOnKubernetes(BaseK8STest):
             self.monitor_task(
                 host=self.host,
                 dag_run_id=dag_run_id,
-                dag_id=NATIVE_TS_DAG_ID,
+                dag_id=self.DAG_ID,
                 task_id=skipped,
                 expected_final_state="skipped",
                 timeout=_TIMEOUT,
@@ -172,7 +165,7 @@ class TestNativeTypeScriptDagOnKubernetes(BaseK8STest):
         self.ensure_dag_expected_state(
             host=self.host,
             logical_date=logical_date,
-            dag_id=NATIVE_TS_DAG_ID,
+            dag_id=self.DAG_ID,
             expected_final_state="success",
             timeout=_TIMEOUT,
         )

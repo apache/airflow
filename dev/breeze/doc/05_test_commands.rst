@@ -591,11 +591,11 @@ Setting up the lang-SDK coordinator system test
 ...............................................
 
 ``breeze k8s setup-lang-sdk-test`` provisions a cluster for the lang-SDK coordinator
-system test: it builds the Go and Java example bundles, deploys an in-cluster localstack
-S3, uploads the artifacts and the Python stub Dag to their buckets, renders the
-coordinator pod-template image placeholders, and installs the Helm release configured for
-the ``golang`` and ``java`` queues. After it completes, run the test with
-``breeze k8s tests``.
+system tests: it builds the Go, Java and TypeScript example bundles (mixed-language and
+native), deploys an in-cluster localstack S3, uploads the artifacts and the Dag files to
+their buckets, builds and loads the shared runtime image (prod + JRE + Node), and installs
+the Helm release configured for the ``golang``, ``java``, ``java-native`` and ``typescript``
+queues. After it completes, run the tests with ``breeze k8s tests``.
 
 All parameters of the command are here:
 

@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +16,21 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# TypeScript worker image for the "typescript" queue: the stock prod image plus
-# Node.js, so NodeCoordinator can exec `node` on the packed bundle. The Go
-# queue runs on the plain prod image and Java on a JRE image, so each
-# coordinator's queue gets the base image its runtime needs.
+# Runtime image for every lang-SDK coordinator queue: the stock prod image plus a
+# headless JRE (JavaCoordinator execs `java`) and Node.js (NodeCoordinator execs
+# `node`). The Go queue needs neither -- a Go bundle is a self-contained static
+# binary -- but it shares this image too, since the Dag processor itself needs
+# both runtimes to parse native Java and TypeScript Dags, and using one image
+# everywhere keeps the pod templates and the Helm image override identical
+# across components.
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
 USER root
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y default-jre-headless \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 # The keyring step pipes curl into gpg, so a failure mid-pipe has to fail the build.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt-get update \

@@ -17,65 +17,77 @@
  under the License.
 -->
 
-# lang-SDK coordinator system test (KubernetesExecutor)
+# lang-SDK coordinator system tests (KubernetesExecutor)
 
-End-to-end test that one Dag mixing **Python + Go + Java** tasks runs to success on
-`KubernetesExecutor`, using the per-queue `extra.pod_template_file` routing added to the
-`[sdk] coordinators` config. The test lives at
-`kubernetes-tests/tests/kubernetes_tests/test_lang_sdk_coordinator_executor.py`.
+Two end-to-end tests exercise every lang-SDK coordinator (Go, Java, TypeScript) on
+`KubernetesExecutor`:
 
-The same file also holds `TestNativeTypeScriptDagOnKubernetes`, which runs a Dag with **no Python
-file at all**: the Dag processor asks the packed TypeScript bundle to parse itself. It is skipped
-unless `RUN_TS_SDK_NATIVE_DAG_K8S_TESTS` is set, because this setup does not let the Dag processor
-parse the bundle yet: `bundle.min.mjs` is uploaded only to the `ts-artifacts` bucket, which only
-worker pods stage, and the Dag processor image has no Node.
+- **`test_lang_sdk_mixed_language.py`** runs one Dag mixing **Python + Go + Java + TypeScript**
+  tasks, using the `extra.pod_template_file` routing in the `[sdk] coordinators` config.
+- **`test_lang_sdk_native_dag.py`** runs one Dag **declared entirely in each language SDK** (no
+  Python file at all): the Dag processor asks the packed Java jar / TypeScript bundle to parse
+  itself. Go has no native Dag parsing support yet, so its class is unconditionally skipped.
+
+Every coordinator is configured once, with no `[sdk] dag_bundle_to_coordinator` entry needed:
+with exactly one coordinator per language, there is nothing to disambiguate.
 
 ## How it fits together
 
 ```
-                    localstack (S3)                     scheduler (KubernetesExecutor)
-   go-artifacts ─┐   ┌ dags bucket ── S3DagBundle ──► dag-processor parses lang_sdk_combined.py
-   java-artifacts┘   │                                         │ task on queue golang/java
-                     │                                         ▼
-   stub Dag ─────────┘                       reads [sdk] coordinators[key].extra.pod_template_file
-                                                              │
-                          worker pod (from that pod template):
-                          initContainer  stage_artifacts.py  ── S3DagBundle.initialize() ──►
-                              pulls go-artifacts / java-artifacts bucket into the shared
-                              emptyDir = go-task-handlers / java-task-handlers LocalDagBundle
-                          base container  supervisor → coordinator forks the Go binary / Java jar
+                    localstack (S3)                        scheduler (KubernetesExecutor)
+   go-task-handlers ─┐  ┌ dags bucket ── S3DagBundle ──► dag-processor parses lang_sdk_mixed_language.py
+   java-task-handlers┤  │                                         │ task on queue golang/java/typescript
+   ts-task-handlers ─┘  │                                         ▼
+   (each + .airflowignore)                       reads [sdk] coordinators[key].extra.pod_template_file
+   stub Dag ────────────┘                                         │
+                                              worker pod (shared lang_sdk_worker.yaml template):
+                                              base container  supervisor → coordinator downloads its
+                                              own task_handler_bundle_name bundle (S3DagBundle.initialize(),
+                                              then marks the matched file executable) → forks the
+                                              Go binary / Java jar / TypeScript bundle
+
+   lang-sdk-native-java ── S3DagBundle ──► dag-processor parses the jar  (java-sdk coordinator)
+   lang-sdk-native-ts   ── S3DagBundle ──► dag-processor parses the bundle (ts-sdk coordinator)
 ```
 
-Key point: each coordinator's `task_handler_bundle_name` names a `LocalDagBundle` over the
-shared `emptyDir`, registered in `dagProcessor.dagBundleConfigList`. The init container fills it
-by running `stage_artifacts.py`, which reuses the **DagBundle interface**
-(`DagBundlesManager().get_bundle(name).initialize()` — the download half of
-`task_runner.parse`) to pull the artifact from its S3 bucket, then restores the Go binary's
-execute bit, which the S3 download drops and the coordinator requires.
+Key points:
+
+- There is no init container and no staging step: a coordinator downloads its own
+  `task_handler_bundle_name` (or, for a native task, the task's own Dag bundle) directly, the same
+  S3DagBundle machinery any Python Dag bundle uses. The Go binary loses its execute bit through the
+  S3 download; the coordinator restores it on the matched file once its footer and `binary_sha256`
+  verify, so no side-channel staging is needed for that either.
+- `go-task-handlers`, `java-task-handlers` and `ts-task-handlers` each carry an `.airflowignore`
+  that excludes everything in them, so the Dag processor never tries to parse the packed Go bundle
+  or the Java/TypeScript handler-only bundles as Dags. A coordinator's own artifact lookup does not
+  read `.airflowignore`, so stub tasks still find their handlers there.
+- `lang-sdk-native-java` and `lang-sdk-native-ts` carry no such file: parsing them is the point.
 
 ## Components
 
 | Path | Role |
 | --- | --- |
-| `dags/lang_sdk_combined.py` | Python stub Dag (`dag_id=lang_sdk_combined`); uploaded to the `dags` bucket. |
-| `go_example/` | Go bundle sources (own module, `replace` onto `../../../go-sdk`): `go_extract` / `go_transform` under `lang_sdk_combined`. |
-| `java_example/` | Java bundle sources (standalone Gradle build, SDK from mavenLocal): `java_extract` / `java_transform` under `lang_sdk_combined`. |
-| `stage_artifacts.py` | Init-container entrypoint; stages an artifact bucket via DagBundle. |
-| `pod_templates/lang_sdk_golang.yaml` | `golang` queue worker pod: prod image + go-artifacts init container. |
-| `pod_templates/lang_sdk_java.yaml` | `java` queue worker pod: JVM image + java-artifacts init container. |
-| `pod_templates/lang_sdk_typescript.yaml` | `typescript` queue worker pod: Node image + ts-artifacts init container. |
-| `Dockerfile.typescript` | Prod image plus Node.js, which `NodeCoordinator` execs. |
+| `dags/lang_sdk_mixed_language.py` | Python stub Dag (`dag_id=lang_sdk_mixed_language`); uploaded to the `dags` bucket. |
+| `go_example/` | Go bundle sources (own module, `replace` onto `../../../go-sdk`): `go_extract` / `go_transform` under `lang_sdk_mixed_language`. |
+| `java_example/` | Java bundle sources (standalone Gradle build, SDK from mavenLocal): `java_extract` / `java_transform` under `lang_sdk_mixed_language`. |
+| `ts_example/` | TypeScript bundle sources (standalone pnpm project, SDK via a `file:` dependency): `ts_extract` / `ts_transform` under `lang_sdk_mixed_language`. |
+| `airflowignore_all` | Uploaded as `.airflowignore` to every task-handler bucket. |
+| `pod_templates/lang_sdk_worker.yaml` | Worker pod template shared by every coordinator queue. |
+| `Dockerfile.runtimes` | Prod image plus a headless JRE and Node.js, which every coordinator (and the Dag processor) needs. |
 | `manifests/localstack.yaml` | In-cluster S3 (localstack). |
-| `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, stub-Dag S3 bundle, artifact Dag bundles, AWS conn, scheduler pod-template mount. |
+| `config/values.yaml` | Helm overrides: KubernetesExecutor, coordinators (+extra.pod_template_file), queue routing, every Dag bundle, AWS conn, scheduler pod-template mount. |
 
 The Go binary, Java jar, TypeScript bundle and the Dag files share one object store (localstack)
-but live in **separate buckets** (`go-artifacts`, `java-artifacts`, `ts-artifacts`, `dags`).
+but live in **separate buckets** (`go-task-handlers`, `java-task-handlers`, `ts-task-handlers`,
+`dags`, `lang-sdk-native-java`, `lang-sdk-native-ts`).
 
-The TypeScript bundle is `ts-sdk/example`, packed by `airflow-ts-pack`. It carries both halves of
-that example: the handlers for the Python-declared `typescript_example` Dag, and the natively
-declared `typescript_native_example`. `typescript_example.py` is uploaded to the `dags` bucket too,
-because the native Dag's trigger task starts a run of it and waits for that run, deferring to
-`DagStateTrigger` in the Python triggerer. The test un-pauses `typescript_example` for that reason.
+The native TypeScript bundle is `ts-sdk/example`, packed by `airflow-ts-pack`. It carries both
+halves of that example: the handlers for the Python-declared `typescript_example` Dag, and the
+natively declared `typescript_native_example`. `typescript_example.py` is uploaded to the `dags`
+bucket too, because the native Dag's trigger task starts a run of it and waits for that run,
+deferring to `DagStateTrigger` in the Python triggerer. The test un-pauses `typescript_example`
+for that reason. The native Java Dag reuses `airflow-e2e-tests/java-native-bundle`, the same fixture
+the compose e2e builds.
 
 ## Which SDK sources get built
 
@@ -94,6 +106,7 @@ built from a later `main` — the Go task fails with `cannot find executable bun
 supervisor_schema_version`. Building the checkout's own SDK is also what makes the k8s test exercise
 a PR's SDK changes: `go_example`/`java_example` are harness fixtures that track the checked-out
 branch, so compiling them against a *different* SDK means any SDK rename in the PR fails to build.
+The in-repo `ts-sdk` is always used (TypeScript has no upstream-main fallback path).
 
 The upstream-`main` fallback is only for a branch cut before `go-sdk`/`java-sdk` existed. When it
 kicks in, that copy and the branch's `go_example` can diverge (upstream may change go-sdk's
@@ -103,7 +116,7 @@ whichever `go-sdk` it is compiled against. The committed `go_example` `go.sum` i
 stays guarded by the `check-go-example-mod-tidy` prek hook.
 
 Everything else — `airflow-core/`, `task-sdk/`, the deployed Airflow image, and this directory's own
-`go_example`/`java_example` fixtures — always comes from the checked-out branch.
+`go_example`/`java_example`/`ts_example` fixtures — always comes from the checked-out branch.
 
 ## Running it
 
@@ -126,36 +139,36 @@ breeze k8s build-k8s-image --rebuild-base-image
 breeze k8s upload-k8s-image
 breeze k8s deploy-airflow --executor KubernetesExecutor
 
-# 2. Provision the lang-SDK test: build the Go bundle + Java jar (in Docker),
-#    build + load the Java worker image (prod + JRE for the JavaCoordinator),
-#    deploy localstack, upload artifacts + stub Dag, render config, helm upgrade.
+# 2. Provision the lang-SDK test: build the Go bundle, the Java jars and the
+#    TypeScript bundles (in Docker), build + load the shared runtime image
+#    (prod + JRE + Node, which every coordinator and the Dag processor use),
+#    deploy localstack, upload artifacts + Dag files, render config, helm upgrade.
 breeze k8s setup-lang-sdk-test
 
-# 3. Run the test by name (the shared harness triggers a fresh Dag run). The test is gated on
-#    RUN_LANG_SDK_K8S_TESTS so it stays out of the regular k8s suites; set it to run the test here.
-RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests --executor KubernetesExecutor \
-    -- -k test_lang_sdk_combined_dag_succeeds
+# 3. Run the tests by name (the shared harness triggers a fresh Dag run). They are gated on
+#    RUN_LANG_SDK_K8S_TESTS so they stay out of the regular k8s suites; set it to run them here.
+RUN_LANG_SDK_K8S_TESTS=true breeze k8s tests --executor KubernetesExecutor -- -k TestLangSdk
 ```
 
 In CI (and for a one-shot local run) steps 2-3 are folded into a single `run-complete-tests` call via
 `breeze k8s run-complete-tests --lang-sdk-test`: it provisions the lang-SDK env after the base deploy,
-then runs the test. Rather than bolting this onto the regular k8s system-test matrix (which ran it
-redundantly on all six `KubernetesExecutor` / standard-naming-off jobs and added ~6 minutes each), the
-`k8s-tests.yml` workflow runs it in a **dedicated `tests-kubernetes-lang-sdk` job** on a single default
-Python-Kubernetes combo (the `lang-sdk-kubernetes-combo` input, wired from the `default-python-version`
-and `default-kubernetes-version` build-info outputs). That job sets `RUN_LANG_SDK_K8S_TESTS=true`
-(which `--lang-sdk-test` reads) and runs only the lang-SDK test (`-k
-test_lang_sdk_combined_dag_succeeds`), not the full suite; the regular system-test matrix no longer runs
-it at all. The provisioning builds (Go bundle, Java jar, Java worker image) and the localstack deploy
-run in parallel.
+then runs the tests. Rather than bolting this onto the regular k8s system-test matrix (which ran it
+redundantly on all six `KubernetesExecutor` / standard-naming-off jobs and added several minutes each),
+the `k8s-tests.yml` workflow runs it in a **dedicated `tests-kubernetes-lang-sdk` job** on a single
+default Python-Kubernetes combo (the `lang-sdk-kubernetes-combo` input, wired from the
+`default-python-version` and `default-kubernetes-version` build-info outputs). That job sets
+`RUN_LANG_SDK_K8S_TESTS=true` (which `--lang-sdk-test` reads) and runs only `-k TestLangSdk`, not the
+full suite; the regular system-test matrix no longer runs it at all. The provisioning builds (Go
+bundle, Java jars, TypeScript bundles) and the localstack deploy run in parallel.
 
-By default the Go bundle and Java jar are built inside ephemeral toolchain containers so a dev host
-needs neither Go nor a JDK installed. In CI the dedicated job sets `LANG_SDK_NATIVE_TOOLCHAIN=true`,
-which makes breeze build both artifacts with the host `go` / `./gradlew` instead: the workflow installs
-the toolchains via `actions/setup-go` and `actions/setup-java` and restores the Go module/build cache
-and the Gradle distribution + dependency cache with `actions/cache`, so the build skips the per-run
-toolchain-image pulls and cold dependency downloads. The cache keys carry a `-v1-` salt and a
-`runner.arch` segment (see `lang-sdk-go-v1-` / `lang-sdk-gradle-v1-` in `k8s-tests.yml`) — bump the salt
-to force-invalidate a poisoned cache; the arch segment keeps the amd64 and arm64 caches separate. The
-JDK version comes from the `java-sdk-version` build-info output (the `JAVA_SDK_VERSION` breeze
-constant).
+By default the Go bundle, Java jars and TypeScript bundles are built inside ephemeral toolchain
+containers so a dev host needs neither Go, a JDK, nor Node installed. In CI the dedicated job sets
+`LANG_SDK_NATIVE_TOOLCHAIN=true`, which makes breeze build every artifact with the host `go` /
+`./gradlew` / `pnpm` instead: the workflow installs the toolchains via `actions/setup-go`,
+`actions/setup-java` and `actions/setup-node`, and restores the Go module/build cache, the Gradle
+distribution + dependency cache, and the pnpm store with `actions/cache`, so the build skips the
+per-run toolchain-image pulls and cold dependency downloads. The cache keys carry a `-v1-` salt and
+a `runner.arch` segment (see `lang-sdk-go-v1-` / `lang-sdk-gradle-v1-` / `lang-sdk-pnpm-v1-` in
+`k8s-tests.yml`) — bump the salt to force-invalidate a poisoned cache; the arch segment keeps the
+amd64 and arm64 caches separate. The JDK version comes from the `java-sdk-version` build-info
+output (the `JAVA_SDK_VERSION` breeze constant).
