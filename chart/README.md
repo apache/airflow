@@ -51,6 +51,7 @@ cluster using the [Helm](https://helm.sh) package manager.
    * Container-specific Service Account Token Volume configuration implementing Principle of Least Privilege
    * Only scheduler containers receive API access; init and sidecar containers operate without tokens
    * Defense-in-depth security with both ServiceAccount and Pod-level controls
+   * Git-sync sidecar and init containers disable privilege escalation and drop all Linux capabilities by default
    * Compatibility with security policies like Kyverno and compliance frameworks
 * Monitoring:
    * StatsD/Prometheus metrics for Airflow
