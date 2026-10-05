@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import socket
 import threading
+import time
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import paramiko
@@ -26,6 +28,9 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.ssh.tunnel import SSHTunnel
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @pytest.fixture
@@ -171,6 +176,16 @@ class TestSSHTunnel:
                 tunnel._server_socket.close()
 
 
+def _wait_until(condition: Callable[[], bool], timeout: float = 5.0) -> bool:
+    """Return whether ``condition`` became true within ``timeout`` seconds, checking every 50 ms."""
+    end = time.monotonic() + timeout
+    while not condition():
+        if time.monotonic() >= end:
+            return False
+        threading.Event().wait(0.05)
+    return True
+
+
 def _round_trip(port: int, message: bytes) -> bytes:
     with socket.create_connection(("localhost", port), timeout=5) as conn:
         conn.sendall(message)
@@ -210,10 +225,6 @@ class TestSSHTunnelForwarding:
                     assert conn.recv(100) == b""
             selector = tunnel._selector
             assert selector is not None
-            # Only the listening socket and the shutdown socket stay registered.
-            deadline = threading.Event()
-            for _ in range(50):
-                if len(selector.get_map()) == 2:
-                    break
-                deadline.wait(0.1)
-            assert len(selector.get_map()) == 2
+            # The forwarding thread unregisters the connection asynchronously; only the listening
+            # socket and the shutdown socket stay registered.
+            assert _wait_until(lambda: len(selector.get_map()) == 2)
