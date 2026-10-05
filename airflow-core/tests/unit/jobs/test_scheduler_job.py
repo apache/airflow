@@ -4328,12 +4328,13 @@ class TestSchedulerJob:
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
 
+        class NoRevokeExecutor(BaseExecutor):
+            pass
+
         assert "revoke_task" in BaseExecutor.__dict__
-        # this is just verifying that LocalExecutor is good enough for this test
-        # in that it does not implement revoke_task
-        assert "revoke_task" not in LocalExecutor.__dict__
+        assert "revoke_task" not in NoRevokeExecutor.__dict__
         scheduler_job = Job()
-        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0, executors=[LocalExecutor()])
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0, executors=[NoRevokeExecutor()])
         job_runner._task_queued_timeout = 300
         job_runner._handle_tasks_stuck_in_queued()
 
