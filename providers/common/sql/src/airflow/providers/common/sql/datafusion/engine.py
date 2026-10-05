@@ -81,8 +81,12 @@ class DataFusionEngine(LoggingMixin):
                 datasource_config.uri, connection_config=connection_config
             )
             schema = storage_provider.get_scheme(datasource_config.uri)
-            self.session_context.register_object_store(schema=schema, store=object_store)
-            self.log.info("Registered object store for schema: %s", schema)
+            # DataFusion's object-store registry keys on (schema, host); omitting host only
+            # matches URIs with an empty authority (e.g. file:///path), so a bucket/container
+            # URI's netloc must be passed explicitly or lookup fails at query time.
+            host = urlsplit(datasource_config.uri).netloc
+            self.session_context.register_object_store(schema=schema, store=object_store, host=host)
+            self.log.info("Registered object store for schema: %s host: %s", schema, host)
         except Exception as e:
             raise ObjectStoreCreationException(
                 f"Error while creating object store for {datasource_config.storage_type}: {e}"
