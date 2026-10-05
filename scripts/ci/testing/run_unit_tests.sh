@@ -121,12 +121,7 @@ function providers_tests() {
         exit 1
     fi
     set -e
-    # If pytest returns exit code 1 (no tests collected) for DB-only runs, treat it as success
-    # to avoid failing CI when there are simply no DB tests defined for the group.
-    if [[ ${RESULT} == "1" && "${TEST_SCOPE}" == "DB" ]]; then
-        echo
-        echo "${COLOR_YELLOW}No DB tests were collected for ${TEST_GROUP}; treating as success.${COLOR_RESET}"
-    elif [[ ${RESULT} != "0" ]]; then
+    if [[ ${RESULT} != "0" ]]; then
         echo
         echo "${COLOR_RED}The ${TEST_GROUP} test ${TEST_SCOPE} failed! Giving up${COLOR_RESET}"
         echo

@@ -617,7 +617,8 @@ class TestDagRun:
             "test_state_succeeded2": TaskInstanceState.SUCCESS,
         }
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+        dag_maker.dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_maker.dag), bundle_name="dag_maker")
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -664,7 +665,8 @@ class TestDagRun:
             "test_state_failed2": TaskInstanceState.FAILED,
         }
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+        dag_maker.dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_maker.dag), bundle_name="dag_maker")
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -991,12 +993,9 @@ class TestDagRun:
             run_type=DagRunType.SCHEDULED,
         )
 
-        prev_ti = TI(task, run_id=dag_run_1.run_id, dag_version_id=dag_run_1.created_dag_version_id)
-        prev_ti.refresh_from_db(session=session)
+        prev_ti = dag_run_1.get_task_instance(task.task_id, session=session)
         prev_ti.set_state(prev_ti_state, session=session)
         session.flush()
-        ti = TI(task, run_id=dag_run_2.run_id, dag_version_id=dag_run_1.created_dag_version_id)
-        ti.refresh_from_db(session=session)
 
         decision = dag_run_2.task_instance_scheduling_decisions(session=session)
         schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]

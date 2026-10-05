@@ -1561,17 +1561,15 @@ class TestSchedulerJob:
         task_id_1 = "dummy_task"
 
         with dag_maker(dag_id=dag_id):
-            task1 = EmptyOperator(task_id=task_id_1)
+            EmptyOperator(task_id=task_id_1)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[self.null_exec])
         session = settings.Session()
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
-        dag_version = DagVersion.get_latest_version(dr1.dag_id)
 
-        ti1 = create_task_instance(task1, run_id=dr1.run_id, dag_version_id=dag_version.id)
-        ti1.refresh_from_db()
+        ti1 = dr1.get_task_instance(task_id_1, session=session)
         ti1.state = State.SCHEDULED
         session.merge(ti1)
         session.flush()
@@ -4330,12 +4328,13 @@ class TestSchedulerJob:
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
 
+        class NoRevokeExecutor(BaseExecutor):
+            pass
+
         assert "revoke_task" in BaseExecutor.__dict__
-        # this is just verifying that LocalExecutor is good enough for this test
-        # in that it does not implement revoke_task
-        assert "revoke_task" not in LocalExecutor.__dict__
+        assert "revoke_task" not in NoRevokeExecutor.__dict__
         scheduler_job = Job()
-        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0, executors=[LocalExecutor()])
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0, executors=[NoRevokeExecutor()])
         job_runner._task_queued_timeout = 300
         job_runner._handle_tasks_stuck_in_queued()
 
@@ -8248,9 +8247,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
 
-        dag_version = DagVersion.get_latest_version(dag_id=dag.dag_id)
-        ti = create_task_instance(task=task1, run_id=dr1_running.run_id, dag_version_id=dag_version.id)
-        ti.refresh_from_db()
+        ti = dr1_running.get_task_instance(task1.task_id, session=session)
         ti.state = State.SUCCESS
         session.merge(ti)
         session.flush()
