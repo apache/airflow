@@ -37,6 +37,7 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager, rese
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
+from unit.dag_processing.fake_task_handler_runtime import LOCAL_BUNDLE, parse_dag_file, task_handler_config
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -144,3 +145,50 @@ def test_probes_the_task_handlers_of_a_packed_typescript_bundle(mock_should_use_
         },
     )
     assert list(result.task_handlers) == ["typescript_example", "typescript_taskflow_example"]
+
+
+@pytest.mark.usefixtures("fresh_coordinator_manager")
+@pytest.mark.parametrize("dag_file_name", ["typescript_example.py", "typescript_taskflow_example.py"])
+@mock.patch.object(supervisor, "_should_use_exec", autospec=True, return_value=False)
+def test_the_example_dags_match_the_packed_bundle(
+    mock_should_use_exec, example_bundle, dag_file_name, cap_structlog
+):
+    dag_file = TS_SDK_PATH / "example" / "dags" / dag_file_name
+    coordinators = {
+        "ts": {
+            "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
+            "kwargs": {
+                "task_handler_bundle_name": "ts-task-handlers",
+                "node_executable": shutil.which("node"),
+            },
+        }
+    }
+    bundles = [
+        {"name": "dags", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(dag_file.parent)}},
+        {
+            "name": "ts-task-handlers",
+            "classpath": LOCAL_BUNDLE,
+            "kwargs": {"path": os.fspath(example_bundle.parent)},
+        },
+    ]
+
+    with task_handler_config(
+        dag_file.parent,
+        example_bundle.parent,
+        coordinators,
+        queue_to_coordinator={"typescript": "ts"},
+        bundles=bundles,
+    ):
+        result = parse_dag_file(dag_file)
+
+    assert result.import_errors == {}
+    assert {"event": "Probed a task handler artifact", "path": example_bundle.name} in cap_structlog
+    assert not any(
+        e["event"]
+        in (
+            "Dag's call passed argument(s) the task handler does not declare",
+            "Task handler declares argument(s) the Dag's call did not pass",
+            "Not checking a Dag's stub tasks against their task handlers",
+        )
+        for e in cap_structlog.entries
+    )
