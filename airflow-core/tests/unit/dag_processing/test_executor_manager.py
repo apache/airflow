@@ -106,6 +106,21 @@ def test_removed_file_cancels_delivery_and_ignores_late_event(persist, manager, 
     assert not proc.workload.cancel_path.exists()
 
 
+@mock.patch("airflow.dag_processing.executor_manager.time.sleep", autospec=True)
+def test_polling_returns_on_first_completion_before_timeout(sleep, manager, file):
+    proc = manager._create_process(file)
+    manager._processors[file] = proc
+    manager._executor.get_event_buffer.side_effect = [
+        {},
+        {},
+        {proc.workload.key: (ParseDagFileState.FAILED, None)},
+    ]
+    manager._service_processor_sockets(timeout=60)
+    assert proc.is_ready
+    assert sleep.call_args_list == [mock.call(0.01), mock.call(0.01)]
+    assert manager._executor.sync.call_count == 2
+
+
 @pytest.mark.parametrize("state", [ParseDagFileState.SUCCESS, ParseDagFileState.FAILED])
 def test_missing_result_does_not_block_other_files(manager, file, state):
     proc = manager._create_process(file)

@@ -38,6 +38,9 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.manager import DagFileInfo
 
+# LocalExecutor results arrive on a queue the manager's selector cannot watch.
+_RESULT_POLL_INTERVAL = 0.01
+
 
 @dataclass
 class ExecutorDagFileProcess:
@@ -111,24 +114,33 @@ class ExecutorDagFileProcessorManager(DagFileProcessorManager):
     def _service_processor_sockets(self, timeout: float | None = 1.0) -> None:
         if self._executor is None or self._control_dir is None:
             raise RuntimeError("Start the parsing executor before polling")
-        self._executor.heartbeat()
-        if timeout:
-            time.sleep(timeout)
-        self._executor.sync()
+        executor, control_dir = self._executor, self._control_dir
+        executor.heartbeat()
+        deadline = time.monotonic() + (timeout or 0)
+        # Return on the first completion, as the base selector wait does, so a freed slot is refilled.
+        while not self._collect_finished_workloads(executor, control_dir):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            time.sleep(min(_RESULT_POLL_INTERVAL, remaining))
+            executor.sync()
+
+    def _collect_finished_workloads(self, executor: LocalExecutor, control_dir: Path) -> bool:
+        finished = False
         processes = {
             proc.workload.key: proc
             for proc in self._processors.values()
             if isinstance(proc, ExecutorDagFileProcess)
         }
-        for key, (state, info) in self._executor.get_event_buffer().items():
+        for key, (state, info) in executor.get_event_buffer().items():
             if not isinstance(key, ParseDagFileKey) or state not in {
                 ParseDagFileState.SUCCESS,
                 ParseDagFileState.FAILED,
             }:
                 continue
-            (self._control_dir / f"{key.id}.cancel").unlink(missing_ok=True)
+            (control_dir / f"{key.id}.cancel").unlink(missing_ok=True)
             if (proc := processes.get(key)) is None:
-                (self._control_dir / f"{key.id}.json").unlink(missing_ok=True)
+                (control_dir / f"{key.id}.json").unlink(missing_ok=True)
                 continue
             if state == ParseDagFileState.SUCCESS:
                 try:
@@ -140,6 +152,8 @@ class ExecutorDagFileProcessorManager(DagFileProcessorManager):
             else:
                 self.log.error("Parsing workload %s failed: %s", proc.workload.display_name, info)
             proc.is_ready = True
+            finished = True
+        return finished
 
     def terminate(self) -> None:
         if self._resources is not None:
