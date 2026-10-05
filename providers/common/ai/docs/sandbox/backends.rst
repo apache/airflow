@@ -263,28 +263,21 @@ Install the SDK extra:
     from airflow.providers.common.ai.toolsets import SandboxToolset
 
     SandboxToolset(
-        BoatSandboxBackend(boat_conn_id="boat_default"),
+        BoatSandboxBackend(),
         spec=SandboxSpec(block_network=False),
     )
 
-Credentials resolve lazily from a generic Airflow connection on first use, so the
-API key can stay in the configured secrets backend:
-
-- ``password``: Boat API key. Required.
-- ``host``: API base URL. Optional; defaults to ``https://boat.dev/api/v1``.
-- Extra ``timeout``: HTTP request timeout in seconds.
-- Extra ``no_env``: whether Boat should withhold account-stored secrets.
-  Defaults to ``true``.
+Credentials are ambient, the same way Modal's are. On first use the backend
+reads ``BOAT_API_KEY`` (required) and optional ``BOAT_BASE_URL`` from the worker
+environment. A connection type waits for a Boat provider.
 
 Constructor parameters:
 
-- ``boat_conn_id``: Connection ID. Default ``"boat_default"``. Passing ``None``
-  reads ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL`` from the worker
-  environment instead.
 - ``machine_type``: ``"small"``, ``"default"`` or ``"large"``.
 - ``ttl_seconds``: server-side archive TTL. Default ``3600``.
 - ``ready_timeout``: provisioning deadline. Default ``300``.
-- ``no_env``: explicit override for the connection's ``no_env`` setting.
+- ``request_timeout``: HTTP request timeout in seconds. Default ``30``.
+- ``no_env``: withhold account-stored secrets. Default ``True``.
 
 ``SandboxSpec.env`` is passed when the sandbox is created. **Boat cannot enforce
 a deny-all network policy, a per-domain egress allowlist, or a CIDR egress

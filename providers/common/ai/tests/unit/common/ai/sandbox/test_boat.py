@@ -38,15 +38,9 @@ from airflow.providers.common.ai.sandbox.base import (
 )
 from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
 
-_BASE_HOOK_PATH = "airflow.providers.common.ai.sandbox.boat.BaseHook"
-
 
 def _api_error(status: int, body: str | None = None) -> ApiException:
     return ApiException(status=status, body=body)
-
-
-def _connection(*, password: str | None = "boat_secret", host: str | None = None, extra: dict | None = None):
-    return SimpleNamespace(password=password, host=host, extra_dejson=extra or {})
 
 
 def _command_response(
@@ -95,7 +89,7 @@ def test_missing_sdk_error_is_actionable():
             raise ImportError("blocked for test")
         return real_import(name, *args, **kwargs)
 
-    backend = BoatSandboxBackend(boat_conn_id=None)
+    backend = BoatSandboxBackend()
     with mock.patch.dict("os.environ", {"BOAT_API_KEY": "boat_key"}, clear=False):
         with mock.patch("builtins.__import__", side_effect=blocked_import):
             with pytest.raises(SandboxTerminalError, match=r"\[boat\]"):
@@ -111,6 +105,8 @@ def test_missing_sdk_error_is_actionable():
         ({"ttl_seconds": True}, "ttl_seconds"),
         ({"ready_timeout": 0}, "ready_timeout"),
         ({"ready_timeout": False}, "ready_timeout"),
+        ({"request_timeout": 0}, "request_timeout"),
+        ({"no_env": "false"}, "no_env"),
     ],
 )
 def test_constructor_rejects_invalid_values(kwargs, message):
@@ -118,67 +114,39 @@ def test_constructor_rejects_invalid_values(kwargs, message):
         BoatSandboxBackend(**kwargs)
 
 
-class TestConnection:
+class TestCredentials:
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)
     @mock.patch("boat_sdk.Configuration", autospec=True)
-    @mock.patch(_BASE_HOOK_PATH, autospec=True)
-    def test_airflow_connection_fields_and_allowlisted_extras_are_forwarded(
-        self, hook, configuration, _client, _boat_api
-    ):
-        hook.get_connection.return_value = _connection(
-            password=" key ",
-            host="https://boat.example/api/v1",
-            extra={"timeout": "12.5", "no_env": "false", "ignored": "value"},
-        )
-        backend = BoatSandboxBackend(boat_conn_id="my_boat")
+    def test_environment_key_and_constructor_knobs_are_forwarded(self, configuration, _client, boat_api):
+        with mock.patch.dict(
+            "os.environ",
+            {"BOAT_API_KEY": " env-key ", "BOAT_BASE_URL": "https://custom.example/api/v1/"},
+            clear=False,
+        ):
+            backend = BoatSandboxBackend(request_timeout=12.5, no_env=False)
+            backend._get_api()
 
-        backend._get_api()
-
-        hook.get_connection.assert_called_once_with("my_boat")
-        configuration.assert_called_once_with(host="https://boat.example/api/v1", access_token="key")
+        configuration.assert_called_once_with(host="https://custom.example/api/v1", access_token="env-key")
+        boat_api.assert_called_once()
         assert backend._resolved_no_env is False
         assert backend._request_timeout == 12.5
 
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)
     @mock.patch("boat_sdk.Configuration", autospec=True)
-    @mock.patch(_BASE_HOOK_PATH, autospec=True)
-    def test_connection_is_resolved_once_and_cached(self, hook, _configuration, _client, _boat_api):
-        hook.get_connection.return_value = _connection()
-        backend = BoatSandboxBackend()
+    def test_client_is_resolved_once_and_cached(self, configuration, _client, _boat_api):
+        with mock.patch.dict("os.environ", {"BOAT_API_KEY": "env-key"}, clear=False):
+            backend = BoatSandboxBackend()
+            backend._get_api()
+            backend._get_api()
 
-        backend._get_api()
-        backend._get_api()
+        configuration.assert_called_once_with(host="https://boat.dev/api/v1", access_token="env-key")
 
-        hook.get_connection.assert_called_once_with("boat_default")
-
-    @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
-    @mock.patch("boat_sdk.ApiClient", autospec=True)
-    @mock.patch("boat_sdk.Configuration", autospec=True)
-    def test_none_connection_id_reads_environment(self, configuration, _client, _boat_api):
-        with mock.patch.dict(
-            "os.environ",
-            {"BOAT_API_KEY": "env-key", "BOAT_BASE_URL": "https://custom.example/api/v1"},
-            clear=False,
-        ):
-            BoatSandboxBackend(boat_conn_id=None)._get_api()
-
-        configuration.assert_called_once_with(host="https://custom.example/api/v1", access_token="env-key")
-
-    @mock.patch(_BASE_HOOK_PATH, autospec=True)
-    def test_missing_api_key_is_terminal(self, hook):
-        hook.get_connection.return_value = _connection(password="")
-
-        with pytest.raises(SandboxTerminalError, match="has no password"):
-            BoatSandboxBackend()._get_api()
-
-    @mock.patch(_BASE_HOOK_PATH, autospec=True)
-    def test_invalid_connection_extra_is_terminal(self, hook):
-        hook.get_connection.return_value = _connection(extra={"timeout": "never"})
-
-        with pytest.raises(SandboxTerminalError, match="timeout must be a positive finite number"):
-            BoatSandboxBackend()._get_api()
+    def test_missing_api_key_is_terminal(self):
+        with mock.patch.dict("os.environ", {"BOAT_API_KEY": ""}, clear=False):
+            with pytest.raises(SandboxTerminalError, match="BOAT_API_KEY is not set"):
+                BoatSandboxBackend()._get_api()
 
 
 class TestCreate:

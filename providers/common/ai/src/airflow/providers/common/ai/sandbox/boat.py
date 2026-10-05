@@ -35,7 +35,6 @@ from airflow.providers.common.ai.sandbox.base import (
     _new_sandbox_name,
     _validate_positive_finite,
 )
-from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -124,18 +123,6 @@ def _bound_text(text: str, max_bytes: int, *, already_truncated: bool = False) -
     return encoded[-max_bytes:].decode("utf-8", errors="ignore"), True
 
 
-def _parse_bool(value: Any, name: str) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"true", "1", "yes"}:
-            return True
-        if normalized in {"false", "0", "no"}:
-            return False
-    raise SandboxTerminalError(f"The Boat connection extra {name} must be a boolean.")
-
-
 class BoatSandboxBackend(SandboxBackend):
     """
     Sandbox backend that runs agent commands in a `Boat <https://docs.boat.dev/quickstart>`__ sandbox.
@@ -147,12 +134,12 @@ class BoatSandboxBackend(SandboxBackend):
 
     Boat (formerly Ascii Box) is a hosted cloud-computer API: the Airflow worker
     needs only network access and an API key, with no local daemon or host
-    virtualization. Credentials resolve lazily from an Airflow connection on
-    first use.
+    virtualization.
 
-    Connection fields: ``password`` is the Boat API key (required). ``host`` may
-    override the API base URL. The extra may set ``timeout`` (request timeout in
-    seconds) and ``no_env`` (withhold account secrets; default ``true``).
+    **Credentials are ambient**, the same way Modal's are. On first use the
+    backend reads ``BOAT_API_KEY`` (required) and optional ``BOAT_BASE_URL``
+    from the worker environment. A connection type belongs in a future Boat
+    provider, not here.
 
     Boat cannot enforce a deny-all, per-domain, or CIDR egress policy. ``create``
     therefore refuses a :class:`~airflow.providers.common.ai.sandbox.SandboxSpec`
@@ -167,30 +154,27 @@ class BoatSandboxBackend(SandboxBackend):
     would land a whole file in worker memory before ``max_bytes`` could reject
     it.
 
-    :param boat_conn_id: Airflow connection ID for Boat. ``None`` lets the
-        backend read ``BOAT_API_KEY`` (and optional ``BOAT_BASE_URL``) from the
-        environment.
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
         Default ``"default"``.
     :param ttl_seconds: Server-side archive TTL in seconds after which the
         sandbox is archived even if the worker never destroyed it. Default ``3600``.
     :param ready_timeout: Seconds to wait for a newly created sandbox to become
         ready. Default ``300``.
+    :param request_timeout: HTTP request timeout in seconds. Default ``30``.
     :param no_env: When ``True`` (default), create a no-env sandbox that receives
-        none of the account's stored secrets. ``None`` reads the connection extra
-        and otherwise defaults to ``True``.
+        none of the account's stored secrets.
     """
 
     name = "boat"
 
     def __init__(
         self,
-        boat_conn_id: str | None = "boat_default",
         *,
         machine_type: str = "default",
         ttl_seconds: int = 3600,
         ready_timeout: float = 300.0,
-        no_env: bool | None = None,
+        request_timeout: float = 30.0,
+        no_env: bool = True,
     ) -> None:
         if machine_type not in _MACHINE_TYPES:
             raise ValueError(f"machine_type must be one of {sorted(_MACHINE_TYPES)}, got {machine_type!r}.")
@@ -200,13 +184,14 @@ class BoatSandboxBackend(SandboxBackend):
         if int(ttl_seconds) != ttl_seconds:
             raise ValueError(f"ttl_seconds must be a whole number of seconds, got {ttl_seconds!r}.")
         _validate_positive_finite(ready_timeout, "ready_timeout")
-        self._boat_conn_id = boat_conn_id
+        _validate_positive_finite(request_timeout, "request_timeout")
+        if not isinstance(no_env, bool):
+            raise ValueError(f"no_env must be a boolean, got {no_env!r}.")
         self._machine_type = machine_type
         self._ttl_seconds = int(ttl_seconds)
         self._ready_timeout = ready_timeout
-        self._no_env = no_env
-        self._resolved_no_env = True if no_env is None else no_env
-        self._request_timeout: float | None = None
+        self._request_timeout = request_timeout
+        self._resolved_no_env = no_env
         self._api_client: ApiClient | None = None
         self._boat_api: BoatApi | None = None
         self._sandbox_env: dict[str, dict[str, str]] = {}
@@ -218,48 +203,16 @@ class BoatSandboxBackend(SandboxBackend):
             from boat_sdk import ApiClient, Configuration
             from boat_sdk.api.boat_api import BoatApi
 
-            if self._boat_conn_id is None:
-                api_key = (os.environ.get("BOAT_API_KEY") or "").strip()
-                if not api_key:
-                    raise SandboxTerminalError(
-                        "BOAT_API_KEY is not set; export it or pass an Airflow connection id."
-                    )
-                base_url = (os.environ.get("BOAT_BASE_URL") or _DEFAULT_BASE_URL).rstrip("/")
-                request_timeout = 30.0
-                no_env = True if self._no_env is None else self._no_env
-            else:
-                conn = BaseHook.get_connection(self._boat_conn_id)
-                api_key = (conn.password or "").strip()
-                if not api_key:
-                    raise SandboxTerminalError(
-                        f"Connection {self._boat_conn_id!r} has no password; set it to the Boat API key."
-                    )
-                base_url = (conn.host or _DEFAULT_BASE_URL).rstrip("/")
-                if not base_url.startswith("http"):
-                    base_url = f"https://{base_url}"
-                extra = conn.extra_dejson
-                request_timeout = extra.get("timeout", 30)
-                try:
-                    request_timeout = float(request_timeout)
-                    _validate_positive_finite(request_timeout, "connection extra timeout")
-                except (TypeError, ValueError) as e:
-                    raise SandboxTerminalError(
-                        "The Boat connection extra timeout must be a positive finite number."
-                    ) from e
-                if self._no_env is None:
-                    no_env = _parse_bool(extra.get("no_env", True), "no_env")
-                else:
-                    no_env = self._no_env
-
-            self._request_timeout = request_timeout
-            self._resolved_no_env = no_env
+            api_key = (os.environ.get("BOAT_API_KEY") or "").strip()
+            if not api_key:
+                raise SandboxTerminalError("BOAT_API_KEY is not set.")
+            base_url = (os.environ.get("BOAT_BASE_URL") or _DEFAULT_BASE_URL).rstrip("/")
             self._api_client = ApiClient(Configuration(host=base_url, access_token=api_key))
             self._boat_api = BoatApi(self._api_client)
             return self._boat_api
 
     def _http_timeout(self, seconds: float) -> float:
-        configured = self._request_timeout if self._request_timeout is not None else 30.0
-        return max(configured, seconds + 30.0)
+        return max(self._request_timeout, seconds + 30.0)
 
     def _wait_until_ready(self, sandbox_id: str) -> None:
         from boat_sdk import wait_until_ready

@@ -77,7 +77,7 @@ export BOAT_API_KEY="..."
 pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_boat.py
 ```
 
-With `boat_conn_id=None`, the backend reads this key lazily in the worker process; it is not copied
+The backend reads this key lazily in the worker process; it is not copied
 into `SandboxSpec.env` or exposed inside the sandbox. The test passes a separate non-secret marker
 through `SandboxSpec.env` and verifies it from a sandbox command, exercises successful and
 non-zero command exits plus write/read/list operations, and requests open egress

@@ -144,7 +144,7 @@ def example_sandbox_toolset_boat():
             instructions="Use the sandbox tools as requested.",
             toolsets=[
                 SandboxToolset(
-                    BoatSandboxBackend(boat_conn_id=None, ttl_seconds=900),
+                    BoatSandboxBackend(ttl_seconds=900),
                     spec=SandboxSpec(
                         block_network=False,
                         env={"AIRFLOW_BOAT_E2E_ENV": ENV_MARKER},
