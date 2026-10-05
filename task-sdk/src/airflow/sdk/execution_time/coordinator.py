@@ -354,6 +354,10 @@ class CoordinatorManager:
         Return, in config order, the keys of the coordinators of the class at *coordinator_classpath*.
 
         A coordinator is of the class when its class is that class or a subclass of it. Nothing is built.
+        A configured coordinator whose class cannot be loaded is logged and skipped.
+
+        :raises ImportError: when *coordinator_classpath* cannot be imported.
+            It comes from code, not from config, so this is a bug rather than a config error.
         """
         target = import_string(coordinator_classpath)
         return [
