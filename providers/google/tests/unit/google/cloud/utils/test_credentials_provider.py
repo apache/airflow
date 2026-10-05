@@ -519,6 +519,24 @@ class TestGetGcpCredentialsAndProjectId:
         )
         assert result == ("CREDENTIALS", "PROJECT_ID")
 
+    @pytest.mark.parametrize("field", ["grant_type", "client_id", "client_secret"])
+    @mock.patch(
+        "airflow.providers.google.cloud.utils.credentials_provider.ClientCredentialsGrantFlowTokenSupplier"
+    )
+    def test_get_credentials_using_identity_provider_rejects_reserved_extra_params(
+        self, mock_token_supplier, field
+    ):
+        with pytest.raises(ValueError, match=f"cannot set {field}"):
+            get_credentials_and_project_id(
+                credential_config_file=CREDENTIAL_CONFIG_STRING_FILE,
+                idp_issuer_url=IDP_LINK,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
+                idp_extra_params_dict={"audience": TEST_AUDIENCE, field: "other"},
+            )
+
+        mock_token_supplier.assert_not_called()
+
     def test_get_credentials_using_idp_no_credential_config(self):
         with pytest.raises(
             AirflowException,

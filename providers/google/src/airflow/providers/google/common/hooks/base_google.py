@@ -62,6 +62,16 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
     from google.auth.credentials import Credentials
 
+    from airflow.sdk.execution_time.secrets_masker import mask_secret
+else:
+    try:
+        from airflow.sdk.log import mask_secret
+    except ImportError:
+        try:
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
+        except ImportError:
+            from airflow.utils.log.secrets_masker import mask_secret
+
 log = logging.getLogger(__name__)
 
 # Constants used by the mechanism of repeating requests in reaction to exceeding the temporary quota.
@@ -372,6 +382,11 @@ class GoogleBaseHook(BaseHook):
                 idp_extra_params_dict = json.loads(idp_extra_params)
             except json.decoder.JSONDecodeError:
                 raise AirflowException("Invalid JSON.")
+            if not isinstance(idp_extra_params_dict, dict):
+                raise ValueError("IdP extra request parameters must be a JSON object.")
+            # Values under sensitive key names (the same rule as for connection extras, extendable through
+            # [core] sensitive_var_conn_names) stay out of the task logs.
+            mask_secret(idp_extra_params_dict)
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
