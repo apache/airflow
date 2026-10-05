@@ -106,6 +106,8 @@ class Job(Base, LoggingMixin):
     bundle_names: Mapped[list[str] | None] = mapped_column(ExtendedJSON, nullable=True)
     session_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
     """Component session that registered this Job over the Execution API; ``None`` for Jobs written directly."""
+    registration_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
+    """Process registration that created this Job; it creates no other Job, even after this one ends."""
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),

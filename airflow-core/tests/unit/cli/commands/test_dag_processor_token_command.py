@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from unittest import mock
 
 import jwt
@@ -24,10 +25,15 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_token_command
+from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
 
 from tests_common.test_utils.config import conf_vars
 
-CONFIGURED_BUNDLES = ["bundle_a", "bundle_b"]
+# Classes that are not installed: provisioning must not need the bundle implementations.
+BUNDLE_CONFIG = [
+    {"name": "bundle_a", "classpath": "not_installed.bundles.BundleA", "kwargs": {}},
+    {"name": "bundle_b", "classpath": "not_installed.bundles.BundleB", "kwargs": {}},
+]
 
 
 class _StopRotation(Exception):
@@ -39,17 +45,20 @@ def _decode(token: str) -> dict:
 
 
 @pytest.fixture(autouse=True)
-def signing_config():
+def provisioning_config():
     with conf_vars(
         {
             ("api_auth", "jwt_secret"): "provisioning-test-secret",
             ("execution_api", "jwt_expiration_time"): "600",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(BUNDLE_CONFIG),
+            ("core", "load_examples"): "False",
         }
     ):
+        _load_bundle_config_snapshot.cache_clear()
         yield
+    _load_bundle_config_snapshot.cache_clear()
 
 
-@mock.patch.object(dag_processor_token_command, "DagBundlesManager", autospec=True)
 class TestDagProcessorTokenCommand:
     parser: argparse.ArgumentParser
 
@@ -57,35 +66,34 @@ class TestDagProcessorTokenCommand:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    def _run(self, mock_manager, *args: str) -> None:
-        mock_manager.return_value.get_all_bundle_names.return_value = CONFIGURED_BUNDLES
+    def _run(self, *args: str) -> None:
         dag_processor_token_command.dag_processor_token(
             self.parser.parse_args(["dag-processor-token", *args])
         )
 
-    def test_grants_every_configured_bundle_by_default(self, mock_manager, tmp_path):
+    def test_grants_every_configured_bundle_by_default(self, tmp_path):
         token_file = tmp_path / "token"
 
-        self._run(mock_manager, "--token-file", str(token_file))
+        self._run("--token-file", str(token_file))
 
         claims = _decode(token_file.read_text())
-        assert (claims["scope"], claims["dag_bundles"]) == ("dag_processor", CONFIGURED_BUNDLES)
+        assert (claims["scope"], claims["dag_bundles"]) == ("dag_processor_session", ["bundle_a", "bundle_b"])
         assert claims["exp"] - claims["iat"] == 600
 
-    def test_grants_the_requested_bundles(self, mock_manager, tmp_path):
+    def test_grants_the_requested_bundles(self, tmp_path):
         token_file = tmp_path / "token"
 
-        self._run(mock_manager, "--token-file", str(token_file), "-B", "bundle_b", "--valid-for", "120")
+        self._run("--token-file", str(token_file), "-B", "bundle_b", "--valid-for", "120")
 
         claims = _decode(token_file.read_text())
         assert claims["dag_bundles"] == ["bundle_b"]
         assert claims["exp"] - claims["iat"] == 120
 
-    def test_rejects_an_unknown_bundle(self, mock_manager, tmp_path):
+    def test_rejects_an_unknown_bundle(self, tmp_path):
         token_file = tmp_path / "token"
 
         with pytest.raises(SystemExit, match="Bundles not found: unknown"):
-            self._run(mock_manager, "--token-file", str(token_file), "-B", "unknown")
+            self._run("--token-file", str(token_file), "-B", "unknown")
 
         assert not token_file.exists()
 
@@ -93,9 +101,9 @@ class TestDagProcessorTokenCommand:
     @mock.patch.object(
         dag_processor_token_command.time, "sleep", autospec=True, side_effect=[None, _StopRotation]
     )
-    def test_rotation_keeps_the_session(self, mock_sleep, mock_write, mock_manager, tmp_path):
+    def test_rotation_keeps_the_session(self, mock_sleep, mock_write, tmp_path):
         with pytest.raises(_StopRotation):
-            self._run(mock_manager, "--token-file", str(tmp_path / "token"), "--valid-for", "120", "--rotate")
+            self._run("--token-file", str(tmp_path / "token"), "--valid-for", "120", "--rotate")
 
         first, second = (_decode(call.args[1]) for call in mock_write.call_args_list)
         assert first["sub"] == second["sub"]

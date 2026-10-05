@@ -36,10 +36,16 @@ if TYPE_CHECKING:
     from uuid import UUID
 
 
-def generate_dag_processor_token(*, session_id: UUID, bundle_names: Collection[str], valid_for: float) -> str:
-    """Return a ``dag_processor`` token for the session, granting it the given Dag bundles."""
+def generate_dag_processor_session_token(
+    *, session_id: UUID, bundle_names: Collection[str], valid_for: float
+) -> str:
+    """Return a ``dag_processor_session`` token, which a Dag processor exchanges for a Job token."""
     return _jwt_generator().generate(
-        extras={"sub": str(session_id), "scope": "dag_processor", "dag_bundles": sorted(bundle_names)},
+        extras={
+            "sub": str(session_id),
+            "scope": "dag_processor_session",
+            "dag_bundles": sorted(bundle_names),
+        },
         valid_for=valid_for,
     )
 

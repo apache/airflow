@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add session_id to Job.
+Add session_id and registration_id to Job.
 
 Revision ID: c71065a1b14f
 Revises: 90e4d18ccadf
@@ -40,16 +40,20 @@ airflow_version = "3.4.0"
 
 
 def upgrade():
-    """Add the nullable, unique session_id column to Job."""
+    """Add the nullable, unique session_id and registration_id columns to Job."""
     with disable_sqlite_fkeys(op):
         with op.batch_alter_table("job", schema=None) as batch_op:
             batch_op.add_column(sa.Column("session_id", sa.Uuid(), nullable=True))
+            batch_op.add_column(sa.Column("registration_id", sa.Uuid(), nullable=True))
             batch_op.create_unique_constraint("job_session_id_uq", ["session_id"])
+            batch_op.create_unique_constraint("job_registration_id_uq", ["registration_id"])
 
 
 def downgrade():
-    """Remove session_id from Job."""
+    """Remove session_id and registration_id from Job."""
     with disable_sqlite_fkeys(op):
         with op.batch_alter_table("job", schema=None) as batch_op:
+            batch_op.drop_constraint("job_registration_id_uq", type_="unique")
             batch_op.drop_constraint("job_session_id_uq", type_="unique")
+            batch_op.drop_column("registration_id")
             batch_op.drop_column("session_id")

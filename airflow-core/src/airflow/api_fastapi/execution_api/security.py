@@ -28,18 +28,23 @@ Token types (``TokenType``):
     Restricted scope, only accepted on routes that opt in via
     ``Security(require_auth, scopes=["token:workload"])``.
 
-``"dag_processor"``
+``"dag_processor_session"``
     Issued to a Dag processor session by trusted provisioning, never by the
     processor itself. ``sub`` identifies the session and the ``dag_bundles``
-    claim lists the bundles it may act for. Only accepted on routes that opt in
-    via ``token:dag_processor``; requests that need a bundle's team name it in
-    the ``Airflow-Dag-Bundle`` header, and requests about a Dag are limited to
-    Dags in granted bundles. Never refreshed by ``JWTReissueMiddleware``.
+    claim lists the bundles it may act for. Only accepted by Job registration,
+    which exchanges it for a ``dag_processor`` token.
 
-    A session registers one Job (``Job.session_id``) and is open until that Job
-    completes. Every route that admits these tokens requires an open session,
-    except routes declaring the ``session:unchecked`` scope (Job registration and
-    completion), which validate the session themselves.
+``"dag_processor"``
+    Issued by Job registration for one Job of a session (``job_id`` claim), and
+    valid only while that Job is open: completing the Job, or registering
+    another Job for the session, ends it. It never outlives the session token
+    it was exchanged for. Only accepted on routes that opt in via
+    ``token:dag_processor``; requests that need a bundle's team name it in the
+    ``Airflow-Dag-Bundle`` header, and requests about a Dag are limited to Dags
+    in granted bundles. Routes declaring the ``job:unchecked`` scope (Job
+    completion) check the Job themselves.
+
+Neither Dag processor token is refreshed by ``JWTReissueMiddleware``.
 
 Tokens without a ``scope`` claim default to ``"execution"`` for backwards
 compatibility (``claims.setdefault("scope", "execution")``).
@@ -100,9 +105,9 @@ log = structlog.get_logger(logger_name=__name__)
 VALID_TOKEN_TYPES: frozenset[str] = frozenset(get_args(TokenScope))
 
 _REQUEST_SCOPE_TOKEN_KEY = "ti_token"
-_REQUEST_SCOPE_SESSION_JOB_KEY = "dag_processor_session_job_id"
+_REQUEST_SCOPE_JOB_KEY = "dag_processor_job_id"
 
-SESSION_UNCHECKED_SCOPE = "session:unchecked"
+JOB_UNCHECKED_SCOPE = "job:unchecked"
 
 
 class JWTBearer(HTTPBearer):
@@ -199,8 +204,8 @@ async def require_auth(
             f"Allowed types: {', '.join(sorted(allowed_token_types))}",
         )
 
-    if token_scope == "dag_processor" and getattr(route, "requires_open_session", True):
-        await _require_open_dag_processor_session(request, token)
+    if token_scope == "dag_processor" and getattr(route, "requires_open_job", True):
+        await _require_open_dag_processor_job(request, token)
 
     if "ti:self" in security_scopes.scopes:
         ti_self_id = str(request.path_params["task_instance_id"])
@@ -227,9 +232,9 @@ async def require_auth(
     return token
 
 
-async def _require_open_dag_processor_session(request: Request, token: TIToken) -> None:
-    """Refuse a ``dag_processor`` token whose session has no registered Job, or whose Job has completed."""
-    if request.scope.get(_REQUEST_SCOPE_SESSION_JOB_KEY):
+async def _require_open_dag_processor_job(request: Request, token: TIToken) -> None:
+    """Refuse a ``dag_processor`` token whose Job has completed or no longer belongs to its session."""
+    if request.scope.get(_REQUEST_SCOPE_JOB_KEY):
         return
 
     from airflow.jobs.job import Job
@@ -237,14 +242,16 @@ async def _require_open_dag_processor_session(request: Request, token: TIToken) 
 
     async with create_session_async() as session:
         job_id = await session.scalar(
-            select(Job.id).where(Job.session_id == token.id, Job.end_date.is_(None))
+            select(Job.id).where(
+                Job.id == token.claims.job_id, Job.session_id == token.id, Job.end_date.is_(None)
+            )
         )
     if job_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Dag processor session has no running Job; register one before other requests",
+            detail="The Job this token was issued for is no longer open; register a new Job",
         )
-    request.scope[_REQUEST_SCOPE_SESSION_JOB_KEY] = job_id
+    request.scope[_REQUEST_SCOPE_JOB_KEY] = job_id
 
 
 CurrentTIToken: TIToken = Depends(require_auth)
@@ -318,12 +325,12 @@ class ExecutionAPIRoute(APIRoute):
     If no ``token:*`` scopes are declared, defaults to ``{"execution"}``.
 
     ``require_auth`` reads ``route.allowed_token_types`` at request time, and
-    ``route.requires_open_session``, which is ``False`` only when the route
-    declares the ``session:unchecked`` scope.
+    ``route.requires_open_job``, which is ``False`` only when the route
+    declares the ``job:unchecked`` scope.
     """
 
     allowed_token_types: frozenset[str]
-    requires_open_session: bool
+    requires_open_job: bool
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -340,7 +347,7 @@ class ExecutionAPIRoute(APIRoute):
             raise ValueError(f"Invalid token types in Security scopes: {invalid}")
 
         self.allowed_token_types = frozenset(token_scopes) if token_scopes else frozenset({"execution"})
-        self.requires_open_session = SESSION_UNCHECKED_SCOPE not in all_scopes
+        self.requires_open_job = JOB_UNCHECKED_SCOPE not in all_scopes
 
 
 async def get_team_name_dep(token=CurrentTIToken, dag_bundle=SelectedDagBundle) -> str | None:

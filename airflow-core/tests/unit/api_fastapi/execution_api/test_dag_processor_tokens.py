@@ -24,7 +24,7 @@ import uuid6
 
 from airflow.api_fastapi.execution_api.app import _jwt_validator
 from airflow.api_fastapi.execution_api.dag_processor_tokens import (
-    generate_dag_processor_token,
+    generate_dag_processor_session_token,
     write_token_file,
 )
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims
@@ -33,17 +33,19 @@ from tests_common.test_utils.config import conf_vars
 
 
 @conf_vars({("api_auth", "jwt_secret"): "provisioning-test-secret"})
-def test_generated_token_is_a_valid_dag_processor_token():
+def test_generated_token_is_a_valid_dag_processor_session_token():
     session_id = uuid6.uuid7()
 
-    token = generate_dag_processor_token(session_id=session_id, bundle_names={"b", "a"}, valid_for=120)
+    token = generate_dag_processor_session_token(
+        session_id=session_id, bundle_names={"b", "a"}, valid_for=120
+    )
 
     claims = _jwt_validator().validated_claims(token)
     assert claims["sub"] == str(session_id)
     assert claims["dag_bundles"] == ["a", "b"]
     assert claims["exp"] - claims["iat"] == 120
     parsed = TIClaims(**claims)
-    assert (parsed.scope, parsed.dag_bundles) == ("dag_processor", frozenset({"a", "b"}))
+    assert (parsed.scope, parsed.dag_bundles) == ("dag_processor_session", frozenset({"a", "b"}))
 
 
 class TestWriteTokenFile:

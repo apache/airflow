@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
@@ -24,6 +25,7 @@ import svcs
 from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from sqlalchemy import update
 from structlog.testing import capture_logs
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
@@ -54,7 +56,12 @@ from tests_common.test_utils.db import (
     clear_db_variables,
 )
 
-DAG_PROCESSOR_CLAIMS = TIClaims(scope="dag_processor", dag_bundles=frozenset({"granted"}))
+DAG_PROCESSOR_CLAIMS = TIClaims(scope="dag_processor", dag_bundles=frozenset({"granted"}), job_id=1)
+SESSION_SUB = "00000000-0000-0000-0000-000000000001"
+JOB_ID = 4242
+REGISTRATION_ID = UUID("00000000-0000-0000-0000-00000000000a")
+OTHER_REGISTRATION_ID = UUID("00000000-0000-0000-0000-00000000000b")
+LONG_AGO = datetime(2020, 1, 1, tzinfo=timezone.utc)
 
 
 class TestTIClaims:
@@ -69,15 +76,22 @@ class TestTIClaims:
 
         assert claims.sub == "not-a-uuid"
 
+    @pytest.mark.parametrize("scope", ["dag_processor_session", "dag_processor"])
     @pytest.mark.parametrize("dag_bundles", [None, [], [""]])
-    def test_dag_processor_scope_requires_a_bundle_grant(self, dag_bundles):
+    def test_dag_processor_scopes_require_a_bundle_grant(self, scope, dag_bundles):
         with pytest.raises(ValidationError):
-            TIClaims(scope="dag_processor", dag_bundles=dag_bundles)
+            TIClaims.model_validate({"scope": scope, "dag_bundles": dag_bundles, "job_id": 1})
 
-    def test_dag_processor_scope_keeps_granted_bundles(self):
-        claims = TIClaims.model_validate({"scope": "dag_processor", "dag_bundles": ["a", "b", "a"]})
+    def test_dag_processor_scope_requires_a_job(self):
+        with pytest.raises(ValidationError, match="must name the Job"):
+            TIClaims.model_validate({"scope": "dag_processor", "dag_bundles": ["a"]})
 
-        assert claims.dag_bundles == frozenset({"a", "b"})
+    def test_dag_processor_scopes_keep_their_claims(self):
+        claims = TIClaims.model_validate(
+            {"scope": "dag_processor", "dag_bundles": ["a", "b", "a"], "job_id": 7}
+        )
+
+        assert (claims.dag_bundles, claims.job_id) == (frozenset({"a", "b"}), 7)
 
 
 class TestExecutionAPIRoute:
@@ -346,7 +360,7 @@ def _build_client(app: FastAPI, claims: TIClaims) -> TestClient:
     return TestClient(app, headers={"Authorization": "Bearer fake"})
 
 
-@patch("airflow.api_fastapi.execution_api.security._require_open_dag_processor_session", autospec=True)
+@patch("airflow.api_fastapi.execution_api.security._require_open_dag_processor_job", autospec=True)
 class TestGetSelectedDagBundle:
     @pytest.fixture
     def app(self):
@@ -411,7 +425,7 @@ def granted_and_other_dags(session):
 
 @pytest.mark.db_test
 @pytest.mark.usefixtures("granted_and_other_dags", "async_db_engine")
-@patch("airflow.api_fastapi.execution_api.security._require_open_dag_processor_session", autospec=True)
+@patch("airflow.api_fastapi.execution_api.security._require_open_dag_processor_job", autospec=True)
 class TestRequireDagInGrantedBundle:
     @pytest.fixture
     def app(self):
@@ -453,16 +467,19 @@ class TestRequireDagInGrantedBundle:
 @pytest.mark.db_test
 @pytest.mark.usefixtures("granted_and_other_dags")
 class TestDagProcessorTokenOverHTTP:
-    """Signed ``dag_processor`` tokens against the real Execution API routes."""
+    """Signed Dag processor tokens against the real Execution API routes."""
 
     SECRET = "dag-processor-test-secret"
     AUDIENCE = "urn:airflow.apache.org:task"
 
     @pytest.fixture(autouse=True)
-    def real_jwt_validation(self, exec_app):
+    def real_jwt_signing(self, exec_app):
         exec_app.dependency_overrides.pop(require_auth, None)
         lifespan.registry.register_value(
             JWTValidator, JWTValidator(secret_key=self.SECRET, audience=self.AUDIENCE)
+        )
+        lifespan.registry.register_value(
+            JWTGenerator, JWTGenerator(secret_key=self.SECRET, audience=self.AUDIENCE, valid_for=300)
         )
 
     @pytest.fixture(autouse=True)
@@ -479,18 +496,32 @@ class TestDagProcessorTokenOverHTTP:
         clear_db_jobs()
 
     @pytest.fixture
-    def running_session_job(self, session):
+    def open_job(self, session):
         job = Job(job_type="DagProcessorJob", state=JobState.RUNNING)
-        job.session_id = UUID(int=1)
+        job.id = JOB_ID
+        job.session_id = UUID(SESSION_SUB)
         session.add(job)
         session.commit()
 
     def _generate_token(self, *, secret: str = SECRET, valid_for: float = 300, **claims) -> str:
         generator = JWTGenerator(secret_key=secret, audience=self.AUDIENCE, valid_for=valid_for)
-        return generator.generate({"sub": "00000000-0000-0000-0000-000000000001", **claims})
+        return generator.generate({"sub": SESSION_SUB, **claims})
 
-    def _generate_processor_token(self, **kwargs) -> str:
-        return self._generate_token(scope="dag_processor", dag_bundles=["granted"], **kwargs)
+    def _generate_job_token(self, **kwargs) -> str:
+        return self._generate_token(scope="dag_processor", dag_bundles=["granted"], job_id=JOB_ID, **kwargs)
+
+    def _register(self, client, registration_id: UUID):
+        session_token = self._generate_token(scope="dag_processor_session", dag_bundles=["granted"])
+        return client.post(
+            "/execution/jobs",
+            headers={"Authorization": f"Bearer {session_token}"},
+            json={"registration_id": str(registration_id), "hostname": "processor-1"},
+        )
+
+    @staticmethod
+    def _get_variable_status(client, token: str) -> int:
+        headers = {"Authorization": f"Bearer {token}", DAG_BUNDLE_HEADER: "granted"}
+        return client.get("/execution/variables/key1", headers=headers).status_code
 
     @pytest.mark.parametrize(
         ("method", "url", "headers", "expected_status"),
@@ -512,9 +543,9 @@ class TestDagProcessorTokenOverHTTP:
             ),
         ],
     )
-    @pytest.mark.usefixtures("running_session_job")
+    @pytest.mark.usefixtures("open_job")
     def test_route_matrix(self, client, method, url, headers, expected_status):
-        token = self._generate_processor_token()
+        token = self._generate_job_token()
 
         response = client.request(
             method, f"/execution{url}", headers={"Authorization": f"Bearer {token}", **headers}, json="value"
@@ -525,17 +556,21 @@ class TestDagProcessorTokenOverHTTP:
     @pytest.mark.parametrize(
         "token_kwargs",
         [
-            pytest.param({"scope": "dag_processor"}, id="no-bundle-grant"),
+            pytest.param({"scope": "dag_processor", "job_id": JOB_ID}, id="no-bundle-grant"),
+            pytest.param({"scope": "dag_processor", "dag_bundles": ["granted"]}, id="no-job"),
             pytest.param(
-                {"scope": "dag_processor", "dag_bundles": ["granted"], "secret": "other"}, id="forged"
+                {"scope": "dag_processor", "dag_bundles": ["granted"], "job_id": JOB_ID, "secret": "other"},
+                id="forged",
             ),
             pytest.param(
-                {"scope": "dag_processor", "dag_bundles": ["granted"], "valid_for": -60}, id="expired"
+                {"scope": "dag_processor", "dag_bundles": ["granted"], "job_id": JOB_ID, "valid_for": -60},
+                id="expired",
             ),
+            pytest.param({"scope": "dag_processor_session", "dag_bundles": ["granted"]}, id="session-token"),
             pytest.param({"scope": "workload"}, id="wrong-token-type"),
         ],
     )
-    @pytest.mark.usefixtures("running_session_job")
+    @pytest.mark.usefixtures("open_job")
     def test_invalid_token_is_rejected(self, client, token_kwargs):
         token = self._generate_token(**token_kwargs)
 
@@ -546,9 +581,9 @@ class TestDagProcessorTokenOverHTTP:
 
         assert response.status_code == 403, response.text
 
-    @pytest.mark.usefixtures("running_session_job")
+    @pytest.mark.usefixtures("open_job")
     def test_expiring_token_is_not_reissued(self, client):
-        token = self._generate_processor_token(valid_for=30)
+        token = self._generate_job_token(valid_for=30)
 
         response = client.get(
             "/execution/variables/key1",
@@ -558,27 +593,44 @@ class TestDagProcessorTokenOverHTTP:
         assert response.status_code == 200, response.text
         assert "Refreshed-API-Token" not in response.headers
 
-    def test_requests_need_an_open_session(self, client):
-        headers = {
-            "Authorization": f"Bearer {self._generate_processor_token()}",
-            DAG_BUNDLE_HEADER: "granted",
-        }
-
-        def get_variable_status() -> int:
-            return client.get("/execution/variables/key1", headers=headers).status_code
-
-        assert get_variable_status() == 403
-
-        registered = client.post("/execution/jobs", headers=headers, json={"hostname": "processor-1"})
+    def test_job_token_lasts_until_its_job_completes(self, client):
+        registered = self._register(client, REGISTRATION_ID)
         assert registered.status_code == 201, registered.text
+        job_token = registered.json()["token"]
         job_url = f"/execution/jobs/{registered.json()['job_id']}"
-        assert get_variable_status() == 200
-        assert client.post(f"{job_url}/heartbeat", headers=headers).json() == {"state": "running"}
+        auth = {"Authorization": f"Bearer {job_token}"}
+        assert self._get_variable_status(client, job_token) == 200
+        assert client.post(f"{job_url}/heartbeat", headers=auth).json() == {"state": "running"}
 
-        completed = client.post(f"{job_url}/complete", headers=headers, json={"state": "success"})
+        completed = client.post(f"{job_url}/complete", headers=auth, json={"state": "success"})
         assert completed.status_code == 204, completed.text
-        assert get_variable_status() == 403
-        assert client.post(f"{job_url}/heartbeat", headers=headers).status_code == 403
-
-        replayed = client.post(f"{job_url}/complete", headers=headers, json={"state": "success"})
+        assert self._get_variable_status(client, job_token) == 403
+        assert client.post(f"{job_url}/heartbeat", headers=auth).status_code == 403
+        replayed = client.post(f"{job_url}/complete", headers=auth, json={"state": "success"})
         assert replayed.status_code == 204, replayed.text
+
+        assert self._register(client, REGISTRATION_ID).status_code == 409
+        restarted = self._register(client, OTHER_REGISTRATION_ID)
+        assert restarted.status_code == 201, restarted.text
+        assert self._get_variable_status(client, job_token) == 403
+        assert self._get_variable_status(client, restarted.json()["token"]) == 200
+
+    def test_replacing_a_stopped_job_ends_its_tokens(self, client, session):
+        first = self._register(client, REGISTRATION_ID)
+        assert first.status_code == 201, first.text
+        self._mark_heartbeat_expired(session, first.json()["job_id"])
+
+        second = self._register(client, OTHER_REGISTRATION_ID)
+
+        assert second.status_code == 201, second.text
+        assert self._get_variable_status(client, first.json()["token"]) == 403
+        assert self._get_variable_status(client, second.json()["token"]) == 200
+        self._mark_heartbeat_expired(session, second.json()["job_id"])
+        replaced_again = self._register(client, REGISTRATION_ID)
+        assert replaced_again.status_code == 409
+        assert replaced_again.json()["detail"]["reason"] == "registration_retired"
+
+    @staticmethod
+    def _mark_heartbeat_expired(session, job_id: int) -> None:
+        session.execute(update(Job).where(Job.id == job_id).values(latest_heartbeat=LONG_AGO))
+        session.commit()

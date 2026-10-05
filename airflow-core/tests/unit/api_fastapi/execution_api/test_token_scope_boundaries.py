@@ -71,14 +71,14 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
     "HEAD /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}": {"execution", "dag_processor"},
     "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}": {"execution", "dag_processor"},
     "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/slice": {"execution", "dag_processor"},
-    # The Job lifecycle of a Dag processor session.
-    "POST /jobs": {"dag_processor"},
+    # The Job lifecycle of a Dag processor session; registration exchanges the session token for a Job token.
+    "POST /jobs": {"dag_processor_session"},
     "POST /jobs/{job_id}/heartbeat": {"dag_processor"},
     "POST /jobs/{job_id}/complete": {"dag_processor"},
 }
 
-# Routes that check the caller's Dag processor session themselves instead of requiring an open one.
-SESSION_UNCHECKED_ROUTES = {"POST /jobs", "POST /jobs/{job_id}/complete"}
+# Routes that check the Job of a dag_processor token themselves instead of requiring it to be open.
+JOB_UNCHECKED_ROUTES = {"POST /jobs/{job_id}/complete"}
 
 DAG_PROCESSOR_LIFECYCLE_ROUTES = {
     "POST /jobs",
@@ -182,7 +182,11 @@ class TestDagProcessorMessageRoutes:
         assert message_names == set(DAG_PROCESSOR_MESSAGE_ROUTES)
 
     def test_classified_routes_are_exactly_the_dag_processor_routes(self):
-        admitting = {route for route, types in _all_route_policies().items() if "dag_processor" in types}
+        admitting = {
+            route
+            for route, types in _all_route_policies().items()
+            if types & {"dag_processor", "dag_processor_session"}
+        }
 
         assert (
             admitting
@@ -190,14 +194,12 @@ class TestDagProcessorMessageRoutes:
             | DAG_PROCESSOR_LIFECYCLE_ROUTES
         )
 
-    def test_only_job_registration_and_completion_skip_the_open_session_check(self):
+    def test_only_job_completion_skips_the_open_job_check(self):
         skipping = {
-            key
-            for key, route in _get_api_routes().items()
-            if not getattr(route, "requires_open_session", True)
+            key for key, route in _get_api_routes().items() if not getattr(route, "requires_open_job", True)
         }
 
-        assert skipping == SESSION_UNCHECKED_ROUTES
+        assert skipping == JOB_UNCHECKED_ROUTES
 
     @pytest.mark.parametrize("route_key", sorted(filter(None, DAG_PROCESSOR_MESSAGE_ROUTES.values())))
     def test_dag_processor_route_is_bound_to_a_granted_bundle(self, route_key):

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from uuid import UUID
 
 from pydantic import Field
 
@@ -35,17 +36,27 @@ class TerminalJobState(str, Enum):
 class JobRegisterBody(StrictBaseModel):
     """Request body a Dag processor sends to register the Job of its session."""
 
+    registration_id: UUID = Field(
+        description=(
+            "Chosen by the processor once per process start. Registering again with the same id while its Job "
+            "is open returns that Job with a fresh token, which recovers a lost response and renews the "
+            "token. Once the Job completes or is replaced the id is refused, so a restart chooses a new one."
+        )
+    )
     hostname: str = Field(min_length=1, max_length=500)
     unixname: str | None = Field(default=None, max_length=1000)
     bundle_names: list[str] | None = Field(
-        default=None, description="Bundles the processor parses; defaults to every bundle its token grants."
+        default=None,
+        min_length=1,
+        description="Bundles the processor parses; defaults to every bundle its token grants.",
     )
 
 
 class JobRegisterResponse(StrictBaseModel):
-    """Identifier of the newly registered Job."""
+    """The registered Job, and the token the processor uses for every other request."""
 
     job_id: int
+    token: str = Field(description="A ``dag_processor`` token valid while the Job is open.")
 
 
 class JobHeartbeatResponse(StrictBaseModel):

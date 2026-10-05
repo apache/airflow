@@ -25,27 +25,32 @@ from pydantic import ConfigDict, Field, model_validator
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.typing_compat import Self
 
-TokenScope = Literal["execution", "workload", "callback", "dag_processor"]
+TokenScope = Literal["execution", "workload", "callback", "dag_processor_session", "dag_processor"]
 
 
 class TIClaims(BaseModel):
     """
     Validated JWT claims for a task identity token.
 
-    Only fields used by the Execution API (sub, scope, dag_bundles) are explicitly typed.
+    Only fields used by the Execution API (sub, scope, exp, dag_bundles, job_id) are explicitly typed.
     JWTValidator already validates exp/iat/nbf/aud/etc. Extra claims are allowed.
     """
 
     model_config = ConfigDict(extra="allow")
 
     scope: TokenScope = "execution"
+    exp: float | None = None
     dag_bundles: frozenset[Annotated[str, Field(min_length=1)]] | None = None
-    """Dag bundles a ``dag_processor`` token may act for, granted by the trusted component that issued it."""
+    """Dag bundles a Dag processor token may act for."""
+    job_id: int | None = None
+    """Job a ``dag_processor`` token was issued for when that Job registered."""
 
     @model_validator(mode="after")
-    def validate_dag_bundle_grant(self) -> Self:
-        if self.scope == "dag_processor" and not self.dag_bundles:
-            raise ValueError("A dag_processor token must grant at least one Dag bundle")
+    def validate_dag_processor_claims(self) -> Self:
+        if self.scope in ("dag_processor_session", "dag_processor") and not self.dag_bundles:
+            raise ValueError(f"A {self.scope} token must grant at least one Dag bundle")
+        if self.scope == "dag_processor" and self.job_id is None:
+            raise ValueError("A dag_processor token must name the Job it was issued for")
         return self
 
 

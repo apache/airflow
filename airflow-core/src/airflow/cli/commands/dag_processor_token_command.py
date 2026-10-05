@@ -25,11 +25,11 @@ from pathlib import Path
 import uuid6
 
 from airflow.api_fastapi.execution_api.dag_processor_tokens import (
-    generate_dag_processor_token,
+    generate_dag_processor_session_token,
     write_token_file,
 )
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
@@ -40,7 +40,8 @@ log = logging.getLogger(__name__)
 @providers_configuration_loaded
 def dag_processor_token(args) -> None:
     """Write a Dag processor session token to a file, and with ``--rotate`` keep replacing it."""
-    configured = set(DagBundlesManager().get_all_bundle_names())
+    # Names only: provisioning runs where the signing key is, which may not have the bundle classes installed.
+    configured = _load_bundle_config_snapshot().names
     bundle_names = set(args.bundle_name or configured)
     if unknown := bundle_names - configured:
         raise SystemExit(f"Bundles not found: {', '.join(sorted(unknown))}")
@@ -50,7 +51,7 @@ def dag_processor_token(args) -> None:
     session_id = uuid6.uuid7()
     log.info("Issuing Dag processor session %s for bundles %s", session_id, ", ".join(sorted(bundle_names)))
     while True:
-        token = generate_dag_processor_token(
+        token = generate_dag_processor_session_token(
             session_id=session_id, bundle_names=bundle_names, valid_for=valid_for
         )
         write_token_file(token_file, token)

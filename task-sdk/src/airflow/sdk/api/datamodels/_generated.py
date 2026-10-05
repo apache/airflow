@@ -237,6 +237,17 @@ class Unixname(RootModel[str]):
     root: Annotated[str, Field(max_length=1000, title="Unixname")]
 
 
+class BundleNames(RootModel[list[str]]):
+    root: Annotated[
+        list[str],
+        Field(
+            description="Bundles the processor parses; defaults to every bundle its token grants.",
+            min_length=1,
+            title="Bundle Names",
+        ),
+    ]
+
+
 class JobRegisterBody(BaseModel):
     """
     Request body a Dag processor sends to register the Job of its session.
@@ -245,10 +256,17 @@ class JobRegisterBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+    registration_id: Annotated[
+        UUID,
+        Field(
+            description="Chosen by the processor once per process start. Registering again with the same id while its Job is open returns that Job with a fresh token, which recovers a lost response and renews the token. Once the Job completes or is replaced the id is refused, so a restart chooses a new one.",
+            title="Registration Id",
+        ),
+    ]
     hostname: Annotated[str, Field(max_length=500, min_length=1, title="Hostname")]
     unixname: Annotated[Unixname | None, Field(title="Unixname")] = None
     bundle_names: Annotated[
-        list[str] | None,
+        BundleNames | None,
         Field(
             description="Bundles the processor parses; defaults to every bundle its token grants.",
             title="Bundle Names",
@@ -258,13 +276,16 @@ class JobRegisterBody(BaseModel):
 
 class JobRegisterResponse(BaseModel):
     """
-    Identifier of the newly registered Job.
+    The registered Job, and the token the processor uses for every other request.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
     job_id: Annotated[int, Field(title="Job Id")]
+    token: Annotated[
+        str, Field(description="A ``dag_processor`` token valid while the Job is open.", title="Token")
+    ]
 
 
 class JobState(str, Enum):

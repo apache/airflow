@@ -17,13 +17,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+import svcs
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Security, status
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.job import (
@@ -33,8 +36,9 @@ from airflow.api_fastapi.execution_api.datamodels.job import (
     JobRegisterResponse,
 )
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
-    SESSION_UNCHECKED_SCOPE,
+    JOB_UNCHECKED_SCOPE,
     CurrentTIToken,
     ExecutionAPIRoute,
     require_auth,
@@ -45,39 +49,92 @@ from airflow.jobs.job import Job, JobState
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import JobTeam
 
-router = VersionedAPIRouter(
-    route_class=ExecutionAPIRoute,
-    dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from sqlalchemy.orm import Session
+
+router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
+
+_JOB_NOT_FOUND = create_openapi_http_exception_doc(
+    [(status.HTTP_404_NOT_FOUND, "Job not found for this token")]
 )
 
 
-def _get_session_job(job_id: int, token: TIToken, *, session: Session) -> Job:
-    job = session.scalar(select(Job).where(Job.id == job_id, Job.session_id == token.id))
-    if job is None:
+def _issue_job_token(services: svcs.Container, token: TIToken, job_id: int, bundle_names: list[str]) -> str:
+    generator: JWTGenerator = services.get(JWTGenerator)
+    # Never outlive the session token, so that provisioning, by no longer renewing it, still ends access.
+    remaining = (token.claims.exp or 0) - timezone.utcnow().timestamp()
+    return generator.generate(
+        extras={
+            "sub": str(token.id),
+            "scope": "dag_processor",
+            "dag_bundles": bundle_names,
+            "job_id": job_id,
+        },
+        valid_for=min(generator.valid_for, remaining),
+    )
+
+
+def _check_token_job(job_id: int, token: TIToken) -> None:
+    if job_id != token.claims.job_id:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Job {job_id} not found for this session"},
+            detail={"reason": "not_found", "message": f"Job {job_id} not found for this token"},
         )
-    return job
+
+
+def _get_registered_job(registration_id: UUID, *, session: Session) -> Job | None:
+    return session.scalar(select(Job).where(Job.registration_id == registration_id).with_for_update())
+
+
+def _resume_registration(
+    job: Job, body: JobRegisterBody, bundle_names: list[str], token: TIToken, services: svcs.Container
+) -> JobRegisterResponse:
+    """Return the Job an earlier registration created, with a fresh token, if that Job is still the session's."""
+    if job.session_id != token.id or job.end_date is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "registration_retired",
+                "message": f"Registration {body.registration_id} has ended; a restarted processor uses a new one",
+            },
+        )
+    if (job.hostname, job.unixname, job.bundle_names) != (body.hostname, body.unixname, bundle_names):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "registration_conflict",
+                "message": f"Registration {body.registration_id} was made with different details",
+            },
+        )
+    return JobRegisterResponse(job_id=job.id, token=_issue_job_token(services, token, job.id, bundle_names))
 
 
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Security(require_auth, scopes=[SESSION_UNCHECKED_SCOPE])],
+    dependencies=[Security(require_auth, scopes=["token:dag_processor_session"])],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_403_FORBIDDEN, "A requested bundle is not granted to the session"),
-            (status.HTTP_409_CONFLICT, "The session already has a running Job"),
+            (
+                status.HTTP_409_CONFLICT,
+                "The registration has ended, conflicts with an earlier one, or another process's Job is running",
+            ),
         ]
     ),
 )
-def register_job(body: JobRegisterBody, session: SessionDep, token=CurrentTIToken) -> JobRegisterResponse:
+def register_job(
+    body: JobRegisterBody, session: SessionDep, token=CurrentTIToken, services=DepContainer
+) -> JobRegisterResponse:
     """
-    Register the Job of a Dag processor session.
+    Register the Job of a Dag processor session, in exchange for the token used for every other request.
 
-    A session has at most one Job. Registering again is refused while that Job is alive, and otherwise
-    moves the session to a new Job, so a processor restarted with the same session can carry on.
+    A registration creates one Job. Repeating it while that Job is open returns the Job with a fresh token;
+    once the Job completes or is replaced, the registration is refused for good. A new registration is
+    refused while the session's Job is alive, and otherwise replaces it, which ends every token issued for
+    the replaced Job.
     """
     requested = token.claims.dag_bundles if body.bundle_names is None else set(body.bundle_names)
     if ungranted := requested - token.claims.dag_bundles:
@@ -86,6 +143,9 @@ def register_job(body: JobRegisterBody, session: SessionDep, token=CurrentTIToke
             detail={"reason": "bundle_not_granted", "message": f"Bundles not granted: {sorted(ungranted)}"},
         )
     bundle_names = sorted(requested)
+
+    if registered := _get_registered_job(body.registration_id, session=session):
+        return _resume_registration(registered, body, bundle_names, token, services)
 
     previous = session.scalar(select(Job).where(Job.session_id == token.id).with_for_update())
     if previous is not None:
@@ -98,21 +158,26 @@ def register_job(body: JobRegisterBody, session: SessionDep, token=CurrentTIToke
         session.flush()
 
     now = timezone.utcnow()
-    # A core insert: Job.__init__ would stamp the API server's host and user and fire component listeners.
     try:
-        session.execute(
-            insert(Job).values(
-                job_type=DagProcessorJobRunner.job_type,
-                state=JobState.RUNNING,
-                start_date=now,
-                latest_heartbeat=now,
-                hostname=body.hostname,
-                unixname=body.unixname,
-                bundle_names=bundle_names,
-                session_id=token.id,
+        with session.begin_nested():
+            # A core insert: Job.__init__ would stamp the API server's host and user and fire listeners.
+            session.execute(
+                insert(Job).values(
+                    job_type=DagProcessorJobRunner.job_type,
+                    state=JobState.RUNNING,
+                    start_date=now,
+                    latest_heartbeat=now,
+                    hostname=body.hostname,
+                    unixname=body.unixname,
+                    bundle_names=bundle_names,
+                    session_id=token.id,
+                    registration_id=body.registration_id,
+                )
             )
-        )
     except IntegrityError:
+        # A retry sent before the original request finished can lose the race to it; resume the winner.
+        if registered := _get_registered_job(body.registration_id, session=session):
+            return _resume_registration(registered, body, bundle_names, token, services)
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             detail={"reason": "job_running", "message": "Session registered another Job concurrently"},
@@ -125,18 +190,18 @@ def register_job(body: JobRegisterBody, session: SessionDep, token=CurrentTIToke
             JobTeam(job_id=job_id, team_name=team)
             for team in sorted({team for team in team_names.values() if team})
         )
-    return JobRegisterResponse(job_id=job_id)
+    return JobRegisterResponse(job_id=job_id, token=_issue_job_token(services, token, job_id, bundle_names))
 
 
 @router.post(
     "/{job_id}/heartbeat",
-    responses=create_openapi_http_exception_doc(
-        [(status.HTTP_404_NOT_FOUND, "Job not found for this session")]
-    ),
+    dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
+    responses=_JOB_NOT_FOUND,
 )
 def heartbeat_job(job_id: int, session: SessionDep, token=CurrentTIToken) -> JobHeartbeatResponse:
     """Record a heartbeat and return the Job state, which tells the processor whether to stop."""
-    job = _get_session_job(job_id, token, session=session)
+    _check_token_job(job_id, token)
+    job = session.scalars(select(Job).where(Job.id == job_id)).one()
     job.latest_heartbeat = timezone.utcnow()
     return JobHeartbeatResponse(state=JobState(job.state))
 
@@ -144,18 +209,26 @@ def heartbeat_job(job_id: int, session: SessionDep, token=CurrentTIToken) -> Job
 @router.post(
     "/{job_id}/complete",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(require_auth, scopes=[SESSION_UNCHECKED_SCOPE])],
-    responses=create_openapi_http_exception_doc(
-        [(status.HTTP_404_NOT_FOUND, "Job not found for this session")]
-    ),
+    dependencies=[Security(require_auth, scopes=["token:dag_processor", JOB_UNCHECKED_SCOPE])],
+    responses=_JOB_NOT_FOUND,
 )
 def complete_job(job_id: int, body: JobCompleteBody, session: SessionDep, token=CurrentTIToken) -> None:
     """
-    Record the final state of the Job, which ends its session.
+    Record the final state of the Job, which ends every token issued for it.
 
-    Completing an already completed Job succeeds without changing it, so a retry after a lost response is safe.
+    The first completion wins. Repeating it succeeds without changing the Job, so a retry after a lost
+    response is safe.
     """
-    job = _get_session_job(job_id, token, session=session)
-    if job.end_date is None:
-        job.end_date = timezone.utcnow()
-        job.state = JobState(body.state.value)
+    _check_token_job(job_id, token)
+    owned_by_token = (Job.id == job_id) & (Job.session_id == token.id)
+    # One conditional statement, so overlapping completions cannot overwrite the first accepted outcome.
+    session.execute(
+        update(Job)
+        .where(owned_by_token, Job.end_date.is_(None))
+        .values(end_date=timezone.utcnow(), state=JobState(body.state.value))
+    )
+    if session.scalar(select(Job.id).where(owned_by_token)) is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": f"Job {job_id} not found for this token"},
+        )
