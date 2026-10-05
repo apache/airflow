@@ -26,7 +26,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 import attrs
-import httpx
+import httpx2
 import jwt
 import structlog
 from asgiref.sync import async_to_sync
@@ -107,7 +107,7 @@ class JWKS:
     fetched_at: float = 0
     last_fetch_attempt_at: float = 0
 
-    client: httpx.AsyncClient = attrs.field(factory=httpx.AsyncClient)
+    client: httpx2.AsyncClient = attrs.field(factory=httpx2.AsyncClient)
 
     _jwks: jwt.PyJWKSet | None = None
     refresh_jwks: bool = True

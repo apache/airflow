@@ -22,7 +22,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from httpx import Response
+from httpx2 import Response
 from sqlalchemy import select
 
 from airflow.api_fastapi.core_api.routes.public.dag_sources import REDACTED_SOURCE

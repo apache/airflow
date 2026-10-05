@@ -423,7 +423,6 @@ class InProcessExecutionAPI:
 
         return self._app
 
-    # httpx2, not httpx: the only consumers are Task SDK clients, which subclass httpx2.Client.
     @cached_property
     def transport(self) -> httpx2.WSGITransport:
         import httpx2
