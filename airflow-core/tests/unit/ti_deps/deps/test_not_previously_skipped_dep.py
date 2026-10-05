@@ -263,6 +263,7 @@ def test_parent_in_mapped_task_group_skips_same_map_index(session, dag_maker):
     assert dep.is_met(tis[("group.child", 0)], session=session)
     assert tis[("group.child", 0)].state != State.SKIPPED
 
+
 def test_parent_in_mapped_task_group_skips_transitive_downstream(session, dag_maker):
     """
     A SkipMixin parent inside a mapped task group records all downstream tasks
@@ -277,8 +278,10 @@ def test_parent_in_mapped_task_group_skips_transitive_downstream(session, dag_ma
 
         @task_group
         def group(value):
-            gate(value) >> EmptyOperator(task_id="a") >> EmptyOperator(
-                task_id="b", trigger_rule=TriggerRule.ALL_DONE
+            (
+                gate(value)
+                >> EmptyOperator(task_id="a")
+                >> EmptyOperator(task_id="b", trigger_rule=TriggerRule.ALL_DONE)
             )
 
         group.expand(value=[True, False])
@@ -313,6 +316,32 @@ def test_parent_in_mapped_task_group_skips_transitive_downstream(session, dag_ma
 
     assert dep.is_met(tis[("group.a", 0)], session=session)
     assert dep.is_met(tis[("group.b", 0)], session=session)
+
+
+def test_branch_join_transitive_not_skipped(session, dag_maker):
+    with dag_maker(
+        "probe_branch_join", schedule=None, start_date=pendulum.datetime(2020, 1, 1), session=session
+    ):
+        branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "task1")
+        task1 = EmptyOperator(task_id="task1")
+        task2 = EmptyOperator(task_id="task2")
+        join = EmptyOperator(task_id="join", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        branch >> [task1, task2]
+        task1 >> join
+        task2 >> join
+
+    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    run_task_instance(tis["branch"], branch)
+    session.flush()
+
+    dep = NotPreviouslySkippedDep()
+    assert dep.is_met(tis["task1"], session=session)
+    assert not dep.is_met(tis["task2"], session=session)
+    assert list(dep.get_dep_statuses(tis["join"], DepContext(), session=session)) == []
+    assert dep.is_met(tis["join"], session=session)
+    assert tis["join"].state != State.SKIPPED
+
 
 def test_branch_skip_decision_bypasses_custom_xcom_backend(session, dag_maker):
     """

@@ -46,6 +46,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
     def _get_dep_statuses(self, ti, dep_context, *, session):
         from airflow.utils.state import TaskInstanceState
 
+        direct_upstream_ids = {t.task_id for t in ti.task.get_direct_relatives(upstream=True)}
         upstream = ti.task.get_flat_relatives(upstream=True)
 
         finished_tis = dep_context.ensure_finished_tis(ti.get_dagrun(session=session), session=session)
@@ -77,7 +78,8 @@ class NotPreviouslySkippedDep(BaseTIDep):
 
                 should_skip = False
                 if (
-                    XCOM_SKIPMIXIN_FOLLOWED in prev_result
+                    parent.task_id in direct_upstream_ids
+                    and XCOM_SKIPMIXIN_FOLLOWED in prev_result
                     and ti.task_id not in prev_result[XCOM_SKIPMIXIN_FOLLOWED]
                 ):
                     # Skip any tasks that are not in "followed"
