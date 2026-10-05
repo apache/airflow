@@ -1251,6 +1251,7 @@ class TestCloudSqlDatabaseHook:
         assert proxy_runner.command_line_parameters == [
             "--unix-socket",
             hook.sql_proxy_unique_path,
+            "--auto-ip",
             f"google_connection:test:instance?port={hook.sql_proxy_tcp_port}",
         ]
 
@@ -2149,7 +2150,12 @@ class TestCloudSqlProxyRunner:
             sql_proxy_major_version=2,
         )
 
-        assert runner.command_line_parameters == ["--unix-socket", "12345678", instance_specification]
+        assert runner.command_line_parameters == [
+            "--unix-socket",
+            "12345678",
+            "--auto-ip",
+            instance_specification,
+        ]
 
     def test_cloud_sql_proxy_runner_v2_adds_auto_iam_authn_flag(self):
         runner = CloudSqlProxyRunner(
@@ -2249,7 +2255,13 @@ class TestCloudSqlProxyRunner:
         runner.start_proxy()
 
         mock_popen.assert_called_once_with(
-            [str(proxy_binary), "--unix-socket", str(tmp_path / "12345678"), "project:us-east-1:instance"],
+            [
+                str(proxy_binary),
+                "--unix-socket",
+                str(tmp_path / "12345678"),
+                "--auto-ip",
+                "project:us-east-1:instance",
+            ],
             stdin=PIPE,
             stdout=PIPE,
             stderr=STDOUT,

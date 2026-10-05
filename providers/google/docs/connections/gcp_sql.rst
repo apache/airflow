@@ -86,6 +86,10 @@ By default Airflow runs Cloud SQL Auth Proxy v1. To run Cloud SQL Auth Proxy v2 
 release to download, as there is no "latest" download for v2, unless the ``sql_proxy_binary_path`` argument
 of the hook or operator points to an existing v2 binary.
 
+Cloud SQL Auth Proxy v2 connects only to the instance's public IP by default, while v1 falls back to the
+private IP when the instance has no public IP. Airflow passes ``--auto-ip`` to v2 to keep the v1 behavior,
+so instances with only a private IP work with both versions.
+
 Example "extras" field:
 
 .. code-block:: json
