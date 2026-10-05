@@ -53,7 +53,7 @@ from sqlalchemy.pool import NullPool
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER
+from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, _configure_in_process_auth
 from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
@@ -2753,8 +2753,12 @@ def run_dummy_supervisor_until_events_handled(job: Job) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
-async def test_trigger_can_call_variables_connections_and_xcoms_methods(session, dag_maker):
+@mock.patch("airflow.jobs.triggerer_job_runner.InProcessExecutionAPI", autospec=True)
+async def test_trigger_can_call_variables_connections_and_xcoms_methods(
+    mock_in_process_api, session, dag_maker, in_process_execution_api
+):
     """Checks that the trigger will successfully call Variables, Connections and XComs methods."""
+    mock_in_process_api.return_value = in_process_execution_api
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_accessing_variable_connection_and_xcom", session=session):
         EmptyOperator(task_id="dummy1")
@@ -2815,6 +2819,7 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
     session.add(job)
     session.commit()
 
+    _configure_in_process_auth(in_process_execution_api.app, triggerer_id=job.id)
     run_dummy_supervisor_until_events_handled(job)
 
     task_instance.refresh_from_db()
