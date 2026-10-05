@@ -19,13 +19,13 @@ package airflow
 
 import "errors"
 
-// TaskOption is an option to [DagRef.Task] and [DagRef.If]. There are two kinds: a [TaskSpec]
-// sets the attributes of the task that DagRef.Task or DagRef.If adds, and [Inputs] passes the
-// results of other tasks to that task.
+// TaskOption is an option to [DagRef.Task], [DagRef.If] and the methods of the same names on
+// [TaskGroupRef]. There are two kinds: a [TaskSpec] sets the attributes of the task that the
+// method adds, and [Inputs] passes the results of other tasks to that task.
 //
 // Its only method is unexported, so a type outside this package cannot declare it.
-// A struct that embeds a TaskSpec or a TaskOption still satisfies the interface, but DagRef.Task
-// and DagRef.If panic when they get such a struct.
+// A struct that embeds a TaskSpec or a TaskOption still satisfies the interface, but the methods
+// that take a TaskOption panic when they get such a struct.
 type TaskOption interface{ applyTask(*taskConfig) error }
 
 type taskConfig struct {

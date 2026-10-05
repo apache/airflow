@@ -199,9 +199,9 @@ func TestIfPanicsUnderItsOwnName(t *testing.T) {
 			want: "cannot take an input from task",
 		},
 		{
-			name: "input that DagRef.Task did not return",
+			name: "input that DagRef.Task or TaskGroupRef.Task did not return",
 			add:  func(dag *DagRef) { dag.If(hasRows, Inputs(&TaskRef{})) },
-			want: "that DagRef.Task did not return",
+			want: "that DagRef.Task or TaskGroupRef.Task did not return",
 		},
 		{
 			name: "missing input",
@@ -307,12 +307,12 @@ func TestThenAndElseRejectATaskOutsideTheDag(t *testing.T) {
 		{
 			name: "zero TaskRef",
 			task: &TaskRef{},
-			want: `got a *airflow.TaskRef that DagRef.Task did not return`,
+			want: `got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name: "copy of a task of the Dag",
 			task: &loadedCopy,
-			want: `got a *airflow.TaskRef that DagRef.Task did not return`,
+			want: `got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name: "task of another Dag",
@@ -416,11 +416,13 @@ func TestIfRefThatDagRefIfDidNotReturnPanics(t *testing.T) {
 	for name, ref := range map[string]*IfRef{"nil": nilRef, "zero": {}, "copy": &gateCopy} {
 		t.Run(name, func(t *testing.T) {
 			assert.PanicsWithValue(t,
-				"airflow.IfRef.Then: DagRef.If did not return the *airflow.IfRef",
+				"airflow.IfRef.Then: DagRef.If or TaskGroupRef.If did not return "+
+					"the *airflow.IfRef",
 				func() { ref.Then(loaded) },
 			)
 			assert.PanicsWithValue(t,
-				"airflow.IfRef.Else: DagRef.If did not return the *airflow.IfRef",
+				"airflow.IfRef.Else: DagRef.If or TaskGroupRef.If did not return "+
+					"the *airflow.IfRef",
 				func() { ref.Else(loaded) },
 			)
 		})

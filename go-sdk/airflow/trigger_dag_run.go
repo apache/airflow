@@ -86,8 +86,8 @@ type TriggerDagRunTask struct {
 	spec TriggerDagRunSpec
 }
 
-// TriggerDagRun returns a value to pass to [DagRef.Task] in place of a Go function. DagRef.Task
-// then adds a task that triggers a run of the Dag that spec.DagID names:
+// TriggerDagRun returns a value to pass to [DagRef.Task] or [TaskGroupRef.Task] in place of a Go
+// function. DagRef.Task then adds a task that triggers a run of the Dag that spec.DagID names:
 //
 //	dag.Task(
 //		airflow.TriggerDagRun(airflow.TriggerDagRunSpec{DagID: "downstream_etl"}),

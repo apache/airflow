@@ -39,7 +39,7 @@ Proposed.
 9. **A user-facing enum carries its type in the constant name** — e.g. `airflow.TriggerRuleAllDone`.
 10. **Everything an author writes comes from one `airflow` package.**
 11. **No Go-native deferral**, and none is needed: the constructs that defer are DSL tasks Python executes.
-12. **`DagSpec` and `TaskSpec` are generated from Airflow core's serialization schema** (`airflow-core/src/airflow/serialization/schema.json`) into the `airflow` package itself and committed, the way `models.gen.go` already is for the supervisor schema.
+12. **`DagSpec`, `TaskSpec` and `TaskGroupSpec` are generated from Airflow core's serialization schema** (`airflow-core/src/airflow/serialization/schema.json`) into the `airflow` package itself and committed, the way `models.gen.go` already is for the supervisor schema.
     `TaskSpec` implements `airflow.TaskOption`, so a generated struct travels in the same variadic as `airflow.Inputs`.
 
 ## Context
@@ -110,12 +110,12 @@ package airflow
 func Dag(dagID string, spec ...DagSpec) *DagRef
 
 func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef
-func (d *DagRef) TaskGroup(groupID string, opts ...TaskGroupOption) *TaskGroupRef
+func (d *DagRef) TaskGroup(groupID string, spec ...TaskGroupSpec) *TaskGroupRef
 
 func (g *TaskGroupRef) Task(fn any, opts ...TaskOption) *TaskRef
-func (g *TaskGroupRef) TaskGroup(groupID string, opts ...TaskGroupOption) *TaskGroupRef
+func (g *TaskGroupRef) TaskGroup(groupID string, spec ...TaskGroupSpec) *TaskGroupRef
 
-// DagSpec and TaskSpec are generated into this package from
+// DagSpec, TaskSpec and TaskGroupSpec are generated into this package from
 // airflow-core/src/airflow/serialization/schema.json and committed.
 type DagSpec struct {
     Schedule  string
@@ -171,7 +171,7 @@ const (
   Returning the receiver would read like a chain and mean a second fan-out from `a`.
 - **The specs generate into the `airflow` package, not a `gen` package beside it.** An unexported method belongs to the package that declares it, so a generated type living elsewhere could not implement the sealed `TaskOption`, and a type alias cannot gain methods either.
   Generating in place is what keeps both `airflow.TaskSpec` and the seal.
-- **The generated names need a mapping.** The core schema carries no `title` fields, unlike the supervisor schema `models.gen.go` reads, so its `dag` and `operator` definitions would generate as `Dag`, a name the constructor already takes, and `Operator`, which is not the SDK's vocabulary.
+- **The generated names need a mapping.** The core schema carries no `title` fields, unlike the supervisor schema `models.gen.go` reads, so its `dag`, `operator` and `task_group` definitions would generate as `Dag`, a name the constructor already takes, `Operator`, which is not the SDK's vocabulary, and `TaskGroup`, the name of the method that adds a group.
   Either the schema gains titles or the generate step keeps the map.
 - **The schema is the serialized shape, not the authoring shape.** It requires `fileloc` and `tasks` on a Dag, and `task_type`, `_task_module`, `ui_color`, `ui_fgcolor`, and `template_fields` on an operator, all of which the SDK fills in, and it carries a serialized `timetable` object where an author writes a schedule.
   Generation needs an exclusion list and a hand-written field or two, the same kind of rule [ADR-0009](../../airflow-core/adr/lang-sdk/0009-provider-operators-as-generated-dsl.md) states for provider operators.
@@ -183,6 +183,17 @@ const (
 - **A data edge is labelled by redeclaring it.** Declaring an edge that already exists is idempotent, so `extracted.Before(airflow.Label(transformed, "rows"))` labels the edge `Inputs` created.
 - **Renaming a Go function renames the task.** The id is derived, and history, clears, and the UI all key on task_id, so renaming a function whose task carries no `TaskSpec` id is a Dag change.
   `airflow.TaskSpec{TaskID: ...}` pins an id that has to outlive the function's name, and it is also how a Dag gets snake_case ids, since nothing transforms a Go name.
+  Renaming a task group renames every task whose task_id the group_id prefixes, for the same reason.
+- **A group edge is expanded at registration, in the order the group edges were first declared.** `group.Before(loaded)` stands for an edge from each last task of the group, and `extracted.Before(group)` for an edge to each first task.
+  Registration expands the group edges one at a time. Each expansion reads every task, every edge declared between two tasks, and the task edges that earlier group edges expanded into, which is the rule the TypeScript SDK's serializer applies.
+  So an author can add the tasks of a group, and the edges between them, after putting the group on an edge. Python expands a group edge when `>>` runs, so the two agree when a Dag declares its group edges after its tasks and the edges between them, every group at an end of a group edge holds a task, and no label sits on an edge whose receiver is inside a task group.
+  The cycle check runs on the declared edges first and on the expanded graph after, so a cycle that only group edges close is caught, and the message names those group edges.
+- **A group with no task is stepped over.** An edge to it continues along each edge from it, and an edge from it back along each edge to it, whenever those were declared, as the TypeScript SDK does. So `extracted.Before(empty).Before(loaded)` runs `load` after `extract`, as Python's `extract >> empty >> load` does.
+  What Python does with an empty group depends on how and when its edges are declared: `load << empty << extract` adds no edge, and an empty group with no task before it falls back to the last tasks of the enclosing group or of the whole Dag, which can make a task depend on itself.
+- **An edge cannot connect a group to what it holds.** Python's `group >> node_in_group` orders the last tasks of the group before the first tasks of a node inside it, which fails as a cycle whenever that node holds a task. The edge verb rejects the edge when it is declared.
+- **A label stays on the edge it is declared on.** A label on a group edge labels none of the task edges that the group edge stands for, and a labelled edge keeps its ends.
+  Python's behavior depends on which end is the receiver and which groups hold the ends. When no group holds `extract`, `extract >> Label("rows") >> group` labels each of those task edges as well. When `a` and `b` are in different groups, `a >> Label("x") >> b` replaces `a` with its group, so every last task of `a`'s group runs before `b`. The Go SDK does neither.
+- **`TaskGroup` takes `spec ...TaskGroupSpec`, as `Dag` takes `spec ...DagSpec`.** A group has one kind of option, so it needs no sealed option interface. A mapped task group would come through a method of its own, not through this variadic.
 
 ## Alternatives
 
