@@ -22,6 +22,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models import ModelRequestParameters
+from pydantic_ai.toolsets.abstract import ToolsetTool
+from pydantic_ai.toolsets.combined import CombinedToolset
+from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX as P, DurableStorageProtocol
 from airflow.providers.common.ai.durable.caching_model import CachingModel
@@ -211,3 +214,55 @@ class TestSharedCounter:
         assert model_keys == [f"{P}model_step_0", f"{P}model_step_2"]
         assert tool_keys == [f"{P}tool_step_1"]
         assert counter.total_steps == 3
+
+
+class TestCachingToolsetReplayable:
+    @pytest.mark.asyncio
+    async def test_a_non_replayable_toolset_is_never_served_from_cache(
+        self, mock_toolset, mock_storage, counter
+    ):
+        # A managed agent may have acted on a system Airflow cannot observe, so its toolset
+        # declares replayable=False and a cached answer must not stand in for a fresh call.
+        mock_toolset.replayable = False
+        mock_storage.load_tool_result.return_value = (
+            True,
+            "stale cached result",
+            fingerprint_tool_call("t", {}, "call_1"),
+        )
+        caching = CachingToolset(wrapped=mock_toolset, storage=mock_storage, counter=counter)
+
+        tool = MagicMock(spec=ToolsetTool)
+        tool.toolset = mock_toolset
+
+        result = await caching.call_tool("t", {}, ctx_for(), tool=tool)
+
+        assert result == "fresh result"
+        mock_toolset.call_tool.assert_awaited_once()
+        mock_storage.load_tool_result.assert_not_called()
+        mock_storage.save_tool_result.assert_not_called()
+        assert counter.replayed_tool == 0
+        # The step is still consumed so later steps keep their keys.
+        assert counter.next_step() == 1
+
+    @pytest.mark.asyncio
+    async def test_the_flag_is_read_per_tool_through_prefixed_and_combined_wrappers(
+        self, mock_storage, counter
+    ):
+        # ``.prefixed()`` and ``CombinedToolset`` do not carry the attribute; the cache reads it off the
+        # toolset each tool came from, so one non-replayable member does not stop its siblings replaying.
+        class NonReplayable(FunctionToolset):
+            replayable = False
+
+        managed, plain = NonReplayable(), FunctionToolset()
+        wrapped = CombinedToolset([plain, managed.prefixed("claims")])
+        mock_storage.load_tool_result.return_value = (True, "stale", fingerprint_tool_call("t", {}, "call_1"))
+        caching = CachingToolset(wrapped=wrapped, storage=mock_storage, counter=counter)
+        from_managed, from_plain = MagicMock(spec=ToolsetTool), MagicMock(spec=ToolsetTool)
+        from_managed.toolset, from_plain.toolset = managed, plain
+
+        with patch.object(CombinedToolset, "call_tool", autospec=True, return_value="fresh") as call_tool:
+            assert await caching.call_tool("t", {}, ctx_for(), tool=from_managed) == "fresh"
+            assert await caching.call_tool("t", {}, ctx_for(), tool=from_plain) == "stale"
+
+        call_tool.assert_awaited_once()
+        mock_storage.load_tool_result.assert_called_once()

@@ -368,14 +368,15 @@ class BackfillOperations(BaseOperations):
     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a backfill."""
         self.response = self.client.post(
-            "backfills", json=backfill.model_dump(mode="json", exclude_none=True)
+            "backfills", json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
         )
         return BackfillResponse.model_validate_json(self.response.content)
 
     def create_dry_run(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a dry run backfill."""
         self.response = self.client.post(
-            "backfills/dry_run", json=backfill.model_dump(mode="json", exclude_none=True)
+            "backfills/dry_run",
+            json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True),
         )
         return BackfillResponse.model_validate_json(self.response.content)
 
@@ -540,7 +541,7 @@ class DagsOperations(BaseOperations):
         if trigger_dag_run.conf is None:
             trigger_dag_run.conf = {}
         self.response = self.client.post(
-            f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json")
+            f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json", exclude_defaults=True)
         )
         return DAGRunResponse.model_validate_json(self.response.content)
 

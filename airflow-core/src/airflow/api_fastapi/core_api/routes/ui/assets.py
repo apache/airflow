@@ -228,6 +228,7 @@ def next_run_assets(
         .group_by(AssetModel.id, AssetModel.uri, AssetModel.name, AssetActive.name)
         .order_by(AssetModel.uri)
     )
+    query = readable_assets_filter.to_orm(query)
 
     if not is_partitioned:
         query = query.join(

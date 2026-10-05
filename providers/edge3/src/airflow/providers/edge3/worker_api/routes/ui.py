@@ -138,6 +138,7 @@ def jobs(
             run_id=j.run_id,
             map_index=j.map_index,
             try_number=j.try_number,
+            task_instance_id=j.task_instance_id,
             state=TaskInstanceState(j.state),
             queue=j.queue,
             queued_dttm=j.queued_dttm,

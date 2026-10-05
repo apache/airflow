@@ -10,6 +10,36 @@
       "eventType": "Ereignis Typ"
     }
   },
+  "dagBundles": {
+    "active": "Aktiv",
+    "columns": {
+      "active": "Aktiv",
+      "importErrors": "Importfehler",
+      "lastRefreshed": "Zuletzt aktualisiert",
+      "name": "Name",
+      "version": "Version"
+    },
+    "detail": {
+      "status": "Status"
+    },
+    "files": {
+      "columns": {
+        "file": "Datei",
+        "lastParsed": "Zuletzt geparst",
+        "parseDuration": "Parsezeit"
+      },
+      "file_one": "Datei",
+      "file_other": "Dateien",
+      "importErrorGone": "Der Importfehler ist nicht mehr aufgetreten. Vermutlich durch ein Wiedereinlesen behoben.",
+      "neverParsed": "Nie",
+      "showImportError_one": "{{count}} Importfehler ansehen",
+      "showImportError_other": "{{count}} Importfehler ansehen"
+    },
+    "inactive": "Inaktiv",
+    "neverRefreshed": "Nie",
+    "notRefreshedYet": "Noch nicht aktualisiert",
+    "notVersioned": "Nicht versioniert"
+  },
   "deadlines": {
     "columns": {
       "alertName": "Alarmname",

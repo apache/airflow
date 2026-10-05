@@ -470,14 +470,35 @@ class TestAkeylessBackend:
         assert val == "nested-val"
 
     @patch(f"{BACKEND_MODULE}.akeyless")
-    def test_nested_keys_still_resolve_for_a_caller_with_no_team(self, mock_sdk):
-        """With no team_name the lookup resolves in the shared namespace directly."""
+    def test_a_caller_with_no_team_cannot_reach_a_teams_namespace(self, mock_sdk):
+        """With no team_name and no global path, ``{base}/{key}`` is where team paths are built.
+
+        The backend is wired so that team alpha's secret *would* come back, so the assertion
+        is that it does not, not merely that some guard ran.
+        """
         api = mock_sdk.V2Api.return_value
         api.auth.return_value = MagicMock(token="t")
-        api.get_secret_value.return_value = {"/airflow/variables/nested/my_var": "nested-val"}
+        mock_sdk.ApiException = Exception
+        api.get_secret_value.return_value = {"/airflow/variables/alpha/db_password": "alpha-secret"}
 
         with conf_vars({("core", "multi_team"): "True"}):
             backend = _backend()
+            val = backend.get_variable("alpha/db_password")
+            conn = backend.get_connection("alpha/db_password")
+
+        assert val is None
+        assert conn is None
+        api.get_secret_value.assert_not_called()
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_nested_keys_still_resolve_for_a_caller_with_no_team_under_a_global_path(self, mock_sdk):
+        """A global path is a namespace of its own, so nested keys keep working under it."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/global/nested/my_var": "nested-val"}
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            backend = _backend(global_secrets_path="global")
             val = backend.get_variable("nested/my_var")
 
         assert val == "nested-val"

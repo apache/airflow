@@ -88,18 +88,35 @@ sales_pipeline()
 Airflow coordinator config:
 
 ```ini
+[dag_processor]
+dag_bundle_config_list = [
+    {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+    {
+      "name": "ts-task-handlers",
+      "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+      "kwargs": {"path": "/opt/airflow/ts-bundles"}
+    }
+  ]
+
 [sdk]
 coordinators = {
   "ts": {
     "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
-    "kwargs": {"bundles_root": ["/opt/airflow/ts-bundles"]}
+    "kwargs": {"task_handler_bundle_name": "ts-task-handlers"}
   }
 }
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-Each configured bundle directory is searched recursively for `*.min.mjs` bundles built with `airflow-ts-pack`
-(see [Packing bundles](#packing-bundles)), which embeds the Airflow metadata in the bundle itself.
+The Dag bundle named by `task_handler_bundle_name` (the task's own Dag bundle when unset) is searched
+recursively for `*.min.mjs` bundles built with `airflow-ts-pack` (see [Packing bundles](#packing-bundles)),
+which embeds the Airflow metadata in the bundle itself. `task_handler_bundle_name` is used only by
+mixed-language Dags, to locate the task handlers for the `@task.stub` tasks of a Python Dag; Dags defined
+natively in a language SDK do not use it.
+
+This config, the packed bundles and Node.js 22 or later must be present wherever tasks execute and on the
+Dag processor, which checks the stub tasks of each Python Dag against the task handlers the bundles
+register. The API server does not need them.
 
 TypeScript entrypoint:
 

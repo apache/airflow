@@ -26,8 +26,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// coreSchemaPath is the schema genspec normalizes, reached from this package.
-const coreSchemaPath = "../../../airflow-core/src/airflow/serialization/schema.json"
+// coreSchemaPath is the schema genspec normalizes: go-sdk's vendored copy of
+// airflow-core's, so this test runs in a standalone checkout as well.
+const coreSchemaPath = "../../schema/dag-schema.json"
 
 func schemaFrom(t *testing.T, body string) map[string]any {
 	t.Helper()
@@ -52,7 +53,8 @@ func TestNormalizeResolvesNullableType(t *testing.T) {
 				"type": "object",
 				"properties": {"rerun_with_latest_version": {"type": ["boolean", "null"]}}
 			},
-			"operator": {"type": "object"}
+			"operator": {"type": "object"},
+			"task_group": {"type": "object"}
 		}
 	}`)
 
@@ -71,7 +73,8 @@ func TestNormalizeKeepsASingleTypeAsItIs(t *testing.T) {
 	doc := schemaFrom(t, `{
 		"definitions": {
 			"dag": {"type": "object", "properties": {"dag_id": {"type": "string"}}},
-			"operator": {"type": "object"}
+			"operator": {"type": "object"},
+			"task_group": {"type": "object"}
 		}
 	}`)
 
@@ -86,6 +89,7 @@ func TestNormalizeDropsDependentRequired(t *testing.T) {
 	doc := schemaFrom(t, `{
 		"definitions": {
 			"dag": {"type": "object"},
+			"task_group": {"type": "object"},
 			"operator": {
 				"type": "object",
 				"dependencies": {
@@ -106,6 +110,7 @@ func TestNormalizeKeepsSchemaFormDependencies(t *testing.T) {
 	doc := schemaFrom(t, `{
 		"definitions": {
 			"dag": {"type": "object"},
+			"task_group": {"type": "object"},
 			"operator": {
 				"type": "object",
 				"dependencies": {
@@ -127,7 +132,11 @@ func TestNormalizeKeepsSchemaFormDependencies(t *testing.T) {
 
 func TestNormalizeInjectsTheSpecTitles(t *testing.T) {
 	doc := schemaFrom(t, `{
-		"definitions": {"dag": {"type": "object"}, "operator": {"type": "object"}}
+		"definitions": {
+			"dag": {"type": "object"},
+			"operator": {"type": "object"},
+			"task_group": {"type": "object"}
+		}
 	}`)
 
 	require.NoError(t, normalize(doc, specTitles))
@@ -135,6 +144,7 @@ func TestNormalizeInjectsTheSpecTitles(t *testing.T) {
 	definitions := doc["definitions"].(map[string]any)
 	assert.Equal(t, "DagSpec", definitions["dag"].(map[string]any)["title"])
 	assert.Equal(t, "TaskSpec", definitions["operator"].(map[string]any)["title"])
+	assert.Equal(t, "TaskGroupSpec", definitions["task_group"].(map[string]any)["title"])
 }
 
 func TestNormalizeRejects(t *testing.T) {
@@ -151,7 +161,8 @@ func TestNormalizeRejects(t *testing.T) {
 						"type": "object",
 						"properties": {"either": {"type": ["boolean", "string"]}}
 					},
-					"operator": {"type": "object"}
+					"operator": {"type": "object"},
+					"task_group": {"type": "object"}
 				}
 			}`,
 			wantErr: "/definitions/dag/properties/either",
@@ -161,7 +172,8 @@ func TestNormalizeRejects(t *testing.T) {
 			schema: `{
 				"definitions": {
 					"dag": {"type": "object", "properties": {"nothing": {"type": ["null"]}}},
-					"operator": {"type": "object"}
+					"operator": {"type": "object"},
+					"task_group": {"type": "object"}
 				}
 			}`,
 			wantErr: "allows nothing to generate from",
@@ -176,7 +188,8 @@ func TestNormalizeRejects(t *testing.T) {
 			schema: `{
 				"definitions": {
 					"dag": {"type": "object", "title": "SerializedDag"},
-					"operator": {"type": "object"}
+					"operator": {"type": "object"},
+					"task_group": {"type": "object"}
 				}
 			}`,
 			wantErr: `already has the title "SerializedDag"`,
@@ -195,7 +208,8 @@ func TestNormalizeAcceptsTheTitleItWouldInject(t *testing.T) {
 	doc := schemaFrom(t, `{
 		"definitions": {
 			"dag": {"type": "object", "title": "DagSpec"},
-			"operator": {"type": "object"}
+			"operator": {"type": "object"},
+			"task_group": {"type": "object"}
 		}
 	}`)
 
@@ -209,7 +223,8 @@ func TestNormalizeResolvesANullableTypeNestedInItems(t *testing.T) {
 				"type": "object",
 				"properties": {"tags": {"type": "array", "items": {"type": ["string", "null"]}}}
 			},
-			"operator": {"type": "object"}
+			"operator": {"type": "object"},
+			"task_group": {"type": "object"}
 		}
 	}`)
 
@@ -231,7 +246,8 @@ func TestNormalizeReportsTheSameConstructOnEveryRun(t *testing.T) {
 					"b": {"type": ["number", "string"]}
 				}
 			},
-			"operator": {"type": "object"}
+			"operator": {"type": "object"},
+			"task_group": {"type": "object"}
 		}
 	}`
 

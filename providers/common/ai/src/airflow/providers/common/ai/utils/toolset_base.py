@@ -151,6 +151,13 @@ def _mask_attributes(error: Exception) -> Exception:
     return error
 
 
+def validate_max_retries(max_retries: int | None) -> int | None:
+    """Return ``max_retries`` unchanged, or raise ``ValueError`` if it is negative."""
+    if max_retries is not None and max_retries < 0:
+        raise ValueError(f"max_retries must not be negative, got {max_retries}.")
+    return max_retries
+
+
 class AirflowToolset(AbstractToolset[Any]):
     """
     A toolset whose tool results are safe to hand to a model.
@@ -180,6 +187,18 @@ class AirflowToolset(AbstractToolset[Any]):
         return await _mask_call(
             name, self.execute_tool(name, tool_args, ctx=ctx, tool=tool), count_as=type(self).__name__
         )
+
+    # A subclass that takes ``max_retries`` stores it here; ``None`` follows the run.
+    _max_retries: int | None = None
+
+    def _get_tool_max_retries(self, ctx: RunContext[Any]) -> int:
+        """
+        Return how many times the model may correct a failed call to this toolset's tools.
+
+        The toolset's own ``max_retries`` if set, else the run's tool retry budget (the
+        agent's ``retries``), the same order pydantic-ai's ``FunctionToolset`` uses.
+        """
+        return ctx.max_retries if self._max_retries is None else self._max_retries
 
     @abstractmethod
     async def execute_tool(

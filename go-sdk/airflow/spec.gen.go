@@ -75,7 +75,32 @@ type DagSpec struct {
 	Tags []string
 }
 
-// TaskSpec holds the attributes of a task. DagRef.Task takes at most one per task.
+// TaskGroupSpec holds the attributes of a task group other than its group_id.
+// DagRef.TaskGroup and TaskGroupRef.TaskGroup take at most one per group.
+type TaskGroupSpec struct {
+	// DocMD corresponds to the JSON schema field "doc_md".
+	DocMD string
+
+	// GroupDisplayName corresponds to the JSON schema field "group_display_name".
+	GroupDisplayName string
+
+	// PrefixGroupID says whether the group_id prefixes the IDs of the tasks and
+	// groups added through the group, as in "transform.cleanRows". When PrefixGroupID
+	// is nil, the group_id prefixes them.
+	PrefixGroupID *bool
+
+	// Tooltip corresponds to the JSON schema field "tooltip".
+	Tooltip string
+
+	// UIColor corresponds to the JSON schema field "ui_color".
+	UIColor string
+
+	// UIFgColor corresponds to the JSON schema field "ui_fgcolor".
+	UIFgColor string
+}
+
+// TaskSpec holds the attributes of a task. DagRef.Task, DagRef.If and the methods
+// of the same names on TaskGroupRef take at most one per task.
 type TaskSpec struct {
 	// TaskDisplayName corresponds to the JSON schema field "_task_display_name".
 	TaskDisplayName string
@@ -151,7 +176,10 @@ type TaskSpec struct {
 	StartDate time.Time
 
 	// TaskID is the task_id of the task. When TaskID is empty, the task_id is the
-	// name of the Go function that the task runs.
+	// name of the Go function that the task runs. A task from TriggerDagRun runs no
+	// Go function, so it needs a TaskID. A task added through a task group takes the
+	// group_id as a prefix of its task_id, unless the TaskGroupSpec of the group sets
+	// PrefixGroupID to false.
 	TaskID string
 
 	// TriggerRule corresponds to the JSON schema field "trigger_rule".
