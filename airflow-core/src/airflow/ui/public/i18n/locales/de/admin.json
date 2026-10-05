@@ -35,7 +35,6 @@
       "connectionIdRequired": "Verbindungs-ID ist erforderlich",
       "connectionIdRequirement": "Die Verbindungs-ID kann nicht nur aus Leerzeichen bestehen",
       "connectionTypeRequired": "Die Auswahl eines Verbindungstyps ist erforderlich",
-      "extraFields": "Weitere Felder",
       "extraFieldsJson": "JSON Ansicht der weiteren Felder",
       "helperText": "Fehlt ein Verbindungstyp? Stellen Sie sicher, dass die notwendigen Provider-Pakete installiert sind.",
       "helperTextForRedactedFields": "Unkenntlich gemachte Felder ('***') bleiben unverändert, wenn sie nicht bearbeitet werden.",
