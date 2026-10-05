@@ -540,7 +540,7 @@ class SubprocessCoordinator(BaseCoordinator):
         report_schema_version(schema_version)
         # Python ignores these at startup and exec keeps ignored signals; subprocess.Popen resets
         # them the same way for the task runtime.
-        for name in ("SIGPIPE", "SIGXFZ", "SIGXFSZ"):
+        for name in ("SIGPIPE", "SIGXFSZ"):
             if (sig := getattr(signal, name, None)) is not None:
                 signal.signal(sig, signal.SIG_DFL)
         _set_close_on_exec_above_stderr()
