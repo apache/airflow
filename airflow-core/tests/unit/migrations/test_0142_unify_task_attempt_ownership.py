@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from shutil import copyfile
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import sqlalchemy as sa
@@ -349,9 +349,8 @@ def test_upgrade_retains_history_and_legacy_owner(populated_predecessor):
             assert foreign_key["referred_table"] == "legacy_task_data_owner"
 
 
-def test_upgrade_discards_only_history_conflicting_with_live_try(populated_predecessor):
-    connection, config = populated_predecessor
-    conflicting_id = uuid4()
+def archive_attempt_at_live_try(connection) -> UUID:
+    archived_id = uuid4()
     connection.execute(
         table(connection, "task_instance_history", "task_instance_id")
         .insert()
@@ -360,7 +359,7 @@ def test_upgrade_discards_only_history_conflicting_with_live_try(populated_prede
             task_id="task",
             run_id="manual",
             map_index=-1,
-            task_instance_id=conflicting_id,
+            task_instance_id=archived_id,
             try_number=2,
             pool="default_pool",
             pool_slots=1,
@@ -372,7 +371,7 @@ def test_upgrade_discards_only_history_conflicting_with_live_try(populated_prede
         table(connection, "hitl_detail_history", "ti_history_id")
         .insert()
         .values(
-            ti_history_id=conflicting_id,
+            ti_history_id=archived_id,
             options=["yes"],
             subject="conflicting review",
             params={},
@@ -381,6 +380,12 @@ def test_upgrade_discards_only_history_conflicting_with_live_try(populated_prede
         )
     )
     connection.commit()
+    return archived_id
+
+
+def test_upgrade_discards_only_history_conflicting_with_live_try(populated_predecessor):
+    connection, config = populated_predecessor
+    conflicting_id = archive_attempt_at_live_try(connection)
 
     command.upgrade(config, REVISION)
 
@@ -399,6 +404,39 @@ def test_upgrade_discards_only_history_conflicting_with_live_try(populated_prede
         HISTORY_ID
     }
     assert conflicting_id not in rows
+
+
+@pytest.mark.parametrize(
+    "live_state", ["skipped", "upstream_failed", "removed", "success", "failed", "restarting"]
+)
+def test_upgrade_keeps_history_archived_at_the_try_of_a_live_row_that_never_ran_it(
+    populated_predecessor, live_state
+):
+    connection, config = populated_predecessor
+    archived_id = archive_attempt_at_live_try(connection)
+    live = table(connection, "task_instance", "id")
+    connection.execute(live.update().where(live.c.id == CURRENT_ID).values(state=live_state))
+    connection.commit()
+
+    command.upgrade(config, REVISION)
+
+    ti = table(connection, "task_instance", "id")
+    rows = {row.id: row for row in connection.execute(sa.select(ti))}
+    assert set(rows) == {CURRENT_ID, HISTORY_ID, archived_id}
+    assert (rows[CURRENT_ID].state, rows[CURRENT_ID].try_number, rows[CURRENT_ID].working_set) == (
+        live_state,
+        3,
+        True,
+    )
+    assert (rows[archived_id].state, rows[archived_id].try_number, rows[archived_id].working_set) == (
+        "success",
+        2,
+        None,
+    )
+    assert set(connection.scalars(sa.select(table(connection, "hitl_detail", "ti_id").c.ti_id))) == {
+        HISTORY_ID,
+        archived_id,
+    }
 
 
 def test_upgrade_does_not_suppress_unrelated_history_identity_conflict(populated_predecessor):

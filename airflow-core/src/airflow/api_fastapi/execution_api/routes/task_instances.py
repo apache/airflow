@@ -1090,9 +1090,7 @@ async def ti_heartbeat(
     if working_set is None:
         # A retired attempt was likely cleared while running, so return 410 Gone
         # instead of 404 Not Found to give the client a more specific signal.
-        _raise_ti_not_in_live_table(
-            task_instance_id, archived_in_history=IdentifyRetiredTaskStateUpdates.is_applied
-        )
+        _raise_ti_not_in_live_table(task_instance_id, archived_in_history=True)
 
     if hostname != ti_payload.hostname or pid != ti_payload.pid:
         log.warning(

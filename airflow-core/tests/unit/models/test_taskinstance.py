@@ -2944,6 +2944,31 @@ class TestTaskInstance:
         assert session.scalar(sa.select(sa.func.count()).select_from(TaskInstance)) == 3
         assert successor.working_set is True
 
+    def test_retirement_carries_the_note_to_the_successor(self, ownership_session):
+        session = ownership_session
+        attempt = session.get(TaskInstance, CURRENT_ID)
+        attempt.note = "needs a look"
+        session.flush()
+
+        successor = attempt.prepare_db_for_next_try(session)
+        session.flush()
+        session.expire_all()
+
+        assert session.get(TaskInstance, successor.id).note == "needs a look"
+        assert session.get(TaskInstance, CURRENT_ID).note == "needs a look"
+
+    def test_completing_a_restart_carries_the_note_to_the_successor(self, ownership_session):
+        session = ownership_session
+        attempt = session.get(TaskInstance, CURRENT_ID)
+        attempt.state = TaskInstanceState.RESTARTING
+        attempt.note = "cleared while running"
+        session.flush()
+
+        successor = attempt.complete_restart(session=session)
+        session.expire_all()
+
+        assert session.get(TaskInstance, successor.id).note == "cleared while running"
+
     @pytest.mark.parametrize(
         ("map_index", "deleted"),
         [
@@ -3117,10 +3142,11 @@ class TestTaskInstance:
             )
             is not None
         )
-        for name in ("xcom_v1", "rtif_v1", "legacy_task_data_owner", "task_instance_note", "task_reschedule"):
+        for name in ("xcom_v1", "rtif_v1", "legacy_task_data_owner", "task_reschedule"):
             assert session.scalar(sa.text(f"SELECT count(*) FROM {name}")) == int(
                 deleted_attempt == "current"
             )
+        assert session.scalars(select(TaskInstanceNote.ti_id)).all() == [retained.id]
 
     @pytest.mark.execution_timeout(10)
     def test_coordinate_xcom_reads_choose_current_producer_and_exact_try_reads_history(

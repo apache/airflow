@@ -233,17 +233,14 @@ async def require_auth(
         # The versions package imports routes, which depend on this module.
         from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyRetiredTaskStateUpdates
 
-        await _require_live_attempt(
-            token,
-            allow_callback="task_instance_id" not in request.path_params,
-            identify_retired=IdentifyRetiredTaskStateUpdates.is_applied,
-        )
-        request.scope[_REQUEST_SCOPE_LIVE_ATTEMPT_KEY] = True
+        if IdentifyRetiredTaskStateUpdates.is_applied:
+            await _require_live_attempt(token, allow_callback="task_instance_id" not in request.path_params)
+            request.scope[_REQUEST_SCOPE_LIVE_ATTEMPT_KEY] = True
 
     return token
 
 
-async def _require_live_attempt(token: TIToken, *, allow_callback: bool, identify_retired: bool) -> None:
+async def _require_live_attempt(token: TIToken, *, allow_callback: bool) -> None:
     """
     Reject mutations from an attempt whose UUID is no longer in the working set.
 
@@ -264,7 +261,7 @@ async def _require_live_attempt(token: TIToken, *, allow_callback: bool, identif
             and await session.scalar(select(Callback.id).where(Callback.id == token.id))
         ):
             return
-        archived = identify_retired and attempt is not None
+        archived = attempt is not None
     raise HTTPException(
         status_code=status.HTTP_410_GONE if archived else status.HTTP_404_NOT_FOUND,
         detail={

@@ -4331,7 +4331,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ti_id = response_data["task_instances"][0]["id"]
         assert ti_id != str(old_ti.id)
         _check_task_instance_note(session, old_ti.id, {"content": "placeholder-note", "user_id": None})
-        _check_task_instance_note(session, ti_id, None)
+        _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
 
     @pytest.mark.db_test
     def test_clear_dry_run_does_not_set_note(self, test_client, session):

@@ -379,37 +379,20 @@ class TestAttemptLiveness:
         ("delete", "/execution/variables/key", None),
         ("post", "/execution/xcoms/{dag_id}/{run_id}/{task_id}/key", "late"),
     ]
-    # Clients older than the Cadwyn change that identifies retired attempts get 404, not 410.
-    OLD_CLIENT_ROUTES = [
-        ("put", "/execution/task-instances/{ti_id}/heartbeat", {"hostname": "w", "pid": 1}),
-        ("put", "/execution/task-instances/{ti_id}/rtif", {"field": "late"}),
-        ("post", "/execution/xcoms/{dag_id}/{run_id}/{task_id}/key", "late"),
-    ]
 
     @pytest.mark.parametrize(
-        ("method", "path", "body", "version", "expected_status"),
-        [
-            *(pytest.param(*route, None, 410, id=f"{route[0]}:{route[1]}") for route in RETIRED_ROUTES),
-            *(
-                pytest.param(*route, version, 404, id=f"{route[0]}:{route[1]}:{version}")
-                for route in OLD_CLIENT_ROUTES
-                for version in ("2025-04-11", "2026-06-30")
-            ),
-        ],
+        ("method", "path", "body"),
+        [pytest.param(*route, id=f"{route[0]}:{route[1]}") for route in RETIRED_ROUTES],
     )
-    def test_retired_attempt_rejected_before_mutation(
-        self, client, caller, session, method, path, body, version, expected_status
-    ):
+    def test_retired_attempt_rejected_before_mutation(self, client, caller, session, method, path, body):
         ti, token = caller
         path = path.format(ti_id=token.id, dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id)
         ti.prepare_db_for_next_try(session)
         session.commit()
 
-        response = client.request(
-            method, path, json=body, headers={"Airflow-API-Version": version} if version else {}
-        )
+        response = client.request(method, path, json=body)
 
-        assert response.status_code == expected_status, response.text
+        assert response.status_code == 410, response.text
 
     def test_callback_execution_token_can_mutate_variable(self, client, caller, session):
         _, token = caller

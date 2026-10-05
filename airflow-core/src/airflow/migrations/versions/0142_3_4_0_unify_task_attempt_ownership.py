@@ -82,6 +82,7 @@ _COPY_COLUMNS = (
     "retry_delay_override",
     "retry_reason",
 )
+_NOT_EXECUTING_STATES = ("success", "failed", "skipped", "upstream_failed", "removed", "restarting")
 _HITL_COLUMNS = (
     "options",
     "subject",
@@ -223,6 +224,30 @@ def upgrade():
                 "legacy_task_data_owner",
                 not_valid=op.get_bind().dialect.name == "postgresql",
             )
+        live = sa.table(
+            "task_instance",
+            *(sa.column(c) for c in _COORDINATES),
+            sa.column("try_number"),
+            sa.column("state"),
+        )
+        archived = sa.table(
+            "task_instance_history", *(sa.column(c) for c in _COORDINATES), sa.column("try_number")
+        )
+        same_coordinates = [live.c[c] == archived.c[c] for c in _COORDINATES]
+        # Clearing archived the try and left the replacement at it; only a row that is still executing that try is the same attempt.
+        op.execute(
+            live.update()
+            .where(
+                live.c.state.in_(_NOT_EXECUTING_STATES),
+                sa.exists().where(*same_coordinates, archived.c.try_number == live.c.try_number),
+            )
+            .values(
+                try_number=sa.select(sa.func.max(archived.c.try_number))
+                .where(*same_coordinates)
+                .scalar_subquery()
+                + 1
+            )
+        )
         with op.batch_alter_table("task_instance_history") as batch:
             batch.drop_constraint("task_instance_history_ti_fkey", type_="foreignkey")
         with op.batch_alter_table("task_instance") as batch:

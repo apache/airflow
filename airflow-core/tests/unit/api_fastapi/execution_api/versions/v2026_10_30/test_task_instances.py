@@ -21,9 +21,12 @@ import pytest
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.app import _jwt_generator
+from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
+from airflow.models.xcom import XComModelV2
 from airflow.sdk import task
 from airflow.utils.state import State
 
@@ -268,3 +271,49 @@ class TestArgBindingsFieldBackwardCompat:
                 "from_default": True,
             },
         ]
+
+
+@pytest.fixture
+def retired_attempt(client, exec_app, monkeypatch, create_task_instance, session):
+    """A running attempt, authenticated with a signed token, that has since been retried."""
+    ti = create_task_instance(state=State.RUNNING)
+    session.commit()
+    monkeypatch.delitem(exec_app.dependency_overrides, require_auth)
+    client.headers["Authorization"] = f"Bearer {_jwt_generator().generate({'sub': str(ti.id)})}"
+    successor = ti.prepare_db_for_next_try(session)
+    successor.state = State.UP_FOR_RETRY
+    session.commit()
+    return ti, successor
+
+
+@pytest.mark.parametrize(
+    ("version", "rtif_status", "heartbeat_status", "xcom_status", "xcom_kept"),
+    [
+        pytest.param("2025-04-11", 410, 410, 201, True, id="oldest"),
+        pytest.param("2026-06-30", 410, 410, 201, True, id="3.3"),
+        pytest.param("2026-10-30", 410, 410, 410, False, id="current"),
+    ],
+)
+def test_mutations_after_retry_response_by_version(
+    client, retired_attempt, session, version, rtif_status, heartbeat_status, xcom_status, xcom_kept
+):
+    ti, successor = retired_attempt
+    client.headers["Airflow-API-Version"] = version
+
+    rtif = client.put(f"/execution/task-instances/{ti.id}/rtif", json={"field": "late"})
+    heartbeat = client.put(
+        f"/execution/task-instances/{ti.id}/heartbeat", json={"hostname": "host", "pid": 1}
+    )
+    xcom = client.post(
+        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/extra_link", json="https://example.com"
+    )
+
+    assert (rtif.status_code, heartbeat.status_code, xcom.status_code) == (
+        rtif_status,
+        heartbeat_status,
+        xcom_status,
+    )
+    session.expire_all()
+    stored = XComModelV2.get_for_attempt(ti.id, "extra_link", session=session)
+    assert (stored is not None) is xcom_kept
+    assert XComModelV2.get_for_attempt(successor.id, "extra_link", session=session) is None

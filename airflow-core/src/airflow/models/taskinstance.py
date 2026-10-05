@@ -1199,6 +1199,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         session.execute(insert(TaskInstance.__table__).values(values))
         successor = session.scalars(select(TaskInstance).where(TaskInstance.id == values["id"])).one()
         successor.task = self.task
+        if (
+            note := session.scalar(select(TaskInstanceNote).where(TaskInstanceNote.ti_id == self.id))
+        ) is not None:
+            carried = TaskInstanceNote(content=note.content, user_id=note.user_id)
+            carried.created_at, carried.updated_at = note.created_at, note.updated_at
+            successor.task_instance_note = carried
         return successor
 
     def complete_restart(self, *, session: Session) -> TaskInstance:
