@@ -1,0 +1,174 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Dependency upgrade report
+# Both the job gate and the API validation reject PRs and foreign repositories. Only
+# completed main schedule/dispatch runs are executed, with a read-only token and no secrets.
+"on":  # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows: ["Tests (AMD)"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      source-run-id:
+        description: "Main AMD canary run to analyze (inputs and images expire after two days)"
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: dependency-report-${{ github.event.workflow_run.id || inputs.source-run-id }}
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.event == 'schedule' ||
+        github.event.workflow_run.event == 'workflow_dispatch'))
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      has-reports: ${{ steps.plan.outputs.has-reports }}
+      source-sha: ${{ steps.plan.outputs.source-sha }}
+      source-run-id: ${{ steps.plan.outputs.source-run-id }}
+    steps:
+      - name: "Select inputs from the original canary run"
+        id: plan
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source-run-id }}
+        with:
+          script: |
+            const rawId = process.env.SOURCE_RUN_ID;
+            if (!/^[1-9][0-9]*$/.test(rawId)) throw new Error('Invalid source run ID');
+            const run_id = Number(rawId);
+            if (!Number.isSafeInteger(run_id)) throw new Error('Invalid source run ID');
+            const repo = context.repo;
+            const { data: run } = await github.rest.actions.getWorkflowRun({ ...repo, run_id });
+            if (run.head_repository.full_name !== `${repo.owner}/${repo.repo}` ||
+                run.head_branch !== 'main' || run.path !== '.github/workflows/ci-amd.yml' ||
+                !['schedule', 'workflow_dispatch'].includes(run.event) || run.status !== 'completed') {
+              throw new Error('Only completed main AMD canary runs are supported');
+            }
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts,
+              { ...repo, run_id, per_page: 100 });
+            const include = [];
+            const inputName = new RegExp('^dependency-report-inputs-(3\\.[0-9]+)-' +
+              '(constraints(?:-source-providers|-no-providers)?)-(true|false)$');
+            for (const input of artifacts) {
+              const match = inputName.exec(input.name);
+              if (!match || match[1] === '3.10') continue;
+              const [, python, mode, useUv] = match;
+              const image = artifacts.find(a => a.name === `ci-image-save-v3-linux_amd64-${python}-main`);
+              if (input.expired || !image || image.expired) {
+                throw new Error(`Original inputs or CI image unavailable for ${python}:${mode}`);
+              }
+              include.push({ python, mode, 'use-uv': useUv,
+                'inputs-id': input.id, 'image-id': image.id });
+            }
+            core.setOutput('matrix', JSON.stringify({ include }));
+            core.setOutput('has-reports', include.length > 0 ? 'true' : 'false');
+            core.setOutput('source-sha', run.head_sha);
+            core.setOutput('source-run-id', rawId);
+            if (!include.length) {
+              if (context.eventName === 'workflow_dispatch') {
+                throw new Error('Saved report inputs are missing or expired');
+              }
+              core.notice('No saved report inputs: this run did not request independent diagnostics');
+            }
+            await core.summary.addHeading('Dependency upgrade diagnostics')
+              .addLink('Source canary run', run.html_url)
+              .addRaw(`\n\nSource revision: ${run.head_sha}\n\nReports: ${include.length}\n`)
+              .write();
+
+  explain:
+    needs: plan
+    if: needs.plan.outputs.has-reports == 'true'
+    name: "Explain ${{ matrix.python }}:${{ matrix.mode }}"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "false"
+      USE_UV: ${{ matrix.use-uv }}
+    steps:
+      - name: "Checkout the tested revision"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.source-sha }}
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Make /mnt writeable"
+        run: ./scripts/ci/make_mnt_writeable.sh
+      - name: "Download the original CI image"
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          artifact-ids: ${{ matrix.image-id }}
+          run-id: ${{ needs.plan.outputs.source-run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: /mnt
+      - name: "Load the original CI image"
+        env:
+          PYTHON_VERSION: ${{ matrix.python }}
+        run: breeze ci-image load --platform linux/amd64 --python "${PYTHON_VERSION}" --image-file-dir /mnt
+      - name: "Download the constraints used by the quick summary"
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          artifact-ids: ${{ matrix.inputs-id }}
+          run-id: ${{ needs.plan.outputs.source-run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+          path: files/dependency-report
+      - name: "Explain outdated dependencies"
+        shell: bash
+        env:
+          PYTHON_VERSION: ${{ matrix.python }}
+          CONSTRAINTS_MODE: ${{ matrix.mode }}
+          SOURCE_RUN_ID: ${{ needs.plan.outputs.source-run-id }}
+        run: |
+          {
+            echo "## Dependency upgrade explanations"
+            echo "Source canary run: ${SOURCE_RUN_ID}"
+            echo "Constraints commit: $(cat files/dependency-report/constraints-commit.txt)"
+            echo "Python: ${PYTHON_VERSION}; mode: ${CONSTRAINTS_MODE}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          breeze release-management constraints-version-check \
+            --python "${PYTHON_VERSION}" --airflow-constraints-mode "${CONSTRAINTS_MODE}" \
+            --constraints-file files/dependency-report/constraints.txt --explain-why \
+            2>&1 | tee files/dependency-report/explanations.txt
+      - name: "Save diagnostic output, including partial output on failure"
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: dependency-explanations-${{ matrix.python }}-${{ matrix.mode }}
+          path: files/dependency-report/
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: true

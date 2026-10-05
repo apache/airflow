@@ -4968,6 +4968,11 @@ def publish_schemas_to_s3(
 @option_python
 @option_airflow_constraints_mode_ci
 @click.option(
+    "--constraints-file",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Check this saved constraints file instead of downloading the current constraints branch.",
+)
+@click.option(
     "--diff-mode",
     type=click.Choice(["full", "diff-all", "diff-constraints"], case_sensitive=False),
     default="full",
@@ -4998,6 +5003,7 @@ def publish_schemas_to_s3(
 def version_check(
     python: str,
     airflow_constraints_mode: str,
+    constraints_file: Path | None,
     diff_mode,
     package: tuple[str],
     explain_why: bool,
@@ -5028,6 +5034,7 @@ def version_check(
         github_token=github_token,
         github_repository=github_repository,
         cooldown_days=cooldown_days,
+        constraints_file=constraints_file,
     )
 
 
