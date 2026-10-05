@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"reflect"
 	"strings"
 	"testing"
@@ -200,9 +199,9 @@ func TestIfPanicsUnderItsOwnName(t *testing.T) {
 			want: "cannot take an input from task",
 		},
 		{
-			name: "input that DagRef.Task did not return",
+			name: "input that DagRef.Task or TaskGroupRef.Task did not return",
 			add:  func(dag *DagRef) { dag.If(hasRows, Inputs(&TaskRef{})) },
-			want: "that DagRef.Task did not return",
+			want: "that DagRef.Task or TaskGroupRef.Task did not return",
 		},
 		{
 			name: "missing input",
@@ -308,12 +307,12 @@ func TestThenAndElseRejectATaskOutsideTheDag(t *testing.T) {
 		{
 			name: "zero TaskRef",
 			task: &TaskRef{},
-			want: `got a *airflow.TaskRef that DagRef.Task did not return`,
+			want: `got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name: "copy of a task of the Dag",
 			task: &loadedCopy,
-			want: `got a *airflow.TaskRef that DagRef.Task did not return`,
+			want: `got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name: "task of another Dag",
@@ -417,11 +416,13 @@ func TestIfRefThatDagRefIfDidNotReturnPanics(t *testing.T) {
 	for name, ref := range map[string]*IfRef{"nil": nilRef, "zero": {}, "copy": &gateCopy} {
 		t.Run(name, func(t *testing.T) {
 			assert.PanicsWithValue(t,
-				"airflow.IfRef.Then: DagRef.If did not return the *airflow.IfRef",
+				"airflow.IfRef.Then: DagRef.If or TaskGroupRef.If did not return "+
+					"the *airflow.IfRef",
 				func() { ref.Then(loaded) },
 			)
 			assert.PanicsWithValue(t,
-				"airflow.IfRef.Else: DagRef.If did not return the *airflow.IfRef",
+				"airflow.IfRef.Else: DagRef.If or TaskGroupRef.If did not return "+
+					"the *airflow.IfRef",
 				func() { ref.Else(loaded) },
 			)
 		})
@@ -493,16 +494,13 @@ func (c *conditionClient) skip(_ context.Context, taskIDs []string) error {
 // runCondition runs the task of gate through its Execute method, as the runtime runs a task. It
 // passes one XCom binding per input, named after the arg tag of rowSet, so that a struct
 // parameter shows whether it takes the whole result. results maps the task_id of each upstream
-// task to its result. earlier maps each key to an XCom that an earlier try of the task left.
-func runCondition(gate *IfRef, results, earlier map[string]any) (*conditionClient, error) {
+// task to its result.
+func runCondition(gate *IfRef, results map[string]any) (*conditionClient, error) {
 	args := make([]binding.Arg, len(gate.task.inputs))
 	for i, upstream := range gate.task.inputs {
 		args[i] = binding.XComArg{Kind: "xcom", Name: "rows", TaskID: upstream.taskID}
 	}
-	client := &conditionClient{results: results, xcoms: maps.Clone(earlier)}
-	if client.xcoms == nil {
-		client.xcoms = map[string]any{}
-	}
+	client := &conditionClient{results: results, xcoms: map[string]any{}}
 	ti := sdk.TaskInstance{DagID: "etl", RunID: "run1", TaskID: gate.task.taskID}
 	ctx := context.WithValue(
 		context.Background(),
@@ -586,19 +584,20 @@ func TestConditionSkipsTheSideThatItDoesNotTake(t *testing.T) {
 
 			client, err := runCondition(gate, map[string]any{
 				"readRows": map[string]any{"rows": tt.rows},
-			}, nil)
+			})
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.want, client.xcoms["return_value"])
 			if len(tt.skipped) == 0 {
 				assert.Empty(t, client.skipped)
+				assert.NotContains(t, client.xcoms, "skipmixin_key")
 			} else {
 				assert.Equal(t, [][]string{tt.skipped}, client.skipped)
+				assert.Equal(t,
+					map[string][]string{"skipped": tt.skipped},
+					client.xcoms["skipmixin_key"],
+				)
 			}
-			assert.Equal(t,
-				map[string][]string{"skipped": tt.skipped},
-				client.xcoms["skipmixin_key"],
-			)
 		})
 	}
 }
@@ -611,19 +610,11 @@ func TestConditionThatFailsSkipsNothing(t *testing.T) {
 	).Then(dag.Task(load)).Else(dag.Task(reportEmpty))
 	Bundle().Register(dag)
 
-	// An earlier try of the condition skipped load, and this try fails before it decides which
-	// side to skip.
-	client, err := runCondition(gate, nil, map[string]any{
-		"skipmixin_key": map[string][]string{"skipped": {"load"}},
-	})
+	client, err := runCondition(gate, nil)
 
 	require.EqualError(t, err, "cannot reach the table")
 	assert.Empty(t, client.skipped)
-	assert.Equal(t,
-		map[string][]string{"skipped": {}},
-		client.xcoms["skipmixin_key"],
-		"the list of the earlier try must not be left behind",
-	)
+	assert.NotContains(t, client.xcoms, "skipmixin_key")
 }
 
 // Else and Register both take the lock of the Dag, so each Else call either names its task before

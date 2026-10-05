@@ -360,3 +360,37 @@ describe("Recent tasks setting", () => {
     }
   });
 });
+
+describe("Dags table", () => {
+  it.each([
+    "dag_display_name",
+    "timetable_description",
+    "next_dagrun",
+    "last_run_run_after",
+    "tags",
+    "team_name",
+  ])("keeps the %s cell on one line", async (columnId) => {
+    server.use(
+      http.get("/ui/config", () => HttpResponse.json({ multi_team: true, page_size: 15 })),
+      http.get("/ui/dags", () =>
+        HttpResponse.json({
+          dags: [
+            {
+              ...successDag,
+              next_dagrun_run_after: "2025-01-14T00:00:00Z",
+              team_name: "team_a",
+              timetable_summary: "@daily",
+            },
+          ],
+          total_entries: 1,
+        }),
+      ),
+    );
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    const cell = await screen.findByTestId(`table-cell-${columnId}`);
+
+    await waitFor(() => expect(cell.firstElementChild).toHaveStyle({ whiteSpace: "nowrap" }));
+  });
+});

@@ -62,6 +62,12 @@ export const Details = () => {
     <Table.Root striped>
       <Table.Body>
         <Table.Row>
+          <Table.Cell>{translate("dagRun.conf")}</Table.Cell>
+          <Table.Cell>
+            {hasDagRunConfig(dagRun.conf) ? <RenderedJsonField content={dagRun.conf} /> : undefined}
+          </Table.Cell>
+        </Table.Row>
+        <Table.Row>
           <Table.Cell>{translate("state")}</Table.Cell>
           <Table.Cell data-testid="dag-run-state">
             <Flex gap={1}>
@@ -191,12 +197,6 @@ export const Details = () => {
                 <DagVersionDetails dagVersion={dagVersion} key={dagVersion.id} />
               ))}
             </VStack>
-          </Table.Cell>
-        </Table.Row>
-        <Table.Row>
-          <Table.Cell>{translate("dagRun.conf")}</Table.Cell>
-          <Table.Cell>
-            {hasDagRunConfig(dagRun.conf) ? <RenderedJsonField content={dagRun.conf} /> : undefined}
           </Table.Cell>
         </Table.Row>
       </Table.Body>

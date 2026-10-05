@@ -354,11 +354,13 @@ func TestEdgeVerbsRejectATaskThatTaskDidNotReturn(t *testing.T) {
 	copied := *loaded
 
 	assert.PanicsWithValue(t,
-		"airflow.Node.Before: got a *airflow.TaskRef that DagRef.Task did not return",
+		"airflow.Node.Before: got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task "+
+			"did not return",
 		func() { (&TaskRef{}).Before(loaded) },
 	)
 	assert.PanicsWithValue(t,
-		`airflow.Node.Before: Dag "etl" got a *airflow.TaskRef that DagRef.Task did not return`,
+		`airflow.Node.Before: Dag "etl" got a *airflow.TaskRef that DagRef.Task or `+
+			`TaskGroupRef.Task did not return`,
 		func() { loaded.Before(&copied) },
 	)
 }
@@ -369,7 +371,7 @@ func TestEdgeVerbsRejectATaskOfAnotherDag(t *testing.T) {
 
 	assert.PanicsWithValue(t,
 		`airflow.Node.Before: cannot declare an edge between task "load" of Dag "etl" and `+
-			`task "cleanup" of Dag "reporting"; an edge connects tasks of one Dag`,
+			`task "cleanup" of Dag "reporting"; an edge connects the tasks and task groups of one Dag`,
 		func() { loaded.Before(cleaned) },
 	)
 }
@@ -449,7 +451,8 @@ func TestEdgeVerbsCheckTheTasksEvenWithNoNode(t *testing.T) {
 	var none []Node
 
 	assert.PanicsWithValue(t,
-		"airflow.Node.Before: got a *airflow.TaskRef that DagRef.Task did not return",
+		"airflow.Node.Before: got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task "+
+			"did not return",
 		func() { (&TaskRef{}).Before(none...) },
 	)
 	assert.PanicsWithValue(t,

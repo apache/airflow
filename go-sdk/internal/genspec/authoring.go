@@ -23,7 +23,7 @@ import (
 	"fmt"
 )
 
-// authoringShape rewrites the two definitions the airflow package generates from
+// authoringShape rewrites the definitions the airflow package generates from
 // into the shape a Dag author writes, rather than the shape Airflow serializes.
 // Each definition drops the properties in exclude, rewrites the properties in
 // override, and gains the properties in inject.
@@ -63,8 +63,9 @@ type propertyOverride struct {
 }
 
 var authoringShapes = map[string]authoringShape{
-	"dag":      dagShape,
-	"operator": taskShape,
+	"dag":        dagShape,
+	"operator":   taskShape,
+	"task_group": taskGroupShape,
 }
 
 var dagShape = authoringShape{
@@ -115,7 +116,8 @@ var dagShape = authoringShape{
 }
 
 var taskShape = authoringShape{
-	doc: "TaskSpec holds the attributes of a task. DagRef.Task takes at most one per task.",
+	doc: "TaskSpec holds the attributes of a task. DagRef.Task, DagRef.If and the methods of " +
+		"the same names on TaskGroupRef take at most one per task.",
 	exclude: map[string]string{
 		"task_type":                     "the operator class name, which the SDK fills in",
 		"_task_module":                  "the operator's Python module, which the SDK fills in",
@@ -180,7 +182,30 @@ var taskShape = authoringShape{
 		"retry_exponential_backoff": {goType: "float64"},
 		"task_id": {
 			goType: "string",
-			doc:    "TaskID is the task_id of the task. When TaskID is empty, the task_id is the name of the Go function that the task runs. A task from TriggerDagRun runs no Go function, so it needs a TaskID.",
+			doc:    "TaskID is the task_id of the task. When TaskID is empty, the task_id is the name of the Go function that the task runs. A task from TriggerDagRun runs no Go function, so it needs a TaskID. A task added through a task group takes the group_id as a prefix of its task_id, unless the TaskGroupSpec of the group sets PrefixGroupID to false.",
+		},
+	},
+}
+
+var taskGroupShape = authoringShape{
+	doc: "TaskGroupSpec holds the attributes of a task group other than its group_id. " +
+		"DagRef.TaskGroup and TaskGroupRef.TaskGroup take at most one per group.",
+	exclude: map[string]string{
+		"_group_id":            "a positional parameter of DagRef.TaskGroup and TaskGroupRef.TaskGroup",
+		"children":             "the tasks and groups added through the group",
+		"is_mapped":            "derived from whether the group is mapped, which the SDK does not model yet",
+		"upstream_group_ids":   "the edges Before and After declare",
+		"downstream_group_ids": "the edges Before and After declare",
+		"upstream_task_ids":    "the edges Before and After declare",
+		"downstream_task_ids":  "the edges Before and After declare",
+	},
+	override: map[string]propertyOverride{
+		// The schema allows null for doc_md, as anyOf [string, null], which rejectCombinators
+		// refuses. An empty DocMD means a group without docs, as null does.
+		"doc_md": {goType: "string"},
+		"prefix_group_id": {
+			goType: "bool",
+			doc:    "PrefixGroupID says whether the group_id prefixes the IDs of the tasks and groups added through the group, as in \"transform.cleanRows\". When PrefixGroupID is nil, the group_id prefixes them.",
 		},
 	},
 }

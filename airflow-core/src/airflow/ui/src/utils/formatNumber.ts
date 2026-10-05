@@ -16,25 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-import { MdOutlineStorage, MdSyncAlt } from "react-icons/md";
-import { Outlet } from "react-router-dom";
+import { createIntlCache } from "./intlCache";
 
-import { NavTabs } from "src/layouts/Details/NavTabs";
+const numberFormatter = createIntlCache<Intl.NumberFormat>();
 
-/** Sub-nav tabs shared by the task-store and xcom routes. */
-export const StorageLayout = () => {
-  const { t: translate } = useTranslation("dag");
-
-  return (
-    <>
-      <NavTabs
-        tabs={[
-          { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
-          { icon: <MdOutlineStorage />, label: translate("tabs.taskStateStore"), value: "task-state-store" },
-        ]}
-      />
-      <Outlet />
-    </>
-  );
-};
+/**
+ * Locale digit grouping for counters rendered outside translations; use instead of `toLocaleString`.
+ *
+ * Components pass `i18n.language` from `useTranslation`, which the React Compiler tracks (react-i18next
+ * hands out a new `i18n` wrapper on every language switch). A language read from the i18next singleton
+ * in here is invisible to the compiler, so a memoized counter would keep its old grouping.
+ */
+export const formatNumber = (value: number, locale: string): string =>
+  numberFormatter("number", locale, (forLocale) => new Intl.NumberFormat(forLocale)).format(value);

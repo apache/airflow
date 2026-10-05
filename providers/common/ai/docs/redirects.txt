@@ -22,3 +22,4 @@ sandbox.rst sandbox/index.rst
 hooks/index.rst concepts.rst
 end_to_end_pipelines.rst use_cases/index.rst
 guardrails.rst capabilities.rst
+classifier_models.rst decision_models.rst

@@ -76,12 +76,17 @@ type Registerable interface{ registerable() }
 //
 //	bundle.Register(reports.Handlers()...)
 //
-// Add every task to a Dag before registering the Dag. [DagRef.Task], [DagRef.If], [IfRef.Then]
-// and [IfRef.Else] panic once the Dag is registered.
+// Add every task to a Dag before registering the Dag. [DagRef.Task], [DagRef.If],
+// [DagRef.TaskGroup], [IfRef.Then], [IfRef.Else] and the methods of [TaskGroupRef] panic once the
+// Dag is registered.
 //
 // Register is where a Dag's task dependencies are checked for a cycle, over the whole graph at
 // once: [TaskRef.Before], [TaskRef.After] and [Inputs] each record an edge without walking the
-// graph, so building a Dag stays linear in its edges however many a task has.
+// graph, so building a Dag stays linear in its edges however many a task has. Register also turns
+// each edge to or from a task group, which [TaskGroupRef.Before] describes, into edges between
+// tasks. It expands those edges one at a time, in the order they were first declared, each
+// against every task, every edge declared between two tasks, and the task edges that earlier
+// group edges expanded into.
 //
 // Register panics if a task handler with the same dag_id and task_id is already registered,
 // if a Dag with the same dag_id is already registered, if a task handler and a Dag have the

@@ -17,10 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from contextlib import closing
+from datetime import datetime, timezone
 from unittest import mock
 
+import boto3
 import pytest
+from botocore.stub import Stubber
 
+from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionGetExecutionOutputOperator,
     StepFunctionStartExecutionOperator,
@@ -111,6 +117,51 @@ class TestStepFunctionGetExecutionOutputOperator:
             aws_conn_id=None,
         )
         validate_template_fields(operator)
+
+    @pytest.mark.parametrize(
+        ("error", "expected_output"),
+        [
+            pytest.param("States.TaskFailed", "States.TaskFailed", id="plain_error"),
+            pytest.param("", "", id="empty_error"),
+            pytest.param("오류", "오류", id="unicode_error"),
+            pytest.param("{message", "{message", id="non_json_error"),
+            pytest.param('{"message": "failed"}', {"message": "failed"}, id="json_object_error"),
+            pytest.param('"failed"', "failed", id="json_string_error"),
+            pytest.param("42", 42, id="json_number_error"),
+            pytest.param("null", None, id="json_null_error"),
+        ],
+    )
+    def test_execute_describe_execution_error(self, error, expected_output):
+        client = boto3.client(
+            "stepfunctions",
+            region_name="us-east-1",
+            aws_access_key_id="testing",
+            aws_secret_access_key="testing",
+        )
+        op = StepFunctionGetExecutionOutputOperator(
+            task_id=self.TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=None, region_name="us-east-1"
+        )
+        with closing(client), Stubber(client) as stubber, mock.patch.object(op.hook, "conn", client):
+            stubber.add_response(
+                "describe_execution",
+                {
+                    "executionArn": EXECUTION_ARN,
+                    "stateMachineArn": STATE_MACHINE_ARN,
+                    "startDate": datetime(2026, 1, 1, tzinfo=timezone.utc),
+                    "status": "FAILED",
+                    "error": error,
+                },
+                {"executionArn": EXECUTION_ARN},
+            )
+            assert op.execute({}) == expected_output
+            stubber.assert_no_pending_responses()
+
+    @mock.patch.object(StepFunctionGetExecutionOutputOperator, "hook", spec=StepFunctionHook)
+    def test_execute_rejects_invalid_json_output(self, mocked_hook):
+        mocked_hook.describe_execution.return_value = {"output": "not-json"}
+        op = StepFunctionGetExecutionOutputOperator(task_id=self.TASK_ID, execution_arn=EXECUTION_ARN)
+        with pytest.raises(json.JSONDecodeError):
+            op.execute({})
 
 
 class TestStepFunctionStartExecutionOperator:

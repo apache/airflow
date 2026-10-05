@@ -84,8 +84,9 @@ class TestNextRunAssets:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        # 4 queries for the endpoint plus 1 to resolve the assets the caller may read.
-        with assert_queries_count(5):
+        # 4 queries for the endpoint, 1 to resolve the assets the caller may read and
+        # 1 for the caller-independent scheduling asset count.
+        with assert_queries_count(6):
             response = test_client.get("/next_run_assets/upstream")
 
         assert response.status_code == 200
@@ -118,6 +119,7 @@ class TestNextRunAssets:
                     "asset_inactive": False,
                 }
             ],
+            "scheduling_asset_count": 1,
             "pending_partition_count": None,
         }
 
@@ -186,6 +188,32 @@ class TestNextRunAssets:
 
         assert response.status_code == 200
         assert [event["name"] for event in response.json()["events"]] == ["visible_asset"]
+        assert response.json()["scheduling_asset_count"] == 2
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_scheduling_asset_count_is_unaffected_when_no_asset_is_readable(
+        self, mock_get_authorized_assets, test_client, dag_maker
+    ):
+        with dag_maker(
+            dag_id="all_hidden_upstream",
+            schedule=[
+                Asset(uri="s3://bucket/hidden1", name="hidden_asset1"),
+                Asset(uri="s3://bucket/hidden2", name="hidden_asset2"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        mock_get_authorized_assets.return_value = set()
+
+        response = test_client.get("/next_run_assets/all_hidden_upstream")
+
+        assert response.status_code == 200
+        assert response.json()["events"] == []
+        assert response.json()["scheduling_asset_count"] == 2
 
     @mock.patch(
         "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
@@ -240,6 +268,7 @@ class TestNextRunAssets:
         assert [event["name"] for event in events] == ["part_visible"]
         assert events[0]["received_keys"] == ["2024-01-01"]
         assert events[0]["required_keys"] == ["2024-01-01"]
+        assert response.json()["scheduling_asset_count"] == 2
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/next_run_assets/upstream")
@@ -336,6 +365,7 @@ class TestNextRunAssets:
                     "asset_inactive": False,
                 },
             ],
+            "scheduling_asset_count": 2,
             "pending_partition_count": None,
         }
 

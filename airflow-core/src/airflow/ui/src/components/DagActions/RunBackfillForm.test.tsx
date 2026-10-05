@@ -28,6 +28,7 @@ import RunBackfillForm from "./RunBackfillForm";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, opts?: { count?: number; dag_display_name?: string }) => {
       const map: Record<string, string> = {
