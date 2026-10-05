@@ -42,6 +42,8 @@ from airflow.api_fastapi.execution_api.datamodels.job import (
 )
 from airflow.api_fastapi.execution_api.versions import bundle
 from airflow.sdk.api.client import BearerAuth, Client
+from airflow.sdk.execution_time.comms import GetConnection, GetVariable, MaskSecret
+from airflow.sdk.execution_time.request_handlers import handle_get_connection, handle_get_variable
 
 log = structlog.get_logger(__name__)
 
@@ -318,3 +320,26 @@ class DagProcessorAPIClient(Client):
             else:
                 self._completed = True
                 return
+
+
+class DagProcessorSecretsComms:
+    """
+    Stand-in for ``SUPERVISOR_COMMS`` in the Dag processor manager process.
+
+    Installed as ``task_runner.SUPERVISOR_COMMS``, it makes ``ensure_secrets_backend_loaded()`` choose
+    ``ExecutionAPISecretsBackend``, whose connection and variable lookups it answers through the manager's
+    client for the bundle selected with ``DagProcessorAPIClient.use_bundle``.
+    """
+
+    def __init__(self, client: DagProcessorAPIClient) -> None:
+        self._client = client
+
+    def send(self, msg: Any, **kwargs: Any) -> Any:
+        if isinstance(msg, GetConnection):
+            return handle_get_connection(self._client, msg)[0]
+        if isinstance(msg, GetVariable):
+            return handle_get_variable(self._client, msg)[0]
+        if isinstance(msg, MaskSecret):
+            # mask_secret has already masked the value in this process.
+            return None
+        raise TypeError(f"{type(msg).__name__} is not answered in the Dag processor manager process")

@@ -31,6 +31,8 @@ from socket import socket, socketpair
 from typing import TYPE_CHECKING, Any, BinaryIO
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import httpx
+import jwt
 import pytest
 import structlog
 from pydantic import TypeAdapter
@@ -51,6 +53,7 @@ from airflow.callbacks.callback_requests import (
     EmailRequest,
     TaskCallbackRequest,
 )
+from airflow.dag_processing.api_client import DagProcessorAPIClient
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import DagFileProcessorManager, process_parse_results
 from airflow.dag_processing.processor import (
@@ -85,6 +88,7 @@ from airflow.sdk.execution_time.comms import (
     TICount,
     ToSupervisor,
     ToTask,
+    VariableResult,
     XComResult,
     XComSequenceSliceResult,
 )
@@ -2380,7 +2384,11 @@ class TestDagFileProcessorProcess:
 
     @pytest.mark.parametrize(
         "message_type",
-        sorted(set(typing.get_args(typing.get_args(ToManager)[0])) - {DagFileParsingResult}, key=str),
+        sorted(
+            set(typing.get_args(typing.get_args(ToManager)[0]))
+            - {DagFileParsingResult, comms.GetPrevSuccessfulDagRun},
+            key=str,
+        ),
         ids=lambda message_type: message_type.__name__,
     )
     def test_reuses_shared_request_handlers(self, message_type):
@@ -2446,17 +2454,47 @@ class TestDagFileProcessorProcess:
         send_msg.assert_called_once_with(proc, None, request_id=42, error=None)
 
     @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
-    def test_previous_successful_run_uses_process_id(self, send_msg, proc):
-        proc.client.task_instances.get_previous_successful_dagrun.return_value = (
-            comms.PrevSuccessfulDagRunResult()
-        )
+    def test_previous_successful_run_is_answered_locally(self, send_msg, proc):
         proc._handle_request(
             comms.GetPrevSuccessfulDagRun(ti_id=uuid.uuid4()), structlog.get_logger(), req_id=42
         )
 
-        proc.client.task_instances.get_previous_successful_dagrun.assert_called_once_with(proc.id)
+        assert not proc.client.mock_calls
         send_msg.assert_called_once_with(
             proc, comms.PrevSuccessfulDagRunResult(), request_id=42, error=None, exclude_unset=True
+        )
+
+    @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
+    def test_api_client_requests_are_made_for_the_files_bundle(self, send_msg, proc, tmp_path):
+        token_file = tmp_path / "processor.jwt"
+        token_file.write_text("session-token")
+        job_token = jwt.encode({"iat": 0, "exp": 300, "scope": "dag_processor", "job_id": 1}, "secret")
+        requests = []
+
+        def handle(request):
+            requests.append(request)
+            if request.url.path.endswith("/jobs"):
+                return httpx.Response(201, json={"job_id": 1, "token": job_token})
+            return httpx.Response(200, json={"key": "my_key", "value": "my_value"})
+
+        with DagProcessorAPIClient(
+            base_url="http://api/execution/",
+            token_file=token_file,
+            hostname="processor-1",
+            transport=httpx.MockTransport(handle),
+        ) as client:
+            client.register_job()
+            proc.client = client
+            proc._handle_request(GetVariable(key="my_key"), structlog.get_logger(), req_id=42)
+
+        assert requests[-1].url.path == "/execution/variables/my_key"
+        assert requests[-1].headers["Airflow-Dag-Bundle"] == "mybundle"
+        send_msg.assert_called_once_with(
+            proc,
+            VariableResult(key="my_key", value="my_value"),
+            request_id=42,
+            error=None,
+            exclude_unset=True,
         )
 
     @pytest.fixture

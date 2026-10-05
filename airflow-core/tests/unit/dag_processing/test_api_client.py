@@ -28,9 +28,14 @@ from tenacity import wait_none
 
 from airflow.api_fastapi.execution_api.datamodels.job import JobState, TerminalJobState
 from airflow.dag_processing import api_client
-from airflow.dag_processing.api_client import DagProcessorAPIClient, DagProcessorRegistrationRetired
+from airflow.dag_processing.api_client import (
+    DagProcessorAPIClient,
+    DagProcessorRegistrationRetired,
+    DagProcessorSecretsComms,
+)
 from airflow.sdk.api.client import API_RETRIES, Client
 from airflow.sdk.api.datamodels import _generated
+from airflow.sdk.execution_time.comms import GetVariable, GetXCom, MaskSecret, VariableResult
 
 SECRET = "processor-client-unit-test-signing-key"
 
@@ -643,3 +648,28 @@ def test_control_contracts_do_not_require_new_sdk_models(monkeypatch, token_file
         base_url="http://api/", token_file=token_file, hostname="processor"
     ) as client:
         assert isinstance(client._registration, api_client.JobRegisterBody)
+
+
+def test_secrets_comms_answers_lookups_for_the_selected_bundle(make_client):
+    client, requests = make_client(
+        make_registration_response(), httpx.Response(200, json={"key": "my_key", "value": "my_value"})
+    )
+    client.register_job()
+    comms = DagProcessorSecretsComms(client)
+
+    with client.use_bundle("bundle-a"):
+        result = comms.send(GetVariable(key="my_key"))
+
+    assert result == VariableResult(key="my_key", value="my_value")
+    assert requests[1].url.path == "/execution/variables/my_key"
+    assert requests[1].headers["Airflow-Dag-Bundle"] == "bundle-a"
+
+
+def test_secrets_comms_ignores_masking_and_rejects_other_messages(make_client):
+    client, requests = make_client()
+    comms = DagProcessorSecretsComms(client)
+
+    assert comms.send(MaskSecret(value="secret")) is None
+    with pytest.raises(TypeError, match="GetXCom"):
+        comms.send(GetXCom(dag_id="dag", run_id="run", task_id="task", key="key"))
+    assert requests == []

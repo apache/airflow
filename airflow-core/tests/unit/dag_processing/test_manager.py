@@ -37,6 +37,8 @@ from socket import socket, socketpair
 from unittest import mock
 from unittest.mock import MagicMock
 
+import httpx
+import jwt
 import msgspec
 import pytest
 import structlog
@@ -48,8 +50,9 @@ from uuid6 import uuid7
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.dag_processing.api_client import DagProcessorAPIClient, DagProcessorSecretsComms
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
-from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.manager import DagBundlesManager, _load_bundle_config_snapshot
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -73,7 +76,8 @@ from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG as SdkDAG, BaseOperator
+from airflow.sdk import DAG as SdkDAG, BaseOperator, Connection
+from airflow.sdk.execution_time import task_runner
 from airflow.sdk.importers import DagDefinition, DagImporterRegistry, DagImportError, DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.net import get_hostname
@@ -4933,3 +4937,177 @@ def test_normalized_file_path_for_stats_does_not_warn(caplog):
 
     assert result == "dags_test_test_dag.py"
     assert caplog.entries == []
+
+
+API_CLIENT_BUNDLES = [
+    {
+        "name": name,
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {"path": "/"},
+    }
+    for name in ("bundle_a", "bundle_b")
+]
+
+
+def _read_bundle_connection() -> None:
+    Connection.get("bundle_conn")
+
+
+class TestDagFileProcessorManagerWithAPIClient:
+    """With an API client, bundle code resolves its connections through it, for the bundle it belongs to."""
+
+    @pytest.fixture
+    def api_requests(self) -> list[httpx.Request]:
+        return []
+
+    @pytest.fixture
+    def api_client(self, tmp_path, api_requests):
+        token_file = tmp_path / "processor.jwt"
+        token_file.write_text("session-token")
+        job_token = jwt.encode({"iat": 0, "exp": 300, "scope": "dag_processor", "job_id": 1}, "secret")
+
+        def handle(request: httpx.Request) -> httpx.Response:
+            api_requests.append(request)
+            if request.url.path.endswith("/jobs"):
+                return httpx.Response(201, json={"job_id": 1, "token": job_token})
+            return httpx.Response(
+                200,
+                json={
+                    "conn_id": "bundle_conn",
+                    "conn_type": "http",
+                    "host": None,
+                    "schema": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "extra": None,
+                },
+            )
+
+        with DagProcessorAPIClient(
+            base_url="http://api/execution/",
+            token_file=token_file,
+            hostname="processor-1",
+            transport=httpx.MockTransport(handle),
+        ) as client:
+            client.register_job()
+            yield client
+
+    @pytest.fixture
+    def make_manager(self, api_client):
+        managers = []
+
+        def make(**kwargs) -> DagFileProcessorManager:
+            manager = DagFileProcessorManager(max_runs=1, api_client=api_client, **kwargs)
+            manager.prepare_api_secrets_context(api_client)
+            managers.append(manager)
+            return manager
+
+        yield make
+        for manager in managers:
+            manager.after_run()
+
+    @pytest.fixture(autouse=True)
+    def configured_bundles(self):
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(API_CLIENT_BUNDLES),
+                ("core", "load_examples"): "False",
+            }
+        ):
+            _load_bundle_config_snapshot.cache_clear()
+            yield
+        _load_bundle_config_snapshot.cache_clear()
+
+    @staticmethod
+    def _get_connection_bundles(api_requests: list[httpx.Request]) -> list[str]:
+        return [
+            request.headers["Airflow-Dag-Bundle"]
+            for request in api_requests
+            if request.url.path.startswith("/execution/connections/")
+        ]
+
+    def test_uses_the_api_client_instead_of_the_in_process_api(self, make_manager, api_client):
+        manager = make_manager()
+
+        assert manager.client is api_client
+        assert manager._api_server is None
+
+    @mock.patch("airflow.dag_processing.manager.gc", autospec=True)
+    def test_run_resolves_secrets_through_the_api_client_instead_of_the_database(self, _, api_client):
+        manager = DagFileProcessorManager(max_runs=1, api_client=api_client)
+        with (
+            mock.patch.object(manager, "prepare_server_process_context") as server_context,
+            mock.patch.object(manager, "prepare_process_context"),
+            mock.patch.object(manager, "register_exit_signals"),
+            mock.patch.object(manager, "prepare_bundles"),
+            mock.patch.object(manager, "_symlink_latest_log_directory"),
+            mock.patch.object(manager, "warm_importers"),
+        ):
+            manager.before_run()
+        server_context.assert_not_called()
+        assert isinstance(task_runner.SUPERVISOR_COMMS, DagProcessorSecretsComms)
+
+        manager.after_run()
+
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+
+    @pytest.mark.parametrize(
+        ("bundle_names_to_parse", "expected"),
+        [(None, ["bundle_a", "bundle_b"]), (["bundle_b"], ["bundle_b"])],
+    )
+    @mock.patch.object(DagBundlesManager, "get_bundle", autospec=True)
+    def test_creates_each_bundle_for_its_bundle(
+        self, mock_get_bundle, make_manager, api_requests, bundle_names_to_parse, expected
+    ):
+        def create(_, name, version=None, version_data=None):
+            _read_bundle_connection()
+            bundle = MagicMock(spec=BaseDagBundle)
+            bundle.name = name
+            return bundle
+
+        mock_get_bundle.side_effect = create
+
+        bundles = make_manager(bundle_names_to_parse=bundle_names_to_parse).get_all_bundles()
+
+        assert [bundle.name for bundle in bundles] == expected
+        assert self._get_connection_bundles(api_requests) == expected
+
+    def test_refreshes_each_bundle_for_its_bundle(self, make_manager, api_requests):
+        manager = make_manager()
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.name = "bundle_b"
+        bundle.is_initialized = False
+
+        def initialize():
+            _read_bundle_connection()
+            raise OSError("clone failed")
+
+        bundle.initialize.side_effect = initialize
+        manager._dag_bundles = [bundle]
+
+        manager._refresh_dag_bundles(known_files={})
+
+        assert self._get_connection_bundles(api_requests) == ["bundle_b"]
+
+    @mock.patch.object(DagBundlesManager, "get_bundle", autospec=True)
+    def test_prepares_a_callback_bundle_for_its_bundle(self, mock_get_bundle, make_manager, api_requests):
+        def create(_, name, version=None, version_data=None):
+            _read_bundle_connection()
+            bundle = MagicMock(spec=BaseDagBundle)
+            bundle.supports_versioning = False
+            return bundle
+
+        mock_get_bundle.side_effect = create
+        request = DagCallbackRequest(
+            filepath="dag.py",
+            dag_id="dag_id",
+            run_id="run_id",
+            bundle_name="bundle_b",
+            bundle_version="v1",
+            context_from_server=None,
+            is_failure_callback=False,
+        )
+
+        assert make_manager().prepare_callback_bundle(request) is not None
+        assert self._get_connection_bundles(api_requests) == ["bundle_b"]

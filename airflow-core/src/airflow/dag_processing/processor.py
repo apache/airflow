@@ -633,10 +633,15 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         self.parsing_result = msg
         return None, {}
 
+    def _handle_previous_successful_dag_run(
+        self, msg: GetPrevSuccessfulDagRun, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        # The run is looked up by task instance, and a parse process is not one, so the answer is always empty.
+        return PrevSuccessfulDagRunResult(), {"exclude_unset": True}
+
     _client_request_types: ClassVar[tuple[type[BaseModel], ...]] = (
         DeleteVariable,
         GetConnection,
-        GetPrevSuccessfulDagRun,
         GetPreviousDagRun,
         GetPreviousTI,
         GetTICount,
@@ -657,7 +662,12 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             "dict[type[BaseModel], RequestHandler[BaseDagFileProcessorProcess]]",
             WatchedSubprocess._get_shared_request_handlers(*_client_request_types, MaskSecret),
         ),
-        **dict([register_request_method(DagFileParsingResult, _handle_parsing_result)]),
+        **dict(
+            [
+                register_request_method(DagFileParsingResult, _handle_parsing_result),
+                register_request_method(GetPrevSuccessfulDagRun, _handle_previous_successful_dag_run),
+            ]
+        ),
     }
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
@@ -670,7 +680,15 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
                 ),
             )
             return
-        super()._handle_request(msg, log, req_id)
+        # Lazy: the HTTP client pulls in the Execution API versions, which parse processes never need.
+        from airflow.dag_processing.api_client import DagProcessorAPIClient
+
+        if not isinstance(self.client, DagProcessorAPIClient):
+            super()._handle_request(msg, log, req_id)
+            return
+        # The API authorizes a Dag processor's request against the bundle it is made for.
+        with self.client.use_bundle(self.bundle_name):
+            super()._handle_request(msg, log, req_id)
 
     def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         log.error("Unhandled request", msg=msg)
