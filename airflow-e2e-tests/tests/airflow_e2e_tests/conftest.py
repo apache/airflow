@@ -42,9 +42,20 @@ from airflow_e2e_tests.constants import (
     GO_COMPOSE_PATH,
     GO_SDK_BIN_PATH,
     GO_SDK_BUNDLE_NAME,
+    GO_SDK_COORDINATOR,
     GO_SDK_DAGS_PATH,
     GO_SDK_EXAMPLE_BUNDLE_PKG,
+    GO_SDK_QUEUE,
     GO_SDK_ROOT_PATH,
+    GO_SDK_TASK_HANDLER_BUNDLE,
+    GO_TEST_BUNDLE_ARTIFACT,
+    GO_TEST_BUNDLE_BUILD_PATH,
+    GO_TEST_BUNDLE_DAGS_PATH,
+    GO_TEST_BUNDLE_PKG,
+    GO_TEST_BUNDLE_ROOT_PATH,
+    GO_TEST_COORDINATOR,
+    GO_TEST_QUEUE,
+    GO_TEST_TASK_HANDLER_BUNDLE,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
     JAVA_SDK_EXAMPLE_DAGS_PATH,
@@ -575,29 +586,45 @@ def _pack_go_bundle(module: Path, package: str, output: Path, *, native: bool):
 def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     """Set up the go_sdk E2E test mode.
 
-    Compiles the Go SDK example bundle into a self-contained executable bundle
-    via the ``airflow-go-pack`` tooling, drops it into the directory registered
-    as the ``go-task-handlers`` Dag bundle, copies the Python stub Dag, and
-    writes the coordinator configuration.
+    Compiles the Go SDK example bundle and the Go test bundle into self-contained executable
+    bundles via the ``airflow-go-pack`` tooling, drops each into the directory registered as its
+    Dag bundle, copies the Python stub Dags, and writes the coordinator configuration.
 
-    The packed bundle is a statically linked native executable (built with
-    ``CGO_ENABLED=0``), so the stock Airflow image can exec it directly on the
+    The packed bundles are statically linked native executables (built with
+    ``CGO_ENABLED=0``), so the stock Airflow image can exec them directly on the
     worker and the Dag processor without a Go toolchain or any extra runtime
     installed -- see ``go.yml``.
+
+    The example keeps its own coordinator, Dag bundle and queue, and the test bundle has its
+    own, so the failure fixtures of the test bundle cannot change what the example registers.
     """
-    _pack_go_bundle(
-        GO_SDK_ROOT_PATH,
-        GO_SDK_EXAMPLE_BUNDLE_PKG,
-        GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME,
-        native=LANG_SDK_NATIVE_TOOLCHAIN,
-    )
+    native = LANG_SDK_NATIVE_TOOLCHAIN
+    # The packs share the Go module and build caches, which are safe to share between processes.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        example_pack = pool.submit(
+            _pack_go_bundle,
+            GO_SDK_ROOT_PATH,
+            GO_SDK_EXAMPLE_BUNDLE_PKG,
+            GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME,
+            native=native,
+        )
+        test_pack = pool.submit(
+            _pack_go_bundle,
+            GO_TEST_BUNDLE_ROOT_PATH,
+            GO_TEST_BUNDLE_PKG,
+            GO_TEST_BUNDLE_BUILD_PATH / GO_TEST_BUNDLE_ARTIFACT,
+            native=native,
+        )
+        example_pack.result()
+        test_pack.result()
 
     # Copy the compose override into the temp directory.
     copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
 
-    # Place the packed bundle where the compose bind-mount (./go-bundles) exposes
-    # it to the worker and the Dag processor at /opt/airflow/go-bundles. The
-    # coordinator runs only an executable file, so preserve the exec bit.
+    # Place each packed bundle where the compose bind-mount (./go-bundles and ./go-test-bundles)
+    # exposes it to the worker and the Dag processor at /opt/airflow/go-bundles and
+    # /opt/airflow/go-test-bundles. The coordinator runs only an executable file, so preserve
+    # the exec bit.
     go_bundles_dir = tmp_dir / "go-bundles"
     go_bundles_dir.mkdir()
     packed_bundle = go_bundles_dir / GO_SDK_BUNDLE_NAME
@@ -605,22 +632,43 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     os.chmod(packed_bundle, 0o755)
     _ignore_dag_files_in(go_bundles_dir)
 
-    # Copy the Go SDK example stub Dag so Airflow can discover and serialize it.
-    copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
+    go_test_bundles_dir = tmp_dir / "go-test-bundles"
+    go_test_bundles_dir.mkdir()
+    packed_test_bundle = go_test_bundles_dir / GO_TEST_BUNDLE_ARTIFACT
+    copyfile(GO_TEST_BUNDLE_BUILD_PATH / GO_TEST_BUNDLE_ARTIFACT, packed_test_bundle)
+    os.chmod(packed_test_bundle, 0o755)
+    _ignore_dag_files_in(go_test_bundles_dir)
 
-    # Coordinator registry: maps the logical name "go-sdk" to ExecutableCoordinator,
-    # which scans the go-task-handlers Dag bundle for the packed bundle by dag_id.
-    # Queue mapping: routes tasks on the "golang" queue to "go-sdk".
-    dag_bundle_config = _build_dag_bundle_config({"go-task-handlers": "/opt/airflow/go-bundles"})
-    coordinator_config = json.dumps(
+    # Copy the Go SDK example stub Dag so Airflow can discover and serialize it, and the test
+    # bundle's stub Dags.
+    copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
+    for dag_file in sorted(GO_TEST_BUNDLE_DAGS_PATH.glob("*.py")):
+        copyfile(dag_file, tmp_dir / "dags" / dag_file.name)
+
+    # Coordinator registry: maps each logical name to an ExecutableCoordinator, which scans its
+    # own Dag bundle for the packed bundle by dag_id.
+    # Queue mapping: routes tasks on the "golang" queue to "go-sdk" and on "golang-test" to
+    # "go-test-sdk".
+    dag_bundle_config = _build_dag_bundle_config(
         {
-            "go-sdk": {
-                "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
-                "kwargs": {"task_handler_bundle_name": "go-task-handlers"},
-            }
+            GO_SDK_TASK_HANDLER_BUNDLE: "/opt/airflow/go-bundles",
+            GO_TEST_TASK_HANDLER_BUNDLE: "/opt/airflow/go-test-bundles",
         }
     )
-    queue_to_coordinator = json.dumps({"golang": "go-sdk"})
+    executable_coordinator = "airflow.sdk.coordinators.executable.ExecutableCoordinator"
+    coordinator_config = json.dumps(
+        {
+            GO_SDK_COORDINATOR: {
+                "classpath": executable_coordinator,
+                "kwargs": {"task_handler_bundle_name": GO_SDK_TASK_HANDLER_BUNDLE},
+            },
+            GO_TEST_COORDINATOR: {
+                "classpath": executable_coordinator,
+                "kwargs": {"task_handler_bundle_name": GO_TEST_TASK_HANDLER_BUNDLE},
+            },
+        }
+    )
+    queue_to_coordinator = json.dumps({GO_SDK_QUEUE: GO_SDK_COORDINATOR, GO_TEST_QUEUE: GO_TEST_COORDINATOR})
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"

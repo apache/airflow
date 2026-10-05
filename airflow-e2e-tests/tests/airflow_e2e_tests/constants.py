@@ -95,12 +95,29 @@ GO_SDK_BUNDLE_NAME = "example_dags"
 # Where airflow-go-pack writes the packed bundle inside the repo (go-sdk/bin is gitignored).
 GO_SDK_BIN_PATH = GO_SDK_ROOT_PATH / "bin"
 GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
+# The Dag bundle that holds the example bundle, the coordinator that runs it and its queue.
+GO_SDK_TASK_HANDLER_BUNDLE = "go-task-handlers"
+GO_SDK_COORDINATOR = "go-sdk"
+GO_SDK_QUEUE = "golang"
 # Go toolchain image used to build the bundle in the containerized path (i.e. unless
 # LANG_SDK_NATIVE_TOOLCHAIN is set); must satisfy go-sdk/go.mod's toolchain.
 # The Alpine variant is ~7x smaller than the Debian one and is safe here because the
 # bundle is built with CGO_ENABLED=0 (a fully static binary, independent of musl/glibc)
 # and module fetches go through the HTTPS proxy (no git/gcc needed).
 GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.25-alpine")
+
+# Go test bundle (the stub task checks of the Dag processor and the worker): a separate Go
+# module, packed into its own bundle, with a coordinator, Dag bundle and queue of its own so
+# the example's bindings and probes stay as the user-facing example defines them.
+GO_TEST_BUNDLE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "go-test-bundle"
+GO_TEST_BUNDLE_DAGS_PATH = GO_TEST_BUNDLE_ROOT_PATH / "dags"
+# Where the packed test bundle is written (gitignored).
+GO_TEST_BUNDLE_BUILD_PATH = GO_TEST_BUNDLE_ROOT_PATH / "build"
+GO_TEST_BUNDLE_PKG = "./cmd/handlers"
+GO_TEST_BUNDLE_ARTIFACT = "handlers"
+GO_TEST_COORDINATOR = "go-test-sdk"
+GO_TEST_TASK_HANDLER_BUNDLE = "go-test-task-handlers"
+GO_TEST_QUEUE = "golang-test"
 
 # TypeScript SDK E2E test paths
 TS_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "ts-sdk"
