@@ -6,6 +6,7 @@
     "title": "Dépendances bloquant la planification de la tâche"
   },
   "calendar": {
+    "backfill": "Rattrapage",
     "daily": "Quotidien",
     "hourly": "Toutes les heures",
     "legend": {
@@ -103,7 +104,11 @@
       "placeholder": "Rechercher dans les journaux..."
     },
     "settings": "Paramètres des journaux",
+    "tryNotStarted": "Cette tentative n'a pas encore commencé.",
+    "viewFailedTry": "Voir les journaux de la tentative échouée {{tryNumber}}",
     "viewInExternal": "Voir les journaux dans {{name}} (tentative {{attempt}})",
+    "viewPreviousTry": "Voir les journaux de la tentative précédente {{tryNumber}}",
+    "waitingToRetry": "La tentative {{tryNumber}} attend une nouvelle tentative.",
     "warning": "AVERTISSEMENT"
   },
   "notFound": {
@@ -183,11 +188,11 @@
       "direction": "Direction",
       "label": "Filtre",
       "mode": "Mode",
-      "modeTooltip": "Le mode Statique conserve la vue actuelle lors de la navigation vers d'autres tâches, tandis que le mode Parcourir met automatiquement à jour le filtre actif vers la tâche cliquée pour faciliter la traversée du Dag.",
       "modes": {
         "static": "Statique",
         "traverse": "Parcourir"
       },
+      "modeTooltip": "Le mode Statique conserve la vue actuelle lors de la navigation vers d'autres tâches, tandis que le mode Parcourir met automatiquement à jour le filtre actif vers la tâche cliquée pour faciliter la traversée du Dag.",
       "options": {
         "both": "En amont et en aval",
         "downstream": "En aval",
@@ -228,6 +233,7 @@
     "taskInstances": "Task Instances",
     "taskStateStore": "Stockage d'état de tâche",
     "tasks": "Tâches",
+    "versions": "Versions",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -245,6 +251,9 @@
     "deleteWarning": "La tâche perdra cette mémoire persistée. Si la tâche utilise cette clé pour suivre un travail externe (par exemple un ID de job externe), elle ne pourra pas le reprendre.",
     "edit": "Modifier le stockage d'état de tâche",
     "emptyStore": "Le stockage d'état de tâche stocke des valeurs qui persistent entre les tentatives. Les workers peuvent écrire dans le stockage d'état de tâche via le Task SDK.",
+    "entry_many": "Entrées",
+    "entry_one": "Entrée",
+    "entry_other": "Entrées",
     "expiresAt": {
       "column": "Expire le",
       "custom": "Personnalisé",
@@ -253,5 +262,69 @@
       "never": "Jamais"
     },
     "title": "Stockage d'état de tâche"
+  },
+  "versions": {
+    "aboutThisComparison": "À propos de cette comparaison",
+    "base": "Comparer depuis",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Autorisation",
+      "callback": "Callback",
+      "deadline": "Échéance",
+      "dependency": "Dépendance",
+      "metadata": "Métadonnées",
+      "param": "Param",
+      "provenance": "Provenance",
+      "schedule": "Planification",
+      "task": "Tâche",
+      "unknown": "Inconnu"
+    },
+    "codeAccess": "Les valeurs nécessitent l'accès au code du Dag",
+    "columns": {
+      "after": "Après",
+      "before": "Avant",
+      "category": "Catégorie",
+      "impact": "Impact",
+      "occurrences": "Occurrences",
+      "operation": "Opération",
+      "path": "Chemin"
+    },
+    "heading": "Version {{base}} → Version {{target}}",
+    "impacts": {
+      "authorization": "Autorisation",
+      "execution": "Exécution",
+      "metadata": "Métadonnées",
+      "provenance": "Provenance",
+      "unknown": "Inconnu"
+    },
+    "maxChanges": "Changements max.",
+    "maxChangesDefault": "Par défaut",
+    "noChanges": "Ces versions ont le même état.",
+    "observedState": "État observé",
+    "observedStateBoundary": "Compare l'état actuellement stocké, et non les preuves au moment de la création. La comparaison des sources n'est pas disponible pour les versions historiques ; utilisez l'onglet Code pour comparer les sources.",
+    "operations": {
+      "added": "Ajouté",
+      "changed": "Modifié",
+      "removed": "Supprimé"
+    },
+    "record_many": "Enregistrements",
+    "record_one": "Enregistrement",
+    "record_other": "Enregistrements",
+    "selectPrompt": "Sélectionnez deux versions pour voir ce qui a changé entre elles.",
+    "summary_many": "{{count}} changements · schéma sérialisé {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count}} changement · schéma sérialisé {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count}} changements · schéma sérialisé {{baseSchema}} → {{targetSchema}}",
+    "target": "Comparer avec",
+    "truncated": {
+      "description": "Les changements aux chemins non affichés ont été supprimés pour rester dans la limite, donc le nombre est une borne inférieure.",
+      "title": "Certains changements n'ont pas été renvoyés"
+    },
+    "unavailable": {
+      "description": "Ces versions n'ont pas pu être comparées. Raison :",
+      "title": "Comparaison indisponible",
+      "withoutReason": "Ces versions n'ont pas pu être comparées."
+    },
+    "valuesHidden": "Valeurs masquées",
+    "valuesShown": "Valeurs affichées"
   }
 }

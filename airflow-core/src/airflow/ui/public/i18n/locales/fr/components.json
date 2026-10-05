@@ -18,6 +18,11 @@
     "missingRuns": "Exécutions manquantes",
     "notCreatedReason": "Raison de non-création",
     "overrideExistingParams": "Remplacer les paramètres sur les exécutions existantes",
+    "partitionRange": "Plage de partitions",
+    "partitionsAffected_many": "{{count}} partitions seront rattrapées :",
+    "partitionsAffected_one": "{{count}} partition sera rattrapée :",
+    "partitionsAffected_other": "{{count}} partitions seront rattrapées :",
+    "partitionsNone": "Aucune partition ne correspond à la plage sélectionnée.",
     "permissionDenied": "Échec de l'exécution à blanc : l'utilisateur n'a pas l'autorisation de créer des rattrapages.",
     "reprocessBehavior": "Comportement de réexécution",
     "run": "Lancer le rattrapage",
@@ -112,6 +117,11 @@
     "taskGroup": "Groupe de tâches",
     "zoomToTask": "Zoomer sur la tâche sélectionnée"
   },
+  "jsonPreview": {
+    "items_many": "{{count}} éléments",
+    "items_one": "{{count}} élément",
+    "items_other": "{{count}} éléments"
+  },
   "limitedList": "+{{count}} supplémentaires",
   "limitedList.allItems": "Tous les {{count}} éléments :",
   "limitedList.allTags_many": "Tous les éléments ({{count}}) :",
@@ -127,6 +137,22 @@
     "file": "Fichier",
     "location": "ligne {{line}} dans {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Masquer la valeur",
+    "show": "Afficher la valeur"
+  },
+  "pausedDag": {
+    "drain": "Drainer",
+    "drainDescription": "Les exécutions non terminées continuent, mais aucune exécution planifiée n'est créée. Les Rattrapages en pause le restent. Le Dag se remet en pause une fois que toutes les exécutions non terminées sont terminées.",
+    "keepPaused": "Rester en pause",
+    "keepPausedDescription": "Les exécutions nouvelles et non terminées attendent que le Dag soit réactivé.",
+    "title": "Le Dag est en pause",
+    "unfinishedRunsWillRun_many": "{{count}} exécutions de Dag non terminées démarreront ou reprendront.",
+    "unfinishedRunsWillRun_one": "{{count}} exécution de Dag non terminée démarrera ou reprendra.",
+    "unfinishedRunsWillRun_other": "{{count}} exécutions de Dag non terminées démarreront ou reprendront.",
+    "unpause": "Reprendre",
+    "unpauseDescription": "Le Dag devient actif : les exécutions non terminées continuent et la planification reprend. Les Rattrapages en pause le restent."
+  },
   "reparseDag": "Analyser le Dag",
   "slowestTaskInstances": {
     "empty": "Aucune instance de tâche terminée dans cette période",
@@ -135,6 +161,7 @@
   "sortedAscending": "tri croissant",
   "sortedDescending": "tri décroissant",
   "sortedUnsorted": "non trié",
+  "sortMultiColumnHint": "Maj+clic pour trier par plusieurs colonnes",
   "taskTries": "Essais de tâche",
   "taskTryPlaceholder": "Essai de tâche",
   "team": {
@@ -187,6 +214,7 @@
   "versionSelect": {
     "allVersions": "Toutes les versions",
     "dagVersion": "Version du Dag",
+    "placeholder": "Sélectionner une version",
     "versionCode": "v{{versionCode}}"
   }
 }
