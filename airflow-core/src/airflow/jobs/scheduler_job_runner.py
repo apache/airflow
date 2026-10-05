@@ -176,6 +176,17 @@ deployment, so eviction costs a re-fetch only where that working set is genuinel
 # safety bound, not a behavioural knob operators need to tune.
 MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 
+MAX_TI_REFILL_QUERIES_PER_LOOP = 3
+"""
+Max extra task instance queries per critical section to fill a partially selected batch.
+
+Each query runs while holding the pool row locks (and the advisory lock on PostgreSQL), which other
+HA schedulers wait on. Queries issued before any task instance is selected are not capped, so a loop
+still selects at least one runnable task instance queued behind blocked ones.
+
+:meta private:
+"""
+
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
@@ -754,6 +765,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]] = set()
 
         pool_num_starving_tasks: dict[str, int] = Counter()
+        num_refill_queries = 0
 
         for loop_count in itertools.count(start=1):
             num_starved_pools = len(starved_pools)
@@ -973,6 +985,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if len(executable_tis) >= max_tis or not found_new_filters:
                 break
 
+            if executable_tis:
+                if num_refill_queries >= MAX_TI_REFILL_QUERIES_PER_LOOP:
+                    self.log.debug(
+                        "Selected %s of %s task instances; reached the limit of %s refill queries.",
+                        len(executable_tis),
+                        max_tis,
+                        MAX_TI_REFILL_QUERIES_PER_LOOP,
+                    )
+                    stats.incr("scheduler.critical_section_refill_limit_reached")
+                    break
+                num_refill_queries += 1
+
             self.log.info(
                 "Selected %s of %s task instances after iteration %s; "
                 "retrying after excluding known blocked candidates.",
@@ -1061,7 +1085,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         if excluded_ti_ids:
-            # TIs already selected in this critical section stay SCHEDULED until it ends.
+            # Selected TIs stay SCHEDULED in the database until the selection loop marks them QUEUED.
             query = query.where(TI.id.not_in(excluded_ti_ids))
 
         # Create a subquery with row numbers partitioned by dag_id and run_id.
