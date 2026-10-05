@@ -233,6 +233,7 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 except Exception as e:
                     self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
                     raise e
+            raise
 
 
 class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
@@ -437,6 +438,7 @@ class DataprocSubmitJobDirectTrigger(DataprocBaseTrigger):
                 except Exception as e:
                     self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
                     raise e
+            raise
 
 
 class DataprocClusterTrigger(DataprocBaseTrigger):
@@ -584,6 +586,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                 self.log.error("Error during cancellation handling: %s", e)
                 msg = f"Error during cancellation handling: {e}"
                 raise AirflowException(msg)
+            raise
 
     async def fetch_cluster(self) -> Cluster:
         """Fetch the cluster status."""
