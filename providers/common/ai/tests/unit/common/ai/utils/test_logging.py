@@ -281,7 +281,15 @@ class TestLogRunUsage:
 
 class TestFormatUsageForXcom:
     def test_builds_expected_dict_shape(self):
-        usage = RunUsage(requests=3, tool_calls=1, input_tokens=10, output_tokens=5, cost=Decimal("0.25"))
+        usage = RunUsage(
+            requests=3,
+            tool_calls=1,
+            input_tokens=10,
+            output_tokens=5,
+            cache_read_tokens=4,
+            cache_write_tokens=2,
+            cost=Decimal("0.25"),
+        )
 
         assert format_usage_for_xcom(usage) == {
             "requests": 3,
@@ -289,11 +297,20 @@ class TestFormatUsageForXcom:
             "output_tokens": 5,
             "total_tokens": 15,
             "tool_calls": 1,
+            "cache_read_tokens": 4,
+            "cache_write_tokens": 2,
             "cost": "0.25",
         }
 
     def test_none_cost_stays_none_not_stringified(self):
         assert format_usage_for_xcom(RunUsage(cost=None))["cost"] is None
+
+    def test_zero_cache_tokens_are_still_pushed(self):
+        """A run with no caching still reports explicit 0s, not an absent key."""
+        usage = format_usage_for_xcom(RunUsage())
+
+        assert usage["cache_read_tokens"] == 0
+        assert usage["cache_write_tokens"] == 0
 
 
 class TestLogOutputDebug:
