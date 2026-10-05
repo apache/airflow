@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from typing import Annotated
 
 from pydantic import BeforeValidator, Field, model_validator
@@ -71,7 +71,9 @@ class PoolResponse(BasePool):
 class PoolCollectionResponse(BaseModel):
     """Pool Collection serializer for responses."""
 
-    pools: Iterable[PoolResponse]
+    # A list, not an Iterable: pydantic validates an Iterable lazily, which would run the slot
+    # queries of each PoolResponse while FastAPI serializes the response on the event loop.
+    pools: list[PoolResponse]
     total_entries: int
 
 

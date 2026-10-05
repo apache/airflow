@@ -27,6 +27,8 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
 )
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
+
 
 def _make_dag_response(**overrides) -> DAGResponse:
     """Create a minimal DAGResponse with sensible defaults."""
@@ -174,3 +176,30 @@ class TestIsBackfillable:
             allowed_run_types=[DagRunType.BACKFILL_JOB, DagRunType.MANUAL],
         )
         assert dag.is_backfillable is False
+
+
+@pytest.mark.db_test
+def test_dag_details_response_serializes_without_queries():
+    """FastAPI serializes on the event loop, so serialization must not query the database."""
+    response = DAGDetailsResponse.model_validate(
+        {
+            **_make_dag_response().model_dump(),
+            "catchup": False,
+            "dag_run_timeout": None,
+            "asset_expression": None,
+            "doc_md": None,
+            "start_date": None,
+            "end_date": None,
+            "is_paused_upon_creation": None,
+            "params": None,
+            "render_template_as_native_obj": False,
+            "template_search_path": None,
+            "timezone": None,
+            "last_parsed": None,
+            "default_args": None,
+            "latest_dag_version": None,
+        }
+    )
+
+    with assert_queries_count(0):
+        response.model_dump_json()
