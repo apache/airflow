@@ -7,10 +7,20 @@
     "backwards": "Run achterstevoren",
     "dateRange": "Datumbereik",
     "errorStartDateBeforeEndDate": "Startdatum moet voor de einddatum",
+    "exceptionReason": {
+      "alreadyExists": "Bestaat al",
+      "inFlight": "In uitvoering",
+      "unknown": "Onbekend"
+    },
     "maxRuns": "Maximaal aantal actieve Runs",
     "missingAndErroredRuns": "Missende en mislukte Runs",
     "missingRuns": "Missende Runs",
+    "notCreatedReason": "Reden van niet aangemaakt",
     "overrideExistingParams": "Overschrijf parameters op bestaande runs",
+    "partitionRange": "Partitie bereik",
+    "partitionsAffected_one": "{{count}} partitie zal worden teruggevuld:",
+    "partitionsAffected_other": "{{count}} partities zullen worden teruggevuld:",
+    "partitionsNone": "Geen partities komen overeen met het geselecteerde bereik.",
     "permissionDenied": "Dry Run mislukt: Gebruiker heeft geen toestemming om backfills te maken.",
     "reprocessBehavior": "Reprocess gedrag",
     "run": "Run Backfill",
@@ -28,7 +38,8 @@
     "validation": {
       "datesRequired": "Data interval startdatum en einddatum moeten beide gegeven zijn.",
       "startBeforeEnd": "Data interval startdatum moet eerder of gelijk aan de data interval einddatum zijn."
-    }
+    },
+    "viewSlots": "Bekijk sloten voor backfill #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Backfill in uitvoering",
@@ -64,6 +75,7 @@
     "lastDagRun_other": "Laatste {{count}} Dag Runs",
     "lastTaskInstance_one": "Laatste taakinstantie",
     "lastTaskInstance_other": "Laatste {{count}} taakinstanties",
+    "medianTotalDuration": "Totaal: {{duration}}",
     "queuedDuration": "Duur in de wachtrij",
     "runAfter": "Run na",
     "runDuration": "Run duur"
@@ -98,6 +110,10 @@
     "taskGroup": "Taakgroep",
     "zoomToTask": "Zoom naar geselecteerde taak"
   },
+  "jsonPreview": {
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items"
+  },
   "limitedList": "+{{count}} meer",
   "limitedList.allItems": "Alle {{count}} items:",
   "limitedList.allTags_one": "Alle labels (1)",
@@ -111,7 +127,27 @@
     "file": "Bestand",
     "location": "regel {{line}} in {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Verberg waarde",
+    "show": "Toon waarde"
+  },
+  "pausedDag": {
+    "drain": "Leegmaken",
+    "drainDescription": "Onafgemaakte runs gaan door, maar er worden geen geplande runs aangemaakt. Gepauzeerde backfills blijven gepauzeerd. De Dag pauzeert opnieuw zodra alle onafgemaakte runs zijn voltooid.",
+    "keepPaused": "Houd gepauzeerd",
+    "keepPausedDescription": "Nieuwe en onafgemaakte runs wachten totdat de Dag wordt hervat.",
+    "title": "Dag is gepauzeerd",
+    "unfinishedRunsWillRun_one": "{{count}} onafgemaakte Dag run zal starten of hervatten.",
+    "unfinishedRunsWillRun_other": "{{count}} onafgemaakte Dag runs zullen starten of hervatten.",
+    "unpause": "Hervatten",
+    "unpauseDescription": "De Dag wordt actief: onafgemaakte runs gaan door en het schema wordt hervat. Gepauzeerde backfills blijven gepauzeerd."
+  },
   "reparseDag": "Herparse Dag",
+  "slowestTaskInstances": {
+    "empty": "Geen voltooide taakinstanties in dit bereik",
+    "title": "Langzaamste taakinstanties"
+  },
+  "sortMultiColumnHint": "Shift-klik om te sorteren op meerdere kolommen",
   "sortedAscending": "oplopend gesorteerd",
   "sortedDescending": "aflopend gesorteerd",
   "sortedUnsorted": "ongesorteerd",
@@ -136,6 +172,7 @@
     "loading": "Dag informatie aan het laden...",
     "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
     "manualRunDenied": "Handmatige runs zijn niet toegestaan voor deze Dag",
+    "partitionKeyHelp": "Optioneel - geldt alleen voor gepartitioneerde Dags",
     "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
     "selectDescription": "Trigger een enkele run van deze Dag",
     "selectLabel": "Enkele Run",
@@ -166,6 +203,7 @@
   "versionSelect": {
     "allVersions": "Alle versies",
     "dagVersion": "Dag versie",
+    "placeholder": "Selecteer versie",
     "versionCode": "v{{versionCode}}"
   }
 }
