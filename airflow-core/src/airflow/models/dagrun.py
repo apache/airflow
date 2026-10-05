@@ -585,11 +585,7 @@ class DagRun(Base, LoggingMixin):
     def check_version_id_exists_in_dr(self, dag_version_id: UUID, *, session: Session = NEW_SESSION):
         select_stmt = (
             select(TI.dag_version_id)
-            .where(
-                TI.dag_id == self.dag_id,
-                TI.dag_version_id == dag_version_id,
-                TI.run_id == self.run_id,
-            )
+            .where(TI.dag_id == self.dag_id, TI.dag_version_id == dag_version_id, TI.run_id == self.run_id)
             .limit(1)
             .execution_options(include_all_attempts=True)
         )

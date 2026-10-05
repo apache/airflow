@@ -1422,11 +1422,7 @@ async def get_task_instance_breadcrumbs(
     result = (
         await session.execute(
             select(TI.task_id, TI.map_index, TI.state, TI.operator, TI.duration)
-            .where(
-                TI.dag_id == dag_id,
-                TI.run_id == run_id,
-                TI.state.in_(TerminalTIState),
-            )
+            .where(TI.dag_id == dag_id, TI.run_id == run_id, TI.state.in_(TerminalTIState))
             .order_by(TI.task_id, TI.map_index)
         )
     ).mappings()

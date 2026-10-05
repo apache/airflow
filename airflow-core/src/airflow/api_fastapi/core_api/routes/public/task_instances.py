@@ -439,12 +439,7 @@ def get_mapped_task_instance(
     """Get task instance."""
     query = (
         select(TI)
-        .where(
-            TI.dag_id == dag_id,
-            TI.run_id == dag_run_id,
-            TI.task_id == task_id,
-            TI.map_index == map_index,
-        )
+        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index)
         .options(joinedload(TI.rendered_task_instance_fields))
         .options(joinedload(TI.dag_version))
         .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))

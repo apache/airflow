@@ -245,8 +245,7 @@ class Trigger(Base):
                 session.execute(
                     update(TaskInstance)
                     .where(
-                        TaskInstance.state != TaskInstanceState.DEFERRED,
-                        TaskInstance.trigger_id.is_not(None),
+                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
                     )
                     .values(trigger_id=None)
                 )
@@ -281,8 +280,7 @@ class Trigger(Base):
         # Resume deferred tasks
         for task_instance in session.scalars(
             select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id,
-                TaskInstance.state == TaskInstanceState.DEFERRED,
+                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
             )
         ):
             handle_event_submit(event, task_instance=task_instance, session=session)
@@ -321,8 +319,7 @@ class Trigger(Base):
         """
         for task_instance in session.scalars(
             select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id,
-                TaskInstance.state == TaskInstanceState.DEFERRED,
+                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
             )
         ):
             # Add the error and set the next_method to the fail state
@@ -471,9 +468,7 @@ class Trigger(Base):
             select(cls.id)
             .prefix_with("STRAIGHT_JOIN", dialect="mysql")
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
-            .where(
-                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
-            )
+            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),
             # Asset triggers
             select(cls.id)

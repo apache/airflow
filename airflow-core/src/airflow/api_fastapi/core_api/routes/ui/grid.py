@@ -538,10 +538,8 @@ def get_grid_ti_summaries_stream(
                         has_note_subq,
                     )
                     .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-                    .where(
-                        TaskInstance.dag_id == dag_id,
-                        TaskInstance.run_id == run_id,
-                    )
+                    .where(TaskInstance.dag_id == dag_id)
+                    .where(TaskInstance.run_id == run_id)
                     .order_by(TaskInstance.task_id)
                     .execution_options(yield_per=1000)
                 )

@@ -302,10 +302,7 @@ class TriggerRuleDep(BaseTIDep):
             else:
                 task_id_counts = session.execute(
                     select(TaskInstance.task_id, func.count(TaskInstance.task_id))
-                    .where(
-                        TaskInstance.dag_id == ti.dag_id,
-                        TaskInstance.run_id == ti.run_id,
-                    )
+                    .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                     .where(or_(*_iter_upstream_conditions(relevant_tasks=indirect_setups)))
                     .group_by(TaskInstance.task_id)
                 ).all()
@@ -413,10 +410,7 @@ class TriggerRuleDep(BaseTIDep):
                         (task_id, count)
                         for task_id, count in session.execute(
                             select(TaskInstance.task_id, func.count(TaskInstance.task_id))
-                            .where(
-                                TaskInstance.dag_id == ti.dag_id,
-                                TaskInstance.run_id == ti.run_id,
-                            )
+                            .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                             .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
                             .group_by(TaskInstance.task_id)
                         )
@@ -712,10 +706,7 @@ class TriggerRuleDep(BaseTIDep):
                 expected = (
                     session.scalar(
                         select(func.count(TaskInstance.task_id))
-                        .where(
-                            TaskInstance.dag_id == ti.dag_id,
-                            TaskInstance.run_id == ti.run_id,
-                        )
+                        .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                         .where(or_(*_iter_upstream_conditions(relevant_tasks=in_scope_tasks)))
                     )
                     or 0

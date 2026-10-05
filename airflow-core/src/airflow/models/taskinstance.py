@@ -2353,10 +2353,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         stmt = (
             select(func.count())
             .select_from(TaskInstance)
-            .where(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-            )
+            .where(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id == self.task_id)
         )
         if states:
             stmt = stmt.where(or_(*(TaskInstance.state == s for s in states)))
