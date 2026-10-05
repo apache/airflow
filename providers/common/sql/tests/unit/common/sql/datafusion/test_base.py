@@ -25,15 +25,14 @@ from airflow.providers.common.sql.datafusion.base import FormatHandler, ObjectSt
 
 
 class S3ObjectStorageProvider(ObjectStorageProvider):
+    SCHEMES = ("s3://",)
+
     @property
     def get_storage_type(self) -> StorageType:
         return StorageType.S3
 
     def create_object_store(self, path: str, connection_config=None) -> Any:
         return None
-
-    def get_scheme(self) -> str:
-        return "s3://"
 
 
 class ParquetFormatHandler(FormatHandler):
@@ -58,6 +57,15 @@ class ParquetFormatHandler(FormatHandler):
 )
 def test_get_bucket(path, expected_bucket):
     assert S3ObjectStorageProvider().get_bucket(path) == expected_bucket
+
+
+def test_get_scheme_returns_matching_scheme():
+    assert S3ObjectStorageProvider().get_scheme("s3://example-bucket/path") == "s3://"
+
+
+def test_get_scheme_raises_for_unrecognized_uri():
+    with pytest.raises(ValueError, match="does not match any known scheme"):
+        S3ObjectStorageProvider().get_scheme("gs://example-bucket/path")
 
 
 def test_format_handler_stores_datasource_config():

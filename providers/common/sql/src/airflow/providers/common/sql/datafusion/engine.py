@@ -80,7 +80,7 @@ class DataFusionEngine(LoggingMixin):
             object_store = storage_provider.create_object_store(
                 datasource_config.uri, connection_config=connection_config
             )
-            schema = storage_provider.get_scheme()
+            schema = storage_provider.get_scheme(datasource_config.uri)
             self.session_context.register_object_store(schema=schema, store=object_store)
             self.log.info("Registered object store for schema: %s", schema)
         except Exception as e:
