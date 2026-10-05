@@ -72,11 +72,16 @@ def get_provider_info():
                 "tags": ["software"],
             },
             {
-                "integration-name": "Modal",
+                "integration-name": "Modal Sandboxes",
                 "external-doc-url": "https://modal.com/docs/guide/sandbox",
                 "tags": ["service"],
             },
             {"integration-name": "Islo", "external-doc-url": "https://docs.islo.dev/", "tags": ["service"]},
+            {
+                "integration-name": "OpenSandbox",
+                "external-doc-url": "https://open-sandbox.ai/",
+                "tags": ["software"],
+            },
         ],
         "hooks": [
             {

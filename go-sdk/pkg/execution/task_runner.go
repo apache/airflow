@@ -90,6 +90,7 @@ func RunTask(
 
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
+	ctx = bundle.WithSkipDownstreamTasks(ctx, client.skipDownstreamTasks)
 
 	args, err := convertArgBindings(details.TIContext.ArgBindings)
 	if err != nil {

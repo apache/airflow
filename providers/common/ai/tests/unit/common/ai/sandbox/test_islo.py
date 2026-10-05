@@ -150,6 +150,14 @@ def test_constructor_rejects_invalid_values(kwargs, message):
 
 
 class TestCreate:
+    def test_refuses_an_owner_it_could_not_be_attached_by(self):
+        backend, client = _backend_with_client()
+
+        with pytest.raises(SandboxTerminalError, match="owner"):
+            backend.create(spec=SandboxSpec(owner="example_dag/manual__1"))
+
+        client.sandboxes.create_sandbox.assert_not_called()
+
     def test_refuses_a_per_domain_egress_allowlist(self):
         backend, _ = _backend_with_client()
 

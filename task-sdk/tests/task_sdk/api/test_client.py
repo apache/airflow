@@ -372,7 +372,11 @@ class TestTaskInstanceOperations:
             assert resp == ti_context
             assert call_count == 3
 
-    def test_task_instance_start_already_running(self):
+    @pytest.mark.parametrize(
+        ("reason", "previous_state"),
+        [("invalid_state", "running"), ("running_elsewhere", "restarting")],
+    )
+    def test_task_instance_start_already_running(self, reason, previous_state):
         """Test that start() raises TaskAlreadyRunningError when TI is already running."""
         ti_id = uuid6.uuid7()
 
@@ -382,9 +386,9 @@ class TestTaskInstanceOperations:
                     409,
                     json={
                         "detail": {
-                            "reason": "invalid_state",
+                            "reason": reason,
                             "message": "TI was not in a state where it could be marked as running",
-                            "previous_state": "running",
+                            "previous_state": previous_state,
                         }
                     },
                 )
@@ -477,6 +481,21 @@ class TestTaskInstanceOperations:
             client.task_instances.heartbeat(ti_id, 100)
 
         assert len(responses) == 1
+
+    def test_task_instance_update_dagrun_note(self):
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/dag-run-note":
+                assert json.loads(request.read()) == {"note": "Updated from task runtime"}
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        response = client.task_instances.update_dagrun_note(ti_id, "Updated from task runtime")
+
+        assert response == OKResponse(ok=True)
 
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_task_instance_defer(self, queues_enabled: bool):

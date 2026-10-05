@@ -56,12 +56,14 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionTestState,
     DagResponse,
     DagRun,
+    DagRunNoteUpdatePayload,
     DagRunStateResponse,
     DagRunType,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
     InactiveAssetsResponse,
+    Note,
     PrevSuccessfulDagRunResponse,
     ResultMessage,
     TaskBreadcrumbsResponse,
@@ -262,10 +264,9 @@ class TaskInstanceOperations:
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 detail = e.detail
-                if (
-                    isinstance(detail, dict)
-                    and detail.get("reason") == "invalid_state"
-                    and detail.get("previous_state") == "running"
+                if isinstance(detail, dict) and (
+                    detail.get("reason") == "running_elsewhere"
+                    or (detail.get("reason") == "invalid_state" and detail.get("previous_state") == "running")
                 ):
                     raise TaskAlreadyRunningError(f"Task instance {id} is already running") from e
             raise
@@ -278,18 +279,22 @@ class TaskInstanceOperations:
         when: datetime,
         rendered_map_index,
         retry_reason: str | None = None,
+        *,
+        pid: int | None = None,
     ):
-        """Tell the API server that this TI has reached a terminal state."""
+        """Report a terminal outcome or acknowledge server-requested termination."""
         if state == TaskInstanceState.SUCCESS:
             raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
-        # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
         body = TITerminalStatePayload(
             end_date=when,
             state=TerminalStateNonSuccess(state),
             rendered_map_index=rendered_map_index,
             retry_reason=retry_reason,
         )
-        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+        if state == TerminalStateNonSuccess.SERVER_TERMINATED:
+            body.hostname = get_hostname()
+            body.pid = pid
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json(exclude_unset=True))
 
     def retry(
         self,
@@ -350,6 +355,16 @@ class TaskInstanceOperations:
         """Tell the API server to skip the downstream tasks of this TI."""
         body = TISkippedDownstreamTasksStatePayload(tasks=msg.tasks)
         self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
+
+    def update_dagrun_note(self, id: uuid.UUID, note: str | None) -> OKResponse:
+        """
+        Update the note for the DagRun associated with this task instance.
+
+        An empty note removes it, and ``None`` leaves any existing note untouched.
+        """
+        body = DagRunNoteUpdatePayload(note=Note(note) if note is not None else None)
+        self.client.patch(f"task-instances/{id}/dag-run-note", content=body.model_dump_json())
+        return OKResponse(ok=True)
 
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> OKResponse:
         """Set Rendered Task Instance Fields via the API server."""

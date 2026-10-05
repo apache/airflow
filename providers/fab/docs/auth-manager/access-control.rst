@@ -392,6 +392,10 @@ Stable API Permissions
      - PATCH
      - DAGs.can_edit
      - User
+   * - ``/api/v2/dags/bulk``
+     - PATCH
+     - DAGs.can_edit
+     - User
    * - ``/api/v2/dags/{dag_id}``
      - DELETE
      - DAGs.can_delete
@@ -641,6 +645,10 @@ Stable API Permissions
      - DAGs.can_read, DAG Runs.can_read
      - Viewer
    * - ``/api/v2/dags/{dag_id}/dagVersions``
+     - GET
+     - DAGs.can_read, DAG Versions.can_read
+     - Viewer
+   * - ``/api/v2/dags/{dag_id}/dagVersions/diff``
      - GET
      - DAGs.can_read, DAG Versions.can_read
      - Viewer

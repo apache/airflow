@@ -26,8 +26,8 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Collection, Iterable, Iterator
-from contextlib import ExitStack
+from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
+from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
@@ -66,9 +66,10 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
-from airflow.exceptions import DagNotFound
+from airflow.exceptions import DagNotFound, TaskNotFound
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
@@ -108,7 +109,6 @@ from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
@@ -117,7 +117,6 @@ from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
 from airflow.timetables.base import Timetable, compute_rollup_fingerprint
-from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.helpers import prune_dict
@@ -1469,27 +1468,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
         executors as well.
         """
-        ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
-        event_buffer = executor.get_event_buffer()
+        event_buffer, event_coordinates = executor._drain_events_with_task_ids()
         num_events = len(event_buffer)
-        tis_with_right_state: list[TaskInstanceKey] = []
+        tis_with_right_state: list[TaskInstanceUuid] = []
         callback_keys_with_events: list[CallbackKey] = []
 
         # Report execution - handle both task and callback events
         for key, (state, _) in event_buffer.items():
-            if isinstance(key, TaskInstanceKey):
-                existing_try = ti_primary_key_to_try_number_map.get(key.primary)
-                if existing_try is not None and existing_try != key.try_number:
-                    cls.logger().warning(
-                        "Multiple executor events for same TI with different try_numbers! "
-                        "primary_key=%s existing_try_number=%d new_try_number=%d new_state=%s. ",
-                        key.primary,
-                        existing_try,
-                        key.try_number,
-                        state,
-                    )
-                ti_primary_key_to_try_number_map[key.primary] = key.try_number
-                cls.logger().info("Received executor event with state %s for task instance %s", state, key)
+            if isinstance(key, TaskInstanceUuid):
+                cls.logger().info(
+                    "Received executor event with state %s for task instance %s (coordinates=%s)",
+                    state,
+                    key,
+                    event_coordinates.get(key),
+                )
                 if state in (
                     TaskInstanceState.FAILED,
                     TaskInstanceState.SUCCESS,
@@ -1535,14 +1527,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return len(event_buffer)
 
         # Check state of finished tasks
-        filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        if filter_for_tis is None:
-            cls._emit_executor_events_batch_metrics(num_events)
-            return len(event_buffer)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
-            .where(filter_for_tis)
+            .where(TI.id.in_([key.id for key in tis_with_right_state]))
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
             .options(alias_loader)
@@ -1558,21 +1546,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-        tis: Iterator[TI] = session.scalars(locked_query)
+        tis: Iterator[TI] = session.scalars(locked_query.execution_options(populate_existing=True))
         for ti in tis:
-            try_number = ti_primary_key_to_try_number_map[ti.key.primary]
-            buffer_key = ti.key.with_try_number(try_number)
-            if ti.try_number != try_number:
-                cls.logger().warning(
-                    "TI try_number mismatch: db_try_number=%d event_try_number=%d "
-                    "ti=%s state=%s job_id=%s. "
-                    "Another scheduler may have already modified this TI.",
-                    ti.try_number,
-                    try_number,
-                    ti,
-                    ti.state,
-                    job_id,
-                )
+            buffer_key = TaskInstanceUuid(ti.id)
+            try_number = ti.try_number
             state, info = event_buffer.pop(buffer_key)
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
@@ -1612,6 +1589,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
+            if ti.state == TaskInstanceState.RESTARTING:
+                # A finished workload releases the clear regardless of its exit status or scheduler ownership.
+                dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+                ti.task = None
+                if dag is not None:
+                    with suppress(TaskNotFound):
+                        ti.task = dag.get_task(ti.task_id)
+                ti.complete_restart(session=session)
+                continue
+
             # There are multiple scenarios why the same TI with the same try_number looks queued or
             # waiting after the executor is finished with it:
             # 1) the TI was killed externally and it had no time to mark itself failed
@@ -1626,11 +1613,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
 
-            ti_queued = ti.try_number == buffer_key.try_number and ti.state in (
+            ti_queued = ti.state in (
                 TaskInstanceState.SCHEDULED,
                 TaskInstanceState.QUEUED,
                 TaskInstanceState.RUNNING,
-                TaskInstanceState.RESTARTING,
             )
             ti_requeued = (
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
@@ -1721,17 +1707,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     executor.send_callback(request)
 
-                # Handle cleared tasks that were successfully terminated by executor
-                if ti.state == TaskInstanceState.RESTARTING and state == TaskInstanceState.SUCCESS:
-                    cls.logger().info(
-                        "Task %s was cleared and successfully terminated. Setting to scheduled for retry.",
-                        ti,
-                    )
-                    # Adjust max_tries to allow retry beyond normal limits (like clearing does)
-                    ti.max_tries = ti.try_number + ti.task.retries
-                    ti.set_state(None)
-                    continue
-
                 # Send email notification request to DAG processor via DB
                 if task.email and (task.email_on_failure or task.email_on_retry):
                     cls.logger().info(
@@ -1771,6 +1746,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
+        for task_id in tis_with_right_state:
+            if task_id in event_buffer:
+                cls.logger().warning(
+                    "Discarding executor event for task instance %s (coordinates=%s): no matching task instance was "
+                    "returned; it may no longer exist or may be locked by another scheduler",
+                    task_id,
+                    event_coordinates.get(task_id),
+                )
         cls._emit_executor_events_batch_metrics(num_events)
         return len(event_buffer)
 
@@ -2728,6 +2711,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            consumed_asset_records: Sequence[AssetDagRunQueue] = ()
+            gated_asset_events: list[AssetEvent] = []
+            if dag_model.timetable_asset_gated:
+                # The asset condition was evaluated without locks when this Dag was
+                # selected; re-evaluate under ADRQ row locks so concurrent schedulers
+                # cannot consume the same events twice. If the condition is not (or no
+                # longer) satisfied, skip without touching the pending schedule slot so
+                # a later loop retries it.
+                gate = self._collect_gated_asset_events(dag=serdag, session=session)
+                if gate is None:
+                    continue
+                consumed_asset_records, gated_asset_events = gate
+
             try:
                 next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
                 if TYPE_CHECKING:
@@ -2761,6 +2757,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session=session,
                     active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
                 )
+                if consumed_asset_records:
+                    created_run.consumed_asset_events.extend(gated_asset_events)
+                    self._delete_consumed_asset_records(
+                        records=consumed_asset_records, dag_id=dag_model.dag_id, session=session
+                    )
 
             # Exceptions like ValueError, ParamValidationError, etc. are raised by
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
@@ -2776,6 +2777,116 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()
 
+    def _collect_gated_asset_events(
+        self, *, dag: SerializedDAG, session: Session
+    ) -> tuple[Sequence[AssetDagRunQueue], list[AssetEvent]] | None:
+        """
+        Check an asset-gated Dag's asset condition and collect what a new run consumes.
+
+        Returns ``None`` when the condition is not satisfied by the queued asset
+        events, in which case no run should be created yet.
+        """
+        records = self._lock_queued_asset_records(dag_id=dag.dag_id, load_assets=True, session=session)
+        if not records:
+            return None
+        statuses = {SerializedAssetUniqueKey.from_asset(record.asset): True for record in records}
+        try:
+            ready = AssetEvaluator(session).run(dag.timetable.asset_condition, statuses=statuses)
+        except Exception:
+            self.log.exception("Dag '%s' failed to be evaluated; assuming not ready", dag.dag_id)
+            return None
+        if not ready:
+            return None
+        asset_events = self._select_consumed_asset_events(
+            dag=dag,
+            records=records,
+            session=session,
+        )
+        if not asset_events:
+            self._delete_consumed_asset_records(records=records, dag_id=dag.dag_id, session=session)
+            return None
+        return records, asset_events
+
+    def _lock_queued_asset_records(
+        self, *, dag_id: str, load_assets: bool, session: Session
+    ) -> Sequence[AssetDagRunQueue]:
+        """Lock and return the Dag's queued asset (ADRQ) rows, skipping rows another scheduler holds."""
+        query = select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_id)
+        if load_assets:
+            query = query.options(joinedload(AssetDagRunQueue.asset))
+        return session.scalars(
+            with_row_locks(
+                query,
+                of=AssetDagRunQueue,
+                skip_locked=True,
+                key_share=False,
+                session=session,
+            )
+        ).all()
+
+    def _select_consumed_asset_events(
+        self,
+        *,
+        dag: SerializedDAG,
+        records: Sequence[AssetDagRunQueue],
+        session: Session,
+    ) -> list[AssetEvent]:
+        """Select unconsumed events referenced by a Dag's locked ADRQ rows."""
+        referenced_event_ids = {record.asset_event_id for record in records}
+        event_predicate: ColumnElement[bool] = AssetEvent.id.in_(referenced_event_ids)
+        if dag.catchup:
+            event_predicate = or_(
+                event_predicate,
+                AssetEvent.asset_id.in_(
+                    select(DagScheduleAssetReference.asset_id).where(
+                        DagScheduleAssetReference.dag_id == dag.dag_id
+                    )
+                ),
+                AssetEvent.source_aliases.any(
+                    AssetAliasModel.scheduled_dags.any(DagScheduleAssetAliasReference.dag_id == dag.dag_id)
+                ),
+            )
+        return list(
+            session.scalars(
+                select(AssetEvent)
+                .where(
+                    event_predicate,
+                    ~(
+                        select(association_table.c.event_id)
+                        .join(DagRun, DagRun.id == association_table.c.dag_run_id)
+                        .where(
+                            DagRun.dag_id == dag.dag_id,
+                            association_table.c.event_id == AssetEvent.id,
+                        )
+                        .exists()
+                    ),
+                )
+                .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
+            )
+        )
+
+    def _delete_consumed_asset_records(
+        self, *, records: Sequence[AssetDagRunQueue], dag_id: str, session: Session
+    ) -> None:
+        # Delete only consumed ADRQ rows to avoid dropping newly queued events
+        # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
+        result = cast(
+            "CursorResult",
+            session.execute(
+                delete(AssetDagRunQueue).where(
+                    tuple_(
+                        AssetDagRunQueue.target_dag_id,
+                        AssetDagRunQueue.asset_event_id,
+                    ).in_((record.target_dag_id, record.asset_event_id) for record in records)
+                )
+            ),
+        )
+        self.log.info(
+            "Deleted %d ADRQ rows for '%s'",
+            result.rowcount,
+            dag_id,
+        )
+
     def _create_dag_runs_asset_triggered(
         self,
         *,
@@ -2789,22 +2900,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            if not isinstance(dag.timetable, AssetTriggeredTimetable):
+            if not dag.timetable.asset_triggered:
                 self.log.error(
-                    "Dag '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
+                    "Dag '%s' was routed to asset-triggered run creation, but its timetable is not asset-triggered",
                     dag_model.dag_id,
                 )
                 continue
 
-            queued_adrqs = session.scalars(
-                with_row_locks(
-                    select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag.dag_id),
-                    of=AssetDagRunQueue,
-                    skip_locked=True,
-                    key_share=False,
-                    session=session,
-                )
-            ).all()
+            queued_adrqs = self._lock_queued_asset_records(
+                dag_id=dag.dag_id, load_assets=False, session=session
+            )
             # If another scheduler already locked these ADRQ rows, SKIP LOCKED makes this scheduler skip them.
             if not queued_adrqs:
                 self.log.debug(
@@ -2813,43 +2918,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            referenced_event_ids = {adrq.asset_event_id for adrq in queued_adrqs}
-            event_predicate: ColumnElement[bool] = AssetEvent.id.in_(referenced_event_ids)
-            if dag.catchup:
-                # With catchup on, also consume events recorded before the Dag started
-                # scheduling on its assets/aliases, not just those with a queue row. (With catchup
-                # off only queued events are consumed.) The not-consumed filter below dedupes
-                # across runs, so no event window is needed.
-                event_predicate = or_(
-                    event_predicate,
-                    AssetEvent.asset_id.in_(
-                        select(DagScheduleAssetReference.asset_id).where(
-                            DagScheduleAssetReference.dag_id == dag.dag_id
-                        )
-                    ),
-                    AssetEvent.source_aliases.any(
-                        AssetAliasModel.scheduled_dags.any(
-                            DagScheduleAssetAliasReference.dag_id == dag.dag_id
-                        )
-                    ),
-                )
-            asset_events = list(
-                session.scalars(
-                    select(AssetEvent)
-                    .where(
-                        event_predicate,
-                        ~(
-                            select(association_table.c.event_id)
-                            .join(DagRun, DagRun.id == association_table.c.dag_run_id)
-                            .where(
-                                DagRun.dag_id == dag.dag_id,
-                                association_table.c.event_id == AssetEvent.id,
-                            )
-                            .exists()
-                        ),
-                    )
-                    .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
-                )
+            asset_events = self._select_consumed_asset_events(
+                dag=dag,
+                records=queued_adrqs,
+                session=session,
             )
             if asset_events:
                 triggered_date = timezone.coerce_datetime(max(event.timestamp for event in asset_events))
@@ -2892,21 +2964,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             # Always delete ADRQ rows for this batch to prevent stale entries accumulating,
             # including when all events were already consumed by a concurrent DagRun.
-            result = cast(
-                "CursorResult",
-                session.execute(
-                    delete(AssetDagRunQueue).where(
-                        tuple_(
-                            AssetDagRunQueue.target_dag_id,
-                            AssetDagRunQueue.asset_event_id,
-                        ).in_((adrq.target_dag_id, adrq.asset_event_id) for adrq in queued_adrqs)
-                    )
-                ),
-            )
-            self.log.info(
-                "Deleted %d ADRQ rows for '%s'",
-                result.rowcount,
-                dag.dag_id,
+            self._delete_consumed_asset_records(
+                records=queued_adrqs,
+                dag_id=dag.dag_id,
+                session=session,
             )
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
@@ -3091,8 +3152,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 default=None,
             )
             for task_instance in unfinished_task_instances:
-                task_instance.state = TaskInstanceState.SKIPPED
-                session.merge(task_instance)
+                task_instance.set_state(TaskInstanceState.SKIPPED, session=session)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
@@ -3355,7 +3415,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         executor.send_callback(request)
             finally:
                 ti.set_state(TaskInstanceState.FAILED, session=session)
-                executor.fail(ti.key)
+                executor.fail(executor.get_task_key(ti))
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         filter_for_tis = TI.filter_for_tis([ti])
@@ -3577,6 +3637,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 TI.task_id,
                                 TI.run_id,
                                 TI.map_index,
+                                TI.try_number,
                                 TI.state,
                                 TI.external_executor_id,
                             )
@@ -3599,10 +3660,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
-                        # If we reset a TI, it will be eligible to be scheduled again.
-                        # This can cause the scheduler to increase the try_number on the TI.
-                        # Record the current try to TaskInstanceHistory first so users have an audit trail for
-                        # the attempt that was abandoned.
                         ti.prepare_db_for_next_try(session=session)
 
                         ti.state = None
@@ -3871,35 +3928,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task = None
             ti.task = task
 
-            # Single source of truth for the retry decision, matching
-            # TaskInstance.fetch_handle_failure_context exactly, so the callback type sent here can
-            # never disagree with the state handle_failure() actually persists below (this previously
-            # diverged for RESTARTING task instances with max_tries=0).
-            task_callback_type = (
-                TaskInstanceState.UP_FOR_RETRY if ti.is_eligible_to_retry() else TaskInstanceState.FAILED
-            )
-
-            bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
-            # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
-            if not _ensure_ti_has_dag_version_id(ti, session, self.log):
-                continue
-            context_from_server = TIRunContext(
-                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                max_tries=ti.max_tries,
-                variables=[],
-                connections=[],
-                xcom_keys_to_clear=[],
-            )
-            request = TaskCallbackRequest(
-                filepath=ti.dag_model.relative_fileloc or "",
-                bundle_name=bundle_name,
-                bundle_version=bundle_version,
-                version_data=version_data,
-                ti=ti,
-                msg=msg,
-                task_callback_type=task_callback_type,
-                context_from_server=context_from_server,
-            )
             session.add(
                 Log(
                     event="heartbeat timeout",
@@ -3916,30 +3944,62 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "Detected a task instance without a heartbeat: %s "
                 "(See https://airflow.apache.org/docs/apache-airflow/"
                 "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout)",
-                request,
+                ti,
             )
-            self.executor.send_callback(request)
+            task_callback_type = (
+                TaskInstanceState.UP_FOR_RETRY if ti.is_eligible_to_retry() else TaskInstanceState.FAILED
+            )
 
-            # This purge path leaves the executor's own "task finished but TI still looked queued"
-            # handling in process_executor_events unreachable for this TI once handle_failure() below
-            # moves it out of RUNNING, so the email notification has to be sent from here directly.
-            if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
-                self.executor.send_callback(
-                    EmailRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=bundle_name,
-                        bundle_version=bundle_version,
-                        version_data=version_data,
-                        ti=ti,
-                        msg=msg,
-                        email_type=(
-                            "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
-                        ),
-                        context_from_server=context_from_server,
-                    )
+            bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
+            # Missing callback metadata must not prevent a cleared attempt from being released.
+            has_callback_version = _ensure_ti_has_dag_version_id(ti, session, self.log)
+            if not has_callback_version and ti.state != TaskInstanceState.RESTARTING:
+                continue
+            if has_callback_version:
+                context_from_server = TIRunContext(
+                    dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                    max_tries=ti.max_tries,
+                    variables=[],
+                    connections=[],
+                    xcom_keys_to_clear=[],
                 )
+                request = TaskCallbackRequest(
+                    filepath=ti.dag_model.relative_fileloc or "",
+                    bundle_name=bundle_name,
+                    bundle_version=bundle_version,
+                    version_data=version_data,
+                    ti=ti,
+                    msg=msg,
+                    task_callback_type=task_callback_type,
+                    context_from_server=context_from_server,
+                )
+                self.executor.send_callback(request)
 
-            ti.handle_failure(error=msg, session=session)
+                # This purge path leaves the executor's own "task finished but TI still looked queued"
+                # handling in process_executor_events unreachable for this TI once handle_failure() below
+                # moves it out of RUNNING, so the email notification has to be sent from here directly.
+                if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
+                    self.executor.send_callback(
+                        EmailRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=bundle_name,
+                            bundle_version=bundle_version,
+                            version_data=version_data,
+                            ti=ti,
+                            msg=msg,
+                            email_type=(
+                                "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
+                            ),
+                            context_from_server=context_from_server,
+                        )
+                    )
+
+            failed_id, failed_coordinates = ti.id, ti.key
+            if ti.state == TaskInstanceState.RESTARTING:
+                ti.notify_failure(error=msg)
+                ti.complete_restart(session=session)
+            else:
+                ti.handle_failure(error=msg, session=session)
             executor = self._try_to_load_executor(
                 ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
             )
@@ -3950,7 +4010,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.executor,
                 )
                 continue
-            executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
+            failed_key = (
+                TaskInstanceUuid(failed_id) if executor.supports_task_instance_uuid else failed_coordinates
+            )
+            executor.change_state(failed_key, TaskInstanceState.FAILED, remove_running=True)
             stats.incr(
                 "task_instances_without_heartbeats_killed",
                 tags=prune_dict(

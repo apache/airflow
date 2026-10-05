@@ -18,7 +18,7 @@
  */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
-const successDag = {
+export const successDag = {
   dag_display_name: "tutorial_taskflow_api_success",
   dag_id: "tutorial_taskflow_api_success",
   file_token:
@@ -53,7 +53,7 @@ const successDag = {
   timetable_type: "NullTimetable",
 };
 
-const failedDag = {
+export const failedDag = {
   dag_display_name: "tutorial_taskflow_api_failed",
   dag_id: "tutorial_taskflow_api_failed",
   file_token:
@@ -88,7 +88,7 @@ const failedDag = {
   timetable_type: "CronTriggerTimetable",
 };
 
-const pausedDag = {
+export const pausedDag = {
   dag_display_name: "paused_dag",
   dag_id: "paused_dag",
   file_token:
@@ -145,6 +145,7 @@ export const handlers: Array<HttpHandler> = [
   http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
+    const anyDagRunState = url.searchParams.get("dag_run_state");
     const orderBy = url.searchParams.get("order_by");
     const paused = url.searchParams.get("paused");
     const timetableTypes = url.searchParams.getAll("timetable_type");
@@ -158,6 +159,15 @@ export const handlers: Array<HttpHandler> = [
       return HttpResponse.json({
         dags: [failedDag],
         total_entries: 1,
+      });
+    }
+
+    // Any-run matching: pretend every Dag has a failed run somewhere in its history, so
+    // widening the pill's lookback from the latest run visibly changes the result set.
+    if (anyDagRunState === "failed") {
+      return HttpResponse.json({
+        dags: [failedDag, successDag],
+        total_entries: 2,
       });
     }
 

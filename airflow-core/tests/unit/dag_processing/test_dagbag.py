@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-import logging
+import json
 import os
 import pathlib
 import re
@@ -39,8 +39,8 @@ from airflow import settings
 from airflow.dag_processing.dagbag import (
     BundleDagBag,
     DagBag,
-    _capture_with_reraise,
     _validate_executor_fields,
+    sync_bag_to_db,
 )
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -49,6 +49,16 @@ from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk import DAG, BaseOperator
+from airflow.sdk.exceptions import AirflowConfigException
+from airflow.sdk.importers import (
+    AbstractDagImporter,
+    DagImportResult,
+    DagImportWarning,
+    DagSourceCode,
+    PythonDagImporter,
+    find_file_dag_definitions,
+    get_file_suffix,
+)
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils import db
@@ -343,6 +353,39 @@ def test_validate_executor_field():
         BaseOperator(task_id="t1", executor="test.custom.executor")
     with patch.object(ExecutorLoader, "lookup_executor_name_by_str"):
         _validate_executor_fields(dag)
+
+
+def _dag_source(dag_id: str) -> str:
+    return f"from airflow.sdk import DAG\n\ndag = DAG({dag_id!r}, schedule=None)\n"
+
+
+class TextDagImporter(AbstractDagImporter):
+    """Builds one Dag per ``.dagtxt`` file, whose content is the dag_id."""
+
+    supported_extensions = [".dagtxt"]
+
+    def can_handle(self, definition):
+        return get_file_suffix(definition) == ".dagtxt"
+
+    def list_dag_definitions(self, bundle, *, safe_mode=True):
+        yield from find_file_dag_definitions(bundle.path, self.supported_extensions)
+
+    def import_definition(self, definition, bundle):
+        return DagImportResult(
+            definition=definition,
+            dags=[DAG(definition.read_text().strip(), schedule=None)],
+            warnings=[
+                DagImportWarning(
+                    source_reference=repr(definition),
+                    message="Deprecated field",
+                    warning_type="test:deprecated_field",
+                    line_number=1,
+                )
+            ],
+        )
+
+    def get_source_code(self, definition):
+        return DagSourceCode(source_code=definition.read_text(), language="text")
 
 
 class TestDagBag:
@@ -686,19 +729,77 @@ class TestDagBag:
         assert os.fspath(path2) not in dagbag.import_errors
         assert "AirflowDagDuplicatedIdException" in dagbag.import_errors[error_path]
 
-    def test_zip_skip_log(self, caplog, test_zip_path):
-        """
-        test the loading of a DAG from within a zip file that skips another file because
-        it doesn't have "airflow" and "DAG"
-        """
-        caplog.set_level(logging.INFO)
+    def test_zip_skips_members_without_dag_markers(self, test_zip_path):
         dagbag = DagBag(dag_folder=test_zip_path)
 
-        assert dagbag.has_logged
-        assert (
-            f"File {test_zip_path}:file_no_airflow_dag.py "
-            "assumed to contain no DAGs. Skipping." in caplog.text
-        )
+        assert f"{test_zip_path}/test_zip.py" in dagbag.parsed_definitions
+        assert f"{test_zip_path}/file_no_airflow_dag.py" not in dagbag.parsed_definitions
+
+    def test_zip_member_path_imports_only_that_member(self, tmp_path):
+        zipped = tmp_path / "dags.zip"
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.writestr("first.py", _dag_source("first"))
+            zf.writestr("second.py", _dag_source("second"))
+
+        dagbag = DagBag(dag_folder=zipped / "first.py", bundle_path=tmp_path, bundle_name="test_bundle")
+
+        assert dagbag.dag_ids == ["first"]
+        assert dagbag.dags["first"].relative_fileloc == "dags.zip/first.py"
+        assert dagbag.parsed_definitions == ["dags.zip/first.py"]
+
+    @pytest.mark.parametrize("dag_folder", ["", "corrupt.zip"], ids=["bundle", "archive"])
+    def test_discovery_errors_use_relative_path_with_bundle(self, tmp_path, dag_folder):
+        (tmp_path / "corrupt.zip").write_bytes(b"not a zip")
+
+        dagbag = DagBag(dag_folder=tmp_path / dag_folder, bundle_path=tmp_path, bundle_name="test_bundle")
+
+        assert list(dagbag.import_errors) == ["corrupt.zip"]
+
+    def test_dag_source_codes(self, tmp_path):
+        (tmp_path / "plain.py").write_text(_dag_source("plain"))
+        with zipfile.ZipFile(tmp_path / "dags.zip", "w") as zf:
+            zf.writestr("member.py", _dag_source("member"))
+
+        dagbag = DagBag(dag_folder=tmp_path, bundle_path=tmp_path, bundle_name="test_bundle")
+
+        assert dagbag.dag_source_codes == {
+            os.fspath(tmp_path / "plain.py"): DagSourceCode(
+                source_code=_dag_source("plain"), language="python"
+            ),
+            os.fspath(tmp_path / "dags.zip" / "member.py"): DagSourceCode(
+                source_code=_dag_source("member"), language="python"
+            ),
+        }
+
+    def test_dag_source_codes_drops_stale_source_when_read_fails(self, tmp_path):
+        dag_file = tmp_path / "plain.py"
+        dag_file.write_text(_dag_source("plain"))
+        dagbag = DagBag(dag_folder=tmp_path, bundle_path=tmp_path, bundle_name="test_bundle")
+        dag_file.write_text(_dag_source("plain") + "# changed\n")
+
+        with mock.patch.object(
+            PythonDagImporter, "get_source_code", autospec=True, side_effect=OSError("unreadable")
+        ):
+            dagbag.process_file(os.fspath(dag_file), only_if_updated=True)
+
+        assert "plain" in dagbag.dags
+        assert dagbag.dag_source_codes == {}
+
+    @mock.patch("airflow.dag_processing.collection.update_dag_parsing_results_in_db", autospec=True)
+    def test_sync_bag_to_db_passes_parsed_files_and_source_codes(self, mock_update, tmp_path):
+        with zipfile.ZipFile(tmp_path / "dags.zip", "w") as zf:
+            zf.writestr("member.py", _dag_source("member"))
+        dagbag = DagBag(dag_folder=tmp_path, bundle_path=tmp_path, bundle_name="test_bundle")
+
+        sync_bag_to_db(dagbag, "test_bundle", None, session=mock.sentinel.session)
+
+        kwargs = mock_update.call_args.kwargs
+        assert kwargs["files_parsed"] == {("test_bundle", "dags.zip/member.py"), ("test_bundle", "dags.zip")}
+        assert kwargs["dag_source_codes"] == {
+            os.fspath(tmp_path / "dags.zip" / "member.py"): DagSourceCode(
+                source_code=_dag_source("member"), language="python"
+            )
+        }
 
     def test_zip(self, tmp_path, test_zip_path):
         """
@@ -711,7 +812,7 @@ class TestDagBag:
         assert sys.path == syspath_before  # sys.path doesn't change
         assert not dagbag.import_errors
 
-    @patch("airflow.dag_processing.importers.python_importer._timeout")
+    @patch("airflow.sdk.importers.python_importer.timeout")
     @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_without_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
@@ -730,7 +831,7 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
         mocked_timeout.assert_not_called()
 
-    @patch("airflow.dag_processing.importers.python_importer._timeout")
+    @patch("airflow.sdk.importers.python_importer.timeout")
     @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_with_non_default_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
@@ -747,9 +848,9 @@ class TestDagBag:
         dagbag = DagBag(dag_folder=os.fspath(tmp_path))
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
 
-        mocked_timeout.assert_called_once_with(timeout_value, error_message=mock.ANY)
+        mocked_timeout.assert_called_once_with(seconds=timeout_value, error_message=mock.ANY)
 
-    @patch("airflow.dag_processing.importers.python_importer.settings.get_dagbag_import_timeout")
+    @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_check_value_type_from_get_dagbag_import_timeout(
         self, mocked_get_dagbag_import_timeout, tmp_path
     ):
@@ -760,7 +861,7 @@ class TestDagBag:
 
         dagbag = DagBag(dag_folder=os.fspath(tmp_path))
         with pytest.raises(
-            TypeError, match=r"Value \(1\) from get_dagbag_import_timeout must be int or float"
+            AirflowConfigException, match=r"Value \(1\) from get_dagbag_import_timeout must be int or float"
         ):
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
 
@@ -833,20 +934,19 @@ class TestDagBag:
         mock_dagmodel.return_value.fileloc = "foo"
 
         class _TestDagBag(DagBag):
-            process_file_calls = 0
+            import_calls = 0
 
-            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-                if os.path.basename(filepath) == "example_bash_operator.py":
-                    _TestDagBag.process_file_calls += 1
-                super().process_file(filepath, only_if_updated, safe_mode)
+            def _process_definition(self, importer, definition, *, only_if_updated):
+                if os.path.basename(repr(definition)) == "example_bash_operator.py":
+                    _TestDagBag.import_calls += 1
+                return super()._process_definition(importer, definition, only_if_updated=only_if_updated)
 
         dagbag = _TestDagBag(dag_folder=standard_example_dags_folder)
-        dagbag.process_file_calls
 
-        # Should not call process_file again, since it's already loaded during init.
-        assert dagbag.process_file_calls == 1
+        # Should not import the file again, since it's already loaded during init.
+        assert dagbag.import_calls == 1
         assert dagbag.get_dag(dag_id) is not None
-        assert dagbag.process_file_calls == 1
+        assert dagbag.import_calls == 1
 
     @pytest.mark.parametrize(
         ("file_name", "expected_dag_id"),
@@ -922,26 +1022,31 @@ class TestDagBag:
         mock_dagmodel.return_value.fileloc = fileloc
 
         class _TestDagBag(DagBag):
-            process_file_calls = 0
+            import_calls = 0
 
-            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-                if filepath == fileloc:
-                    _TestDagBag.process_file_calls += 1
-                return super().process_file(filepath, only_if_updated, safe_mode)
+            def _process_definition(self, importer, definition, *, only_if_updated):
+                if repr(definition) == fileloc:
+                    _TestDagBag.import_calls += 1
+                return super()._process_definition(importer, definition, only_if_updated=only_if_updated)
 
         dagbag = _TestDagBag(dag_folder=standard_example_dags_folder)
 
-        assert dagbag.process_file_calls == 1
+        assert dagbag.import_calls == 1
         dag = dagbag.get_dag(dag_id)
         assert dag is not None
         assert dag_id == dag.dag_id
-        assert dagbag.process_file_calls == 2
+        assert dagbag.import_calls == 2
 
     @patch.object(DagModel, "get_current")
     def test_refresh_packaged_dag(self, mock_dagmodel, test_zip_path):
         """
-        Test that we can refresh a packaged DAG
+        Test that refreshing a packaged Dag re-imports only the archive member that defines it
         """
+        with zipfile.ZipFile(test_zip_path, "a") as zf:
+            zf.writestr(
+                "other_dag.py",
+                "from airflow.sdk import DAG\n\ndag = DAG(dag_id='other_dag', schedule=None)\n",
+            )
         dag_id = "test_zip_dag"
         fileloc = os.path.realpath(os.path.join(test_zip_path, "test_zip.py"))
 
@@ -949,21 +1054,21 @@ class TestDagBag:
         mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
         mock_dagmodel.return_value.fileloc = fileloc
 
-        class _TestDagBag(DagBag):
-            process_file_calls = 0
+        processed: list[str] = []
 
-            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-                if filepath in fileloc:
-                    _TestDagBag.process_file_calls += 1
-                return super().process_file(filepath, only_if_updated, safe_mode)
+        class _TestDagBag(DagBag):
+            def _process_definition(self, importer, definition, *, only_if_updated):
+                processed.append(repr(definition))
+                return super()._process_definition(importer, definition, only_if_updated=only_if_updated)
 
         dagbag = _TestDagBag(dag_folder=os.path.realpath(test_zip_path))
+        assert "other_dag" in dagbag.dags
+        processed.clear()
 
-        assert dagbag.process_file_calls == 1
         dag = dagbag.get_dag(dag_id)
-        assert dag is not None
-        assert dag_id == dag.dag_id
-        assert dagbag.process_file_calls == 2
+
+        assert dag.dag_id == dag_id
+        assert processed == [fileloc]
 
     def process_dag(self, create_dag, tmp_path):
         """
@@ -1024,6 +1129,13 @@ class TestDagBag:
         # None of the dags should be found
         self.validate_dags(test_dag, found_dags, dagbag, should_be_found=False)
         assert file_path in dagbag.import_errors
+
+    def test_process_file_nested_definition(self, tmp_path, test_zip_path):
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), collect_dags=False)
+
+        found_dags = dagbag.process_file(os.path.join(test_zip_path, "test_zip.py"))
+
+        assert sorted(dag.dag_id for dag in found_dags) == ["test_zip_autoregister", "test_zip_dag"]
 
     def test_process_file_with_none(self, tmp_path):
         """
@@ -1199,6 +1311,8 @@ with airflow.DAG(
                 f"{dag_file}:48: UserWarning: Some Warning",
             )
         }
+        # Python warning categories are not Dag warnings
+        assert dagbag.dag_warnings == set()
 
         with warnings.catch_warnings():
             # Disable capture DeprecationWarning, and it should be reflected in captured warnings
@@ -1227,7 +1341,7 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder=warning_zipped_dag_path)
         assert dagbag.dagbag_stats[0].warning_num == 2
         assert dagbag.captured_warnings == {
-            warning_zipped_dag_path: (
+            in_zip_dag_file: (
                 f"{in_zip_dag_file}:46: DeprecationWarning: Deprecated Parameter",
                 f"{in_zip_dag_file}:48: UserWarning: Some Warning",
             )
@@ -1263,6 +1377,25 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder="", collect_dags=False, known_pools=known_pools)
         dagbag.bag_dag(dag)
         assert dagbag.dag_warnings == expected
+
+    @conf_vars({("dag_processor", "dag_importer_configs"): json.dumps([f"{__name__}.TextDagImporter"])})
+    def test_custom_importer_dags_are_bound_to_their_definition(self, tmp_path):
+        dag_file = tmp_path / "nested" / "text_dag.dagtxt"
+        dag_file.parent.mkdir()
+        dag_file.write_text("text_dag\n")
+
+        dagbag = DagBag(dag_folder=tmp_path, bundle_path=tmp_path, bundle_name="test_bundle")
+
+        dag = dagbag.dags["text_dag"]
+        assert dag.fileloc == os.fspath(dag_file)
+        assert dag.relative_fileloc == "nested/text_dag.dagtxt"
+        assert dagbag.dag_source_codes == {
+            os.fspath(dag_file): DagSourceCode(source_code="text_dag\n", language="text")
+        }
+        assert dagbag.dag_warnings == {DagWarning("text_dag", "test:deprecated_field", "Deprecated field")}
+        assert dagbag.captured_warnings == {
+            os.fspath(dag_file): (f"{dag_file}:1: test:deprecated_field: Deprecated field",)
+        }
 
     def test_sigsegv_handling(self, tmp_path, caplog):
         """
@@ -1312,66 +1445,10 @@ with airflow.DAG(
                 """
             )
         )
-        with mock.patch("airflow.dag_processing.importers.python_importer.signal.signal") as mock_signal:
+        with mock.patch("airflow.sdk.importers.python_importer.signal.signal") as mock_signal:
             mock_signal.side_effect = ValueError("Invalid signal setting")
             DagBag(dag_folder=os.fspath(tmp_path))
             assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text
-
-
-class TestCaptureWithReraise:
-    @staticmethod
-    def raise_warnings():
-        warnings.warn("Foo", UserWarning, stacklevel=2)
-        warnings.warn("Bar", UserWarning, stacklevel=2)
-        warnings.warn("Baz", UserWarning, stacklevel=2)
-
-    def test_capture_no_warnings(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            with _capture_with_reraise() as cw:
-                pass
-            assert cw == []
-
-    def test_capture_warnings(self):
-        with pytest.warns(UserWarning, match="(Foo|Bar|Baz)") as ctx:
-            with _capture_with_reraise() as cw:
-                self.raise_warnings()
-        assert len(cw) == 3
-        assert len(ctx.list) == 3
-
-    def test_capture_warnings_with_parent_error_filter(self):
-        with warnings.catch_warnings(record=True) as records:
-            warnings.filterwarnings("error", message="Bar")
-            with _capture_with_reraise() as cw:
-                with pytest.raises(UserWarning, match="Bar"):
-                    self.raise_warnings()
-            assert len(cw) == 1
-        assert len(records) == 1
-
-    def test_capture_warnings_with_parent_ignore_filter(self):
-        with warnings.catch_warnings(record=True) as records:
-            warnings.filterwarnings("ignore", message="Baz")
-            with _capture_with_reraise() as cw:
-                self.raise_warnings()
-            assert len(cw) == 2
-        assert len(records) == 2
-
-    def test_capture_warnings_with_filters(self):
-        with warnings.catch_warnings(record=True) as records:
-            with _capture_with_reraise() as cw:
-                warnings.filterwarnings("ignore", message="Foo")
-                self.raise_warnings()
-            assert len(cw) == 2
-        assert len(records) == 2
-
-    def test_capture_warnings_with_error_filters(self):
-        with warnings.catch_warnings(record=True) as records:
-            with _capture_with_reraise() as cw:
-                warnings.filterwarnings("error", message="Bar")
-                with pytest.raises(UserWarning, match="Bar"):
-                    self.raise_warnings()
-            assert len(cw) == 1
-        assert len(records) == 1
 
 
 class TestBundlePathSysPath:

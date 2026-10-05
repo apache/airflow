@@ -23,7 +23,7 @@ Each test exercises the complete toolset boundary with a deterministic pydantic-
 
 1. an Airflow task runs a deterministic pydantic-ai agent;
 2. the agent calls every sandbox tool;
-3. the selected backend creates a microVM;
+3. the selected backend creates a sandbox;
 4. later calls read the file written by the first call, proving per-run persistence; and
 5. the agent run tears the sandbox down.
 
@@ -63,3 +63,18 @@ pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_tools
 ```
 
 The test requests the default no-egress policy and a 15-minute server-side TTL.
+
+## OpenSandbox
+
+Install the OpenSandbox extra, point the SDK at a running server, and run:
+
+```console
+pip install "apache-airflow-providers-common-ai[opensandbox]"
+export OPEN_SANDBOX_DOMAIN="opensandbox.example.com"
+export OPEN_SANDBOX_API_KEY="..."
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_opensandbox.py
+```
+
+The test requests the default deny-all egress policy, so the OpenSandbox server
+must have its egress sidecar configured. It also applies a 15-minute server-side
+sandbox lifetime.

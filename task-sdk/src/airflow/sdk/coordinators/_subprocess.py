@@ -27,6 +27,7 @@ draining machinery in this module rather than re-implementing it.
 
 from __future__ import annotations
 
+import contextlib
 import ipaddress
 import itertools
 import os
@@ -35,24 +36,30 @@ import signal
 import socket
 import subprocess
 import time
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
 
 import attrs
 import psutil
 import structlog
 
+from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
+from airflow.sdk.api.datamodels._generated import BundleInfo
 from airflow.sdk.configuration import conf
+from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    import pathlib
+    from collections.abc import Callable, Sequence
 
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
+    from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
-    from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+    from airflow.sdk.api.datamodels._generated import TaskInstance
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -95,21 +102,19 @@ def _socket_address(value: tuple | str) -> tuple[str, int] | None:
     return host, int(port)
 
 
-def _connection_owned_by_process_tree(
-    peer: tuple[str, int], local: tuple[str, int], proc: subprocess.Popen
-) -> bool:
+def _connection_owned_by_process_tree(peer: tuple[str, int], local: tuple[str, int], pid: int) -> bool:
     """
     Return whether ``peer`` <-> ``local`` is an established connection in the child's process tree.
 
     The launched child may itself spawn the process that connects back to the
     supervisor — a JVM launcher, a shell wrapper, or any runtime that forks a
     worker — so the connecting peer can legitimately belong to a *descendant* of
-    ``proc.pid`` rather than ``proc.pid`` itself. Every process in the subtree
-    rooted at ``proc.pid`` is part of the task and is trusted; a process outside
-    that subtree (e.g. an unrelated local process racing for the port) is not.
+    ``pid`` rather than ``pid`` itself. Every process in the subtree rooted at
+    ``pid`` is part of the task and is trusted; a process outside that subtree
+    (e.g. an unrelated local process racing for the port) is not.
     """
     try:
-        root = psutil.Process(proc.pid)
+        root = psutil.Process(pid)
         processes = [root, *root.children(recursive=True)]
     except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.ZombieProcess, OSError):
         return False
@@ -147,11 +152,48 @@ def _is_connection_from_process(
         return False
     deadline = time.monotonic() + verify_timeout
     while True:
-        if _connection_owned_by_process_tree(peer, local, proc):
+        if _connection_owned_by_process_tree(peer, local, proc.pid):
             return True
         if time.monotonic() >= deadline:
             return False
         time.sleep(poll_interval)
+
+
+def _is_connection_from_pid(conn: socket.socket, pid: int) -> bool:
+    """
+    Return whether the accepted TCP connection comes from ``pid``'s process tree, checking once.
+
+    A connection that is not visible yet is reported as not owned, so the caller retries later
+    instead of waiting here.
+    """
+    peer = _socket_address(conn.getpeername())
+    local = _socket_address(conn.getsockname())
+    return peer is not None and local is not None and _connection_owned_by_process_tree(peer, local, pid)
+
+
+def _set_close_on_exec_above_stderr() -> None:
+    """Mark every file descriptor above 2 close-on-exec, as ``subprocess.Popen(close_fds=True)`` does."""
+    fd_dir = "/proc/self/fd" if os.path.isdir("/proc/self/fd") else "/dev/fd"
+    for name in os.listdir(fd_dir):
+        if (fd := int(name)) > 2:
+            # The descriptor listing the directory is already closed.
+            with contextlib.suppress(OSError):
+                os.set_inheritable(fd, False)
+
+
+def _build_runtime_env() -> dict[str, str]:
+    """Return the environment for a language SDK runtime, with the Airflow config it reads resolved."""
+    # A language SDK runtime cannot read Airflow's config, so the options it needs are resolved here.
+    # An option without a config default gets the fallback Python uses. StartupDetails arrives too
+    # late: logs may already be produced.
+    return {
+        **os.environ,
+        "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),
+        "AIRFLOW__LOGGING__NAMESPACE_LEVELS": conf.get("logging", "namespace_levels", fallback=""),
+        "AIRFLOW__API__BASE_URL": conf.get("api", "base_url", fallback="/"),
+        "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": str(conf.getboolean("operators", "default_deferrable")),
+        "AIRFLOW__TRIGGERER__QUEUES_ENABLED": str(conf.getboolean("triggerer", "queues_enabled")),
+    }
 
 
 def _accept_connections(
@@ -304,15 +346,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             stdout_r, stdout_w = tracker.track(*socket.socketpair())
             stderr_r, stderr_w = tracker.track(*socket.socketpair())
 
-            # A language SDK runtime cannot read Airflow's config, so propagate the
-            # resolved log levels via the environment at launch. StartupDetails
-            # arrives too late, the logs might already be produced by then.
-            env = {
-                **os.environ,
-                "AIRFLOW__LOGGING__LOGGING_LEVEL": conf.get("logging", "logging_level", fallback="INFO"),
-                "AIRFLOW__LOGGING__NAMESPACE_LEVELS": conf.get("logging", "namespace_levels", fallback=""),
-            }
-
             proc = subprocess.Popen(
                 [
                     *command,
@@ -321,7 +354,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 ],
                 stdout=stdout_w.fileno(),
                 stderr=stderr_w.fileno(),
-                env=env,
+                env=_build_runtime_env(),
             )
             tracker.track(proc)
             for soc in tracker.untrack(stdout_w, stderr_w):
@@ -371,6 +404,29 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         return code
 
 
+def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
+    """
+    Materialize *target* at a concrete version, so the tree handed to the subprocess is lockable.
+
+    A bundle resolved without a version points at the bundle's shared, mutable
+    checkout: another task refreshing the same bundle resets it underneath a running
+    subprocess, and ``BundleVersionLock`` cannot protect it because a version-less
+    lock is a no-op. Re-resolving at the version current now yields a private
+    ``versions/<version>`` tree that the lock does cover.
+
+    Bundles that do not track versions have nothing to pin and keep their single path.
+    """
+    bundle = initialize_ti_bundle(target)
+    if bundle.version is not None:
+        return bundle
+
+    version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
+    if version is None:
+        return bundle
+    logger.debug("Pinning Dag bundle to its current version", bundle=target.name, version=version)
+    return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
+
+
 @attrs.define(kw_only=True)
 class SubprocessCoordinator(BaseCoordinator):
     """
@@ -385,22 +441,121 @@ class SubprocessCoordinator(BaseCoordinator):
     :param task_startup_timeout: Maximum time the coordinator waits for the
         subprocess to connect to both servers, in seconds. The default is 10
         seconds.
+    :param task_handler_bundle_name: Name of the Dag bundle that holds the compiled
+        task handlers. It must be registered in ``[dag_processor] dag_bundle_config_list``.
+        If unset, the task's own Dag bundle is used. A named bundle resolves to the
+        version current when the task starts; the task's own bundle uses the run's
+        version. Either way the resolved version is pinned for the whole task.
     """
 
     task_startup_timeout: float = 10.0
+    task_handler_bundle_name: str | None = None
+
+    _active_scan_roots: tuple[pathlib.Path, ...] | None = attrs.field(init=False, default=None)
+
+    def _resolve_artifact_bundle(
+        self, bundle_info: BundleInfo, logger: FilteringBoundLogger
+    ) -> BaseDagBundle:
+        """
+        Materialize the Dag bundle holding the artifacts for a task of *bundle_info*.
+
+        That is the bundle named by ``task_handler_bundle_name``, or the task's own
+        bundle when it is unset. *logger* is the task logger, so materialization
+        failures surface in the task log.
+        """
+        if self.task_handler_bundle_name is None:
+            target = bundle_info
+        else:
+            target = BundleInfo(name=self.task_handler_bundle_name)
+
+        bundle = _initialize_pinned_bundle(target, logger)
+        path = bundle.path
+        if not path.exists():
+            raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
+        return bundle
+
+    def _get_scan_roots(self) -> tuple[pathlib.Path, ...]:
+        """Return the artifact roots resolved for the active task or Dag parse."""
+        if self._active_scan_roots is None:
+            raise RuntimeError(
+                "_get_scan_roots requires an active task or Dag parse; call it during execute_task or parse_dag."
+            )
+        return self._active_scan_roots
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
 
-        Returns a ``(command, subprocess_schema_version)`` pair. *command*
-        MUST NOT include the ``--comm`` / ``--logs`` flags — those are
-        appended by :class:`_PopenActivitySubprocess` once the listening
-        sockets have been bound. A ``None`` schema version disables schema
-        migration; messages are then exchanged at the runtime's native wire
-        format.
+        Subclasses can retrieve the directories to scan for artifacts with
+        :meth:`_get_scan_roots`.
+        Returns a ``(command, subprocess_schema_version)`` pair. *command* MUST
+        NOT include the ``--comm`` / ``--logs`` flags — those are appended by
+        :class:`_PopenActivitySubprocess` once the listening sockets have been
+        bound. A ``None`` schema version disables schema migration; messages are
+        then exchanged at the runtime's native wire format.
         """
         raise NotImplementedError
+
+    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        """
+        Build the command that parses the Dag file at *path* and resolve its wire-schema version.
+
+        Subclasses can retrieve the directories to scan for artifacts with
+        :meth:`_get_scan_roots`; for a parse they are the Dag bundle's root. The contract is
+        that of :meth:`_build_execute_task_command`: *command* MUST NOT include the
+        ``--comm`` / ``--logs`` flags.
+        """
+        raise NotImplementedError
+
+    def parse_dag(
+        self,
+        *,
+        path: pathlib.Path,
+        bundle_path: pathlib.Path,
+        comm_address: tuple[str, int],
+        logs_address: tuple[str, int],
+        report_schema_version: Callable[[str | None], None],
+    ) -> NoReturn:
+        """
+        Replace the current process with the runtime that parses the Dag file at *path*.
+
+        Call this in a child process whose standard streams are already set up; the runtime
+        inherits them and no other file descriptor. The command and its supervisor wire-schema
+        version are resolved against *bundle_path*, and the version is passed to
+        *report_schema_version* just before the exec. The runtime connects back to
+        *comm_address* and *logs_address*.
+
+        :raises Exception: when the command cannot be resolved or started; the process is then
+            unchanged.
+        """
+        with self._set_scan_roots([bundle_path]):
+            command, schema_version = self._build_parse_dag_command(path=path)
+        if schema_version is not None:
+            get_schema_version_migrator().resolve_version(schema_version)
+        argv = [
+            *command,
+            f"--comm={comm_address[0]}:{comm_address[1]}",
+            f"--logs={logs_address[0]}:{logs_address[1]}",
+        ]
+        report_schema_version(schema_version)
+        # Python ignores these at startup and exec keeps ignored signals; subprocess.Popen resets
+        # them the same way for the task runtime.
+        for name in ("SIGPIPE", "SIGXFSZ"):
+            if (sig := getattr(signal, name, None)) is not None:
+                signal.signal(sig, signal.SIG_DFL)
+        _set_close_on_exec_above_stderr()
+        os.execvpe(argv[0], argv, _build_runtime_env())
+
+    @contextlib.contextmanager
+    def _set_scan_roots(self, roots: Sequence[pathlib.Path]):
+        """Expose *roots* to the command builder for the duration of the task or Dag parse."""
+        if self._active_scan_roots is not None:
+            raise RuntimeError("SubprocessCoordinator.execute_task and parse_dag are not re-entrant.")
+        self._active_scan_roots = tuple(roots)
+        try:
+            yield
+        finally:
+            self._active_scan_roots = None
 
     def execute_task(
         self,
@@ -414,18 +569,26 @@ class SubprocessCoordinator(BaseCoordinator):
         subprocess_logs_to_stdout: bool,
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
-        command, subprocess_schema_version = self._build_execute_task_command(what=what)
-        process = _PopenActivitySubprocess.start(
-            what=what,
-            dag_rel_path=dag_rel_path,
-            bundle_info=bundle_info,
-            client=client,
-            logger=logger,
-            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-            sentry_integration=sentry_integration,
-            command=command,
-            subprocess_schema_version=subprocess_schema_version,
-            startup_timeout=self.task_startup_timeout,
-        )
-        exit_code = process.wait()
-        return self.ExecutionResult(exit_code, process.final_state)
+        bundle = self._resolve_artifact_bundle(bundle_info, logger or log)
+        # Hold the version lock across start()/wait() so bundle cleanup cannot
+        # rmtree a version this task is still reading from, mirroring
+        # task_runner.main() for the Python task path.
+        with (
+            BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version),
+            self._set_scan_roots([bundle.path]),
+        ):
+            command, subprocess_schema_version = self._build_execute_task_command(what=what)
+            process = _PopenActivitySubprocess.start(
+                what=what,
+                dag_rel_path=dag_rel_path,
+                bundle_info=bundle_info,
+                client=client,
+                logger=logger,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                sentry_integration=sentry_integration,
+                command=command,
+                subprocess_schema_version=subprocess_schema_version,
+                startup_timeout=self.task_startup_timeout,
+            )
+            exit_code = process.wait()
+            return self.ExecutionResult(exit_code, process.final_state)

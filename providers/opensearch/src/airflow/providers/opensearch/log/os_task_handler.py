@@ -43,14 +43,13 @@ import airflow.logging_config as alc
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, TaskInstanceState, conf
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
 from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -221,9 +220,13 @@ def _create_opensearch_client(
 ) -> OpenSearch:
     parsed_url = urlparse(_format_url(host))
     resolved_port = port if port is not None else (parsed_url.port or 9200)
+    connection_kwargs: dict[str, Any] = {
+        "hosts": [{"host": parsed_url.hostname, "port": resolved_port, "scheme": parsed_url.scheme}]
+    }
+    if username or password:
+        connection_kwargs["http_auth"] = (username, password)
     return OpenSearch(
-        hosts=[{"host": parsed_url.hostname, "port": resolved_port, "scheme": parsed_url.scheme}],
-        http_auth=(username, password),
+        **connection_kwargs,
         **os_kwargs,
     )
 
@@ -1000,9 +1003,27 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
     def read(self, _relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         self.log.info("Reading log %s from Opensearch", log_id)
-        response = self._os_read(log_id, 0, ti)
-        if response is not None and response.hits:
-            logs_by_host = self._group_logs_by_host(response)
+        responses = []
+        offset = 0
+
+        while True:
+            response = self._os_read(log_id, offset, ti)
+            if response is None or not response.hits:
+                break
+
+            responses.append(response)
+
+            next_offset = attrgetter(self.offset_field)(response[-1])
+            if next_offset == offset:
+                break
+            offset = next_offset
+
+        if responses:
+            grouped_logs = defaultdict(list)
+            for response in responses:
+                for host, hits in self._group_logs_by_host(response).items():
+                    grouped_logs[host].extend(hits)
+            logs_by_host = grouped_logs
         else:
             logs_by_host = None
 

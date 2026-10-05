@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+import types
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
@@ -43,6 +45,33 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.lineage.entities import Table
     from airflow.providers.common.compat.sdk import BaseOperator
+
+
+def _is_hook_lineage_collector_created() -> bool:
+    """
+    Return False only if the hook lineage collector was certainly never created in this process.
+
+    Hooks report lineage through this process-wide collector, so if it was never created, nothing was
+    collected. Creating it just to read it back empty imports every provider's asset URI handlers,
+    which takes seconds. The check reads Airflow internals, so any state it does not recognize, such
+    as a getter that is not a plain function, counts as created.
+    """
+    try:
+        from airflow.sdk import lineage
+    except ImportError:
+        # Airflow < 3.2 keeps the collector in a module global instead of a cached getter.
+        try:
+            hook = importlib.import_module("airflow.lineage.hook")
+        except ImportError:
+            return True
+        if getattr(hook, "_hook_lineage_collector", True) is not None:
+            return True
+        return type(getattr(hook, "get_hook_lineage_collector", None)) is not types.FunctionType
+
+    try:
+        return lineage.get_hook_lineage_collector.cache_info().currsize != 0
+    except AttributeError:
+        return True
 
 
 def _iter_extractor_types() -> Iterator[type[BaseExtractor]]:
@@ -267,6 +296,8 @@ class ExtractorManager(LoggingMixin):
         except ImportError:
             return None
 
+        if not _is_hook_lineage_collector_created():
+            return None
         collector = get_hook_lineage_collector()
         if not hasattr(collector, "has_collected"):
             return None

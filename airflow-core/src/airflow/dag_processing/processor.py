@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, register_request_method
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.sdk.importers import DagSourceCode  # noqa: TC001
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
@@ -91,7 +92,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
-    from airflow.sdk.execution_time.supervisor import RequestHandler, RequestResult
+    from airflow.sdk.execution_time.supervisor import RequestHandler, RequestResult, ResponseSent
     from airflow.typing_compat import Self
 
 
@@ -127,6 +128,10 @@ class DagFileParsingResult(BaseModel):
     serialized_dags: list[LazyDeserializedDAG]
     warnings: list | None = None
     import_errors: dict[str, str] | None = None
+    parsed_definitions: list[str] = Field(default_factory=list)
+    """Bundle-relative locations of the Dag definitions imported from ``fileloc``."""
+    dag_source_codes: dict[str, DagSourceCode] = Field(default_factory=dict)
+    """Source code of the parsed Dags, keyed by Dag fileloc."""
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
@@ -253,7 +258,15 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
-        warnings=stability_check_result.get_formatted_warnings(bag.dag_ids),
+        warnings=[
+            *stability_check_result.get_formatted_warnings(bag.dag_ids),
+            *(
+                {"dag_id": w.dag_id, "warning_type": w.warning_type, "message": w.message}
+                for w in bag.dag_warnings
+            ),
+        ],
+        parsed_definitions=bag.parsed_definitions,
+        dag_source_codes=bag.dag_source_codes,
     )
     return result
 
@@ -560,15 +573,14 @@ def in_process_api_server() -> InProcessExecutionAPI:
 
 
 @attrs.define(kw_only=True)
-class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
+class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     """
-    Parses dags with Task SDK API.
+    Parse one Dag file in a child process for the Dag processor manager.
 
-    This class provides a wrapper and management around a subprocess to parse a specific DAG file.
-
-    Since DAGs are written with the Task SDK, we need to parse them in a task SDK process such that
-    we can use the Task SDK definitions when serializing. This prevents potential conflicts with classes
-    in core Airflow.
+    The child's output goes to the file's parse log, and its requests are answered with
+    :attr:`client`. The parse is done once the child has exited and all its sockets are closed;
+    :attr:`parsing_result` then holds what it sent. Subclasses start the child and send it the
+    parse request.
     """
 
     logger_filehandle: BinaryIO
@@ -581,6 +593,104 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
 
     bundle_name: str
     dag_file_rel_path: str
+
+    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
+        base = super()._get_target_loggers()
+        if not self.subprocess_logs_to_stdout:
+            return base
+        return tuple(
+            logger.bind(dag_file=self.dag_file_rel_path, bundle_name=self.bundle_name) for logger in base
+        )
+
+    def _create_log_forwarder(
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
+    ) -> Callable[[socket], bool]:
+        return super()._create_log_forwarder(
+            loggers,
+            name.replace("task.", "dag_processor.", 1),
+            data=data,
+            log_level=log_level,
+        )
+
+    def _handle_parsing_result(
+        self, msg: DagFileParsingResult, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        self.parsing_result = msg
+        return None, {}
+
+    # Each subclass builds its own ``_request_handlers``, typed with itself, from these.
+    _common_request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[BaseDagFileProcessorProcess]]] = {
+        **WatchedSubprocess._get_shared_request_handlers(
+            DeleteVariable,
+            GetConnection,
+            GetPrevSuccessfulDagRun,
+            GetPreviousDagRun,
+            GetPreviousTI,
+            GetTICount,
+            GetTaskStates,
+            GetVariable,
+            GetVariableKeys,
+            GetXCom,
+            GetXComCount,
+            GetXComSequenceItem,
+            GetXComSequenceSlice,
+            MaskSecret,
+            PutVariable,
+        ),
+        **dict([register_request_method(DagFileParsingResult, _handle_parsing_result)]),
+    }
+
+    def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
+        log.error("Unhandled request", msg=msg)
+        self.send_msg(
+            None,
+            request_id=req_id,
+            error=ErrorResponse(detail={"status_code": 400, "message": "Unhandled request"}),
+        )
+
+    @property
+    def is_ready(self) -> bool:
+        if self._check_subprocess_exit() is None:
+            # Process still alive, def can't be finished yet
+            return False
+
+        return not self._open_sockets
+
+    def wait(self) -> int:
+        raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
+
+    def close(self):
+        self.cleanup_sockets_after_kill()
+        try:
+            self.logger_filehandle.close()
+        except OSError:
+            self.log.warning(
+                "Failed to close log file handle for %s",
+                self.dag_file_rel_path,
+                exc_info=True,
+            )
+
+
+@attrs.define(kw_only=True)
+class DagFileProcessorProcess(BaseDagFileProcessorProcess):
+    """
+    Parses dags with Task SDK API.
+
+    This class provides a wrapper and management around a subprocess to parse a specific DAG file.
+
+    Since DAGs are written with the Task SDK, we need to parse them in a task SDK process such that
+    we can use the Task SDK definitions when serializing. This prevents potential conflicts with classes
+    in core Airflow.
+    """
+
+    _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
+        **BaseDagFileProcessorProcess._common_request_handlers,
+    }
 
     @classmethod
     def start(  # type: ignore[override]
@@ -635,83 +745,3 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             callback_requests=callbacks,
         )
         self.send_msg(msg, request_id=0)
-
-    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
-        base = super()._get_target_loggers()
-        if not self.subprocess_logs_to_stdout:
-            return base
-        return tuple(
-            logger.bind(dag_file=self.dag_file_rel_path, bundle_name=self.bundle_name) for logger in base
-        )
-
-    def _create_log_forwarder(
-        self,
-        loggers: tuple[FilteringBoundLogger, ...],
-        name: str,
-        *,
-        data: bytes,
-        log_level: int = logging.INFO,
-    ) -> Callable[[socket], bool]:
-        return super()._create_log_forwarder(
-            loggers,
-            name.replace("task.", "dag_processor.", 1),
-            data=data,
-            log_level=log_level,
-        )
-
-    def _handle_parsing_result(
-        self, msg: DagFileParsingResult, log: FilteringBoundLogger, req_id: int
-    ) -> RequestResult:
-        self.parsing_result = msg
-        return None, {}
-
-    _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
-        **WatchedSubprocess._get_shared_request_handlers(
-            DeleteVariable,
-            GetConnection,
-            GetPrevSuccessfulDagRun,
-            GetPreviousDagRun,
-            GetPreviousTI,
-            GetTICount,
-            GetTaskStates,
-            GetVariable,
-            GetVariableKeys,
-            GetXCom,
-            GetXComCount,
-            GetXComSequenceItem,
-            GetXComSequenceSlice,
-            MaskSecret,
-            PutVariable,
-        ),
-        **dict([register_request_method(DagFileParsingResult, _handle_parsing_result)]),
-    }
-
-    def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
-        log.error("Unhandled request", msg=msg)
-        self.send_msg(
-            None,
-            request_id=req_id,
-            error=ErrorResponse(detail={"status_code": 400, "message": "Unhandled request"}),
-        )
-
-    @property
-    def is_ready(self) -> bool:
-        if self._check_subprocess_exit() is None:
-            # Process still alive, def can't be finished yet
-            return False
-
-        return not self._open_sockets
-
-    def wait(self) -> int:
-        raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
-
-    def close(self):
-        self.cleanup_sockets_after_kill()
-        try:
-            self.logger_filehandle.close()
-        except OSError:
-            self.log.warning(
-                "Failed to close log file handle for %s",
-                self.dag_file_rel_path,
-                exc_info=True,
-            )

@@ -26,7 +26,8 @@ public class ExampleBundleBuilder {
     return new Bundle()
         .register(InterfaceExampleBuilder.build())
         .register(AnnotationExample.class)
-        .register(XComCastingExample.class);
+        .register(XComCastingExample.class)
+        .register(org.apache.airflow.example.nativedag.InterfaceExample.build());
   }
 
   public static void main(String[] args) {

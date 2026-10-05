@@ -34,7 +34,6 @@ from airflow.providers.common.ai.sandbox.base import (
     _new_sandbox_name,
     _validate_positive_finite,
 )
-
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -269,6 +268,8 @@ class IsloSandboxBackend(SandboxBackend):
 
     Islo sets ``PATH`` for every command itself and drops a ``PATH`` given at
     creation, so a spec that names it is refused rather than silently ignored.
+    ``SandboxSpec.owner`` is refused for the same reason: this backend keeps no
+    per-sandbox metadata, so a sandbox created here cannot be attached to later.
 
     :param islo_conn_id: Airflow connection ID for Islo. ``None`` lets the SDK
         resolve credentials from its own environment variables (``ISLO_API_KEY``,
@@ -362,6 +363,16 @@ class IsloSandboxBackend(SandboxBackend):
             )
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:
+        if spec is not None and spec.owner is not None:
+            # An owner exists so that a later task can attach to the sandbox, and the
+            # ownership rules live in per-sandbox metadata this backend keeps none of,
+            # so recording one would promise an attach that cannot be checked.
+            raise SandboxTerminalError(
+                "SandboxSpec names an owner, but this backend keeps no per-sandbox metadata the "
+                "ownership rules could be read back from, so a sandbox created here cannot be attached "
+                "to from another task. Drop owner, or provision the sandbox on a backend that supports "
+                "attaching, such as ModalSandboxBackend."
+            )
         if spec is not None and spec.allow_egress_to:
             raise SandboxTerminalError(
                 "The Islo backend cannot apply a per-domain egress allowlist; it can only turn "

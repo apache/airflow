@@ -19,22 +19,27 @@
 from __future__ import annotations
 
 from airflow.providers.common.ai.sandbox.base import (
+    AttachableSandboxBackend,
     SandboxBackend,
     SandboxError,
     SandboxExecResult,
     SandboxFileTooLargeError,
     SandboxSpec,
     SandboxTerminalError,
+    dag_run_owner,
 )
 
 # The Islo backend imports its SDK lazily, on first use, so the package is
 # importable without the optional ``islo`` extra; a missing SDK surfaces as an
-# actionable error from the backend instead. sbx has no Python dependency.
+# actionable error from the backend instead.
 from airflow.providers.common.ai.sandbox.islo import IsloSandboxBackend
+from airflow.providers.common.ai.sandbox.opensandbox import OpenSandboxBackend
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
+    "AttachableSandboxBackend",
     "IsloSandboxBackend",
+    "OpenSandboxBackend",
     "ModalSandboxBackend",
     "SandboxBackend",
     "SandboxError",
@@ -43,6 +48,7 @@ __all__ = [
     "SandboxSpec",
     "SandboxTerminalError",
     "SbxSandboxBackend",
+    "dag_run_owner",
 ]
 
 

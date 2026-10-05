@@ -103,14 +103,11 @@ class ZipMemberDagDefinition(FileDagDefinition):
 
     @contextlib.contextmanager
     def as_file(self) -> Generator[Path, None, None]:
-        with tempfile.NamedTemporaryFile(suffix=self.suffix, delete=False) as f:
-            f.write(self.read_bytes())
-            temp_path = Path(f.name)
-        try:
+        # Keep the member's file name: importers may derive identity from it, such as a Dag id.
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            temp_path = Path(temp_dir, Path(self.file_path).name)
+            temp_path.write_bytes(self.read_bytes())
             yield temp_path
-        finally:
-            with contextlib.suppress(OSError):
-                temp_path.unlink()
 
     def __repr__(self) -> str:
         return str(self.zip_path.joinpath(self.file_path))
@@ -183,8 +180,7 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
         """
         for archive in find_file_dag_definitions(bundle.path, self.supported_extensions):
             try:
-                with zipfile.ZipFile(archive.path) as z:
-                    member_names = z.namelist()
+                zip_file = zipfile.ZipFile(archive.path)
             except Exception as e:
                 log.warning("Cannot read ZIP archive %s: %s", archive.path, e)
                 yield DagImportError(
@@ -194,20 +190,27 @@ class ZipImporter(AbstractDagImporter[ZipMemberDagDefinition]):
                 )
                 continue
 
-            for member, importer in self._iter_supported_members(archive.path, member_names):
-                try:
-                    if safe_mode and not importer.might_contain_dag(member, safe_mode):
-                        continue
-                except Exception as e:
-                    # One unreadable member must not end discovery for the rest of the archive.
-                    log.warning("Cannot read zip member %s of %s: %s", member.file_path, archive.path, e)
-                    yield DagImportError(
-                        source_reference=member.get_relative_loc(bundle.path),
-                        message=f"Failed to read ZIP member: {e}",
-                        error_type="zip_read_error",
-                    )
-                    continue
-                yield member
+            with zip_file:
+                for member, importer in self._iter_supported_members(archive.path, zip_file.namelist()):
+                    if safe_mode:
+                        try:
+                            # Read through the open archive: reopening it per member re-parses the
+                            # central directory and makes discovery quadratic in the member count.
+                            member._content = zip_file.read(member.file_path)
+                            if not importer.might_contain_dag(member, safe_mode):
+                                continue
+                        except Exception as e:
+                            # One unreadable member must not end discovery for the rest of the archive.
+                            log.warning(
+                                "Cannot read zip member %s of %s: %s", member.file_path, archive.path, e
+                            )
+                            yield DagImportError(
+                                source_reference=member.get_relative_loc(bundle.path),
+                                message=f"Failed to read ZIP member: {e}",
+                                error_type="zip_read_error",
+                            )
+                            continue
+                    yield member
 
     def _iter_supported_members(
         self, zip_path: Path, member_names: list[str]
