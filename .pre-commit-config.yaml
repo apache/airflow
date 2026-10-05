@@ -290,6 +290,8 @@ repos:
         require_serial: true
       - id: check-applies-to-roots-in-sync
         name: Check plugin applies_to destination tables stay in sync
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: "The UI mirrors plugins_manager's destination -> record map; drift silently widens plugin scope"
         entry: ./scripts/ci/prek/check_applies_to_roots_in_sync.py
         language: python
@@ -410,6 +412,8 @@ repos:
           ^scripts/ci/prek/sync_ts_sdk_schemas\.py$
       - id: sync-java-sdk-dag-schema
         name: Sync Java SDK Dag serialization schema with airflow-core
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: "Copy airflow-core's serialization schema when Java SDK's vendored dag-schema.json drifts"
         entry: ./java-sdk/gradlew -p ./java-sdk :sdk:syncDagSchema -PfailOnDagSchemaDrift
         language: system
@@ -427,6 +431,8 @@ repos:
           ^java-sdk/sdk/schema/dag-schema\.json$
       - id: sync-go-sdk-schemas
         name: Sync Go SDK vendored schemas with the distributions that own them
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: "Copy airflow-core's Dag schema and task-sdk's supervisor schema when go-sdk's vendored copies drift"
         entry: ./scripts/ci/prek/sync_go_sdk_schemas.py
         language: python
@@ -446,6 +452,8 @@ repos:
           ^scripts/ci/prek/sync_go_sdk_schemas\.py$
       - id: check-go-sdk-generated-drift
         name: Check Go SDK generated files against the schemas they generate from
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: "Regenerate the Dag specs and the coordinator-protocol models, and fail when a committed file differs"
         entry: ./scripts/ci/prek/check_go_sdk_generated_drift.py
         # golang so prek provisions the toolchain the generators need, the way the
@@ -474,6 +482,8 @@ repos:
       # check when the shared harness or Airflow's serializer changes, which that project cannot see.
       - id: check-ts-sdk-serialization-conformance-shared
         name: Check the TS SDK serializes Dags the way Airflow does, after a shared change
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: "Serialize the shared test Dags with the TS SDK and with Airflow, and compare the two"
         entry: ./ts-sdk/scripts/ci/prek/check_serialization_conformance.py
         language: node
@@ -487,6 +497,8 @@ repos:
           ^scripts/ci/lang_sdk_serialization/.*$
       - id: check-go-sdk-serialization-conformance
         name: Check the Go SDK serializes Dags the way Airflow does
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: "Serialize the shared test Dags with the Go SDK and with Airflow, and compare the two"
         entry: ./scripts/ci/prek/check_go_sdk_serialization_conformance.py
         # golang so prek provisions the toolchain that builds the Go serializer.
@@ -503,6 +515,8 @@ repos:
           ^scripts/ci/prek/check_go_sdk_serialization_conformance\.py$
       - id: check-java-sdk-serialization-conformance
         name: Check the Java SDK serializes Dags the way Airflow does
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: "Serialize the shared test Dags with the Java SDK and with Airflow, and compare the two"
         entry: ./java-sdk/scripts/ci/prek/check_serialization_conformance.py
         language: system
@@ -1127,6 +1141,8 @@ repos:
         files: \.py$
       - id: check-auth-manager-mock-targets
         name: Patch SimpleAuthManager, not BaseAuthManager, for methods it overrides
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: The API test client uses SimpleAuthManager, so patching an overridden BaseAuthManager method has no effect
         entry: ./scripts/ci/prek/check_auth_manager_mock_targets.py
         language: python
@@ -1339,6 +1355,8 @@ repos:
         pass_filenames: true
       - id: check-example-dag-shell-commands
         name: Check example Dags do not build shell commands from runtime values
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_example_dag_shell_commands.py
         language: python
         files: ^.*/example_dags/.*\.py$
@@ -1794,6 +1812,8 @@ repos:
         files: \.py$
       - id: check-xcom-model-columns
         name: Check XComModel columns are read through xcom_entity, not directly in SQLAlchemy queries
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_xcom_model_columns.py
         language: python
         pass_filenames: true
@@ -1959,6 +1979,8 @@ repos:
         require_serial: true
       - id: generate-yaml-importer-schema-snapshot
         name: Regenerate YAML DAG importer schema snapshot
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: uv run -p 3.12 --frozen --no-progress --project task-sdk -s scripts/ci/prek/generate_yaml_importer_schema.py
         language: python
         pass_filenames: false
@@ -1966,6 +1988,8 @@ repos:
         require_serial: true
       - id: check-yaml-importer-schema-versions
         name: Check YAML DAG importer schema changes have corresponding version updates
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_yaml_importer_schema_versions.py
         language: python
         pass_filenames: true
