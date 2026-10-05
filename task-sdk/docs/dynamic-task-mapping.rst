@@ -17,10 +17,10 @@
 
 .. _sdk-dynamic-task-mapping:
 
-Dynamic Task Mapping with Task SDK
-==================================
+Mapped tasks with Task SDK
+==========================
 
-Dynamic Task Mapping allows tasks defined with the Task SDK to generate
+Task mapping, also called dynamic task mapping, allows tasks defined with the Task SDK to generate
 a variable number of task instances at runtime based on upstream data.
 This is enabled via the ``expand()`` method on tasks, providing a way
 to parallelize execution without knowing the number of tasks ahead of time.
@@ -96,4 +96,4 @@ For advanced patterns—such as repeated mapping, cross-product mapping,
 named mappings (via ``map_index_template``), and handling large
 datasets—see the Airflow Core documentation:
 
-`Dynamic Task Mapping in the Airflow Core docs <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/dynamic-task-mapping.html>`_.
+`Mapped tasks in the Airflow Core docs <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/dynamic-task-mapping.html>`_.
