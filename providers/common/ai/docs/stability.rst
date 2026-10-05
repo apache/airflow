@@ -111,7 +111,7 @@ Everything this provider ships that is not in the table above is experimental.
    * - Feature
      - Why it is experimental
    * - :class:`~airflow.providers.common.ai.policies.retry.ClassifierRetryPolicy`
-       (:doc:`classifier_models`)
+       (:doc:`decision_models`)
      - The confidence threshold, the fallback order and the behaviour when the classifier
        is unavailable are still settling.
    * - :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`, and

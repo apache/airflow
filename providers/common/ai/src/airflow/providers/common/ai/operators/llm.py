@@ -158,10 +158,10 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         saying how confident the model has to be for the operator to return its answer by
         itself (``min_confidence``) and what happens otherwise (``on_uncertain``: ``"review"``
         or ``"fail"``). Confidence comes from models that report one per output field, such as
-        a classifier model (TypeSafe's), in ``provider_details``. A structured output is judged
-        by its least confident field among the fields that reported one; a field whose type
-        reports none (a bounded float, where the probability is the answer) is not gated, and
-        the record's ``confidence`` map shows which fields were compared. When no field reports
+        a decision model, in ``provider_details``. A structured output is judged by its least
+        confident field among the fields that reported one; a field whose type reports none (a
+        bounded float, where the probability is the answer) is not gated, and the record's
+        ``confidence`` map shows which fields were compared. When no field reports
         any confidence, as with a text model, the output counts as uncertain, so swapping the
         connection does not silently switch off a control the author set. Independent of
         ``require_approval``, which always asks. ``on_uncertain="review"`` needs Airflow 3.1+,
