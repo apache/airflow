@@ -143,6 +143,134 @@ func TestRegisterRejectsDuplicateDag(t *testing.T) {
 	assert.False(t, second.registered, "a Dag that Register rejects can still take tasks")
 }
 
+func TestRegisterRejectsADagWithTheDagIDOfATaskHandler(t *testing.T) {
+	tests := []struct {
+		name     string
+		register func(b *BundleRef, handler Registerable, dag *DagRef)
+	}{
+		{
+			name: "separate calls",
+			register: func(b *BundleRef, handler Registerable, dag *DagRef) {
+				b.Register(handler)
+				b.Register(dag)
+			},
+		},
+		{
+			name: "one call",
+			register: func(b *BundleRef, handler Registerable, dag *DagRef) {
+				b.Register(handler, dag)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := Bundle()
+			dag := Dag("etl")
+
+			want := `airflow.BundleRef.Register: Dag "etl" already has task handlers from ` +
+				`airflow.TaskHandler, so it cannot also be registered as a Dag from airflow.Dag`
+			assert.PanicsWithValue(t, want, func() {
+				tt.register(b, TaskHandler("etl", "transform", noop), dag)
+			})
+			_, ok := b.taskHandlers.LookupTask("etl", "transform")
+			assert.True(t, ok)
+			assert.NotContains(t, b.dags.dags, "etl")
+			assert.NotPanics(t, func() { dag.Task(extract) },
+				"a Dag that Register rejects can still take tasks")
+		})
+	}
+}
+
+func TestRegisterRejectsATaskHandlerWithTheDagIDOfADag(t *testing.T) {
+	tests := []struct {
+		name     string
+		register func(b *BundleRef, handler Registerable, dag *DagRef)
+	}{
+		{
+			name: "separate calls",
+			register: func(b *BundleRef, handler Registerable, dag *DagRef) {
+				b.Register(dag)
+				b.Register(handler)
+			},
+		},
+		{
+			name: "one call",
+			register: func(b *BundleRef, handler Registerable, dag *DagRef) {
+				b.Register(dag, handler)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := Bundle()
+			dag := Dag("etl")
+
+			want := `airflow.BundleRef.Register: Dag "etl" is already registered as a Dag from ` +
+				`airflow.Dag, so it cannot also have task handlers from airflow.TaskHandler`
+			assert.PanicsWithValue(t, want, func() {
+				tt.register(b, TaskHandler("etl", "transform", noop), dag)
+			})
+			assert.Same(t, dag, b.dags.dags["etl"])
+			assert.NotContains(t, b.taskHandlers.handlers, "etl")
+			assert.Empty(t, b.taskHandlers.ListTaskHandlers())
+		})
+	}
+}
+
+// TestRegisterRejectsACycle covers the check that reads a Dag's edges as a whole. Before and
+// After record an edge without walking the graph, so a cycle between other tasks is Register's to
+// find, and every edge of the call that closed it is recorded until then.
+func TestRegisterRejectsACycle(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	loaded := orderedTask(t, dag, "load")
+	notified := orderedTask(t, dag, "notify")
+	extracted.Before(loaded)
+	loaded.Before(notified, extracted)
+
+	assert.PanicsWithValue(t,
+		`airflow.BundleRef.Register: the task dependencies of Dag "etl" contain a cycle: `+
+			`extract -> load -> extract`,
+		func() { Bundle().Register(dag) },
+	)
+	// The verbs recorded what they were given, and the Dag can still be corrected.
+	assertTasks(t, loaded.downstreams, notified, extracted)
+	assert.False(t, dag.registered)
+}
+
+// TestRegisterRejectsACycleThroughAnInputsEdge pins that the check sees the edges Inputs
+// declared, which is what DagRef.Task recording them is for. It is the case ADR-0008 names:
+// b := dag.Task(B, Inputs(a)) followed by b.Before(a) is a genuine cycle in accepted syntax.
+func TestRegisterRejectsACycleThroughAnInputsEdge(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(readRows)
+	counted := dag.Task(countRows, Inputs(read))
+	notified := orderedTask(t, dag, "notify")
+	counted.Before(notified)
+	counted.Before(read)
+
+	assert.PanicsWithValue(t,
+		`airflow.BundleRef.Register: the task dependencies of Dag "etl" contain a cycle: `+
+			`readRows -> countRows -> readRows`,
+		func() { Bundle().Register(dag) },
+	)
+}
+
+// TestRegisterTakesADagWhoseTasksShareADownstream pins that the walk follows a diamond, where a
+// task is reached twice without any cycle.
+func TestRegisterTakesADagWhoseTasksShareADownstream(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	notified := orderedTask(t, dag, "notify")
+	cleaned := orderedTask(t, dag, "cleanup")
+	done := orderedTask(t, dag, "done")
+	extracted.Before(notified, cleaned).Before(done)
+
+	Bundle().Register(dag)
+
+	assert.True(t, dag.registered)
+}
+
 func TestRegisterRejectsNilDag(t *testing.T) {
 	var dag *DagRef
 	assert.PanicsWithValue(t, "airflow.BundleRef.Register: cannot register a nil *airflow.DagRef",
@@ -202,6 +330,43 @@ func TestRegisterIsSafeForConcurrentUse(t *testing.T) {
 
 	assert.Len(t, b.taskHandlers.ListTaskHandlers(), workers*perWorker)
 	assert.Len(t, b.dags.dags, workers*perWorker)
+}
+
+// For each dag_id, one goroutine registers a task handler and another registers a Dag at the
+// same time, and exactly one of the two calls must succeed. Without BundleRef.mu both can
+// succeed. A run with -race does not report that, because every map access still takes the
+// map's lock.
+func TestRegisterGivesEachDagIDToOneKindUnderConcurrentUse(t *testing.T) {
+	const dagCount = 200
+
+	b := Bundle()
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	register := func(item Registerable) {
+		defer wg.Done()
+		defer func() { recover() }()
+		<-start
+		b.Register(item)
+	}
+	dags := make([]*DagRef, dagCount)
+	for i := range dags {
+		dags[i] = Dag(fmt.Sprintf("dag_%d", i))
+		wg.Add(2)
+		go register(TaskHandler(dags[i].dagID, "transform", noop))
+		go register(dags[i])
+	}
+	close(start)
+	wg.Wait()
+
+	var wrong []string
+	for _, dag := range dags {
+		_, hasHandler := b.taskHandlers.LookupTask(dag.dagID, "transform")
+		if hasHandler == dag.registered {
+			wrong = append(wrong, dag.dagID)
+		}
+	}
+	assert.Empty(t, wrong,
+		"each dag_id must end up with a task handler or a Dag, not both or neither")
 }
 
 func TestRegisterRejectsNilItem(t *testing.T) {

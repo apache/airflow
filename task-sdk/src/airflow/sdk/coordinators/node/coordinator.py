@@ -26,12 +26,7 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import (
-    ARTIFACT_ROOTS_NOT_CONFIGURED,
-    ResolvedBundle,
-    convert_configured_roots,
-    walk_files,
-)
+from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, walk_files
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.coordinators.node._bundle_reader import read_bundle
 
@@ -55,11 +50,11 @@ def _is_bundle(path: pathlib.Path) -> bool:
 @attrs.define
 class _Bundle(ResolvedBundle):
     @classmethod
-    def find(cls, bundles_root: Sequence[pathlib.Path], dag_id: str) -> Self:
+    def find(cls, roots: Sequence[pathlib.Path], dag_id: str) -> Self:
         """Return the first verified configured bundle that declares *dag_id*."""
-        log.debug("Finding TypeScript bundles recursively", roots=bundles_root, dag_id=dag_id)
+        log.debug("Finding TypeScript bundles recursively", roots=roots, dag_id=dag_id)
         rejected: list[tuple[pathlib.Path, str]] = []
-        for candidate in walk_files(bundles_root, match=_is_bundle):
+        for candidate in walk_files(roots, match=_is_bundle):
             try:
                 metadata = read_bundle(candidate)
                 if dag_id not in metadata.dag_ids:
@@ -85,7 +80,7 @@ class _Bundle(ResolvedBundle):
             log.debug("Selected TypeScript bundle", path=candidate, dag_id=dag_id)
             return bundle
 
-        searched = os.pathsep.join(os.fspath(root) for root in bundles_root)
+        searched = os.pathsep.join(os.fspath(root) for root in roots)
         if rejected:
             details = "; ".join(f"{path}: {reason}" for path, reason in rejected)
             raise FileNotFoundError(
@@ -108,29 +103,21 @@ class NodeCoordinator(SubprocessCoordinator):
                 "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
                 "kwargs": {
                     "node_executable": "node",
-                    "bundles_root": ["/opt/airflow/ts-bundles"],
+                    "task_handler_bundle_name": "ts-task-handlers",
                 },
             }
         }
 
     :param node_executable: Path to the ``node`` binary (defaults to
         ``"node"``, which relies on ``$PATH``).
-    :param bundles_root: Directories searched recursively, in order, for the first verified
-        ``*.min.mjs`` bundle declaring the task instance's Dag. See :class:`SubprocessCoordinator`
-        for its interaction with ``dag_bundle_name``.
+    :param task_handler_bundle_name: Name of the Dag bundle searched recursively for the first
+        verified ``*.min.mjs`` bundle declaring the task instance's Dag. It must be registered in
+        ``[dag_processor] dag_bundle_config_list``. If unset, the task's own Dag bundle is used.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
 
     node_executable: str = "node"
-    bundles_root: list[pathlib.Path] = attrs.field(
-        default=ARTIFACT_ROOTS_NOT_CONFIGURED,
-        converter=convert_configured_roots,
-    )
-
-    @property
-    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
-        return "bundles_root", self.bundles_root
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         roots = self._get_scan_roots()

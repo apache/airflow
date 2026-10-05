@@ -20,6 +20,10 @@ import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
+import { RunTypeIcon } from "src/components/RunTypeIcon";
+
+import { formatNumber } from "src/utils";
+
 import type { CalendarCellData, CalendarColorMode } from "./types";
 
 const SQUARE_SIZE = "12px";
@@ -39,7 +43,7 @@ const stateColorMap = {
 };
 
 export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
-  const { t: translate } = useTranslation(["dag", "common"]);
+  const { i18n, t: translate } = useTranslation(["dag", "common"]);
 
   if (!cellData) {
     return undefined;
@@ -57,7 +61,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
   // In failed mode, only show failed runs; in total mode, show all non-zero states
   const states = Object.entries(counts)
     .filter(([key, value]) => {
-      if (key === "total") {
+      if (key === "total" || key === "backfill") {
         return false;
       }
       if (value === 0) {
@@ -93,10 +97,20 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
                 width={SQUARE_SIZE}
               />
               <Text fontSize="xs">
-                {count} {state}
+                {formatNumber(count, i18n.language)} {state}
               </Text>
             </HStack>
           ))}
+          {counts.backfill > 0 && (
+            <HStack data-testid="calendar-tooltip-backfill" gap={3}>
+              <Box fontSize={SQUARE_SIZE} lineHeight={1}>
+                <RunTypeIcon runType="backfill" />
+              </Box>
+              <Text fontSize="xs">
+                {formatNumber(counts.backfill, i18n.language)} {translate("dag:calendar.backfill")}
+              </Text>
+            </HStack>
+          )}
         </VStack>
       ) : null}
       {hasDeadlines ? (

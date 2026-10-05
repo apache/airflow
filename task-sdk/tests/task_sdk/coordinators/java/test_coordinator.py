@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import re
@@ -39,6 +40,7 @@ from airflow.sdk.coordinators.java.coordinator import (
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_3_PLUS:
@@ -222,50 +224,22 @@ class TestWalkJars:
 
 class TestJavaCoordinatorAttributes:
     def test_default_kwargs(self):
-        coordinator = JavaCoordinator(jars_root="/airflow/java-bundles")
+        coordinator = JavaCoordinator()
         assert coordinator.java_executable == "java"
         assert coordinator.jvm_args == []
-        assert coordinator.jars_root == [pathlib.Path("/airflow/java-bundles")]
+        assert coordinator.task_handler_bundle_name is None
+        # main_class stays optional: the entrypoint is auto-detected from the bundle scan.
+        assert coordinator.main_class == ""
 
     def test_custom_kwargs(self):
         coordinator = JavaCoordinator(
             java_executable="/opt/java/bin/java",
             jvm_args=["-Xmx512m", "-Xms256m"],
-            jars_root=["/airflow/java-bundles"],
+            task_handler_bundle_name="java-task-handlers",
         )
         assert coordinator.java_executable == "/opt/java/bin/java"
         assert coordinator.jvm_args == ["-Xmx512m", "-Xms256m"]
-        assert coordinator.jars_root == [pathlib.Path("/airflow/java-bundles")]
-
-    def test_jars_root_optional_defaults_to_empty(self):
-        # main_class stays optional: the entrypoint is auto-detected from the bundle scan.
-        coordinator = JavaCoordinator()
-        assert coordinator.jars_root == []
-        assert coordinator.dag_bundle_name is None
-        assert coordinator.main_class == ""
-
-    @pytest.mark.parametrize(
-        "jars_root",
-        [None, [], "", "  ", [""]],
-        ids=["none", "empty-list", "empty-str", "blank-str", "list-of-empty-str"],
-    )
-    def test_explicit_empty_jars_root_raises(self, jars_root):
-        with pytest.raises(ValueError, match="and each path must be non-empty"):
-            JavaCoordinator(jars_root=jars_root)
-
-    def test_explicit_root_does_not_require_main_class(self, tmp_path):
-        coordinator = JavaCoordinator(jars_root=tmp_path)
-        assert coordinator.main_class == ""
-
-    def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
-        with pytest.raises(ValueError, match="at most one of 'jars_root' or 'dag_bundle_name'"):
-            JavaCoordinator(jars_root="/airflow/java-bundles", dag_bundle_name="artifacts")
-
-    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
-    def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
-        mock_manager.is_bundle_configured.return_value = False
-        with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
-            JavaCoordinator(dag_bundle_name="ghost")
+        assert coordinator.task_handler_bundle_name == "java-task-handlers"
 
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
         _make_jar(tmp_path / "app.jar", main_class="com.example.TaskRunner", schema_version="2026-06-16")
@@ -278,9 +252,21 @@ class TestJavaCoordinatorAttributes:
 
 
 @pytest.fixture
-def jars_root(tmp_path):
+def jars_dir(tmp_path):
     _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.TaskRunner", schema_version="2026-06-16")
     return tmp_path
+
+
+@pytest.fixture
+def java_task_handlers(jars_dir):
+    """Register *jars_dir* as the ``java-task-handlers`` Dag bundle and return that name."""
+    bundle = {
+        "name": "java-task-handlers",
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {"path": str(jars_dir)},
+    }
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps([bundle])}):
+        yield bundle["name"]
 
 
 @pytest.fixture
@@ -293,7 +279,7 @@ def mock_client(make_ti_context):
 class TestJavaCoordinatorExecuteTask:
     def _captured_popen_cmd(
         self,
-        jars_root: pathlib.Path,
+        bundle_name: str,
         mock_client,
         *,
         java_executable: str = "java",
@@ -304,7 +290,7 @@ class TestJavaCoordinatorExecuteTask:
         coordinator = JavaCoordinator(
             java_executable=java_executable,
             jvm_args=jvm_args or [],
-            jars_root=jars_root,
+            task_handler_bundle_name=bundle_name,
         )
 
         mock_proc = MagicMock(spec=subprocess.Popen)
@@ -345,56 +331,58 @@ class TestJavaCoordinatorExecuteTask:
         assert popen_calls, "subprocess.Popen was not called"
         return popen_calls[0]
 
-    def test_java_executable_is_first_arg(self, jars_root, mock_client):
+    def test_java_executable_is_first_arg(self, java_task_handlers, mock_client):
         cmd = self._captured_popen_cmd(
-            jars_root, mock_client, java_executable="/usr/lib/jvm/java-17/bin/java"
+            java_task_handlers, mock_client, java_executable="/usr/lib/jvm/java-17/bin/java"
         )
         assert cmd[0] == "/usr/lib/jvm/java-17/bin/java"
 
-    def test_classpath_flag_and_value_present(self, jars_root, mock_client):
-        cmd = self._captured_popen_cmd(jars_root, mock_client)
+    def test_classpath_flag_and_value_present(self, jars_dir, java_task_handlers, mock_client):
+        cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
         assert "-classpath" in cmd
         cp_idx = cmd.index("-classpath")
         classpath = cmd[cp_idx + 1]
-        assert jars_root.joinpath("app.jar").as_posix() in classpath
+        assert jars_dir.joinpath("app.jar").as_posix() in classpath
 
-    def test_main_class_present(self, jars_root, mock_client):
-        cmd = self._captured_popen_cmd(jars_root, mock_client)
+    def test_main_class_present(self, java_task_handlers, mock_client):
+        cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
         assert "com.example.TaskRunner" in cmd
 
-    def test_comm_and_logs_args_present(self, jars_root, mock_client):
-        cmd = self._captured_popen_cmd(jars_root, mock_client)
+    def test_comm_and_logs_args_present(self, java_task_handlers, mock_client):
+        cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
         comm_args = [a for a in cmd if a.startswith("--comm=")]
         logs_args = [a for a in cmd if a.startswith("--logs=")]
         assert len(comm_args) == 1
         assert len(logs_args) == 1
 
-    def test_comm_and_logs_contain_port(self, jars_root, mock_client):
-        cmd = self._captured_popen_cmd(jars_root, mock_client)
+    def test_comm_and_logs_contain_port(self, java_task_handlers, mock_client):
+        cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
         comm_arg = next(a for a in cmd if a.startswith("--comm="))
         logs_arg = next(a for a in cmd if a.startswith("--logs="))
         # format is host:port
         assert ":" in comm_arg.split("=", 1)[1]
         assert ":" in logs_arg.split("=", 1)[1]
 
-    def test_jvm_args_inserted_before_main_class(self, jars_root, mock_client):
-        cmd = self._captured_popen_cmd(jars_root, mock_client, jvm_args=["-Xmx512m", "-Dsome.prop=value"])
+    def test_jvm_args_inserted_before_main_class(self, java_task_handlers, mock_client):
+        cmd = self._captured_popen_cmd(
+            java_task_handlers, mock_client, jvm_args=["-Xmx512m", "-Dsome.prop=value"]
+        )
         main_idx = cmd.index("com.example.TaskRunner")
         for jvm_arg in ["-Xmx512m", "-Dsome.prop=value"]:
             assert jvm_arg in cmd
             assert cmd.index(jvm_arg) < main_idx
 
-    def test_comm_and_logs_after_main_class(self, jars_root, mock_client):
-        cmd = self._captured_popen_cmd(jars_root, mock_client)
+    def test_comm_and_logs_after_main_class(self, java_task_handlers, mock_client):
+        cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
         main_idx = cmd.index("com.example.TaskRunner")
         comm_idx = next(i for i, a in enumerate(cmd) if a.startswith("--comm="))
         logs_idx = next(i for i, a in enumerate(cmd) if a.startswith("--logs="))
         assert comm_idx > main_idx
         assert logs_idx > main_idx
 
-    def test_returns_execution_result(self, jars_root, mock_client):
+    def test_returns_execution_result(self, java_task_handlers, mock_client):
         ti = _make_ti()
-        coordinator = JavaCoordinator(jars_root=jars_root)
+        coordinator = JavaCoordinator(task_handler_bundle_name=java_task_handlers)
 
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.pid = 99999

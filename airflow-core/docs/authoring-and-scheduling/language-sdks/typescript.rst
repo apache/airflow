@@ -48,9 +48,9 @@ The SDK is the ``apache-airflow-ts-sdk`` package (ESM-only). It is currently in 
 Prerequisites
 -------------
 
-* Node.js 22 or later must be available on the Airflow worker nodes.
+* Node.js 22 or later must be available on the Airflow worker nodes and the Dag processor.
 * The packed bundle (a single ``bundle.min.mjs`` file, see :ref:`typescript-sdk/build`) must be accessible
-  from the worker, under a directory the coordinator scans.
+  from the worker and the Dag processor, in the Dag bundle the coordinator scans.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 * In the TypeScript project, install the ``apache-airflow-ts-sdk`` npm package to author task handlers:
@@ -209,34 +209,48 @@ check.
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Register the coordinator and route the queue to it under ``[sdk]`` in ``airflow.cfg`` (or the equivalent
-``AIRFLOW__SDK__*`` environment variables):
+Register a Dag bundle for the packed bundles, register the coordinator, and route the queue to it in
+``airflow.cfg`` (or the equivalent ``AIRFLOW__*`` environment variables):
 
 .. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+        {
+          "name": "ts-task-handlers",
+          "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+          "kwargs": {"path": "/opt/airflow/ts-bundles"}
+        }
+      ]
 
     [sdk]
     coordinators = {
       "ts": {
         "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
-        "kwargs": {"bundles_root": ["/opt/airflow/ts-bundles"]}
+        "kwargs": {"task_handler_bundle_name": "ts-task-handlers"}
       }
     }
     queue_to_coordinator = {"typescript": "ts"}
 
-``bundles_root`` is one or more directories the coordinator scans for bundles; ``queue_to_coordinator``
-routes stub tasks with ``queue="typescript"`` to this coordinator. See
-:ref:`typescript-sdk/coordinator-config` for the full list of accepted ``kwargs``.
+``task_handler_bundle_name`` names the Dag bundle the coordinator scans for packed bundles;
+``queue_to_coordinator`` routes stub tasks with ``queue="typescript"`` to this coordinator. See
+:ref:`typescript-sdk/coordinator-config` for the full list of accepted ``kwargs`` and how the bundle is
+located.
 
 There is no separate Node.js worker to run: the Airflow worker launches the bundle with ``node`` once per
 task instance.
 
 .. note::
 
-  The coordinator runs inside the Airflow worker, so the ``[sdk]`` config (and the packed ``*.min.mjs``
-  bundles in ``bundles_root``) only need to be present wherever tasks actually execute. With
-  ``CeleryExecutor``, setting them on the Celery workers is sufficient. With ``LocalExecutor``, tasks run
-  inside the scheduler process, so they must be present where the scheduler can read them. The API server
-  and Dag processor do not need them.
+  The ``[sdk]`` config, the packed ``*.min.mjs`` bundles and Node.js must be present wherever tasks execute
+  and on the Dag processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with
+  ``LocalExecutor``, they run inside the scheduler process. The Dag processor checks the stub tasks of each
+  Python Dag against the task handlers the packed bundles register, so it runs them too. The API server
+  does not need any of it. Register the Dag bundle in ``[dag_processor] dag_bundle_config_list`` on every
+  component, like your other Dag bundles: the worker and the Dag processor resolve
+  ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read it is rejected if the
+  name is missing there.
 
 .. _typescript-sdk/native-dag:
 
@@ -335,6 +349,29 @@ an id of either.
 Pass ``{ prefixGroupId: false }`` to keep the ids declared in a group as written, as ``prefix_group_id=False``
 does in Python; they then have to be unique across the Dag. A group id is made of letters, digits, dashes and
 underscores, and is at most 200 characters.
+
+Serialization
+~~~~~~~~~~~~~
+
+A native Dag serializes into the same Dag JSON a Python Dag produces, so the scheduler reads it
+without knowing which language declared it.
+
+``schedule`` accepts what maps to a stock timetable: unset, ``@once``, ``@continuous``, or a cron
+expression. A cron preset such as ``@daily`` is recorded as the expression it stands for. Anything
+else names a Python object a TypeScript bundle cannot point at, and is rejected.
+
+Every task of a native Dag runs on the Node coordinator, so it needs the queue the deployment routes
+there. Set it once on the Dag and each task inherits it:
+
+.. code-block:: typescript
+
+    const dag = new Dag("ts_etl", { schedule: "@daily", queue: "typescript" });
+
+    // ...and one task that needs its own.
+    dag.task("heavy", heavyHandler, { queue: "typescript_large" })();
+
+``queue`` on a task wins over the Dag's. See :ref:`typescript-sdk/coordinator-config` for the
+``queue_to_coordinator`` entry that sends that queue to the coordinator.
 
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
@@ -476,7 +513,7 @@ that only supply utilities or types are not embedded.
     npx airflow-ts-pack src/main.ts --outdir dist
 
 Use ``--outdir <dir>`` to choose the output directory (default ``dist``), ``--outfile <path>`` to name the
-artifact exactly, which helps when one ``bundles_root`` holds several bundles, and ``--source <name>`` to set
+artifact exactly, which helps when one Dag bundle holds several bundles, and ``--source <name>`` to set
 the source name displayed in the Airflow UI (default: the entry file's basename). ``--outdir`` and
 ``--outfile`` are mutually exclusive, and an ``--outfile`` name must end in ``.min.mjs`` so the coordinator
 can find it.
@@ -484,12 +521,11 @@ can find it.
 Deploying
 ~~~~~~~~~
 
-Copy or mount the bundle into a directory listed in the coordinator's ``bundles_root``.
-:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches the configured directories in order,
-recursively, and launches the first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task
-instance's Dag. The artifact's name does not matter beyond that suffix, so one root can hold several bundles
-and a Dag is routed to whichever declares it. If multiple bundles declare the same Dag, the first configured
-root wins, and within a root the first in sorted path order.
+Copy or mount the bundle into the Dag bundle named by the coordinator's ``task_handler_bundle_name``.
+:class:`~airflow.sdk.coordinators.node.NodeCoordinator` searches that Dag bundle recursively and launches the
+first integrity-verified ``*.min.mjs`` bundle whose metadata declares the task instance's Dag. The artifact's
+name does not matter beyond that suffix, so one Dag bundle can hold several bundles and a Dag is routed to
+whichever declares it. If multiple bundles declare the same Dag, the first in sorted path order wins.
 
 .. _typescript-sdk/coordinator-config:
 
@@ -506,16 +542,13 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - Parameter
      - Default
      - Description
-   * - ``bundles_root``
-     - *(optional)*
-     - One or more directories searched recursively, in order, for an integrity-verified ``*.min.mjs``
-       bundle that declares the requested Dag. Accepts a string, a path, or a list of strings/paths. When
-       omitted, the bundle is located through a Dag bundle instead (see the note below). Explicitly setting
-       this option to ``null`` or an empty list is invalid.
-   * - ``dag_bundle_name``
-     - *(auto: task's own bundle)*
-     - Name of a configured Dag bundle to load the ``*.min.mjs`` bundle from. Mutually exclusive with
-       ``bundles_root``.
+   * - ``task_handler_bundle_name``
+     - *(task's own Dag bundle)*
+     - Name of the Dag bundle searched recursively for an integrity-verified ``*.min.mjs`` bundle that
+       declares the requested Dag. It is used only by mixed-language Dags, to locate the task handlers for
+       the ``@task.stub`` tasks of a Python Dag; Dags defined natively in a language SDK do not use it. It
+       must be registered in ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]``
+       configuration is loaded, so a typo fails there rather than on the first task.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.
@@ -526,15 +559,14 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
 .. note::
 
-  **Locating the bundle.** ``bundles_root`` and ``dag_bundle_name`` are mutually exclusive, and both
-  are optional:
+  **Locating the bundle.** The packed bundles for the ``@task.stub`` tasks of a Python Dag are read from a
+  Dag bundle, so they are delivered, refreshed and versioned by the same machinery as your Dags.
 
-  * Set ``bundles_root`` to scan explicit filesystem directories you manage yourself.
-  * Set ``dag_bundle_name`` to load the bundle from a configured Dag bundle, so it is delivered
-    and versioned through the same bundle machinery as your Dags. The task uses the version that
-    bundle is on when it starts, pinned for the whole task.
-  * Leave both unset (the default) to load the bundle from the **task's own** Dag bundle, pinned to the
-    version the run was created with.
+  * The expected layout is a separate Dag bundle for the packed bundles, named by
+    ``task_handler_bundle_name``, rather than the Dag bundle that holds your ``.py`` files. The task uses
+    the version that Dag bundle is on when it starts, pinned for the whole task.
+  * If ``task_handler_bundle_name`` is unset, the bundle is read from the **task's own** Dag bundle, pinned
+    to the version the run was created with.
 
 Limitations
 -----------

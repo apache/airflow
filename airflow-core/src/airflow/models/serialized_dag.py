@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
     from sqlalchemy.sql.elements import ColumnElement
 
+    from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
@@ -612,6 +613,7 @@ class SerializedDagModel(Base):
         version_data: dict | None = None,
         min_update_interval: int | None = None,
         *,
+        dag_source_code: DagSourceCode | None = None,
         session: Session = NEW_SESSION,
         _prefetched: DagWriteMetadata | None = None,
     ) -> bool:
@@ -626,6 +628,7 @@ class SerializedDagModel(Base):
         :param bundle_version: bundle version of the DAG
         :param version_data: optional structured data associated with this version
         :param min_update_interval: minimal interval in seconds to update serialized DAG
+        :param dag_source_code: Source code read by the Dag importer; read from ``fileloc`` when not given
         :param session: ORM Session
         :param _prefetched: Pre-fetched metadata to skip per-DAG queries; used by bulk callers
 
@@ -713,7 +716,12 @@ class SerializedDagModel(Base):
                 dag_version.bundle_version = bundle_version
                 dag_version.version_data = version_data
                 session.merge(dag_version)
-                DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+                DagCode.update_source_code(
+                    dag_id=dag.dag_id,
+                    fileloc=dag.fileloc,
+                    dag_source_code=dag_source_code,
+                    session=session,
+                )
             if name_updated or bundle_metadata_changed:
                 # A write occurred — a deadline alert name update and/or a bundle
                 # metadata refresh — so report True so callers know the DB changed.
@@ -774,7 +782,12 @@ class SerializedDagModel(Base):
             dag_version.version_data = version_data
             session.merge(dag_version)
             # Update the latest DagCode
-            DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            DagCode.update_source_code(
+                dag_id=dag.dag_id,
+                fileloc=dag.fileloc,
+                dag_source_code=dag_source_code,
+                session=session,
+            )
             stats.incr(
                 "dag.serialization.version_updated",
                 tags={"dag_id": dag.dag_id, "bundle_name": bundle_name},
@@ -802,7 +815,7 @@ class SerializedDagModel(Base):
 
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
-        DagCode.write_code(dagv, dag.fileloc, session=session)
+        DagCode.write_code(dagv, dag.fileloc, dag_source_code=dag_source_code, session=session)
         stats.incr(
             "dag.serialization.version_created",
             tags={"dag_id": dag.dag_id, "bundle_name": bundle_name},

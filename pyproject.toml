@@ -226,7 +226,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-docker>=3.14.1"
 ]
 "duckdb" = [
-    "apache-airflow-providers-duckdb>=0.1.0"
+    "apache-airflow-providers-duckdb>=0.2.0"
 ]
 "edge3" = [
     "apache-airflow-providers-edge3>=1.0.0"
@@ -468,7 +468,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-dingding>=3.7.0",
     "apache-airflow-providers-discord>=3.9.0",
     "apache-airflow-providers-docker>=3.14.1",
-    "apache-airflow-providers-duckdb>=0.1.0",
+    "apache-airflow-providers-duckdb>=0.2.0",
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
@@ -1674,7 +1674,6 @@ airbyte-api = "1.x breaks provider tests (#69081)"
 mysql-connector-python = "Releases without wheels for >=3.12 (#60889, #66026)"
 anthropic = "Provider SDK migration is version-sensitive (#72072, #72094)"
 azure-ai-projects = "2.5+ needs openai>=3, broke main (#73621, #73627)"
-azure-datalake-store = "1.x removed lib.auth used by AzureDataLakeHook (#73795)"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py

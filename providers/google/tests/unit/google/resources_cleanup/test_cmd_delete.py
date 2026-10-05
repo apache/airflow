@@ -176,6 +176,7 @@ def test_get_delete_handlers_registers_implemented_handlers():
     for asset_type in [
         "compute",
         "dataflow",
+        "datafusion",
         "dataproc_metastore",
         "gke",
         "kafka",

@@ -821,6 +821,16 @@ class TestGitHook:
         assert hook.github_installation_id == "67890"
         assert hook.private_key is None
 
+    @pytest.mark.parametrize(
+        ("conn_id", "expected"),
+        [
+            pytest.param(CONN_APP_NO_KEY, True, id="github-app"),
+            pytest.param(CONN_HTTPS, False, id="token"),
+        ],
+    )
+    def test_uses_github_app_auth(self, conn_id, expected):
+        assert GitHook(git_conn_id=conn_id).uses_github_app_auth is expected
+
     def test_app_auth_with_key_file_reads_file(self, create_connection_without_db, tmp_path, monkeypatch):
         key_file = tmp_path / "app_key.pem"
         key_file.write_text("file_pem_key_content")

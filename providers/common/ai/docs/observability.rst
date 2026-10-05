@@ -81,6 +81,9 @@ How it works
   tool approval (see :doc:`tool_approval`) continues as
   ``<task-instance id>-resumed``, which is the ``run_id`` the operator pushes;
   ``usage`` covers both parts.
+  Airflow 2 has no task-instance id, so there the key is
+  ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
+  identity keys without ``airflow.task_instance.id``.
 * **Scope.** The ``run_id`` / ``usage`` XComs come only from ``AgentOperator`` and
   ``@task.agent``, and so do the ``airflow.*`` identity attributes, apart from a Strands or
   ADK agent run inside ``agent_framework_tracing`` (see below). The other LLM

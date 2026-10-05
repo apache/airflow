@@ -48,6 +48,13 @@ def _version_str(version_result):
 
 
 @pytest.fixture(autouse=True)
+def no_retry_wait():
+    """The bare clone backs off between retries; do not spend that wall-clock time in tests."""
+    with mock.patch.object(GitDagBundle._clone_bare_repo_if_required.retry, "sleep"):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def bundle_temp_dir(tmp_path):
     with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
         yield tmp_path
@@ -1693,6 +1700,7 @@ class TestGitDagBundle:
         """Test that InvalidGitRepositoryError after retry is re-raised (wrapped in AirflowException by caller)."""
         mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
         mock_githook.return_value.env = {}
+        mock_githook.return_value.uses_github_app_auth = False
 
         # Set up exists to return True for the bare repo path
         mock_exists.return_value = True
@@ -1713,6 +1721,42 @@ class TestGitDagBundle:
 
             # Verify Repo was called twice (failed attempt + failed retry)
             assert mock_repo_class.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("github_app_auth", "expected_attempts"),
+        [
+            pytest.param(True, 5, id="github-app-token-backs-off"),
+            pytest.param(False, 2, id="other-auth-fails-fast"),
+        ],
+    )
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_clone_bare_repo_retry_policy_depends_on_auth(
+        self, mock_githook, github_app_auth, expected_attempts
+    ):
+        """GitHub rejects a just-issued App installation token with "Repository not found" for a few
+        seconds, so only a GitHub App connection gets extra attempts with a wait in between. Every other
+        connection keeps failing fast: a repository it cannot clone now will not appear a few seconds later."""
+        mock_githook.return_value.repo_url = AIRFLOW_HTTPS_URL
+        mock_githook.return_value.env = {}
+        mock_githook.return_value.uses_github_app_auth = github_app_auth
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+
+        sleeps = []
+        with (
+            mock.patch(
+                "airflow.providers.git.bundles.git.Repo.clone_from",
+                side_effect=GitCommandError(["git", "clone"], 128, stderr="remote: Repository not found."),
+            ) as mock_clone,
+            mock.patch.object(GitDagBundle._clone_bare_repo_if_required.retry, "sleep", sleeps.append),
+            pytest.raises(GitCommandError),
+        ):
+            bundle._clone_bare_repo_if_required()
+
+        assert mock_clone.call_count == expected_attempts
+        if github_app_auth:
+            assert all(s > 0 for s in sleeps), "each retry must wait for the token to become usable"
+        else:
+            assert not any(sleeps), "no wait for connections the token window cannot affect"
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh_survives_upstream_tag_deletion(self, mock_githook, git_repo):

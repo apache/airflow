@@ -53,10 +53,11 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=3.0.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``apache-airflow-providers-standard``       ``>=1.20.0``
 ``pydantic-ai-slim``                        ``>=2.33.0``
+``structlog``                               ``>=24.2.0``
 ==========================================  ==================
 
 Optional cross provider package dependencies

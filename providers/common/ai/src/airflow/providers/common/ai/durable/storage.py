@@ -24,22 +24,21 @@ import json
 from functools import lru_cache
 from typing import Any
 
-import structlog
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse
 
 # Sentinel to distinguish "cached None" from "no cache entry" for tool results.
 # Shared with the task state store backend so the envelope shape cannot drift.
 from airflow.providers.common.ai.durable.base import TOOL_RESULT_SENTINEL as _SENTINEL
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 SECTION = "common.ai"
 
 
 @lru_cache(maxsize=1)
 def _get_base_path():
-    from airflow.providers.common.compat.sdk import conf
-    from airflow.sdk import ObjectStoragePath
+    from airflow.providers.common.compat.sdk import ObjectStoragePath, conf
 
     path = conf.get(SECTION, "durable_cache_path", fallback="")
     if not path:

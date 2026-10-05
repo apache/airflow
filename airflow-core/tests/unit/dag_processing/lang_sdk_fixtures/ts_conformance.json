@@ -1,0 +1,661 @@
+{
+  "conformance_minimal": {
+    "__version": 3,
+    "dag": {
+      "dag_id": "conformance_minimal",
+      "fileloc": "/bundles/app/bundle.mjs",
+      "relative_fileloc": "bundle.mjs",
+      "timezone": "UTC",
+      "timetable": {
+        "__type": "airflow.timetables.simple.NullTimetable",
+        "__var": {}
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "solo",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true
+          }
+        }
+      ],
+      "dag_dependencies": [],
+      "task_group": {
+        "_group_id": null,
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "children": {
+          "solo": [
+            "operator",
+            "solo"
+          ]
+        },
+        "upstream_group_ids": [],
+        "downstream_group_ids": [],
+        "upstream_task_ids": [],
+        "downstream_task_ids": []
+      },
+      "edge_info": {},
+      "params": [],
+      "deadline": null,
+      "allowed_run_types": null
+    }
+  },
+  "conformance_cron": {
+    "__version": 3,
+    "dag": {
+      "dag_id": "conformance_cron",
+      "fileloc": "/bundles/app/bundle.mjs",
+      "relative_fileloc": "bundle.mjs",
+      "timezone": "UTC",
+      "timetable": {
+        "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+        "__var": {
+          "expression": "0 3 * * *",
+          "timezone": "UTC",
+          "interval": 0,
+          "run_immediately": false
+        }
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "extract",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "owner": "data-team",
+            "start_date": 1769904000,
+            "end_date": 1795996800,
+            "trigger_rule": "all_done",
+            "depends_on_past": true,
+            "ignore_first_depends_on_past": true,
+            "wait_for_past_depends_before_skipping": true,
+            "wait_for_downstream": true,
+            "retries": 2,
+            "queue": "typescript",
+            "pool": "tiny",
+            "pool_slots": 2,
+            "execution_timeout": 120,
+            "retry_delay": 600,
+            "retry_exponential_backoff": 2,
+            "max_retry_delay": 900,
+            "priority_weight": 5,
+            "weight_rule": "upstream",
+            "executor": "LocalExecutor",
+            "do_xcom_push": false,
+            "doc_md": "extracts things",
+            "map_index_template": "{{ task.task_id }}",
+            "max_active_tis_per_dag": 3,
+            "max_active_tis_per_dagrun": 4,
+            "downstream_task_ids": [
+              "transform"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "transform",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "_arg_bindings": [
+              {
+                "name": "from_extract",
+                "kind": "xcom",
+                "task_id": "extract"
+              }
+            ]
+          }
+        }
+      ],
+      "dag_dependencies": [],
+      "task_group": {
+        "_group_id": null,
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "children": {
+          "extract": [
+            "operator",
+            "extract"
+          ],
+          "transform": [
+            "operator",
+            "transform"
+          ]
+        },
+        "upstream_group_ids": [],
+        "downstream_group_ids": [],
+        "upstream_task_ids": [],
+        "downstream_task_ids": []
+      },
+      "edge_info": {},
+      "params": [],
+      "deadline": null,
+      "allowed_run_types": null,
+      "description": "a Dag that sets everything",
+      "start_date": 1767225600,
+      "end_date": 1798759815,
+      "tags": [
+        "alpha",
+        "gamma"
+      ],
+      "dag_display_name": "Conformance Cron",
+      "doc_md": "# notes",
+      "max_active_tasks": 8,
+      "max_active_runs": 3,
+      "max_consecutive_failed_dag_runs": 2,
+      "dagrun_timeout": 300,
+      "catchup": true,
+      "render_template_as_native_obj": true,
+      "disable_bundle_versioning": true,
+      "is_paused_upon_creation": true
+    }
+  },
+  "conformance_once": {
+    "__version": 3,
+    "dag": {
+      "dag_id": "conformance_once",
+      "fileloc": "/bundles/app/bundle.mjs",
+      "relative_fileloc": "bundle.mjs",
+      "timezone": "UTC",
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "seed",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "downstream_task_ids": [
+              "alpha",
+              "beta"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "beta",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "_arg_bindings": [
+              {
+                "name": "from_seed",
+                "kind": "xcom",
+                "task_id": "seed"
+              }
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "alpha",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "_arg_bindings": [
+              {
+                "name": "from_seed",
+                "kind": "xcom",
+                "task_id": "seed"
+              }
+            ]
+          }
+        }
+      ],
+      "dag_dependencies": [],
+      "task_group": {
+        "_group_id": null,
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "children": {
+          "seed": [
+            "operator",
+            "seed"
+          ],
+          "beta": [
+            "operator",
+            "beta"
+          ],
+          "alpha": [
+            "operator",
+            "alpha"
+          ]
+        },
+        "upstream_group_ids": [],
+        "downstream_group_ids": [],
+        "upstream_task_ids": [],
+        "downstream_task_ids": []
+      },
+      "edge_info": {},
+      "params": [],
+      "deadline": null,
+      "allowed_run_types": null,
+      "fail_fast": true
+    }
+  },
+  "conformance_continuous": {
+    "__version": 3,
+    "dag": {
+      "dag_id": "conformance_continuous",
+      "fileloc": "/bundles/app/bundle.mjs",
+      "relative_fileloc": "bundle.mjs",
+      "timezone": "UTC",
+      "timetable": {
+        "__type": "airflow.timetables.simple.ContinuousTimetable",
+        "__var": {}
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "watch",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true
+          }
+        }
+      ],
+      "dag_dependencies": [],
+      "task_group": {
+        "_group_id": null,
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "children": {
+          "watch": [
+            "operator",
+            "watch"
+          ]
+        },
+        "upstream_group_ids": [],
+        "downstream_group_ids": [],
+        "upstream_task_ids": [],
+        "downstream_task_ids": []
+      },
+      "edge_info": {},
+      "params": [],
+      "deadline": null,
+      "allowed_run_types": null,
+      "max_active_runs": 1
+    }
+  },
+  "conformance_diamond": {
+    "__version": 3,
+    "dag": {
+      "dag_id": "conformance_diamond",
+      "fileloc": "/bundles/app/bundle.mjs",
+      "relative_fileloc": "bundle.mjs",
+      "timezone": "UTC",
+      "timetable": {
+        "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+        "__var": {
+          "expression": "0 0 * * *",
+          "timezone": "UTC",
+          "interval": 0,
+          "run_immediately": false
+        }
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "root",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "downstream_task_ids": [
+              "left",
+              "right"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "right",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "_arg_bindings": [
+              {
+                "name": "from_root",
+                "kind": "xcom",
+                "task_id": "root"
+              }
+            ],
+            "downstream_task_ids": [
+              "join"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "left",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "_arg_bindings": [
+              {
+                "name": "from_root",
+                "kind": "xcom",
+                "task_id": "root"
+              }
+            ],
+            "downstream_task_ids": [
+              "join"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "join",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "_arg_bindings": [
+              {
+                "name": "from_right",
+                "kind": "xcom",
+                "task_id": "right"
+              },
+              {
+                "name": "from_left",
+                "kind": "xcom",
+                "task_id": "left"
+              }
+            ]
+          }
+        }
+      ],
+      "dag_dependencies": [],
+      "task_group": {
+        "_group_id": null,
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "children": {
+          "root": [
+            "operator",
+            "root"
+          ],
+          "right": [
+            "operator",
+            "right"
+          ],
+          "left": [
+            "operator",
+            "left"
+          ],
+          "join": [
+            "operator",
+            "join"
+          ]
+        },
+        "upstream_group_ids": [],
+        "downstream_group_ids": [],
+        "upstream_task_ids": [],
+        "downstream_task_ids": []
+      },
+      "edge_info": {},
+      "params": [],
+      "deadline": null,
+      "allowed_run_types": null
+    }
+  },
+  "conformance_groups": {
+    "__version": 3,
+    "dag": {
+      "dag_id": "conformance_groups",
+      "fileloc": "/bundles/app/bundle.mjs",
+      "relative_fileloc": "bundle.mjs",
+      "timezone": "UTC",
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "extract",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "downstream_task_ids": [
+              "staging.stage"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "staging.stage",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "downstream_task_ids": [
+              "staging.checks.nulls"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "staging.checks.nulls",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "_arg_bindings": [
+              {
+                "name": "from_staging.stage",
+                "kind": "xcom",
+                "task_id": "staging.stage"
+              }
+            ],
+            "downstream_task_ids": [
+              "publish.push"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "publish.push",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "downstream_task_ids": [
+              "load"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "load",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true,
+            "downstream_task_ids": [
+              "notify"
+            ]
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "task_id": "notify",
+            "task_type": "TypeScriptOperator",
+            "_task_module": "airflow.sdk.coordinators.node",
+            "language": "typescript",
+            "template_fields": [],
+            "is_stub": true
+          }
+        }
+      ],
+      "dag_dependencies": [],
+      "task_group": {
+        "_group_id": null,
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "children": {
+          "extract": [
+            "operator",
+            "extract"
+          ],
+          "load": [
+            "operator",
+            "load"
+          ],
+          "notify": [
+            "operator",
+            "notify"
+          ],
+          "staging": [
+            "taskgroup",
+            {
+              "_group_id": "staging",
+              "group_display_name": "",
+              "prefix_group_id": true,
+              "tooltip": "",
+              "ui_color": "CornflowerBlue",
+              "ui_fgcolor": "#000",
+              "children": {
+                "staging.stage": [
+                  "operator",
+                  "staging.stage"
+                ],
+                "staging.checks": [
+                  "taskgroup",
+                  {
+                    "_group_id": "checks",
+                    "group_display_name": "",
+                    "prefix_group_id": true,
+                    "tooltip": "",
+                    "ui_color": "CornflowerBlue",
+                    "ui_fgcolor": "#000",
+                    "children": {
+                      "staging.checks.nulls": [
+                        "operator",
+                        "staging.checks.nulls"
+                      ]
+                    },
+                    "upstream_group_ids": [],
+                    "downstream_group_ids": [],
+                    "upstream_task_ids": [],
+                    "downstream_task_ids": []
+                  }
+                ]
+              },
+              "upstream_group_ids": [],
+              "downstream_group_ids": [
+                "publish"
+              ],
+              "upstream_task_ids": [
+                "extract"
+              ],
+              "downstream_task_ids": []
+            }
+          ],
+          "publish": [
+            "taskgroup",
+            {
+              "_group_id": "publish",
+              "group_display_name": "",
+              "prefix_group_id": true,
+              "tooltip": "",
+              "ui_color": "CornflowerBlue",
+              "ui_fgcolor": "#000",
+              "children": {
+                "publish.push": [
+                  "operator",
+                  "publish.push"
+                ]
+              },
+              "upstream_group_ids": [
+                "staging"
+              ],
+              "downstream_group_ids": [],
+              "upstream_task_ids": [
+                "staging.checks.nulls"
+              ],
+              "downstream_task_ids": [
+                "load"
+              ]
+            }
+          ]
+        },
+        "upstream_group_ids": [],
+        "downstream_group_ids": [],
+        "upstream_task_ids": [],
+        "downstream_task_ids": []
+      },
+      "edge_info": {},
+      "params": [],
+      "deadline": null,
+      "allowed_run_types": null
+    }
+  }
+}
