@@ -24,16 +24,19 @@ the metadata database.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import requests
+
 from airflow_e2e_tests.constants import DAGS_BUNDLE_NAME
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Mapping
     from pathlib import Path
 
     from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
@@ -211,3 +214,91 @@ def _get_parse_marker(
         if error["filename"] == relative_fileloc
     ]
     return dag["last_parsed_time"], error_times[0] if error_times else None
+
+
+def assert_every_file_is_probed_once(
+    logs_path: Path, expected_artifacts_by_file: Mapping[str, Collection[ArtifactRef]]
+) -> None:
+    """
+    Check that each file's probe records are exactly *expected_artifacts_by_file*, with no duplicate.
+
+    At least one parse attempt of a file holds a ``Probed`` record, no single attempt probes the same
+    artifact twice (the probe cache lives for one parse of one file), and the union of every attempt's
+    probes is exactly the expected set: no file probes an artifact it should not, and none is missing.
+    """
+    for file, expected in expected_artifacts_by_file.items():
+        attempts = read_parse_attempts(logs_path, file)
+        assert attempts, f"{file} was not parsed."
+        probed: set[ArtifactRef] = set()
+        for attempt in attempts:
+            counts = count_probes(attempt)
+            duplicated = {ref: count for ref, count in counts.items() if count > 1}
+            assert not duplicated, f"A parse of {file} probed an artifact more than once: {duplicated}"
+            probed |= set(counts)
+        assert probed == set(expected), f"{file}: probed {probed}, expected {set(expected)}"
+
+
+def assert_later_parses_probe_nothing_new(
+    client: AirflowClient,
+    logs_path: Path,
+    dag_id_by_file: Mapping[str, str],
+    *,
+    timeout: float = 180,
+) -> None:
+    """
+    Ask the Dag processor to parse each file again, and check that it probes no artifact new to that file.
+
+    Nothing records the answer, so a later parse probes the same artifacts again: "nothing new" means no
+    artifact that an earlier parse of the file did not already probe, and no new attempt probes one artifact
+    more than once. A later parse that probes nothing at all is also wrong: the probe cache must not outlive
+    the parse that filled it.
+
+    :param dag_id_by_file: A Dag of each file, by the path of the file in the Dags folder. It must be in the
+        Dag processor's database, as it is for a file that failed to import.
+    :raises TimeoutError: when a file is not parsed again, or its parse marker has not changed, within
+        *timeout* seconds.
+    """
+    attempt_counts_before = {file: len(read_parse_attempts(logs_path, file)) for file in dag_id_by_file}
+    probed_before = {
+        file: {ref for attempt in read_parse_attempts(logs_path, file) for ref in count_probes(attempt)}
+        for file in dag_id_by_file
+    }
+    dags_before = {dag["dag_id"]: dag for dag in _list_dags_of_folder(client)}
+    markers_before = {
+        file: _get_parse_marker(client, dag_id, file) for file, dag_id in dag_id_by_file.items()
+    }
+    for dag_id in dag_id_by_file.values():
+        # A reparse request for this file may already be pending, from the readiness gate asking for one
+        # before this function ran; the Dag processor serves that one instead, so the wait below still
+        # succeeds.
+        with contextlib.suppress(requests.HTTPError):
+            client.reparse_dag_file(dags_before[dag_id]["file_token"])
+
+    deadline = time.monotonic() + timeout
+    while True:
+        waiting_for = [
+            file
+            for file, dag_id in dag_id_by_file.items()
+            if _get_parse_marker(client, dag_id, file) == markers_before[file]
+            or len(read_parse_attempts(logs_path, file)) <= attempt_counts_before[file]
+        ]
+        if not waiting_for:
+            break
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"The Dag processor did not parse {waiting_for} again within {timeout:.0f}s.")
+        time.sleep(_POLL_INTERVAL)
+
+    for file in dag_id_by_file:
+        attempts = read_parse_attempts(logs_path, file)
+        new_attempts = attempts[attempt_counts_before[file] :]
+        new_probed: set[ArtifactRef] = set()
+        for attempt in new_attempts:
+            counts = count_probes(attempt)
+            duplicated = {ref: count for ref, count in counts.items() if count > 1}
+            assert not duplicated, f"A later parse of {file} probed an artifact more than once: {duplicated}"
+            new_probed |= set(counts)
+        assert new_probed, f"A later parse of {file} probed nothing: the probe cache outlived its parse."
+        assert new_probed <= probed_before[file], (
+            f"A later parse of {file} probed artifacts an earlier parse did not: "
+            f"{new_probed - probed_before[file]}"
+        )
