@@ -729,26 +729,24 @@ if AIRFLOW_V_3_1_1_PLUS:
         return WorkflowRunMetadata(**XComModel.deserialize_value(result))
 
     def _clear_repaired_and_downstream(
-        dag, dag_run: DagRun, task_ids: list[str], session, logger: logging.Logger
+        dag, run_id: str, task_ids: list[str], session, logger: logging.Logger
     ) -> None:
         """
-        Clear the repaired tasks' instances and their downstream instances for this run.
+        Clear the repaired tasks and their downstream task instances for this run.
 
-        Runs inside the API server (the DB-facing component), so clearing the repaired tasks plus
-        their downstream lets the upstream-failed dependents resume deterministically when the
-        repaired Databricks sub-runs succeed — without clearing the whole Dag.
+        Uses the same helpers as the core clear-task-instances route (``find_relevant_relatives``
+        to expand to downstream, then ``dag.clear``) so the upstream-failed dependents resume once
+        the repaired Databricks sub-runs succeed — without clearing the whole Dag.
         """
-        from airflow.models.taskinstance import clear_task_instances
+        from airflow.models.taskinstance import find_relevant_relatives
 
-        target_task_ids: set[str] = set(task_ids)
-        for task_id in task_ids:
-            target_task_ids.update(dag.get_task(task_id).get_flat_relative_ids(upstream=False))
-
-        tis_to_clear = [
-            ti for ti in dag_run.get_task_instances(session=session) if ti.task_id in target_task_ids
-        ]
-        logger.info("Clearing %s task instances after Databricks repair", len(tis_to_clear))
-        clear_task_instances(tis_to_clear, session)
+        to_clear: set[str] = set(task_ids)
+        downstream = find_relevant_relatives(
+            to_clear, set(), direction="downstream", dag=dag, run_id=run_id, session=session
+        )
+        to_clear.update(t for t in downstream if not isinstance(t, tuple))
+        logger.info("Clearing %s task(s) and downstream after Databricks repair: %s", len(task_ids), to_clear)
+        dag.clear(task_ids=list(to_clear), run_id=run_id, session=session)
 
     def _repair_confirmation_page(dag_id: str, run_id: str, action: str, summary: str) -> HTMLResponse:
         """Render the read-only confirmation page whose form issues the state-changing POST."""
@@ -867,7 +865,7 @@ if AIRFLOW_V_3_1_1_PLUS:
                 raise HTTPException(status_code=502, detail="Databricks repair request failed.")
 
             # Clear only after a successful repair call, so a failed repair leaves state untouched.
-            _clear_repaired_and_downstream(dag, dag_run, repaired_task_ids, session, log)
+            _clear_repaired_and_downstream(dag, run_id, repaired_task_ids, session, log)
             session.commit()
 
         return RedirectResponse(return_url, status_code=303)
