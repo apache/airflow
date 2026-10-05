@@ -281,7 +281,7 @@ definitions in Airflow.
     whether that user may perform a given action remains the plugin's own decision. This
     applies to team scoping too and a global plugin that does not check the caller's team
     serves every team's users the same data. The one exception is a plugin that declares a
-    ``team_name`` in a deployment with ``[core] multi_team`` enabled: Airflow then
+    ``team_name`` in a deployment with :ref:`[core] multi_team <config:core__multi_team>` enabled: Airflow then
     authenticates its app and restricts it to that team's users, as described in
     :ref:`plugins-multi-team`. With multi-team mode off, that plugin's app is mounted like
     any other (unauthenticated).

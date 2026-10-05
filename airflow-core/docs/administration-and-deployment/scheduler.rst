@@ -229,7 +229,7 @@ Scheduler Configuration options
 
 The following config settings can be used to control aspects of the Scheduler.
 However, you can also look at other non-performance-related scheduler configuration parameters available at
-:doc:`../configurations-ref` in the ``[scheduler]`` section.
+:doc:`../configurations-ref` in the :ref:`[scheduler] <config:scheduler>` section.
 
 - :ref:`config:scheduler__max_dagruns_to_create_per_loop`
 

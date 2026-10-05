@@ -94,8 +94,8 @@ Writes or overwrites a value for the specified key. Note, ``value`` can be any J
 The optional ``retention`` argument controls when the key expires:
 
 * ``timedelta(...)``: expire after the given duration from the time of the write (e.g. ``timedelta(hours=6)``). The expiry timestamp is computed on the worker before the value is sent to the API server.
-* ``NEVER_EXPIRE``: the key never expires and is skipped during garbage collection, regardless of the global ``[state_store] default_retention_days`` setting.
-* ``None`` (default): fall back to the global ``[state_store] default_retention_days`` config.
+* ``NEVER_EXPIRE``: the key never expires and is skipped during garbage collection, regardless of the global :ref:`[state_store] default_retention_days <config:state_store__default_retention_days>` setting.
+* ``None`` (default): fall back to the global :ref:`[state_store] default_retention_days <config:state_store__default_retention_days>` config.
 
 .. important::
 
@@ -285,7 +285,7 @@ If the worker process crashes, the task instance is retried. Task store data wri
 Deferrable tasks
 ~~~~~~~~~~~~~~~~
 
-Once a task defers, the Triggerer handles continuity across poke cycles. Clearing a deferred task does not synchronously cancel its trigger: the Triggerer only notices the trigger is orphaned on its next iteration, then cancels it via the trigger's ``on_kill``, bounded by ``[triggerer] on_kill_timeout``. A new attempt can therefore start before that cancellation finishes. Most triggers implement ``on_kill`` to cancel the external job there, so the next attempt usually finds nothing left to reconnect to, but this is not guaranteed. The state store still matters for triggers that don't implement ``on_kill`` and do rely on a stored job id to reconnect. ``GlueJobCompleteTrigger`` and ``LivyTrigger`` are not examples of that: neither writes a job id to the state store when deferred, so ``keep_task_state`` does not help there. For a deferred ``GlueJobOperator``, ``durable`` defaults to ``True``, so the next attempt reattaches by scanning for the job's task UUID regardless of state store contents; clearing it does not start it over unless the Glue run has already stopped, or you set ``durable=False``. For a deferred ``LivyOperator``, cancel the running batch yourself before clearing to avoid submitting a duplicate.
+Once a task defers, the Triggerer handles continuity across poke cycles. Clearing a deferred task does not synchronously cancel its trigger: the Triggerer only notices the trigger is orphaned on its next iteration, then cancels it via the trigger's ``on_kill``, bounded by :ref:`[triggerer] on_kill_timeout <config:triggerer__on_kill_timeout>`. A new attempt can therefore start before that cancellation finishes. Most triggers implement ``on_kill`` to cancel the external job there, so the next attempt usually finds nothing left to reconnect to, but this is not guaranteed. The state store still matters for triggers that don't implement ``on_kill`` and do rely on a stored job id to reconnect. ``GlueJobCompleteTrigger`` and ``LivyTrigger`` are not examples of that: neither writes a job id to the state store when deferred, so ``keep_task_state`` does not help there. For a deferred ``GlueJobOperator``, ``durable`` defaults to ``True``, so the next attempt reattaches by scanning for the job's task UUID regardless of state store contents; clearing it does not start it over unless the Glue run has already stopped, or you set ``durable=False``. For a deferred ``LivyOperator``, cancel the running batch yourself before clearing to avoid submitting a duplicate.
 
 
 Mapped tasks

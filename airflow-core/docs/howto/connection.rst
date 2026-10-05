@@ -286,7 +286,7 @@ that connection credentials are only ever used on a worker -- the same place you
 than on the API server. This is useful when a connection is only reachable from workers, or when you would
 rather not have credentials exercised on the API server.
 
-This uses the same ``[core] test_connection`` enablement flag as the synchronous test and is driven through
+This uses the same :ref:`[core] test_connection <config:core__test_connection>` enablement flag as the synchronous test and is driven through
 the :doc:`Connections REST API </stable-rest-api-ref/>`: submit a test with ``POST /connections/enqueue-test``
 (which returns a token), then poll for the result with ``GET /connections/enqueue-test``, passing the token
 in the ``Airflow-Connection-Test-Token`` header. A result can only be read back with that token, and only by

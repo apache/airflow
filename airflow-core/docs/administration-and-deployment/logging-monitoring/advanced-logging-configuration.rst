@@ -114,7 +114,7 @@ at your own module, define two module-level attributes in that module:
   :class:`~airflow.logging.remote.RemoteLogStreamIO`) that uploads task logs
   and reads them back for the UI.
 * ``DEFAULT_REMOTE_CONN_ID`` — default Airflow connection id used when
-  ``[logging] remote_log_conn_id`` is unset.
+  :ref:`[logging] remote_log_conn_id <config:logging__remote_log_conn_id>` is unset.
 
 If ``REMOTE_TASK_LOG`` is missing, Airflow emits one ``WARNING`` at startup
 and the UI cannot read task logs back from the remote backend.

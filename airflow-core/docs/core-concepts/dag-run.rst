@@ -54,14 +54,14 @@ range it operates in. How that interval is defined depends on the Dag's
 timetable.
 
 In Airflow 3, a Dag scheduled with a bare cron string such as ``@daily`` uses
-:ref:`CronTriggerTimetable` by default (``[scheduler] create_cron_data_intervals``
+:ref:`CronTriggerTimetable` by default (:ref:`[scheduler] create_cron_data_intervals <config:scheduler__create_cron_data_intervals>`
 is ``False``). For that timetable, ``data_interval_start`` and
 ``data_interval_end`` are the same — the trigger time (for ``@daily``, midnight
 each day). The run is created to execute *at* that time.
 
 If you need a contiguous full-day window instead — for example each run covering
 from midnight to the next midnight — use a data-interval timetable such as
-:ref:`CronDataIntervalTimetable`, or set ``[scheduler] create_cron_data_intervals``
+:ref:`CronDataIntervalTimetable`, or set :ref:`[scheduler] create_cron_data_intervals <config:scheduler__create_cron_data_intervals>`
 to ``True``. With that setup, a Dag run is usually scheduled *after* its
 associated data interval has ended, so a run covering 2020-01-01 generally does
 not start until after 2020-01-02 00:00:00.
@@ -172,7 +172,7 @@ interval (2016-01-01 through 2016-01-02), and the next run would cover
 Be aware that using a ``datetime.timedelta`` object as ``schedule`` is not the
 same as a cron string, even though Airflow 3 also defaults timedelta schedules
 to a trigger timetable (:ref:`DeltaTriggerTimetable`, via
-``[scheduler] create_delta_data_intervals``). A delta has no wall-clock boundary
+:ref:`[scheduler] create_delta_data_intervals <config:scheduler__create_delta_data_intervals>`). A delta has no wall-clock boundary
 to snap to, so with ``catchup=False`` the first run lands at pickup time
 (**2016-01-02 06:00** in this example), with ``data_interval_start`` and
 ``data_interval_end`` both equal to that moment. If instead you enable the data-interval delta

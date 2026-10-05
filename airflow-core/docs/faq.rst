@@ -717,7 +717,7 @@ There are two complementary approaches:
 **1. Dag cache eviction (available since Airflow 3.2.2)**
 
 The API server can evict cached serialized Dag versions by size, by age, or both. Configure
-this in the ``[api]`` section:
+this in the :ref:`[api] <config:api>` section:
 
 .. code-block:: ini
 
@@ -726,7 +726,7 @@ this in the ``[api]`` section:
     dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = no TTL)
 
 ``dag_cache_size`` is the only hard ceiling on memory. An entry's TTL is refreshed only when the
-entry is checked against the database after ``[core] min_serialized_dag_update_interval``, not on
+entry is checked against the database after :ref:`[core] min_serialized_dag_update_interval <config:core__min_serialized_dag_update_interval>`, not on
 every request. With a shorter TTL, even frequently requested entries can expire and reload
 between checks. Setting both options to 0 uses an unbounded dict with no eviction, matching the
 behavior before 3.2.2.

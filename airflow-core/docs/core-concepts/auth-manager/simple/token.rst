@@ -41,7 +41,7 @@ Example
 
 This process will return a token that you can use in the Airflow public API requests.
 
-If ``[core] simple_auth_manager_all_admins`` is set to True, you can also generate a token with no credentials.
+If :ref:`[core] simple_auth_manager_all_admins <config:core__simple_auth_manager_all_admins>` is set to True, you can also generate a token with no credentials.
 
 .. code-block:: bash
 

@@ -1108,7 +1108,7 @@ one Dag run per day in the week:
 ``max_downstream_keys`` caps how many downstream Dag runs one upstream event may
 create. When exceeded, the runs for that event are **not** queued and a "partition
 fan-out exceeded" audit-log entry is recorded instead. Omitting it falls back to the
-global ``[scheduler] partition_mapper_max_downstream_keys`` config (default 1000).
+global :ref:`[scheduler] partition_mapper_max_downstream_keys <config:scheduler__partition_mapper_max_downstream_keys>` config (default 1000).
 Set it explicitly to document intent and guard against accidental fan-out explosions.
 
 Window direction: FORWARD and BACKWARD

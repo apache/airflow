@@ -62,7 +62,7 @@ bundle that holds the JARs.
 Define the Python Dag
 ~~~~~~~~~~~~~~~~~~~~~
 
-For a local installation with the default ``[core] dags_folder``, create
+For a local installation with the default :ref:`[core] dags_folder <config:core__dags_folder>`, create
 ``${AIRFLOW_HOME}/dags/sales_pipeline.py``. More generally, create ``sales_pipeline.py`` in the source location
 used by the deployment's normal Dag delivery process, such as its configured Dags folder, Dag repository, or
 Dag bundle. This path is not relative to the Java Gradle project.
@@ -281,8 +281,8 @@ and a JRE must be available wherever tasks execute and on the Dag processor. Wit
 execute on the Celery workers; with ``LocalExecutor``, they run in subprocesses on the scheduler's host. The
 Dag processor checks the stub tasks of ``sales_pipeline.py`` against the task handlers the JARs register, so
 it runs them too. The API server does not need any of it. Register the Dag bundle in
-``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker and
-the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config is read
+:ref:`[dag_processor] dag_bundle_config_list <config:dag_processor__dag_bundle_config_list>` on every component, like your other Dag bundles: the worker and
+the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the :ref:`[sdk] <config:sdk>` config is read
 it is rejected if the name is missing there. The Dag processor still receives ``sales_pipeline.py`` through
 the separate Dag delivery process.
 
@@ -1263,7 +1263,7 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Name of the Dag bundle scanned recursively for ``.jar`` files. It is used only by
        mixed-language Dags, to locate the task handlers for the ``@task.stub`` tasks of a Python Dag;
        Dags defined natively in a language SDK do not use it. It must be registered in
-       ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]`` configuration is
+       :ref:`[dag_processor] dag_bundle_config_list <config:dag_processor__dag_bundle_config_list>`. It is checked when the :ref:`[sdk] <config:sdk>` configuration is
        loaded, so a typo fails there rather than on the first task.
    * - ``java_executable``
      - ``"java"``
@@ -1303,7 +1303,7 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
 .. note::
 
-  The ``[sdk]`` configuration is read at startup, so changes to ``coordinators`` or
+  The :ref:`[sdk] <config:sdk>` configuration is read at startup, so changes to ``coordinators`` or
   ``queue_to_coordinator`` (for example adding ``jvm_args``) only take effect after you restart the
   components that read it: the workers (the scheduler with ``LocalExecutor``), the Dag processor, or
   ``airflow standalone``. A rebuilt bundle JAR, by contrast, is picked up on the next task launch without a

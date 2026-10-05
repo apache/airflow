@@ -24,7 +24,7 @@ API and are "pluggable", meaning you can swap auth managers based on your instal
 .. image:: ../../img/diagram_auth_manager_airflow_architecture.png
 
 Airflow can only have one auth manager configured at a time; this is set by the ``auth_manager`` option in the
-``[core]`` section of :doc:`the configuration file </howto/set-config>`.
+:ref:`[core] <config:core>` section of :doc:`the configuration file </howto/set-config>`.
 
 .. note::
     For more information on Airflow's configuration, see :doc:`/howto/set-config`.

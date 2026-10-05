@@ -281,7 +281,7 @@ On each run the task reads the watermark left by the previous run, fetches only 
 Lifetime and garbage collection
 --------------------------------
 
-Asset store rows persist indefinitely. They are **not** subject to the ``[state_store] default_retention_days`` time-based expiry that applies to task state store.
+Asset store rows persist indefinitely. They are **not** subject to the :ref:`[state_store] default_retention_days <config:state_store__default_retention_days>` time-based expiry that applies to task state store.
 
 The only automatic cleanup is an *orphan sweep*: when an asset is deactivated (no ``asset_active`` record exists), its store rows are removed during the next garbage-collection pass. Until that sweep runs, stale rows may exist in the database but cannot be written to. The Execution API resolver filters to active assets only.
 
@@ -289,4 +289,4 @@ To remove asset state store entries explicitly, call ``clear()`` from within a t
 
 .. note::
 
-   ``[state_store] clear_on_success`` does **not** clear asset state store. Asset store is cross-run by design, so automatic task-level cleanup would destroy information that the next run depends on. Always clear asset state store explicitly when it is no longer needed.
+   :ref:`[state_store] clear_on_success <config:state_store__clear_on_success>` does **not** clear asset state store. Asset store is cross-run by design, so automatic task-level cleanup would destroy information that the next run depends on. Always clear asset state store explicitly when it is no longer needed.
