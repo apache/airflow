@@ -38,9 +38,9 @@ func (in inputs) applyTask(c *taskConfig) error {
 	return nil
 }
 
-// Inputs passes the results of tasks to the task that [DagRef.Task] adds, and makes each of
-// those tasks an upstream task of the new one. It is the Go form of a Python TaskFlow call such
-// as transform(extract()):
+// Inputs passes the results of tasks to the task that [DagRef.Task], [DagRef.If], or one of the
+// methods of the same names on [TaskGroupRef] adds, and makes each of those tasks an upstream task
+// of the new one. It is the Go form of a Python TaskFlow call such as transform(extract()):
 //
 //	extracted := dag.Task(extract)
 //	transformed := dag.Task(transform, airflow.Inputs(extracted))
@@ -58,35 +58,39 @@ func (in inputs) applyTask(c *taskConfig) error {
 // fills. So each field of a struct parameter comes from the matching JSON key. A parameter of
 // type any gets a map[string]any when the result is a struct.
 //
-// When [DagRef.Task] adds the task, it panics unless each parameter after the Context gets
-// exactly one task of the same Dag, and the result type of that task is assignable to the
-// parameter type, as in a Go function call. Pass at most one Inputs to a task.
+// The method that adds the task panics unless each parameter after the Context gets exactly one
+// task of the same Dag, inside a task group or not, and the result type of that task is
+// assignable to the parameter type, as in a Go function call. Pass at most one Inputs to a task.
 func Inputs(refs ...*TaskRef) TaskOption { return inputs(refs) }
 
 // checkInputs returns the tasks that task taskID got through Inputs, in a new slice. It panics if
 // any of those tasks was not added to d by DagRef.Task, or if the tasks do not match the
-// parameters that a function of type fnType takes after the Context.
-func (d *DagRef) checkInputs(taskID string, fnType reflect.Type, tasks []*TaskRef) []*TaskRef {
+// parameters that a function of type fnType takes after the Context. method names the caller in
+// panic messages.
+func (d *DagRef) checkInputs(
+	method, taskID string,
+	fnType reflect.Type,
+	tasks []*TaskRef,
+) []*TaskRef {
 	for i, upstream := range tasks {
 		switch {
 		case upstream == nil:
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: task %q of Dag %q: "+
-					"airflow.Inputs got a nil *airflow.TaskRef at index %d",
-				taskID, d.dagID, i,
+				"%s: task %q of Dag %q: airflow.Inputs got a nil *airflow.TaskRef at index %d",
+				method, taskID, d.dagID, i,
 			))
 		case upstream.dag != nil && upstream.dag != d:
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: task %q of Dag %q cannot take an input from task %q of "+
+				"%s: task %q of Dag %q cannot take an input from task %q of "+
 					"another Dag, %q; pass tasks of the same Dag to airflow.Inputs",
-				taskID, d.dagID, upstream.taskID, upstream.dag.dagID,
+				method, taskID, d.dagID, upstream.taskID, upstream.dag.dagID,
 			))
 		// A zero TaskRef and a copy of a TaskRef get here.
 		case d.tasksByID[upstream.taskID] != upstream:
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: task %q of Dag %q: airflow.Inputs got a *airflow.TaskRef "+
-					"at index %d that DagRef.Task did not return",
-				taskID, d.dagID, i,
+				"%s: task %q of Dag %q: airflow.Inputs got a *airflow.TaskRef "+
+					"at index %d that DagRef.Task or TaskGroupRef.Task did not return",
+				method, taskID, d.dagID, i,
 			))
 		}
 	}
@@ -95,9 +99,9 @@ func (d *DagRef) checkInputs(taskID string, fnType reflect.Type, tasks []*TaskRe
 	// after it.
 	if params := fnType.NumIn() - 1; len(tasks) != params {
 		panic(fmt.Sprintf(
-			"airflow.DagRef.Task: task %q of Dag %q has %d parameter(s) after airflow.Context, "+
+			"%s: task %q of Dag %q has %d parameter(s) after airflow.Context, "+
 				"but airflow.Inputs passes %s",
-			taskID, d.dagID, params, describeTasks(tasks),
+			method, taskID, d.dagID, params, describeTasks(tasks),
 		))
 	}
 	for i, upstream := range tasks {
@@ -106,15 +110,15 @@ func (d *DagRef) checkInputs(taskID string, fnType reflect.Type, tasks []*TaskRe
 		switch {
 		case upstream.triggerDagRun != nil:
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: task %q of Dag %q takes parameter %d from task %q, "+
+				"%s: task %q of Dag %q takes parameter %d from task %q, "+
 					"but that task comes from airflow.TriggerDagRun and returns no result",
-				taskID, d.dagID, param, upstream.taskID,
+				method, taskID, d.dagID, param, upstream.taskID,
 			))
 		case upstream.resultType == nil:
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: task %q of Dag %q takes parameter %d from task %q, "+
+				"%s: task %q of Dag %q takes parameter %d from task %q, "+
 					"but that task returns only an error",
-				taskID, d.dagID, param, upstream.taskID,
+				method, taskID, d.dagID, param, upstream.taskID,
 			))
 		case !upstream.resultType.AssignableTo(paramType):
 			var sameName string
@@ -122,9 +126,10 @@ func (d *DagRef) checkInputs(taskID string, fnType reflect.Type, tasks []*TaskRe
 				sameName = ", a different type with the same name"
 			}
 			panic(fmt.Sprintf(
-				"airflow.DagRef.Task: task %q of Dag %q takes parameter %d from task %q, "+
+				"%s: task %q of Dag %q takes parameter %d from task %q, "+
 					"but that task returns %s, which cannot be assigned to %s%s",
-				taskID, d.dagID, param, upstream.taskID, upstream.resultType, paramType, sameName,
+				method, taskID, d.dagID, param, upstream.taskID, upstream.resultType, paramType,
+				sameName,
 			))
 		}
 	}

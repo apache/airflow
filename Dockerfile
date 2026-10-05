@@ -498,6 +498,7 @@ function install_python() {
 function install_golang() {
     curl --retry 3 --retry-delay 5 "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+    rm -f go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
 function install_jdk() {
@@ -571,7 +572,9 @@ function install_rustup() {
         -o /tmp/rustup-init
     echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
     chmod +x /tmp/rustup-init
-    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    # Building wheels from source needs only rustc and cargo. The default profile also adds
+    # rust-docs, clippy and rustfmt, which add tens of thousands of files to the image.
+    /tmp/rustup-init -y --profile minimal --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
     rm -f /tmp/rustup-init
 }
 

@@ -35,7 +35,7 @@ plugins {
     // jsonschema2pojo 1.3.3 targets Java 17:
     // https://github.com/joelittlejohn/jsonschema2pojo/blob/jsonschema2pojo-1.3.3/jsonschema2pojo-gradle-plugin/build.gradle#L45-L48
     id("org.jsonschema2pojo") version "1.2.2"
-    kotlin("plugin.serialization") version "2.4.10"
+    kotlin("plugin.serialization") version "2.4.20"
 }
 
 val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema"
@@ -57,7 +57,7 @@ dependencies {
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.2")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.2")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
-    implementation("io.ktor:ktor-network:3.5.2")
+    implementation("io.ktor:ktor-network:3.6.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
@@ -225,6 +225,13 @@ abstract class SyncDagSchemaTask : DefaultTask() {
     @get:Internal
     abstract val targetFile: RegularFileProperty
 
+    // False for an ordinary in-repo build, which must keep refreshing the copy silently
+    // so it does not break on a schema a developer is actively editing. True for the
+    // prek hook, which passes -PfailOnDagSchemaDrift so a commit that leaves the
+    // vendored copy behind fails instead of shipping unnoticed.
+    @get:Internal
+    abstract val failOnDagSchemaDrift: Property<Boolean>
+
     @TaskAction
     fun sync() {
         val src = sourceFile.get().asFile
@@ -239,6 +246,12 @@ abstract class SyncDagSchemaTask : DefaultTask() {
         }
         logger.lifecycle("Refreshing vendored dag-schema.json from ${src.path}")
         src.copyTo(dst, overwrite = true)
+        if (failOnDagSchemaDrift.getOrElse(false)) {
+            throw GradleException(
+                "Vendored dag-schema.json was out of date and has been refreshed from ${src.path}. " +
+                    "Review the diff and commit it.",
+            )
+        }
     }
 }
 
@@ -661,6 +674,8 @@ val syncDagSchema by tasks.registering(SyncDagSchemaTask::class) {
     description = "Refresh the vendored Dag serialization schema from the monorepo copy when present."
     sourceFile = layout.projectDirectory.file("../../airflow-core/src/airflow/serialization/schema.json")
     targetFile = dagSchemaInput
+    // -PfailOnDagSchemaDrift carries no value, so presence (not content) is the signal.
+    failOnDagSchemaDrift = providers.gradleProperty("failOnDagSchemaDrift").map { true }.orElse(false)
 }
 
 tasks.register<GenerateDagDslTask>("generateDagDsl") {

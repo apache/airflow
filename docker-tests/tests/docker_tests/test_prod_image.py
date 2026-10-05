@@ -242,9 +242,6 @@ class TestPythonPackages:
         if package_name == "providers":
             excluded_imports = {f"airflow.providers.{pid}" for pid in excluded_ids}
             import_names = [name for name in import_names if name not in excluded_imports]
-            # FAB provider has import issues on Python 3.13
-            if python_minor == "3.13":
-                import_names = [name for name in import_names if name != "airflow.providers.fab"]
         if import_names:
             run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
 

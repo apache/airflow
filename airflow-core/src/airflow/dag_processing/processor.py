@@ -17,13 +17,14 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import importlib
 import logging
 import os
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
+from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal, cast
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -37,7 +38,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
-from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time import supervisor
@@ -92,7 +93,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
-    from airflow.sdk.execution_time.supervisor import RequestHandler, RequestResult
+    from airflow.sdk.execution_time.supervisor import RequestHandler, RequestResult, ResponseSent
     from airflow.typing_compat import Self
 
 
@@ -313,6 +314,8 @@ def _get_dag_with_task(
         )
 
     dag = dagbag.dags[dag_id]
+    if isinstance(dag, LangSDKSerializedDAG):
+        raise ValueError(f"DAG '{dag_id}' is a native Lang-SDK Dag, whose callbacks do not run in Python.")
 
     if task_id is not None:
         try:
@@ -573,7 +576,135 @@ def in_process_api_server() -> InProcessExecutionAPI:
 
 
 @attrs.define(kw_only=True)
-class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
+class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
+    """
+    Parse one Dag file in a child process for the Dag processor manager.
+
+    The child's output goes to the file's parse log, and its requests are answered with
+    :attr:`client`. The parse is done once the child has exited and all its sockets are closed;
+    :attr:`parsing_result` then holds what it sent. Subclasses start the child and send it the
+    parse request.
+    """
+
+    logger_filehandle: BinaryIO = attrs.field(  # type: ignore[assignment]  # mypy picks the text overload
+        factory=functools.partial(open, os.devnull, "wb")
+    )
+    """The file's parse log, which the process closes. Without one, the output is discarded."""
+    parsing_result: DagFileParsingResult | None = None
+    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
+    had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
+
+    client: Client | None = None
+    """
+    The HTTP client that answers the child's requests to the API server.
+
+    Without one, as in a Dag bag, each such request gets an error.
+    """
+
+    bundle_name: str
+    dag_file_rel_path: str
+
+    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
+        base = super()._get_target_loggers()
+        if not self.subprocess_logs_to_stdout:
+            return base
+        return tuple(
+            logger.bind(dag_file=self.dag_file_rel_path, bundle_name=self.bundle_name) for logger in base
+        )
+
+    def _create_log_forwarder(
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
+    ) -> Callable[[socket], bool]:
+        return super()._create_log_forwarder(
+            loggers,
+            name.replace("task.", "dag_processor.", 1),
+            data=data,
+            log_level=log_level,
+        )
+
+    def _handle_parsing_result(
+        self, msg: DagFileParsingResult, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        self.parsing_result = msg
+        return None, {}
+
+    _client_request_types: ClassVar[tuple[type[BaseModel], ...]] = (
+        DeleteVariable,
+        GetConnection,
+        GetPrevSuccessfulDagRun,
+        GetPreviousDagRun,
+        GetPreviousTI,
+        GetTICount,
+        GetTaskStates,
+        GetVariable,
+        GetVariableKeys,
+        GetXCom,
+        GetXComCount,
+        GetXComSequenceItem,
+        GetXComSequenceSlice,
+        PutVariable,
+    )
+
+    # Each subclass builds its own ``_request_handlers``, typed with itself, from these.
+    _common_request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[BaseDagFileProcessorProcess]]] = {
+        # _handle_request answers the client requests itself when there is no client.
+        **cast(
+            "dict[type[BaseModel], RequestHandler[BaseDagFileProcessorProcess]]",
+            WatchedSubprocess._get_shared_request_handlers(*_client_request_types, MaskSecret),
+        ),
+        **dict([register_request_method(DagFileParsingResult, _handle_parsing_result)]),
+    }
+
+    def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
+        if self.client is None and isinstance(msg, self._client_request_types):
+            self.send_msg(
+                None,
+                request_id=req_id,
+                error=ErrorResponse(
+                    detail={"message": f"{type(msg).__name__} is answered only in the Dag processor"}
+                ),
+            )
+            return
+        super()._handle_request(msg, log, req_id)
+
+    def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
+        log.error("Unhandled request", msg=msg)
+        self.send_msg(
+            None,
+            request_id=req_id,
+            error=ErrorResponse(detail={"status_code": 400, "message": "Unhandled request"}),
+        )
+
+    @property
+    def is_ready(self) -> bool:
+        if self._check_subprocess_exit() is None:
+            # Process still alive, def can't be finished yet
+            return False
+
+        return not self._open_sockets
+
+    def wait(self) -> int:
+        raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
+
+    def close(self):
+        self.cleanup_sockets_after_kill()
+        try:
+            self.logger_filehandle.close()
+        except OSError:
+            self.log.warning(
+                "Failed to close log file handle for %s",
+                self.dag_file_rel_path,
+                exc_info=True,
+            )
+
+
+@attrs.define(kw_only=True)
+class DagFileProcessorProcess(BaseDagFileProcessorProcess):
     """
     Parses dags with Task SDK API.
 
@@ -584,16 +715,11 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     in core Airflow.
     """
 
-    logger_filehandle: BinaryIO
-    parsing_result: DagFileParsingResult | None = None
-    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
-    had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
-
     client: Client
-    """The HTTP client to use for communication with the API server."""
 
-    bundle_name: str
-    dag_file_rel_path: str
+    _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
+        **BaseDagFileProcessorProcess._common_request_handlers,
+    }
 
     @classmethod
     def start(  # type: ignore[override]
@@ -648,83 +774,3 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             callback_requests=callbacks,
         )
         self.send_msg(msg, request_id=0)
-
-    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
-        base = super()._get_target_loggers()
-        if not self.subprocess_logs_to_stdout:
-            return base
-        return tuple(
-            logger.bind(dag_file=self.dag_file_rel_path, bundle_name=self.bundle_name) for logger in base
-        )
-
-    def _create_log_forwarder(
-        self,
-        loggers: tuple[FilteringBoundLogger, ...],
-        name: str,
-        *,
-        data: bytes,
-        log_level: int = logging.INFO,
-    ) -> Callable[[socket], bool]:
-        return super()._create_log_forwarder(
-            loggers,
-            name.replace("task.", "dag_processor.", 1),
-            data=data,
-            log_level=log_level,
-        )
-
-    def _handle_parsing_result(
-        self, msg: DagFileParsingResult, log: FilteringBoundLogger, req_id: int
-    ) -> RequestResult:
-        self.parsing_result = msg
-        return None, {}
-
-    _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
-        **WatchedSubprocess._get_shared_request_handlers(
-            DeleteVariable,
-            GetConnection,
-            GetPrevSuccessfulDagRun,
-            GetPreviousDagRun,
-            GetPreviousTI,
-            GetTICount,
-            GetTaskStates,
-            GetVariable,
-            GetVariableKeys,
-            GetXCom,
-            GetXComCount,
-            GetXComSequenceItem,
-            GetXComSequenceSlice,
-            MaskSecret,
-            PutVariable,
-        ),
-        **dict([register_request_method(DagFileParsingResult, _handle_parsing_result)]),
-    }
-
-    def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
-        log.error("Unhandled request", msg=msg)
-        self.send_msg(
-            None,
-            request_id=req_id,
-            error=ErrorResponse(detail={"status_code": 400, "message": "Unhandled request"}),
-        )
-
-    @property
-    def is_ready(self) -> bool:
-        if self._check_subprocess_exit() is None:
-            # Process still alive, def can't be finished yet
-            return False
-
-        return not self._open_sockets
-
-    def wait(self) -> int:
-        raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
-
-    def close(self):
-        self.cleanup_sockets_after_kill()
-        try:
-            self.logger_filehandle.close()
-        except OSError:
-            self.log.warning(
-                "Failed to close log file handle for %s",
-                self.dag_file_rel_path,
-                exc_info=True,
-            )

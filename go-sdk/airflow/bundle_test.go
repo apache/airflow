@@ -217,6 +217,60 @@ func TestRegisterRejectsATaskHandlerWithTheDagIDOfADag(t *testing.T) {
 	}
 }
 
+// TestRegisterRejectsACycle covers the check that reads a Dag's edges as a whole. Before and
+// After record an edge without walking the graph, so a cycle between other tasks is Register's to
+// find, and every edge of the call that closed it is recorded until then.
+func TestRegisterRejectsACycle(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	loaded := orderedTask(t, dag, "load")
+	notified := orderedTask(t, dag, "notify")
+	extracted.Before(loaded)
+	loaded.Before(notified, extracted)
+
+	assert.PanicsWithValue(t,
+		`airflow.BundleRef.Register: the task dependencies of Dag "etl" contain a cycle: `+
+			`extract -> load -> extract`,
+		func() { Bundle().Register(dag) },
+	)
+	// The verbs recorded what they were given, and the Dag can still be corrected.
+	assertTasks(t, loaded.downstreams, notified, extracted)
+	assert.False(t, dag.registered)
+}
+
+// TestRegisterRejectsACycleThroughAnInputsEdge pins that the check sees the edges Inputs
+// declared, which is what DagRef.Task recording them is for. It is the case ADR-0008 names:
+// b := dag.Task(B, Inputs(a)) followed by b.Before(a) is a genuine cycle in accepted syntax.
+func TestRegisterRejectsACycleThroughAnInputsEdge(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(readRows)
+	counted := dag.Task(countRows, Inputs(read))
+	notified := orderedTask(t, dag, "notify")
+	counted.Before(notified)
+	counted.Before(read)
+
+	assert.PanicsWithValue(t,
+		`airflow.BundleRef.Register: the task dependencies of Dag "etl" contain a cycle: `+
+			`readRows -> countRows -> readRows`,
+		func() { Bundle().Register(dag) },
+	)
+}
+
+// TestRegisterTakesADagWhoseTasksShareADownstream pins that the walk follows a diamond, where a
+// task is reached twice without any cycle.
+func TestRegisterTakesADagWhoseTasksShareADownstream(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	notified := orderedTask(t, dag, "notify")
+	cleaned := orderedTask(t, dag, "cleanup")
+	done := orderedTask(t, dag, "done")
+	extracted.Before(notified, cleaned).Before(done)
+
+	Bundle().Register(dag)
+
+	assert.True(t, dag.registered)
+}
+
 func TestRegisterRejectsNilDag(t *testing.T) {
 	var dag *DagRef
 	assert.PanicsWithValue(t, "airflow.BundleRef.Register: cannot register a nil *airflow.DagRef",

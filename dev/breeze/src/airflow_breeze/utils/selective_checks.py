@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import difflib
 import itertools
 import json
@@ -95,6 +96,19 @@ ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 AREA_E2E_TESTS_LABEL = "area:e2e-tests"
 AREA_KUBERNETES_TESTS_LABEL = "area:kubernetes-tests"
+
+# Providers split into their own test type, see _extract_long_provider_tests. Every other provider runs
+# in one shared ``Providers[-amazon,celery,google,standard]`` test type on canary builds.
+LONG_RUNNING_TEST_PROVIDERS = ["amazon", "celery", "google", "standard"]
+# Providers whose DB tests leave process-global core state behind (``importlib.reload()`` of
+# ``airflow.executors.executor_loader``, which swaps the ``ExecutorLoader`` class object and refills its
+# module-level caches). DB tests of one test type run in a single pytest process, with provider test
+# folders in sorted order, so every provider sorting after one of these inherits that state on canary.
+# A PR that changes such a later provider runs these providers in the same test type too, otherwise
+# isolation failures in the changed tests surface only after merge. Non-DB tests share one xdist pool
+# across all test types, so no deterministic order exists there to reproduce.
+PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS = ["cncf.kubernetes"]
+
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
@@ -353,6 +367,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.DOC_FILES: [
             r"^docs",
             r"^devel-common/src/docs",
+            r"^devel-common/src/sphinx_exts",
             r"^\.github/SECURITY\.md",
             r"^providers/.*/docs/",
             r"^providers/.*/src/.*\.py$",
@@ -473,8 +488,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r".*pyproject\.toml$",
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
-            r"^airflow-core/tests/unit/utils/",
-            r"^devel-common/.*\.py$",
+            r"^devel-common/src/tests_common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task-sdk/src/airflow/sdk/.*\.py$",
@@ -674,6 +688,125 @@ def _matching_files(
     return matched_files
 
 
+TESTS_COMMON_SOURCE_ROOT = "devel-common/src/"
+TESTS_COMMON_PYTEST_PLUGIN = "devel-common/src/tests_common/pytest_plugin.py"
+# Only in these trees does a changed test file select the job that runs it; narrowing to an importer
+# elsewhere (e2e, python client, core integration, docker-tests) would skip tests the full matrix ran.
+TEST_HELPER_IMPORTER_ROOTS = (
+    "airflow-core/tests/system/",
+    "airflow-core/tests/unit/",
+    "airflow-ctl/tests/",
+    "airflow-ctl-tests/",
+    "kubernetes-tests/",
+    "providers/",
+    "shared/",
+    "task-sdk/tests/",
+    "task-sdk-integration-tests/",
+)
+
+
+def _imports_module(text: str, module: str, importer_package: str | None = None) -> bool:
+    """
+    Whether ``text`` imports ``module``.
+
+    ``importer_package`` is the dotted package of the importing file; relative imports are only resolved
+    when it is given.
+    """
+    package, _, name = module.rpartition(".")
+    if (
+        not re.search(rf"\b{re.escape(module)}\b", text)
+        and not (f"from {package} import" in text and re.search(rf"\b{re.escape(name)}\b", text))
+        and not (importer_package and re.search(r"^\s*from \.", text, re.MULTILINE))
+    ):
+        return False
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return True
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(alias.name == module or alias.name.startswith(f"{module}.") for alias in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom):
+            if node.level == 0:
+                imported = node.module
+            elif importer_package:
+                base_parts = importer_package.split(".")
+                base = ".".join(base_parts[: len(base_parts) - (node.level - 1)])
+                imported = f"{base}.{node.module}" if node.module else base
+            else:
+                continue
+            if not imported:
+                continue
+            if imported == module or imported.startswith(f"{module}."):
+                return True
+            if imported == package and any(alias.name == name for alias in node.names):
+                return True
+    # Dotted references outside import statements, e.g. `pytest_plugins` entries.
+    return re.search(rf"\b{re.escape(module)}\b", text) is not None
+
+
+@clearable_cache
+def _find_test_helper_importers(helper: str) -> frozenset[str] | None:
+    """
+    Return the files outside ``tests_common`` that import ``helper``, directly or through other helpers.
+
+    ``None`` means the change cannot be narrowed down to its importers: the helper is loaded for every
+    test run (the pytest plugin, anything it imports, conftest and package ``__init__`` modules), it
+    no longer exists, the importers could not be searched, or an importer lies outside
+    ``TEST_HELPER_IMPORTER_ROOTS``.
+    """
+    if (
+        helper == TESTS_COMMON_PYTEST_PLUGIN
+        or Path(helper).name in ("conftest.py", "__init__.py")
+        or not (AIRFLOW_ROOT_PATH / helper).is_file()
+    ):
+        return None
+    importers: set[str] = set()
+    seen = {helper}
+    pending = [helper]
+    while pending:
+        module = pending.pop()[len(TESTS_COMMON_SOURCE_ROOT) :].removesuffix(".py").replace("/", ".")
+        result = run_command(
+            ["git", "grep", "-l", "-F", "-w", module.rpartition(".")[2], "--", "*.py"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT_PATH,
+            check=False,
+            dry_run_override=False,
+        )
+        # git grep exits with 1 when nothing matches; anything else means the search did not happen.
+        if result.returncode not in (0, 1):
+            return None
+        for candidate in result.stdout.splitlines():
+            # CI never runs dev/ or scripts/ files as tests, and a dev/ importer would match
+            # ENVIRONMENT_FILES and force the full test matrix.
+            if candidate in seen or candidate.startswith(("dev/", "scripts/")):
+                continue
+            in_tests_common = candidate.startswith(f"{TESTS_COMMON_SOURCE_ROOT}tests_common/")
+            importer_package = (
+                str(Path(candidate[len(TESTS_COMMON_SOURCE_ROOT) :]).parent).replace("/", ".")
+                if in_tests_common
+                else None
+            )
+            text = (AIRFLOW_ROOT_PATH / candidate).read_text(errors="replace")
+            if not _imports_module(text, module, importer_package):
+                continue
+            seen.add(candidate)
+            if in_tests_common:
+                if candidate == TESTS_COMMON_PYTEST_PLUGIN or Path(candidate).name in (
+                    "conftest.py",
+                    "__init__.py",
+                ):
+                    return None
+                pending.append(candidate)
+            elif candidate.startswith(TEST_HELPER_IMPORTER_ROOTS):
+                importers.add(candidate)
+            else:
+                return None
+    return frozenset(importers)
+
+
 def _split_list(input_list, n) -> list[list[str]]:
     """
     Splits input_list into exactly n sub-lists, distributing items as evenly as possible.
@@ -700,11 +833,20 @@ def _split_list(input_list, n) -> list[list[str]]:
     ]
 
 
+def _strip_test_side_effect_providers(test_type: str) -> str:
+    """Drop the test side-effect providers so the description names the providers selected for the change."""
+    if not test_type.startswith("Providers[") or test_type.startswith("Providers[-"):
+        return test_type
+    providers = test_type.removeprefix("Providers[").removesuffix("]").split(",")
+    selected = [p for p in providers if p not in PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS]
+    return ",".join(selected or providers)
+
+
 def _get_test_type_description(provider_test_types: list[str]) -> str:
     if not provider_test_types:
         return ""
-    first_provider = provider_test_types[0]
-    last_provider = provider_test_types[-1]
+    first_provider = _strip_test_side_effect_providers(provider_test_types[0])
+    last_provider = _strip_test_side_effect_providers(provider_test_types[-1])
     if first_provider.startswith("Providers["):
         first_provider = first_provider.replace("Providers[", "").replace("]", "")
     if last_provider.startswith("Providers["):
@@ -742,6 +884,21 @@ class SelectiveChecks:
         platform: str = CI_AMD_PLATFORM,
     ):
         self._files = files
+        # A changed test helper selects the tests that import it, as if those test files had changed;
+        # only helpers that cannot be narrowed to their importers still force the full set of tests.
+        self._test_helpers_forcing_full_tests: tuple[str, ...] = ()
+        self._test_helpers_replaced_by_importers: tuple[str, ...] = ()
+        helper_importers: set[str] = set()
+        for helper in _matching_files(files, FileGroupForCi.TESTS_UTILS_FILES, CI_FILE_GROUP_MATCHES):
+            importers = _find_test_helper_importers(helper)
+            if importers is None:
+                self._test_helpers_forcing_full_tests += (helper,)
+            else:
+                self._test_helpers_replaced_by_importers += (helper,)
+                helper_importers |= importers
+        self._test_helper_importers = frozenset(helper_importers - set(files))
+        if helper_importers:
+            self._files = tuple(sorted(set(files) | helper_importers))
         self._default_branch = default_branch
         self._default_constraints_branch = default_constraints_branch
         self._commit_ref = commit_ref
@@ -880,11 +1037,11 @@ class SelectiveChecks:
                 "and for now we have core tests depending on them.[/]"
             )
             return True
-        if self._matching_files(
-            FileGroupForCi.TESTS_UTILS_FILES,
-            CI_FILE_GROUP_MATCHES,
-        ):
-            console_print("[warning]Running full set of tests because tests/utils changed[/]")
+        if self._test_helpers_forcing_full_tests:
+            console_print(
+                "[warning]Running full set of tests because test helpers that cannot be narrowed to their "
+                f"importers changed: {', '.join(self._test_helpers_forcing_full_tests)}[/]"
+            )
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             console_print(
@@ -1428,11 +1585,50 @@ class SelectiveChecks:
                 for provider in providers_to_test:
                     candidate_test_types.add(f"Providers[{provider}]")
             else:
+                providers_to_test = self._add_providers_sharing_test_process_state(
+                    providers_to_test, changed_providers=self._find_changed_providers(), suspended=suspended
+                )
                 candidate_test_types.add(f"Providers[{','.join(sorted(providers_to_test))}]")
         sorted_candidate_test_types = sorted(candidate_test_types)
         console_print("[warning]Selected providers test type candidates to run:[/]")
         console_print(sorted_candidate_test_types)
         return sorted_candidate_test_types
+
+    def _find_changed_providers(self) -> set[str]:
+        """Providers whose own files changed, without their upstream and downstream dependents."""
+        return {
+            provider
+            for changed_file in self._files
+            if (provider := find_provider_affected(changed_file, include_docs=False))
+            not in (None, "Providers")
+        }
+
+    @staticmethod
+    def _add_providers_sharing_test_process_state(
+        providers_to_test: list[str], *, changed_providers: set[str], suspended: set[str]
+    ) -> list[str]:
+        """
+        Add the providers from PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS that precede a changed one.
+
+        Only providers whose own files changed count: a PR can make a provider's tests order-sensitive only
+        by changing that provider, and dependents pulled in for coverage keep their canary behaviour.
+        """
+
+        def get_test_folder(provider_id: str) -> str:
+            return provider_id.replace(".", "/")
+
+        changed_shared_process_providers = [
+            p for p in providers_to_test if p in changed_providers and p not in LONG_RUNNING_TEST_PROVIDERS
+        ]
+        if not changed_shared_process_providers:
+            return providers_to_test
+        last_folder = max(get_test_folder(p) for p in changed_shared_process_providers)
+        leaking_providers = [
+            p
+            for p in PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS
+            if get_test_folder(p) < last_folder and p not in providers_to_test and p not in suspended
+        ]
+        return sorted([*providers_to_test, *leaking_providers])
 
     @staticmethod
     def _extract_long_provider_tests(current_test_types: set[str]):
@@ -1449,20 +1645,19 @@ class SelectiveChecks:
 
         :param current_test_types: The set of test types to run
         """
-        long_tests = ["amazon", "celery", "google", "standard"]
         for original_test_type in tuple(current_test_types):
             if original_test_type == "Providers":
                 current_test_types.remove(original_test_type)
-                for long_test in long_tests:
+                for long_test in LONG_RUNNING_TEST_PROVIDERS:
                     current_test_types.add(f"Providers[{long_test}]")
-                current_test_types.add(f"Providers[-{','.join(long_tests)}]")
+                current_test_types.add(f"Providers[-{','.join(LONG_RUNNING_TEST_PROVIDERS)}]")
             elif original_test_type.startswith("Providers["):
                 provider_tests_to_run = (
                     original_test_type.replace("Providers[", "").replace("]", "").split(",")
                 )
-                if any(long_test in provider_tests_to_run for long_test in long_tests):
+                if any(long_test in provider_tests_to_run for long_test in LONG_RUNNING_TEST_PROVIDERS):
                     current_test_types.remove(original_test_type)
-                    for long_test in long_tests:
+                    for long_test in LONG_RUNNING_TEST_PROVIDERS:
                         if long_test in provider_tests_to_run:
                             current_test_types.add(f"Providers[{long_test}]")
                             provider_tests_to_run.remove(long_test)
@@ -1986,12 +2181,15 @@ class SelectiveChecks:
         all_providers_affected = False
         suspended_providers: set[str] = set()
         for changed_file in self._files:
+            if changed_file in self._test_helpers_replaced_by_importers:
+                continue
             provider = find_provider_affected(changed_file, include_docs=include_docs)
             if provider == "Providers":
                 all_providers_affected = True
             elif provider is not None:
                 if provider not in get_provider_dependencies():
-                    suspended_providers.add(provider)
+                    if changed_file not in self._test_helper_importers:
+                        suspended_providers.add(provider)
                 else:
                     affected_providers.add(provider)
         if self.run_api_tests:
@@ -2218,12 +2416,17 @@ class SelectiveChecks:
 
     def _has_common_compat_changed(self) -> bool:
         """Check if any common.compat provider file was changed."""
-        return any(f.startswith("providers/common/compat/") for f in self._files)
+        return any(
+            f.startswith("providers/common/compat/") and f not in self._test_helper_importers
+            for f in self._files
+        )
 
     def _get_changed_providers_excluding_common_compat(self) -> set[str]:
         """Get set of changed providers excluding common.compat itself."""
         changed_providers: set[str] = set()
         for changed_file in self._files:
+            if changed_file in self._test_helper_importers:
+                continue
             provider = find_provider_affected(changed_file, include_docs=False)
             if provider and provider not in ["common.compat", "Providers"]:
                 changed_providers.add(provider)

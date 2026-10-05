@@ -14,20 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+#
 ---
-downloads:
-  - url: https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/9.4.0.0-IBM-MQC-Redist-LinuxX64.tar.gz  # yamllint disable-line rule:line-length
-    sha256: a839db8f14cef59319639336e951a52dc320fd6a42ab5bee9bc925e43985f457
-    extract_to: /opt/mqm
-    # Anycast IPs published by IBM for public.dhe.ibm.com (see
-    # https://www.ibm.com/support/pages/node/6826677). Used only when DNS
-    # resolution of the hostname fails inside the test container; TLS SNI
-    # and certificate verification remain bound to public.dhe.ibm.com.
-    fallback_ips:
-      - 170.225.126.18
-      - 129.35.224.1
-      - 129.124.168.5
-      - 9.133.44.11
-env:
-  MQ_FILE_PATH: /opt/mqm
+name: "[v3-4-test] Scheduled CI upgrade check"
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    # Tue, Thu at 06:00 UTC — the days main does not run, so the two never overlap.
+    - cron: '0 6 * * 2,4'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  upgrade-v3-4-test:
+    name: "[v3-4-test] Upgrade"
+    uses: ./.github/workflows/upgrade-check.yml
+    with:
+      target-branch: v3-4-test
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

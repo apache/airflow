@@ -94,3 +94,18 @@ internal fun taskContext(): Context =
     dagRun = DagRun("d", "r", null, null, null, null, null, emptyMap()),
     ti = TaskInstance("d", "r", "t", null, 1),
   )
+
+internal class NoopTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+/** A context whose task was wired by its Dag with the given inputs. */
+internal fun contextWiredWith(inputs: List<Arg<*>>): Context {
+  val def = TaskDef("t", NoopTask::class.java)
+  DagDef("d").addTask(def)
+  def.inputs += inputs
+  return taskContext().also { it.taskDef = def }
+}

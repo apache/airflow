@@ -38,6 +38,7 @@ from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TIModel
 from airflow.models.team import Team
 from airflow.sdk.execution_time.hitl import HITLUser
+from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import TaskInstanceState
 
@@ -289,7 +290,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "trigger": None,
             "triggerer_job": None,
             "try_number": 0,
-            "unixname": "root",
+            "unixname": getuser(),
         },
     }
 

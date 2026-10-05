@@ -41,6 +41,16 @@ CONNECTION_TYPE_SCHEMA = json.loads(SCHEMA_PATH.read_text())["properties"]["conn
 BLOCK_SCALAR_VALUE = yaml.safe_load("connection-type: |\n  pydanticai_vertex\n")["connection-type"]
 
 
+@pytest.mark.parametrize("invalid_version", ["3.10.", "3.10.0.1", "3.10.0\n"])
+def test_excluded_python_versions_accept_minor_or_patch_only(invalid_version):
+    schema = json.loads(SCHEMA_PATH.read_text())["properties"]["excluded-python-versions"]["items"]
+
+    jsonschema.validate("3.10", schema=schema)
+    jsonschema.validate("3.10.0", schema=schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(invalid_version, schema=schema)
+
+
 @pytest.mark.parametrize(
     "connection_type",
     ["pydanticai", "google_cloud_platform", "pagerduty_events", "a", "s3"],

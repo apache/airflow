@@ -349,13 +349,13 @@ func TestTaskPanicsOnAnInputFromOutsideTheDag(t *testing.T) {
 			name:   "zero TaskRef",
 			inputs: Inputs(read, &TaskRef{}),
 			want: `task "mergeRows" of Dag "etl": airflow.Inputs got a *airflow.TaskRef ` +
-				`at index 1 that DagRef.Task did not return`,
+				`at index 1 that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name:   "copy of a task of the Dag",
 			inputs: Inputs(&readCopy),
 			want: `task "mergeRows" of Dag "etl": airflow.Inputs got a *airflow.TaskRef ` +
-				`at index 0 that DagRef.Task did not return`,
+				`at index 0 that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name:   "task of another Dag",
