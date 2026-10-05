@@ -20,7 +20,7 @@ Parse a YAML/JSON DAG file into validated :class:`~.models.DagDocument` objects.
 The pydantic models (`.models`) are the schema; this module is the thin I/O + versioning
 layer around them: it lazily streams each document of a multi-document YAML/JSON stream (a string or a
 readable file object),
-resolves its `compatibility_date` against the Cadwyn bundle (migrating an older-dated document
+resolves its `$schema` version against the Cadwyn bundle (migrating an older-pinned document
 up to head), validates it, and turns pydantic/YAML failures into a readable
 :class:`YamlDagParseError` at the offending document. Parsing is lazy, so errors surface as
 the iterator is consumed. It is pure (yaml + pydantic + cadwyn; no `airflow` import), so it is
@@ -48,11 +48,11 @@ class YamlDagParseError(ValueError):
 
 
 def _resolve_and_migrate(raw: dict[str, Any], *, source: str) -> dict[str, Any]:
-    """Resolve *compatibility_date* and migrate to the head shape."""
+    """Resolve the ``$schema`` version and migrate to the head shape."""
     if not isinstance(raw, collections.abc.Mapping):
         raise YamlDagParseError(f"{source}: a DAG document must be a mapping, got {type(raw).__name__}")
-    if not raw.get("compatibility_date"):
-        raise YamlDagParseError(f"{source}: missing required key 'compatibility_date'")
+    if not raw.get("$schema"):
+        raise YamlDagParseError(f"{source}: missing required key '$schema'")
     return migrator.get_migrator().resolve_and_migrate(raw, source=source)
 
 

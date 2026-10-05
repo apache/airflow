@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-`compatibility_date` resolution and forward migration to the head shape.
+`$schema` version resolution and forward migration to the head shape.
 
-A document authored at an older `compatibility_date` is migrated up to the current head shape
+A document pinned to an older `$schema` version is migrated up to the current head shape
 *before* validation, by walking the Cadwyn version bundle and applying each `VersionChange`'s
 forward request converters (`@convert_request_to_next_version_for(DagDocument)`), oldest to
 newest. This mirrors the exec-API / supervisor-schema `SchemaVersionMigrator`, trimmed to the
@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import copy
 import functools
+import re
 import warnings
 from typing import TYPE_CHECKING, Any
 
@@ -42,6 +43,20 @@ from airflow.sdk.importers.yaml_importer.versions import get_bundle
 
 if TYPE_CHECKING:
     from cadwyn import VersionBundle
+
+_SCHEMA_URL = "https://airflow.apache.org/schemas/dag/{date}.json"
+_VERSION_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def schema_url(date: str) -> str:
+    """Build the canonical ``$schema`` URL for a published version *date*."""
+    return _SCHEMA_URL.format(date=date)
+
+
+def version_from_schema(schema: str) -> str | None:
+    """Read the version (``YYYY-MM-DD``) token out of a ``$schema`` URL, ignoring the host."""
+    match = _VERSION_RE.search(schema or "")
+    return match.group(0) if match else None
 
 
 @attrs.define
@@ -61,47 +76,33 @@ class _RequestInfo:
 
 @attrs.define
 class DagDocumentMigrator:
-    """YAML Dag document migrator against ``compatibility_date``."""
+    """YAML Dag document migrator; pins each document to its ``$schema`` version."""
 
     _bundle: VersionBundle
 
     def resolve_and_migrate(self, body: dict[str, Any], *, source: str) -> dict[str, Any]:
         """
-        Resolve *body*'s ``compatibility_date``.
+        Resolve *body*'s ``$schema`` version and migrate it to the head shape.
 
-        A warning is emitted for a date outside the published range (a future
-        date, or one older than the earliest published version); an in-between
-        date resolves silently to the newest applicable ruleset.
+        The version token is read from the ``$schema`` URL (the host is ignored). It is an
+        exact pin: a known version uses its own ruleset; an unknown one (e.g. newer than this
+        importer) resolves to the latest ruleset with a warning, never a hard failure.
 
         :return: The migrated result. If *body* is already at head, it is
             returned as-is; otherwise a migrated copy is returned.
         """
-        versions = self._bundle.versions
-        date = body["compatibility_date"]
-        source_version = self._resolve_source_version(date)
-        if date > versions[0].value or date < versions[-1].value:
+        known = [v.value for v in self._bundle.versions]  # newest-first
+        date = version_from_schema(body["$schema"])
+        if date in known:
+            source_version = date
+        else:
+            source_version = known[0]  # unknown version -> latest ruleset we have
             warnings.warn(
-                f"{source}: compatibility_date {date!r} is not a known version "
-                f"{[v.value for v in versions]}; using the newest applicable ruleset {source_version!r}",
+                f"{source}: $schema version {date!r} is not a known version {known}; "
+                f"using the latest ruleset {source_version!r}",
                 stacklevel=2,
             )
         return self._migrate_to_head(body, source_version)
-
-    def _resolve_source_version(self, date: str) -> str:
-        """
-        Resolve the version a document dated *date* should be migrated from.
-
-        This is inspired by Cloudflare Worker's ``compatibility_date``. The
-        newest published version whose date is ``<= date``, clamped to the
-        published range (future -> head; older than the earliest published
-        version -> that earliest version).
-        """
-        versions = self._bundle.versions
-        if date >= (newest := versions[0].value):
-            return newest
-        if date < (oldest := versions[-1].value):
-            return oldest
-        return next(v.value for v in versions if v.value <= date)
 
     def _migrate_to_head(self, body: dict[str, Any], source_version: str) -> dict[str, Any]:
         """

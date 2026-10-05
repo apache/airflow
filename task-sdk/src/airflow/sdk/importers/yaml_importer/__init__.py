@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Native YAML/JSON DAG format for Airflow (`compatibility_date: 2026-10-30`).
+Native YAML/JSON DAG format for Airflow (`$schema` version 2026-10-30).
 
 Public API:
   * `parse_documents` -- lazily load + validate a YAML/JSON stream into `DagDocument`s

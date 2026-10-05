@@ -37,10 +37,11 @@ from airflow.sdk.importers.yaml_importer.models import (
 )
 
 HEAD = "2026-10-30"
+HEAD_SCHEMA = f"https://airflow.apache.org/schemas/dag/{HEAD}.json"
 
 
 def _one(body: str):
-    return next(iter(parse_documents(f"compatibility_date: '{HEAD}'\ndag_id: d\n{textwrap.dedent(body)}")))
+    return next(iter(parse_documents(f"$schema: {HEAD_SCHEMA}\ndag_id: d\n{textwrap.dedent(body)}")))
 
 
 def _task(task_yaml: str):
@@ -189,36 +190,36 @@ def test_dag_attributes_pass_through():
     assert doc.dag_attributes == {"catchup": False, "max_active_runs": 3, "tags": ["etl"]}
 
 
-# --------------------------------------------------------------------------- compatibility_date
-def test_compatibility_date_required():
-    with pytest.raises(YamlDagParseError, match="compatibility_date"):
+# --------------------------------------------------------------------------- $schema
+def test_schema_required():
+    with pytest.raises(YamlDagParseError, match=r"\$schema"):
         list(parse_documents("dag_id: d\ntasks: []"))
 
 
 def test_unknown_date_warns_and_falls_back():
+    url = "https://airflow.apache.org/schemas/dag/2099-01-01.json"
     with pytest.warns(UserWarning, match="not a known version"):
-        doc = next(iter(parse_documents("compatibility_date: '2099-01-01'\ndag_id: d\ntasks: []")))
+        doc = next(iter(parse_documents(f"$schema: {url}\ndag_id: d\ntasks: []")))
     assert doc.dag_id == "d"
 
 
 # --------------------------------------------------------------------------- multi-document
 def test_accepts_a_file_like_stream():
-    stream = io.StringIO(f"compatibility_date: '{HEAD}'\ndag_id: d\ntasks: [{{id: t, run: {{}}}}]")
+    stream = io.StringIO(f"$schema: {HEAD_SCHEMA}\ndag_id: d\ntasks: [{{id: t, run: {{}}}}]")
     docs = list(parse_documents(stream))
     assert [d.dag_id for d in docs] == ["d"]
 
 
 def test_parse_is_lazy_errors_surface_on_iteration():
     # Building the iterator does not parse; the error only surfaces when consumed.
-    gen = parse_documents("dag_id: d\ntasks: []")  # missing compatibility_date
-    with pytest.raises(YamlDagParseError, match="compatibility_date"):
+    gen = parse_documents("dag_id: d\ntasks: []")  # missing $schema
+    with pytest.raises(YamlDagParseError, match=r"\$schema"):
         next(iter(gen))
 
 
 def test_multiple_documents():
     docs = parse_documents(
-        f"compatibility_date: '{HEAD}'\ndag_id: a\ntasks: []\n---\n"
-        f"compatibility_date: '{HEAD}'\ndag_id: b\ntasks: []\n"
+        f"$schema: {HEAD_SCHEMA}\ndag_id: a\ntasks: []\n---\n$schema: {HEAD_SCHEMA}\ndag_id: b\ntasks: []\n"
     )
     assert [d.dag_id for d in docs] == ["a", "b"]
 
@@ -229,7 +230,7 @@ def test_model_json_schema_describes_markers():
     # them). Assert the generated schema shape here; the snapshot itself is enforced by the
     # generate-yaml-importer-schema-snapshot prek hook.
     sch = DagDocument.model_json_schema(by_alias=True)
-    assert set(sch["properties"]) >= {"compatibility_date", "dag_id", "schedule", "tasks", "templates"}
+    assert set(sch["properties"]) >= {"$schema", "dag_id", "schedule", "tasks", "templates"}
     assert {"XComRef", "TemplateRef", "ConstRef", "OperatorTask", "CodeTask"} <= set(sch["$defs"])
 
 
@@ -260,7 +261,7 @@ def test_parses_example_fixture():
     assert d2["load"].needs == ["transform"]
 
 
-# --------------------------------------------------------------------------- compatibility_date migration
+# --------------------------------------------------------------------------- $schema version migration
 # A synthetic two-version bundle with a real forward converter, to exercise the migration
 # machinery (the real bundle has a single version, so nothing migrates there).
 from cadwyn import (  # noqa: E402
@@ -290,34 +291,38 @@ _SYNTH_BUNDLE = VersionBundle(HeadVersion(), Version("2027-06-01", _RenameOwnerA
 
 
 def _migrate(m, date, **extra):
-    body = {"compatibility_date": date, "dag_id": "d", "tasks": [], **extra}
+    body = {"$schema": migrator.schema_url(date), "dag_id": "d", "tasks": [], **extra}
     return m.resolve_and_migrate(body, source="x")
 
 
-def test_resolution_picks_the_newest_applicable_ruleset():
-    # Observed through the converter: it runs whenever the resolved source is older than head.
+def test_exact_version_pin_migrates_from_that_version():
+    # Observed through the converter: it runs only when the pinned (exact) version is older than head.
     m = migrator.DagDocumentMigrator(_SYNTH_BUNDLE)
-    assert _migrate(m, "2026-10-30", owner_old="t")["owner"] == "t"  # oldest, exact
-    assert _migrate(m, "2027-03-01", owner_old="t")["owner"] == "t"  # in-between -> oldest ruleset
-    with pytest.warns(UserWarning, match="not a known version"):  # ancient -> earliest ruleset (warns)
-        assert _migrate(m, "2020-01-01", owner_old="t")["owner"] == "t"
-    # head-authored: resolved source == head, so no converter runs
+    assert _migrate(m, "2026-10-30", owner_old="t")["owner"] == "t"  # exact older version -> migrates
+    # head-pinned: resolved source == head, so no converter runs
     at_head = _migrate(m, "2027-06-01", owner_old="t")
     assert at_head.get("owner_old") == "t"
     assert "owner" not in at_head
 
 
-def test_warns_only_for_out_of_range_dates(recwarn):
+def test_unknown_version_uses_head_and_warns():
+    # An unknown version (no exact match: future, ancient, or between) pins to the latest ruleset,
+    # so the older converter does NOT run, and a warning is emitted.
     m = migrator.DagDocumentMigrator(_SYNTH_BUNDLE)
-    _migrate(m, "2026-10-30")  # exact
-    _migrate(m, "2027-03-01")  # in-between
-    assert not recwarn.list, "exact/in-between dates must not warn"
-    with pytest.warns(UserWarning, match="not a known version"):
-        _migrate(m, "2099-01-01")  # future
-    with pytest.warns(UserWarning, match="not a known version"):
-        _migrate(m, "2020-01-01")  # older than the earliest published version
+    for unknown in ("2099-01-01", "2020-01-01", "2027-03-01"):
+        with pytest.warns(UserWarning, match="not a known version"):
+            result = _migrate(m, unknown, owner_old="t")
+        assert result.get("owner_old") == "t"
+        assert "owner" not in result
+
+
+def test_known_version_does_not_warn(recwarn):
+    m = migrator.DagDocumentMigrator(_SYNTH_BUNDLE)
+    _migrate(m, "2026-10-30")
+    _migrate(m, "2027-06-01")
+    assert not recwarn.list, "exact known versions must not warn"
 
 
 def test_migrate_is_noop_at_head_for_the_real_bundle():
-    body = {"compatibility_date": HEAD, "dag_id": "d", "tasks": []}
+    body = {"$schema": HEAD_SCHEMA, "dag_id": "d", "tasks": []}
     assert migrator.get_migrator().resolve_and_migrate(body, source="x") is body  # one version -> no copy

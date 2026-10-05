@@ -19,7 +19,7 @@
 Dump the YAML DAG importer's published JSON Schema. Prints JSON to stdout.
 
 Mirrors :mod:`scripts.ci.prek.dump_supervisor_schemas` but for the YAML DAG format: the
-schema is generated from the pydantic models from the format's pydantic models (`DagDocument`) for the head `compatibility_date` (from
+schema is generated from the format's pydantic models (`DagDocument`) for the head `$schema` version (from
 the Cadwyn bundle). The models are the source of truth; the assembly lives here so the
 production package carries no schema-generation code, mirroring the exec-API / supervisor dumps. Run with cwd at the repo root.
 """
@@ -36,12 +36,11 @@ from airflow.sdk.importers.yaml_importer.models import DagDocument
 from airflow.sdk.importers.yaml_importer.versions import get_bundle
 
 # Assemble the published schema here (not in the production package): the head-version
-# JSON Schema from the pydantic models, decorated with the dialect + compatibility date.
+# JSON Schema from the pydantic models, decorated with the dialect.
 head = get_bundle().versions[0].value  # newest-first
 schema = DagDocument.model_json_schema(by_alias=True)
 schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
 schema["title"] = f"Airflow YAML DAG ({head})"
-schema["x-airflow-compatibility-date"] = head
 
 sys.stdout.write(json.dumps(schema, indent=2))
 sys.stdout.write("\n")

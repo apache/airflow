@@ -17,7 +17,7 @@
 
 # Fixture: a realistic two-document YAML DAG for the parser integration test.
 ---
-compatibility_date: "2026-10-30"
+$schema: https://airflow.apache.org/schemas/dag/2026-10-30.json
 dag_id: retail_daily_sales
 schedule: "0 3 * * *"
 start_date: "2025-01-01"
@@ -47,7 +47,7 @@ tasks:
       table: sales
       s3_key: {$t: "sales/{{ ds }}.csv"}
 ---
-compatibility_date: "2026-10-30"
+$schema: https://airflow.apache.org/schemas/dag/2026-10-30.json
 dag_id: events_pipeline
 schedule: "@hourly"
 start_date: "2025-01-01"

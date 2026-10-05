@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Cadwyn `VersionBundle` for the YAML DAG format, keyed by `compatibility_date`.
+Cadwyn `VersionBundle` for the YAML DAG format, keyed by `$schema` version (a dated URL).
 
 The `cadwyn` import is deferred so importing this package does not pull in
 FastAPI/Starlette. Versions are newest-first.

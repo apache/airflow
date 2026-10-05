@@ -58,7 +58,7 @@ TASK_CALLBACK_KEYS = {
 TASK_ASSET_IO_KEYS = {"inlets", "outlets"}
 
 # Structural keys the format owns (everything else is pass-through to Python).
-_DAG_STRUCTURAL = {"compatibility_date", "dag_id", "schedule", "templates", "tasks"}
+_DAG_STRUCTURAL = {"$schema", "dag_id", "schedule", "templates", "tasks"}
 
 
 class XComTarget(BaseModel):
@@ -299,7 +299,7 @@ class DagDocument(BaseModel):
     Extra top-level keys are Dag-level arguments.
     """
 
-    compatibility_date: str
+    schema_: str = Field(alias="$schema")
     dag_id: str
     schedule: Schedule = None
     templates: dict[str, TaskTemplate] = Field(default_factory=dict)

@@ -251,8 +251,8 @@
   "additionalProperties": true,
   "description": "A Dag represented by one YAML document.\n\nExtra top-level keys are Dag-level arguments.",
   "properties": {
-    "compatibility_date": {
-      "title": "Compatibility Date",
+    "$schema": {
+      "title": "$Schema",
       "type": "string"
     },
     "dag_id": {
@@ -297,11 +297,10 @@
     }
   },
   "required": [
-    "compatibility_date",
+    "$schema",
     "dag_id"
   ],
   "title": "Airflow YAML DAG (2026-10-30)",
   "type": "object",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-airflow-compatibility-date": "2026-10-30"
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
 }
