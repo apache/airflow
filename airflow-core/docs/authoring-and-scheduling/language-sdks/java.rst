@@ -287,7 +287,7 @@ it is rejected if the name is missing there. The Dag processor still receives ``
 the separate Dag delivery process.
 
 A Dag processor with this ``[sdk]`` configuration also parses the executable JARs of every Dag bundle,
-and needs a JDK to do so (see :ref:`java-sdk/native-dag-parsing`).
+and needs a JRE to do so (see :ref:`java-sdk/native-dag-parsing`).
 The ``java-task-handlers`` bundle only holds the JARs that the Python Dag's tasks run,
 so keep the Dag processor from parsing it by listing ``*`` in its ``.airflowignore``:
 
@@ -636,7 +636,7 @@ The Dag processor runs the JAR's main class to list its Dags, so it needs a Java
     queue_to_coordinator = {"java-native": "java-native"}
 
 Once a ``JavaCoordinator`` is configured, the Dag processor parses the executable JARs of every Dag bundle,
-so it needs this ``[sdk]`` configuration and a JDK. With one ``JavaCoordinator``, it parses them all.
+so it needs this ``[sdk]`` configuration and a JRE. With one ``JavaCoordinator``, it parses them all.
 With several, map each Dag bundle that holds native Java Dags to one of them in ``[sdk] dag_bundle_to_coordinator``.
 A JAR in a bundle that has no entry, or an entry that names no ``JavaCoordinator``, fails to parse with an import error:
 
@@ -674,7 +674,7 @@ Otherwise, with several Java coordinators, its JARs fail to parse.
 * Cluster policies (``dag_policy``, ``task_policy``) are not applied to a native Java Dag.
 * ``airflow dags reserialize`` does not store the Dags of a JAR, which only the Dag processor stores.
   ``airflow dags test``, ``tasks test`` and ``tasks render`` refuse a native Java Dag.
-  ``airflow tasks list`` lists its tasks by running the JAR's main class, so it needs a JDK.
+  ``airflow tasks list`` lists its tasks by running the JAR's main class, so it needs a JRE.
 
 .. _java-sdk/logging:
 

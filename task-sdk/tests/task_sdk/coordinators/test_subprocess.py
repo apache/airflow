@@ -962,7 +962,7 @@ class TestResolveArtifactBundle:
 
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
 
-        assert coordinator._resolve_artifact_bundle(BundleInfo(name="dags"), log) is pinned
+        assert coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log) is pinned
         assert mock_initialize.call_args_list == [
             call(BundleInfo(name="artifacts")),
             call(BundleInfo(name="artifacts", version="sha-abc", version_data={"k": "v"})),
@@ -976,7 +976,7 @@ class TestResolveArtifactBundle:
 
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
 
-        assert coordinator._resolve_artifact_bundle(BundleInfo(name="dags"), log) is resolved
+        assert coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log) is resolved
         mock_initialize.assert_called_once_with(BundleInfo(name="artifacts"))
 
     @patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True)
@@ -985,7 +985,7 @@ class TestResolveArtifactBundle:
         coordinator = _StubSubprocessCoordinator(command=["x"], task_handler_bundle_name="artifacts")
 
         with pytest.raises(FileNotFoundError, match="does not exist"):
-            coordinator._resolve_artifact_bundle(BundleInfo(name="dags"), log)
+            coordinator._resolve_artifact_bundle(MagicMock(spec=BundleInfo), log)
 
 
 class TestExecuteTaskBundleWiring:
