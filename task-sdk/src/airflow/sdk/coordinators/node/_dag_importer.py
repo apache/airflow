@@ -26,6 +26,7 @@ from airflow.sdk.coordinators.node._bundle_reader import (
     BUNDLE_SUFFIX,
     has_bundle_layout_prefix,
     read_bundle_entrypoint_source,
+    read_bundle_source,
 )
 from airflow.sdk.importers.base import DagSourceCode
 
@@ -55,8 +56,17 @@ class NodeDagImporter(CoordinatorDagImporter):
                 # Keep the file, so parsing it records why it cannot be read.
                 return True
 
-    def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
-        """Return the embedded entrypoint source of the bundle, or a notice when it embeds none."""
+    def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
+        """
+        Return the embedded source of *dag_id*'s own file, or a notice when the bundle embeds none.
+
+        Falls back to the entrypoint source when *dag_id* is not given: ``read_bundle_source`` already
+        falls back to it for a *dag_id* the bundle has no ``dag_source_paths`` entry for.
+        """
         with definition.as_file() as path:
-            source = read_bundle_entrypoint_source(path)
+            source = (
+                read_bundle_source(path, dag_id)
+                if dag_id is not None
+                else read_bundle_entrypoint_source(path)
+            )
         return DagSourceCode(source_code=source or _NO_SOURCE, language="typescript")
