@@ -136,7 +136,8 @@ just before the first release candidate (`X.Y.0rc1`), when `main` starts accepti
 the next minor release. From that point on `vX-Y-test` diverges from `main` and changes reach it
 only by cherry-picking, as for a patch release. Announce the switch on the dev@airflow.apache.org
 list (so contributors know they need to start adding `backport-to-vX-Y-test` labels and milestones
-to the PRs they want in `X.Y.0`) and revert all the pauses listed above in a PR to `main`.
+to the PRs they want in `X.Y.0`) and revert all the pauses listed above in a PR to `main`
+(this step is also called out at the start of [Build RC artifacts](#build-rc-artifacts)).
 
 
 ## i18n workflow
@@ -392,6 +393,17 @@ Before cutting an RC, we should look at the milestone and merge anything ready, 
 ## Build RC artifacts
 
 The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification other than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
+
+> [!IMPORTANT]
+> When you start the release candidates of a major/minor release that went through beta releases
+> (`X.Y.0rc1`), `vX-Y-test` stops being fast-forwarded to `main` and changes reach it only by
+> cherry-picking from now on. Before cutting `X.Y.0rc1`, re-enable the `vX-Y-test` automation that
+> was paused for the betas in a PR to `main`: uncomment the `schedule` in
+> `.github/workflows/scheduled-upgrade-check-vX-Y-test.yml` and the `backport-to-vX-Y-test` rule in
+> `.github/boring-cyborg.yml`, remove `open-pull-requests-limit: 0` from the `vX-Y-test` entries in
+> `.github/dependabot.yml`, and remove `vX-Y-test` from `BACKPORT_PAUSED_BRANCHES` in
+> `.github/workflows/automatic-backport.yml`. See
+> [Beta releases: fast-forwarding `vX-Y-test` to `main`](#beta-releases-fast-forwarding-vx-y-test-to-main).
 
 - Set environment variables
 
