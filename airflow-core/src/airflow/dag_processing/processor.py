@@ -132,7 +132,7 @@ class DagFileParsingResult(BaseModel):
     parsed_definitions: list[str] = Field(default_factory=list)
     """Bundle-relative locations of the Dag definitions imported from ``fileloc``."""
     dag_source_codes: dict[str, DagSourceCode] = Field(default_factory=dict)
-    """Source code of the parsed Dags, keyed by Dag fileloc."""
+    """Source code of the parsed Dags, keyed by dag_id."""
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 

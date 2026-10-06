@@ -41,7 +41,10 @@ if TYPE_CHECKING:
     from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
     from airflow.sdk.importers.base import DagDefinition
 
-COORDINATOR_DAG_IMPORTERS: Final[tuple[str, ...]] = ()
+COORDINATOR_DAG_IMPORTERS: Final[tuple[str, ...]] = (
+    "airflow.sdk.coordinators.java._dag_importer.JavaDagImporter",
+    "airflow.sdk.coordinators.node._dag_importer.NodeDagImporter",
+)
 """
 The classpaths of the :class:`CoordinatorDagImporter` subclasses a Dag bundle's registry may hold.
 

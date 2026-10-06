@@ -51,6 +51,7 @@ if sys.version_info >= (3, 11):
 else:  # pragma: no cover -- Python 3.10 fallback
     import tomli as tomllib
 from registry_contract_models import validate_provider_version_metadata
+from registry_tools.uri_schemes import collect_uri_schemes
 
 try:
     import yaml
@@ -453,6 +454,10 @@ def extract_version_data(
             }
         )
 
+    uri_schemes = collect_uri_schemes(
+        provider_yaml, lambda module_path: git_show(tag, get_source_file_path(layout, dir_path, module_path))
+    )
+
     # Extract modules from source files
     modules = extract_modules_from_yaml(provider_yaml, tag, layout, dir_path, provider_id, version)
     module_counts = count_modules(modules)
@@ -466,6 +471,7 @@ def extract_version_data(
             "dependencies": pyproject_data["dependencies"],
             "optional_extras": pyproject_data["optional_extras"],
             "connection_types": connection_types,
+            "uri_schemes": uri_schemes,
             "module_counts": module_counts,
             "modules": modules,
         }

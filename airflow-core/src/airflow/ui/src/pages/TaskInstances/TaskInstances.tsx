@@ -140,6 +140,16 @@ const taskInstanceColumns = ({
             ),
           header: translate("dagRun_one"),
         },
+        {
+          accessorKey: "dag_run_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+              <TruncatedText text={original.dag_run_id} />
+            </RouterLink>
+          ),
+          enableSorting: false,
+          header: translate("dagRunId"),
+        },
       ]),
   ...(Boolean(taskId)
     ? []
@@ -279,6 +289,7 @@ export const TaskInstances = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
+      dag_run_id: false,
       dag_version: false,
       end_date: false,
       executor: false,

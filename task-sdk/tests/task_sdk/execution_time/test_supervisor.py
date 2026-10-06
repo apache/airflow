@@ -57,6 +57,7 @@ from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk import DAG, BaseOperator, timezone
+from airflow.sdk._shared.secrets_masker import mask_secret
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -163,6 +164,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import (
     SERVER_TERMINATED,
     ActivitySubprocess,
@@ -184,6 +186,8 @@ from airflow.sdk.execution_time.task_runner import run
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import kgb
 
     from airflow.sdk.definitions.context import Context
@@ -268,6 +272,258 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
+
+
+def _response_error(status: int, detail: dict[str, Any]) -> ServerResponseError:
+    error = ServerResponseError.from_response(
+        httpx.Response(status, json={"detail": detail}, request=httpx.Request("PATCH", "http://server/x"))
+    )
+    assert error is not None
+    return error
+
+
+class TestSuperviseTaskLaunchError:
+    """A task whose runtime cannot be launched fails its try in the supervisor, with the reason."""
+
+    LAUNCH_EVENT = "Cannot launch the task's runtime"
+
+    @pytest.fixture
+    def ti(self):
+        return TaskInstance(
+            id=uuid7(),
+            task_id="extract",
+            dag_id="etl",
+            run_id="r",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="java",
+        )
+
+    @pytest.fixture
+    def client(self, make_ti_context):
+        client = MagicMock(spec=sdk_client.Client)
+        client.task_instances.start.return_value = make_ti_context(should_retry=False)
+        return client
+
+    @pytest.fixture
+    def upload_to_remote(self):
+        with patch("airflow.sdk.log.upload_to_remote", autospec=True) as mock_upload:
+            yield mock_upload
+
+    def _supervise(
+        self, client, ti, error: BaseException | Callable[..., Any], *, log_path: str | None = None
+    ) -> int:
+        coordinator = MagicMock(spec=BaseCoordinator)
+        coordinator.execute_task.side_effect = error
+        with patch.object(supervisor, "get_coordinator_manager", autospec=True) as mock_manager:
+            mock_manager.return_value.for_queue.return_value = coordinator
+            return supervise_task(
+                ti=ti,
+                bundle_info=BundleInfo(name="dags", version="v1"),
+                dag_rel_path="etl.jar",
+                token="",
+                client=client,
+                log_path=log_path,
+            )
+
+    def _read_task_log(self, tmp_path, log_path: str) -> list[dict[str, Any]]:
+        return [json.loads(line) for line in (tmp_path / log_path).read_text().splitlines() if line]
+
+    def test_fails_the_try_with_the_reason(self, client, ti, upload_to_remote):
+        exit_code = self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"))
+
+        assert exit_code == 1
+        client.task_instances.start.assert_called_once_with(ti.id, os.getpid(), mock.ANY)
+        client.task_instances.finish.assert_called_once_with(
+            id=ti.id,
+            state=TaskInstanceState.FAILED,
+            when=mock.ANY,
+            rendered_map_index=None,
+            retry_reason="no jar for 'extract'",
+        )
+        client.task_instances.retry.assert_not_called()
+
+    def test_retries_the_try_when_the_task_has_retries_left(
+        self, client, ti, make_ti_context, upload_to_remote
+    ):
+        client.task_instances.start.return_value = make_ti_context(should_retry=True, max_tries=2)
+
+        exit_code = self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"))
+
+        assert exit_code == 1
+        client.task_instances.retry.assert_called_once_with(
+            ti.id, end_date=mock.ANY, rendered_map_index=None, retry_reason="no jar for 'extract'"
+        )
+        client.task_instances.finish.assert_not_called()
+
+    def test_fails_the_try_of_an_error_that_is_not_retryable_even_with_retries_left(
+        self, client, ti, make_ti_context, upload_to_remote
+    ):
+        client.task_instances.start.return_value = make_ti_context(should_retry=True, max_tries=2)
+
+        exit_code = self._supervise(client, ti, TaskLaunchError("wrong coordinator", retryable=False))
+
+        assert exit_code == 1
+        client.task_instances.finish.assert_called_once_with(
+            id=ti.id,
+            state=TaskInstanceState.FAILED,
+            when=mock.ANY,
+            rendered_map_index=None,
+            retry_reason="wrong coordinator",
+        )
+        client.task_instances.retry.assert_not_called()
+
+    def test_writes_the_reason_to_the_task_log(self, client, ti, tmp_path, upload_to_remote):
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"), log_path="etl/extract.log")
+
+        entries = self._read_task_log(tmp_path, "etl/extract.log")
+        assert [(e["level"], e["event"], e["reason"]) for e in entries if "reason" in e] == [
+            ("error", self.LAUNCH_EVENT, "no jar for 'extract'")
+        ]
+
+    def test_logs_the_cause_of_the_error(self, client, ti, tmp_path, upload_to_remote):
+        try:
+            try:
+                raise OSError("disk gone")
+            except OSError as cause:
+                raise TaskLaunchError("cannot read the bundle") from cause
+        except TaskLaunchError as e:
+            error = e
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, error, log_path="etl/extract.log")
+
+        (entry,) = [e for e in self._read_task_log(tmp_path, "etl/extract.log") if "reason" in e]
+        assert "disk gone" in json.dumps(entry["exception"])
+
+    def test_truncates_the_reason_for_the_server_but_not_the_log(
+        self, client, ti, tmp_path, upload_to_remote
+    ):
+        reason = "x" * 700
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, TaskLaunchError(reason), log_path="etl/extract.log")
+
+        assert client.task_instances.finish.call_args.kwargs["retry_reason"] == "x" * 500
+        (entry,) = [e for e in self._read_task_log(tmp_path, "etl/extract.log") if "reason" in e]
+        assert entry["reason"] == reason
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        ("message", "expected"),
+        [
+            pytest.param(
+                "cannot read https://user:hunter2-hunter2@git/repo",
+                "cannot read https://user:***@git/repo",
+                id="short",
+            ),
+            pytest.param("x" * 490 + "hunter2-hunter2", "x" * 490 + "***", id="across-the-cut"),
+        ],
+    )
+    def test_redacts_a_masked_secret_in_the_reason_before_cutting_it(
+        self, client, ti, tmp_path, upload_to_remote, message, expected
+    ):
+        def fail_with_a_secret(**kwargs):
+            mask_secret("hunter2-hunter2")
+            raise TaskLaunchError(message)
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, fail_with_a_secret, log_path="etl/extract.log")
+
+        assert client.task_instances.finish.call_args.kwargs["retry_reason"] == expected
+        assert "hunter2" not in (tmp_path / "etl/extract.log").read_text()
+
+    def test_uploads_the_task_log(self, client, ti, upload_to_remote):
+        self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        upload_to_remote.assert_called_once_with(mock.ANY, ti)
+
+    def test_uploads_the_task_log_when_reporting_the_state_fails(self, client, ti, upload_to_remote):
+        client.task_instances.finish.side_effect = _response_error(500, {"reason": "boom"})
+
+        with pytest.raises(ServerResponseError):
+            self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        upload_to_remote.assert_called_once()
+
+    def test_an_upload_failure_is_logged_and_not_raised(self, client, ti, tmp_path, upload_to_remote):
+        upload_to_remote.side_effect = OSError("disk gone")
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = self._supervise(client, ti, TaskLaunchError("no jar"), log_path="etl/extract.log")
+
+        assert exit_code == 1
+        client.task_instances.finish.assert_called_once()
+        events = [e["event"] for e in self._read_task_log(tmp_path, "etl/extract.log")]
+        assert "Failed to upload remote logs" in events
+
+    @pytest.mark.parametrize(
+        "should_retry", [pytest.param(False, id="finish"), pytest.param(True, id="retry")]
+    )
+    def test_a_conflict_on_the_state_is_logged_and_the_try_is_left_to_the_server(
+        self, client, ti, make_ti_context, tmp_path, upload_to_remote, should_retry
+    ):
+        client.task_instances.start.return_value = make_ti_context(
+            should_retry=should_retry, max_tries=2 if should_retry else 0
+        )
+        reported = client.task_instances.retry if should_retry else client.task_instances.finish
+        reported.side_effect = _response_error(409, {"reason": "invalid_state"})
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = self._supervise(client, ti, TaskLaunchError("no jar"), log_path="etl/extract.log")
+
+        assert exit_code == 1
+        reported.assert_called_once()
+        events = [e["event"] for e in self._read_task_log(tmp_path, "etl/extract.log")]
+        assert "Server rejected task outcome with a conflict. Discarding task outcome." in events
+        upload_to_remote.assert_called_once()
+
+    def test_a_cleared_task_reports_no_state_and_logs_it(self, client, ti, tmp_path, upload_to_remote):
+        client.task_instances.start.side_effect = _response_error(
+            409, {"reason": "invalid_state", "previous_state": "restarting"}
+        )
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = self._supervise(client, ti, TaskLaunchError("no jar"), log_path="etl/extract.log")
+
+        assert exit_code == 1
+        client.task_instances.finish.assert_not_called()
+        client.task_instances.retry.assert_not_called()
+        events = [e["event"] for e in self._read_task_log(tmp_path, "etl/extract.log")]
+        assert "Server rejected task start because the task was cleared. Task process stopped." in events
+
+    def test_logs_the_reason_to_the_supervisor_log(self, client, ti, captured_logs, upload_to_remote):
+        self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"))
+
+        supervisor_entries = [e for e in captured_logs if e["event"] == self.LAUNCH_EVENT and "ti_id" in e]
+        assert [(e["level"], e["ti_id"], e["reason"]) for e in supervisor_entries] == [
+            ("warning", str(ti.id), "no jar for 'extract'")
+        ]
+
+    def test_a_task_already_running_elsewhere_propagates(self, client, ti, upload_to_remote):
+        client.task_instances.start.side_effect = TaskAlreadyRunningError("already running")
+
+        with pytest.raises(TaskAlreadyRunningError):
+            self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        client.task_instances.finish.assert_not_called()
+
+    def test_another_start_error_propagates(self, client, ti, upload_to_remote):
+        client.task_instances.start.side_effect = _response_error(500, {"reason": "boom"})
+
+        with pytest.raises(ServerResponseError):
+            self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        client.task_instances.finish.assert_not_called()
+
+    def test_other_errors_from_the_coordinator_are_not_reported_as_a_launch_failure(
+        self, client, ti, upload_to_remote
+    ):
+        with pytest.raises(RuntimeError, match="boom"):
+            self._supervise(client, ti, RuntimeError("boom"))
+
+        client.task_instances.start.assert_not_called()
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -4249,6 +4505,22 @@ class TestHandleRequest:
         assert exc.value is error
         proc.client.task_instances.finish.assert_called_once()
 
+    @pytest.mark.parametrize("status_code", [404, 409, 410])
+    def test_server_termination_acknowledgement_after_archival(self, watched_subprocess, status_code):
+        proc, _ = watched_subprocess
+        proc._exit_code = -signal.SIGTERM
+        proc._terminal_state = SERVER_TERMINATED
+        proc.client.task_instances.finish.side_effect = ServerResponseError(
+            message="Acknowledgement rejected",
+            request=httpx.Request("PATCH", "http://test/task-instances/state"),
+            response=httpx.Response(status_code),
+        )
+
+        proc.update_task_state_if_needed()
+
+        proc.client.task_instances.finish.assert_called_once()
+        assert proc._pending_terminal_state_msg is None
+
     def test_task_state_retry_reason_forwarded_to_finish(self, watched_subprocess, mocker):
         """A TaskState message's retry_reason must reach the deferred finish() call."""
         watched_subprocess, _ = watched_subprocess
@@ -4487,9 +4759,13 @@ class TestInProcessTestSupervisor:
         fake_task_instances.start.return_value = make_ti_context()
         fake_client = mock.MagicMock(spec_set=["task_instances"])
         fake_client.task_instances = fake_task_instances
-        monkeypatch.setattr(
-            InProcessTestSupervisor, "_api_client", staticmethod(lambda dag=None: fake_client)
-        )
+
+        def fake_api_client(dag, attempt_id):
+            assert dag is task.dag
+            assert attempt_id == ti.id
+            return fake_client
+
+        monkeypatch.setattr(InProcessTestSupervisor, "_api_client", staticmethod(fake_api_client))
 
         result = InProcessTestSupervisor.start(what=ti, task=task)
 
