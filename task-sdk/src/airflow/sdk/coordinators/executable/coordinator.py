@@ -291,21 +291,10 @@ def _walk_bundle_files(
 
 def _ensure_executable(path: pathlib.Path) -> str | None:
     """
-    Add the execute bit for each read bit already set on *path*, if missing.
+    Make *path* executable if it isn't already. Returns None on success, or a reason.
 
-    Returns ``None`` once *path* is executable (already, or after this call), or a short
-    reason it could not be made executable.
-
-    Already-executable is checked with :func:`os.access` first and returned on immediately,
-    without attempting a chmod: a file whose owner/group/other bits do not exactly match the
-    "read implies execute" pattern this function would otherwise produce (for example
-    ``0o744``) is left alone rather than rewritten, which also means a bundle that is already
-    runnable keeps working on a mount where chmod itself would fail (for example read-only).
-
-    An object-store Dag bundle (for example ``S3DagBundle``) has no concept of file
-    permissions, so a bundle synced from one always loses its execute bit. This is only called
-    for the one candidate about to be returned, after it has passed the footer-magic,
-    binary_sha256 and schema-version checks, so marking it executable is safe.
+    Checks ``os.access`` first so an already-runnable file is left untouched and never
+    fails on a mount where chmod itself is refused.
     """
     if os.access(path, os.X_OK):
         return None
@@ -379,9 +368,7 @@ class ExecutableCoordinator(SubprocessCoordinator):
         executable bundles a Python stub Dag delegates task execution to. It must
         be registered in ``[dag_processor] dag_bundle_config_list``. If unset,
         the task's own Dag bundle is used. Bundles are identified by their footer
-        trailer, not by the execute bit; a matching file is marked executable
-        before it is run, so an object-store Dag bundle (which has no concept of
-        file permissions) works too.
+        trailer, not the execute bit, so an object-store Dag bundle works too.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
