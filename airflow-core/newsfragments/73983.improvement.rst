@@ -1,0 +1,1 @@
+Add indexes on ``asset_partition_dag_run`` for the partition-key write path and the scheduler's pending-run scan.
