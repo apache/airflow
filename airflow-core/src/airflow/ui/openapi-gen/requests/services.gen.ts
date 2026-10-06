@@ -3331,6 +3331,7 @@ export class TaskInstanceService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -3373,6 +3374,7 @@ export class TaskInstanceService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -3415,6 +3417,7 @@ export class TaskInstanceService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });

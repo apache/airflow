@@ -271,6 +271,15 @@ class SerializedDAG:
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
 
+    @functools.cached_property
+    def has_dynamic_nodes(self) -> bool:
+        from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
+
+        return any(task.get_needs_expansion() for task in self.tasks) or any(
+            isinstance(group, SerializedLoopTaskGroup)
+            for group in self.task_group.get_task_group_dict().values()
+        )
+
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
 

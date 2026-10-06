@@ -3664,7 +3664,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         }
         replaced = {
             (ti.task_id, str(ti.region_id), ti.region_index)
-            for ti in session.scalars(select(TaskInstance).where(TaskInstance.id.in_(archived_ids)))
+            for ti in session.scalars(
+                select(TaskInstance)
+                .where(TaskInstance.id.in_(archived_ids))
+                .execution_options(include_all_attempts=True)
+            )
         }
         assert reported == replaced
         assert {
@@ -3716,7 +3720,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         body = response.json()
         assert body["total_entries"] == 1
         assert (body["task_instances"][0]["id"] == str(old_id)) is whole
-        assert body["task_instances"][0]["note"] == (expected_note if whole else new_note or None)
+        assert body["task_instances"][0]["note"] == expected_note
         session.expire_all()
         history = session.get(TaskInstance, old_id)
         assert history.working_set is None
@@ -5525,6 +5529,28 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         )
 
         assert response.status_code == 409, response.text
+
+    @pytest.mark.parametrize(
+        ("map_index", "expected_status"),
+        [
+            pytest.param(7, 400, id="conflicting"),
+            pytest.param(-1, 200, id="default"),
+            pytest.param(1, 200, id="matching"),
+        ],
+    )
+    def test_loop_mark_rejects_map_index_conflicting_with_region_index(
+        self, test_client, loop_instances, map_index, expected_status
+    ):
+        dr, loop, root, tis = loop_instances
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.first/{map_index}",
+            json={"new_state": "success", "region_id": str(root.id), "region_index": 1},
+        )
+
+        assert response.status_code == expected_status, response.text
+        if expected_status == 400:
+            assert response.json()["detail"] == "map_index conflicts with region_index"
 
     @pytest.mark.parametrize("coordinates_in_query", [False, True])
     def test_exact_loop_note_changes_only_selected_execution(

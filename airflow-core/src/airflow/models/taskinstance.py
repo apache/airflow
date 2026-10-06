@@ -1304,7 +1304,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         for name in ("state", "start_date", "end_date"):
             if not state.attrs[name].history.has_changes():
                 setattr(self, name, getattr(current, name))
-        never_started = reason == "superseded" and self.start_date is None
+        never_started = reason == "superseded" and self.state in (
+            None,
+            TaskInstanceState.SCHEDULED,
+            TaskInstanceState.QUEUED,
+            TaskInstanceState.UP_FOR_RETRY,
+        )
         if self.state not in State.finished and not never_started:
             self.state = TaskInstanceState.FAILED
             if self.end_date is None:

@@ -123,7 +123,7 @@ from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import DagRun
 from airflow.models.loop_clear import LoopClearScope, apply_loop_clear_scope, select_loop_clear_scope
 from airflow.models.renderedtifields import load_legacy_rendered_fields
-from airflow.models.task_coordinates import TaskCoordinateResolver, enclosing_loop
+from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver, enclosing_loop
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -931,7 +931,7 @@ def post_clear_task_instances(
             _get_task_group_task_ids(dag_id, body.task_group_id, dag),
         )
 
-    gate_query = select(TI.id).join(TI.dag_run).where(TI.dag_id == dag_id, TI.operator == "LoopGateOperator")
+    gate_query = select(TI.id).join(TI.dag_run).where(TI.dag_id == dag_id, TI.operator == LOOP_GATE_OPERATOR)
     if dag_run_id is not None and not (past or future):
         gate_query = gate_query.where(TI.run_id == dag_run_id)
     else:
@@ -1233,7 +1233,7 @@ def patch_task_group_instances(
 @task_instances_router.patch(
     "/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
     ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
     operation_id="patch_task_group_instances_dry_run",
@@ -1293,7 +1293,7 @@ def patch_task_group_instances_dry_run(
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/dry_run",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
     ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
     operation_id="patch_task_instance_dry_run",
@@ -1301,7 +1301,7 @@ def patch_task_group_instances_dry_run(
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}/dry_run",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
     ),
     dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
     operation_id="patch_task_instance_dry_run_by_map_index",

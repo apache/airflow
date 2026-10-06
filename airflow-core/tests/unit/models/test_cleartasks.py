@@ -70,6 +70,31 @@ def test_superseded_execution_is_archived_in_place_without_successor(dag_maker, 
     assert session.get(TI, retried_id).archived_reason == "retry"
 
 
+@pytest.mark.parametrize(
+    ("state", "expected_state"),
+    [
+        pytest.param(None, None, id="cleared"),
+        pytest.param(TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.UP_FOR_RETRY, id="up_for_retry"),
+        pytest.param(TaskInstanceState.QUEUED, TaskInstanceState.QUEUED, id="queued"),
+        pytest.param(TaskInstanceState.RUNNING, TaskInstanceState.FAILED, id="running"),
+    ],
+)
+def test_superseding_carries_state_only_for_never_started_successor(
+    dag_maker, session, state, expected_state
+):
+    with dag_maker("superseded_successor"):
+        EmptyOperator(task_id="task")
+    ti = dag_maker.create_dagrun().task_instances[0]
+    ti.state = state
+    ti.start_date = DEFAULT_DATE
+    ti.end_date = DEFAULT_DATE + datetime.timedelta(seconds=5)
+    session.flush()
+
+    ti.archive(reason="superseded", session=session)
+
+    assert ti.state == expected_state
+
+
 def test_complete_restart_rejects_outcome_for_ordinary_execution(dag_maker, session):
     with dag_maker("ordinary_restart_outcome"):
         EmptyOperator(task_id="task")

@@ -234,7 +234,12 @@ def _bulk_clear_runs(
         tis = session.scalars(ti_query).all()
         if not tis:
             continue
-        clear_task_instances_for_runs(tis, session=session)
+        clear_task_instances_for_runs(
+            tis,
+            session=session,
+            later_loop_iterations=not state_filter,
+            whole_task_keys=() if state_filter else {(ti.dag_id, ti.run_id, ti.task_id) for ti in tis},
+        )
         session.flush()
         cleared += len(tis)
 

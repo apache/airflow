@@ -1908,6 +1908,9 @@ class DagRun(Base, LoggingMixin):
     ) -> list[TI]:
         from airflow.models.task_coordinates import TaskCoordinateResolver
 
+        if not self.get_dag().has_dynamic_nodes:
+            return []
+
         pending = (
             select(DynamicRegion)
             .where(

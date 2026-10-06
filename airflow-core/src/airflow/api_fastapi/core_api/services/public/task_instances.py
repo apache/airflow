@@ -66,6 +66,7 @@ from airflow.models.dynamic_region import (
 from airflow.models.loop_clear import loop_coordinate_is_superseded, select_loop_clear_scope
 from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.task_coordinates import (
+    LOOP_GATE_OPERATOR,
     TaskCoordinateResolver,
     enclosing_loop,
     public_map_index_expression,
@@ -205,7 +206,7 @@ def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI
             select(TI)
             .options(joinedload(TI.rendered_task_instance_fields))
             .where(TI.id.in_([ti.id for ti in tis]))
-            .execution_options(populate_existing=True)
+            .execution_options(populate_existing=True, include_all_attempts=True)
         ).all()
     )
     load_legacy_rendered_fields(reloaded, session=session)
@@ -292,7 +293,10 @@ def _validate_region_selection(body: PatchTaskInstanceBody) -> None:
 
 
 def _lock_patch_runs(dag: SerializedDAG, run_id: str, body: PatchTaskInstanceBody, session: Session) -> None:
-    run_ids = get_run_ids(dag, run_id, body.include_future, body.include_past, session=session)
+    if body.include_future or body.include_past:
+        run_ids = get_run_ids(dag, run_id, body.include_future, body.include_past, session=session)
+    else:
+        run_ids = [run_id]
     session.scalars(
         select(DagRun.id)
         .where(
@@ -451,17 +455,7 @@ def _patch_task_instance_state(
 ) -> list[TI]:
     if task_instance_body.region_id is not None:
         if selected is None:
-            selected = list(
-                session.scalars(
-                    select(TI).where(
-                        TI.dag_id == dag.dag_id,
-                        TI.run_id == dag_run_id,
-                        TI.task_id == task_id,
-                        TI.region_id == task_instance_body.region_id,
-                        TI.region_index == task_instance_body.region_index,
-                    )
-                )
-            )
+            raise ValueError("Regional task instance updates require the selected task instances")
         return _patch_selected_task_state(selected, task_instance_body, data, session=session, commit=commit)
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
@@ -535,7 +529,7 @@ def _patch_selected_task_state(
         [ti for ti in tis if ti.id not in superseded], later_loop_iterations=False, session=session
     )
     for ti in changed:
-        if ti.operator == "LoopGateOperator":
+        if ti.operator == LOOP_GATE_OPERATOR:
             session.execute(
                 delete(XComModelV2).where(
                     XComModelV2.task_instance_id == ti.id, XComModelV2.key == LOOP_DECISION_KEY
@@ -575,7 +569,7 @@ def _patch_task_group_state(
     """Update the state of all task instances in a task group."""
     if body.region_id is not None:
         if selected is None:
-            selected = _get_task_group_task_instances(dag.dag_id, dag_run_id, group_id, dag, session, body)
+            raise ValueError("Regional task group updates require the selected task instances")
         return _patch_selected_task_state(selected, body, data, session=session, commit=commit)
     updated_tis = dag.set_task_group_state(
         group_id=group_id,
@@ -735,7 +729,8 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         task_keys_list = list(task_keys)
         public_index = public_map_index_expression(TI)
         query = select(TI, public_index).where(
-            tuple_(TI.dag_id, TI.run_id, TI.task_id, public_index).in_(task_keys_list)
+            tuple_(TI.dag_id, TI.run_id, TI.task_id).in_({key[:3] for key in task_keys_list}),
+            tuple_(TI.dag_id, TI.run_id, TI.task_id, public_index).in_(task_keys_list),
         )
         rows = self.session.execute(query).all()
         self._reject_unscoped_loop_tasks([ti for ti, _ in rows])

@@ -72,6 +72,8 @@ def resolve_task_scope(
     if region_index is not None and region_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
     if region_id is not None and region_index is not None:
+        if map_index not in (-1, region_index):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "map_index conflicts with region_index")
         return TaskScope(
             dag_id=dag_id,
             run_id=run_id,

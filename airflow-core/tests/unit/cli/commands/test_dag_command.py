@@ -2175,6 +2175,36 @@ class TestCliDagsClear:
         assert clear_numbers["non_partitioned"] == 0
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
+    @pytest.mark.parametrize(
+        ("only_failed", "only_running", "expect_whole"),
+        [
+            pytest.param(False, False, True, id="no-state-filter"),
+            pytest.param(True, False, False, id="only-failed"),
+            pytest.param(False, True, False, id="only-running"),
+        ],
+    )
+    @mock.patch("airflow.cli.commands.dag_command.clear_task_instances_for_runs", autospec=True)
+    def test_bulk_clear_scopes_loop_clearing_like_dag_clear(
+        self, mock_clear, session, only_failed, only_running, expect_whole
+    ):
+        run_id = "part_2026_03_08"
+        ti = session.scalar(
+            select(TaskInstance).where(TaskInstance.dag_id == self.DAG_ID, TaskInstance.run_id == run_id)
+        )
+        ti.state = TaskInstanceState.FAILED if only_failed else TaskInstanceState.RUNNING
+        session.flush()
+
+        dag_command._bulk_clear_runs(
+            self.DAG_ID, [run_id], only_failed=only_failed, only_running=only_running, session=session
+        )
+
+        mock_clear.assert_called_once()
+        assert mock_clear.call_args.kwargs["later_loop_iterations"] is expect_whole
+        assert mock_clear.call_args.kwargs["whole_task_keys"] == (
+            {(self.DAG_ID, run_id, ti.task_id)} if expect_whole else ()
+        )
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
     def test_does_not_clear_runs_of_other_dags(self, parser, dag_maker):
         """A run_id collision across DAGs must not clear the other DAG's task instances."""
         other_dag_id = "test_dags_clear_other_dag"

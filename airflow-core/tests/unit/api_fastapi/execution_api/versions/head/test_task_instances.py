@@ -1755,6 +1755,7 @@ class TestTIUpdateState:
         if session.bind.dialect.name == "sqlite":
             pytest.skip("SQLite has no row locks")
         ti = create_task_instance(state=State.QUEUED)
+        ti.region_index = 0
         session.commit()
         response = client.patch(
             f"/execution/task-instances/{ti.id}/run",

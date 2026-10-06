@@ -31,7 +31,7 @@ from airflow.models.dynamic_region import (
     load_region_ancestry,
     loop_position,
 )
-from airflow.models.task_coordinates import TaskCoordinateResolver, enclosing_loop
+from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver, enclosing_loop
 from airflow.models.taskinstance import TaskInstance, _get_relevant_map_indexes, clear_task_instances
 from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -216,7 +216,7 @@ def loop_coordinate_is_superseded(region_id: UUID, index: int, regions: dict[UUI
 
 def loop_gate_waits_for_archival(gate: TaskInstance, *, session: Session) -> bool:
     """Hold a rerun gate until superseded executions of its later passes finish termination."""
-    if gate.operator != "LoopGateOperator" or gate.region_id == SENTINEL_REGION_ID:
+    if gate.operator != LOOP_GATE_OPERATOR or gate.region_id == SENTINEL_REGION_ID:
         return False
     if not session.scalar(
         select(
@@ -354,7 +354,7 @@ def clear_task_instances_for_runs(
         .order_by(DagRun.dag_id, DagRun.run_id)
         .with_for_update()
     ).all()
-    gate_runs = {(ti.dag_id, ti.run_id) for ti in tis if ti.operator == "LoopGateOperator"}
+    gate_runs = {(ti.dag_id, ti.run_id) for ti in tis if ti.operator == LOOP_GATE_OPERATOR}
     clear_task_instances(
         [ti for ti in tis if (ti.dag_id, ti.run_id) not in gate_runs],
         session=session,
@@ -412,7 +412,7 @@ def apply_loop_clear_scope(
         regions = _regions_for_run(tis[0], session)
         cuts: dict[UUID, int] = {}
         for ti in tis:
-            if ti.id not in scope.retry_ids or ti.operator != "LoopGateOperator":
+            if ti.id not in scope.retry_ids or ti.operator != LOOP_GATE_OPERATOR:
                 continue
             task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
             group = enclosing_loop(task)
