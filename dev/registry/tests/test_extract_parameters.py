@@ -1037,7 +1037,7 @@ class TestDiscoverClassesFromProvider:
     @pytest.mark.parametrize(
         ("tag_exists", "expected_anchor"),
         [
-            pytest.param(True, "fakeoperator-released-title", id="tag-exists-reads-released-docs"),
+            pytest.param(True, "released-title-fakeoperator", id="tag-exists-reads-released-docs"),
             pytest.param(False, "fakeoperator", id="no-tag-reads-working-tree"),
         ],
     )
@@ -1048,7 +1048,7 @@ class TestDiscoverClassesFromProvider:
         docs_dir.mkdir(parents=True)
         (docs_dir / "s3.rst").write_text("``FakeOperator``\n----------------\n\nUnreleased title.\n")
         released = {
-            "operators/s3.rst": "``FakeOperator``: Released title\n--------------------------------\n"
+            "operators/s3.rst": "Released title: ``FakeOperator``\n--------------------------------\n"
         }
 
         with (
