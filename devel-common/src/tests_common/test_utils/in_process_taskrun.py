@@ -65,9 +65,6 @@ def _resolve_sdk_httpx() -> ModuleType:
     Needed as these test_utils run against multiple versions of Airflow/sdk. This can be
     removed when the oldest version we test against is Airflow 3.4.
 
-    Needed as these test_utils run against multiple versions of Airflow/sdk. This can be
-    removed when the oldest version we test against is Airflow 3.4.
-
     Compat jobs pair this helper with a released SDK still on ``httpx``. A transport from the
     wrong package trips httpx's own stream-type assertion.
     """
