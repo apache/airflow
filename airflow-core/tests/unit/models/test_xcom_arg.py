@@ -417,3 +417,49 @@ def test_mapped_producer_length_ignores_other_iterations(
         )
         == expected_length
     )
+
+
+def test_member_of_mapped_task_group_has_no_map_length(dag_maker, session):
+    from airflow.sdk import task_group
+
+    with dag_maker(session=session, serialized=True):
+
+        @task_group
+        def group(value):
+            BashOperator(task_id="member", bash_command="true")
+
+        group.expand(value=[1, 2])
+
+    dr = dag_maker.create_dagrun()
+    loop = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop")
+    session.add(loop)
+    session.flush()
+    expansion = DynamicRegion(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id="group",
+        parent_region_id=loop.id,
+        parent_region_index=1,
+    )
+    session.add(expansion)
+    session.flush()
+    member_task = dag_maker.serialized_dag.get_task("group.member")
+    first = next(ti for ti in dr.task_instances if ti.task_id == "group.member")
+    first.region_id = expansion.id
+    first.region_index = 0
+    second = TaskInstance(task=member_task, run_id=dr.run_id, dag_version_id=first.dag_version_id)
+    second.region_id = expansion.id
+    second.region_index = 1
+    session.add(second)
+    session.flush()
+    argument = SchedulerPlainXComArg(member_task, XCOM_RETURN_KEY)
+
+    assert (
+        get_task_map_length(
+            argument,
+            dr.run_id,
+            producer_contexts={"group.member": ProducerContext(loop.id, 1, loop_node_id="loop")},
+            session=session,
+        )
+        is None
+    )

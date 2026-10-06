@@ -173,6 +173,8 @@ def _(
     dag_id = xcom_arg.operator.dag_id
     task_id = xcom_arg.operator.task_id
     mapped = is_mapped(xcom_arg.operator)
+    if not mapped and xcom_arg.operator.get_needs_expansion():
+        return None
 
     if producer_contexts is not None:
         producers = resolve_current_producers(

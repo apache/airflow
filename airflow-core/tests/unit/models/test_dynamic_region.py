@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
@@ -38,9 +37,6 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.db import clear_db_runs
 
-if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
-
 pytestmark = pytest.mark.db_test
 
 
@@ -49,17 +45,6 @@ def clean_db():
     clear_db_runs()
     yield
     clear_db_runs()
-
-
-@pytest.fixture
-def dag_run(dag_maker):
-    with dag_maker(serialized=True):
-        EmptyOperator(task_id="task")
-    return dag_maker.create_dagrun()
-
-
-def make_region(dag_run: DagRun, **kwargs) -> DynamicRegion:
-    return DynamicRegion(dag_id=dag_run.dag_id, run_id=dag_run.run_id, node_id="loop", **kwargs)
 
 
 @pytest.fixture
@@ -335,7 +320,7 @@ def test_mapping_revision_only_changes_selected_expansion(dag_maker, session):
     assert ordinary.state is None
 
 
-def test_prior_run_xcom_uses_resolved_producers_for_each_run(dag_maker, session):
+def test_get_many_orders_resolved_producers_by_logical_date(dag_maker, session):
     with dag_maker(serialized=True):
         EmptyOperator(task_id="task")
     tis = []
@@ -354,13 +339,39 @@ def test_prior_run_xcom_uses_resolved_producers_for_each_run(dag_maker, session)
             dag_ids=tis[1].dag_id,
             task_ids="task",
             key="key",
-            include_prior_dates=True,
             producer_ids=select(TaskInstance.id).where(TaskInstance.id.in_([ti.id for ti in tis])),
         )
     ).all()
     assert [row.task_instance_id for row in rows] == [tis[1].id, tis[0].id]
+
+
+def test_get_many_rejects_region_filter_with_prior_dates(regional_tis):
+    first, second = regional_tis
     with pytest.raises(ValueError, match="resolved separately"):
-        XComModel.get_many(run_id=tis[1].run_id, region_id=tis[1].region_id, include_prior_dates=True)
+        XComModel.get_many(run_id=second.run_id, region_id=second.region_id, include_prior_dates=True)
+
+
+def test_ready_tis_revise_each_region_independently(dag_maker, session, mocker):
+    mocker.patch.object(TaskInstance, "are_dependencies_met", autospec=True, return_value=True)
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=lambda: None).expand(op_kwargs=[{}, {}])
+    dr = dag_maker.create_dagrun()
+    task = dr.get_dag().get_task("mapped")
+    version = dr.task_instances[0].dag_version_id
+    regions = [uuid4(), uuid4()]
+    stale = [TaskInstance(task, version, run_id=dr.run_id, map_index=3, region_id=r) for r in regions]
+    session.add_all(stale)
+    session.flush()
+
+    ready, _, _ = dr._get_ready_tis(list(stale), [], session=session)
+
+    for ti in stale:
+        session.refresh(ti)
+    assert {ti.state for ti in stale} == {TaskInstanceState.REMOVED}
+    stale_ids = {ti.id for ti in stale}
+    assert sorted((ti.region_id, ti.region_index) for ti in ready if ti.id not in stale_ids) == sorted(
+        (region, index) for region in regions for index in (0, 1)
+    )
 
 
 def test_xcom_reads_are_scoped_to_the_producer_region(regional_tis, session):
