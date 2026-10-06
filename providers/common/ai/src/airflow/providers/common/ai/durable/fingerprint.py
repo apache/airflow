@@ -32,12 +32,11 @@ fingerprint, so stale tool results recorded under the old conversation no
 longer match.
 
 Fields that pydantic-ai regenerates on every attempt (message-level
-``timestamp``/``run_id``/``conversation_id``, part-level ``timestamp``, and
-the run-local capability ids on tool definitions) are excluded from the
-fingerprint.  Requests that cannot be serialized to
-JSON fingerprint as ``None``, which degrades that step to unverified
-positional replay (the pre-fingerprint behavior) rather than disabling
-caching.
+``timestamp``/``run_id``/``conversation_id``, part-level ``timestamp``) and
+capability ids are excluded from the fingerprint, and set-valued request
+parameters are sorted.  Requests that cannot be serialized to JSON
+fingerprint as ``None``, which degrades that step to unverified positional
+replay (the pre-fingerprint behavior) rather than disabling caching.
 """
 
 from __future__ import annotations
@@ -63,13 +62,6 @@ _MODEL_REQUEST_PARAMETERS_ADAPTER = TypeAdapter(ModelRequestParameters)
 
 # Message-level fields regenerated on every attempt.
 _VOLATILE_MESSAGE_KEYS = ("timestamp", "run_id", "conversation_id")
-
-# Run-local capability ids in the request parameters. A capability without an explicit ``id``
-# gets a random one per run (``<toolset:d0d75e>``), stamped on each of its tools'
-# ``capability_id``, so hashing it would make every retry of such an agent miss the cache.
-_RUN_LOCAL_PARAMS = ("deferred_capability_ids",)
-_RUN_LOCAL_TOOL_KEYS = ("capability_id",)
-_TOOL_DEFINITION_PARAMS = ("function_tools", "output_tools")
 
 # Settings that control transport, not response content. Excluded from the
 # fingerprint: changing them should not invalidate a cached response, and some
@@ -110,17 +102,21 @@ def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]
     return stripped
 
 
-def _strip_run_local_params(params_dump: dict[str, Any]) -> dict[str, Any]:
-    """Drop request-parameter fields that identify this run's capabilities rather than what the model sees."""
-    cleaned = {k: v for k, v in params_dump.items() if k not in _RUN_LOCAL_PARAMS}
-    for key in _TOOL_DEFINITION_PARAMS:
-        if isinstance(cleaned.get(key), list):
-            cleaned[key] = [
-                {k: v for k, v in tool.items() if k not in _RUN_LOCAL_TOOL_KEYS}
-                if isinstance(tool, dict)
-                else tool
-                for tool in cleaned[key]
-            ]
+def _normalize_params(params_dump: dict[str, Any]) -> dict[str, Any]:
+    """
+    Drop capability ids and sort set-valued fields from dumped request parameters.
+
+    A capability without an explicit ``id`` gets a random one per run (``<toolset:d0d75e>``),
+    stamped on its tools' ``capability_id``, so hashing it would make every retry miss the
+    cache. What the model sees of capabilities (the deferred-capability catalog in the
+    instructions, tool visibility, revealed tool names) is hashed through other fields, so
+    ``deferred_capability_ids`` is dropped too. A set dumps in iteration order, which differs
+    between processes (``PYTHONHASHSEED``), and a retry runs in a new process.
+    """
+    cleaned = {k: v for k, v in params_dump.items() if k != "deferred_capability_ids"}
+    cleaned["revealed_tool_names"] = sorted(cleaned["revealed_tool_names"])
+    for key in ("function_tools", "output_tools"):
+        cleaned[key] = [{k: v for k, v in tool.items() if k != "capability_id"} for tool in cleaned[key]]
     return cleaned
 
 
@@ -143,8 +139,7 @@ def fingerprint_model_request(
 
     The ``ModelRequestParameters`` object is hashed (tool definitions, output
     mode and schema, native tools, ...) so any change to what is sent to the
-    model invalidates the cached response; only the run-local capability ids are
-    left out.
+    model invalidates the cached response; only capability ids are left out.
 
     Returns ``None`` when the request cannot be serialized; ``None`` compares
     equal to ``None``, so requests that cannot be fingerprinted degrade to
@@ -158,7 +153,7 @@ def fingerprint_model_request(
                 "model": model_identifier,
                 "messages": _strip_volatile(dumped),
                 "settings": _content_settings(model_settings),
-                "params": _strip_run_local_params(params),
+                "params": _normalize_params(params),
             }
         )
     except (TypeError, ValueError):

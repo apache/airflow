@@ -1646,11 +1646,12 @@ class TestAgentOperatorDurable:
             pytest.param(lambda tool: Toolset(FunctionToolset([tool]), id="lookup"), id="with-id"),
         ],
     )
-    def test_retry_replays_steps_of_a_capability_without_an_id(self, capability):
+    def test_retry_replays_steps_of_a_toolset_capability(self, capability):
         """
         pydantic-ai gives a capability without an ``id`` a random one per run and stamps it
         on its tools. A retry is a new run, so the model request differs only in that id;
-        it must still replay. The model issues fresh tool call ids, as a real provider does.
+        it must still replay; ``with-id`` is the control. The model issues fresh tool call ids,
+        as a real provider does.
         """
         storage = _InMemoryDurableStorage()
         live = {"model": 0, "tool": 0}
@@ -1687,6 +1688,10 @@ class TestAgentOperatorDurable:
                 pytest.raises(RuntimeError, match="transient") if try_number == 1 else nullcontext(),
             ):
                 op.execute(context=context)
+            if try_number == 1:
+                # Verified replay, not positional replay of unfingerprintable (None) steps.
+                assert storage.models
+                assert all(fingerprint is not None for _, fingerprint in storage.models.values())
 
         # Attempt 2 replays model step 0 and the tool call; only the step that failed runs live.
         assert live == {"model": 1, "tool": 0}
