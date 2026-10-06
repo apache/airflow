@@ -35,3 +35,14 @@ class AddRegionSelectorsToXComFilterParams(VersionChange):
         schema(GetXcomFilterParams).field("region_id").didnt_exist,
         schema(GetXcomFilterParams).field("region_index").didnt_exist,
     )
+
+
+class AddPreviousIterationToXComFilterParams(VersionChange):
+    """Add the `previous_iteration` field to GetXComSliceFilterParams and GetXcomFilterParams."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXComSliceFilterParams).field("previous_iteration").didnt_exist,
+        schema(GetXcomFilterParams).field("previous_iteration").didnt_exist,
+    )

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import delete, event
+from sqlalchemy import delete
 
 from airflow.models.dynamic_region import DynamicRegion, ProducerContext
 from airflow.models.expandinput import NotFullyPopulated
@@ -37,7 +37,7 @@ from airflow.serialization.definitions.xcom_arg import (
 )
 from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, count_loaded_task_instances
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -503,14 +503,8 @@ def test_mapped_producer_length_loads_no_producer_rows(dag_maker, session, mappe
     session.flush()
     session.expire_all()
     argument = SchedulerPlainXComArg(dag_maker.serialized_dag.get_task("source"), XCOM_RETURN_KEY)
-    loaded: list[TaskInstance] = []
-    listener = loaded.append
-    event.listen(TaskInstance, "load", listener)
-    try:
-        with assert_queries_count(4):
-            length = get_task_map_length(argument, dr.run_id, session=session)
-    finally:
-        event.remove(TaskInstance, "load", listener)
+    with count_loaded_task_instances("source") as loaded, assert_queries_count(4):
+        length = get_task_map_length(argument, dr.run_id, session=session)
 
     assert length == mapped_count
     assert loaded == []

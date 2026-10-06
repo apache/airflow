@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 import attrs
@@ -47,6 +47,22 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.serialization.definitions.dag import SerializedDAG, SerializedOperator
+
+
+LOOP_GATE_OPERATOR = "LoopGateOperator"
+"""Operator class name the Task SDK gives the gate task of a loop."""
+
+
+@attrs.frozen(kw_only=True)
+class _ProducerRequest:
+    dag_id: str
+    run_id: str
+    task_id: str
+    is_mapped: bool
+    context: ProducerContext | None
+    map_indexes: int | Collection[int] | None
+    region_id: UUID | None
+    region_index: int | None
 
 
 class TaskCoordinate(Protocol):
@@ -249,7 +265,12 @@ class TaskCoordinateResolver:
         return bool(self.session.scalar(select(query.exists())))
 
     def resolve_dependency(self, caller: TaskInstance, task_id: str) -> tuple[TaskInstance, ...]:
-        producer = self.get_task(caller.dag_id, caller.run_id, task_id, dag_version_id=caller.dag_version_id)
+        try:
+            producer = self.get_task(
+                caller.dag_id, caller.run_id, task_id, dag_version_id=caller.dag_version_id
+            )
+        except TaskNotFound:
+            return self.resolve(dag_id=caller.dag_id, run_id=caller.run_id, task_id=task_id, caller=caller)
         loop = enclosing_loop(producer)
         caller_task = self.get_task(
             caller.dag_id, caller.run_id, caller.task_id, dag_version_id=caller.dag_version_id
@@ -278,6 +299,18 @@ class TaskCoordinateResolver:
             return tuple(gates[:1])
         return self.resolve(dag_id=caller.dag_id, run_id=caller.run_id, task_id=task_id, caller=caller)
 
+    @staticmethod
+    def _filter_region_indexes(
+        query: Select, region_index: int | None, map_indexes: int | Collection[int] | None
+    ) -> Select:
+        if region_index is not None:
+            query = query.where(TaskInstance.region_index == region_index)
+        if isinstance(map_indexes, int):
+            query = query.where(TaskInstance.region_index == map_indexes)
+        elif map_indexes is not None:
+            query = query.where(TaskInstance.region_index.in_(map_indexes))
+        return query
+
     def _filter_legacy_producers(
         self,
         query: Select,
@@ -295,13 +328,7 @@ class TaskCoordinateResolver:
             TaskInstance.task_id == task_id,
             TaskInstance.region_id == SENTINEL_REGION_ID,
         )
-        if region_index is not None:
-            query = query.where(TaskInstance.region_index == region_index)
-        if isinstance(map_indexes, int):
-            query = query.where(TaskInstance.region_index == map_indexes)
-        elif map_indexes is not None:
-            query = query.where(TaskInstance.region_index.in_(map_indexes))
-        return query
+        return self._filter_region_indexes(query, region_index, map_indexes)
 
     def _filter_removed_task_producers(
         self,
@@ -324,13 +351,7 @@ class TaskCoordinateResolver:
         )
         if region_id is not None:
             query = query.where(TaskInstance.region_id == region_id)
-        if region_index is not None:
-            query = query.where(TaskInstance.region_index == region_index)
-        if isinstance(map_indexes, int):
-            query = query.where(TaskInstance.region_index == map_indexes)
-        elif map_indexes is not None:
-            query = query.where(TaskInstance.region_index.in_(map_indexes))
-        return query
+        return self._filter_region_indexes(query, region_index, map_indexes)
 
     def _is_legacy_lookup(
         self, dag_id: str, run_id: str, task_id: str, region_id: UUID | None, previous_iteration: bool
@@ -351,7 +372,7 @@ class TaskCoordinateResolver:
         region_index: int | None,
         map_indexes: int | Collection[int] | None,
         previous_iteration: bool,
-    ) -> dict[str, Any] | None:
+    ) -> _ProducerRequest | None:
         shared_run = caller is not None and (caller.dag_id, caller.run_id) == (dag_id, run_id)
         try:
             task = (
@@ -378,16 +399,16 @@ class TaskCoordinateResolver:
             )
         if previous_iteration and context is None:
             raise ValueError("Previous-iteration lookup requires a shared loop scope")
-        return {
-            "dag_id": dag_id,
-            "run_id": run_id,
-            "task_id": task_id,
-            "is_mapped": task.get_needs_expansion(),
-            "context": context,
-            "map_indexes": map_indexes,
-            "region_id": region_id,
-            "region_index": region_index,
-        }
+        return _ProducerRequest(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            is_mapped=task.get_needs_expansion(),
+            context=context,
+            map_indexes=map_indexes,
+            region_id=region_id,
+            region_index=region_index,
+        )
 
     def resolve(
         self,
@@ -437,7 +458,7 @@ class TaskCoordinateResolver:
                     ).order_by(TaskInstance.region_index)
                 )
             )
-        return resolve_current_producers(**request, session=self.session)
+        return resolve_current_producers(**attrs.asdict(request, recurse=False), session=self.session)
 
     def select_skip_target_ids(
         self, *, caller: TaskInstance, task_id: str, map_indexes: int | None = None
@@ -520,4 +541,4 @@ class TaskCoordinateResolver:
                 region_index=region_index,
                 map_indexes=map_indexes,
             )
-        return select_current_producer_ids(**request, session=self.session)
+        return select_current_producer_ids(**attrs.asdict(request, recurse=False), session=self.session)

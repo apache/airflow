@@ -16,10 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import contextmanager
-
 import pytest
-from sqlalchemy import event, select
+from sqlalchemy import select
 
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.routes.xcoms import _build_xcom_read
@@ -36,7 +34,7 @@ from airflow.sdk import task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.log.task_log_address import prepare_task_log_contexts
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, count_loaded_task_instances
 
 pytestmark = pytest.mark.db_test
 
@@ -126,6 +124,13 @@ def test_dependency_rejects_duplicate_latest_gate_coordinates(loop_coordinates, 
 
     with pytest.raises(AmbiguousProducerError, match="Multiple live loop gates"):
         resolver.resolve_dependency(outside, gate.task_id)
+
+
+def test_dependency_on_task_missing_from_pinned_dag_falls_back_to_plain_resolution(loop_coordinates, session):
+    _, _, consumer, _, _ = loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    assert resolver.resolve_dependency(consumer, "removed_upstream") == ()
 
 
 def test_loop_without_context_requires_explicit_scope(loop_coordinates, session):
@@ -241,18 +246,6 @@ def mapped_run(dag_maker, session):
     return create
 
 
-@contextmanager
-def count_loaded_task_instances(task_id: str):
-    loaded: list[TaskInstance] = []
-    listener = loaded.append
-    event.listen(TaskInstance, "load", listener)
-    try:
-        yield loaded
-    finally:
-        event.remove(TaskInstance, "load", listener)
-    loaded[:] = [ti for ti in loaded if ti.task_id == task_id]
-
-
 @pytest.mark.parametrize("mapped_count", [3, 60])
 def test_xcom_read_of_one_mapped_slot_loads_no_producer_rows(mapped_run, session, mapped_count):
     dr, caller = mapped_run(mapped_count)
@@ -274,16 +267,8 @@ def test_xcom_read_of_one_mapped_slot_loads_no_producer_rows(mapped_run, session
     assert loaded == []
 
 
-def test_selected_mapped_producers_match_resolved_producers(dag_maker, session):
-    with dag_maker(serialized=True):
-        mapped = PythonOperator.partial(task_id="mapped", python_callable=str).expand(
-            op_args=[[i] for i in range(6)]
-        )
-        mapped >> EmptyOperator(task_id="reduce")
-    dr = dag_maker.create_dagrun()
-    caller = session.scalars(
-        select(TaskInstance).where(TaskInstance.run_id == dr.run_id, TaskInstance.task_id == "reduce")
-    ).one()
+def test_selected_mapped_producers_match_resolved_producers(mapped_run, session):
+    dr, caller = mapped_run(6)
     resolver = TaskCoordinateResolver(DBDagBag(), session)
 
     for map_indexes in (None, 4, range(1, 3), [0, 5]):

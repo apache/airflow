@@ -51,6 +51,7 @@ from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TISuccessStatePayload
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
 from airflow.api_fastapi.execution_api.routes.xcoms import set_xcom
 from airflow.api_fastapi.execution_api.security import require_auth
@@ -62,7 +63,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.log import Log
-from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XComModel, XComModelV2
@@ -1798,6 +1799,7 @@ class TestTIUpdateState:
         ) == [0, 1]
         assert session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id)) is None
 
+    @pytest.mark.backend("mysql", "postgres")
     def test_loop_decision_rewrite_and_completion_use_same_lock_order(
         self, session, running_loop_gate, mocker
     ):
@@ -1904,6 +1906,45 @@ class TestTIUpdateState:
 
         assert response.status_code == 409
         assert session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id)) is None
+
+    def test_loop_gate_state_update_error_rolls_back_next_pass_and_keeps_decision(
+        self, client, session, running_loop_gate, mocker
+    ):
+        gate = running_loop_gate
+        mocker.patch.object(
+            task_instances_route,
+            "_create_ti_state_update_query_and_update_state",
+            autospec=True,
+            side_effect=StaleDataError("injected state update failure"),
+        )
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 500
+        session.expire_all()
+        assert gate.state == State.RUNNING
+        assert len(gate.dag_run.get_task_instances(session=session)) == 2
+        assert session.scalar(select(XComModel.value).where(XComModel.task_id == gate.task_id)) == "continue"
+
+    @pytest.mark.parametrize("state", ["success", "failed"])
+    def test_non_loop_operator_named_loop_gate_completes_normally(
+        self, client, session, create_task_instance, state
+    ):
+        ti = create_task_instance(task_id="user_gate", start_date=DEFAULT_START_DATE, state=State.RUNNING)
+        ti.operator = LOOP_GATE_OPERATOR
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": state, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert ti.state == state
 
     def test_loop_gate_inner_insert_error_is_not_swallowed(self, client, session, running_loop_gate, mocker):
         gate = running_loop_gate

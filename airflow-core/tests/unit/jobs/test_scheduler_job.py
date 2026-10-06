@@ -1174,7 +1174,11 @@ class TestSchedulerJob:
         assert (gate.id != original_id) is bool(retries)
         callback.assert_not_called()
         if retries:
-            archived = session.scalar(select(TaskInstance).where(TaskInstance.id == original_id))
+            archived = session.scalar(
+                select(TaskInstance)
+                .where(TaskInstance.id == original_id)
+                .execution_options(include_all_attempts=True)
+            )
             assert archived.working_set is None
         assert len(dr.get_task_instances(session=session)) == 2
 

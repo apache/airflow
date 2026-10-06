@@ -64,6 +64,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     IdentifyArchivedTaskStateUpdates,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30_xcom_params import (
+    AddPreviousIterationToXComFilterParams,
     AddRegionSelectorsToXComFilterParams,
 )
 
@@ -77,6 +78,7 @@ bundle = VersionBundle(
         AddLoopContext,
         AddTerminalStateRetryReasonField,
         AddMultiTeamToTIRunContext,
+        AddPreviousIterationToXComFilterParams,
         AddStoppedTaskReport,
         AddTaskInstanceRegionCoordinates,
         AddRegionSelectorsToXComFilterParams,

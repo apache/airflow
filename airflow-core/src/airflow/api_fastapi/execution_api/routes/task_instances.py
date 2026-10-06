@@ -99,7 +99,11 @@ from airflow.models.dagrun import DagRun as DR, InvalidLoopDecision
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
-from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
+from airflow.models.task_coordinates import (
+    LOOP_GATE_OPERATOR,
+    TaskCoordinateResolver,
+    public_map_index_expression,
+)
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
@@ -172,6 +176,7 @@ def ti_run(
             TI.dag_id,
             TI.run_id,
             TI.task_id,
+            TI.region_id,
             TI.region_index,
             TI.try_number,
             TI.max_tries,
@@ -450,7 +455,7 @@ def ti_update_state(
             select(TI.dag_id, TI.run_id).where(
                 TI.id == task_instance_id,
                 TI.working_set.is_(True),
-                TI.operator == "LoopGateOperator",
+                TI.operator == LOOP_GATE_OPERATOR,
             )
         ).one_or_none()
         if gate_run is not None:
@@ -465,9 +470,12 @@ def ti_update_state(
             )
             if loop_gate is not None:
                 loop_context = TaskCoordinateResolver(dag_bag, session).loop_context(loop_gate)
-                if loop_context is None or loop_context[0].gate_task_id != loop_gate.task_id:
+                if loop_context is None:
+                    loop_gate = None
+                elif loop_context[0].gate_task_id != loop_gate.task_id:
                     raise HTTPException(status_code=409, detail={"reason": "invalid_loop_gate"})
-                loop_group = loop_context[0]
+                else:
+                    loop_group = loop_context[0]
 
     old = (
         select(
