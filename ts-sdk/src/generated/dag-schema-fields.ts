@@ -113,8 +113,6 @@ export interface GeneratedTaskFields {
   readonly executor?: string;
   /** Maps to the schema key `do_xcom_push` (schema default `true`). */
   readonly doXcomPush?: boolean;
-  /** Maps to the schema key `returns_dag_result` (schema default `false`). */
-  readonly returnsDagResult?: boolean;
   /** Maps to the schema key `email_on_failure` (schema default `true`). */
   readonly emailOnFailure?: boolean;
   /** Maps to the schema key `email_on_retry` (schema default `true`). */
@@ -203,7 +201,6 @@ export const TASK_SCHEMA_FIELDS = {
   weightRule: { key: "weight_rule", type: "string", default: "downstream" },
   executor: { key: "executor", type: "string" },
   doXcomPush: { key: "do_xcom_push", type: "boolean", default: true },
-  returnsDagResult: { key: "returns_dag_result", type: "boolean", default: false },
   emailOnFailure: { key: "email_on_failure", type: "boolean", default: true },
   emailOnRetry: { key: "email_on_retry", type: "boolean", default: true },
   docMd: { key: "doc_md", type: "string" },

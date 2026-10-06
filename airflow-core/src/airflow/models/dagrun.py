@@ -2005,6 +2005,7 @@ class DagRun(Base, LoggingMixin):
                     ti.state = TaskInstanceState.REMOVED
                 continue
 
+            ti.task = task
             try:
                 num_mapped_tis = task.get_parse_time_mapped_ti_count()
             except NotMapped:

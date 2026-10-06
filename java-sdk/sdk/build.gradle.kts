@@ -415,6 +415,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                 "is_setup",
                 "is_teardown",
                 "on_failure_fail_dagrun",
+                "returns_dag_result",
                 // Edges come from before/after, never from configuration.
                 "downstream_task_ids",
             )

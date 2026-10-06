@@ -2353,14 +2353,6 @@ class TestTriggerRuleUpstreamCountMemo:
             )
             source >> consumer
         dr = dag_maker.create_dagrun()
-        for task_id in ("source", "consumer"):
-            region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id=task_id)
-            session.add(region)
-            session.flush()
-            for ti in dr.task_instances:
-                if ti.task_id == task_id:
-                    ti.region_id = region.id
-        session.flush()
         consumers = [ti for ti in dr.task_instances if ti.task_id == "consumer"]
         expected_ids = {ti.id for ti in dr.task_instances if ti.task_id == "source"}
         context = DepContext()
@@ -2405,14 +2397,11 @@ class TestTriggerRuleUpstreamCountMemo:
     def test_memoized_across_downstreams_sharing_upstream(self, dag_maker, session, regional):
         """N plain downstreams of the same mapped upstream issue the count query once per pass."""
         dr = self._make_dag(dag_maker, session, n_downstreams=4, src_states=[SUCCESS, SUCCESS, SUCCESS])
-        if regional:
-            region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="src")
-            session.add(region)
-            session.flush()
+        if not regional:
             for ti in dr.get_task_instances(session=session):
-                if ti.task_id == "src":
-                    ti.region_id = region.id
+                ti.region_id = SENTINEL_REGION_ID
             session.flush()
+            session.execute(delete(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id))
         dep_context = DepContext()
         with _count_upstream_count_queries() as counter:
             for k in range(4):

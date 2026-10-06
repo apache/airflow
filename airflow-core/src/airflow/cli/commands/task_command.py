@@ -45,6 +45,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import (
     TaskCoordinateResolver,
     enclosing_loop,
+    mapped_region_expression,
     public_map_index_expression,
 )
 from airflow.sdk.definitions.dag import DAG, _run_task
@@ -448,17 +449,21 @@ def task_states_for_dag_run(args, *, session: Session = NEW_SESSION) -> None:
         )
 
     rows = session.execute(
-        select(TaskInstance, public_map_index_expression(TaskInstance)).where(
+        select(
+            TaskInstance,
+            public_map_index_expression(TaskInstance),
+            mapped_region_expression(TaskInstance),
+        ).where(
             TaskInstance.working_set.is_(True),
             TaskInstance.dag_id == dag_run.dag_id,
             TaskInstance.run_id == dag_run.run_id,
         )
     ).all()
-    task_instances = [ti for ti, _ in rows]
-    map_indexes = {ti.id: map_index for ti, map_index in rows}
+    task_instances = [ti for ti, _, _ in rows]
+    map_indexes = {ti.id: map_index for ti, map_index, _ in rows}
     has_mapped_instances = any(map_index >= 0 for map_index in map_indexes.values())
     has_loop_instances = any(
-        ti.region_id != SENTINEL_REGION_ID and map_indexes[ti.id] < 0 for ti in task_instances
+        ti.region_id != SENTINEL_REGION_ID and not in_own_region for ti, _, in_own_region in rows
     )
 
     def format_task_instance(ti: TaskInstance) -> dict[str, str]:

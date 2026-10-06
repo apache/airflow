@@ -64,15 +64,19 @@ def enclosing_loop(task: SerializedOperator) -> SerializedLoopTaskGroup | None:
     return None
 
 
-def public_map_index_expression(model) -> ColumnElement[int]:
-    mapped_region = (
+def mapped_region_expression(model) -> ColumnElement[bool]:
+    """Match rows whose region is the task's own mapped expansion."""
+    return (
         select(DynamicRegion.id)
         .where(DynamicRegion.id == model.region_id, DynamicRegion.node_id == model.task_id)
         .correlate(model)
         .exists()
     )
+
+
+def public_map_index_expression(model) -> ColumnElement[int]:
     return case(
-        (or_(model.region_id == SENTINEL_REGION_ID, mapped_region), model.region_index),
+        (or_(model.region_id == SENTINEL_REGION_ID, mapped_region_expression(model)), model.region_index),
         else_=-1,
     )
 

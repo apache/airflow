@@ -147,6 +147,32 @@ def test_task_states_for_dag_run_lists_only_live_rows_without_region_columns_for
     )
 
 
+def test_task_states_for_dag_run_omits_region_columns_for_unexpanded_xcom_mapped_placeholder(
+    dag_maker, session
+):
+    with dag_maker(serialized=True):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: [1, 2, 3])
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=upstream.output)
+    run = dag_maker.create_dagrun()
+    placeholder = session.scalars(
+        select(TaskInstance).where(TaskInstance.run_id == run.run_id, TaskInstance.task_id == "mapped")
+    ).one()
+    assert placeholder.region_id != SENTINEL_REGION_ID
+    assert placeholder.region_index == -1
+
+    with redirect_stdout(io.StringIO()) as stdout:
+        task_command.task_states_for_dag_run(
+            cli_parser.get_parser().parse_args(
+                ["tasks", "states-for-dag-run", run.dag_id, run.run_id, "--output", "json"]
+            ),
+            session=session,
+        )
+
+    rows = json.loads(stdout.getvalue())
+    assert sorted(row["task_id"] for row in rows) == ["mapped", "upstream"]
+    assert all("region_id" not in row and "region_index" not in row for row in rows)
+
+
 @pytest.mark.parametrize("command", ["state", "failed-deps", "test", "render"])
 def test_cli_commands_reuse_existing_regional_mapped_task(dag_maker, session, mocker, capsys, command):
     with dag_maker(dag_id="regional_cli", serialized=True) as dag:
@@ -277,6 +303,9 @@ def test_cli_xcom_mapped_slot_is_created_ad_hoc_beside_placeholder(dag_maker, se
 
     assert ti.region_index == 2
     assert ti.task_id == "mapped"
+    assert ti.region_id == placeholder[0].region_id != SENTINEL_REGION_ID
+    if create_if_necessary == "db":
+        assert len(session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)).all()) == 1
 
 
 @pytest.mark.parametrize("command", ["test", "render"])

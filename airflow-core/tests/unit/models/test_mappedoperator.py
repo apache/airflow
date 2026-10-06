@@ -142,6 +142,7 @@ def test_mapped_count_uses_retained_producer_in_callers_loop_pass(dag_maker, ses
         == 2
     )
     if mapping == "group":
+        consumer.region_index = 1
         consumer.task = dag_maker.serialized_dag.get_task(consumer.task_id)
         assert (
             consumer.get_relevant_upstream_map_indexes(
@@ -150,7 +151,7 @@ def test_mapped_count_uses_retained_producer_in_callers_loop_pass(dag_maker, ses
                 producer_contexts=contexts,
                 session=session,
             )
-            == 0
+            == 1
         )
 
 

@@ -2460,6 +2460,38 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
     assert len(decision.schedulable_tis) == 2
 
 
+def test_verify_integrity_resolves_xcom_mapped_task_without_pinned_dag_version(dag_maker, session):
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_1():
+            return [1, 2, 3]
+
+        @task
+        def task_2(arg2): ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    upstream = dr.get_task_instance(task_id="task_1", session=session)
+    upstream.state = TaskInstanceState.SUCCESS
+    push_mapped_length(upstream, [1, 2, 3], session=session)
+    session.flush()
+    dr.task_instance_scheduling_decisions(session=session)
+    dag_version_id = DagVersion.get_latest_version(dag.dag_id, session=session).id
+    session.execute(update(TI).where(TI.run_id == dr.run_id).values(dag_version_id=None))
+    dr.created_dag_version_id = None
+    session.flush()
+    session.expire_all()
+
+    dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+
+    indices = session.execute(
+        select(TI.map_index, TI.state).where(TI.task_id == "task_2", TI.run_id == dr.run_id)
+    ).all()
+    assert sorted(indices) == [(0, State.NONE), (1, State.NONE), (2, State.NONE)]
+
+
 def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_maker, session, caplog):
     """
     Test zero length reduction in mapped task at runtime with calls to dagrun.verify_integrity

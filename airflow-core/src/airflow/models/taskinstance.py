@@ -2641,9 +2641,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 task,
                 run_id,
                 session=session,
-                producer_contexts=TaskCoordinateResolver.for_dag(
-                    getattr(task, "dag", None), session
-                ).producer_contexts(self),
+                producer_contexts=TaskCoordinateResolver.for_dag(task.dag, session).producer_contexts(self),
             )
         except NotFullyPopulated as e:
             if not task.dag or not task.dag.partial:
