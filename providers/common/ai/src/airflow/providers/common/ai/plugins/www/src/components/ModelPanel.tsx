@@ -64,8 +64,7 @@ const StatBox: FC<{ label: string; tooltip?: ReactNode; value: number | string }
 );
 
 export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex }) => {
-  const { usage, loading, error } = useModelInfo(dagId, runId, taskId, mapIndex);
-  const modelName = usage?.model_name ?? null;
+  const { modelName, usage, loading, error } = useModelInfo(dagId, runId, taskId, mapIndex);
 
   if (loading) {
     return (
@@ -78,7 +77,7 @@ export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex
     );
   }
 
-  if (!usage) {
+  if (!modelName && !usage) {
     return <NoModelInfo error={error} />;
   }
 
@@ -117,14 +116,20 @@ export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex
         </Badge>
       )}
 
-      <SimpleGrid columns={2} gap={4} maxW="640px">
-        <StatBox label="Requests" value={usage.requests} />
-        <StatBox label="Tool calls" value={usage.tool_calls} />
-        <StatBox label="Input tokens" value={usage.input_tokens} />
-        <StatBox label="Output tokens" value={usage.output_tokens} />
-        <StatBox label="Total tokens" value={usage.total_tokens} />
-        <StatBox label="Cost" tooltip={COST_TOOLTIP} value={usage.cost === null ? "—" : `$${usage.cost}`} />
-      </SimpleGrid>
+      {usage && (
+        <SimpleGrid columns={2} gap={4} maxW="640px">
+          <StatBox label="Requests" value={usage.requests} />
+          <StatBox label="Tool calls" value={usage.tool_calls} />
+          <StatBox label="Input tokens" value={usage.input_tokens} />
+          <StatBox label="Output tokens" value={usage.output_tokens} />
+          <StatBox label="Total tokens" value={usage.total_tokens} />
+          <StatBox
+            label="Cost"
+            tooltip={COST_TOOLTIP}
+            value={usage.cost === null ? "—" : `$${usage.cost}`}
+          />
+        </SimpleGrid>
+      )}
     </Box>
   );
 };

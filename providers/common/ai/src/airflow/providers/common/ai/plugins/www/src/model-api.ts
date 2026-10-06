@@ -29,6 +29,10 @@ function getApiBase(): string {
 
 const API_BASE = getApiBase();
 
+// Namespaced to match airflow.providers.common.ai.utils.logging.MODEL_NAME_XCOM_KEY --
+// avoids colliding with a user's own "model_name" XCom.
+const MODEL_NAME_XCOM_KEY = "__AIRFLOW__COMMON_AI_MODEL_NAME__";
+
 /** Read one XCom entry; returns `null` when the task hasn't pushed that key (404). */
 async function fetchXComValue<T>(
   dagId: string,
@@ -57,6 +61,8 @@ async function fetchXComValue<T>(
 
 export function createModelApi(dagId: string, runId: string, taskId: string, mapIndex: number) {
   return {
+    fetchModelName: () =>
+      fetchXComValue<string>(dagId, runId, taskId, mapIndex, MODEL_NAME_XCOM_KEY),
     fetchUsage: () => fetchXComValue<UsageInfo>(dagId, runId, taskId, mapIndex, "usage"),
   };
 }

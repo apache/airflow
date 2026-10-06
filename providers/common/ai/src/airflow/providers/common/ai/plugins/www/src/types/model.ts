@@ -19,7 +19,6 @@
 
 /** Shape of the `usage` XCom pushed by LLMOperator/AgentOperator (see format_usage_for_xcom). */
 export interface UsageInfo {
-  model_name: string | null;
   requests: number;
   input_tokens: number;
   output_tokens: number;
