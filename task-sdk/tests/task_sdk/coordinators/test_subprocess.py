@@ -37,7 +37,7 @@ from uuid6 import uuid7
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.sdk.api.client import Client, TaskInstanceOperations
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
-from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter, find_claiming_importer
+from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
     _accept_connections,
@@ -50,7 +50,7 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
-from airflow.sdk.execution_time.coordinator import BaseCoordinator, InvalidCoordinatorError, TaskLaunchError
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 from airflow.sdk.importers import DagSourceCode, reset_importer_registry
 
@@ -1213,23 +1213,16 @@ class TestExecuteTaskNativeDagFile:
             pytest.param({"dags": "first"}, id="entry-for-another-coordinator"),
         ],
     )
+    @patch.object(CoordinatorDagImporter, "get_parsing_coordinator", autospec=True)
     def test_runs_on_a_coordinator_that_does_not_parse_the_bundle(
-        self, mock_start, mock_client, tmp_path, mapping
+        self, mock_get_parsing_coordinator, mock_start, mock_client, tmp_path, mapping
     ):
         queue_coordinator = _NativeStubCoordinator(command=["/runtime"])
 
         with _native_dag_files("first", "second", mapping=mapping):
-            importer = find_claiming_importer("sub/dag.native", "dags")
-            parsing_error = (
-                pytest.raises(InvalidCoordinatorError, match="Dag bundle 'dags' has 2 _NativeStubCoordinator")
-                if mapping is None
-                else contextlib.nullcontext()
-            )
-            with parsing_error:
-                parsing_coordinator = importer.get_parsing_coordinator()
             self._execute(queue_coordinator, mock_client)
 
-        assert mapping is None or parsing_coordinator is not queue_coordinator
+        mock_get_parsing_coordinator.assert_not_called()
         assert queue_coordinator.recorded_dag_files == [tmp_path / "sub" / "dag.native"]
         mock_start.assert_called_once()
 
