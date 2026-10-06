@@ -16,15 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ChangeEventHandler } from "react";
+import type { ComponentProps } from "react";
 
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
+import type * as DateTimeInputModule from "../DateTimeInput";
 import RunBackfillForm from "./RunBackfillForm";
+
+dayjs.extend(utc);
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -36,6 +41,7 @@ vi.mock("react-i18next", () => ({
         "backfill.affectedNone": "No runs matching selected criteria.",
         "backfill.backwards": "Run Backwards",
         "backfill.dateRange": "Date Range",
+        "backfill.errorStartDateBeforeEndDate": "Start Date must be before the End Date",
         "backfill.maxRuns": "Max Active Runs",
         "backfill.overrideExistingParams": "Override parameters on existing runs",
         "backfill.partitionRange": "Partition Range",
@@ -99,15 +105,24 @@ vi.mock("src/components/Clear/useRerunWithLatestVersion", () => ({
   useRerunWithLatestVersion: vi.fn(() => ({ value: false })),
 }));
 
-vi.mock("../DateTimeInput", () => ({
-  DateTimeInput: ({
-    onChange,
-    value = "",
-  }: {
-    readonly onChange?: ChangeEventHandler<HTMLInputElement>;
-    readonly value?: string;
-  }) => <input aria-label="datetime" onChange={onChange} value={value} />,
-}));
+const dateTimeInputMode = vi.hoisted(() => ({ real: false }));
+
+vi.mock("../DateTimeInput", async (importOriginal) => {
+  const actual = await importOriginal<typeof DateTimeInputModule>();
+
+  return {
+    DateTimeInput: ({
+      onChange,
+      value,
+      ...rest
+    }: ComponentProps<typeof DateTimeInputModule.DateTimeInput>) =>
+      dateTimeInputMode.real ? (
+        <actual.DateTimeInput onChange={onChange} value={value} {...rest} />
+      ) : (
+        <input aria-label="datetime" onChange={onChange} value={value} />
+      ),
+  };
+});
 
 vi.mock("../ConfigForm", () => ({
   default: () => <div data-testid="config-form" />,
@@ -299,5 +314,56 @@ describe("RunBackfillForm", () => {
     // Partition keys render one per table row rather than joined inline, since keys can be long.
     expect(screen.getAllByTestId("table-cell-partition_key")).toHaveLength(2);
     expect(screen.queryByTestId("next")).not.toBeInTheDocument();
+  });
+});
+
+// Mirrors the e2e page object: open a bound's popover, type a date only, then close it so the next
+// bound's inputs are the only ones with these placeholders.
+const setBound = async (bound: HTMLElement, date: string) => {
+  fireEvent.click(bound);
+  fireEvent.change(await screen.findByPlaceholderText("YYYY/MM/DD"), { target: { value: date } });
+  fireEvent.click(bound);
+  await waitFor(() => expect(screen.queryByPlaceholderText("YYYY/MM/DD")).toBeNull());
+};
+
+const renderWithRealDateInputs = () => {
+  vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+    data: baseDag,
+  } as ReturnType<typeof useDagServiceGetDagDetails>);
+  render(<RunBackfillForm dag={baseDag as never} onClose={vi.fn()} />, { wrapper: Wrapper });
+
+  const [fromBound, toBound] = screen.getAllByTestId("datetime-input");
+
+  return { fromBound: fromBound as HTMLElement, toBound: toBound as HTMLElement };
+};
+
+describe("RunBackfillForm date range", () => {
+  beforeEach(() => {
+    dateTimeInputMode.real = true;
+  });
+
+  afterEach(() => {
+    dateTimeInputMode.real = false;
+  });
+
+  it("shows the range error when From is after To", async () => {
+    const { fromBound, toBound } = renderWithRealDateInputs();
+
+    await setBound(fromBound, "2025/01/10");
+    await setBound(toBound, "2025/01/01");
+
+    expect(await screen.findByText("Start Date must be before the End Date")).toBeVisible();
+  });
+
+  // Regression for #54429: a date-only entry must yield a valid range.
+  it("accepts a date-only range", async () => {
+    const { fromBound, toBound } = renderWithRealDateInputs();
+
+    await setBound(fromBound, "2025/01/01");
+    await setBound(toBound, "2025/01/05");
+
+    await waitFor(() => expect(toBound).toHaveTextContent("Jan 05, 2025"));
+    expect(fromBound).toHaveTextContent("Jan 01, 2025");
+    expect(screen.queryByText("Start Date must be before the End Date")).toBeNull();
   });
 });

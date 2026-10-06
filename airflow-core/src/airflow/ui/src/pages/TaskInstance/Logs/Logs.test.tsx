@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -82,6 +82,66 @@ describe("Task log source", () => {
     expect(loc).toHaveProperty("innerText", "loc=dagbag.py:593");
   });
 });
+
+const timestampPattern = /\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/u;
+const levelPattern = /INFO - /u;
+
+const selectSetting = async (testId: string) => {
+  fireEvent.click(screen.getByTestId("log-settings-button"));
+  fireEvent.click(await screen.findByTestId(testId));
+};
+
+const renderLogSourceTask = async () => {
+  render(
+    <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+  );
+  await waitForLogs();
+
+  return screen.getByTestId("virtualized-list");
+};
+
+describe("Task log settings", () => {
+  // Settings persist in localStorage, so reset them for the other tests.
+  afterEach(() => localStorage.clear());
+
+  it("renders log levels and formatted timestamps", async () => {
+    const logList = await renderLogSourceTask();
+
+    expect(logList).toHaveTextContent(timestampPattern);
+    expect(logList).toHaveTextContent(levelPattern);
+  });
+
+  it("hides timestamps and log levels and shows the source from the settings menu", async () => {
+    const logList = await renderLogSourceTask();
+
+    await selectSetting("log-settings-timestamp");
+    await waitFor(() => expect(logList).not.toHaveTextContent(timestampPattern));
+    expect(logList).toHaveTextContent(levelPattern);
+
+    await selectSetting("log-settings-log-level");
+    await waitFor(() => expect(logList).not.toHaveTextContent(levelPattern));
+
+    expect(logList.querySelector('[data-key="logger"]')).toBeNull();
+    await selectSetting("log-settings-source");
+    await waitFor(() => expect(logList.querySelector('[data-key="logger"]')).not.toBeNull());
+  });
+
+  it("toggles the wrap and expand menu item labels", async () => {
+    await renderLogSourceTask();
+
+    fireEvent.click(screen.getByTestId("log-settings-button"));
+    expect(await screen.findByTestId("log-settings-wrap")).toHaveTextContent("wrap.wrap");
+    expect(screen.getByTestId("log-settings-expand")).toHaveTextContent("expand.expand");
+
+    fireEvent.click(screen.getByTestId("log-settings-wrap"));
+    await selectSetting("log-settings-expand");
+
+    fireEvent.click(screen.getByTestId("log-settings-button"));
+    await waitFor(() => expect(screen.getByTestId("log-settings-wrap")).toHaveTextContent("wrap.unwrap"));
+    expect(screen.getByTestId("log-settings-expand")).toHaveTextContent("expand.collapse");
+  });
+});
+
 describe("Task log grouping", () => {
   it("Display task log content on click", async () => {
     render(

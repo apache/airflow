@@ -27,19 +27,10 @@ test.describe("Assets Page", () => {
     await assetListPage.navigate();
   });
 
-  test("verify assets page heading", async ({ assetListPage }) => {
+  test("verify assets table lists assets with name links", async ({ assetListPage }) => {
     await expect(assetListPage.heading).toBeVisible();
-  });
-
-  test("verify assets table", async ({ assetListPage }) => {
     await expect(assetListPage.table).toBeVisible();
-  });
-
-  test("verify asset rows when data exists", async ({ assetListPage }) => {
     await expect(assetListPage.rows.first()).toBeVisible();
-  });
-
-  test("verify asset has a visible name link", async ({ assetListPage }) => {
     await expect(assetListPage.rows.locator("td a").first()).toBeVisible();
   });
 

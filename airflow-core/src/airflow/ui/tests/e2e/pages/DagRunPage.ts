@@ -39,10 +39,6 @@ export class DagRunPage extends BasePage {
     return `/dags/${dagId}/runs/${dagRunId}`;
   }
 
-  public async navigateToDagRun(dagId: string, dagRunId: string): Promise<void> {
-    await this.navigateTo(DagRunPage.getDagRunUrl(dagId, dagRunId));
-  }
-
   public async navigateToDagRunRequiredActions(dagId: string, dagRunId: string): Promise<void> {
     await this.navigateTo(DagRunPage.getDagRunRequiredActionsUrl(dagId, dagRunId));
   }

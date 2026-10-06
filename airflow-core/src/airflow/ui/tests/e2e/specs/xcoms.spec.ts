@@ -26,28 +26,12 @@ test.describe("XComs Page", () => {
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- triggers worker-scoped data fixture
   test.beforeEach(async ({ xcomRunsData: _data }) => {});
 
-  test("verify XComs table renders", async ({ xcomsPage }) => {
+  test("verify XComs table displays entries with details and values", async ({ xcomsPage }) => {
     await xcomsPage.navigate();
     await expect(xcomsPage.xcomsTable).toBeVisible();
-  });
-
-  test("verify XComs table displays data", async ({ xcomsPage }) => {
-    await xcomsPage.navigate();
     await xcomsPage.verifyXComsExist();
-  });
-
-  test("verify XCom details display correctly", async ({ xcomsPage }) => {
-    await xcomsPage.navigate();
     await xcomsPage.verifyXComDetailsDisplay();
-  });
-
-  test("verify XCom values can be viewed", async ({ xcomsPage }) => {
-    await xcomsPage.navigate();
     await xcomsPage.verifyXComValuesDisplayed();
-  });
-
-  test("verify expand/collapse functionality", async ({ xcomsPage }) => {
-    await xcomsPage.verifyExpandCollapse();
   });
 
   test("verify filtering by key pattern", async ({ xcomRunsData, xcomsPage }) => {

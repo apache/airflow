@@ -23,10 +23,6 @@ test.describe("Providers Page", () => {
     await providersPage.navigate();
   });
 
-  test("verify providers page heading", async ({ providersPage }) => {
-    await expect(providersPage.heading).toBeVisible();
-  });
-
   test("Verify Providers page is accessible via Admin menu", async ({ page, providersPage }) => {
     await page.goto("/");
 
@@ -42,11 +38,12 @@ test.describe("Providers Page", () => {
     expect(await providersPage.getRowCount()).toBeGreaterThan(0);
   });
 
-  test("Verify the providers list displays", async ({ providersPage }) => {
+  test("Verify the providers list displays package name, version, and description", async ({
+    providersPage,
+  }) => {
+    await expect(providersPage.heading).toBeVisible();
     await expect(providersPage.table).toBeVisible();
-  });
 
-  test("Verify package name, version, and description are not blank", async ({ providersPage }) => {
     const count = await providersPage.getRowCount();
 
     expect(count).toBeGreaterThan(0);
