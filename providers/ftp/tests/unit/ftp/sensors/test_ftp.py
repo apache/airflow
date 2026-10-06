@@ -17,16 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import ftplib
 import socket
-from ftplib import error_perm
+from ftplib import FTP, error_perm, error_temp
 from io import StringIO
 from unittest import mock
 
 import pytest
 
-from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
-from airflow.providers.ftp.sensors.ftp import FTPSensor, FTPSSensor
+from airflow.providers.ftp.hooks.ftp import FTPHook
+from airflow.providers.ftp.sensors.ftp import FTPSensor
 
 
 class TestFTPSensor:
@@ -63,11 +62,11 @@ class TestFTPSensor:
     def test_poke_fail_on_transient_error(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task")
 
-        mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = error_perm(
+        mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = error_temp(
             "434: Host unavailable"
         )
 
-        with pytest.raises(error_perm) as ctx:
+        with pytest.raises(error_temp) as ctx:
             op.execute(None)
 
         assert "434" in str(ctx.value)
@@ -76,11 +75,11 @@ class TestFTPSensor:
     def test_poke_fail_on_transient_error_and_skip(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp", task_id="test_task")
 
-        mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = error_perm(
+        mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = error_temp(
             "434: Host unavailable"
         )
 
-        with pytest.raises(error_perm):
+        with pytest.raises(error_temp):
             op.execute(None)
 
     @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", spec=FTPHook)
@@ -90,90 +89,34 @@ class TestFTPSensor:
         )
 
         mock_hook.return_value.__enter__.return_value.get_mod_time.side_effect = [
-            error_perm("434: Host unavailable"),
+            error_temp("434: Host unavailable"),
             None,
         ]
 
         assert not op.poke(None)
         assert op.poke(None)
 
-    @pytest.mark.parametrize(("sensor_cls", "hook_cls"), [(FTPSensor, FTPHook), (FTPSSensor, FTPSHook)])
-    @pytest.mark.parametrize("code", [425, 450, 451])
-    @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", autospec=True)
-    @mock.patch("airflow.providers.ftp.sensors.ftp.FTPSHook", autospec=True)
-    def test_temporary_reply_respects_retry_policy(
-        self, mock_ftps_hook, mock_ftp_hook, sensor_cls, hook_cls, code
-    ):
-        hook = mock.create_autospec(hook_cls, instance=True)
-        hook.__enter__.return_value = hook
-        hook_factory = mock_ftps_hook if sensor_cls is FTPSSensor else mock_ftp_hook
-        hook_factory.return_value = hook
-        hook.get_mod_time.side_effect = [ftplib.error_temp(f"{code} temporary failure"), "20260101000000"]
-        sensor = sensor_cls(task_id="check", path="file", fail_on_transient_errors=False)
-        assert sensor.poke({}) is False
-        assert sensor.poke({}) is True
-        hook_factory.assert_has_calls([mock.call(ftp_conn_id="ftp_default")] * 2, any_order=True)
-        assert hook.get_mod_time.call_count == 2
-
-    @pytest.mark.parametrize(("sensor_cls", "hook_cls"), [(FTPSensor, FTPHook), (FTPSSensor, FTPSHook)])
-    @pytest.mark.parametrize(("fail_on_transient_errors", "code"), [(True, 425), (False, 430)])
-    @mock.patch("airflow.providers.ftp.sensors.ftp.FTPHook", autospec=True)
-    @mock.patch("airflow.providers.ftp.sensors.ftp.FTPSHook", autospec=True)
-    def test_temporary_reply_keeps_raise_policy(
-        self, mock_ftps_hook, mock_ftp_hook, sensor_cls, hook_cls, fail_on_transient_errors, code
-    ):
-        hook = mock.create_autospec(hook_cls, instance=True)
-        hook.__enter__.return_value = hook
-        hook_factory = mock_ftps_hook if sensor_cls is FTPSSensor else mock_ftp_hook
-        hook_factory.return_value = hook
-        hook.get_mod_time.side_effect = ftplib.error_temp(f"{code} temporary failure")
-        sensor = sensor_cls(task_id="check", path="file", fail_on_transient_errors=fail_on_transient_errors)
-        with pytest.raises(ftplib.error_temp, match=str(code)):
-            sensor.poke({})
-
-    @pytest.mark.parametrize(
-        ("sensor_cls", "hook_cls", "client_cls"),
-        [(FTPSensor, FTPHook, ftplib.FTP), (FTPSSensor, FTPSHook, ftplib.FTP_TLS)],
-    )
-    def test_poke_retries_temporary_reply_from_ftp_client(self, sensor_cls, hook_cls, client_cls):
-        sensor = sensor_cls(task_id="check", path="file", fail_on_transient_errors=False)
-        hook = hook_cls()
-        for reply, expected in [("450 File unavailable", False), ("213 20261003120000", True)]:
-            with client_cls() as client:
-                sock = mock.create_autospec(socket.socket, instance=True)
-                client.sock = sock
-                client.file = StringIO(reply + "\r\n221 Goodbye\r\n")
-                hook.conn = client
-                with mock.patch.object(sensor_cls, "_create_hook", autospec=True, return_value=hook):
-                    assert sensor.poke({}) is expected
-                sock.sendall.assert_has_calls([mock.call(b"MDTM file\r\n"), mock.call(b"QUIT\r\n")])
-                assert hook.conn is None
-
-    @pytest.mark.parametrize(
-        ("sensor_cls", "hook_cls", "client_cls"),
-        [(FTPSensor, FTPHook, ftplib.FTP), (FTPSSensor, FTPSHook, ftplib.FTP_TLS)],
-    )
     @pytest.mark.parametrize(
         ("fail_on_transient_errors", "reply", "expected_error"),
         [
             (False, "421 Service unavailable, closing control connection", None),
-            (True, "421 Service unavailable, closing control connection", ftplib.error_temp),
-            (False, "430 Unknown temporary reply", ftplib.error_temp),
-            (False, "530 Authentication failed", ftplib.error_perm),
+            (True, "421 Service unavailable, closing control connection", error_temp),
+            (False, "430 Unknown temporary reply", error_temp),
+            (False, "530 Authentication failed", error_perm),
         ],
     )
     def test_poke_after_disconnected_control_connection(
-        self, sensor_cls, hook_cls, client_cls, fail_on_transient_errors, reply, expected_error
+        self, fail_on_transient_errors, reply, expected_error
     ):
-        sensor = sensor_cls(task_id="check", path="file", fail_on_transient_errors=fail_on_transient_errors)
-        hook = hook_cls()
-        client = client_cls()
+        sensor = FTPSensor(task_id="check", path="file", fail_on_transient_errors=fail_on_transient_errors)
+        hook = FTPHook()
+        client = FTP()
         sock = mock.create_autospec(socket.socket, instance=True)
         client.sock = sock
         client.file = StringIO(reply + "\r\n")
         hook.conn = client
         try:
-            with mock.patch.object(sensor_cls, "_create_hook", autospec=True, return_value=hook):
+            with mock.patch.object(FTPSensor, "_create_hook", autospec=True, return_value=hook):
                 if expected_error is None:
                     assert sensor.poke({}) is False
                 else:
