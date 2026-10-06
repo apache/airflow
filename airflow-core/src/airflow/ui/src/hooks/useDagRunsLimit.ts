@@ -16,35 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
-
 import { dagRunsLimitKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
+import { useUrlOrStoredState } from "./useUrlOrStoredState";
+
 const DEFAULT_LIMIT = 10;
+
+const readLimitParam = (params: URLSearchParams) => {
+  const limitParam = params.get(SearchParamsKeys.LIMIT);
+
+  return limitParam === null ? undefined : Number(limitParam);
+};
 
 // The remembered per-Dag value survives tab switches and revisits; a `?limit=` URL param overrides it.
 export const useDagRunsLimit = (dagId: string) => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [storedLimit, setStoredLimit] = useLocalStorage<number>(dagRunsLimitKey(dagId), DEFAULT_LIMIT);
-
-  const limitParam = searchParams.get(SearchParamsKeys.LIMIT);
-  const limit = limitParam === null ? storedLimit : Number(limitParam);
-
-  const setLimit = (value: number) => {
-    setStoredLimit(value);
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-
-        next.delete(SearchParamsKeys.LIMIT);
-
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const [limit, setLimit] = useUrlOrStoredState<number>({
+    defaultValue: DEFAULT_LIMIT,
+    readParams: readLimitParam,
+    replace: true,
+    storageKey: dagRunsLimitKey(dagId),
+    // The stored value takes over once the user picks a limit, so the URL doesn't pin the old one.
+    writeParams: (params) => params.delete(SearchParamsKeys.LIMIT),
+  });
 
   return { limit, setLimit };
 };
