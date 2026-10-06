@@ -190,7 +190,7 @@ a job. Declare known outputs explicitly using ``outlets``::
         task_id="run_now",
         job_id=jobs_create_named.output,
         outlets=[
-            Asset("databricks://my-workspace.cloud.databricks.com/default/my_airflow_table")
+            Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")
         ],
     )
 
