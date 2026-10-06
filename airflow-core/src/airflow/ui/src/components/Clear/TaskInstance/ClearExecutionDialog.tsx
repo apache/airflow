@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button, Stack, Text, Textarea } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
@@ -27,12 +27,17 @@ import { Checkbox, Modal } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 
+import {
+  useClearKeepTaskStateDefault,
+  useClearPreventRunningTaskDefault,
+  useClearTaskInstanceDefaultOptions,
+} from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 
 type SelectedExecution = Pick<
   ExecutionTaskResponse,
-  "id" | "map_index" | "region_id" | "region_index" | "task_display_name" | "task_id"
+  "id" | "map_index" | "note" | "region_id" | "region_index" | "task_display_name" | "task_id"
 >;
 
 export const ClearExecutionDialog = ({
@@ -49,10 +54,28 @@ export const ClearExecutionDialog = ({
   readonly runId: string;
 }) => {
   const { t: translate } = useTranslation("dag");
-  const [downstream, setDownstream] = useState(true);
+  const [defaultOptions] = useClearTaskInstanceDefaultOptions();
+  const [preventRunningDefault] = useClearPreventRunningTaskDefault();
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
+  const initialNote = (executions.length === 1 ? executions[0]?.note : undefined) ?? "";
+  const defaultDownstream = defaultOptions.includes("downstream");
+  const [downstream, setDownstream] = useState(defaultDownstream);
   const [later, setLater] = useState(true);
   const [whole, setWhole] = useState(false);
-  const [note, setNote] = useState<string>();
+  const [preventRunning, setPreventRunning] = useState(preventRunningDefault);
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
+  const [note, setNote] = useState(initialNote);
+
+  useEffect(() => {
+    if (!open) {
+      setDownstream(defaultDownstream);
+      setLater(true);
+      setWhole(false);
+      setPreventRunning(preventRunningDefault);
+      setKeepTaskState(keepTaskStateDefault);
+      setNote(initialNote);
+    }
+  }, [open, defaultDownstream, preventRunningDefault, keepTaskStateDefault, initialNote]);
   const mappedIds = executions
     .filter(
       (ti) =>
@@ -64,7 +87,9 @@ export const ClearExecutionDialog = ({
     dag_run_id: runId,
     include_downstream: downstream,
     include_later_loop_iterations: later,
+    keep_task_state: keepTaskState,
     only_failed: false,
+    prevent_running_task: preventRunning,
     task_instance_ids: executions.map((ti) => ti.id),
     whole_expansion_ids: whole ? mappedIds : [],
   };
@@ -81,7 +106,16 @@ export const ClearExecutionDialog = ({
         <Button
           disabled={preview.isPending || preview.isError}
           loading={clear.isPending}
-          onClick={() => clear.mutate({ dagId, requestBody: { ...requestBody, dry_run: false, note } })}
+          onClick={() =>
+            clear.mutate({
+              dagId,
+              requestBody: {
+                ...requestBody,
+                dry_run: false,
+                note: note === initialNote ? undefined : note || undefined,
+              },
+            })
+          }
         >
           {translate("execution.clearSelected")}
         </Button>
@@ -92,10 +126,10 @@ export const ClearExecutionDialog = ({
         }
       }}
       open={open}
-      title={translate("execution.clearTitle")}
+      title={translate("execution.clearSelected")}
     >
       <Stack gap={4}>
-        <ErrorAlert error={preview.error ?? clear.error} />
+        <ErrorAlert error={preview.error} />
         <Checkbox checked={downstream} onCheckedChange={(details) => setDownstream(details.checked === true)}>
           {translate("execution.clearDownstream")}
         </Checkbox>
@@ -107,13 +141,27 @@ export const ClearExecutionDialog = ({
             {translate("execution.clearWhole")}
           </Checkbox>
         ) : undefined}
-        <Text>{translate("execution.clearAffected", { count: preview.data?.total_entries ?? 0 })}</Text>
+        <Checkbox
+          checked={preventRunning}
+          onCheckedChange={(details) => setPreventRunning(details.checked === true)}
+        >
+          {translate("dags:runAndTaskActions.options.preventRunningTasks")}
+        </Checkbox>
+        <Checkbox
+          checked={keepTaskState}
+          onCheckedChange={(details) => setKeepTaskState(details.checked === true)}
+        >
+          {translate("dags:runAndTaskActions.options.keepTaskState")}
+        </Checkbox>
+        {preview.data === undefined ? undefined : (
+          <Text>{translate("execution.clearAffected", { count: preview.data.total_entries })}</Text>
+        )}
         <Textarea
           aria-label={translate("execution.clearNote")}
           maxLength={1000}
           onChange={(event) => setNote(event.target.value)}
           placeholder={translate("execution.clearNote")}
-          value={note ?? ""}
+          value={note}
         />
       </Stack>
     </Modal>

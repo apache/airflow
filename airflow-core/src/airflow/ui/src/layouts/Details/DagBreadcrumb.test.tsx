@@ -23,6 +23,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter, Route, Routes, useLocation, useMatches } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TaskInstanceService } from "openapi/requests";
+
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -147,5 +149,23 @@ describe("DagBreadcrumb", () => {
     // The map index is the page's own level, so it is text rather than a link.
     expect(screen.queryByRole("link", { name: "0" })).not.toBeInTheDocument();
     expect(screen.getByText("0")).toBeInTheDocument();
+  });
+
+  it("resolves the task instance by the region coordinates in the URL", async () => {
+    const regionId = "11111111-1111-4111-8111-111111111111";
+    const getTaskInstance = vi.spyOn(TaskInstanceService, "getTaskInstance");
+
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/task_1?region_id=${regionId}&region_index=2`,
+        "/dags/:dagId/runs/:runId/tasks/:taskId",
+      ),
+    });
+
+    await waitFor(() =>
+      expect(getTaskInstance).toHaveBeenCalledWith(
+        expect.objectContaining({ regionId, regionIndex: 2, taskId: "task_1" }),
+      ),
+    );
   });
 });

@@ -27,7 +27,7 @@ import { Select } from "src/system-components";
 
 import { StateBadge } from "src/components/StateBadge";
 
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { isExactTryView } from "src/hooks/useTaskInstanceView";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
@@ -41,8 +41,7 @@ type Props = {
 export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstance }: Props) => {
   const { t: translate } = useTranslation("components");
   const [searchParams] = useSearchParams();
-  const inspectHistory =
-    searchParams.has(SearchParamsKeys.TRY_NUMBER) && searchParams.has(SearchParamsKeys.REGION_ID);
+  const inspectHistory = isExactTryView(searchParams);
   const {
     dag_id: dagId,
     dag_run_id: dagRunId,

@@ -44,9 +44,14 @@ vi.mock("src/hooks/useRequiredActionTabs", () => ({
   useRequiredActionTabs: vi.fn((_params: unknown, tabs: Array<NavTab>) => ({ tabs })),
 }));
 vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({ children, tabs }: PropsWithChildren<{ readonly tabs: Array<NavTab> }>) => (
+  DetailsLayout: ({
+    children,
+    error,
+    tabs,
+  }: PropsWithChildren<{ readonly error?: unknown; readonly tabs: Array<NavTab> }>) => (
     <>
       {children}
+      {error === null || error === undefined ? undefined : <div data-testid="layout-error" />}
       <NavTabs tabs={tabs} />
     </>
   ),
@@ -155,7 +160,33 @@ describe("TaskInstance", () => {
     expect(history).toHaveBeenCalledWith(
       expect.objectContaining({ regionId, regionIndex: 3, taskTryNumber: 2 }),
     );
-    expect(screen.queryByRole("link", { name: "tabs.storage" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("task-instance-state")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "tabs.taskStateStore" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "tabs.xcom" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "tabs.logs" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "tabs.details" })).toBeVisible();
+    expect(screen.queryByTestId("layout-error")).not.toBeInTheDocument();
+  });
+  it("keeps the layout mounted and hides the empty heading while the task instance loads", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockReturnValue(
+      new Promise(() => undefined) as ReturnType<typeof TaskInstanceService.getMappedTaskInstance>,
+    );
+
+    render(
+      <MemoryRouter initialEntries={[`/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/logs`]}>
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    expect(await screen.findByRole("link", { name: "tabs.details" })).toBeVisible();
+    expect(screen.queryByText("common:noItemsFound")).not.toBeInTheDocument();
   });
   it.each(["logs", "xcom"])(
     "opens a retained execution from %s without showing its current replacement or exposing live-only tabs",
@@ -195,8 +226,10 @@ describe("TaskInstance", () => {
       expect(history).toHaveBeenCalledWith(
         expect.objectContaining({ regionId, regionIndex: 3, taskTryNumber: 2 }),
       );
-      expect(screen.queryByText("current-id")).not.toBeInTheDocument();
-      expect(screen.queryByRole("link", { name: "tabs.storage" })).not.toBeInTheDocument();
+      expect(screen.queryByTestId("task-instance-state")).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "tabs.taskStateStore" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "tabs.xcom" })).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "tabs.logs" })).toBeVisible();
       expect(screen.getByRole("link", { name: "tabs.details" })).toHaveAttribute(
         "href",
         expect.stringContaining(`region_id=${regionId}`),

@@ -16,12 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { createElement, Fragment } from "react";
+
+import "@testing-library/jest-dom/vitest";
+import { render, screen } from "@testing-library/react";
 import type { TFunction } from "i18next";
 import { describe, expect, it } from "vitest";
 
-import type { StructuredLogMessage } from "openapi/requests/types.gen";
+import type { StructuredLogMessage, TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import { getLogLineText } from "./useLogs";
+import { Wrapper } from "src/utils/Wrapper";
+
+import { getLogLineText, parseLogs } from "./useLogs";
 
 const translate = ((key: string) => key) as unknown as TFunction;
 
@@ -66,5 +72,39 @@ describe("getLogLineText", () => {
     expect(getLogLineText({ logMessage: "plain \u001B[32mok\u001B[0m line", translate })).toBe(
       "plain ok line",
     );
+  });
+});
+
+describe("parseLogs line links", () => {
+  const line = { event: "hello", level: "info", timestamp: "2026-01-01T00:00:00Z" } as StructuredLogMessage;
+  const baseTaskInstance = {
+    dag_id: "dag",
+    dag_run_id: "run",
+    map_index: -1,
+    task_id: "task",
+  };
+
+  it.each([
+    [
+      "omits region coordinates for the sentinel region",
+      { region_id: "00000000-0000-0000-0000-000000000000", region_index: -1 },
+      "/dags/dag/runs/run/tasks/task/logs?try_number=1#0",
+    ],
+    [
+      "carries the region coordinates of a loop or mapped execution",
+      { region_id: "11111111-1111-4111-8111-111111111111", region_index: 2 },
+      "/dags/dag/runs/run/tasks/task/logs?try_number=1&region_id=11111111-1111-4111-8111-111111111111&region_index=2#0",
+    ],
+  ])("%s", (_name, region, href) => {
+    const { parsedLogs } = parseLogs({
+      data: [line],
+      taskInstance: { ...baseTaskInstance, ...region } as TaskInstanceResponse,
+      translate,
+      tryNumber: 1,
+    });
+
+    render(createElement(Fragment, undefined, parsedLogs?.[0]?.element), { wrapper: Wrapper });
+
+    expect(screen.getByRole("link", { name: "0" })).toHaveAttribute("href", href);
   });
 });

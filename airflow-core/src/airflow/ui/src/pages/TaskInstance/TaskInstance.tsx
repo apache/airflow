@@ -31,8 +31,6 @@ import {
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 
-import { ProgressBar } from "src/system-components";
-
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import type { NavTab } from "src/layouts/Details/NavTabs";
 
@@ -166,10 +164,6 @@ export const TaskInstance = () => {
 
   const taskPath = getTaskInstanceLink({ dagId, dagRunId: runId, mapIndex: parsedMapIndex, taskId });
 
-  if (isLoading) {
-    return <ProgressBar size="xs" />;
-  }
-
   if (historical && ![`${taskPath}/details`, `${taskPath}/logs`, taskPath].includes(location.pathname)) {
     return <Navigate replace to={{ pathname: `${taskPath}/logs`, search: searchParams.toString() }} />;
   }
@@ -178,9 +172,11 @@ export const TaskInstance = () => {
     <ReactFlowProvider>
       <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {taskInstance === undefined ? (
-          <Heading p={2} size="lg">
-            {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
-          </Heading>
+          isLoading ? undefined : (
+            <Heading p={2} size="lg">
+              {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
+            </Heading>
+          )
         ) : historicalTaskInstance === undefined ? (
           liveTaskInstance === undefined ? undefined : (
             <Header taskInstance={liveTaskInstance} />

@@ -23,6 +23,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { DagRunService, TaskInstanceService } from "openapi/requests";
 import type {
+  DAGRunResponse,
   ExecutionCollectionResponse,
   ExecutionRegionResponse,
   ExecutionTaskResponse,
@@ -32,6 +33,7 @@ import i18n from "src/i18n/config";
 import type * as Utils from "src/utils";
 import { BaseWrapper } from "src/utils/Wrapper";
 
+import commonTranslations from "../../../public/i18n/locales/en/common.json";
 import dagTranslations from "../../../public/i18n/locales/en/dag.json";
 import { Execution } from "./Execution";
 
@@ -39,11 +41,14 @@ vi.mock("src/router", () => ({ taskInstanceRoutes: [] }));
 
 beforeAll(() => {
   i18n.addResourceBundle("en", "dag", dagTranslations, true, true);
+  i18n.addResourceBundle("en", "common", commonTranslations, true, true);
 });
+
+const refresh = vi.hoisted<{ interval: number | false }>(() => ({ interval: false }));
 
 vi.mock("src/utils", async (importOriginal) => ({
   ...(await importOriginal<typeof Utils>()),
-  useAutoRefresh: () => false,
+  useAutoRefresh: () => refresh.interval,
 }));
 
 const ROOT = "11111111-1111-4111-8111-111111111111";
@@ -90,7 +95,13 @@ const renderExecution = (search = "") =>
     </BaseWrapper>,
   );
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  refresh.interval = false;
+});
+
+const mockRun = (state: DAGRunResponse["state"]) =>
+  vi.spyOn(DagRunService, "getDagRun").mockResolvedValue({ dag_id: "dag", state } as DAGRunResponse);
 
 describe("Run Execution", () => {
   it("resets selected UUIDs when navigating to another run", async () => {
@@ -229,12 +240,70 @@ describe("Run Execution", () => {
 
     renderExecution();
     expect(await screen.findByText("Showing 1–1 of 101 executions")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    fireEvent.click(screen.getByRole("button", { name: /next page/iu }));
     await waitFor(() =>
       expect(fetch).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, offset: 100 })),
     );
     expect(await screen.findByRole("link", { name: "second" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "first" })).not.toBeInTheDocument();
     expect(screen.getByText("Showing 101–101 of 101 executions")).toBeVisible();
+  });
+
+  it("translates the state badge, including the no-state fallback", async () => {
+    vi.spyOn(DagRunService, "getExecution").mockResolvedValue({
+      regions: [region(ROOT)],
+      task_instances: [task("done"), task("unstarted", { state: null })],
+      total_entries: 2,
+    });
+    renderExecution();
+
+    expect(await screen.findByText("Success")).toBeVisible();
+    expect(screen.getByText("No Status")).toBeVisible();
+  });
+
+  it("shows an empty state instead of a zero range for an empty run", async () => {
+    vi.spyOn(DagRunService, "getExecution").mockResolvedValue({
+      regions: [],
+      task_instances: [],
+      total_entries: 0,
+    });
+    renderExecution();
+
+    expect(await screen.findByText("No executions in this run.")).toBeVisible();
+    expect(screen.queryByText(/Showing/u)).not.toBeInTheDocument();
+  });
+
+  it("clamps an offset past the end of the live set to the last page", async () => {
+    const fetch = vi
+      .spyOn(DagRunService, "getExecution")
+      .mockResolvedValueOnce({ regions: [region(ROOT)], task_instances: [], total_entries: 101 })
+      .mockResolvedValue({ regions: [region(ROOT)], task_instances: [task("last")], total_entries: 101 });
+
+    renderExecution("?execution_offset=500");
+
+    expect(await screen.findByRole("link", { name: "last" })).toBeVisible();
+    expect(fetch).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 100 }));
+  });
+
+  it("keeps polling a pending run but not a finished one", async () => {
+    refresh.interval = 20;
+    const fetch = vi
+      .spyOn(DagRunService, "getExecution")
+      .mockResolvedValue({ regions: [region(ROOT)], task_instances: [task("work")], total_entries: 1 });
+
+    mockRun("success");
+    const finished = renderExecution();
+
+    await screen.findByRole("link", { name: "work" });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 200);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    finished.unmount();
+    fetch.mockClear();
+
+    mockRun("running");
+    renderExecution();
+    await waitFor(() => expect(fetch.mock.calls.length).toBeGreaterThan(2));
   });
 });

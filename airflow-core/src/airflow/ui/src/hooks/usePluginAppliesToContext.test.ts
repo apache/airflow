@@ -16,7 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { createElement, type ReactNode } from "react";
+
 import { renderHook } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -60,13 +63,19 @@ vi.mock("openapi/queries", async (importOriginal) => ({
   useTaskServiceGetTask: record("task"),
 }));
 
+const renderContext = (enabled: boolean, search = "") =>
+  renderHook(() => usePluginAppliesToContext(enabled), {
+    wrapper: ({ children }: { readonly children: ReactNode }) =>
+      createElement(MemoryRouter, { initialEntries: [`/${search}`] }, children),
+  });
+
 describe("usePluginAppliesToContext", () => {
   beforeEach(() => {
     mockParams = { dagId, mapIndex: "-1", runId, taskId };
   });
 
   it("issues no query when no view needs scoping", () => {
-    renderHook(() => usePluginAppliesToContext(false));
+    renderContext(false);
 
     expect(calls.dag?.options?.enabled).toBe(false);
     expect(calls.task?.options?.enabled).toBe(false);
@@ -74,7 +83,7 @@ describe("usePluginAppliesToContext", () => {
   });
 
   it("enables every query a full task instance route can resolve", () => {
-    renderHook(() => usePluginAppliesToContext(true));
+    renderContext(true);
 
     expect(calls.dag?.options?.enabled).toBe(true);
     expect(calls.task?.options?.enabled).toBe(true);
@@ -86,7 +95,7 @@ describe("usePluginAppliesToContext", () => {
   // both here means a param drifting on either side fails loudly instead of quietly
   // splitting the cache and issuing a second request.
   it("shares the pages' query keys, so each read is a cache hit", () => {
-    renderHook(() => usePluginAppliesToContext(true));
+    renderContext(true);
 
     expect(calls.dag?.key).toBeUndefined();
     expect(calls.task?.key).toBeUndefined();
@@ -117,10 +126,19 @@ describe("usePluginAppliesToContext", () => {
     );
   });
 
+  it("addresses the task instance by the region coordinates in the URL", () => {
+    renderContext(true, "?region_id=22222222-2222-4222-8222-222222222222&region_index=2");
+
+    expect(calls.taskInstance?.params).toMatchObject({
+      regionId: "22222222-2222-4222-8222-222222222222",
+      regionIndex: 2,
+    });
+  });
+
   it("skips the task queries on a task group route, where groupId is not a task_id", () => {
     mockParams = { dagId, groupId: "my_group", runId };
 
-    renderHook(() => usePluginAppliesToContext(true));
+    renderContext(true);
 
     expect(calls.dag?.options?.enabled).toBe(true);
     expect(calls.task?.options?.enabled).toBe(false);
@@ -130,7 +148,7 @@ describe("usePluginAppliesToContext", () => {
   it("skips the task instance query when mapIndex is not a number", () => {
     mockParams = { dagId, mapIndex: "not-a-number", runId, taskId };
 
-    renderHook(() => usePluginAppliesToContext(true));
+    renderContext(true);
 
     expect(calls.taskInstance?.options?.enabled).toBe(false);
   });
@@ -138,7 +156,7 @@ describe("usePluginAppliesToContext", () => {
   it("resolves only the Dag on a Dag-level route", () => {
     mockParams = { dagId };
 
-    renderHook(() => usePluginAppliesToContext(true));
+    renderContext(true);
 
     expect(calls.dag?.options?.enabled).toBe(true);
     expect(calls.task?.options?.enabled).toBe(false);

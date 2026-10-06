@@ -27,19 +27,23 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+export const isExactTryView = (searchParams: URLSearchParams) =>
+  searchParams.has(SearchParamsKeys.TRY_NUMBER) &&
+  searchParams.has(SearchParamsKeys.REGION_ID) &&
+  searchParams.has(SearchParamsKeys.REGION_INDEX);
+
 export const useTaskInstanceView = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const coordinates = useTaskInstanceCoordinates();
   const tryParameter = searchParams.get(SearchParamsKeys.TRY_NUMBER);
-  const exactTry =
-    tryParameter !== null && coordinates.regionId !== undefined && coordinates.regionIndex !== undefined;
+  const exactTry = isExactTryView(searchParams);
   const refetchInterval = useAutoRefresh({ dagId });
   const params = { ...coordinates, dagId, dagRunId: runId, mapIndex: Number(mapIndex), taskId };
   const live = useTaskInstanceServiceGetMappedTaskInstance(params, undefined, {
     enabled: !Number.isNaN(params.mapIndex),
     refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
-    retry: !exactTry && undefined,
+    ...(exactTry ? { retry: false } : {}),
     staleTime: 0,
   });
   const history = useTaskInstanceServiceGetTaskInstanceTryDetails(
@@ -53,7 +57,7 @@ export const useTaskInstanceView = () => {
     (live.data?.id !== history.data.id || live.data.try_number !== history.data.try_number);
 
   return {
-    error: exactTry ? (history.error ?? live.error) : live.error,
+    error: exactTry ? (history.error ?? (history.data === undefined ? live.error : null)) : live.error,
     historical,
     historicalTaskInstance: historical ? history.data : undefined,
     isLoading: exactTry ? history.isLoading || live.isLoading : live.isLoading,

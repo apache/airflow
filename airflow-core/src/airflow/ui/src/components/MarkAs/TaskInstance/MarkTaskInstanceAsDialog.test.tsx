@@ -18,10 +18,11 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
+import { MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY } from "src/constants/localStorage";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -86,7 +87,10 @@ const taskInstance: TaskInstanceResponse = {
 };
 
 describe("MarkTaskInstanceAsDialog", () => {
+  afterEach(() => localStorage.clear());
+
   it("marks an exact regional execution and disables cross-run scope", () => {
+    localStorage.setItem(MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY, JSON.stringify(["past", "future"]));
     const regional = {
       ...taskInstance,
       map_index: -1,

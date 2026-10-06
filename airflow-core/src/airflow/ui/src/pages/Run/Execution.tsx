@@ -16,22 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Box, Button, Heading, HStack, Link, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
-import { useDagRunServiceGetExecution } from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagRunServiceGetExecution } from "openapi/queries";
 import type { ExecutionRegionResponse, ExecutionTaskResponse } from "openapi/requests/types.gen";
 
-import { Checkbox, ProgressBar } from "src/system-components";
+import { Checkbox, Pagination, ProgressBar } from "src/system-components";
 
 import { ClearExecutionDialog } from "src/components/Clear/TaskInstance/ClearExecutionDialog";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 
-import { useAutoRefresh } from "src/utils";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 const PAGE_SIZE = 100;
@@ -95,31 +96,59 @@ const TaskRow = ({
   readonly selected: boolean;
   readonly selectLabel: string;
   readonly task: ExecutionTaskResponse;
-}) => (
-  <HStack justify="space-between" py={1}>
-    <Checkbox aria-label={selectLabel} checked={selected} onCheckedChange={onSelect} />
-    <Link asChild>
-      <RouterLink to={executionLink(task)}>
-        {task.task_display_name}
-        {task.map_index >= 0 ? ` [${task.map_index}]` : ""}
-      </RouterLink>
-    </Link>
-    <StateBadge state={task.state}>{task.state ?? "none"}</StateBadge>
-  </HStack>
-);
+}) => {
+  const { t: translate } = useTranslation();
+
+  return (
+    <HStack justify="space-between" py={1}>
+      <Checkbox aria-label={selectLabel} checked={selected} onCheckedChange={onSelect} />
+      <Link asChild>
+        <RouterLink to={executionLink(task)}>
+          {task.task_display_name}
+          {task.map_index >= 0 ? ` [${task.map_index}]` : ""}
+        </RouterLink>
+      </Link>
+      <StateBadge state={task.state}>{translate(`common:states.${task.state ?? "none"}`)}</StateBadge>
+    </HStack>
+  );
+};
 
 const ExecutionView = () => {
   const { dagId = "", runId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
   const [searchParams, setSearchParams] = useSearchParams();
-  const parsedOffset = Number(searchParams.get("execution_offset") ?? 0);
+  const parsedOffset = Number(searchParams.get(SearchParamsKeys.EXECUTION_OFFSET) ?? 0);
   const offset = Number.isInteger(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
   const refresh = useAutoRefresh({ dagId });
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
+    refetchInterval: (query) => isStatePending(query.state.data?.state) && refresh,
+  });
   const { data, error, isLoading } = useDagRunServiceGetExecution(
     { dagId, dagRunId: runId, limit: PAGE_SIZE, offset },
     undefined,
-    { refetchInterval: refresh },
+    { refetchInterval: isStatePending(dagRun?.state) && refresh },
   );
+  const totalEntries = data?.total_entries ?? 0;
+
+  useEffect(() => {
+    if (data !== undefined && offset > 0 && offset >= totalEntries) {
+      setSearchParams(
+        (previous) => {
+          const updated = new URLSearchParams(previous);
+          const lastOffset = Math.max(0, Math.ceil(totalEntries / PAGE_SIZE) - 1) * PAGE_SIZE;
+
+          if (lastOffset === 0) {
+            updated.delete(SearchParamsKeys.EXECUTION_OFFSET);
+          } else {
+            updated.set(SearchParamsKeys.EXECUTION_OFFSET, String(lastOffset));
+          }
+
+          return updated;
+        },
+        { replace: true },
+      );
+    }
+  }, [data, offset, setSearchParams, totalEntries]);
   const [expanded, setExpanded] = useState(new Set<string>());
   const [selected, setSelected] = useState(new Map<string, ExecutionTaskResponse>());
   const [clearing, setClearing] = useState(false);
@@ -149,7 +178,7 @@ const ExecutionView = () => {
     setSearchParams((previous) => {
       const updated = new URLSearchParams(previous);
 
-      updated.set("execution_offset", String(next));
+      updated.set(SearchParamsKeys.EXECUTION_OFFSET, String((next - 1) * PAGE_SIZE));
 
       return updated;
     });
@@ -174,13 +203,16 @@ const ExecutionView = () => {
       ) : undefined}
       <ErrorAlert error={error} />
       {isLoading ? <ProgressBar size="xs" /> : undefined}
-      <Text>
-        {translate("execution.page", {
-          end: Math.min(offset + (data?.task_instances.length ?? 0), data?.total_entries ?? 0),
-          start: (data?.task_instances.length ?? 0) > 0 ? offset + 1 : 0,
-          total: data?.total_entries ?? 0,
-        })}
-      </Text>
+      {data !== undefined && totalEntries === 0 ? <Text>{translate("execution.empty")}</Text> : undefined}
+      {totalEntries > 0 ? (
+        <Text>
+          {translate("execution.page", {
+            end: Math.min(offset + (data?.task_instances.length ?? 0), totalEntries),
+            start: (data?.task_instances.length ?? 0) > 0 ? offset + 1 : 0,
+            total: totalEntries,
+          })}
+        </Text>
+      ) : undefined}
       {groups.map(([key, group]) => {
         const tasksById = new Map<string, Array<ExecutionTaskResponse>>();
 
@@ -235,17 +267,20 @@ const ExecutionView = () => {
           </Box>
         );
       })}
-      <HStack>
-        <Button disabled={offset === 0} onClick={() => page(Math.max(0, offset - PAGE_SIZE))}>
-          {translate("execution.previousPage")}
-        </Button>
-        <Button
-          disabled={offset + PAGE_SIZE >= (data?.total_entries ?? 0)}
-          onClick={() => page(offset + PAGE_SIZE)}
+      {totalEntries > PAGE_SIZE ? (
+        <Pagination.Root
+          count={totalEntries}
+          onPageChange={(event) => page(event.page)}
+          page={Math.floor(offset / PAGE_SIZE) + 1}
+          pageSize={PAGE_SIZE}
         >
-          {translate("execution.nextPage")}
-        </Button>
-      </HStack>
+          <HStack justify="center">
+            <Pagination.PrevTrigger />
+            <Pagination.Items />
+            <Pagination.NextTrigger />
+          </HStack>
+        </Pagination.Root>
+      ) : undefined}
     </Stack>
   );
 };

@@ -24,6 +24,7 @@ import {
   useTaskServiceGetTask,
 } from "openapi/queries";
 
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import type { AppliesToContext } from "src/utils/pluginAppliesTo";
 
 /**
@@ -40,6 +41,7 @@ import type { AppliesToContext } from "src/utils/pluginAppliesTo";
  */
 export const usePluginAppliesToContext = (enabled: boolean): AppliesToContext => {
   const { dagId = "", groupId, mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
   const parsedMapIndex = parseInt(mapIndex, 10);
 
   const { data: dag, isLoading: isDagLoading } = useDagServiceGetDag({ dagId }, undefined, {
@@ -52,7 +54,7 @@ export const usePluginAppliesToContext = (enabled: boolean): AppliesToContext =>
 
   const { data: taskInstance, isLoading: isTaskInstanceLoading } =
     useTaskInstanceServiceGetMappedTaskInstance(
-      { dagId, dagRunId: runId, mapIndex: parsedMapIndex, taskId },
+      { ...coordinates, dagId, dagRunId: runId, mapIndex: parsedMapIndex, taskId },
       undefined,
       {
         enabled:

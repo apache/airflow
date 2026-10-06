@@ -78,6 +78,15 @@ const defaultProps = {
   virtualizerScrollPaddingStart: ROW_HEIGHT,
 };
 
+const buildSegment = (taskInstanceId: string, start: number, end: number): GanttDataItem => ({
+  state: "success",
+  taskId: "task_1",
+  taskInstanceId,
+  tryNumber: 1,
+  x: [start, end],
+  y: "task_1",
+});
+
 describe("GanttTimeline segment bars", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -150,6 +159,30 @@ describe("GanttTimeline segment bars", () => {
 
     expect(await screen.findByText("taskId: task_1")).toBeInTheDocument();
     expect(screen.queryByText(/taskInstance.iteration/u)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { expectedIcons: 1, name: "joins adjacent same-try segments of one execution", secondId: "execution-a" },
+    {
+      expectedIcons: 2,
+      name: "keeps adjacent same-try segments of different executions separate",
+      secondId: "execution-b",
+    },
+  ])("$name", ({ expectedIcons, secondId }) => {
+    const middle = MIN_MS + (MAX_MS - MIN_MS) / 2;
+
+    render(
+      <GanttTimeline
+        {...defaultProps}
+        rowSegments={[[buildSegment("execution-a", MIN_MS, middle), buildSegment(secondId, middle, MAX_MS)]]}
+        scrollContainerRef={makeScrollRef()}
+      />,
+      { wrapper: TestWrapper },
+    );
+
+    expect(screen.getAllByRole("link").filter((link) => link.querySelector("svg") !== null)).toHaveLength(
+      expectedIcons,
+    );
   });
 
   it("renders a single execution bar when only start_date is present", () => {
