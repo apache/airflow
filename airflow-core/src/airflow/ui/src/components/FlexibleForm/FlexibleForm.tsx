@@ -28,6 +28,7 @@ import { useParamStore } from "src/queries/useParamStore";
 
 import ReactMarkdown from "../ReactMarkdown";
 import { Row } from "./Row";
+import { findDateBoundError } from "./findDateBoundError";
 import { isRequired } from "./isParamRequired";
 
 const FlatSection = ({
@@ -58,10 +59,11 @@ const computeSectionErrors = (
 ): Map<string, boolean> => {
   const errors = new Map<string, boolean>();
 
-  Object.values(params).forEach((element) => {
+  Object.entries(params).forEach(([name, element]) => {
     if (
-      isRequired(element) &&
-      (element.value === null || element.value === undefined || element.value === "")
+      (isRequired(element) &&
+        (element.value === null || element.value === undefined || element.value === "")) ||
+      findDateBoundError(name, params) !== undefined
     ) {
       errors.set(element.schema.section ?? defaultSection, true);
     }

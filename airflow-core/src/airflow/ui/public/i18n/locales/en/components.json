@@ -89,10 +89,12 @@
     "placeholderArray": "Enter each string on a new line",
     "placeholderExamples": "Start typing to see options",
     "placeholderMulti": "Select one or multiple values",
+    "validationErrorAfter": "Must be after {{bound}}",
     "validationErrorArrayNotArray": "Value must be an array.",
     "validationErrorArrayNotNumbers": "All elements in the array must be numbers.",
     "validationErrorArrayNotObject": "All elements in the array must be objects.",
     "validationErrorDuration": "Invalid ISO 8601 duration format",
+    "validationErrorOnOrAfter": "Must be on or after {{bound}}",
     "validationErrorRequired": "This field is required"
   },
   "graph": {
