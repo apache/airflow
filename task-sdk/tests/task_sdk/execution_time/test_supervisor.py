@@ -277,7 +277,7 @@ class TestSupervisor:
 
 def _response_error(status: int, detail: dict[str, Any]) -> ServerResponseError:
     error = ServerResponseError.from_response(
-        httpx.Response(status, json={"detail": detail}, request=httpx.Request("PATCH", "http://server/x"))
+        httpx2.Response(status, json={"detail": detail}, request=httpx2.Request("PATCH", "http://server/x"))
     )
     assert error is not None
     return error
