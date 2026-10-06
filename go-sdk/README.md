@@ -476,6 +476,22 @@ schema property that the field sets and its schema default. The serializer leave
 the default. `serialize.go` lists only the fields that the generated tables cannot describe: the ones
 it writes in its own way, and the lists that Python keeps in a set.
 
+`airflow.Inputs` takes the results of tasks and `airflow.Literal` values, one for each parameter after
+the `Context`. A task becomes an `xcom` argument binding and a literal becomes a `literal` one:
+
+```go
+dag.Task(load, airflow.Inputs(transformed, airflow.Literal("s3://bucket/out")))
+```
+
+```json
+[
+  {"name": "arg0", "kind": "xcom", "task_id": "transform"},
+  {"name": "arg1", "kind": "literal", "value": "s3://bucket/out"}
+]
+```
+
+A literal must be JSON that decodes into its parameter type, and it adds no edge to the Dag.
+
 The `check-go-sdk-serialization-conformance` prek hook builds the Dags of
 [`scripts/ci/lang_sdk_serialization/test_dags.yaml`](../scripts/ci/lang_sdk_serialization/test_dags.yaml)
 twice: with this SDK, and with Python and Airflow's own serializer. It loads the Go output with

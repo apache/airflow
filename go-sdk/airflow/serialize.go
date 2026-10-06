@@ -438,19 +438,24 @@ func (d *DagRef) serializeTaskLocked(task *TaskRef) map[string]any {
 	return map[string]any{"__type": "operator", "__var": data}
 }
 
-// serializeArgBindings returns the arg bindings for the tasks that Inputs passed. When the task
-// runs, the API server sends it these bindings, one for each parameter after the Context, in order.
-// Package reflect cannot read the names of the parameters of a Go function, and a Go task takes its
+// serializeArgBindings returns the arg bindings for what Inputs passed. When the task runs, the API
+// server sends it these bindings, one for each parameter after the Context, in order. Package
+// reflect cannot read the names of the parameters of a Go function, and a Go task takes its
 // arguments by position. So each binding is named after the position of its parameter: arg0 for the
-// first parameter after the Context, arg1 for the next, and so on.
-func serializeArgBindings(inputs []*TaskRef) []any {
+// first parameter after the Context, arg1 for the next, and so on. A literal is written as it is,
+// not wrapped in {"__type", "__var"}, as Python writes a literal argument.
+func serializeArgBindings(inputs []taskInput) []any {
 	bindings := make([]any, len(inputs))
-	for i, upstream := range inputs {
-		bindings[i] = map[string]any{
-			"name":    "arg" + strconv.Itoa(i),
-			"kind":    "xcom",
-			"task_id": upstream.taskID,
+	for i, input := range inputs {
+		binding := map[string]any{"name": "arg" + strconv.Itoa(i)}
+		if input.literal {
+			binding["kind"] = "literal"
+			binding["value"] = copyJSON(input.value)
+		} else {
+			binding["kind"] = "xcom"
+			binding["task_id"] = input.ref.taskID
 		}
+		bindings[i] = binding
 	}
 	return bindings
 }

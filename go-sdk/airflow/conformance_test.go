@@ -120,7 +120,7 @@ func buildConformanceDag(t *testing.T, dagCase conformanceDag) *DagRef {
 		taskSpec.TaskID = task.TaskID
 		// Each upstream task passes its result to a parameter of the task, which gives the task the edge
 		// that test_dags.yaml asks for.
-		upstreams := make([]*TaskRef, len(task.Upstream))
+		upstreams := make([]Input, len(task.Upstream))
 		for i, upstreamID := range task.Upstream {
 			upstream, ok := tasks[upstreamID]
 			require.True(t, ok, "%s: upstream %q comes after the task", label, upstreamID)

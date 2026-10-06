@@ -156,9 +156,9 @@ type TaskRef struct {
 	// resultType is the type of the result that the task function returns with its error. It is
 	// nil when the function returns only an error.
 	resultType reflect.Type
-	// inputs holds the tasks that Inputs passed, in the order of the parameters they fill. Each
-	// of them is an upstream task of this one.
-	inputs []*TaskRef
+	// inputs holds what Inputs passed, in the order of the parameters it fills. The task of each ref
+	// is an upstream task of this one, and a literal adds no edge.
+	inputs []taskInput
 	// upstreams and downstreams hold the edges of the task, in the order they were declared and
 	// without a repeat, so that an edge is recorded in both directions. Inputs, Before and After
 	// all record an edge here.
@@ -178,8 +178,8 @@ type TaskRef struct {
 //
 // fn takes a [Context] first and returns either error or (result, error), like a function
 // passed to [TaskHandler]. The parameters after the Context take the results of the tasks
-// passed to [Inputs], in order. fn can also be the value that [TriggerDagRun] returns. The task
-// then runs no Go code and takes no Inputs.
+// and the [Literal] values passed to [Inputs], in order. fn can also be the value that
+// [TriggerDagRun] returns. The task then runs no Go code and takes no Inputs.
 //
 // The task_id is the name of fn, spelled exactly as it is in Go. dag.Task(extractRows) adds the
 // task extractRows, and dag.Task(svc.Extract), which passes a method value, adds the task
@@ -208,7 +208,7 @@ type TaskRef struct {
 //   - the TaskSpec sets TriggerRule to a value that is not a TriggerRule constant
 //   - the TaskSpec sets WeightRule to a value that is not a WeightRule constant
 //   - the year of the StartDate or the EndDate of the TaskSpec in UTC is not from 1 to 9999
-//   - the tasks passed to Inputs do not match the parameters of fn after the Context
+//   - the inputs passed to Inputs do not match the parameters of fn after the Context
 //   - the task_id, with the group_ids that prefix it, is longer than 250 characters, or holds a
 //     character other than a letter, a digit, an underscore, a dash or a dot, as Python's
 //     validate_key requires
@@ -344,7 +344,7 @@ func (d *DagRef) addTask(
 			method, d.dagID, taskID, taken,
 		))
 	}
-	var upstreams []*TaskRef
+	var taskInputs []taskInput
 	var resultType reflect.Type
 	if isTrigger {
 		if cfg.hasInputs {
@@ -356,7 +356,7 @@ func (d *DagRef) addTask(
 		}
 	} else {
 		fnType := reflect.TypeOf(fn)
-		upstreams = d.checkInputs(method, taskID, fnType, cfg.inputs)
+		taskInputs = d.checkInputs(method, taskID, fnType, cfg.inputs)
 		// newTaskFunction has checked that fn returns either error or (result, error).
 		if fnType.NumOut() == 2 {
 			resultType = fnType.Out(0)
@@ -369,7 +369,7 @@ func (d *DagRef) addTask(
 		taskID:        taskID,
 		spec:          copySpec(cfg.spec),
 		resultType:    resultType,
-		inputs:        upstreams,
+		inputs:        taskInputs,
 		task:          wrapped,
 		triggerDagRun: triggerSpec,
 		decider:       decider,
@@ -387,8 +387,10 @@ func (d *DagRef) addTask(
 	}
 	// Inputs passes a task once per parameter it fills, so the same task can arrive twice. The
 	// edge is one either way, and the task is new, so no edge to it carries a label to settle.
-	for _, upstream := range upstreams {
-		d.addEdgeLocked(upstream, task, "")
+	for _, input := range taskInputs {
+		if !input.literal {
+			d.addEdgeLocked(input.ref, task, "")
+		}
 	}
 	return task
 }

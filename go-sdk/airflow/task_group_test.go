@@ -63,7 +63,7 @@ func TestTaskGroupPrefixesTheTaskIDs(t *testing.T) {
 	assert.Equal(t, "transform.readRows", read.taskID)
 	assert.Equal(t, "transform.count", counted.taskID)
 	assert.Same(t, group, read.group)
-	assertTasks(t, counted.inputs, read)
+	assertTasks(t, inputRefs(counted), read)
 	assertChildren(t, group, read, counted)
 	assertTasks(t, dag.tasks, read, counted)
 	assert.Same(t, read, dag.tasksByID["transform.readRows"])
@@ -1224,7 +1224,7 @@ func snapshot(dag *DagRef) dagSnapshot {
 	}
 	for _, task := range dag.tasks {
 		s.tasks = append(s.tasks, task.taskID)
-		s.inputs[task.taskID] = taskIDs(task.inputs)
+		s.inputs[task.taskID] = taskIDs(inputRefs(task))
 		s.upstreams[task.taskID] = taskIDs(task.upstreams)
 		s.downstreams[task.taskID] = taskIDs(task.downstreams)
 		switch decider := task.decider.(type) {

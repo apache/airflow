@@ -686,6 +686,66 @@ func TestSerializeWritesASwitchAsABranch(t *testing.T) {
 	assert.NotContains(t, serializedTask(t, got, "load"), "_can_skip_downstream")
 }
 
+func TestSerializeWritesALiteralAsAnArgBinding(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(countRows, Inputs(dag.Task(readRows)))
+	dag.Task(
+		func(Context, int, string, any, *string, rowSet) error { return nil },
+		Inputs(
+			read,
+			Literal("s3://bucket/out"),
+			Literal(map[string]any{"limit": 10, "tags": []any{"a", nil}, "ratio": 0.5}),
+			Literal(nil),
+			Literal(map[string]any{"rows": []string{"a"}}),
+		),
+		TaskSpec{TaskID: "load"},
+	)
+
+	got := serializedDag(t, dag)
+
+	assertJSON(t, `[
+		{"name": "arg0", "kind": "xcom", "task_id": "countRows"},
+		{"name": "arg1", "kind": "literal", "value": "s3://bucket/out"},
+		{
+			"name": "arg2",
+			"kind": "literal",
+			"value": {"limit": 10, "tags": ["a", null], "ratio": 0.5}
+		},
+		{"name": "arg3", "kind": "literal", "value": null},
+		{"name": "arg4", "kind": "literal", "value": {"rows": ["a"]}}
+	]`, serializedTask(t, got, "load")["_arg_bindings"])
+	assertJSON(t, `["load"]`, serializedTask(t, got, "countRows")["downstream_task_ids"])
+	assert.NotContains(t, serializedTask(t, got, "load"), "downstream_task_ids")
+}
+
+func TestSerializeWritesALiteralWithItsIntegersAsIntegers(t *testing.T) {
+	dag := Dag("etl")
+	dag.Task(keepAnything, Inputs(Literal(map[string]any{"big": int64(9007199254740993)})))
+
+	Bundle().Register(dag)
+	raw, err := msgpack.Marshal(dag.serialize("/bundles/app/etl", "etl"))
+	require.NoError(t, err)
+	var decoded map[string]any
+	require.NoError(t, msgpack.Unmarshal(raw, &decoded))
+
+	task := decoded["dag"].(map[string]any)["tasks"].([]any)[0].(map[string]any)["__var"].(map[string]any)
+	binding := task["_arg_bindings"].([]any)[0].(map[string]any)
+	assert.Equal(t, map[string]any{"big": int64(9007199254740993)}, binding["value"])
+}
+
+func TestSerializeSharesNothingWithALiteral(t *testing.T) {
+	dag := Dag("etl")
+	dag.Task(keepAnything, Inputs(Literal(map[string]any{"rows": []any{"a"}})))
+	Bundle().Register(dag)
+
+	first := dag.serialize("/bundles/app/etl", "etl")
+	value := first["dag"].(map[string]any)["tasks"].([]any)[0].(map[string]any)["__var"].(map[string]any)["_arg_bindings"].([]any)[0].(map[string]any)["value"]
+	value.(map[string]any)["rows"].([]any)[0] = "changed"
+
+	assertJSON(t, `[{"name": "arg0", "kind": "literal", "value": {"rows": ["a"]}}]`,
+		serializedTask(t, serializedDag(t, dag), "keepAnything")["_arg_bindings"])
+}
+
 func TestSerializeWritesTheLabelsOfEdges(t *testing.T) {
 	dag := Dag("etl")
 	extracted := orderedTask(t, dag, "extract")
