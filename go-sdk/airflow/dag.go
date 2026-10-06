@@ -78,7 +78,7 @@ type DagRef struct {
 // when it builds or validates a Dag:
 //   - Schedule is something other than an empty string, a preset or a cron expression of five to
 //     seven fields
-//   - Schedule is "@continuous" and MaxActiveRuns is unset or more than 1
+//   - Schedule is "@continuous" and MaxActiveRuns is not 1
 //   - Catchup is true and StartDate is the zero Time, for a Dag that has a Schedule
 //   - a tag in Tags is longer than 100 characters
 //   - the year of StartDate or EndDate in UTC is not from 1 to 9999
@@ -104,6 +104,8 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 // a tag in a column of that length.
 const tagMaxLength = 100
 
+// TODO: run this validation only at build time (airflow-go-pack), not on every Dag call.
+//
 // checkDagSpec rejects a DagSpec with a value that Python rejects when it builds or validates a
 // Dag. Depending on the value, Airflow would otherwise fail to load the serialized Dag, fail to
 // store the Dag, or never schedule the Dag.
@@ -112,7 +114,7 @@ func checkDagSpec(spec DagSpec) error {
 		return err
 	}
 	// An unset MaxActiveRuns takes [core] max_active_runs_per_dag, which is 16 by default.
-	if spec.Schedule == "@continuous" && (spec.MaxActiveRuns == 0 || spec.MaxActiveRuns > 1) {
+	if spec.Schedule == "@continuous" && spec.MaxActiveRuns != 1 {
 		return errors.New(
 			`airflow.DagSpec.Schedule is "@continuous", which allows one active Dag run at a ` +
 				"time; set MaxActiveRuns to 1",

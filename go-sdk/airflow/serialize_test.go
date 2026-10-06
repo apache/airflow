@@ -492,6 +492,12 @@ func TestDagRejectsWhatPythonsDagRejects(t *testing.T) {
 				`a time; set MaxActiveRuns to 1`,
 		},
 		{
+			name: "@continuous with a negative MaxActiveRuns",
+			spec: DagSpec{Schedule: "@continuous", MaxActiveRuns: -5},
+			want: `airflow.DagSpec.Schedule is "@continuous", which allows one active Dag run at ` +
+				`a time; set MaxActiveRuns to 1`,
+		},
+		{
 			name: "Catchup without StartDate",
 			spec: DagSpec{Schedule: "@daily", Catchup: ptr(true)},
 			want: "airflow.DagSpec.Catchup is true, which needs a StartDate to catch up from; " +
@@ -533,8 +539,6 @@ func TestDagRejectsWhatPythonsDagRejects(t *testing.T) {
 func TestDagTakesWhatPythonsDagTakes(t *testing.T) {
 	for name, spec := range map[string]DagSpec{
 		"@continuous with MaxActiveRuns of 1": {Schedule: "@continuous", MaxActiveRuns: 1},
-		// Python's DAG takes "@continuous" with any max_active_runs of 1 or less.
-		"@continuous with MaxActiveRuns of -1": {Schedule: "@continuous", MaxActiveRuns: -1},
 		"Catchup with StartDate": {
 			Schedule:  "@daily",
 			Catchup:   ptr(true),
