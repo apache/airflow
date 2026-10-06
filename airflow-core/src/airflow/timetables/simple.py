@@ -23,13 +23,15 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 import structlog
 
 from airflow._shared.timezones import timezone
-from airflow.exceptions import InvalidPartitionKeyError
+from airflow.configuration import conf
+from airflow.exceptions import AirflowTimetableInvalid, InvalidPartitionKeyError
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
     SerializedAssetAll,
     SerializedAssetBase,
+    SerializedAssetBooleanCondition,
     SerializedAssetNameRef,
     SerializedAssetUriRef,
 )
@@ -220,10 +222,17 @@ class AssetTriggeredTimetable(_TrivialTimetable):
     asset_triggered = True
 
     def __init__(
-        self, assets: Collection[SerializedAsset] | SerializedAssetBase, *, batch_asset_events: bool = True
+        self,
+        assets: Collection[SerializedAsset] | SerializedAssetBase,
+        *,
+        batch_asset_events: bool | None = None,
     ) -> None:
         super().__init__()
-        self.batch_asset_events = batch_asset_events
+        self.batch_asset_events = (
+            conf.getboolean("scheduler", "batch_asset_events", fallback=False)
+            if batch_asset_events is None
+            else batch_asset_events
+        )
         # Compatibility: Handle SDK assets if needed so this class works in dag files.
         if isinstance(assets, SerializedAssetBase | BaseAsset):
             self.asset_condition = ensure_serialized_asset(assets)
@@ -248,6 +257,17 @@ class AssetTriggeredTimetable(_TrivialTimetable):
             "asset_condition": encode_asset_like(self.asset_condition),
             "batch_asset_events": self.batch_asset_events,
         }
+
+    def validate(self) -> None:
+        if self.batch_asset_events:
+            return
+        pending = [self.asset_condition]
+        while pending:
+            condition = pending.pop()
+            if isinstance(condition, SerializedAssetAll) and len(condition.objects) > 1:
+                raise AirflowTimetableInvalid("Asset AND conditions require batch_asset_events=True")
+            if isinstance(condition, SerializedAssetBooleanCondition):
+                pending.extend(condition.objects)
 
     def generate_run_id(
         self,
@@ -295,17 +315,24 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         self,
         *,
         assets: SerializedAssetBase,
-        batch_asset_events: bool = True,
+        batch_asset_events: bool | None = None,
         partition_mapper_config: dict[SerializedAssetBase, PartitionMapper] | None = None,
         default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER,
     ) -> None:
         super().__init__(assets=assets, batch_asset_events=batch_asset_events)
         self.partition_mapper_config = partition_mapper_config or {}
         self.default_partition_mapper = default_partition_mapper
-
         self._name_to_partition_mapper: dict[str, PartitionMapper] = {}
         self._uri_to_partition_mapper: dict[str, PartitionMapper] = {}
         self._build_name_uri_mapping()
+
+    def validate(self) -> None:
+        super().validate()
+        if not self.batch_asset_events and any(
+            mapper.is_rollup
+            for mapper in (self.default_partition_mapper, *self.partition_mapper_config.values())
+        ):
+            raise AirflowTimetableInvalid("Partition rollups require batch_asset_events=True")
 
     def _build_name_uri_mapping(self) -> None:
         for base_asset, partition_mapper in self.partition_mapper_config.items():

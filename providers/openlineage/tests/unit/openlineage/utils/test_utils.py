@@ -2653,7 +2653,7 @@ class TestDagInfoAirflow3:
             "timetable_summary": "Asset",
         }
         if AIRFLOW_V_3_4_PLUS:
-            expected["timetable"]["batch_asset_events"] = True
+            expected["timetable"]["batch_asset_events"] = False
         assert dict(result) == expected
 
     def test_dag_info_schedule_list_single_assets(self):
@@ -2689,7 +2689,7 @@ class TestDagInfoAirflow3:
             "timetable_summary": "Asset",
         }
         if AIRFLOW_V_3_4_PLUS:
-            expected["timetable"]["batch_asset_events"] = True
+            expected["timetable"]["batch_asset_events"] = False
         assert dict(result) == expected
 
     def test_dag_info_schedule_list_two_assets(self):
@@ -2726,7 +2726,7 @@ class TestDagInfoAirflow3:
             "timetable_summary": "Asset",
         }
         if AIRFLOW_V_3_4_PLUS:
-            expected["timetable"]["batch_asset_events"] = True
+            expected["timetable"]["batch_asset_events"] = False
         assert dict(result) == expected
 
     def test_dag_info_schedule_assets_logical_condition(self):
@@ -2793,7 +2793,7 @@ class TestDagInfoAirflow3:
             "timetable_summary": "Asset",
         }
         if AIRFLOW_V_3_4_PLUS:
-            expected["timetable"]["batch_asset_events"] = True
+            expected["timetable"]["batch_asset_events"] = False
         assert dict(result) == expected
 
     def test_dag_info_schedule_asset_or_time_schedule(self):
@@ -2874,7 +2874,7 @@ class TestDagInfoAirflow3:
             "timetable_summary": "Asset or */4 3 * * *",
         }
         if AIRFLOW_V_3_4_PLUS:
-            expected["timetable"]["batch_asset_events"] = True
+            expected["timetable"]["batch_asset_events"] = False
         assert dict(result) == expected
 
 

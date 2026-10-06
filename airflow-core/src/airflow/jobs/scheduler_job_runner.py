@@ -2829,6 +2829,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         *,
         dag: SerializedDAG,
         records: Sequence[AssetDagRunQueue],
+        limit: int | None = None,
         session: Session,
     ) -> list[AssetEvent]:
         """Select unconsumed events referenced by a Dag's locked ADRQ rows."""
@@ -2862,6 +2863,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
                 .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
+                .limit(limit)
             )
         )
 
@@ -2894,7 +2896,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> None:
         """For Dags that are triggered by assets, create Dag runs."""
+        remaining_runs = DagModel.NUM_DAGS_PER_DAGRUN_QUERY
+        per_dag_limit = max(1, remaining_runs // max(1, len(dag_models)))
+        active_runs_by_dag: dict[str, int] | None = None
         for dag_model in dag_models:
+            if remaining_runs <= 0:
+                break
             dag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not dag:
                 self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
@@ -2918,11 +2925,31 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            run_limit = per_dag_limit
+            if not dag.timetable.batch_asset_events:
+                if active_runs_by_dag is None:
+                    active_runs_by_dag = DagRun.active_runs_of_dags(
+                        dag_ids=(model.dag_id for model in dag_models),
+                        exclude_backfill=True,
+                        session=session,
+                    )
+                run_limit = min(
+                    run_limit,
+                    remaining_runs,
+                    (dag_model.max_active_runs or 0) - active_runs_by_dag.get(dag.dag_id, 0),
+                )
+                if run_limit <= 0:
+                    continue
+
             asset_events = self._select_consumed_asset_events(
                 dag=dag,
                 records=queued_adrqs,
+                limit=None if dag.timetable.batch_asset_events else run_limit + 1,
                 session=session,
             )
+            has_more_events = not dag.timetable.batch_asset_events and len(asset_events) > run_limit
+            if has_more_events:
+                asset_events = asset_events[:run_limit]
             if asset_events:
                 triggered_date = timezone.coerce_datetime(max(event.timestamp for event in asset_events))
                 self.log.debug(
@@ -2954,6 +2981,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         creating_job_id=self.job.id,
                         session=session,
                     )
+                    remaining_runs -= 1
                     stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
                     dag_run.consumed_asset_events.extend(events)
                     self.log.info(
@@ -2967,10 +2995,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     "No DagRun created for '%s' - asset events already consumed or none found",
                     dag.dag_id,
                 )
-            # Always delete ADRQ rows for this batch to prevent stale entries accumulating,
-            # including when all events were already consumed by a concurrent DagRun.
+            records_to_delete = queued_adrqs
+            if has_more_events:
+                consumed_ids = {event.id for event in asset_events}
+                if dag.catchup:
+                    # Historical events may have no ADRQ. Keep a wakeup row until that backlog drains.
+                    consumed_ids.discard(max(record.asset_event_id for record in queued_adrqs))
+                records_to_delete = [
+                    record for record in queued_adrqs if record.asset_event_id in consumed_ids
+                ]
             self._delete_consumed_asset_records(
-                records=queued_adrqs,
+                records=records_to_delete,
                 dag_id=dag.dag_id,
                 session=session,
             )

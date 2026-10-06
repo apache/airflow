@@ -892,6 +892,30 @@ class TestDagBag:
         assert len(dagbag.import_errors) == 1
         assert len(dagbag.dags) == 0
 
+    @pytest.mark.parametrize("batch_asset_events", [False, True])
+    def test_process_file_compound_assets_require_batching(self, tmp_path, batch_asset_events):
+        dag_file = tmp_path / "compound_assets.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """
+                from airflow.sdk import DAG, Asset, PartitionedAssetTimetable
+
+                with DAG("compound_assets", schedule=PartitionedAssetTimetable(Asset("a") & Asset("b"))):
+                    pass
+                """
+            )
+        )
+        with conf_vars({("scheduler", "batch_asset_events"): str(batch_asset_events)}):
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path))
+        if batch_asset_events:
+            assert not dagbag.import_errors
+            assert "compound_assets" in dagbag.dags
+        else:
+            assert not dagbag.dags
+            assert list(dagbag.import_errors.values()) == [
+                "AirflowTimetableInvalid: Asset AND conditions require batch_asset_events=True"
+            ]
+
     def test_process_file_invalid_param_check(self, tmp_path):
         """
         test if an invalid param in the dags can be identified

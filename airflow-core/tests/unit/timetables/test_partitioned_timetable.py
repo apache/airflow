@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -26,7 +26,7 @@ import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
-from airflow.exceptions import InvalidPartitionKeyError
+from airflow.exceptions import AirflowTimetableInvalid, InvalidPartitionKeyError
 from airflow.partition_mappers.base import RollupMapper
 from airflow.partition_mappers.identity import IdentityMapper as IdentityMapper
 from airflow.partition_mappers.temporal import StartOfDayMapper
@@ -194,7 +194,7 @@ class TestPartitionedAssetTimetable:
             assets=ser_asset, partition_mapper_config={ser_asset: IdentityMapper()}
         )
         assert timetable.serialize() == {
-            "batch_asset_events": True,
+            "batch_asset_events": False,
             "asset_condition": {
                 "__type": DagAttributeTypes.ASSET,
                 "name": "test",
@@ -274,6 +274,23 @@ class TestPartitionedAssetTimetable:
 
         deserialized = PartitionedAssetTimetable.deserialize(serialized)
         assert deserialized.batch_asset_events is False
+
+    @pytest.mark.parametrize("batch_asset_events", [False, True])
+    @pytest.mark.parametrize("use_default_mapper", [False, True])
+    def test_rollup_requires_batching(self, batch_asset_events, use_default_mapper):
+        asset = ensure_serialized_asset(Asset("test"))
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+        kwargs = (
+            {"default_partition_mapper": mapper}
+            if use_default_mapper
+            else {"partition_mapper_config": {asset: mapper}}
+        )
+        timetable = PartitionedAssetTimetable(assets=asset, batch_asset_events=batch_asset_events, **kwargs)
+        expected = (
+            nullcontext() if batch_asset_events else pytest.raises(AirflowTimetableInvalid, match="rollups")
+        )
+        with expected:
+            timetable.validate()
 
     @pytest.mark.parametrize(
         "asset_like",

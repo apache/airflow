@@ -75,18 +75,20 @@ You can find a listing of the relationships between assets and Dags in the :ref:
 Multiple assets
 -----------------
 
-Because the ``schedule`` parameter is a list, Dags can require multiple assets. Airflow schedules a Dag after **all** assets
-the Dag consumes have been updated at least once since the last time the Dag ran:
+Dags can require multiple assets by combining them with ``&`` and enabling batching.
+Airflow schedules a Dag after **all** assets the Dag consumes have been updated at least
+once since the last time the Dag ran:
 
 .. code-block:: python
 
+    from airflow.sdk import AssetTriggeredTimetable
+
     with DAG(
         dag_id="multiple_assets_example",
-        schedule=[
-            example_asset_1,
-            example_asset_2,
-            example_asset_3,
-        ],
+        schedule=AssetTriggeredTimetable(
+            assets=example_asset_1 & example_asset_2 & example_asset_3,
+            batch_asset_events=True,
+        ),
         ...,
     ):
         ...
@@ -237,7 +239,11 @@ When your DAG is triggered by multiple assets, you can iterate through them in y
 
 .. code-block:: python
 
-    with DAG(dag_id="process_assets", schedule=[asset1, asset2], ...):
+    with DAG(
+        dag_id="process_assets",
+        schedule=AssetTriggeredTimetable(assets=asset1 & asset2, batch_asset_events=True),
+        ...,
+    ):
         BashOperator(
             task_id="process",
             bash_command="""
@@ -305,7 +311,7 @@ These records are called *queued asset events*.
 
     with DAG(
         dag_id="waiting_for_asset_1_and_2",
-        schedule=[Asset("asset-1"), Asset("asset-2")],
+        schedule=AssetTriggeredTimetable(assets=Asset("asset-1") & Asset("asset-2"), batch_asset_events=True),
         ...,
     ):
         ...
@@ -356,7 +362,8 @@ Example Use
 
 **Scheduling based on multiple asset updates**
 
-To schedule a Dag to run only when two specific assets have both been updated, use the AND operator (``&``):
+To schedule a Dag to run only when two specific assets have both been updated, use the
+AND operator (``&``) with ``batch_asset_events=True``:
 
 .. code-block:: python
 
@@ -365,7 +372,7 @@ To schedule a Dag to run only when two specific assets have both been updated, u
 
     with DAG(
         # Consume asset 1 and 2 with asset expressions
-        schedule=(dag1_asset & dag2_asset),
+        schedule=AssetTriggeredTimetable(assets=dag1_asset & dag2_asset, batch_asset_events=True),
         ...,
     ):
         ...
@@ -393,7 +400,7 @@ For scenarios requiring more intricate conditions, such as triggering a Dag when
 
     with DAG(
         # Consume asset 1 or both 2 and 3 with asset expressions
-        schedule=(dag1_asset | (dag2_asset & dag3_asset)),
+        schedule=AssetTriggeredTimetable(assets=dag1_asset | (dag2_asset & dag3_asset), batch_asset_events=True),
         ...,
     ):
         ...
@@ -453,21 +460,27 @@ Controlling DagRun creation per asset event
 
 .. versionadded:: 3.4.0
 
-By default, when multiple asset events arrive for the same Dag between
-scheduler ticks, they are batched into a single DagRun. Set
-``batch_asset_events=False`` on the timetable to create one DagRun per
-individual event instead.
+Asset-triggered Dags create one Dag run per event by default. Set
+``batch_asset_events=True`` on the timetable to consume queued events together
+in one run. The :ref:`config:scheduler__batch_asset_events` setting changes the
+default for the deployment; an explicit timetable argument takes precedence.
+Reparse Dags after changing the setting. Previously serialized timetables without
+this option retain batching until they are reparsed.
 
 The option is also available on ``AssetOrTimeSchedule`` and
-``PartitionedAssetTimetable``. For partitioned schedules, disabling batching
-creates a separate pending partition run for each event. Keep batching enabled
-when a partition run needs events from multiple assets or a rollup window to
-satisfy its scheduling condition.
+``PartitionedAssetTimetable``. Asset conditions using ``&`` and partition rollups
+require ``batch_asset_events=True``; otherwise timetable validation raises an
+error. These schedules need several events to satisfy their condition and cannot
+consume each event independently. Single-asset schedules and ``|`` expressions
+support either mode.
+
+For non-partitioned Dags, per-event run creation respects ``max_active_runs`` and the scheduler's
+:ref:`config:scheduler__max_dagruns_to_create_per_loop` budget. Events left over
+remain queued for subsequent scheduler passes.
 
 .. code-block:: python
 
-    from airflow.sdk import DAG, Asset
-    from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
+    from airflow.sdk import DAG, Asset, AssetTriggeredTimetable
 
     # Each update to "data-file" produces its own DagRun
     with DAG(
@@ -475,6 +488,19 @@ satisfy its scheduling condition.
         schedule=AssetTriggeredTimetable(
             assets=Asset("s3://bucket/data-file"),
             batch_asset_events=False,
+        ),
+    ):
+        ...
+
+To preserve a schedule that waits for two assets, opt into batching explicitly:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="combined-consumer",
+        schedule=AssetTriggeredTimetable(
+            assets=Asset("s3://bucket/orders") & Asset("s3://bucket/customers"),
+            batch_asset_events=True,
         ),
     ):
         ...

@@ -6180,6 +6180,7 @@ class TestSchedulerJob:
         assert dr.creating_job_id == scheduler_job.id
 
     @pytest.mark.need_serialized_dag
+    @conf_vars({("scheduler", "batch_asset_events"): "True"})
     def test_create_dag_runs_assets(self, session, dag_maker):
         """
         Test various invariants of _create_dag_runs.
@@ -6314,6 +6315,7 @@ class TestSchedulerJob:
             pytest.param(True, True, id="catchup-on-consumes-backlog"),
         ],
     )
+    @conf_vars({("scheduler", "batch_asset_events"): "True"})
     def test_new_asset_triggered_dag_backlog_gated_by_catchup(
         self, catchup, expects_old_event, session, dag_maker
     ):
@@ -6376,6 +6378,7 @@ class TestSchedulerJob:
         assert {e.id for e in created_run.consumed_asset_events} == expected
 
     @pytest.mark.need_serialized_dag
+    @conf_vars({("scheduler", "batch_asset_events"): "True"})
     def test_asset_events_out_of_order_are_both_consumed(self, session, dag_maker):
         """Regression test for GH-54659.
 
@@ -6540,11 +6543,19 @@ class TestSchedulerJob:
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.backend("postgres", "mysql")
-    def test_create_dag_runs_when_concurrent_asset_events_created(self, session: Session, dag_maker, caplog):
+    @pytest.mark.parametrize("batch_asset_events", [True, False])
+    def test_create_dag_runs_when_concurrent_asset_events_created(
+        self, session: Session, dag_maker, caplog, batch_asset_events
+    ):
 
         ASSET_EVENT_COUNT = 30
         asset = Asset(name="test_asset")
-        with dag_maker(dag_id="consumer", schedule=asset, session=session):
+        with dag_maker(
+            dag_id="consumer",
+            schedule=AssetTriggeredTimetable(assets=asset, batch_asset_events=batch_asset_events),
+            max_active_runs=ASSET_EVENT_COUNT,
+            session=session,
+        ):
             pass
         dag_model = dag_maker.dag_model
         # Capture the dag_id as a plain string in the main thread. The worker threads must not
@@ -12862,6 +12873,101 @@ def test_non_partitioned_batch_asset_events(
 
 
 @pytest.mark.need_serialized_dag
+@pytest.mark.parametrize("catchup", [False, True])
+@pytest.mark.parametrize(
+    ("max_active_runs", "run_budget", "first_count"), [(1, 10, 1), (10, 1, 1), (3, 2, 2)]
+)
+def test_unbatched_asset_runs_drain_backlog_within_limits(
+    dag_maker, session, monkeypatch, catchup, max_active_runs, run_budget, first_count
+):
+    monkeypatch.setattr(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", run_budget)
+    asset = Asset(name="bounded-events")
+    dag_id = "bounded-consumer"
+    with dag_maker(
+        dag_id=dag_id,
+        schedule=AssetTriggeredTimetable(assets=asset, batch_asset_events=False),
+        max_active_runs=max_active_runs,
+        catchup=catchup,
+        session=session,
+    ):
+        EmptyOperator(task_id="consume")
+    session.commit()
+    dag_model = session.get(DagModel, dag_id)
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset.uri))
+    timestamp = timezone.parse("2026-10-01T00:00:00Z")
+    events = [AssetEvent(asset_id=asset_model.id, timestamp=timestamp) for _ in range(3)]
+    session.add_all(events)
+    session.flush()
+    queued_events = events[:1] if catchup else events
+    session.add_all(
+        AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_id, asset_event_id=event.id)
+        for event in queued_events
+    )
+    session.flush()
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+    runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+    session.flush()
+    runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.id)).all()
+    assert len(runs) == first_count
+    assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) > 0
+    if first_count == max_active_runs:
+        runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+        assert (
+            session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id))
+            == first_count
+        )
+
+    for _ in range(3):
+        for run in runs:
+            run.state = DagRunState.SUCCESS
+        session.flush()
+        query, triggered_dates = DagModel.dags_needing_dagruns(session=session)
+        runner._create_dag_runs_asset_triggered(
+            dag_models=[model for model in query.all() if model.dag_id in triggered_dates], session=session
+        )
+        session.flush()
+        runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.id)).all()
+
+    assert [run.consumed_asset_events for run in runs] == [[event] for event in events]
+    assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+
+@pytest.mark.need_serialized_dag
+@mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 3)
+def test_unbatched_asset_runs_share_creation_budget(dag_maker, session):
+    asset = Asset(name="shared-budget")
+    dag_ids = ["budget-consumer-1", "budget-consumer-2"]
+    for dag_id in dag_ids:
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=AssetTriggeredTimetable(assets=asset, batch_asset_events=False),
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+    session.commit()
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset.uri))
+    events = [
+        AssetEvent(asset_id=asset_model.id, timestamp=timezone.parse("2026-10-01T00:00:00Z"))
+        for _ in range(3)
+    ]
+    session.add_all(events)
+    session.flush()
+    session.add_all(
+        AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_id, asset_event_id=event.id)
+        for dag_id in dag_ids
+        for event in events
+    )
+    session.flush()
+    models = session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids))).all()
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+    runner._create_dag_runs_asset_triggered(dag_models=models, session=session)
+    session.flush()
+    counts = dict(session.execute(select(DagRun.dag_id, func.count()).group_by(DagRun.dag_id)).all())
+    assert counts == dict.fromkeys(dag_ids, 1)
+    assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 4
+
+
+@pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
 @pytest.mark.parametrize(
     "scheduling_state",
@@ -13438,6 +13544,7 @@ def test_consumer_dag_run_partition_date_is_none_when_task_key_diverges(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
 def test_consumer_dag_listen_to_two_partitioned_asset(
     dag_maker: DagMaker,
     session: Session,
@@ -13518,6 +13625,7 @@ def test_consumer_dag_listen_to_two_partitioned_asset(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
 def test_partitioned_dag_run_rollup_holds_until_window_complete(
     dag_maker: DagMaker,
     session: Session,
@@ -13576,6 +13684,7 @@ def test_partitioned_dag_run_rollup_holds_until_window_complete(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
 def test_partitioned_dag_run_segment_rollup_holds_until_all_segments_arrive(
     dag_maker: DagMaker,
     session: Session,
@@ -13644,6 +13753,7 @@ def test_partitioned_dag_run_segment_rollup_holds_until_all_segments_arrive(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
 def test_partitioned_dag_run_rollup_minimum_count_negative_fires_with_tolerated_gaps(
     dag_maker: DagMaker,
     session: Session,
@@ -13705,6 +13815,7 @@ def test_partitioned_dag_run_rollup_minimum_count_negative_fires_with_tolerated_
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
 def test_partitioned_dag_run_rollup_minimum_count_fires_when_threshold_met(
     dag_maker: DagMaker,
     session: Session,
@@ -13817,6 +13928,7 @@ def test_partitioned_dag_run_rollup_treats_mapper_exception_as_not_satisfied(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
 def test_partitioned_dag_run_rollup_survives_scheduler_restart_partial_arrival(
     dag_maker: DagMaker,
     session: Session,
@@ -14184,6 +14296,7 @@ def test_partitioned_dag_run_fingerprint_compute_failure_does_not_clear_apdr(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
 def test_partitioned_dag_run_rollup_idempotent_with_duplicate_upstream_events(
     dag_maker: DagMaker,
     session: Session,
@@ -14262,6 +14375,7 @@ def test_partitioned_dag_run_rollup_idempotent_with_duplicate_upstream_events(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
 def test_consumer_dag_listen_to_two_partitioned_asset_with_key_1_mapper(
     dag_maker: DagMaker,
     session: Session,
@@ -15256,6 +15370,7 @@ class TestReapStaleConnectionTests:
         ),
     ],
 )
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
 def test_partition_date_populated_on_dagrun(
     dag_maker: DagMaker,
     session: Session,
