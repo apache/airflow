@@ -91,9 +91,13 @@ def _iter_dir(directory: pathlib.Path) -> Iterator[pathlib.Path]:
     yield from children
 
 
-def _calculate_classpath(roots: Sequence[pathlib.Path]) -> str:
-    jars = (p.as_posix() for p in _find_jars(roots))
-    return os.pathsep.join(sorted(jars))  # Keep output deterministic.
+def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path | None = None) -> str:
+    """Return the classpath of every JAR under *roots*. *primary*, when given, goes first."""
+    jars = sorted(_find_jars(roots), key=lambda p: p.as_posix())
+    if primary is not None:
+        target = primary.resolve()
+        jars = [primary, *(p for p in jars if p.resolve() != target)]
+    return os.pathsep.join(p.as_posix() for p in jars)
 
 
 @attrs.define
@@ -265,8 +269,16 @@ class JavaCoordinator(SubprocessCoordinator):
     jvm_args: list[str] = attrs.field(factory=list)
     main_class: str = ""
 
-    def _build_command(self, roots: Sequence[pathlib.Path], main_class: str) -> list[str]:
-        return [self.java_executable, "-classpath", _calculate_classpath(roots), *self.jvm_args, main_class]
+    def _build_command(
+        self, roots: Sequence[pathlib.Path], main_class: str, *, primary: pathlib.Path | None = None
+    ) -> list[str]:
+        return [
+            self.java_executable,
+            "-classpath",
+            _calculate_classpath(roots, primary=primary),
+            *self.jvm_args,
+            main_class,
+        ]
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         # Without main_class, the first executable JAR in path order wins; tracked at
@@ -291,7 +303,7 @@ class JavaCoordinator(SubprocessCoordinator):
             )
         roots = self._get_scan_roots()
         jar = _JarInfo.for_jar(roots, path, main_class, schema_version)
-        return self._build_command(roots, jar.main_class), jar.schema_version
+        return self._build_command(roots, jar.main_class, primary=path), jar.schema_version
 
     def _build_dag_file_command(
         self, *, what: TaskInstance, path: pathlib.Path

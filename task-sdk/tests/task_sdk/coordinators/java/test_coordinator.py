@@ -147,6 +147,16 @@ class TestCalculateClasspath:
         result = _calculate_classpath([tmp_path])
         assert result == ""
 
+    def test_primary_jar_goes_first(self, tmp_path):
+        a = tmp_path.joinpath("a.jar")
+        a.write_bytes(b"")
+        b = tmp_path.joinpath("b.jar")
+        b.write_bytes(b"")
+
+        result = _calculate_classpath([tmp_path], primary=b)
+
+        assert result.split(os.pathsep) == [b.as_posix(), a.as_posix()]
+
 
 class TestMainJar:
     def test_returns_main_class_from_jar(self, tmp_path):
@@ -573,6 +583,15 @@ class TestBuildParseDagCommand:
         assert command[2].split(os.pathsep) == [jar.as_posix(), sdk.as_posix()]
         assert command[-1] == "com.example.Dags"
         assert schema_version == "2026-10-30"
+
+    def test_the_parsed_jar_is_first_on_the_classpath(self, tmp_path):
+        """A JAR that shades the same classes as another JAR in the bundle must load its own."""
+        sibling = _make_jar(tmp_path / "a-shaded.jar", main_class=None, schema_version="2026-06-16")
+        jar = _make_jar(tmp_path / "z-app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
+
+        command, _ = self._build(JavaCoordinator(), tmp_path, jar)
+
+        assert command[2].split(os.pathsep) == [jar.as_posix(), sibling.as_posix()]
 
     def test_matches_the_execute_command(self, tmp_path):
         jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
