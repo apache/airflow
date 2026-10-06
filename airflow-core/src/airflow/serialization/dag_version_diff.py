@@ -174,6 +174,7 @@ DiffCategory = Literal[
     "unknown",
 ]
 DiffImpact = Literal["authorization", "execution", "metadata", "provenance", "unknown"]
+DiffOperation = Literal["added", "removed", "changed"]
 
 _ORDER_INSENSITIVE_LIST_PATHS = {
     ("dag", "tags"),
@@ -494,7 +495,7 @@ class _ChangeCollector:
         self,
         *,
         path: tuple[str, ...],
-        operation: Literal["added", "removed", "changed"],
+        operation: DiffOperation,
         before: Any,
         after: Any,
     ) -> None:

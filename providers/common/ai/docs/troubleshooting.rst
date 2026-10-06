@@ -44,8 +44,9 @@ Model and connection errors
     version suffixes, for example), use the matching vendor connection type instead of
     the generic one.
 
-An ``ImportError`` for ``pydantic_ai.models.<vendor>`` or the vendor SDK
-    The provider is installed without the extra for that vendor. Install it, quoting the
+An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pydantic_ai_harness``
+    The provider is installed without the extra for that vendor, or without ``code-mode``
+    for ``pydantic_ai_harness``. Install it, quoting the
     package name so the brackets survive the shell:
 
     .. code-block:: bash
@@ -102,16 +103,13 @@ as a task failure.
     or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
     on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
-``durable=True and enable_hitl_review=True cannot be used together`` / ``durable=True and code_mode=True cannot be used together``
+``durable=True and enable_hitl_review=True cannot be used together`` / ``durable=True cannot be used with a CodeMode capability``
     Durable replay assumes a stable step order across attempts, which neither a human
     review loop nor code mode provides. Pick one. See :doc:`durable_execution`.
 
 ``message_history and enable_hitl_review=True cannot be used together``
     The post-review transcript is not recoverable today, so the operator refuses rather
     than silently dropping the reviewed turns. See :doc:`message_history`.
-
-``code_mode=True requires the 'code-mode' extra``
-    Install ``apache-airflow-providers-common-ai[code-mode]``. See :doc:`code_mode`.
 
 ``... does not support decision_policy yet``
     Only ``LLMOperator`` and ``LLMBranchOperator`` honor a ``DecisionPolicy`` with a

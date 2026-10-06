@@ -211,7 +211,7 @@
     {
         "eventType": "START",
         "job": {
-            "name": "bigquery_tables.update_table_schema_json"
+            "name": "bigquery_tables.create_table_schema_json"
         },
         "inputs": [],
         "outputs": []
@@ -219,9 +219,15 @@
     {
         "eventType": "COMPLETE",
         "job": {
-            "name": "bigquery_tables.update_table_schema_json"
+            "name": "bigquery_tables.create_table_schema_json"
         },
-        "inputs": [],
+        "inputs": [
+            {
+                "namespace": "gs://bucket_bigquery_tables_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "update_table_schema.json",
+                "facets": {}
+            }
+        ],
         "outputs": []
     },
     {

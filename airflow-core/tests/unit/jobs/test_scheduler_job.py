@@ -100,7 +100,6 @@ from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool, PoolStats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import (
@@ -690,27 +689,46 @@ class TestSchedulerJob:
         assert f"ti_id={retiring_id}," in completion_logs[0]
         assert "state=restarting," in completion_logs[0]
         assert f"executor_state={executor_state}, try_number=4, max_tries={max_tries}," in completion_logs[0]
-        assert ti1.state is None, "Task should be set to None (scheduled) state after RESTARTING processing"
-        assert ti1.id != retiring_id
-        assert ti1.try_number == 5
+        replacement = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.task_id == task_id,
+            )
+        )
+        assert replacement.state is None, "Replacement should be ready to schedule after termination"
+        assert replacement.id != retiring_id
+        assert replacement.try_number == 5
         mock_task_callback.assert_not_called()
 
         # Verify max_tries was adjusted to allow retry
-        assert ti1.max_tries == expected_max_tries, (
-            f"max_tries should be adjusted to {expected_max_tries}, got {ti1.max_tries}"
+        assert replacement.max_tries == expected_max_tries, (
+            f"max_tries should be adjusted to {expected_max_tries}, got {replacement.max_tries}"
         )
-        assert ti1.is_eligible_to_retry() is retry_eligible
+        assert replacement.is_eligible_to_retry() is retry_eligible
 
         history = session.scalars(
-            select(TaskInstanceHistory).where(TaskInstanceHistory.dag_id == dag_id)
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.dag_id == dag_id)
+            .execution_options(include_all_attempts=True)
         ).one()
-        assert (history.task_instance_id, history.try_number, history.state) == (retiring_id, 4, State.FAILED)
+        assert (history.id, history.try_number, history.state) == (retiring_id, 4, State.FAILED)
+        assert history.max_tries == max_tries
         assert history.end_date is not None
-        replacement_id = ti1.id
+        replacement_id = replacement.id
         executor.event_buffer[TaskInstanceUuid(retiring_id)] = executor_state, None
         job_runner._process_executor_events(executor=executor, session=session)
-        ti1.refresh_from_db(session=session)
-        assert (ti1.id, ti1.try_number, ti1.state) == (replacement_id, 5, None)
+        replacement.refresh_from_db(session=session)
+        assert (replacement.id, replacement.try_number, replacement.state) == (replacement_id, 5, None)
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(TaskInstance)
+                .where(TaskInstance.dag_id == dag_id)
+                .execution_options(include_all_attempts=True)
+            )
+            == 2
+        )
 
     @pytest.mark.parametrize("event_state", [State.QUEUED, State.RUNNING])
     def test_restarting_waits_for_terminal_executor_event(self, dag_maker, session, event_state):
@@ -733,8 +751,10 @@ class TestSchedulerJob:
         assert (
             session.scalar(
                 select(func.count())
-                .select_from(TaskInstanceHistory)
-                .where(TaskInstanceHistory.dag_id == ti.dag_id)
+                .select_from(TaskInstance)
+                .where(TaskInstance.working_set.is_(None))
+                .where(TaskInstance.dag_id == ti.dag_id)
+                .execution_options(include_all_attempts=True)
             )
             == 0
         )
@@ -757,24 +777,25 @@ class TestSchedulerJob:
         retired_key = executor.get_task_key(ti)
         retired_coordinates = ti.key
         clear_task_instances([ti], session=session)
-        ti.complete_restart(session=session)
-        ti.state = State.QUEUED
-        ti.external_executor_id = "replacement"
+        replacement = ti.complete_restart(session=session)
+        replacement.state = State.QUEUED
+        replacement.external_executor_id = "replacement"
         session.flush()
         if include_current:
-            executor._register_task(ti)
-            executor.event_buffer[executor.get_task_key(ti)] = State.RUNNING, "current_worker"
+            executor._register_task(replacement)
+            executor.event_buffer[executor.get_task_key(replacement)] = State.RUNNING, "current_worker"
         executor.event_buffer[retired_key] = event_state, "retired_worker"
         runner = SchedulerJobRunner(Job(), executors=[executor])
 
         runner._process_executor_events(executor=executor, session=session)
         session.flush()
         session.refresh(ti)
+        session.refresh(replacement)
 
-        assert ti.state == State.QUEUED
-        assert ti.id != retired_id
-        assert ti.try_number == 2
-        assert ti.external_executor_id == ("current_worker" if include_current else "replacement")
+        assert (ti.id, ti.try_number, ti.state, ti.working_set) == (retired_id, 1, State.FAILED, None)
+        assert replacement.state == State.QUEUED
+        assert replacement.try_number == 2
+        assert replacement.external_executor_id == ("current_worker" if include_current else "replacement")
         assert any(
             "Received executor event" in record.message
             and str(retired_id) in record.message
@@ -789,7 +810,7 @@ class TestSchedulerJob:
         )
         if include_current:
             assert not any(
-                "Discarding executor event" in record.message and str(ti.id) in record.message
+                "Discarding executor event" in record.message and str(replacement.id) in record.message
                 for record in caplog.records
             )
 
@@ -863,12 +884,19 @@ class TestSchedulerJob:
 
         self.job_runner._process_executor_events(executor=executor, session=session)
         ti1.refresh_from_db(session=session)
-        assert ti1.state == State.UP_FOR_RETRY
+        assert ti1.state == State.FAILED
+        successor = ti1.dag_run.get_task_instance(task1.task_id, session=session)
+        assert successor.id != ti1.id
+        assert successor.state == State.UP_FOR_RETRY
         self.job_runner.executor.callback_sink.send.assert_not_called()
 
         # ti in success state
-        ti1.state = State.SUCCESS
-        session.merge(ti1)
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti1.id)
+            .values(state=State.SUCCESS)
+            .execution_options(include_all_attempts=True)
+        )
         session.commit()
         executor.event_buffer[TaskInstanceUuid(ti1.id)] = State.SUCCESS, None
 
@@ -4328,12 +4356,13 @@ class TestSchedulerJob:
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
         session.commit()
 
+        class NoRevokeExecutor(BaseExecutor):
+            pass
+
         assert "revoke_task" in BaseExecutor.__dict__
-        # this is just verifying that LocalExecutor is good enough for this test
-        # in that it does not implement revoke_task
-        assert "revoke_task" not in LocalExecutor.__dict__
+        assert "revoke_task" not in NoRevokeExecutor.__dict__
         scheduler_job = Job()
-        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0, executors=[LocalExecutor()])
+        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0, executors=[NoRevokeExecutor()])
         job_runner._task_queued_timeout = 300
         job_runner._handle_tasks_stuck_in_queued()
 
@@ -5679,12 +5708,23 @@ class TestSchedulerJob:
                 run_task_instance(ti, dag_task1, ignore_ti_state=ignore_ti_state)
 
         assert ti.try_number == 1
+
         # At this point, scheduler has tried to schedule the task once and
         # heartbeated the executor once, which moved the state of the task from
         # SCHEDULED to QUEUED and then to SCHEDULED, to fail the task execution
         # we need to ignore the TaskInstance state as SCHEDULED is not a valid state to start
         # executing task.
+        def get_current_ti():
+            session.expire_all()
+            return session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == "test_retry_still_in_executor",
+                    TaskInstance.task_id == "test_retry_handling_op",
+                )
+            )
+
         run_with_error(ti, ignore_ti_state=True)
+        ti = get_current_ti()
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 2
 
@@ -5696,7 +5736,7 @@ class TestSchedulerJob:
         # To verify that task does get re-queued.
         executor.do_update = True
         do_schedule()
-        ti.refresh_from_db()
+        ti = get_current_ti()
         assert ti.try_number == 2
         assert ti.state == State.SUCCESS
 
@@ -5712,7 +5752,6 @@ class TestSchedulerJob:
         list(sorted(State.adoptable_states)),
     )
     def test_adopt_or_reset_resettable_tasks(self, dag_maker, adoptable_state, session):
-        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
         dag_id = "test_adopt_or_reset_adoptable_tasks_" + adoptable_state.name
         with dag_maker(dag_id=dag_id, schedule="@daily"):
@@ -5738,17 +5777,23 @@ class TestSchedulerJob:
         assert num_reset_tis == 1
 
         ti.refresh_from_db(session=session)
-        assert ti.id != old_ti_id
+        assert ti.id == old_ti_id
+        assert ti.working_set is None
+        current = dr1.get_task_instance(task_id, session=session)
+        assert current.id != old_ti_id
         assert (
             session.scalar(
-                select(TaskInstanceHistory).where(
-                    TaskInstanceHistory.dag_id == ti.dag_id,
-                    TaskInstanceHistory.task_id == ti.task_id,
-                    TaskInstanceHistory.run_id == ti.run_id,
-                    TaskInstanceHistory.map_index == ti.map_index,
-                    TaskInstanceHistory.try_number == old_try_number,
-                    TaskInstanceHistory.task_instance_id == old_ti_id,
+                select(TaskInstance)
+                .where(TaskInstance.working_set.is_(None))
+                .where(
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
+                    TaskInstance.try_number == old_try_number,
+                    TaskInstance.id == old_ti_id,
                 )
+                .execution_options(include_all_attempts=True)
             )
             is not None
         )
@@ -5793,16 +5838,24 @@ class TestSchedulerJob:
 
         session.expire_all()
         ti.refresh_from_db(session=session)
+        successor = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.task_id == task_id,
+            )
+        )
 
-        assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 2
-        assert ti.id != old_ti_id, "prepare_db_for_next_try must assign a new UUID"
-        assert ti.external_executor_id is None
-
-        from airflow.models.taskinstancehistory import TaskInstanceHistory
+        assert successor.state == State.UP_FOR_RETRY
+        assert successor.try_number == 2
+        assert successor.id != old_ti_id, "prepare_db_for_next_try must assign a new UUID"
+        assert successor.external_executor_id is None
+        assert (ti.id, ti.state, ti.working_set) == (old_ti_id, State.FAILED, None)
 
         tih = session.scalar(
-            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_ti_id)
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.id == old_ti_id)
+            .execution_options(include_all_attempts=True)
         )
         assert tih is not None, "TaskInstanceHistory must be created for non-RUNNING retry"
         assert tih.try_number == 1
@@ -5952,7 +6005,10 @@ class TestSchedulerJob:
         assert num_reset_tis == 1
 
         session.refresh(ti1)
-        assert ti1.state is None
+        assert ti1.state == State.FAILED
+        current = dr1.get_task_instance(ti1.task_id, session=session)
+        assert current.id != ti1.id
+        assert current.state is None
         session.refresh(ti2)
         assert ti2.state == State.QUEUED
         session.rollback()
@@ -6038,6 +6094,7 @@ class TestSchedulerJob:
         )
         assert actual == expected
 
+    @pytest.mark.parametrize("timed_out", [False, True], ids=["finished", "timed_out"])
     @pytest.mark.parametrize(
         ("run_type", "expected"),
         [
@@ -6045,19 +6102,26 @@ class TestSchedulerJob:
             (DagRunType.SCHEDULED, True),
             (DagRunType.BACKFILL_JOB, False),
             (DagRunType.ASSET_TRIGGERED, True),
+            (DagRunType.OPERATOR_TRIGGERED, True),
+            (DagRunType.ASSET_MATERIALIZATION, True),
         ],
         ids=[
             DagRunType.MANUAL.name,
             DagRunType.SCHEDULED.name,
             DagRunType.BACKFILL_JOB.name,
             DagRunType.ASSET_TRIGGERED.name,
+            DagRunType.OPERATOR_TRIGGERED.name,
+            DagRunType.ASSET_MATERIALIZATION.name,
         ],
     )
-    def test_should_update_dag_next_dagruns_after_run_type(self, run_type, expected, session, dag_maker):
+    def test_should_update_dag_next_dagruns_after_run_type(
+        self, run_type, expected, timed_out, session, dag_maker
+    ):
         """Test that whether next dag run is updated depends on run type"""
         with dag_maker(
             schedule="*/1 * * * *",
             max_active_runs=3,
+            dagrun_timeout=datetime.timedelta(seconds=60),
         ):
             EmptyOperator(task_id="dummy")
 
@@ -6065,7 +6129,7 @@ class TestSchedulerJob:
             run_id="run",
             run_type=run_type,
             logical_date=DEFAULT_DATE,
-            start_date=timezone.utcnow(),
+            start_date=timezone.utcnow() - datetime.timedelta(days=1) if timed_out else timezone.utcnow(),
             state=State.SUCCESS,
             session=session,
         )
@@ -9782,7 +9846,11 @@ class TestSchedulerJob:
 
         session.expire_all()
         ti.refresh_from_db(session=session)
-        assert ti.state == expected
+        assert ti.state == State.FAILED
+        if expected == TaskInstanceState.UP_FOR_RETRY:
+            current = dag_run.get_task_instance(ti.task_id, session=session)
+            assert current.id != ti.id
+            assert current.state == expected
 
     @pytest.mark.parametrize(
         ("state", "retries", "try_number", "expected_callback_type", "expected_dispatched_callback"),
@@ -10059,8 +10127,7 @@ class TestSchedulerJob:
 
         old_id = ti.id
         old_key = ti.key
-        clear_task_instances([ti], session=session)
-        ti = session.merge(ti)
+        ti = clear_task_instances([ti], session=session)[0]
         session.commit()
         assert ti.state == TaskInstanceState.RESTARTING
         executor._register_task(ti)
@@ -10082,11 +10149,21 @@ class TestSchedulerJob:
 
         session.expire_all()
         ti.refresh_from_db(session=session)
-        assert ti.max_tries == expected_max_tries
-        assert ti.state is None
-        assert ti.try_number == next_try
-        assert ti.id != old_id
-        assert ti.external_executor_id is None
+        assert (ti.id, ti.try_number, ti.state, ti.max_tries, ti.working_set) == (
+            old_id,
+            cleared_try,
+            TaskInstanceState.FAILED,
+            retries,
+            None,
+        )
+        current = dag_run.get_task_instance("t1", session=session)
+        assert current.id != old_id
+        assert (current.try_number, current.state, current.max_tries) == (
+            next_try,
+            None,
+            expected_max_tries,
+        )
+        assert current.external_executor_id is None
         assert executor_key not in executor.running
         assert executor.event_buffer == {executor_key: (TaskInstanceState.FAILED, None)}
         assert executor._drain_events_with_task_ids() == (
@@ -10145,16 +10222,22 @@ class TestSchedulerJob:
 
         session.flush()
         session.refresh(ti)
-        assert ti.id != old_id
-        assert (ti.try_number, ti.state, ti.max_tries) == (4, None, expected_max_tries)
-        assert ti.external_executor_id is None
+        assert ti.id == old_id
+        assert ti.working_set is None
+        current = dr.get_task_instance("task", session=session)
+        assert current.id != old_id
+        assert (current.try_number, current.state, current.max_tries) == (4, None, expected_max_tries)
+        assert current.external_executor_id is None
         assert TaskInstanceUuid(old_id) not in executor.running
         assert executor.event_buffer == {TaskInstanceUuid(old_id): (State.FAILED, None)}
 
         history = session.scalars(
-            select(TaskInstanceHistory).where(TaskInstanceHistory.dag_id == ti.dag_id)
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.dag_id == ti.dag_id)
+            .execution_options(include_all_attempts=True)
         ).one()
-        assert (history.task_instance_id, history.try_number, history.state) == (old_id, 3, State.FAILED)
+        assert (history.id, history.try_number, history.state) == (old_id, 3, State.FAILED)
 
     def test_heartbeat_timeout_honors_fail_fast(self, dag_maker, session):
         """

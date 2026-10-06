@@ -84,6 +84,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
   /* eslint-enable react/destructuring-assignment */
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
+  const isDialogOpen = openDialog && !open;
 
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
@@ -255,7 +256,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
         }
         lazyMount
         onOpenChange={onCloseDialog}
-        open={openDialog ? !open : false}
+        open={isDialogOpen}
         title={
           <>
             <strong>

@@ -33,7 +33,6 @@
       "connectionIdRequired": "Το ID Σύνδεσης είναι υποχρεωτικό",
       "connectionIdRequirement": "Το ID Σύνδεσης δεν μπορεί να περιέχει μόνο κενά",
       "connectionTypeRequired": "Ο Τύπος Σύνδεσης είναι υποχρεωτικός",
-      "extraFields": "Επιπλέον Πεδία",
       "extraFieldsJson": "Επιπλέον Πεδία JSON",
       "helperText": "Λείπει ο Τύπος Σύνδεσης; Βεβαιωθείτε ότι έχετε εγκαταστήσει το ανάλογο πακέτο Airflow Παρόχων.",
       "helperTextForRedactedFields": "Τα πεδία που έχουν αποκρυφθεί ('***') θα παραμείνουν αμετάβλητα αν δεν τροποποιηθούν.",

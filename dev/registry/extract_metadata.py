@@ -51,6 +51,7 @@ else:  # pragma: no cover -- Python 3.10 fallback
 
 import yaml
 from registry_contract_models import validate_providers_catalog
+from registry_tools.uri_schemes import ReadModuleSource, collect_uri_schemes
 
 # External endpoints used by metadata extraction.
 PYPISTATS_RECENT_URL = "https://pypistats.org/api/packages/{package_name}/recent"
@@ -376,6 +377,7 @@ class Provider:
     connection_types: list[dict] = field(
         default_factory=list
     )  # {conn_type, hook_class, docs_url, external_services}
+    uri_schemes: list[dict] = field(default_factory=list)  # {scheme, filesystem?, asset?, remote_logging?}
     requires_python: str = ""  # e.g., ">=3.10"
     dependencies: list[str] = field(default_factory=list)  # from pyproject.toml
     optional_extras: dict[str, list[str]] = field(default_factory=dict)  # {extra_name: [deps]}
@@ -451,6 +453,18 @@ def module_path_to_file_path(module_path: str, provider_path: Path) -> Path:
     parts = module_path.split(".")
     file_path = provider_path / "src" / "/".join(parts)
     return file_path.with_suffix(".py")
+
+
+def module_source_reader(provider_path: Path) -> ReadModuleSource:
+    """Return a reader for module sources in the provider's working-tree ``src/`` directory."""
+
+    def read(module_path: str) -> str | None:
+        try:
+            return module_path_to_file_path(module_path, provider_path).read_text()
+        except FileNotFoundError:
+            return None
+
+    return read
 
 
 def determine_airflow_versions(dependencies: list[str]) -> list[str]:
@@ -823,6 +837,7 @@ def main():
             pypi_downloads=pypi_downloads,
             categories=[asdict(c) for c in categories],
             connection_types=connection_types,
+            uri_schemes=collect_uri_schemes(provider_yaml, module_source_reader(provider_path)),
             requires_python=pyproject_data["requires_python"],
             dependencies=pyproject_data["dependencies"],
             optional_extras=pyproject_data.get("optional_extras", {}),

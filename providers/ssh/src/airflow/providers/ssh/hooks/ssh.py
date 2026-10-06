@@ -20,11 +20,11 @@
 from __future__ import annotations
 
 import os
+import selectors
 from base64 import decodebytes
 from collections.abc import Sequence
 from functools import cached_property
 from io import StringIO
-from select import select
 from typing import Any
 
 import paramiko
@@ -501,36 +501,42 @@ class SSHHook(BaseHook):
 
         timedout = False
 
-        # read from both stdout and stderr
-        while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-            readq, _, _ = select([channel], [], [], cmd_timeout)
-            if cmd_timeout is not None:
-                timedout = not readq
-            for recv in readq:
-                if recv.recv_ready():
-                    output = stdout.channel.recv(len(recv.in_buffer))
-                    agg_stdout += output
-                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
-                        self.log.info(line)
-                if recv.recv_stderr_ready():
-                    output = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
-                    agg_stderr += output
-                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
-                        self.log.warning(line)
-            if (
-                stdout.channel.exit_status_ready()
-                and not stderr.channel.recv_stderr_ready()
-                and not stdout.channel.recv_ready()
-            ) or timedout:
-                stdout.channel.shutdown_read()
-                try:
-                    stdout.channel.close()
-                except Exception:
-                    # there is a race that when shutdown_read has been called and when
-                    # you try to close the connection, the socket is already closed
-                    # We should ignore such errors (but we should log them with warning)
-                    self.log.warning("Ignoring exception on close", exc_info=True)
-                break
+        # select.select() rejects descriptors numbered FD_SETSIZE (1024) or above, which a task
+        # process can reach; DefaultSelector uses epoll/kqueue/poll where available.
+        with selectors.DefaultSelector() as selector:
+            selector.register(channel, selectors.EVENT_READ, data=channel)
+
+            # read from both stdout and stderr
+            while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
+                events = selector.select(cmd_timeout)
+                if cmd_timeout is not None:
+                    timedout = not events
+                for key, _ in events:
+                    recv = key.data
+                    if recv.recv_ready():
+                        output = stdout.channel.recv(len(recv.in_buffer))
+                        agg_stdout += output
+                        for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                            self.log.info(line)
+                    if recv.recv_stderr_ready():
+                        output = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
+                        agg_stderr += output
+                        for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                            self.log.warning(line)
+                if (
+                    stdout.channel.exit_status_ready()
+                    and not stderr.channel.recv_stderr_ready()
+                    and not stdout.channel.recv_ready()
+                ) or timedout:
+                    stdout.channel.shutdown_read()
+                    try:
+                        stdout.channel.close()
+                    except Exception:
+                        # there is a race that when shutdown_read has been called and when
+                        # you try to close the connection, the socket is already closed
+                        # We should ignore such errors (but we should log them with warning)
+                        self.log.warning("Ignoring exception on close", exc_info=True)
+                    break
 
         stdout.close()
         stderr.close()

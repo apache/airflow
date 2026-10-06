@@ -404,6 +404,24 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 pending_actions.sort(key=lambda x: x["subject"])
                 assert pending_actions == expected_pending_actions
 
+    def test_pending_actions_filter_ignores_archived_task_instances_with_stale_pending_state(
+        self, test_client: TestClient, setup_hitl_data, session: Session
+    ):
+        pending_details = session.scalars(select(HITLDetail).where(HITLDetail.responded_at.is_(None))).all()
+        assert len(pending_details) == 3
+        for detail in pending_details:
+            detail.task_instance.working_set = None
+            detail.task_instance.archived_reason = "retry"
+        session.commit()
+
+        with_pending = test_client.get("/dags", params={"has_pending_actions": True})
+        without_pending = test_client.get("/dags", params={"has_pending_actions": False})
+
+        assert with_pending.status_code == 200
+        assert with_pending.json()["total_entries"] == 0
+        assert without_pending.status_code == 200
+        assert without_pending.json()["total_entries"] == 3
+
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})
         assert response.status_code == 401

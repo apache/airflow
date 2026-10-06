@@ -257,7 +257,18 @@
     },
     "tasks": {
       "type": "array",
-      "additionalProperties": { "$ref": "#/definitions/operator" }
+      "items": {
+        "type": "object",
+        "required": [ "__type", "__var" ],
+        "properties": {
+          "__type": { "const": "operator" },
+          "__var": {
+            "type": "object",
+            "required": [ "task_id" ],
+            "properties": { "task_id": { "type": "string" } }
+          }
+        }
+      }
     },
     "params": {
       "type": "array",
