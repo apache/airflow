@@ -39,6 +39,7 @@ a matching ``python_version != "X.Y"`` or ``python_full_version != "X.Y.Z.*"``
 from __future__ import annotations
 
 import sys
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -52,10 +53,6 @@ PYPROJECT_TOML_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
 
 def _load_toml(path: Path) -> dict:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     return tomllib.loads(path.read_text())
 
 

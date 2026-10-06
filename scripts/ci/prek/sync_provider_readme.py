@@ -47,12 +47,8 @@ from __future__ import annotations
 
 import re
 import sys
+import tomllib
 from pathlib import Path
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # py < 3.11 fallback (CI runs ≥3.10)
-    import tomli as tomllib  # type: ignore[no-redef]
 
 from packaging.requirements import Requirement
 from tabulate import tabulate

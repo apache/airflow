@@ -280,10 +280,10 @@ Two optional ``provider.yaml`` fields describe environments where a provider can
 * ``excluded-python-versions`` accepts Python minors as ``X.Y`` and patches as ``X.Y.Z``.
   The entry ``"3.14"`` excludes the whole minor from generated provider ``Requires-Python`` metadata.
   Root extras use a ``python_version`` marker, and CI omits the provider from the ``3.14`` test lane.
-  The entry ``"3.10.0"`` excludes only that patch prefix from provider metadata.
-  Root extras use ``python_full_version``. CI keeps the ``3.10`` test lane.
-  Use a patch entry when a dependency needs ``>=3.10.1`` but the provider otherwise supports Python 3.10.
-  The generated requirement uses ``!=3.10.0.*``. An exact ``!=3.10.0`` leaves versions below ``3.10.1``
+  The entry ``"3.11.0"`` excludes only that patch prefix from provider metadata.
+  Root extras use ``python_full_version``. CI keeps the ``3.11`` test lane.
+  Use a patch entry when a dependency needs ``>=3.11.1`` but the provider otherwise supports Python 3.11.
+  The generated requirement uses ``!=3.11.0.*``. An exact ``!=3.11.0`` leaves versions below ``3.11.1``
   that uv cannot resolve.
 * ``excluded-platforms`` removes the provider from matching platform test matrices and adds
   ``platform_machine`` markers that prevent the root package extras from installing it there.

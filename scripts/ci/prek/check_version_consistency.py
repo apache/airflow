@@ -27,11 +27,7 @@ from __future__ import annotations
 import ast
 import re
 import sys
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
+import tomllib
 
 from common_prek_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
