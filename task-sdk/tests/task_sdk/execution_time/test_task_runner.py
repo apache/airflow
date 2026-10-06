@@ -3224,14 +3224,16 @@ class TestRuntimeTaskInstance:
                 state=TaskInstanceState.SUCCESS,
                 context=runtime_ti.get_template_context(),
             )
-            mock_xcom_set.assert_called_once_with(
-                key="_link_AirflowLink",
-                value="https://airflow.apache.org",
-                dag_id=runtime_ti.dag_id,
-                task_id=runtime_ti.task_id,
-                run_id=runtime_ti.run_id,
-                map_index=runtime_ti.map_index,
-            )
+            assert mock_xcom_set.mock_calls == [
+                call(
+                    key="_link_AirflowLink__try_1",
+                    value="https://airflow.apache.org",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=runtime_ti.map_index,
+                ),
+            ]
 
     def test_task_failed_with_operator_extra_links(
         self, create_runtime_ti, mock_supervisor_comms, time_machine
@@ -3266,13 +3268,13 @@ class TestRuntimeTaskInstance:
             )
             assert mock_xcom_set.mock_calls == [
                 call(
-                    key="_link_AirflowLink",
+                    key="_link_AirflowLink__try_1",
                     value="https://airflow.apache.org",
                     dag_id=runtime_ti.dag_id,
                     task_id=runtime_ti.task_id,
                     run_id=runtime_ti.run_id,
                     map_index=runtime_ti.map_index,
-                )
+                ),
             ]
 
     def test_operator_extra_links_exception_handling(
@@ -3311,14 +3313,40 @@ class TestRuntimeTaskInstance:
             )
             assert mock_xcom_set.mock_calls == [
                 call(
-                    key="_link_AirflowLink",
+                    key="_link_AirflowLink__try_1",
                     value="https://airflow.apache.org",
                     dag_id=runtime_ti.dag_id,
                     task_id=runtime_ti.task_id,
                     run_id=runtime_ti.run_id,
                     map_index=runtime_ti.map_index,
-                )
+                ),
             ]
+
+    @pytest.mark.parametrize("try_number", [1, 2, 3])
+    def test_operator_extra_links_pushed_under_per_try_key(
+        self, create_runtime_ti, mock_supervisor_comms, try_number
+    ):
+        """Each attempt stores its link under a key of its own, so earlier tries keep theirs."""
+
+        class DummyTestOperator(BaseOperator):
+            operator_extra_links = (AirflowLink(),)
+
+            def execute(self, context):
+                pass
+
+        runtime_ti = create_runtime_ti(
+            task=DummyTestOperator(task_id="task_with_operator_extra_links"), try_number=try_number
+        )
+
+        with mock.patch.object(XCom, "_set_xcom_in_db") as mock_xcom_set:
+            finalize(
+                runtime_ti,
+                log=mock.MagicMock(),
+                state=TaskInstanceState.SUCCESS,
+                context=runtime_ti.get_template_context(),
+            )
+
+        assert [c.kwargs["key"] for c in mock_xcom_set.mock_calls] == [f"_link_AirflowLink__try_{try_number}"]
 
     @pytest.mark.parametrize(
         ("cmd", "rendered_cmd"),

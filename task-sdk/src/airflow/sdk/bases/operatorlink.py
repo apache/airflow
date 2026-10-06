@@ -26,6 +26,13 @@ if TYPE_CHECKING:
     from airflow.sdk import BaseOperator
     from airflow.sdk.types import TaskInstanceKey
 
+LINK_TRY_SUFFIX = "__try_"
+
+
+def build_xcom_key_for_try(xcom_key: str, try_number: int) -> str:
+    """Build the per try xcom key a link value is stored under."""
+    return f"{xcom_key}{LINK_TRY_SUFFIX}{try_number}"
+
 
 @attrs.define()
 class BaseOperatorLink(metaclass=ABCMeta):

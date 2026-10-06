@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from airflow.serialization.definitions.operatorlink import is_link_xcom_key
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -59,3 +61,23 @@ def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | 
     if (task := dag.task_dict.get(ti.task_id)) is None or not task.is_stub:
         return None
     return task.arg_bindings
+
+
+def drop_operator_link_keys(keys: list[str], dag_bag: DBDagBag, ti: Any, *, session: Session) -> list[str]:
+    """
+    Remove the task's operator-link xcom keys from ``keys``.
+
+    Links recorded by earlier tries stay readable in the UI, so a retry must not purge
+    them. The server owns that decision because every SDK receives this list and would
+    otherwise each have to own the logic for link key naming convention.
+    """
+    if ti.dag_version_id is None:
+        return keys
+    if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
+        return keys
+    if (task := dag.task_dict.get(ti.task_id)) is None:
+        return keys
+    link_xcom_keys = {link.xcom_key for link in task.operator_extra_link_dict.values()}
+    if not link_xcom_keys:
+        return keys
+    return [key for key in keys if not is_link_xcom_key(key, link_xcom_keys)]

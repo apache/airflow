@@ -57,6 +57,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.operatorlink import build_xcom_key_for_try
 from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
@@ -2347,7 +2348,7 @@ def finalize(
         try:
             link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
             log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
-            _xcom_push_to_db(ti, key=xcom_key, value=link)
+            _xcom_push_to_db(ti, key=build_xcom_key_for_try(xcom_key, ti.try_number), value=link)
         except Exception:
             log.exception(
                 "Failed to push an xcom for task operator extra link",
