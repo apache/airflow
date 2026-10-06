@@ -28,6 +28,7 @@ schema diverges from head.
 
 from __future__ import annotations
 
+import datetime
 import subprocess
 import sys
 from typing import Literal
@@ -501,3 +502,75 @@ class TestRealBundleRetryReason:
         body = {"type": "TaskState", "state": "failed", "end_date": None, "rendered_map_index": None}
         out = real_migrator.upgrade(body, TaskState, "2026-06-16")
         assert out["retry_reason"] is None
+
+
+class TestRealBundleFirstTaskRescheduleStartDate:
+    """
+    Drive the *real* supervisor bundle through the ``first_task_reschedule_start_date`` migration.
+
+    ``AddFirstTaskRescheduleStartDateToSupervisorTIRunContext`` is ``didnt_exist``-only, so the
+    downgrade re-validation is the only place it is visible: dropping it from the bundle, or
+    registering it under the wrong version, leaves the field on the wire for a pinned runtime.
+    """
+
+    FIRST_RESCHEDULE = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+
+    @pytest.fixture
+    def startup_details(self):
+        import uuid
+
+        from airflow.sdk.api.datamodels._generated import (
+            BundleInfo,
+            DagRun,
+            DagRunState,
+            DagRunType,
+            TaskInstance,
+            TIRunContext,
+        )
+        from airflow.sdk.execution_time.comms import StartupDetails
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return StartupDetails(
+            ti=TaskInstance(
+                id=uuid.uuid4(),
+                task_id="wait",
+                dag_id="d",
+                run_id="r",
+                try_number=1,
+                dag_version_id=uuid.uuid4(),
+            ),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="b", version=None),
+            start_date=now,
+            ti_context=TIRunContext(
+                dag_run=DagRun(
+                    dag_id="d",
+                    run_id="r",
+                    logical_date=now,
+                    data_interval_start=None,
+                    data_interval_end=None,
+                    start_date=now,
+                    end_date=None,
+                    run_type=DagRunType.MANUAL,
+                    state=DagRunState.RUNNING,
+                    run_after=now,
+                    consumed_asset_events=[],
+                    partition_key=None,
+                ),
+                max_tries=1,
+                first_task_reschedule_start_date=self.FIRST_RESCHEDULE,
+            ),
+            sentry_integration="",
+        )
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_field_for_previous_version(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
+        assert "first_task_reschedule_start_date" not in out["ti_context"]
+
+    def test_head_version_keeps_field(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-10-30")
+        assert out.ti_context.first_task_reschedule_start_date == self.FIRST_RESCHEDULE
