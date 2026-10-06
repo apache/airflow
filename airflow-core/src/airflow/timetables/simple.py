@@ -228,16 +228,17 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         batch_asset_events: bool | None = None,
     ) -> None:
         super().__init__()
-        self.batch_asset_events = (
-            conf.getboolean("scheduler", "batch_asset_events", fallback=False)
-            if batch_asset_events is None
-            else batch_asset_events
-        )
         # Compatibility: Handle SDK assets if needed so this class works in dag files.
         if isinstance(assets, SerializedAssetBase | BaseAsset):
             self.asset_condition = ensure_serialized_asset(assets)
         else:
             self.asset_condition = SerializedAssetAll([ensure_serialized_asset(a) for a in assets])
+        if batch_asset_events is None:
+            batch_asset_events = (
+                conf.getboolean("scheduler", "batch_asset_events", fallback=False)
+                or self.get_batching_requirement() is not None
+            )
+        self.batch_asset_events = batch_asset_events
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -258,16 +259,20 @@ class AssetTriggeredTimetable(_TrivialTimetable):
             "batch_asset_events": self.batch_asset_events,
         }
 
-    def validate(self) -> None:
-        if self.batch_asset_events:
-            return
+    def get_batching_requirement(self) -> str | None:
+        """Return why this timetable cannot run without event batching, or ``None``."""
         pending = [self.asset_condition]
         while pending:
             condition = pending.pop()
             if isinstance(condition, SerializedAssetAll) and len(condition.objects) > 1:
-                raise AirflowTimetableInvalid("Asset AND conditions require batch_asset_events=True")
+                return "Asset AND conditions require batch_asset_events=True"
             if isinstance(condition, SerializedAssetBooleanCondition):
                 pending.extend(condition.objects)
+        return None
+
+    def validate(self) -> None:
+        if not self.batch_asset_events and (reason := self.get_batching_requirement()):
+            raise AirflowTimetableInvalid(reason)
 
     def generate_run_id(
         self,
@@ -319,20 +324,20 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         partition_mapper_config: dict[SerializedAssetBase, PartitionMapper] | None = None,
         default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER,
     ) -> None:
-        super().__init__(assets=assets, batch_asset_events=batch_asset_events)
         self.partition_mapper_config = partition_mapper_config or {}
         self.default_partition_mapper = default_partition_mapper
+        super().__init__(assets=assets, batch_asset_events=batch_asset_events)
         self._name_to_partition_mapper: dict[str, PartitionMapper] = {}
         self._uri_to_partition_mapper: dict[str, PartitionMapper] = {}
         self._build_name_uri_mapping()
 
-    def validate(self) -> None:
-        super().validate()
-        if not self.batch_asset_events and any(
+    def get_batching_requirement(self) -> str | None:
+        if any(
             mapper.is_rollup
             for mapper in (self.default_partition_mapper, *self.partition_mapper_config.values())
         ):
-            raise AirflowTimetableInvalid("Partition rollups require batch_asset_events=True")
+            return "Partition rollups require batch_asset_events=True"
+        return super().get_batching_requirement()
 
     def _build_name_uri_mapping(self) -> None:
         for base_asset, partition_mapper in self.partition_mapper_config.items():

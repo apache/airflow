@@ -32,14 +32,25 @@ import { formatNumber } from "src/utils";
 
 type Props = {
   readonly dagId: string;
+  readonly partitionedDagRunId: number;
   readonly partitionKey: string;
   readonly totalReceived: number;
   readonly totalRequired: number;
 };
 
-export const AssetProgressCell = ({ dagId, partitionKey, totalReceived, totalRequired }: Props) => {
+export const AssetProgressCell = ({
+  dagId,
+  partitionedDagRunId,
+  partitionKey,
+  totalReceived,
+  totalRequired,
+}: Props) => {
   const { i18n } = useTranslation();
-  const { data, isLoading } = usePartitionedDagRunServiceGetPendingPartitionedDagRun({ dagId, partitionKey });
+  const { data, isLoading } = usePartitionedDagRunServiceGetPendingPartitionedDagRun({
+    dagId,
+    partitionedDagRunId,
+    partitionKey,
+  });
 
   const assetExpression = data?.asset_expression ?? undefined;
   const assets: Array<PartitionedDagRunAssetResponse> = data?.assets ?? [];

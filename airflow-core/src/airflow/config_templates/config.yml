@@ -2693,7 +2693,8 @@ scheduler:
         When false, each asset event creates a separate Dag run. Set this to true
         to restore batching of queued events into one run. An explicit timetable
         argument overrides this setting. Asset AND conditions and partition rollups
-        require batching. The setting is read when a Dag's timetable is constructed;
+        always default to batching, and passing ``batch_asset_events=False`` for them
+        is rejected. The setting is read when a Dag's timetable is constructed;
         reparse Dags after changing it.
       version_added: 3.4.0
       type: boolean
@@ -2897,8 +2898,8 @@ scheduler:
     max_dagruns_to_create_per_loop:
       description: |
         Max number of DAGs to create DagRuns for per scheduler loop.
-        Also limits the number of asset-triggered Dag runs created per loop when
-        event batching is disabled, shared between the selected Dags.
+        Also limits non-partitioned asset-triggered Dag run creation across all selected
+        Dags, including those with event batching enabled.
       example: ~
       version_added: 2.0.0
       type: integer

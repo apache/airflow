@@ -12815,6 +12815,97 @@ def test_partitioned_batch_asset_events(dag_maker: DagMaker, session: Session, b
 
 
 @pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("initial_batching", [False, True])
+@pytest.mark.parametrize("per_loop", [1, 2])
+@pytest.mark.parametrize(
+    "lock_target", [False, pytest.param(True, marks=pytest.mark.backend("postgres", "mysql"))]
+)
+def test_partitioned_backlog_survives_enabling_batching(
+    dag_maker, session, initial_batching, per_loop, lock_target
+):
+    asset_a, asset_b = Asset("backlog-a"), Asset("backlog-b")
+    dag_id = "partition-backlog-consumer"
+    partition_date = timezone.parse("2026-10-01T00:00:00Z")
+
+    def create_consumer(condition, batching):
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=PartitionedAssetTimetable(assets=condition, batch_asset_events=batching),
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+
+    create_consumer(asset_a | asset_b, initial_batching)
+    modes = [True, False] if initial_batching else [False]
+    for mode in modes:
+        if mode != initial_batching:
+            create_consumer(asset_a | asset_b, mode)
+        for index, key in enumerate(["key-1", "key-2"] * 2):
+            _produce_and_register_asset_event(
+                dag_id=f"backlog-producer-{mode}-{index}",
+                asset=asset_a,
+                partition_key=key,
+                partition_date=partition_date,
+                session=session,
+                dag_maker=dag_maker,
+            )
+    create_consumer(asset_a & asset_b, None)
+    for index, key in enumerate(["key-1", "key-2"]):
+        _produce_and_register_asset_event(
+            dag_id=f"backlog-completer-{index}",
+            asset=asset_b,
+            partition_key=key,
+            partition_date=partition_date,
+            session=session,
+            dag_maker=dag_maker,
+        )
+    expected_events = set(session.scalars(select(PartitionedAssetKeyLog.asset_event_id)))
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+    runner._max_partition_dag_runs_per_loop = per_loop
+    if lock_target:
+        with create_session(scoped=False) as other_session:
+            locked = other_session.scalar(
+                with_row_locks(
+                    select(AssetPartitionDagRun).order_by(AssetPartitionDagRun.id.desc()).limit(1),
+                    session=other_session,
+                    key_share=False,
+                )
+            )
+            for _ in range(3):
+                runner._create_dagruns_for_partitioned_asset_dags(session=session)
+                session.commit()
+            assert not session.scalar(
+                select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.partition_key == locked.partition_key)
+            )
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(PartitionedAssetKeyLog)
+                    .where(PartitionedAssetKeyLog.target_partition_key == locked.partition_key)
+                )
+                == len(expected_events) // 2
+            )
+    previous_count = session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id))
+    for _ in range(12):
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        session.commit()
+        runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
+        assert len(runs) - previous_count <= per_loop
+        previous_count = len(runs)
+        if len(runs) == 2:
+            break
+
+    assert {run.partition_key for run in runs} == {"key-1", "key-2"}
+    assert {event.id for run in runs for event in run.consumed_asset_events} == expected_events
+    assert sum(len(run.consumed_asset_events) for run in runs) == len(expected_events)
+    assert all(run.partition_date == partition_date for run in runs)
+    assert not session.scalar(
+        select(AssetPartitionDagRun.id).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
+    )
+
+
+@pytest.mark.need_serialized_dag
 @pytest.mark.parametrize("batch_asset_events", [True, False])
 @pytest.mark.parametrize("event_spacing", [timedelta(0), timedelta(seconds=1)])
 def test_non_partitioned_batch_asset_events(
@@ -12934,13 +13025,16 @@ def test_unbatched_asset_runs_drain_backlog_within_limits(
 
 @pytest.mark.need_serialized_dag
 @mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 3)
-def test_unbatched_asset_runs_share_creation_budget(dag_maker, session):
+@pytest.mark.parametrize("batch_first_dag", [False, True])
+def test_asset_runs_share_creation_budget(dag_maker, session, batch_first_dag):
     asset = Asset(name="shared-budget")
     dag_ids = ["budget-consumer-1", "budget-consumer-2"]
     for dag_id in dag_ids:
         with dag_maker(
             dag_id=dag_id,
-            schedule=AssetTriggeredTimetable(assets=asset, batch_asset_events=False),
+            schedule=AssetTriggeredTimetable(
+                assets=asset, batch_asset_events=batch_first_dag and dag_id == dag_ids[0]
+            ),
             session=session,
         ):
             EmptyOperator(task_id="consume")
@@ -12958,13 +13052,15 @@ def test_unbatched_asset_runs_share_creation_budget(dag_maker, session):
         for event in events
     )
     session.flush()
-    models = session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids))).all()
+    query, triggered_dates = DagModel.dags_needing_dagruns(session=session)
+    models = [model for model in query.all() if model.dag_id in triggered_dates]
+    assert {model.dag_id for model in models} == set(dag_ids)
     runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
     runner._create_dag_runs_asset_triggered(dag_models=models, session=session)
     session.flush()
     counts = dict(session.execute(select(DagRun.dag_id, func.count()).group_by(DagRun.dag_id)).all())
     assert counts == dict.fromkeys(dag_ids, 1)
-    assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 4
+    assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == (2 if batch_first_dag else 4)
 
 
 @pytest.mark.need_serialized_dag

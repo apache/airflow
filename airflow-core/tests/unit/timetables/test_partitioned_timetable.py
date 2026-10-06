@@ -37,6 +37,8 @@ from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.timetables.simple import PartitionedAssetTimetable
 
+from tests_common.test_utils.config import conf_vars
+
 if TYPE_CHECKING:
     from airflow.partition_mappers.base import PartitionMapper
 
@@ -291,6 +293,20 @@ class TestPartitionedAssetTimetable:
         )
         with expected:
             timetable.validate()
+
+    @pytest.mark.parametrize("use_default_mapper", [False, True])
+    def test_rollup_defaults_to_batching(self, use_default_mapper):
+        asset = ensure_serialized_asset(Asset("test"))
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+        kwargs = (
+            {"default_partition_mapper": mapper}
+            if use_default_mapper
+            else {"partition_mapper_config": {asset: mapper}}
+        )
+        with conf_vars({("scheduler", "batch_asset_events"): "False"}):
+            timetable = PartitionedAssetTimetable(assets=asset, **kwargs)
+        assert timetable.batch_asset_events is True
+        timetable.validate()
 
     @pytest.mark.parametrize(
         "asset_like",

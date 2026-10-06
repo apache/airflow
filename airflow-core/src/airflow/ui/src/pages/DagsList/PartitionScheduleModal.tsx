@@ -66,6 +66,7 @@ const getColumns = (
     cell: ({ row }) => (
       <AssetProgressCell
         dagId={dagId}
+        partitionedDagRunId={row.original.id}
         partitionKey={row.original.partition_key}
         totalReceived={row.original.total_received}
         totalRequired={row.original.total_required}

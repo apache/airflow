@@ -948,15 +948,16 @@ class AssetPartitionDagRun(Base):
     We can look up the AssetEvents that contribute to AssetPartitionDagRun entities
     with the PartitionedAssetKeyLog mapping table.
 
-    Rows are never deleted from this table, so multiple records with the same
-    target_dag_id / partition_key are expected in general; each dag run that
+    Completed rows are retained, so multiple records with the same
+    target_dag_id / partition_key are expected in general; each Dag run that
     gets created leaves its APDR record behind.
 
     Where created_dag_run_id is null, the Dag run has not yet been created.
     With event batching enabled, `_lock_asset_model` protects reuse of the
     latest pending row for a target_dag_id / partition_key pair. With batching
     disabled, each event creates its own row, so multiple pending rows for
-    the same pair are expected.
+    the same pair are expected. Enabling batching coalesces pending rows for
+    the same pair while preserving their contributing events.
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

@@ -454,6 +454,14 @@ paths:
         schema:
           type: string
           title: Partition Key
+      - name: partitioned_dag_run_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Partitioned Dag Run Id
       responses:
         '200':
           description: Successful Response

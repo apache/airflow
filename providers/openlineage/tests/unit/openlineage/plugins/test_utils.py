@@ -485,7 +485,7 @@ def test_serialize_timetable_complex_with_alias():
         },
     }
     if AIRFLOW_V_3_4_PLUS:
-        expected["batch_asset_events"] = False
+        expected["batch_asset_events"] = True
     assert dag_info.timetable == expected
 
 
@@ -521,7 +521,7 @@ def test_serialize_timetable_list_of_assets():
         },
     }
     if AIRFLOW_V_3_4_PLUS:
-        expected["batch_asset_events"] = False
+        expected["batch_asset_events"] = True
     assert dag_info.timetable == expected
 
 
@@ -580,7 +580,7 @@ def test_serialize_timetable_with_complex_logical_condition():
         },
     }
     if AIRFLOW_V_3_4_PLUS:
-        expected["batch_asset_events"] = False
+        expected["batch_asset_events"] = True
     assert dag_info.timetable == expected
 
 
@@ -654,7 +654,7 @@ def test_serialize_timetable_with_dataset_or_time_schedule():
         },
     }
     if AIRFLOW_V_3_4_PLUS:
-        expected["batch_asset_events"] = False
+        expected["batch_asset_events"] = True
     assert dag_info.timetable == expected
 
 

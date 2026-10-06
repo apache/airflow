@@ -370,12 +370,13 @@ def get_pending_partitioned_dag_run(
     dag_id: str,
     partition_key: str,
     session: SessionDep,
+    partitioned_dag_run_id: int | None = None,
 ) -> PartitionedDagRunDetailResponse:
     """Return full details for pending PartitionedDagRun."""
     # partition_key is a query param, not a path segment: it is a free-form key
     # (up to 250 chars) that may itself contain "/", which would otherwise be
     # ambiguous (or mis-routed) as a path segment.
-    partitioned_dag_run = session.execute(
+    query = (
         select(
             AssetPartitionDagRun.id,
             AssetPartitionDagRun.target_dag_id,
@@ -390,11 +391,11 @@ def get_pending_partitioned_dag_run(
             AssetPartitionDagRun.partition_key == partition_key,
             AssetPartitionDagRun.created_dag_run_id.is_(None),
         )
-        # Duplicate pending rows for the same (dag_id, partition_key) can exist
-        # after a crash; mirror _get_or_create_apdr and work on the latest one.
-        .order_by(AssetPartitionDagRun.id.desc())
-        .limit(1)
-    ).first()
+        .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+    )
+    if partitioned_dag_run_id is not None:
+        query = query.where(AssetPartitionDagRun.id == partitioned_dag_run_id)
+    partitioned_dag_run = session.execute(query.limit(1)).first()
 
     if partitioned_dag_run is None:
         raise HTTPException(

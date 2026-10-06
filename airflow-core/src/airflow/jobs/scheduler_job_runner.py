@@ -2329,6 +2329,117 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return None
         return anchors.pop()
 
+    def _coalesce_pending_partition_runs(
+        self,
+        pending: Sequence[AssetPartitionDagRun],
+        dags: dict[str, SerializedDAG],
+        fingerprints: dict[str, dict],
+        *,
+        session: Session,
+    ) -> list[AssetPartitionDagRun]:
+        pairs = {
+            (row.target_dag_id, row.partition_key)
+            for row in pending
+            if (dag := dags.get(row.target_dag_id)) and dag.timetable.batch_asset_events
+        }
+        if not pairs:
+            return list(pending)
+
+        # Retain the newest row, which producers also reuse. It may be outside
+        # the FIFO window when batching was enabled with a large pending backlog.
+        latest_ids = (
+            select(func.max(AssetPartitionDagRun.id))
+            .where(
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+                tuple_(AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.partition_key).in_(pairs),
+            )
+            .group_by(AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.partition_key)
+        )
+        targets = {
+            (row.target_dag_id, row.partition_key): row
+            for row in session.scalars(
+                with_row_locks(
+                    select(AssetPartitionDagRun)
+                    .where(
+                        AssetPartitionDagRun.id.in_(latest_ids),
+                        AssetPartitionDagRun.created_dag_run_id.is_(None),
+                    )
+                    .execution_options(populate_existing=True),
+                    of=AssetPartitionDagRun,
+                    skip_locked=True,
+                    key_share=False,
+                    session=session,
+                )
+            )
+            if row.rollup_fingerprint == fingerprints.get(row.target_dag_id)
+        }
+        sources = {
+            row.id: row
+            for row in pending
+            if (target := targets.get((row.target_dag_id, row.partition_key))) and target.id != row.id
+        }
+        if sources:
+            destinations = {
+                row.id: targets[row.target_dag_id, row.partition_key].id for row in sources.values()
+            }
+            logs = session.execute(
+                select(PartitionedAssetKeyLog.id, PartitionedAssetKeyLog.asset_partition_dag_run_id)
+                .where(PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(sources))
+                .order_by(PartitionedAssetKeyLog.id)
+                .limit(self._max_partition_dag_runs_per_loop)
+            ).all()
+            if logs:
+                session.execute(
+                    update(PartitionedAssetKeyLog)
+                    .where(PartitionedAssetKeyLog.id.in_(row.id for row in logs))
+                    .values(
+                        asset_partition_dag_run_id=case(
+                            destinations, value=PartitionedAssetKeyLog.asset_partition_dag_run_id
+                        )
+                    )
+                )
+                for source_id in {row.asset_partition_dag_run_id for row in logs}:
+                    source = sources[source_id]
+                    target = targets[source.target_dag_id, source.partition_key]
+                    if target.partition_date is None:
+                        target.partition_date = source.partition_date
+                    elif source.partition_date is not None and source.partition_date != target.partition_date:
+                        target.partition_date = None
+            remaining_source_ids = set(
+                session.scalars(
+                    select(PartitionedAssetKeyLog.asset_partition_dag_run_id)
+                    .where(PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(sources))
+                    .distinct()
+                )
+            )
+            session.execute(
+                delete(AssetPartitionDagRun).where(
+                    AssetPartitionDagRun.id.in_(sources.keys() - remaining_source_ids)
+                )
+            )
+
+        # Do not consume a partially combined group: its remaining rows might
+        # otherwise lose the events that would have satisfied their AND condition.
+        incomplete_pairs = set(
+            session.execute(
+                select(AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.partition_key)
+                .where(
+                    AssetPartitionDagRun.created_dag_run_id.is_(None),
+                    tuple_(AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.partition_key).in_(pairs),
+                )
+                .group_by(AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.partition_key)
+                .having(func.count() > 1)
+            )
+        )
+        ready = []
+        for row in pending:
+            pair = (row.target_dag_id, row.partition_key)
+            if pair not in pairs:
+                ready.append(row)
+            elif pair not in incomplete_pairs and (target := targets.pop(pair, None)):
+                ready.append(target)
+        return ready
+
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         """
         Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
@@ -2463,8 +2574,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return set()
 
         partition_dag_ids: set[str] = set()
-        pending_apdr_ids = [apdr.id for apdr in pending_apdrs]
-
         # {"dag_id": Serialized Dag}
         serialized_dags: dict[str, SerializedDAG] = {}
         for serdag in serdags_by_dag_id.values():
@@ -2473,6 +2582,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 serialized_dags[serdag.dag_id] = serdag.dag
             except Exception:
                 self.log.exception("Failed to deserialize Dag '%s'", serdag.dag_id)
+
+        pending_apdrs = self._coalesce_pending_partition_runs(
+            pending_apdrs, serialized_dags, latest_fp_by_dag, session=session
+        )
+        pending_apdr_ids = [apdr.id for apdr in pending_apdrs]
 
         # {apdr_id: {asset_id: set(source_key, ...)}
         source_key_by_asset_per_apdr: dict[int, dict[int, set[str]]] = defaultdict(lambda: defaultdict(set))
