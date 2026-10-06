@@ -122,6 +122,7 @@ def get_provider_info():
             {
                 "integration-name": "Microsoft Azure AI Search",
                 "external-doc-url": "https://learn.microsoft.com/en-us/azure/search/",
+                "how-to-guide": ["/docs/apache-airflow-providers-microsoft-azure/operators/ai_search.rst"],
                 "logo": "/docs/integration-logos/Microsoft-Azure.png",
                 "tags": ["azure"],
             },
