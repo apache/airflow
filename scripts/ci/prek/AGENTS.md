@@ -32,3 +32,7 @@ When adding a new breeze-dependent hook:
 - Register the script in the appropriate `.pre-commit-config.yaml` (`/.pre-commit-config.yaml`
   for repo-wide hooks, `/airflow-core/.pre-commit-config.yaml` for core-specific hooks, or a
   provider-level config).
+- Give every hook `env: {PYTHONPYCACHEPREFIX: .build/pycache}`. Hooks run in parallel and
+  breeze deletes `__pycache__` directories on start-up, so a hook writing `.pyc` next to the
+  sources can make a concurrent breeze hook fail with `Directory not empty`.
+  `check-prek-hooks-pycache-prefix` enforces this.
