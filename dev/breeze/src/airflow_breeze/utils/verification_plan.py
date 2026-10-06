@@ -46,7 +46,10 @@ FLAG_COMMANDS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ),
     ),
     "run_api_codegen": (("schema", "breeze testing python-api-client-tests", "breeze"),),
-    "run_go_sdk_tests": (("unit", "cd go-sdk && go test ./...", "host"),),
+    "run_go_sdk_tests": (
+        ("unit", "cd go-sdk && go test ./...", "host"),
+        ("unit", "cd go-sdk && go test -race ./...", "host"),
+    ),
     "run_java_sdk_tests": (
         ("unit", "cd java-sdk && ./gradlew test", "host"),
         ("docs", "breeze build-docs --sdk-docs-only --sdk=java", "breeze"),
