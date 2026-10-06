@@ -59,10 +59,28 @@ const PluginComponent: FC<PluginComponentProps> = (props) => {
     ? { region_id: taskInstance.region_id, region_index: taskInstance.region_index }
     : undefined;
 
-  return <ChatPage
-    key={`${dagId}/${runId}/${taskId}/${mapIndex}/${taskInstance?.id ?? ""}/${region?.region_id ?? ""}/${region?.region_index ?? ""}`}
-    dagId={dagId} runId={runId} taskId={taskId} mapIndex={mapIndex} region={region}
-  />;
+  // Remounts ChatPage on any selection change: useSession keeps its first createApi(...) in a ref,
+  // so without a new key it would keep sending the previous pass's region.
+  const sessionKey = [
+    dagId,
+    runId,
+    taskId,
+    mapIndex,
+    taskInstance?.id ?? "",
+    region?.region_id ?? "",
+    region?.region_index ?? "",
+  ].join("/");
+
+  return (
+    <ChatPage
+      key={sessionKey}
+      dagId={dagId}
+      runId={runId}
+      taskId={taskId}
+      mapIndex={mapIndex}
+      region={region}
+    />
+  );
 };
 
 /**

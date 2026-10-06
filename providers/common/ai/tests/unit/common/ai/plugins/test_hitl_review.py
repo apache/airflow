@@ -26,6 +26,7 @@ if not AIRFLOW_V_3_1_PLUS:
 import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
+from uuid import UUID
 
 import time_machine
 from fastapi.testclient import TestClient
@@ -54,6 +55,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
 )
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
@@ -83,6 +85,7 @@ TEST_RUN_ID = "test_run_id"
 LOGICAL_DATE_STR = "2025-01-01T00:00:00+00:00"
 logical_date = timezone.parse(LOGICAL_DATE_STR)
 MAP_INDEX = -1
+NO_REGION = UUID(int=0) if AIRFLOW_V_3_4_PLUS else None
 
 
 def _clear_db():
@@ -117,6 +120,7 @@ def _create_hitl_session(
         session,
         key=XCOM_AGENT_SESSION,
         value=sess.model_dump(mode="json"),
+        region_id=NO_REGION,
         dag_id=dag_id,
         task_id=task_id,
         run_id=run_id,
@@ -126,6 +130,7 @@ def _create_hitl_session(
         session,
         key=f"{XCOM_AGENT_OUTPUT_PREFIX}{iteration}",
         value=current_output,
+        region_id=NO_REGION,
         dag_id=dag_id,
         task_id=task_id,
         run_id=run_id,
@@ -321,6 +326,7 @@ class TestReadXcomByPrefix:
                 session,
                 key=f"{prefix}{suffix}",
                 value=val,
+                region_id=NO_REGION,
                 dag_id="d",
                 task_id="t",
                 run_id="r",
@@ -329,7 +335,7 @@ class TestReadXcomByPrefix:
         session.commit()
 
         result = _read_xcom_by_prefix(
-            session, dag_id="d", run_id="r", task_id="t", map_index=-1, prefix=prefix
+            session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t", map_index=-1, prefix=prefix
         )
         assert result == expected
         _clear_db()
@@ -393,6 +399,7 @@ class TestReadXcomByPrefix:
             session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
             value=output_value,
+            region_id=NO_REGION,
             dag_id="d",
             task_id="t",
             run_id="r",
@@ -422,6 +429,7 @@ class TestReadXcomByPrefix:
 
         result = _read_xcom_by_prefix(
             session,
+            region_id=NO_REGION,
             dag_id="d",
             run_id="r",
             task_id="t",
@@ -450,6 +458,7 @@ class TestReadXcomByPrefix:
                 session,
                 key=f"{XCOM_AGENT_OUTPUT_PREFIX}{i}",
                 value=val,
+                region_id=NO_REGION,
                 dag_id="d",
                 task_id="t",
                 run_id="r",
@@ -459,6 +468,7 @@ class TestReadXcomByPrefix:
 
         result = _read_xcom_by_prefix(
             session,
+            region_id=NO_REGION,
             dag_id="d",
             run_id="r",
             task_id="t",
@@ -538,6 +548,7 @@ class TestReadXcom:
                 session,
                 key=key,
                 value=value,
+                region_id=NO_REGION,
                 dag_id="d",
                 task_id="t",
                 run_id="r",
@@ -545,7 +556,9 @@ class TestReadXcom:
             )
         session.commit()
 
-        result = _read_xcom(session, dag_id="d", run_id="r", task_id="t", map_index=-1, key=key)
+        result = _read_xcom(
+            session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t", map_index=-1, key=key
+        )
         if expected is None:
             assert result is None
         else:
@@ -560,7 +573,7 @@ class TestReadXcom:
         mock_get_many.return_value = select(1).where(false())
 
         with mock.patch("airflow.providers.common.ai.plugins.hitl_review.AIRFLOW_V_3_4_PLUS", is_v3_4_plus):
-            _read_xcom(session, dag_id="d", run_id="r", task_id="t", key="k")
+            _read_xcom(session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t", key="k")
 
         assert ("region_id" in mock_get_many.call_args.kwargs) is expect_region
 
@@ -626,6 +639,7 @@ class TestWriteXcom:
 
         _write_xcom(
             session,
+            region_id=NO_REGION,
             dag_id="d",
             run_id="r",
             task_id="t",
@@ -636,7 +650,13 @@ class TestWriteXcom:
         session.commit()
 
         result = _read_xcom(
-            session, dag_id="d", run_id="r", task_id="t", map_index=-1, key=XCOM_AGENT_SESSION
+            session,
+            region_id=NO_REGION,
+            dag_id="d",
+            run_id="r",
+            task_id="t",
+            map_index=-1,
+            key=XCOM_AGENT_SESSION,
         )
         assert result == expected
         _clear_db()
@@ -653,14 +673,21 @@ class TestWriteXcom:
         dag_maker.sync_dagbag_to_db()
         old = run.get_task_instance("t", session=session)
         old.state = TaskInstanceState.RUNNING
-        _write_xcom(session, dag_id="d", run_id="r", task_id="t", key="owner", value="old")
+        _write_xcom(
+            session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t", key="owner", value="old"
+        )
 
         current = old.prepare_db_for_next_try(session)
-        _write_xcom(session, dag_id="d", run_id="r", task_id="t", key="owner", value="current")
+        _write_xcom(
+            session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t", key="owner", value="current"
+        )
 
         assert XComModelV2.get_for_attempt(old.id, "owner", session=session).value == "old"
         assert XComModelV2.get_for_attempt(current.id, "owner", session=session).value == "current"
-        assert _read_xcom(session, dag_id="d", run_id="r", task_id="t", key="owner") == "current"
+        assert (
+            _read_xcom(session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t", key="owner")
+            == "current"
+        )
         _clear_db()
 
 
@@ -684,7 +711,9 @@ class TestIsTaskCompleted:
         _clear_db()
 
     def test_returns_true_when_no_ti(self, session, dag_maker):
-        result = _is_task_completed(session, dag_id="x", run_id="y", task_id="z", map_index=-1)
+        result = _is_task_completed(
+            session, region_id=NO_REGION, dag_id="x", run_id="y", task_id="z", map_index=-1
+        )
         assert result is True
 
     def test_returns_false_when_ti_running(self, session, dag_maker):
@@ -699,7 +728,9 @@ class TestIsTaskCompleted:
         session.merge(ti)
         session.commit()
 
-        result = _is_task_completed(session, dag_id="d", run_id="r", task_id="t", map_index=-1)
+        result = _is_task_completed(
+            session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t", map_index=-1
+        )
         assert result is False
 
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Attempt ownership starts in Airflow 3.4")
@@ -723,7 +754,7 @@ class TestIsTaskCompleted:
         current.state = TaskInstanceState.RUNNING
         session.flush()
 
-        assert _is_task_completed(session, dag_id="d", run_id="r", task_id="t") is False
+        assert _is_task_completed(session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t") is False
 
 
 class TestBuildSessionResponse:
@@ -742,7 +773,9 @@ class TestBuildSessionResponse:
         dag_maker.sync_dagbag_to_db()
         session.commit()
 
-        result = _build_session_response(session, dag_id="d", run_id="r", task_id="t", map_index=-1)
+        result = _build_session_response(
+            session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t", map_index=-1
+        )
         assert result is None
 
     @pytest.mark.parametrize(
@@ -823,6 +856,7 @@ class TestBuildSessionResponse:
 
         result = _build_session_response(
             session,
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             run_id=TEST_RUN_ID,
             task_id=TEST_TASK_ID,
@@ -850,6 +884,7 @@ class TestBuildSessionResponse:
 
         result = _build_session_response(
             session,
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             run_id=TEST_RUN_ID,
             task_id=TEST_TASK_ID,
@@ -878,6 +913,7 @@ class TestBuildSessionResponse:
             session,
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
             value="Please add more detail",
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
@@ -887,6 +923,7 @@ class TestBuildSessionResponse:
 
         result = _build_session_response(
             session,
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             run_id=TEST_RUN_ID,
             task_id=TEST_TASK_ID,
@@ -919,6 +956,7 @@ class TestBuildSessionResponse:
             session,
             key=XCOM_AGENT_SESSION,
             value=sess.model_dump(mode="json"),
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
@@ -928,6 +966,7 @@ class TestBuildSessionResponse:
             session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
             value="Output 1",
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
@@ -937,6 +976,7 @@ class TestBuildSessionResponse:
             session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}2",
             value="Output 2",
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
@@ -946,6 +986,7 @@ class TestBuildSessionResponse:
             session,
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
             value="Feedback 1",
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
@@ -955,6 +996,7 @@ class TestBuildSessionResponse:
             session,
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}2",
             value="Feedback 2",
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
@@ -964,6 +1006,7 @@ class TestBuildSessionResponse:
 
         result = _build_session_response(
             session,
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             run_id=TEST_RUN_ID,
             task_id=TEST_TASK_ID,
@@ -1059,8 +1102,18 @@ class TestRegionalReview:
         yield second
         _clear_db()
 
-    @pytest.mark.parametrize("action", ["find", "feedback", "approve", "reject"])
-    def test_exact_scope_preserves_other_loop_pass(self, regional_review, test_client, session, action):
+    @pytest.mark.parametrize(
+        ("action", "expected_status"),
+        [
+            ("find", "pending_review"),
+            ("feedback", "changes_requested"),
+            ("approve", "approved"),
+            ("reject", "rejected"),
+        ],
+    )
+    def test_exact_scope_preserves_other_loop_pass(
+        self, regional_review, test_client, session, action, expected_status
+    ):
         ti = regional_review
         params = {
             "dag_id": ti.dag_id,
@@ -1079,6 +1132,7 @@ class TestRegionalReview:
 
         assert response.status_code == 200, response.text
         data = response.json()
+        assert data["status"] == expected_status
         assert data["current_output"] == "pass 1"
         assert data["conversation"][0]["content"] == "pass 1"
         assert data["task_completed"] is False
@@ -1093,6 +1147,22 @@ class TestRegionalReview:
         assert earlier["status"] == "pending_review"
         assert earlier["current_output"] == "pass 0"
 
+    @mock.patch("airflow.providers.common.ai.plugins.hitl_review.AIRFLOW_V_3_4_PLUS", False)
+    def test_region_selectors_are_rejected_on_hosts_without_regions(self, regional_review, test_client):
+        ti = regional_review
+        response = test_client.get(
+            "/hitl-review/sessions/find",
+            params={
+                "dag_id": ti.dag_id,
+                "run_id": ti.run_id,
+                "task_id": ti.task_id,
+                "region_id": str(ti.region_id),
+                "region_index": ti.region_index,
+            },
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Region selectors require Airflow 3.4 or later"
+
     def test_loop_scope_is_required(self, regional_review, test_client):
         ti = regional_review
         response = test_client.get(
@@ -1101,6 +1171,77 @@ class TestRegionalReview:
         )
         assert response.status_code == 400
         assert "loop producer requires" in response.json()["detail"]
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regional task identity requires Airflow 3.4+")
+class TestMappedReview:
+    @pytest.fixture
+    def mapped_review(self, dag_maker, session):
+        _clear_db()
+        with dag_maker(TEST_DAG_ID, serialized=True):
+            PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+        dr = dag_maker.create_dagrun(run_id=TEST_RUN_ID)
+        slots = sorted(
+            (ti for ti in dr.task_instances if ti.task_id == "mapped"), key=lambda ti: ti.region_index
+        )
+        assert [ti.region_index for ti in slots] == [0, 1]
+        for ti in slots:
+            ti.state = "deferred"
+            output = f"slot {ti.region_index}"
+            values = {
+                XCOM_AGENT_SESSION: AgentSessionData(
+                    status=SessionStatus.PENDING_REVIEW,
+                    iteration=1,
+                    max_iterations=5,
+                    current_output=output,
+                ).model_dump(mode="json"),
+                f"{XCOM_AGENT_OUTPUT_PREFIX}1": output,
+            }
+            session.flush()
+            for key, value in values.items():
+                XComModel.set_for_attempt(
+                    task_instance_id=ti.id, key=key, value=value, serialize=False, session=session
+                )
+        session.commit()
+        yield slots
+        _clear_db()
+
+    @pytest.mark.parametrize("approved", [0, 1])
+    def test_approve_addressed_by_map_index_only_touches_that_slot(
+        self, approved, mapped_review, test_client
+    ):
+        ti = mapped_review[approved]
+        params = {"dag_id": ti.dag_id, "run_id": ti.run_id, "task_id": ti.task_id}
+
+        response = test_client.post(
+            "/hitl-review/sessions/approve", params={**params, "map_index": approved}, json={}
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["current_output"] == f"slot {approved}"
+        sessions = [
+            test_client.get("/hitl-review/sessions/find", params={**params, "map_index": index}).json()
+            for index in range(len(mapped_review))
+        ]
+        assert [(s["status"], s["current_output"]) for s in sessions] == [
+            ("approved" if index == approved else "pending_review", f"slot {index}")
+            for index in range(len(mapped_review))
+        ]
+
+    def test_explicit_sentinel_region_does_not_read_the_node_region_session(self, mapped_review, test_client):
+        slot = mapped_review[1]
+        response = test_client.get(
+            "/hitl-review/sessions/find",
+            params={
+                "dag_id": slot.dag_id,
+                "run_id": slot.run_id,
+                "task_id": slot.task_id,
+                "map_index": 1,
+                "region_id": str(NO_REGION),
+            },
+        )
+
+        assert response.status_code == 404
 
 
 class TestFindSessionEndpoint:
@@ -1217,6 +1358,7 @@ class TestFindSessionEndpoint:
             session,
             key=XCOM_AGENT_SESSION,
             value=sess.model_dump(mode="json"),
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
@@ -1226,6 +1368,7 @@ class TestFindSessionEndpoint:
             session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
             value="First output",
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
@@ -1235,6 +1378,7 @@ class TestFindSessionEndpoint:
             session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}2",
             value="Revised output",
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
@@ -1244,6 +1388,7 @@ class TestFindSessionEndpoint:
             session,
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
             value="Add more detail",
+            region_id=NO_REGION,
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,

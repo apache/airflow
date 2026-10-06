@@ -91,6 +91,7 @@ if AIRFLOW_V_3_1_PLUS:
     if AIRFLOW_V_3_4_PLUS:
         from airflow.api_fastapi.core_api.services.public.task_coordinates import resolve_task_scope
         from airflow.models.dagbag import DBDagBag
+        from airflow.models.task_coordinates import TaskCoordinateResolver
 
     def _get_session():
         with create_session(scoped=False) as session:
@@ -105,11 +106,11 @@ if AIRFLOW_V_3_1_PLUS:
         run_id: str,
         task_id: str,
         map_index: int = -1,
-        region_id: UUID | None = None,
+        region_id: UUID | None,
         key: str,
     ):
         """Read a single XCom value from the database."""
-        scope = {"region_id": region_id} if AIRFLOW_V_3_4_PLUS else {}
+        scope = {"region_id": region_id, "include_node_regions": False} if AIRFLOW_V_3_4_PLUS else {}
         read = XComModel.get_many(
             run_id=run_id,
             key=key,
@@ -131,7 +132,7 @@ if AIRFLOW_V_3_1_PLUS:
         run_id: str,
         task_id: str,
         map_index: int = -1,
-        region_id: UUID | None = None,
+        region_id: UUID | None,
         prefix: str,
     ) -> dict[int, Any]:
         """Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``)."""
@@ -142,6 +143,7 @@ if AIRFLOW_V_3_1_PLUS:
                 task_ids=task_id,
                 map_indexes=map_index,
                 region_id=region_id,
+                include_node_regions=False,
             )
             entity = read.column_descriptions[0]["entity"]
             query = read.with_only_columns(entity.key, entity.value).where(entity.key.like(f"{prefix}%"))
@@ -167,7 +169,7 @@ if AIRFLOW_V_3_1_PLUS:
         run_id: str,
         task_id: str,
         map_index: int = -1,
-        region_id: UUID | None = None,
+        region_id: UUID | None,
         key: str,
         value,
     ):
@@ -180,7 +182,7 @@ if AIRFLOW_V_3_1_PLUS:
                     TI.run_id == run_id,
                     TI.task_id == task_id,
                     TI.region_index == map_index,
-                    TI.region_id == (region_id or UUID(int=0)),
+                    TI.region_id == region_id,
                 )
             )
             if owner is None:
@@ -237,7 +239,7 @@ if AIRFLOW_V_3_1_PLUS:
         run_id: str,
         task_id: str,
         map_index: int = -1,
-        region_id: UUID | None = None,
+        region_id: UUID | None,
     ) -> bool:
         """Return True if the task instance is no longer running."""
         query = select(TI.state).where(
@@ -249,7 +251,7 @@ if AIRFLOW_V_3_1_PLUS:
             query = query.where(
                 TI.working_set.is_(True),
                 TI.region_index == map_index,
-                TI.region_id == (region_id or UUID(int=0)),
+                TI.region_id == region_id,
             )
         else:
             query = query.where(TI.map_index == map_index)
@@ -265,7 +267,7 @@ if AIRFLOW_V_3_1_PLUS:
         run_id: str,
         task_id: str,
         map_index: int = -1,
-        region_id: UUID | None = None,
+        region_id: UUID | None,
     ) -> HITLReviewResponse | None:
         """Build `HITLReviewResponse` from XCom entries."""
         raw = _read_xcom(
@@ -339,8 +341,7 @@ if AIRFLOW_V_3_1_PLUS:
                 dag_id=dag_id,
                 run_id=run_id,
                 task_id=task_id,
-                session=db,
-                dag_bag=DBDagBag(),
+                resolver=TaskCoordinateResolver(DBDagBag(), db),
                 map_index=map_index,
                 region_id=region_id,
                 region_index=region_index,
