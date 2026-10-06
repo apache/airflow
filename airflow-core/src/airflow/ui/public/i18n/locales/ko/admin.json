@@ -34,6 +34,7 @@
     "form": {
       "connectionIdRequired": "커넥션 ID는 필수 항목입니다",
       "connectionIdRequirement": "커넥션 ID는 공백만으로 구성될 수 없습니다",
+      "connectionTypeFields": "{{connectionType}} 필드",
       "connectionTypeRequired": "커넥션 유형은 필수 항목입니다",
       "extraFieldsJson": "추가 필드 JSON",
       "helperText": "커넥션 유형이 보이지 않나요? 해당 Airflow Provider 패키지가 설치되어 있는지 확인하세요.",

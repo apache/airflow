@@ -31,6 +31,13 @@
     "runStatePlaceholder": "실행 상태 선택…",
     "timetableType": "타임테이블 유형"
   },
+  "folders": {
+    "all": "모든 Dag",
+    "empty": "폴더 없음",
+    "hide": "폴더 숨기기",
+    "show": "폴더 보기",
+    "title": "폴더"
+  },
   "ownerLink": "{{owner}}의 소유자 링크",
   "runAndTaskActions": {
     "affectedTasks": {
