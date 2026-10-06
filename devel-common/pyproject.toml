@@ -88,6 +88,7 @@ dependencies = [
     "sphinx-copybutton>=0.5.2",
     "sphinx-design>=0.5.0",
     "sphinx-jinja>=2.0.2",
+    "sphinx-llm>=1.1.0,<1.2",  # airflow_llms_txt subclasses its Markdown translator
     "sphinx-rtd-theme>=2.0.0",
     "sphinx>=7",
     "sphinxcontrib-applehelp>=1.0.4",
