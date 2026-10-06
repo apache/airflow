@@ -187,7 +187,11 @@ class _JarInfo:
         for p in _find_jars(roots):
             if (metadata := _JarMetadata.from_jar(p)) is None:
                 continue
-            if metadata.main_class and ((main_class == metadata.main_class) or not main_class):
+            if (
+                progress.main_class is None
+                and metadata.main_class
+                and ((main_class == metadata.main_class) or not main_class)
+            ):
                 log.debug("JAR located with Main-Class metadata", path=p, main_class=metadata.main_class)
                 progress.main_class = metadata.main_class
             if metadata.schema_version:

@@ -235,6 +235,13 @@ class TestMainJar:
         result = _JarInfo.find([tmp_path], "com.example.Loop")
         assert result == _JarInfo("com.example.Loop", "2026-06-16")
 
+    def test_the_first_executable_jar_wins_even_when_the_schema_version_is_elsewhere(self, tmp_path):
+        _make_jar(tmp_path.joinpath("a-etl.jar"), main_class="com.example.Etl")
+        _make_jar(tmp_path.joinpath("b-tools.jar"), main_class="com.example.Tools")
+        _make_jar(tmp_path.joinpath("c-sdk.jar"), main_class=None, schema_version="2026-06-16")
+
+        assert _JarInfo.find([tmp_path], "") == _JarInfo("com.example.Etl", "2026-06-16")
+
 
 class TestWalkJars:
     def test_skips_directory_whose_key_is_already_in_seen_dirs(self, tmp_path):
