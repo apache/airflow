@@ -25,6 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow_breeze.utils.constraints_version_check import (
+    constraints_version_check,
     explain_package_upgrade,
     get_release_cutoff,
     get_table_format,
@@ -37,6 +38,56 @@ MODULE = "airflow_breeze.utils.constraints_version_check"
 OLD_UPLOAD_TIME = "2020-01-01T00:00:00.000000Z"
 # Far enough ahead to sit inside any cooldown window, whenever the test runs.
 FRESH_UPLOAD_TIME = "2099-01-01T00:00:00.000000Z"
+
+
+@mock.patch(f"{MODULE}.download_constraints_file", autospec=True)
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+def test_saved_constraints_are_used_without_downloading_current_branch(
+    mock_overrides, mock_download, tmp_path, pypi
+):
+    constraints_file = tmp_path / "constraints.txt"
+    constraints_file.write_text("pkg-a==1.0.0\n")
+    constraints_version_check(
+        python="3.14",
+        airflow_constraints_mode="constraints-source-providers",
+        diff_mode="full",
+        constraints_file=constraints_file,
+    )
+    mock_download.assert_not_called()
+
+
+@mock.patch(f"{MODULE}.download_constraints_file", autospec=True)
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+def test_missing_saved_constraints_do_not_fall_back_to_current_branch(
+    mock_overrides, mock_download, tmp_path
+):
+    with pytest.raises(FileNotFoundError):
+        constraints_version_check(
+            python="3.14",
+            airflow_constraints_mode="constraints",
+            diff_mode="full",
+            constraints_file=tmp_path / "missing.txt",
+        )
+    mock_download.assert_not_called()
+
+
+@mock.patch(f"{MODULE}.update_pyproject_dependency", autospec=True)
+@mock.patch(f"{MODULE}.sync_and_freeze", autospec=True)
+@pytest.mark.parametrize("package", ["pkg-a", "Pkg_A", "pkg.a"])
+def test_latest_baseline_version_needs_no_pinned_resolution(mock_sync, mock_update, package):
+    explanation = explain_package_upgrade(
+        pkg=package,
+        pinned_version="1.0.0",
+        latest_version="2.0.0",
+        python_version="3.14",
+        airflow_constraints_mode="constraints",
+        github_repository="apache/airflow",
+        baseline_text="successful baseline",
+        baseline_versions={"pkg-a": "2.0.0"},
+    )
+    mock_sync.assert_not_called()
+    mock_update.assert_not_called()
+    assert "already resolves to 2.0.0" in explanation
 
 
 def _pypi_payload(latest: str, *versions: str, fresh: str | None = None) -> bytes:

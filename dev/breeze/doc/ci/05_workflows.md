@@ -368,6 +368,35 @@ unprivileged, which constrains what can go on it:
 When adding a job, reach for `ubuntu-slim` if it only shuffles metadata around, and
 `ubuntu-22.04` otherwise.
 
+### Dependency upgrade diagnostics
+
+Scheduled and manually dispatched AMD canaries on `main` keep the dependency freshness
+summary in `finalize-tests.yml`, but run it with `--no-explain-why`. Tests, constraint
+generation and validation, and image publication still run in the canary. Release-branch
+and other run types retain their existing explanation behavior.
+
+After the canary completes, `dependency-upgrade-report.yml` runs the detailed explanations
+independently, including when tests failed but the report inputs were saved. It checks out
+the original source SHA and downloads the original image and saved constraints by artifact
+ID from that run. It never substitutes the latest branch image or constraints. Python 3.10
+remains summary-only. PyPI release metadata is fetched when the report executes, so the
+available upgrade targets can change between the summary and the explanations.
+
+The workflow has read-only repository permissions and runs only on `workflow_run`, which
+cannot write to the default branch's GitHub Actions cache. Reports use the saved image artifact.
+
+The report runs at most three jobs concurrently. Each job has a 90-minute limit and saves
+its output, including partial output on failure. A failed or timed-out report is incomplete;
+it does not invalidate the canary's test result. Find diagnostics in the **Dependency
+upgrade report** workflow, whose summary links to the source canary. To repeat diagnostics,
+use **Re-run jobs** on that report before its two-day input/image retention expires (or run
+`gh run rerun REPORT_RUN_ID`). Reruns keep the original source canary ID. Missing or expired
+original inputs fail the rerun rather than using a newer image or constraints.
+
+`breeze release-management constraints-version-check --constraints-file PATH` can also
+analyze a saved constraints file locally. Detailed explanations reuse one baseline resolution
+and skip the pinned resolution when that baseline already selects the target version.
+
 ## Implementation Details
 
 Here's how the composite workflow system is organized in practice.

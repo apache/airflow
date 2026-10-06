@@ -311,6 +311,7 @@ def constraints_version_check(
     github_token: str | None = None,
     github_repository: str | None = None,
     cooldown_days: int = 4,
+    constraints_file: Path | None = None,
 ):
     console_print(f"[bold cyan]Python version:[/] [white]{python}[/]")
     console_print(f"[bold cyan]Constraints mode:[/] [white]{airflow_constraints_mode}[/]")
@@ -320,16 +321,19 @@ def constraints_version_check(
         f"[bold cyan]Cooldown period:[/] [white]{cooldown_days} days[/] "
         f"[white]({exempt_count} distributions exempt via exclude-newer-package)[/]\n"
     )
-    with tempfile.TemporaryDirectory() as temp_dir:
-        constraints_file = Path(temp_dir) / "constraints.txt"
-        download_constraints_file(
-            constraints_reference=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
-            python_version=python,
-            airflow_constraints_mode=airflow_constraints_mode,
-            github_token=github_token,
-            output_file=constraints_file,
-        )
+    if constraints_file is not None:
         lines = constraints_file.read_text().splitlines()
+    else:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            downloaded_file = Path(temp_dir) / "constraints.txt"
+            download_constraints_file(
+                constraints_reference=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+                python_version=python,
+                airflow_constraints_mode=airflow_constraints_mode,
+                github_token=github_token,
+                output_file=downloaded_file,
+            )
+            lines = downloaded_file.read_text().splitlines()
     constraints_date = parse_constraints_generation_date(lines)
     if constraints_date:
         console_print(
@@ -804,12 +808,18 @@ def explain_package_upgrade(
     explanation = (
         f"[bold blue]\n--- Explaining for {pkg} (current: {pinned_version}, latest: {latest_version}) ---[/]"
     )
-    with preserve_files(AIRFLOW_ROOT_PATH / "pyproject.toml", AIRFLOW_ROOT_PATH / "uv.lock"):
-        from packaging.utils import canonicalize_name
+    # Breeze limits startup imports; packaging is needed only when explaining a package.
+    from packaging.utils import canonicalize_name
 
+    canonical_pkg = str(canonicalize_name(pkg))
+    baseline_version = baseline_versions.get(canonical_pkg)
+    if baseline_version == latest_version:
+        return explanation + (
+            f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
+            f"--resolution highest. The constraints file appears to be stale.[/]"
+        )
+    with preserve_files(AIRFLOW_ROOT_PATH / "pyproject.toml", AIRFLOW_ROOT_PATH / "uv.lock"):
         airflow_pyproject = AIRFLOW_ROOT_PATH / "pyproject.toml"
-        canonical_pkg = str(canonicalize_name(pkg))
-        baseline_version = baseline_versions.get(canonical_pkg)
 
         update_pyproject_dependency(airflow_pyproject, pkg, latest_version, python_version)
         if get_verbose():
@@ -850,11 +860,6 @@ def explain_package_upgrade(
                 f"\n[bold yellow]uv sync succeeded but the resolved package versions could not "
                 f"be read (empty freeze output), so the upgrade of {pkg} to {latest_version} "
                 f"could not be classified.[/]"
-            )
-        elif baseline_version == latest_version:
-            explanation += (
-                f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
-                f"--resolution highest. The constraints file appears to be stale.[/]"
             )
         elif resolved_version != latest_version:
             explanation += (
