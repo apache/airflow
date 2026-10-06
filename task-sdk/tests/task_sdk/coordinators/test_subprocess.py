@@ -49,6 +49,7 @@ from airflow.sdk.coordinators._subprocess import (
     _ResourceTracker,
     _start_server,
     log,
+    supports_task_handler_parsing,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, InvalidCoordinatorError, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -1467,6 +1468,13 @@ class _ParsingCoordinator(_StubSubprocessCoordinator):
         return [*self.command, os.fspath(path)], self.schema_version
 
 
+@attrs.define(kw_only=True)
+class _TaskHandlerParsingCoordinator(_StubSubprocessCoordinator):
+    def _build_parse_task_handler_command(self, *, path):
+        self.recorded_roots.append(list(self._get_scan_roots()))
+        return [*self.command, os.fspath(path)], self.schema_version
+
+
 class TestParseDag:
     def test_build_parse_dag_command_default_raises(self, tmp_path):
         with pytest.raises(NotImplementedError):
@@ -1522,3 +1530,182 @@ class TestParseDag:
 
         assert reported == []
         mock_execvpe.assert_not_called()
+
+
+def _parse_task_handler(coordinator: SubprocessCoordinator, tmp_path: pathlib.Path, reported: list) -> None:
+    coordinator.parse_task_handler(
+        path=tmp_path / "handlers.artifact",
+        bundle_path=tmp_path,
+        comm_address=("127.0.0.1", 1001),
+        logs_address=("127.0.0.1", 1002),
+        report_schema_version=reported.append,
+    )
+
+
+def _is_running(process: psutil.Process) -> bool:
+    try:
+        return process.status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
+
+
+class TestParseTaskHandler:
+    def test_find_task_handler_artifact_default_raises(self, tmp_path):
+        coordinator = _StubSubprocessCoordinator(command=["x"])
+
+        with pytest.raises(
+            NotImplementedError, match="_StubSubprocessCoordinator does not parse task handlers"
+        ):
+            coordinator._find_task_handler_artifact(bundle_path=tmp_path, dag_id="dag")
+
+    def test_build_parse_task_handler_command_default_raises(self, tmp_path):
+        coordinator = _StubSubprocessCoordinator(command=["x"])
+
+        with pytest.raises(
+            NotImplementedError, match="_StubSubprocessCoordinator does not parse task handlers"
+        ):
+            coordinator._build_parse_task_handler_command(path=tmp_path / "handlers.artifact")
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch(
+        "airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec failed")
+    )
+    def test_resolves_the_command_under_the_bundle_root_then_execs_it(
+        self, mock_execvpe, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        coordinator = _TaskHandlerParsingCoordinator(command=["runtime"], schema_version="2026-10-30")
+        reported: list[str | None] = []
+
+        with pytest.raises(OSError, match="exec failed"):
+            _parse_task_handler(coordinator, tmp_path, reported)
+
+        assert coordinator.recorded_roots == [[tmp_path]]
+        assert coordinator._active_scan_roots is None
+        assert reported == ["2026-10-30"]
+        argv = [
+            "runtime",
+            os.fspath(tmp_path / "handlers.artifact"),
+            "--comm=127.0.0.1:1001",
+            "--logs=127.0.0.1:1002",
+        ]
+        mock_execvpe.assert_called_once_with("runtime", argv, ANY)
+        assert "AIRFLOW__LOGGING__LOGGING_LEVEL" in mock_execvpe.call_args.args[2]
+        restored = {c.args[0] for c in mock_signal.call_args_list if c.args[1] == signal.SIG_DFL}
+        assert {signal.SIGPIPE, signal.SIGXFSZ} <= restored
+        mock_death_signal.assert_called_once_with()
+        mock_close_on_exec.assert_called_once_with()
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.getppid", autospec=True, side_effect=[4242, 1])
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
+    def test_does_not_exec_once_the_parent_has_exited(
+        self, mock_execvpe, mock_getppid, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        coordinator = _TaskHandlerParsingCoordinator(command=["runtime"])
+        steps = MagicMock()
+        steps.attach_mock(mock_getppid, "getppid")
+        steps.attach_mock(mock_death_signal, "death_signal")
+
+        with pytest.raises(RuntimeError, match="The process that started the runtime has exited"):
+            coordinator.parse_task_handler(
+                path=tmp_path / "handlers.artifact",
+                bundle_path=tmp_path,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=steps.report,
+            )
+
+        # The parent is read before the death signal is set, so an exit in between is seen.
+        assert steps.mock_calls == [call.getppid(), call.report(None), call.death_signal(), call.getppid()]
+        mock_execvpe.assert_not_called()
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
+    def test_does_not_start_a_runtime_that_cannot_answer(
+        self, mock_execvpe, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        coordinator = _TaskHandlerParsingCoordinator(command=["runtime"], schema_version="2026-06-16")
+        reported: list[str | None] = []
+
+        with pytest.raises(ValueError, match="cannot answer a task handler parse request"):
+            _parse_task_handler(coordinator, tmp_path, reported)
+
+        assert reported == []
+        mock_execvpe.assert_not_called()
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._set_parent_death_signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True)
+    def test_rejects_an_unknown_schema_version_before_reporting(
+        self, mock_execvpe, mock_signal, mock_death_signal, mock_close_on_exec, tmp_path
+    ):
+        coordinator = _TaskHandlerParsingCoordinator(command=["runtime"], schema_version="1999-01-01")
+        reported: list[str | None] = []
+
+        with pytest.raises(ValueError, match="'1999-01-01' not found"):
+            _parse_task_handler(coordinator, tmp_path, reported)
+
+        assert reported == []
+        mock_execvpe.assert_not_called()
+
+    @pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_PDEATHSIG is Linux-only")
+    def test_the_runtime_dies_with_the_process_that_started_it(self, tmp_path):
+        coordinator = _TaskHandlerParsingCoordinator(command=["/bin/sh", "-c", "exec sleep 60"])
+        read_fd, write_fd = os.pipe()
+        parent_pid = os.fork()
+        if parent_pid == 0:
+            # The process reading the runtime's sockets: it starts the runtime, reports its pid and waits.
+            try:
+                os.close(read_fd)
+                runtime_pid = os.fork()
+                if runtime_pid == 0:
+                    try:
+                        _parse_task_handler(coordinator, tmp_path, [])
+                    finally:
+                        os._exit(1)
+                os.write(write_fd, str(runtime_pid).encode())
+                os.close(write_fd)
+                os.waitpid(runtime_pid, 0)
+            finally:
+                os._exit(0)
+
+        os.close(write_fd)
+        with os.fdopen(read_fd) as reader:
+            runtime = psutil.Process(int(reader.read()))
+        try:
+            # Polls: the runtime is not a child to wait for, and time_machine cannot reach another process.
+            deadline = time.monotonic() + 30
+            while runtime.name() != "sleep":
+                assert time.monotonic() < deadline, "the runtime did not start"
+                time.sleep(0.05)
+
+            os.kill(parent_pid, signal.SIGKILL)
+            os.waitpid(parent_pid, 0)
+
+            deadline = time.monotonic() + 10
+            while _is_running(runtime):
+                assert time.monotonic() < deadline, "the runtime outlived the process that started it"
+                time.sleep(0.05)
+        finally:
+            with contextlib.suppress(psutil.NoSuchProcess):
+                runtime.kill()
+
+
+class TestSupportsTaskHandlerParsing:
+    @pytest.mark.parametrize(
+        ("schema_version", "expected"),
+        [("2026-06-16", False), ("2026-10-30", True)],
+    )
+    def test_supports_task_handler_parsing(self, schema_version, expected):
+        assert supports_task_handler_parsing(schema_version) is expected
+
+    def test_supports_task_handler_parsing_rejects_an_unknown_version(self):
+        with pytest.raises(ValueError, match="not found"):
+            supports_task_handler_parsing("1999-01-01")

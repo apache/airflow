@@ -28,6 +28,7 @@ draining machinery in this module rather than re-implementing it.
 from __future__ import annotations
 
 import contextlib
+import ctypes
 import ipaddress
 import itertools
 import os
@@ -36,9 +37,10 @@ import signal
 import socket
 import stat
 import subprocess
+import sys
 import time
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, Final, NoReturn, TypeVar, cast
 
 import attrs
 import psutil
@@ -64,10 +66,26 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.subprocess")
+
+# The first supervisor schema version whose runtime can answer a task handler parse request.
+TASK_HANDLER_PARSING_SCHEMA_VERSION: Final = "2026-10-30"
+
+
+def supports_task_handler_parsing(schema_version: str) -> bool:
+    """
+    Return whether a runtime of supervisor schema *schema_version* can answer a task handler parse request.
+
+    :raises ValueError: when this Task SDK does not know *schema_version*.
+    """
+    # Dated versions order as strings; SchemaVersionMigrator compares them the same way.
+    return (
+        get_schema_version_migrator().resolve_version(schema_version) >= TASK_HANDLER_PARSING_SCHEMA_VERSION
+    )
 
 
 def _start_server() -> socket.socket:
@@ -198,6 +216,28 @@ def _build_runtime_env() -> dict[str, str]:
         "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": str(conf.getboolean("operators", "default_deferrable")),
         "AIRFLOW__TRIGGERER__QUEUES_ENABLED": str(conf.getboolean("triggerer", "queues_enabled")),
     }
+
+
+# From <linux/prctl.h>
+_PR_SET_PDEATHSIG = 1
+
+
+def _set_parent_death_signal() -> None:
+    """
+    On Linux, have the kernel SIGKILL this process when the thread that forked it exits.
+
+    The setting survives the exec, so the runtime dies with the process that reads its sockets,
+    even when that process is killed without the chance to kill the runtime first. Processes the
+    runtime starts do not inherit the setting.
+    """
+    if sys.platform != "linux":
+        return
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(_PR_SET_PDEATHSIG, signal.SIGKILL, 0, 0, 0) != 0:
+            log.warning("Failed to set PR_SET_PDEATHSIG", errno=ctypes.get_errno())
+    except Exception:
+        log.warning("Unable to set PR_SET_PDEATHSIG", exc_info=True)
 
 
 def _accept_connections(
@@ -490,6 +530,9 @@ class SubprocessCoordinator(BaseCoordinator):
     connections, draining startup output, and tearing everything down on
     failure — is handled here.
 
+    A subclass that also answers task handler parse requests implements
+    :meth:`_find_task_handler_artifact` and :meth:`_build_parse_task_handler_command`.
+
     :param task_startup_timeout: Maximum time the coordinator waits for the
         subprocess to connect to both servers, in seconds. The default is 10
         seconds.
@@ -528,10 +571,11 @@ class SubprocessCoordinator(BaseCoordinator):
         return bundle
 
     def _get_scan_roots(self) -> tuple[pathlib.Path, ...]:
-        """Return the artifact roots resolved for the active task or Dag parse."""
+        """Return the artifact roots resolved for the active task, Dag parse or task handler parse."""
         if self._active_scan_roots is None:
             raise RuntimeError(
-                "_get_scan_roots requires an active task or Dag parse; call it during execute_task or parse_dag."
+                "_get_scan_roots requires an active task, Dag parse or task handler parse; "
+                "call it during execute_task, parse_dag or parse_task_handler."
             )
         return self._active_scan_roots
 
@@ -611,11 +655,89 @@ class SubprocessCoordinator(BaseCoordinator):
         _set_close_on_exec_above_stderr()
         os.execvpe(argv[0], argv, _build_runtime_env())
 
+    def _find_task_handler_artifact(self, *, bundle_path: pathlib.Path, dag_id: str) -> ResolvedBundle:
+        """
+        Return the artifact that a stub task of *dag_id* runs, found the way :meth:`execute_task` finds it.
+
+        *bundle_path* is the root of the Dag bundle that holds the artifacts.
+
+        :raises FileNotFoundError: when a task of *dag_id* would find no artifact it can run.
+        :raises ValueError: when the artifact found uses a supervisor schema version this Task SDK
+            does not know.
+        """
+        raise NotImplementedError(f"{type(self).__name__} does not parse task handlers")
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        """
+        Build the command that reports the task handlers at *path* and resolve its wire-schema version.
+
+        Subclasses can retrieve the root of the Dag bundle holding *path* with :meth:`_get_scan_roots`.
+        The contract is that of :meth:`_build_execute_task_command`: *command* MUST NOT include the
+        ``--comm`` / ``--logs`` flags.
+        """
+        raise NotImplementedError(f"{type(self).__name__} does not parse task handlers")
+
+    def parse_task_handler(
+        self,
+        *,
+        path: pathlib.Path,
+        bundle_path: pathlib.Path,
+        comm_address: tuple[str, int],
+        logs_address: tuple[str, int],
+        report_schema_version: Callable[[str | None], None],
+    ) -> NoReturn:
+        """
+        Replace the current process with the runtime that reports the task handlers of the artifact at *path*.
+
+        Call this in a child process whose standard streams are already set up; the runtime
+        inherits them and no other file descriptor. The command and its supervisor wire-schema
+        version are resolved against *bundle_path*, and the version is passed to
+        *report_schema_version* just before the exec. The runtime connects back to
+        *comm_address* and *logs_address*. On Linux the runtime dies with the thread that forked
+        the calling process, and it is not started once that parent has exited. A failure after the
+        version is reported leaves this process set to die with its parent and with the default
+        SIGPIPE and SIGXFSZ handling, so the caller should exit.
+
+        :raises Exception: when the command cannot be resolved or the runtime's supervisor schema
+            version is unknown or older than :data:`TASK_HANDLER_PARSING_SCHEMA_VERSION`; the process
+            is then unchanged.
+        :raises RuntimeError: when the parent has exited.
+        :raises OSError: when the exec fails.
+        """
+        with self._set_scan_roots([bundle_path]):
+            command, schema_version = self._build_parse_task_handler_command(path=path)
+        if schema_version is not None and not supports_task_handler_parsing(schema_version):
+            raise ValueError(
+                f"{path} uses supervisor schema {schema_version}, "
+                "which cannot answer a task handler parse request"
+            )
+        argv = [
+            *command,
+            f"--comm={comm_address[0]}:{comm_address[1]}",
+            f"--logs={logs_address[0]}:{logs_address[1]}",
+        ]
+        # Taken before the report, which fails if the parent has already exited. A different parent once the
+        # death signal is set means the parent exited in between, and the kernel does not send it for that.
+        parent_pid = os.getppid()
+        report_schema_version(schema_version)
+        # Python ignores these at startup and exec keeps ignored signals; subprocess.Popen resets
+        # them the same way for the task runtime.
+        for name in ("SIGPIPE", "SIGXFSZ"):
+            if (sig := getattr(signal, name, None)) is not None:
+                signal.signal(sig, signal.SIG_DFL)
+        _set_parent_death_signal()
+        if os.getppid() != parent_pid:
+            raise RuntimeError("The process that started the runtime has exited")
+        _set_close_on_exec_above_stderr()
+        os.execvpe(argv[0], argv, _build_runtime_env())
+
     @contextlib.contextmanager
     def _set_scan_roots(self, roots: Sequence[pathlib.Path]):
-        """Expose *roots* to the command builder for the duration of the task or Dag parse."""
+        """Expose *roots* to the command builder for the task, Dag parse or task handler parse."""
         if self._active_scan_roots is not None:
-            raise RuntimeError("SubprocessCoordinator.execute_task and parse_dag are not re-entrant.")
+            raise RuntimeError(
+                "SubprocessCoordinator.execute_task, parse_dag and parse_task_handler are not re-entrant."
+            )
         self._active_scan_roots = tuple(roots)
         try:
             yield
