@@ -412,14 +412,14 @@ they are designed to survive executor queue wait times without needing refresh. 
 ensures long-running tasks do not lose API access without requiring the worker to
 re-authenticate.
 
-No token revocation (Execution API)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Task-token revocation (Execution API)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
+Task Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
 (default 10 minutes) and automatically refreshed by the ``JWTReissueMiddleware``.
 ``workload``-scoped tokens (tracking ``[scheduler] task_queued_timeout``) are not refreshed —
-they expire naturally after their validity period. Revocation is not part of the Execution API
-security model.
+they expire naturally after their validity period. Processor and parsing credentials additionally
+require an open, owning Job, as described under "Dag processor HTTP client credentials" below.
 
 
 
@@ -484,6 +484,46 @@ processes as a different, low-privilege user) or network-level restrictions.
 
 See :doc:`/security/security_model` for the full security implications, deployment hardening
 guidance, and the planned strategic and tactical improvements.
+
+
+Dag processor HTTP client credentials
+-------------------------------------
+
+The core ``DagProcessorAPIClient`` supports authenticated access to the Execution API
+without holding its signing key. This is the client and authentication foundation;
+``airflow dag-processor`` still uses its existing database-backed lifecycle.
+
+On a trusted host with the API signing key, provision a session token for the bundles
+the client may access::
+
+    airflow dag-processor-token --token-file /run/airflow/processor.jwt \
+        --bundle-name dags-folder --rotate
+
+The command writes the token atomically with owner-only permissions. Keep the provisioner
+running and mount its directory rather than a single file so token replacement stays
+visible. Each processor process needs its own session.
+
+The ``dag_processor_session`` token registers a Job through ``POST /jobs``. The returned
+``dag_processor`` token can heartbeat and complete that Job, read Connections and Variables
+for a granted bundle, and exchange a parsing credential through
+``POST /jobs/{job_id}/parse-token``. Registration retries keep the same registration UUID.
+A new process uses a new UUID; it cannot replace a session's Job while that Job is alive.
+Ending or replacing the Job invalidates its runtime credentials.
+
+The client selects the bundle with ``use_bundle`` and a parsing attempt with ``use_parse``.
+A ``dag_parse`` token binds the attempt UUID, bundle, and relative file location to the Job.
+It permits parse-time requests for that bundle, including callback-context reads, but cannot
+manage Jobs or exchange tokens. A request header cannot override the signed bundle.
+Connection and Variable access uses the bundle's current team.
+
+The client attempts renewal at 80% of token lifetime. Transient early-renewal failures leave
+the existing token usable until expiry. A retired registration signals that its owner must
+restart. Completion retains its original identity and outcome across retries.
+
+File and attempt identity are carried in the token but are not currently used for access
+checks or request attribution. Archives retain one file identity under the current processor
+model. These credentials do not isolate hostile code from other credentials accessible on
+the processor host; the process and deployment limitations above still apply.
 
 
 Workload Isolation and Current Limitations

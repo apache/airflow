@@ -33,12 +33,19 @@ from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.api_fastapi.execution_api.security import CurrentTIToken
+from airflow.api_fastapi.execution_api.security import (
+    CurrentExecutionToken,
+    CurrentTIToken,
+    DagInGrantedBundle,
+    ExecutionAPIRoute,
+    ExecutionOrDagParseToken,
+)
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun, InvalidLoopDecision, validate_loop_decision
@@ -64,7 +71,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.util import AliasedClass
     from sqlalchemy.sql.elements import ColumnElement
 
-    from airflow.api_fastapi.execution_api.datamodels.token import TIToken
     from airflow.models.dagbag import DBDagBag
 
 
@@ -75,7 +81,7 @@ def has_xcom_access(
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     session: SessionDep,
-    token=CurrentTIToken,
+    token=CurrentExecutionToken,
 ) -> bool:
     """
     Check whether the requesting task may access the XCom for ``dag_id``.
@@ -109,6 +115,9 @@ def has_xcom_access(
 
     if not conf.getboolean("core", "multi_team"):
         return True
+    if token.claims.scope == "dag_parse":
+        # Its bundle grants, enforced by DagInGrantedBundle on the routes that admit it, replace team checks.
+        return True
 
     from airflow.api_fastapi.execution_api.security import (
         _team_name_for_dag_stmt,
@@ -135,6 +144,7 @@ def has_xcom_access(
 
 
 router = APIRouter(
+    route_class=ExecutionAPIRoute,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
@@ -171,7 +181,7 @@ def _build_xcom_read(
     key: str,
     session: Session,
     dag_bag: DBDagBag,
-    token: TIToken,
+    token: ExecutionToken,
     map_index: int | None = None,
     include_prior_dates: bool = False,
     previous_iteration: bool = False,
@@ -199,7 +209,7 @@ def _build_xcom_read(
             dag_id, None if include_prior_dates else run_id, task_id
         ):
             return _XComRead(read(region_id=SENTINEL_REGION_ID, map_indexes=map_index))
-        caller = session.get(TaskInstance, token.id)
+        caller = session.get(TaskInstance, token.id) if token.claims.scope == "execution" else None
         if include_prior_dates:
             task = None
             if session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)):
@@ -251,7 +261,7 @@ def xcom_query(
     dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     previous_iteration: bool = False,
-    token=CurrentTIToken,
+    token: ExecutionToken = CurrentExecutionToken,
 ) -> Select:
     return _build_xcom_read(
         dag_id=dag_id,
@@ -269,6 +279,7 @@ def xcom_query(
 
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
@@ -286,7 +297,7 @@ def get_mapped_xcom_by_index(
     session: SessionDep,
     dag_bag: DagBagDep,
     previous_iteration: bool = False,
-    token=CurrentTIToken,
+    token: ExecutionToken = CurrentExecutionToken,
 ) -> XComSequenceIndexResponse:
     xcom_read = _build_xcom_read(
         dag_id=dag_id,
@@ -336,6 +347,7 @@ def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
 
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
@@ -352,7 +364,7 @@ def get_mapped_xcom_by_slice(
     params: Annotated[GetXComSliceFilterParams, Query()],
     session: SessionDep,
     dag_bag: DagBagDep,
-    token=CurrentTIToken,
+    token: ExecutionToken = CurrentExecutionToken,
 ) -> XComSequenceSliceResponse:
     xcom_read = _build_xcom_read(
         dag_id=dag_id,
@@ -433,6 +445,7 @@ def get_mapped_xcom_by_slice(
 
 @router.head(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses={
         **create_openapi_http_exception_doc(
             [(status.HTTP_400_BAD_REQUEST, "map_index cannot be specified in a HEAD request")]
@@ -479,6 +492,7 @@ class GetXcomFilterParams(BaseModel):
 
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
@@ -495,21 +509,23 @@ def get_xcom(
     session: SessionDep,
     params: Annotated[GetXcomFilterParams, Query()],
     dag_bag: DagBagDep,
-    token=CurrentTIToken,
+    token: ExecutionToken = CurrentExecutionToken,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
-    owner = session.execute(
-        select(TaskInstance.id, TaskInstance.working_set)
-        .where(
-            TaskInstance.id == token.id,
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.task_id == task_id,
-            *build_coordinate_filters(TaskInstance, map_index=params.map_index),
-        )
-        .limit(1)
-        .execution_options(include_all_attempts=True)
-    ).first()
+    owner = None
+    if token.claims.scope == "execution":
+        owner = session.execute(
+            select(TaskInstance.id, TaskInstance.working_set)
+            .where(
+                TaskInstance.id == token.id,
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id == task_id,
+                *build_coordinate_filters(TaskInstance, map_index=params.map_index),
+            )
+            .limit(1)
+            .execution_options(include_all_attempts=True)
+        ).first()
     if (
         owner is not None
         and owner.working_set is None

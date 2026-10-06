@@ -54,7 +54,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIClaims, TIToken
 from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
 from airflow.api_fastapi.execution_api.routes.xcoms import set_xcom
@@ -534,6 +534,34 @@ def test_previous_ti_for_loop_task_uses_requester_pass(client, two_run_loop_tis,
     assert response.status_code == 200
     assert response.json()["run_id"] == "old"
     assert response.json()["region_index"] == requester_pass
+
+
+def test_parsing_token_reads_latest_loop_pass_without_task_identity(client, session, two_run_loop_tis):
+    requester = two_run_loop_tis["current"][0]
+    token = ExecutionToken.model_validate(
+        {
+            "id": requester.id,
+            "claims": {
+                "scope": "dag_parse",
+                "exp": 2000000000,
+                "dag_bundles": [session.get(DagModel, requester.dag_id).bundle_name],
+                "job_id": 1,
+                "session_id": UUID(int=1),
+                "relative_fileloc": "dag.py",
+            },
+        }
+    )
+    exec_app = client.app.routes[-1].app
+    exec_app.dependency_overrides[require_auth] = lambda: token
+
+    response = client.get(
+        f"/execution/task-instances/previous/{requester.dag_id}/{requester.task_id}",
+        params={"logical_date": "2025-01-02T00:00:00Z"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == "old"
+    assert response.json()["region_index"] == 1
 
 
 def test_previous_ti_for_loop_task_finds_a_pass_beyond_the_scan_limit(client, session, two_run_loop_tis):

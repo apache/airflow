@@ -76,11 +76,14 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
+    CurrentExecutionToken,
     CurrentTIToken,
+    DagInGrantedBundle,
     ExecutionAPIRoute,
+    ExecutionOrDagParseToken,
     get_team_name_for_ti,
     issue_execution_token,
     require_auth,
@@ -118,7 +121,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
 
-router = VersionedAPIRouter()
+router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
 
 ti_id_router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -1499,6 +1502,7 @@ def _find_superseded_ids(
 @router.get(
     "/count",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_404_NOT_FOUND, "Task group not found"),
@@ -1566,6 +1570,7 @@ _MAX_PREVIOUS_TIS_SCANNED = 500
 @router.get(
     "/previous/{dag_id}/{task_id}",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [(status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot")]
     ),
@@ -1578,7 +1583,7 @@ def get_previous_task_instance(
     logical_date: Annotated[UtcDateTime | None, Query()] = None,
     map_index: Annotated[int, Query()] = -1,
     state: Annotated[TaskInstanceState | None, Query()] = None,
-    token: TIToken = CurrentTIToken,
+    token: ExecutionToken = CurrentExecutionToken,
 ) -> PreviousTIResponse | None:
     """
     Get the previous task instance matching the given criteria.
@@ -1621,7 +1626,7 @@ def get_previous_task_instance(
         if ti.region_id == SENTINEL_REGION_ID:
             break
         if iterations is None:
-            requester = session.get(TI, token.id)
+            requester = session.get(TI, token.id) if token.claims.scope == "execution" else None
             iterations = (
                 resolver.loop_iterations(requester)
                 if requester is not None and (requester.dag_id, requester.task_id) == (dag_id, task_id)
@@ -1682,6 +1687,7 @@ def _has_loop_iterations(resolver: TaskCoordinateResolver, ti: TI, iterations: l
 @router.get(
     "/states",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_404_NOT_FOUND, "Task group not found"),
