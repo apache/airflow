@@ -28,7 +28,7 @@ test.describe("XComs Page", () => {
 
   test("verify XComs table displays entries with details and values", async ({ xcomsPage }) => {
     await xcomsPage.navigate();
-    await expect(xcomsPage.xcomsTable).toBeVisible();
+    await expect.soft(xcomsPage.xcomsTable).toBeVisible();
     await xcomsPage.verifyXComsExist();
     await xcomsPage.verifyXComDetailsDisplay();
     await xcomsPage.verifyXComValuesDisplayed();

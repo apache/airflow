@@ -24,18 +24,18 @@ test.describe("Plugins Page", () => {
   });
 
   test("verify plugins list displays each plugin with a name and source", async ({ pluginsPage }) => {
-    await expect(pluginsPage.heading).toBeVisible();
-    await expect(pluginsPage.table).toBeVisible();
+    await expect.soft(pluginsPage.heading).toBeVisible();
+    await expect.soft(pluginsPage.table).toBeVisible();
     await expect(pluginsPage.rows).not.toHaveCount(0);
 
     const count = await pluginsPage.rows.count();
 
-    await expect(pluginsPage.nameColumn).toHaveCount(count);
-    await expect(pluginsPage.sourceColumn).toHaveCount(count);
+    await expect.soft(pluginsPage.nameColumn).toHaveCount(count);
+    await expect.soft(pluginsPage.sourceColumn).toHaveCount(count);
 
     for (let i = 0; i < count; i++) {
-      await expect(pluginsPage.nameColumn.nth(i)).not.toBeEmpty();
-      await expect(pluginsPage.sourceColumn.nth(i)).not.toBeEmpty();
+      await expect.soft(pluginsPage.nameColumn.nth(i)).not.toBeEmpty();
+      await expect.soft(pluginsPage.sourceColumn.nth(i)).not.toBeEmpty();
     }
   });
 });

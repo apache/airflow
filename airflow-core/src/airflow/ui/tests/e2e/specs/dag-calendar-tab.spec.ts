@@ -36,7 +36,7 @@ test.describe("Dag Calendar Tab", () => {
 
     const states = await dagCalendarTab.getManualRunStates();
 
-    expect(states).toContain("success");
-    expect(states).toContain("failed");
+    expect.soft(states).toContain("success");
+    expect.soft(states).toContain("failed");
   });
 });

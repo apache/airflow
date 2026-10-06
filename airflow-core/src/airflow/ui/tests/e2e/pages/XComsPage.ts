@@ -124,22 +124,22 @@ export class XComsPage extends BasePage {
 
     const keyCell = firstRow.locator("td").first();
 
-    await expect(keyCell).not.toBeEmpty();
+    await expect.soft(keyCell).not.toBeEmpty();
 
     const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
 
-    await expect(dagIdLink).toBeVisible();
-    await expect(dagIdLink).not.toBeEmpty();
+    await expect.soft(dagIdLink).toBeVisible();
+    await expect.soft(dagIdLink).not.toBeEmpty();
 
     const runIdLink = firstRow.locator("a[href*='/runs/']").first();
 
-    await expect(runIdLink).toBeVisible();
-    await expect(runIdLink).not.toBeEmpty();
+    await expect.soft(runIdLink).toBeVisible();
+    await expect.soft(runIdLink).not.toBeEmpty();
 
     const taskIdLink = firstRow.locator("a[href*='/tasks/']").first();
 
-    await expect(taskIdLink).toBeVisible();
-    await expect(taskIdLink).not.toBeEmpty();
+    await expect.soft(taskIdLink).toBeVisible();
+    await expect.soft(taskIdLink).not.toBeEmpty();
   }
 
   public async verifyXComsExist(): Promise<void> {
@@ -152,6 +152,6 @@ export class XComsPage extends BasePage {
     const firstRow = this.tableRows.first();
 
     await expect(firstRow).toBeVisible();
-    await expect(firstRow.getByTestId("xcom-value")).toBeVisible();
+    await expect.soft(firstRow.getByTestId("xcom-value")).toBeVisible();
   }
 }

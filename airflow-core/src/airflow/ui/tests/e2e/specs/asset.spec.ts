@@ -28,10 +28,10 @@ test.describe("Assets Page", () => {
   });
 
   test("verify assets table lists assets with name links", async ({ assetListPage }) => {
-    await expect(assetListPage.heading).toBeVisible();
-    await expect(assetListPage.table).toBeVisible();
+    await expect.soft(assetListPage.heading).toBeVisible();
+    await expect.soft(assetListPage.table).toBeVisible();
     await expect(assetListPage.rows.first()).toBeVisible();
-    await expect(assetListPage.rows.locator("td a").first()).toBeVisible();
+    await expect.soft(assetListPage.rows.locator("td a").first()).toBeVisible();
   });
 
   test("verify clicking an asset navigates to detail page", async ({ assetListPage, page }) => {

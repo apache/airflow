@@ -78,10 +78,10 @@ test.describe("Dags List Display", () => {
     expect(dagLinks.length).toBeGreaterThan(0);
 
     for (const link of dagLinks) {
-      expect(link).toMatch(/\/dags\/.+/);
+      expect.soft(link).toMatch(/\/dags\/.+/);
     }
 
-    await expect(dagsPage.getDagLink(testConfig.testDag.id)).toBeVisible();
+    await expect.soft(dagsPage.getDagLink(testConfig.testDag.id)).toBeVisible();
   });
 
   test("verify HITL review modal opens from the needs review badge in table view", async ({

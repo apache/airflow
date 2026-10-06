@@ -41,8 +41,8 @@ test.describe("Providers Page", () => {
   test("Verify the providers list displays package name, version, and description", async ({
     providersPage,
   }) => {
-    await expect(providersPage.heading).toBeVisible();
-    await expect(providersPage.table).toBeVisible();
+    await expect.soft(providersPage.heading).toBeVisible();
+    await expect.soft(providersPage.table).toBeVisible();
 
     const count = await providersPage.getRowCount();
 
@@ -51,9 +51,9 @@ test.describe("Providers Page", () => {
     for (let i = 0; i < 2; i++) {
       const { description, packageName, version } = await providersPage.getRowDetails(i);
 
-      expect(packageName).not.toEqual("");
-      expect(version).not.toEqual("");
-      expect(description).not.toEqual("");
+      expect.soft(packageName).not.toEqual("");
+      expect.soft(version).not.toEqual("");
+      expect.soft(description).not.toEqual("");
     }
   });
 });
