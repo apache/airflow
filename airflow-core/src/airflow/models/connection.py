@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import sys
 import warnings
 from contextlib import suppress
 from json import JSONDecodeError
@@ -36,6 +35,7 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import FernetFieldsMixin, get_fernet
+from airflow.process_context import should_use_task_sdk_api_path
 
 # AirflowSecretsBackendAccessDenied was added to task-sdk in 1.2.2. When
 # airflow-core is installed alongside an older published task-sdk (e.g. 1.2.1 or earlier),
@@ -504,7 +504,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if should_use_task_sdk_api_path():
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
@@ -595,7 +595,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if should_use_task_sdk_api_path():
             from airflow.sdk import Connection as TaskSDKConnection
 
             warnings.warn(
