@@ -73,7 +73,7 @@ class JavaDagImporter(CoordinatorDagImporter):
             return True
         return not wanted or main_class == wanted
 
-    def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
+    def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
         """Return the entrypoint source the JAR embeds, or a notice when it embeds none."""
         with definition.as_file() as path, zipfile.ZipFile(path) as zf:
             info = _find_source_entry(zf)

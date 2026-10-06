@@ -396,7 +396,7 @@ class TextDagImporter(AbstractDagImporter):
             ],
         )
 
-    def get_source_code(self, definition):
+    def get_source_code(self, definition, dag_id: str | None = None):
         return DagSourceCode(source_code=definition.read_text(), language="text")
 
 
@@ -775,12 +775,8 @@ class TestDagBag:
         dagbag = DagBag(dag_folder=tmp_path, bundle_path=tmp_path, bundle_name="test_bundle")
 
         assert dagbag.dag_source_codes == {
-            os.fspath(tmp_path / "plain.py"): DagSourceCode(
-                source_code=_dag_source("plain"), language="python"
-            ),
-            os.fspath(tmp_path / "dags.zip" / "member.py"): DagSourceCode(
-                source_code=_dag_source("member"), language="python"
-            ),
+            "plain": DagSourceCode(source_code=_dag_source("plain"), language="python"),
+            "member": DagSourceCode(source_code=_dag_source("member"), language="python"),
         }
 
     def test_dag_source_codes_drops_stale_source_when_read_fails(self, tmp_path):
@@ -808,9 +804,7 @@ class TestDagBag:
         kwargs = mock_update.call_args.kwargs
         assert kwargs["files_parsed"] == {("test_bundle", "dags.zip/member.py"), ("test_bundle", "dags.zip")}
         assert kwargs["dag_source_codes"] == {
-            os.fspath(tmp_path / "dags.zip" / "member.py"): DagSourceCode(
-                source_code=_dag_source("member"), language="python"
-            )
+            "member": DagSourceCode(source_code=_dag_source("member"), language="python")
         }
 
     def test_zip(self, tmp_path, test_zip_path):
@@ -1402,7 +1396,7 @@ with airflow.DAG(
         assert dag.fileloc == os.fspath(dag_file)
         assert dag.relative_fileloc == "nested/text_dag.dagtxt"
         assert dagbag.dag_source_codes == {
-            os.fspath(dag_file): DagSourceCode(source_code="text_dag\n", language="text")
+            "text_dag": DagSourceCode(source_code="text_dag\n", language="text")
         }
         assert dagbag.dag_warnings == {DagWarning("text_dag", "test:deprecated_field", "Deprecated field")}
         assert dagbag.captured_warnings == {
@@ -1664,7 +1658,8 @@ class TestCoordinatorParsedFiles:
         assert isinstance(dag.task_dict["extract"], SerializedBaseOperator)
         assert (dag.fileloc, dag.relative_fileloc) == (os.fspath(native), "sub/dags.native")
         assert dag.bundle_name == "testing"
-        assert dagbag.dag_source_codes[os.fspath(native)].source_code == "{}"
+        assert dagbag.dag_source_codes["native_a"].source_code == "{}"
+        assert dagbag.dag_source_codes["native_b"].source_code == "{}"
 
     def test_native_file_is_an_import_error_by_default(self, tmp_path):
         write_native_file(tmp_path / "dags.native")

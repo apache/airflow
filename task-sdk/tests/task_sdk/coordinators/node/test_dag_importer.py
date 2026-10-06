@@ -132,7 +132,7 @@ class TestMightContainDag:
 
 
 class TestGetSourceCode:
-    def test_returns_the_entrypoint_source_for_every_dag(self, importer, tmp_path):
+    def test_returns_the_entrypoint_source_without_a_dag_id(self, importer, tmp_path):
         sales = 'export const sales = new Dag({ dagId: "sales" });\n'
         inventory = 'export const inventory = new Dag({ dagId: "inventory" });\n'
         main = '/* the */ import "./sales";\nimport "./inventory";\n'
@@ -150,6 +150,38 @@ class TestGetSourceCode:
         )
 
         assert importer.get_source_code(FilesystemDagDefinition(path)) == DagSourceCode(main, "typescript")
+
+    def test_returns_each_dags_own_source_when_given_its_dag_id(self, importer, tmp_path):
+        sales = 'export const sales = new Dag({ dagId: "sales" });\n'
+        inventory = 'export const inventory = new Dag({ dagId: "inventory" });\n'
+        main = '/* the */ import "./sales";\nimport "./inventory";\n'
+        path = write_bundle(
+            tmp_path,
+            "sales",
+            "inventory",
+            sources=[
+                ("sales.ts", sales.encode()),
+                ("inventory.ts", inventory.encode()),
+                ("main.ts", main.encode()),
+            ],
+            dag_source_paths={"sales": "sales.ts", "inventory": "inventory.ts"},
+            entrypoint_path="main.ts",
+        )
+        definition = FilesystemDagDefinition(path)
+
+        assert importer.get_source_code(definition, "sales") == DagSourceCode(sales, "typescript")
+        assert importer.get_source_code(definition, "inventory") == DagSourceCode(inventory, "typescript")
+
+    def test_falls_back_to_the_entrypoint_for_a_dag_id_with_no_mapped_file(self, importer, tmp_path):
+        """A Dag constructed dynamically has no ``dag_source_paths`` entry to look up."""
+        main = 'export const sales = new Dag({ dagId: "sales" });\n'
+        path = write_bundle(
+            tmp_path, "sales", sources=[("main.ts", main.encode())], entrypoint_path="main.ts"
+        )
+
+        source_code = importer.get_source_code(FilesystemDagDefinition(path), "sales")
+
+        assert source_code == DagSourceCode(main, "typescript")
 
     def test_returns_a_notice_without_an_entrypoint_source(self, importer, tmp_path):
         path = write_bundle(tmp_path, "sales", entrypoint_path=None)
