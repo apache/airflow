@@ -270,7 +270,7 @@ To avoid burden on our CI infrastructure and to save time, prek hooks can be run
     We have recently started to recommend ``uv`` for our local development.
 
 .. note::
-    Remember to have global python set to Python >= 3.11 - Python 3.10 is end-of-life already and we've
+    Remember to have global python set to Python >= 3.11 - Python 3.10 reaches end-of-life in October 2026 and we've
     started to use Python 3.11+ features in Airflow and accompanying scripts.
 
 Installing prek is best done with ``uv`` (recommended) or ``pipx``.

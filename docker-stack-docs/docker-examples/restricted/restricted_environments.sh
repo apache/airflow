@@ -26,7 +26,7 @@ cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START download]
 mkdir -p docker-context-files
-export AIRFLOW_VERSION="2.5.3"
+export AIRFLOW_VERSION="3.0.3"
 rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files/*.txt || true
 
 curl -Lo "docker-context-files/constraints-3.11.txt" \
@@ -39,7 +39,7 @@ python --version
 
 pip download --dest docker-context-files \
     --constraint docker-context-files/constraints-3.11.txt  \
-    "apache-airflow[async,celery,elasticsearch,kubernetes,postgres,redis,ssh,statsd,virtualenv]==${AIRFLOW_VERSION}"
+    "apache-airflow[async,celery,cncf.kubernetes,elasticsearch,postgres,redis,ssh,statsd]==${AIRFLOW_VERSION}"
 # [END download]
 
 # [START build]

@@ -139,7 +139,7 @@ Create unit tests for each component of your provider. Example of running unit t
 
 .. code-block:: bash
 
-    [Breeze:3.10.19] root@fafd8d630e46:/opt/airflow# python -m pytest providers/<PROVIDER>/tests/<PROVIDER>/hook/test_*.py
+    [Breeze:3.11.16] root@fafd8d630e46:/opt/airflow# python -m pytest providers/<PROVIDER>/tests/<PROVIDER>/hook/test_*.py
 
 
 Integration tests
