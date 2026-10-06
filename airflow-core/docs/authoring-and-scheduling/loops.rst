@@ -295,11 +295,12 @@ Clear tasks inside a loop
 
 Use these controls to select how far a clear extends through the loop:
 
-* **Clear downstream**, selected by default, includes downstream tasks.
-  Clearing a task this way can also clear the gate in the same iteration.
+* **Downstream** includes downstream tasks. It starts selected unless you have
+  changed your saved clear options. Clearing a task this way can also clear
+  the gate in the same iteration.
 * **Clear later loop iterations**, selected by default, clears later
   iterations when the selection includes a gate task, whether selected
-  directly or through **Clear downstream**. The gate runs again and decides
+  directly or through **Downstream**. The gate runs again and decides
   whether the loop should continue from that point.
 
 Clearing later iterations does not require the loop to run the same number of
@@ -316,7 +317,7 @@ Suppose each iteration contains this sequence:
    prepare → process → consume → gate
 
 The loop has already run iterations 0 through 4. You clear ``process`` in
-iteration 2 with both default options selected:
+iteration 2 with **Downstream** and **Clear later loop iterations** both selected:
 
 * ``prepare`` in iteration 2 remains completed.
 * ``process``, ``consume``, and the gate in iteration 2 run again.
