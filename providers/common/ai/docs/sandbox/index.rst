@@ -355,7 +355,7 @@ somewhere to work". This page has the worked scenarios above and
 the limitations below to read before designing a Dag around it.
 
 Before reaching for it, check whether the actual need is narrower than that.
-``code_mode=True`` is a flag on ``AgentOperator``. It changes how the
+:ref:`Code mode <code-mode>` is a capability on ``AgentOperator``. It changes how the
 model invokes the tools it already has, letting it write code that calls several
 of them instead of emitting one call per step. It does not give the agent somewhere
 to run arbitrary code of its own. Because it needs no backend, it avoids the

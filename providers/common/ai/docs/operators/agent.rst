@@ -251,8 +251,8 @@ Five features have pages of their own:
   on retry instead of paying for them again.
 - :doc:`../capabilities`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
   with ``capabilities=``.
-- :doc:`../code_mode`: set ``code_mode=True`` to collapse the agent's tools into a single
-  ``run_code`` tool the model drives by writing Python.
+- :doc:`../code_mode`: pass the ``CodeMode`` capability to collapse the agent's tools into a
+  single ``run_code`` tool the model drives by writing Python.
 - :doc:`../tool_approval`: mark tools that need a person's approval, and the task pauses before
   a marked call runs.
 
@@ -434,9 +434,6 @@ Parameters
   when the steps it needs are cached. Clearing a failed task instance starts
   a fresh budget but keeps the durable cache its attempts left behind, so what
   the rerun replays from that cache is free there too.
-- ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
-  tool that the model drives by writing Python, executed in the Monty sandbox.
-  Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
 - ``cache_prompt``: Ask the provider to cache the tool definitions, system prompt and
   conversation so later requests read them back at a discount. Default ``True``; a no-op for
   providers that cache on their own. See :ref:`agent-prompt-caching`.
