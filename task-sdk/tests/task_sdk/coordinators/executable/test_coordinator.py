@@ -40,7 +40,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
     _BinaryDigestCache,
     _Bundle,
     _digest_cache,
-    _mark_executable,
+    _ensure_executable,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
@@ -196,43 +196,44 @@ class TestBinaryDigestCache:
         assert cache.get(key) is None
 
 
-class TestMarkExecutable:
+class TestEnsureExecutable:
     def test_adds_execute_bit_matching_read_bits(self, tmp_path):
         path = tmp_path / "bundle"
         path.write_bytes(b"payload")
         path.chmod(0o644)
 
-        assert _mark_executable(path) is True
+        assert _ensure_executable(path) is None
         assert path.stat().st_mode & 0o777 == 0o755
 
-    def test_leaves_mode_unchanged_when_already_executable(self, tmp_path):
+    def test_already_executable_returns_without_chmod(self, tmp_path):
+        # 0o744 is already runnable by its owner but isn't the exact "read implies execute"
+        # pattern this function would itself produce (0o755), so this also proves the
+        # already-executable check is `os.access`, not a recomputed-mode comparison.
         path = tmp_path / "bundle"
         path.write_bytes(b"payload")
-        path.chmod(0o755)
+        path.chmod(0o744)
 
-        assert _mark_executable(path) is True
-        assert path.stat().st_mode & 0o777 == 0o755
+        with patch.object(Path, "chmod", side_effect=AssertionError("chmod should not be called")):
+            assert _ensure_executable(path) is None
 
-    def test_returns_false_when_path_cannot_be_stat_ed(self, tmp_path):
-        with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
-            assert _mark_executable(tmp_path / "missing") is False
+        assert path.stat().st_mode & 0o777 == 0o744
 
-        mock_log.debug.assert_called_once_with(
-            "Cannot stat bundle file; skipping", path=mock.ANY, error=mock.ANY
-        )
+    def test_returns_reason_when_path_cannot_be_stat_ed(self, tmp_path):
+        reason = _ensure_executable(tmp_path / "missing")
 
-    def test_returns_false_when_chmod_fails(self, tmp_path):
+        assert reason is not None
+        assert "cannot stat" in reason
+
+    def test_returns_reason_when_chmod_fails(self, tmp_path):
         path = tmp_path / "bundle"
         path.write_bytes(b"payload")
         path.chmod(0o644)
 
         with patch.object(Path, "chmod", side_effect=OSError("read-only filesystem")):
-            with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
-                assert _mark_executable(path) is False
+            reason = _ensure_executable(path)
 
-        mock_log.debug.assert_called_once_with(
-            "Cannot set executable bit on bundle; skipping", path=str(path), error=mock.ANY
-        )
+        assert reason is not None
+        assert "cannot set executable bit" in reason
 
 
 class TestBundleFind:
@@ -293,8 +294,15 @@ class TestBundleFind:
         non_exec.chmod(non_exec.stat().st_mode & ~(stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
         with patch.object(Path, "chmod", side_effect=OSError("read-only filesystem")):
-            with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-                _Bundle.find([tmp_path], "tutorial_dag")
+            with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
+                with pytest.raises(FileNotFoundError, match="matching bundles were rejected") as exc_info:
+                    _Bundle.find([tmp_path], "tutorial_dag")
+
+        mock_log.debug.assert_any_call(
+            "Bundle cannot be made executable; skipping", path=str(non_exec), error=mock.ANY
+        )
+        # The rejection reason surfaces the real cause, not a generic not-found.
+        assert "cannot set executable bit" in str(exc_info.value)
 
     def test_raises_when_not_found(self, tmp_path):
         with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
@@ -358,6 +366,19 @@ class TestBundleFind:
             path=str(bundle_path),
             error=mock.ANY,
         )
+
+    def test_does_not_mark_executable_a_bundle_rejected_for_its_schema_version(self, tmp_path):
+        # The schema check must run, and reject, before the file is touched at all -- a rejected
+        # bundle is never the one returned, so there is no reason to chmod it.
+        metadata = _make_metadata(["tutorial_dag"])
+        del metadata["sdk"]["supervisor_schema_version"]
+        bundle_path = _build_bundle(tmp_path / "no_schema", dag_ids=["tutorial_dag"], metadata=metadata)
+        bundle_path.chmod(bundle_path.stat().st_mode & ~(stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
+
+        with pytest.raises(FileNotFoundError, match="matching bundles were rejected"):
+            _Bundle.find([tmp_path], "tutorial_dag")
+
+        assert not os.access(bundle_path, os.X_OK)
 
     def test_skips_bundle_with_unknown_schema_version(self, tmp_path):
         metadata = _make_metadata(["tutorial_dag"])

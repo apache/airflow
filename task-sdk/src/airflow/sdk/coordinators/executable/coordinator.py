@@ -289,31 +289,36 @@ def _walk_bundle_files(
             yield item
 
 
-def _mark_executable(path: pathlib.Path) -> bool:
+def _ensure_executable(path: pathlib.Path) -> str | None:
     """
     Add the execute bit for each read bit already set on *path*, if missing.
 
-    An object-store Dag bundle (for example ``S3DagBundle``) has no concept of
-    file permissions, so a bundle synced from one always loses its execute bit.
-    By the time this is called the file has already passed the footer-magic and
-    binary_sha256 checks in :func:`_read_bundle_metadata`, so marking it
-    executable is safe.
+    Returns ``None`` once *path* is executable (already, or after this call), or a short
+    reason it could not be made executable.
+
+    Already-executable is checked with :func:`os.access` first and returned on immediately,
+    without attempting a chmod: a file whose owner/group/other bits do not exactly match the
+    "read implies execute" pattern this function would otherwise produce (for example
+    ``0o744``) is left alone rather than rewritten, which also means a bundle that is already
+    runnable keeps working on a mount where chmod itself would fail (for example read-only).
+
+    An object-store Dag bundle (for example ``S3DagBundle``) has no concept of file
+    permissions, so a bundle synced from one always loses its execute bit. This is only called
+    for the one candidate about to be returned, after it has passed the footer-magic,
+    binary_sha256 and schema-version checks, so marking it executable is safe.
     """
+    if os.access(path, os.X_OK):
+        return None
+
     try:
         mode = path.stat().st_mode
     except OSError as exc:
-        log.debug("Cannot stat bundle file; skipping", path=str(path), error=str(exc))
-        return False
-
-    wanted = mode | ((mode & 0o444) >> 2)
-    if wanted == mode:
-        return True
+        return f"cannot stat bundle file: {exc}"
     try:
-        path.chmod(wanted)
+        path.chmod(mode | ((mode & 0o444) >> 2))
     except OSError as exc:
-        log.debug("Cannot set executable bit on bundle; skipping", path=str(path), error=str(exc))
-        return False
-    return True
+        return f"cannot set executable bit on bundle: {exc}"
+    return None
 
 
 @attrs.define
@@ -327,15 +332,20 @@ class _Bundle(ResolvedBundle):
                 continue
             if dag_id not in _dag_ids(metadata):
                 continue
-            if not _mark_executable(p):
-                continue
 
             try:
-                return cls(path=p.resolve(), schema_version=extract_supervisor_schema_version(metadata))
+                bundle = cls(path=p.resolve(), schema_version=extract_supervisor_schema_version(metadata))
             except (TypeError, ValueError) as exc:
                 log.debug("Bundle metadata rejected; skipping", path=str(p), error=str(exc))
                 rejected.append((p.resolve(), str(exc)))
                 continue
+
+            if (reason := _ensure_executable(p)) is not None:
+                log.debug("Bundle cannot be made executable; skipping", path=str(p), error=reason)
+                rejected.append((p.resolve(), reason))
+                continue
+
+            return bundle
 
         resolved_paths = os.pathsep.join(str(r.resolve()) for r in roots)
         if rejected:
