@@ -443,6 +443,42 @@ class TestSerializeForLlm:
         assert "object" in result
 
 
+class _RecordingKwargsHook:
+    """Records its calls; ``list_keys`` takes **kwargs, so validation alone would let extra names in."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str | None, dict[str, object]]] = []
+
+    def list_keys(self, bucket: str, prefix: str | None = None, **kwargs: object) -> list[str]:
+        """List object keys in a bucket."""
+        self.calls.append((bucket, prefix, kwargs))
+        return [f"{bucket}/{prefix}"]
+
+    def copy(self, bucket: str, key: str, tags: dict[str, str] | None = None) -> str:
+        """Copy an object, adding a tag as a side effect."""
+        self.calls.append((bucket, key, {"tags": dict(tags or {})}))
+        if tags is not None:
+            tags["copied"] = "yes"
+        return key
+
+
+class _RecordingHook:
+    """Records the arguments its method receives."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str | None]] = []
+
+    def list_keys(self, bucket: str, prefix: str | None = None) -> list[str]:
+        """
+        List object keys in a bucket.
+
+        :param bucket: Name of the bucket.
+        :param prefix: Key prefix to filter by.
+        """
+        self.calls.append((bucket, prefix))
+        return [f"{bucket}/{prefix}"]
+
+
 class TestHookToolsetPinnedArguments:
     @staticmethod
     def _tools(ts: HookToolset) -> dict:
@@ -493,9 +529,16 @@ class TestHookToolsetPinnedArguments:
 
         assert set(self._tools(ts)) == {"copy", "list_keys"}
 
-    def test_the_model_cannot_override_it_in_a_real_run(self):
-        """A method taking **kwargs would accept the model's value, so the toolset refuses it."""
-        hook = _RecordingKwargsHook()
+    @pytest.mark.parametrize(
+        ("hook_cls", "expected_call"),
+        [
+            pytest.param(_RecordingHook, ("reports", "x"), id="named_parameters"),
+            pytest.param(_RecordingKwargsHook, ("reports", "x", {}), id="also_kwargs"),
+        ],
+    )
+    def test_the_model_cannot_override_it_in_a_real_run(self, hook_cls, expected_call):
+        """The model is told the argument is fixed, whether or not the method also takes **kwargs."""
+        hook = hook_cls()
         ts = HookToolset(hook, allowed_methods=["list_keys"], pinned_arguments={"bucket": "reports"})
         attempts = iter([{"bucket": "payroll", "prefix": "x"}, {"prefix": "x"}])
 
@@ -509,7 +552,7 @@ class TestHookToolsetPinnedArguments:
         answer = Agent(FunctionModel(model), toolsets=[ts]).run_sync("list").output
 
         assert "bucket is fixed for this tool" in answer
-        assert hook.calls == [("reports", "x", {})]
+        assert hook.calls == [expected_call]
 
     def test_a_method_that_modifies_its_argument_cannot_change_the_pin(self):
         hook = _RecordingKwargsHook()
@@ -523,39 +566,3 @@ class TestHookToolsetPinnedArguments:
             asyncio.run(ts.call_tool("copy", {"key": "k"}, ctx=ctx, tool=tools["copy"]))
 
         assert [call[2]["tags"] for call in hook.calls] == [{"a": "1"}, {"a": "1"}]
-
-
-class _RecordingKwargsHook:
-    """Records its calls; ``list_keys`` takes **kwargs, so validation alone would let extra names in."""
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, str | None, dict[str, object]]] = []
-
-    def list_keys(self, bucket: str, prefix: str | None = None, **kwargs: object) -> list[str]:
-        """List object keys in a bucket."""
-        self.calls.append((bucket, prefix, kwargs))
-        return [f"{bucket}/{prefix}"]
-
-    def copy(self, bucket: str, key: str, tags: dict[str, str] | None = None) -> str:
-        """Copy an object, adding a tag as a side effect."""
-        self.calls.append((bucket, key, {"tags": dict(tags or {})}))
-        if tags is not None:
-            tags["copied"] = "yes"
-        return key
-
-
-class _RecordingHook:
-    """Records the arguments its method receives."""
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, str | None]] = []
-
-    def list_keys(self, bucket: str, prefix: str | None = None) -> list[str]:
-        """
-        List object keys in a bucket.
-
-        :param bucket: Name of the bucket.
-        :param prefix: Key prefix to filter by.
-        """
-        self.calls.append((bucket, prefix))
-        return [f"{bucket}/{prefix}"]

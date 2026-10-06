@@ -107,11 +107,8 @@ the Dag author's decision, such as which bucket a storage hook reads, pin them:
     )
 
 A pinned argument is left out of the schema the model sees and passed to every allowed
-method. If the model supplies it anyway, the call is refused. For a method with named
-parameters, such as ``S3Hook.read_key``, argument validation refuses it as an extra
-input (see :ref:`hook-toolset-restricted`). A method that names the parameter and also
-takes ``**kwargs`` would accept it, so the toolset refuses it itself and tells the
-model the argument is fixed.
+method. If the model supplies it anyway, the call is refused and the model is told the
+argument is fixed (see :ref:`hook-toolset-restricted`).
 
 A pin binds one parameter name, so every allowed method has to take it by that name.
 When one does not, the toolset raises ``ValueError`` when it is created: a method that
@@ -147,19 +144,7 @@ that bucket was refused before it reached S3, with this message to the model:
 
 .. code-block:: text
 
-    1 validation error:
-    ```json
-    [
-      {
-        "type": "extra_forbidden",
-        "loc": [
-          "bucket_name"
-        ],
-        "msg": "Extra inputs are not permitted",
-        "input": "acme-payroll"
-      }
-    ]
-    ```
+    bucket_name is fixed for this tool: call it again without it.
 
     Fix the errors and try again.
 

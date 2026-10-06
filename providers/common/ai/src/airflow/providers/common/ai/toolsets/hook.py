@@ -180,6 +180,14 @@ class HookToolset(AirflowToolset):
             for param_name, param_desc in param_docs.items():
                 if param_name in json_schema.get("properties", {}):
                     json_schema["properties"][param_name]["description"] = param_desc
+            # Validate against a schema that still accepts the pinned names, so a model that sends
+            # one anyway reaches execute_tool and is told it is fixed, instead of getting a generic
+            # extra-input error. The model is shown the schema without them.
+            args_schema = copy.deepcopy(json_schema)
+            if required := [name for name in args_schema.get("required", []) if name not in self._pinned]:
+                args_schema["required"] = required
+            else:
+                args_schema.pop("required", None)
             _drop_properties(json_schema, self._pinned)
 
             # sequential=True keeps pydantic-ai from running these calls concurrently
@@ -200,7 +208,7 @@ class HookToolset(AirflowToolset):
                 toolset=self,
                 tool_def=tool_def,
                 max_retries=max_retries,
-                args_validator=build_args_validator(json_schema),
+                args_validator=build_args_validator(args_schema),
             )
         return tools
 
