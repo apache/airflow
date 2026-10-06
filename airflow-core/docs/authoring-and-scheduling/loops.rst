@@ -28,10 +28,10 @@ a hierarchy, or processing successive batches.
 A conditional loop works like a ``do … while`` loop: run the body, then test
 whether to run it again. Airflow's ``until`` condition expresses when to stop,
 so it corresponds to ``do { body } while not until(result)``. The body runs at
-least once. ``max_iterations`` sets an upper bound; the runtime condition
-determines how many iterations are needed within that bound.
+least once. ``max_iterations`` sets an upper limit; the runtime condition
+determines how many iterations are needed within that limit.
 
-Tasks within an iteration can run in parallel.
+Task instances within an iteration can run in parallel.
 
 If you are not sure whether you need a loop or mapped tasks, see
 :ref:`loops-and-mapped-tasks`.
@@ -40,7 +40,7 @@ Create a loop
 -------------
 
 Define the body with ``@task_group`` and call ``.loop()`` on the decorated
-function. Supply a positive integer ``max_iterations`` to bound the number of
+function. Supply a positive integer ``max_iterations`` to limit the number of
 iterations. An optional ``until`` callable decides when to stop early.
 
 Airflow evaluates ``until`` in a gate task downstream of the body's terminal task:
@@ -62,7 +62,7 @@ is small enough:
    from airflow.sdk import dag, task, task_group
 
 
-   @dag(schedule=None, catchup=False, tags=["example"])
+   @dag
    def refine_estimate():
        @task_group
        def refine():
@@ -99,15 +99,15 @@ the condition function: ``refine.accurate_enough`` in this example.
 Stopping because ``until`` returned ``True`` means the loop converged.
 Reaching ``max_iterations`` while the condition remains ``False`` means the
 loop did not converge: the gate task in the final iteration is marked as
-failed. Meeting the condition on the last allowed iteration succeeds.
+failed. Meeting the condition on the last allowed iteration marks the gate task as success.
 
-For a fixed-count loop, omit ``until``: ``refine.loop(max_iterations=3)`` runs
+For a fixed-count loop, omit ``until``. The definition ``refine.loop(max_iterations=3)`` runs
 three iterations, carrying results between them. Reaching the cap completes
 a fixed-count loop successfully. Its gate is named ``__loop_gate`` within the group.
 
 .. code-block:: python
 
-   @dag(schedule=None, catchup=False, tags=["example"])
+   @dag
    def fixed_task_loop():
        @task_group
        def accumulate():
@@ -147,11 +147,10 @@ definition.
    * - ``loop.previous``
      - The previous iteration's result, or ``None`` in iteration 0.
    * - ``loop.result``
-     - The terminal body task's result for the current iteration, used by the gate.
+     - The terminal body task's result (the XCom pushed under the key ``return_value``) for the current iteration, used by the gate.
 
 Use ``loop.index`` for the loop iteration and ``ti.map_index`` for a mapped
-task's position. Neither is a task try number. A task can have several tries
-within one iteration.
+task instance's position. Each task instance can have several tries, each with its own ``ti.try_number``.
 
 Pass data between iterations
 ----------------------------
@@ -160,18 +159,10 @@ Between iterations, use ``loop.previous``. Check explicitly for ``None`` to
 handle the first iteration; a previous result of ``0``, ``False``, or an empty
 collection can be valid data.
 
-``include_prior_dates=True`` cannot select a loop iteration from another run.
-Publish the result through a task outside the loop if later runs need to
-retrieve it with an ordinary XCom pull.
-
-The experimental DagRun wait API also requires an outside-loop result task.
-It rejects results selected directly from a loop member, including authored
-Dag results, before it starts streaming status updates.
-
 The loop body must have exactly one terminal task definition before the gate.
-Its return value becomes ``loop.result`` for the gate and ``loop.previous``
+Its return value (the XCom pushed under the `return_value` key) becomes ``loop.result`` for the gate and ``loop.previous``
 for the next iteration. A mapped terminal task supplies its collection of
-results using normal task-mapping semantics.
+results as a sequence (``LazyXComSequence``), the same as other downstream consumers of mapped tasks.
 
 If the body has several branches, finish with a task that combines their
 outputs. For example, if two branches end in ``refine_left`` and
@@ -189,7 +180,10 @@ outputs. For example, if two branches end in ``refine_left`` and
 ``combine`` is now the single terminal task. The gate can read each result
 through ``loop.result["left"]`` and ``loop.result["right"]``; tasks in the
 next iteration use the corresponding keys in ``loop.previous``.
+Limitations:
 
+* ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull.
+* The experimental DagRun wait API also requires an outside-loop result task. It rejects results selected directly from a loop member.
 Connect a loop to other tasks
 ------------------------------
 
@@ -201,7 +195,7 @@ Use the object returned by ``.loop()`` in dependencies:
 
 With the default ``all_success`` trigger rule, ``finish`` waits for successful
 loop completion. Other trigger rules behave normally; ``always`` does not wait
-for the loop. A task that must run in every iteration belongs inside the task group.
+for the loop. 
 
 .. _loops-mapped-tasks:
 
@@ -270,7 +264,7 @@ the default ``all_success`` trigger rule will not run.
 
 Skipping the body's terminal task also skips the gate under its default
 ``all_success`` trigger rule, so no next iteration is created. Downstream
-tasks follow their own trigger rules; with the default, they are skipped too.
+tasks follow their own trigger rules.
 If some branches may be skipped but the loop should continue, give the final
 combining task a trigger rule that permits those skips and have it return the
 iteration's result.

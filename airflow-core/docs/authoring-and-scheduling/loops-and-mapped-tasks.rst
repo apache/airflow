@@ -23,7 +23,7 @@ Loops and mapped tasks
 
 A Dag does not have to be static. How much work it does can depend on data that only exists at
 runtime: how many files arrived, what the previous step found, or whether an answer is good enough
-yet. Airflow has two features for this, and sometimes neither is what you need.
+yet. Airflow has two features for this, as well as mechanisms like ``retries`` and dynamic Dag generation that fit adjacent use cases.
 
 Choose a mechanism
 ==================
@@ -39,14 +39,14 @@ Choose a mechanism
      - :ref:`Mapped tasks <mapped-tasks>`
      - ``task.expand(...)`` creates one task instance per item once the collection is known. The
        instances can run concurrently.
-   * - Repeat a group of tasks, each pass building on the result of the previous one, until a
+   * - Repeat a group of tasks, each iteration building on the result of the previous one, until a
        condition is met
      - :ref:`Loops <loops>`
-     - ``task_group.loop(...)`` creates the next pass of task instances only if the last pass says
+     - ``task_group.loop(...)`` creates the next iteration of task instances only if the last iteration says
        another is needed.
    * - Give a failed task another try
      - Retries, set with ``retries`` on the task. See :doc:`/core-concepts/tasks`.
-     - A retry reruns the same task instance. It does not create new tasks, and it does not advance a
+     - A retry reruns the same task instance. It does not create new task instances, and it does not advance a
        loop.
    * - Create tasks from something known when the Dag file is parsed
      - A Python ``for`` loop in the Dag file. See :doc:`/howto/dynamic-dag-generation`.
