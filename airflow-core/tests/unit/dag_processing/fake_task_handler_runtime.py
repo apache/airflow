@@ -19,23 +19,30 @@
 
 from __future__ import annotations
 
+import builtins
 import contextlib
 import json
+import os
 import socket
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import attrs
+import structlog
 from pydantic import TypeAdapter
 
 from airflow.dag_processing.processor import (
+    DagFileParseRequest,
+    DagFileParsingResult,
     TaskHandlerParseRequest,
     TaskHandlerParsingResult,
     ToManager,
     ToSDKTaskHandlerProcessor,
+    _parse_file,
 )
-from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
+from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle
+from airflow.sdk.coordinators._subprocess import TASK_HANDLER_PARSING_SCHEMA_VERSION, SubprocessCoordinator
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import CommsDecoder
 from airflow.sdk.execution_time.coordinator import reset_coordinator_manager
@@ -52,7 +59,7 @@ class FakeCoordinator(SubprocessCoordinator):
     The artifact's JSON names the command that parses it.
 
     ``argv`` is the command, ``schema_version`` its schema version, and ``command_error`` an error to
-    raise instead.
+    raise instead. ``task_handlers`` is the answer :func:`reply_with_task_handlers` sends.
     """
 
     def _build_parse_task_handler_command(self, *, path: Path) -> tuple[list[str], str | None]:
@@ -60,6 +67,27 @@ class FakeCoordinator(SubprocessCoordinator):
         if error := spec.get("command_error"):
             raise FileNotFoundError(error)
         return spec.get("argv", ["/bin/false"]), spec.get("schema_version")
+
+    def _find_task_handler_artifact(self, *, bundle_path: Path, dag_id: str) -> ResolvedBundle:
+        """
+        Pick ``{dag_id}.artifact`` when it exists, else the first ``*.artifact`` found, sorted by name.
+
+        The picked artifact's JSON gives ``schema_version`` (default
+        :data:`TASK_HANDLER_PARSING_SCHEMA_VERSION`) and an optional ``find_error``, of the form
+        ``{"type": "PermissionError", "message": "..."}``, raised instead.
+        """
+        named = bundle_path / f"{dag_id}.artifact"
+        if named.exists():
+            path = named
+        else:
+            candidates = sorted(bundle_path.glob("*.artifact"))
+            if not candidates:
+                raise FileNotFoundError(f"no artifact for {dag_id!r} in {bundle_path}")
+            path = candidates[0]
+        spec = json.loads(path.read_text())
+        if find_error := spec.get("find_error"):
+            raise getattr(builtins, find_error["type"])(find_error["message"])
+        return ResolvedBundle(path.resolve(), spec.get("schema_version", TASK_HANDLER_PARSING_SCHEMA_VERSION))
 
 
 @contextlib.contextmanager
@@ -83,9 +111,74 @@ def fake_coordinator(*, other_coordinators: dict[str, str] | None = None, **kwar
         reset_coordinator_manager()
 
 
+FAKE_COORDINATOR = f"{__name__}.FakeCoordinator"
+LOCAL_BUNDLE = "airflow.dag_processing.bundles.local.LocalDagBundle"
+
+
+@contextlib.contextmanager
+def task_handler_config(
+    dag_bundle: Path,
+    artifacts: Path,
+    coordinators: dict[str, Any] | None = None,
+    *,
+    queue_to_coordinator: dict[str, str] | None = None,
+    bundles: list[dict[str, Any]] | None = None,
+    multi_team: bool = False,
+) -> Iterator[None]:
+    """
+    Route the queue ``fake-queue`` to a ``FakeCoordinator`` reading the ``task-handlers`` Dag bundle.
+
+    By default *dag_bundle* is the Dag bundle ``dags`` and *artifacts* is ``task-handlers``; the other
+    arguments replace those parts of the configuration. Coordinators are fresh inside and after the block.
+    """
+    if coordinators is None:
+        coordinators = {
+            "fake": {"classpath": FAKE_COORDINATOR, "kwargs": {"task_handler_bundle_name": "task-handlers"}}
+        }
+    if bundles is None:
+        bundles = [
+            {"name": "dags", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(dag_bundle)}},
+            {"name": "task-handlers", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(artifacts)}},
+        ]
+    reset_coordinator_manager()
+    try:
+        with conf_vars(
+            {
+                ("core", "load_examples"): "False",
+                ("core", "multi_team"): str(multi_team),
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundles),
+                ("sdk", "coordinators"): json.dumps(coordinators),
+                ("sdk", "queue_to_coordinator"): json.dumps(
+                    {"fake-queue": "fake"} if queue_to_coordinator is None else queue_to_coordinator
+                ),
+            }
+        ):
+            yield
+    finally:
+        reset_coordinator_manager()
+
+
 def write_artifact(path: Path, **spec: Any) -> Path:
     path.write_text(json.dumps(spec))
     return path
+
+
+def parse_dag_file(dag_file: Path) -> DagFileParsingResult:
+    """Parse *dag_file* as the Dag processor's child does, in the Dag bundle ``dags`` at its directory."""
+    request = DagFileParseRequest(file=os.fspath(dag_file), bundle_path=dag_file.parent, bundle_name="dags")
+    result = _parse_file(request, log=structlog.get_logger())
+    assert result is not None
+    return result
+
+
+def reply_with_task_handlers(
+    request: TaskHandlerParseRequest, comms: CommsDecoder | None
+) -> TaskHandlerParsingResult:
+    """Answer with the ``task_handlers`` of the artifact's JSON, as declarations in their wire form."""
+    spec = json.loads(Path(request.file).read_text())
+    return TaskHandlerParsingResult.model_validate(
+        {"fileloc": request.file, "task_handlers": spec.get("task_handlers", {})}
+    )
 
 
 def play_runtime(

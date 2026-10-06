@@ -36,6 +36,7 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager, rese
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
+from unit.dag_processing.fake_task_handler_runtime import LOCAL_BUNDLE, parse_dag_file, task_handler_config
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -149,4 +150,63 @@ def test_probes_the_task_handlers_of_a_packed_go_bundle(go_bundle):
             TaskHandlerParam(name="Region", value_schema=STRING),
             TaskHandlerParam(name="Count", value_schema=INT64),
         ],
+    )
+
+
+def test_the_example_dags_match_the_packed_bundle(go_bundle, cap_structlog):
+    dag_file = AIRFLOW_ROOT_PATH / "go-sdk" / "dags" / "go_examples.py"
+    coordinators = {
+        "go-sdk": {
+            "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+            "kwargs": {"task_handler_bundle_name": "go-task-handlers"},
+        }
+    }
+    bundles = [
+        {"name": "dags", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(dag_file.parent)}},
+        {
+            "name": "go-task-handlers",
+            "classpath": LOCAL_BUNDLE,
+            "kwargs": {"path": os.fspath(go_bundle.parent)},
+        },
+    ]
+
+    with task_handler_config(
+        dag_file.parent,
+        go_bundle.parent,
+        coordinators,
+        queue_to_coordinator={"golang": "go-sdk"},
+        bundles=bundles,
+    ):
+        result = parse_dag_file(dag_file)
+
+    assert result.import_errors == {}
+    assert {"event": "Probed a task handler artifact", "path": go_bundle.name} in cap_structlog
+    # The Dag passes via_struct_more_args an argument its struct does not declare, and
+    # via_struct_fewer_args's struct declares one the Dag does not pass: warnings, not errors.
+    assert {
+        "event": "Dag's call passed argument(s) the task handler does not declare",
+        "dag_id": "taskflow_binding_dag",
+        "task_id": "via_struct_more_args",
+        "passed_not_declared": ["unused_label"],
+    } in cap_structlog
+    assert {
+        "event": "Task handler declares argument(s) the Dag's call did not pass",
+        "dag_id": "taskflow_binding_dag",
+        "task_id": "via_struct_fewer_args",
+        "declared_not_passed": ["not_in_dag"],
+    } in cap_structlog
+    # Proves every stub task was checked, rather than some being silently skipped.
+    mismatch_events = [
+        e
+        for e in cap_structlog.entries
+        if e["event"]
+        in (
+            "Dag's call passed argument(s) the task handler does not declare",
+            "Task handler declares argument(s) the Dag's call did not pass",
+        )
+    ]
+    assert len(mismatch_events) == 2
+    assert not any(
+        e["event"] == "Not checking a Dag's stub tasks against their task handlers"
+        for e in cap_structlog.entries
     )

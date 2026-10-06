@@ -90,17 +90,20 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         ├── _serialize_dags(bag)  →  is_stub tasks carry arg_bindings (ADR-0007)
         │
         │  ┌─────────────────────────────────────────────────────────────────────┐
-        │  │  Step 1: Collect the dag_ids to ask about — every Dag in this       │
-        │  │          file with at least one is_stub task    →  ["etl"]          │
+        │  │  Step 1: Group this file's stub tasks by the coordinator their      │
+        │  │          queue routes to and by their Dag. A stub task on an        │
+        │  │          unrouted queue is left to a worker outside Airflow's       │
+        │  │          coordinators.                                              │
         │  └─────────────────────────────────────────────────────────────────────┘
         │
         │  ┌─────────────────────────────────────────────────────────────────────┐
         │  │  Step 2: Resolve stub tasks → Coordinator instances via             │
-        │  │          CoordinatorManager.for_queue(queue)                        │
-        │  │          ([sdk] queue_to_coordinator)                               │
+        │  │          get_coordinator_key(queue), then get_coordinator(key)      │
+        │  │          since the old lookup built a Python coordinator for an     │
+        │  │          unrouted queue instead ([sdk] queue_to_coordinator)        │
         │  │                                                                     │
         │  │  stub task       queue       Coordinator instance                   │
-        │  │  ──────────────────────────────────────────────────                 │
+        │  │  ──────────────────────────────────────────────────────             │
         │  │  extract      →  "jdk-11"  → JavaCoordinator(name="jdk-11")         │
         │  │  transform    →  "jdk-17"  → JavaCoordinator(name="jdk-17")         │
         │  │  load         →  "jdk-11"  → JavaCoordinator(name="jdk-11")         │
@@ -109,31 +112,27 @@ DagFileProcessorProcess(etl.py)                                ← manager spawn
         │  └─────────────────────────────────────────────────────────────────────┘
         │
         │  ┌─────────────────────────────────────────────────────────────────────┐
-        │  │  Step 3: Locate the artifact backing each dag_id, no JVM launch —   │
-        │  │          reuse BundleScanner (ADR-0003), whose build-time inventory │
-        │  │          indexes registered (dagId, taskId) handler pairs alongside │
-        │  │          the artifact's native Dag ids                              │
+        │  │  Step 3: Find the artifact backing each (coordinator, Dag)          │
+        │  │          with the coordinator's own scan: the artifact bundle       │
+        │  │          named by task_handler_bundle_name, or the Dag's own        │
+        │  │          bundle when unset; another team leaves it unchecked        │
         │  │                                                                     │
         │  │  JavaCoordinator(name="jdk-11")                                     │
-        │  │    ├── resolve artifact roots for its mode                          │
-        │  │    │     EXPLICIT_ROOT → jars_root                                  │
-        │  │    │     NAMED_BUNDLE  → dag_bundle_name, pinned                    │
-        │  │    │     TASK_BUNDLE   → the bundle being parsed                    │
-        │  │    │                                                                │
-        │  │    └── BundleScanner.scanBundles(roots)                             │
-        │  │          → "etl" → ResolvedBundle(analytics.jar, mainClass, ...)    │
+        │  │    └── _find_task_handler_artifact(bundle_path, dag_id="etl")       │
+        │  │          re-runs the scan _build_execute_task_command uses,         │
+        │  │          so the artifact probed is the one a worker would run       │
+        │  │          → ResolvedBundle(analytics.jar, schema_version)            │
         │  │                                                                     │
-        │  │  Group the dag_ids by (coordinator, artifact) — one group, one      │
-        │  │  process, one request                                               │
+        │  │  Group by (coordinator, artifact): one group, one process           │
         │  └─────────────────────────────────────────────────────────────────────┘
         │
         │  ┌─────────────────────────────────────────────────────────────────────┐
-        │  │  Step 4: Query each group — one request, one response               │
+        │  │  Step 4: Probe each group: one request, one response                │
         │  │                                                                     │
-        │  │  SDKTaskHandlerProcessorProcess.start(                              │
-        │  │      target=_parse_task_handler_entrypoint,                         │
-        │  │      coordinator=JavaCoordinator("jdk-11"),                         │
-        │  │      path=analytics.jar)                                            │
+        │  │  LangSDKTaskHandlerProcessorProcess.run(                            │
+        │  │      coordinator="jdk-11", path=analytics.jar,                      │
+        │  │      bundle_path=..., bundle_name=..., artifact_rel_path=...,       │
+        │  │      deadline=...)                                                  │
         │  │    │                                                                │
         │  │    ├── in the child: _build_parse_task_handler_command()            │
         │  │    │                 coordinator.parse_task_handler() — spawn JVM   │
@@ -210,7 +209,11 @@ There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` — a
 - A single Dag can have stubs targeting different queues, some Java, some Go. Each resolves to its own coordinator instance,
   and each stub task is checked only against the answer for its own coordinator and Dag.
 - Validating a file costs one extra process per (coordinator, artifact) pair its stubs resolve to — one for the common case of a file whose stubs all target a single runtime, and
-  none at all for a file with no stub tasks.
+  none at all for a file with no stub tasks. The scan that picks the artifact also runs on every parse: Go hashes each candidate binary, Java reads every JAR's manifest.
+- Only a mismatch a probe answer proves is an import error; a missing artifact, a bundle of another team, an `[sdk]` or coordinator failure, and a failed, timed-out or skipped
+  probe are warnings in the parse log instead, so a Dag processor without the artifacts cannot stop Dags that already run.
+- The check ends at 90% of `[dag_processor] dag_file_processor_timeout`, counted from the creation of the parse child, and each probe is also bounded by
+  `[core] dagbag_import_timeout`, or the `get_dagbag_import_timeout` policy, called with the artifact's path.
 - Mixed-language is Python-primary only. Lang-SDK runtimes cannot define stub operators; a native Dag cannot delegate tasks to Python.
 - No per-Dag flag, no schema migration, no new `DagModel` column, no REST/UI change.
 - Terms track Language SDK spec `1.0`. A spec rename of `TaskHandler`, or of the `register` / `serve` verbs, lands here too.
@@ -219,7 +222,6 @@ There is no fourth row. A `TaskHandlerRef` has no Dag, so no `DagImporter` — a
 
 - [ADR-0012](0012-lang-sdk-parse-protocol.md) — `parse_task_handler` and the `TaskHandlerParsingResult` shape this ADR compares against
 - [ADR-0010](0010-native-dag-processing.md) — the `Dag`-registration half, and the importer that persists it
-- [ADR-0003](0003-pure-java-dags.md) — `BundleScanner` / `BuilderProcessor`, build-time artifact inventory
 - [ADR-0006](0006-no-lang-sdk-source-display.md) — no Lang-SDK source display for mixed-language Dags
 - [ADR-0007](0007-taskflow-across-language-boundary.md) — `arg_bindings` / `TaskArgBinding` / `ArgValueSchema`
 - Language SDK spec (`task-sdk/docs/lang-sdk-spec.rst`)
@@ -250,6 +252,8 @@ An answer covers every Dag its artifact registers handlers for; only the parsed 
   `params[*].value_schema` where both sides give one; [ADR-0012](0012-lang-sdk-parse-protocol.md) Appendix B states those rules.
   An argument count or value type a parameter does not accept is an error; under `named`, an argument or parameter that matches nothing is only a warning.
   A mapped stub task, whose arguments are not captured at parse time, and a declaration whose `params` is `None` are checked only for the handler's presence.
+- A group the parse could not get an answer for (no artifact, a bundle of another team, an `[sdk]` or coordinator failure, or a failed, timed-out or skipped probe) is only logged;
+  none of its stub tasks are compared, so none of them can be named in an error.
 
 Every error is reported against the Python file, which is the definition the author can act on, and travels back on `DagFileParsingResult.import_errors` with everything else the
 parse found.

@@ -187,6 +187,59 @@ Both settings can be supplied as environment variables using the standard Airflo
     AIRFLOW__SDK__COORDINATORS='{"my-coordinator": {...}}'
     AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"jdk17": "my-coordinator"}'
 
+.. _language-sdks/dag-processor-checks:
+
+What the Dag processor checks
+-----------------------------
+
+When the Dag processor parses a Python Dag file, it checks every stub task whose ``queue`` is in
+``[sdk] queue_to_coordinator`` against the task handlers of **the one artifact a worker running that task
+would pick**: found in the Dag bundle named by the coordinator's ``task_handler_bundle_name``, or in the
+Dag's own bundle when it is unset.
+
+Only two things fail the Dag file's import:
+
+* The artifact registers no task handler for the stub task.
+* The task handler cannot take the stub task's arguments: an argument count it cannot bind by position, or
+  an argument whose declared type its parameter does not accept. Every argument left at its default in the
+  stub signature is dropped and the count is compared again, so a handler that declares all or none of
+  those parameters binds, and one that declares only some does not.
+
+An import error names the Dag, the task and the artifact, and is shown for the Dag file in the UI.
+It does not stop the Dag: the Dags in the file keep being scheduled, and the stub task fails when a
+worker runs it.
+
+Everything else is only logged in the Dag file's parse log:
+
+* A name mismatch under named binding: a passed argument the handler does not declare, or a parameter no
+  argument fills.
+* No task handler artifact for the Dag, or one this Task SDK cannot run.
+* The artifact bundle is missing, unreadable, or owned by another team than the Dag's own bundle.
+* ``[sdk]`` cannot load, or the coordinator cannot be built.
+* The probe failed, timed out, or was skipped because the parse ran out of time.
+
+A Dag processor without the artifacts must not stop Dags that already run, so a check it cannot complete is
+never an import error.
+
+A mapped stub task, and a handler whose runtime cannot list its parameters (TypeScript today), are checked
+for their presence only. A stub task on a queue ``queue_to_coordinator`` does not route is not checked at
+all, so a worker outside Airflow's coordinators can still run it; without that option, nothing is checked.
+
+The check needs the same ``[sdk]`` config, artifact bundles and runtimes as a worker. It runs one runtime
+per (coordinator, artifact) pair a file's stub tasks resolve to, on every parse; each run is bounded by
+``[core] dagbag_import_timeout``, or the ``get_dagbag_import_timeout`` policy, called with the artifact's
+path, and the whole check by 90% of ``[dag_processor] dag_file_processor_timeout``. A Dag processor started
+with ``--bundle-name`` refreshes only the bundles it is told to parse, so give it the artifact bundles its
+coordinators name as well.
+
+A failed import looks like this:
+
+.. code-block:: text
+
+    Stub tasks in etl.py do not match their task handlers:
+    - Dag 'etl', task 'load': 'bin/etl' in Dag bundle 'go-task-handlers' registers no task handler for it
+    - Dag 'etl', task 'transform' ('bin/etl' in Dag bundle 'go-task-handlers'): passes 2 arguments, the task handler takes 3
+
 .. _language-sdks/bundle-spec:
 
 Implementing a new compiled language SDK

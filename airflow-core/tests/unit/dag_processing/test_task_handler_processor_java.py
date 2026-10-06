@@ -40,6 +40,7 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager, rese
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
+from unit.dag_processing.fake_task_handler_runtime import LOCAL_BUNDLE, parse_dag_file, task_handler_config
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -205,3 +206,42 @@ def test_probes_the_task_handlers_of_a_built_java_bundle(example_bundle):
         "java_annotation_example",
         "java_xcom_casting_example",
     ]
+
+
+def test_the_example_dags_match_the_built_bundle(example_bundle, cap_structlog):
+    dag_file = JAVA_SDK_PATH / "example" / "src" / "resources" / "dags" / "java_examples.py"
+    coordinators = {
+        "java-jdk": {
+            "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+            "kwargs": {"task_handler_bundle_name": "java-task-handlers"},
+        }
+    }
+    bundles = [
+        {"name": "dags", "classpath": LOCAL_BUNDLE, "kwargs": {"path": os.fspath(dag_file.parent)}},
+        {
+            "name": "java-task-handlers",
+            "classpath": LOCAL_BUNDLE,
+            "kwargs": {"path": os.fspath(example_bundle)},
+        },
+    ]
+
+    with task_handler_config(
+        dag_file.parent,
+        example_bundle,
+        coordinators,
+        queue_to_coordinator={"java": "java-jdk"},
+        bundles=bundles,
+    ):
+        result = parse_dag_file(dag_file)
+
+    assert result.import_errors == {}
+    assert {"event": "Probed a task handler artifact", "path": "probe-example.jar"} in cap_structlog
+    assert not any(
+        e["event"]
+        in (
+            "Dag's call passed argument(s) the task handler does not declare",
+            "Task handler declares argument(s) the Dag's call did not pass",
+            "Not checking a Dag's stub tasks against their task handlers",
+        )
+        for e in cap_structlog.entries
+    )

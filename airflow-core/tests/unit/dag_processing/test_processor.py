@@ -21,16 +21,20 @@ import inspect
 import logging
 import os
 import pathlib
+import signal
 import sys
 import textwrap
+import time
 import typing
 import uuid
 import zipfile
 from collections.abc import Callable, Iterable
 from socket import socket, socketpair
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, BinaryIO
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import psutil
 import pytest
 import structlog
 from pydantic import TypeAdapter, ValidationError
@@ -65,6 +69,7 @@ from airflow.dag_processing.processor import (
     ToDagProcessor,
     ToManager,
     ToSDKTaskHandlerProcessor,
+    _check_stub_tasks,
     _execute_callbacks,
     _execute_dag_callbacks,
     _execute_email_callbacks,
@@ -78,7 +83,8 @@ from airflow.models.dagwarning import DagWarning
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
-from airflow.sdk.execution_time import comms, supervisor
+from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
+from airflow.sdk.execution_time import comms, supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetTaskStates,
@@ -95,11 +101,20 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.sdk.importers import DagSourceCode
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import DagSerialization
+from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars, env_vars
+from unit.dag_processing.fake_task_handler_runtime import (
+    FakeCoordinator,
+    play_runtime,
+    reply_with_task_handlers,
+    task_handler_config,
+    write_artifact,
+)
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -120,6 +135,7 @@ def _force_bare_fork(monkeypatch):
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+INTEGER = {"type": "integer"}
 
 # Filename to be used for dags that are created in an ad-hoc manner and can be removed/
 # created at runtime
@@ -2423,6 +2439,336 @@ class TestTaskHandlerDeclaration:
     def test_rejects_invalid_binding(self, declaration):
         with pytest.raises(ValidationError, match="binding"):
             TaskHandlerDeclaration.model_validate(declaration)
+
+
+_STUB_DAG = """
+from airflow.sdk import dag, task
+
+
+@task.stub(queue="fake-queue")
+def extract(): ...
+
+
+@task.stub(queue="fake-queue")
+def load(count: int): ...
+
+
+@task.stub(queue="elsewhere")
+def report(): ...
+
+
+@dag(dag_id="etl", schedule=None)
+def etl():
+    load(extract())
+    report()
+
+
+etl()
+"""
+
+_PYTHON_DAG = """
+from airflow.sdk import DAG
+
+python_only = DAG("python_only", schedule=None)
+"""
+
+_STUB_TASK_HANDLERS = {
+    "etl": [
+        {"task_id": "extract", "binding": "positional", "params": []},
+        {"task_id": "load", "binding": "positional", "params": [{"name": "count", "value_schema": INTEGER}]},
+    ]
+}
+
+_TASK_HANDLER_PROBLEMS = "Stub tasks in etl.py do not match their task handlers:"
+
+
+def _is_running(process: psutil.Process) -> bool:
+    # A killed process stays a zombie until reaped, which an init that does not reap never does.
+    try:
+        return process.status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@patch.object(
+    FakeCoordinator, "parse_task_handler", autospec=True, side_effect=play_runtime(reply_with_task_handlers)
+)
+class TestParseFileStubTasks:
+    @pytest.fixture
+    def dag_bundle(self, tmp_path) -> pathlib.Path:
+        path = tmp_path / "dags"
+        path.mkdir()
+        return path
+
+    @pytest.fixture
+    def artifacts(self, tmp_path) -> pathlib.Path:
+        path = tmp_path / "artifacts"
+        path.mkdir()
+        return path
+
+    @staticmethod
+    def _parse(dag_bundle: pathlib.Path, source: str, **kwargs) -> DagFileParsingResult:
+        dag_file = dag_bundle / "etl.py"
+        dag_file.write_text(source)
+        result = _parse_file(
+            DagFileParseRequest(file=os.fspath(dag_file), bundle_path=dag_bundle, bundle_name="dags"),
+            log=structlog.get_logger(),
+            **kwargs,
+        )
+        assert result is not None
+        return result
+
+    def test_a_parsed_file_checks_its_stub_tasks(
+        self, mock_parse_task_handler, dag_bundle, artifacts, cap_structlog
+    ):
+        write_artifact(artifacts / "etl.artifact", task_handlers=_STUB_TASK_HANDLERS)
+
+        with task_handler_config(dag_bundle, artifacts):
+            result = self._parse(dag_bundle, _STUB_DAG)
+
+        assert result.import_errors == {}
+        assert {"event": "Probed a task handler artifact", "path": "etl.artifact"} in cap_structlog
+
+    def test_a_missing_task_handler_is_an_import_error_of_the_dag_file(
+        self, mock_parse_task_handler, dag_bundle, artifacts
+    ):
+        write_artifact(artifacts / "etl.artifact", task_handlers={"etl": _STUB_TASK_HANDLERS["etl"][:1]})
+
+        with task_handler_config(dag_bundle, artifacts):
+            result = self._parse(dag_bundle, _STUB_DAG)
+
+        assert result.import_errors == {
+            "etl.py": f"{_TASK_HANDLER_PROBLEMS}\n"
+            "- Dag 'etl', task 'load': 'etl.artifact' in Dag bundle 'task-handlers' registers no task handler for it"
+        }
+        assert [dag.dag_id for dag in result.serialized_dags] == ["etl"]
+
+    def test_a_task_handler_problem_is_appended_to_a_dagbag_import_error(
+        self, mock_parse_task_handler, dag_bundle, artifacts
+    ):
+        write_artifact(artifacts / "etl.artifact", task_handlers={"etl": _STUB_TASK_HANDLERS["etl"][:1]})
+        to_dict = DagSerialization.to_dict
+
+        def fail_for_the_broken_dag(dag):
+            if dag.dag_id == "broken":
+                raise RuntimeError("cannot serialize")
+            return to_dict(dag)
+
+        with (
+            task_handler_config(dag_bundle, artifacts),
+            patch.object(DagSerialization, "to_dict", autospec=True, side_effect=fail_for_the_broken_dag),
+        ):
+            result = self._parse(
+                dag_bundle,
+                f"{_STUB_DAG}\nfrom airflow.sdk import DAG\n\nbroken = DAG('broken', schedule=None)\n",
+            )
+
+        assert result.import_errors["etl.py"].startswith("Traceback (most recent call last):")
+        assert result.import_errors["etl.py"].endswith(
+            f"RuntimeError: cannot serialize\n\n{_TASK_HANDLER_PROBLEMS}\n"
+            "- Dag 'etl', task 'load': 'etl.artifact' in Dag bundle 'task-handlers' registers no task handler for it"
+        )
+
+    @patch(
+        "airflow.dag_processing.task_handler_resolution.resolve_task_handlers",
+        autospec=True,
+        side_effect=RuntimeError("boom"),
+    )
+    def test_an_error_in_the_check_is_logged_not_an_import_error(
+        self, mock_resolve, mock_parse_task_handler, dag_bundle, artifacts, cap_structlog
+    ):
+        with task_handler_config(dag_bundle, artifacts):
+            result = self._parse(dag_bundle, _STUB_DAG)
+
+        assert result.import_errors == {}
+        assert [dag.dag_id for dag in result.serialized_dags] == ["etl"]
+        [entry] = [
+            e
+            for e in cap_structlog.entries
+            if e["event"] == "Failed to check the stub tasks against their task handlers"
+        ]
+        assert entry["exception"][0]["exc_type"] == "RuntimeError"
+
+    @pytest.mark.parametrize(
+        ("started", "deadline"),
+        [
+            pytest.param(950.0, 1040.0, id="started-before-the-call"),
+            pytest.param(None, 1090.0, id="started-at-the-call"),
+        ],
+    )
+    @conf_vars({("dag_processor", "dag_file_processor_timeout"): "100"})
+    @patch(
+        "airflow.dag_processing.task_handler_resolution.resolve_task_handlers",
+        autospec=True,
+        return_value={},
+    )
+    @patch("airflow.dag_processing.processor.check_dag_file_stability", autospec=True)
+    @patch("airflow.dag_processing.processor.time", autospec=True)
+    def test_the_check_ends_at_90_percent_of_the_timeout_from_the_start_of_the_parse(
+        self,
+        mock_time,
+        mock_check,
+        mock_resolve,
+        mock_parse_task_handler,
+        dag_bundle,
+        artifacts,
+        started,
+        deadline,
+    ):
+        mock_time.monotonic.return_value = 1000.0
+
+        def check_a_while_later(*args, **kwargs):
+            # A budget counted from after this, or from the DagBag import, would end later.
+            mock_time.monotonic.return_value = 2000.0
+            return check_dag_file_stability(*args, **kwargs)
+
+        mock_check.side_effect = check_a_while_later
+
+        with task_handler_config(dag_bundle, artifacts):
+            self._parse(dag_bundle, _STUB_DAG, **({} if started is None else {"started": started}))
+
+        assert mock_resolve.call_args.kwargs["deadline"] == pytest.approx(deadline)
+
+    @pytest.mark.parametrize(
+        ("created", "started"),
+        [
+            pytest.param(4995.0, 995.0, id="created-before-the-parse"),
+            pytest.param(4900.0, 900.0, id="created-a-timeout-ago"),
+            pytest.param(4899.0, 1000.0, id="created-over-a-timeout-ago"),
+            pytest.param(5005.0, 1000.0, id="created-in-the-future"),
+            pytest.param(None, 1000.0, id="creation-time-unreadable"),
+        ],
+    )
+    @conf_vars({("dag_processor", "dag_file_processor_timeout"): "100"})
+    @patch("airflow.dag_processing.processor._parse_file", autospec=True, return_value=None)
+    @patch("airflow.dag_processing.processor.psutil", autospec=True)
+    @patch("airflow.dag_processing.processor.time", autospec=True)
+    def test_the_entrypoint_counts_the_parse_from_the_creation_of_the_process(
+        self, mock_time, mock_psutil, mock_parse_file, mock_parse_task_handler, monkeypatch, created, started
+    ):
+        mock_time.monotonic.return_value = 1000.0
+        mock_time.time.return_value = 5000.0
+        if created is None:
+            mock_psutil.Error = psutil.Error
+            mock_psutil.Process.side_effect = psutil.NoSuchProcess(1234)
+        else:
+            mock_psutil.Process.return_value.create_time.return_value = created
+        request = DagFileParseRequest(
+            file="/files/dags/etl.py", bundle_path="/files/dags", bundle_name="dags"
+        )
+        # The entrypoint sets the process context and SUPERVISOR_COMMS, which must not outlast the test.
+        monkeypatch.setenv("_AIRFLOW_PROCESS_CONTEXT", "server")
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", None, raising=False)
+
+        with patch.object(comms, "CommsDecoder") as mock_decoder:
+            mock_decoder.__getitem__.return_value.return_value._get_response.return_value = request
+            _parse_file_entrypoint()
+
+        assert mock_parse_file.call_args.kwargs["started"] == pytest.approx(started)
+
+    def test_a_file_without_stub_tasks_is_not_checked(self, mock_parse_task_handler, dag_bundle, artifacts):
+        write_artifact(artifacts / "etl.artifact", task_handlers=_STUB_TASK_HANDLERS)
+
+        with task_handler_config(dag_bundle, artifacts):
+            result = self._parse(dag_bundle, _PYTHON_DAG)
+
+        assert result.import_errors == {}
+        mock_parse_task_handler.assert_not_called()
+
+    def test_a_lang_sdk_dag_in_the_bag_does_not_break_the_check(self, mock_parse_task_handler):
+        # A bag holding a LangSDKSerializedDAG alongside its serialized form must not make
+        # collect_stub_tasks raise KeyError: the Dag it belongs to has no stub tasks to check, but it
+        # still has to be found by dag_id.
+        lang_dag = SerializedDAG(dag_id="lang_dag")
+        lang_dag.task_dict = {}
+        lang_dag.relative_fileloc = "lang_dag.py"
+        lang_dag.fileloc = "lang_dag.py"
+        bag = SimpleNamespace(dags={"lang_dag": lang_dag})
+        serialized_dags = [SimpleNamespace(dag_id="lang_dag", data={"dag": {"tasks": []}})]
+        msg = DagFileParseRequest(
+            file="/dags/lang_dag.py", bundle_path=pathlib.Path("/dags"), bundle_name="dags"
+        )
+
+        result = _check_stub_tasks(
+            msg, bag, serialized_dags, structlog.get_logger(), started=time.monotonic()
+        )
+
+        assert result == {}
+        mock_parse_task_handler.assert_not_called()
+
+    def test_without_queue_routing_nothing_is_checked(self, mock_parse_task_handler, dag_bundle, artifacts):
+        write_artifact(artifacts / "etl.artifact", task_handlers=_STUB_TASK_HANDLERS)
+
+        with task_handler_config(dag_bundle, artifacts, queue_to_coordinator={}):
+            result = self._parse(dag_bundle, _STUB_DAG)
+
+        assert result.import_errors == {}
+        mock_parse_task_handler.assert_not_called()
+
+    def test_an_invalid_queue_routing_is_logged_not_an_import_error(
+        self, mock_parse_task_handler, dag_bundle, artifacts, cap_structlog
+    ):
+        with (
+            task_handler_config(dag_bundle, artifacts),
+            conf_vars({("sdk", "queue_to_coordinator"): "{"}),
+        ):
+            result = self._parse(dag_bundle, _STUB_DAG)
+
+        assert result.import_errors == {}
+        assert any(
+            e["event"] == "Cannot load [sdk] coordinators, so no stub task is checked"
+            for e in cap_structlog.entries
+        )
+
+    @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the parent-death signal is Linux only")
+    @pytest.mark.execution_timeout(60)
+    def test_a_killed_dag_file_processor_takes_its_probe_runtime_with_it(
+        self, mock_parse_task_handler, dag_bundle, artifacts
+    ):
+        mock_parse_task_handler.side_effect = SubprocessCoordinator.parse_task_handler
+        # A unique duration tells this runtime apart from any other sleep.
+        duration = f"600.{uuid.uuid4().int % 10**9}"
+        write_artifact(artifacts / "etl.artifact", argv=["/bin/sh", "-c", f"exec sleep {duration}"])
+        (dag_bundle / "etl.py").write_text(_STUB_DAG)
+
+        def find_runtime() -> psutil.Process | None:
+            for process in psutil.process_iter(["cmdline"]):
+                if process.info["cmdline"] == ["sleep", duration]:
+                    return process
+            return None
+
+        with task_handler_config(dag_bundle, artifacts):
+            proc = DagFileProcessorProcess.start(
+                id=uuid.uuid4(),
+                path=dag_bundle / "etl.py",
+                bundle_path=dag_bundle,
+                bundle_name="dags",
+                dag_file_rel_path="etl.py",
+                callbacks=[],
+                logger=structlog.get_logger(),
+                logger_filehandle=MagicMock(spec=BinaryIO),
+                client=MagicMock(spec=Client),
+            )
+        runtime = None
+        try:
+            deadline = time.monotonic() + 30
+            while (runtime := find_runtime()) is None:
+                assert time.monotonic() < deadline, "the probe runtime did not start"
+                proc._service_subprocess(max_wait_time=0.1)
+
+            os.kill(proc.pid, signal.SIGKILL)
+
+            deadline = time.monotonic() + 10
+            while _is_running(runtime):
+                assert time.monotonic() < deadline, "the probe runtime outlived the Dag file processor"
+                time.sleep(0.05)
+        finally:
+            if runtime is not None and _is_running(runtime):
+                runtime.kill()
+            while not proc.is_ready:
+                proc._service_subprocess(max_wait_time=0.1)
+            proc.close()
 
 
 class TestDagFileProcessorProcess:

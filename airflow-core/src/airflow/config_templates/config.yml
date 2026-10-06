@@ -3372,6 +3372,10 @@ dag_processor:
     dag_file_processor_timeout:
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file
+
+        It also bounds running the language SDK artifacts a Dag file's stub tasks are checked
+        against; each run is bounded by ``[core] dagbag_import_timeout`` too, and an artifact that
+        gives no answer in time leaves its stub tasks unchecked, with a warning in the parse log.
       version_added: ~
       type: integer
       example: ~
