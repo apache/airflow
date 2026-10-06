@@ -102,6 +102,8 @@ def format_usage_for_xcom(usage: RunUsage) -> dict[str, Any]:
         "output_tokens": usage.output_tokens,
         "total_tokens": usage.total_tokens,
         "tool_calls": usage.tool_calls,
+        "cache_read_tokens": usage.cache_read_tokens,
+        "cache_write_tokens": usage.cache_write_tokens,
         # Decimal | None, stringified so XCom serialization stays lossless.
         "cost": str(usage.cost) if usage.cost is not None else None,
     }

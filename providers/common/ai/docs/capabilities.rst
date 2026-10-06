@@ -112,9 +112,9 @@ again. Whether a capability's work is replayed depends on where it runs:
         and capabilities from an agent spec file
       - Tools run again. Pass tools you need replayed in ``toolsets=`` instead.
     * - pydantic-ai-harness ``CodeMode``
-      - Not allowed: the operator raises ``ValueError``, as it does for ``code_mode=True``. This
-        includes a ``CodeMode`` inside a ``CombinedCapability`` or a wrapper such as
-        ``PrefixTools``, but not one a capability function builds when the run starts.
+      - Not allowed: the operator raises ``ValueError``. This includes a ``CodeMode`` inside a
+        ``CombinedCapability`` or a wrapper such as ``PrefixTools``, but not one a capability
+        function builds when the run starts.
 
 See :doc:`durable_execution` for how the cache works.
 

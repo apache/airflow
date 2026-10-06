@@ -91,10 +91,10 @@ sandbox contains model-written code, not the agent (:ref:`sandbox-security`). Un
 from the task, and the sandbox protects the task from its model. An ``sbx`` microVM
 cannot run inside an unprivileged pod, so that combination needs Modal or OpenSandbox.
 
-The credential that provisions the sandbox depends on the backend:
-``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET``, or ``~/.modal.toml``, for Modal;
-``opensandbox_conn_id``, or ``OPEN_SANDBOX_DOMAIN`` and ``OPEN_SANDBOX_API_KEY``, for
-OpenSandbox; and the host's ``sbx login`` for ``sbx``.
+The credential that provisions the sandbox depends on the backend: a ``modal``
+connection (``modal_conn_id``; see the :ref:`Modal connection page <howto/connection:modal>`)
+for Modal; ``opensandbox_conn_id``, or ``OPEN_SANDBOX_DOMAIN`` and ``OPEN_SANDBOX_API_KEY``,
+for OpenSandbox; and the host's ``sbx login`` for ``sbx``.
 
 The four tools:
 
@@ -206,15 +206,19 @@ denies all egress, and the task fails
 
     airflow.providers.common.ai.sandbox.base.SandboxTerminalError: SandboxSpec asks for no network egress, but this backend cannot enforce that per sandbox and the host policy has not been declared. Run 'sbx policy init deny-all' on the worker host and pass host_network_policy='deny-all', or pass SandboxSpec(block_network=False) to acknowledge that egress is open.
 
-Install the Modal extra and authenticate as you would for Modal's own CLI. On a
-worker, set ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` in the environment
-instead; nothing is read until the first sandbox is created, so a Dag file that
-constructs the backend parses without credentials present:
+Install the Modal extra, which also installs the Modal provider, and create a
+``modal`` connection with the Modal token id as its login and the token secret as
+its password. The backend reads ``modal_default`` unless you pass ``modal_conn_id``;
+without that connection it uses the worker's own Modal credentials, as the
+:ref:`Modal connection page <howto/connection:modal>` describes. Nothing is read until
+the first sandbox is created, so a Dag file that constructs the backend parses without
+credentials present:
 
 .. code-block:: bash
 
     pip install 'apache-airflow-providers-common-ai[modal]'
-    modal token new          # writes ~/.modal.toml
+    airflow connections add modal_default --conn-type modal \
+        --conn-login "$MODAL_TOKEN_ID" --conn-password "$MODAL_TOKEN_SECRET"
 
 What it is for, in practice
 ---------------------------
@@ -418,9 +422,9 @@ task, a script the model writes, runs, and fixes from its own traceback.
 - **A file the agent built leaves through** ``exports`` **or a task**, never through
   the model's context, which is text-only and capped.
   :ref:`Getting a result out <sandbox-results>`.
-- **A credential comes from a connection only when a task provisions the
-  sandbox**, which needs Modal; the toolset's own spec is fixed at parse time, and
-  anything injected is readable by the model. :ref:`Credentials <sandbox-credentials>`.
+- **A credential handed to the code inside the sandbox comes from a connection
+  only when a task provisions the sandbox**, which needs Modal; the toolset's own spec
+  is fixed at parse time, and anything injected is readable by the model. :ref:`Credentials <sandbox-credentials>`.
 - **It cannot be combined with** ``durable=True``. ``enable_hitl_review=True`` and
   per-tool approval work only when the sandbox is task-owned: ``AgentOperator`` refuses
   HITL review beside a sandbox the toolset provisions itself, and a tool that requires

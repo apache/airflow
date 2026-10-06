@@ -172,8 +172,7 @@ const ConnectionForm = ({
           )}
           rules={{
             required: translate("connections.form.connectionIdRequired"),
-            validate: (value) =>
-              value.trim() === "" ? translate("connections.form.connectionIdRequirement") : true,
+            validate: (value) => value.trim() !== "" || translate("connections.form.connectionIdRequirement"),
           }}
         />
 

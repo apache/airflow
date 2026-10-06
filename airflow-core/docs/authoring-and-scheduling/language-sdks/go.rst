@@ -505,9 +505,9 @@ matches the incoming ``dag_id`` against each bundle's manifest, verifies the bun
 launches the matching bundle. Bundles are identified by the trailer magic, not by filename (no extension on
 Linux/macOS, ``.exe`` on Windows), so the file name on the worker is irrelevant.
 
-Only files with the executable bit set are considered, so the packed bundles need a Dag bundle that keeps
-it. A ``LocalDagBundle`` over a directory you manage does; object-store Dag bundles such as ``S3DagBundle``
-do not.
+The matching bundle is marked executable before it is launched, so any Dag bundle works, including an
+object-store one such as ``S3DagBundle`` that has no concept of file permissions and so cannot preserve
+the execute bit the build produced.
 
 .. _go-sdk/coordinator-config:
 
@@ -546,7 +546,6 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
     uses the version that Dag bundle is on when it starts, pinned for the whole task.
   * If ``task_handler_bundle_name`` is unset, packed bundles are read from the **task's own** Dag
     bundle, pinned to the version the run was created with.
-  * The Dag bundle must keep the executable bit (see `Deploying`_).
 
 .. _go-sdk/limitations:
 

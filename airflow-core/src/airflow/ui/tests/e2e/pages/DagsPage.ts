@@ -239,11 +239,9 @@ export class DagsPage extends BasePage {
     const cardList = this.page.locator('[data-testid="card-list"]');
     const isCardView = await cardList.isVisible();
 
-    if (isCardView) {
-      return this.page.locator('[data-testid="dag-id"]').count();
-    }
-
-    return this.page.getByTestId("table-list").locator(DATA_ROWS).count();
+    return isCardView
+      ? this.page.locator('[data-testid="dag-id"]').count()
+      : this.page.getByTestId("table-list").locator(DATA_ROWS).count();
   }
 
   public async getFilterOptions(filter: Locator): Promise<Array<string>> {

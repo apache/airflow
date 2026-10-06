@@ -136,6 +136,17 @@ func (g *TaskGroupRef) If(fn any, opts ...TaskOption) *IfRef {
 	return g.groupDag(method).addIf(method, g, fn, opts)
 }
 
+// Switch adds a switch to the Dag of g, inside g, and returns it. It is [DagRef.Switch] for a
+// switch of the group, and the group_id of g prefixes the task_id of the decider task as
+// [TaskGroupRef.Task] describes. [SwitchRef.Case] takes any task of the Dag, inside the group or
+// not.
+//
+// Switch panics for the reasons that DagRef.Switch and TaskGroupRef.Task list.
+func (g *TaskGroupRef) Switch(fn any, opts ...TaskOption) *SwitchRef {
+	const method = "airflow.TaskGroupRef.Switch"
+	return g.groupDag(method).addSwitch(method, g, fn, opts)
+}
+
 func (*TaskGroupRef) node() {}
 
 // Before makes the group an upstream of every node, which is Python's

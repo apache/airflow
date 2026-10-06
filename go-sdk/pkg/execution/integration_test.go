@@ -902,11 +902,11 @@ func TestServeSkipsDownstreamTasksEndToEnd(t *testing.T) {
 
 			decide, err := bundle.NewPositionalBranchFunction(
 				func(contexttest.Context) (bool, error) { return tt.result, nil },
-				func(result any) []string {
+				func(result any) (any, []string, error) {
 					if result.(bool) {
-						return nil
+						return result, nil, nil
 					}
-					return []string{"load"}
+					return result, []string{"load"}, nil
 				},
 			)
 			require.NoError(t, err)
@@ -1233,6 +1233,7 @@ func TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd(t *testing.T) {
 		name         string
 		fn           func(contexttest.Context) (bool, error)
 		wantTerminal string
+		wantXComs    map[string]any
 	}{
 		{
 			name: "fails",
@@ -1240,21 +1241,26 @@ func TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd(t *testing.T) {
 				return false, errors.New("cannot reach the table")
 			},
 			wantTerminal: "TaskState",
+			wantXComs:    map[string]any{},
 		},
 		{
 			name:         "skips nothing",
 			fn:           func(contexttest.Context) (bool, error) { return true, nil },
 			wantTerminal: "SucceedTask",
+			wantXComs:    map[string]any{"return_value": true},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			decide, err := bundle.NewPositionalBranchFunction(tt.fn, func(result any) []string {
-				if result.(bool) {
-					return nil
-				}
-				return []string{"load"}
-			})
+			decide, err := bundle.NewPositionalBranchFunction(
+				tt.fn,
+				func(result any) (any, []string, error) {
+					if result.(bool) {
+						return result, nil, nil
+					}
+					return result, []string{"load"}, nil
+				},
+			)
 			require.NoError(t, err)
 
 			xcoms := map[string]any{
@@ -1279,7 +1285,7 @@ func TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd(t *testing.T) {
 			for _, request := range requests {
 				assert.NotEqual(t, "SkipDownstreamTasks", request["type"])
 			}
-			assert.NotContains(t, xcoms, "skipmixin_key")
+			assert.Equal(t, tt.wantXComs, xcoms)
 			assert.Equal(t, tt.wantTerminal, terminal["type"])
 		})
 	}
