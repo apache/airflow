@@ -73,7 +73,7 @@ class AddRegionSelectors(VersionChange):
     )
 
 
-class AddTaskInstanceRegionCoordinates(VersionChange):
+class AddRegionCoordinatesToSupervisorTaskInstance(VersionChange):
     """Carry task coordinates in supervisor startup and previous-instance messages."""
 
     description = __doc__

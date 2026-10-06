@@ -2584,6 +2584,25 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
         }
 
+    def test_task_state_store_scope_carries_region_coordinates(self, create_runtime_ti):
+        region_id = uuid7()
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="hello"))
+        runtime_ti.region_id = region_id
+        runtime_ti.region_index = 4
+
+        accessor = runtime_ti.get_template_context()["task_state_store"]
+
+        assert accessor == TaskStateStoreAccessor(
+            ti_id=runtime_ti.id,
+            scope=TaskScope(
+                dag_id=runtime_ti.dag_id,
+                run_id=runtime_ti.run_id,
+                task_id="hello",
+                map_index=4,
+                region_id=region_id,
+            ),
+        )
+
     def test_macros_in_context_are_scoped_to_the_tasks_team(self, create_runtime_ti, mock_supervisor_comms):
         """The accessor placed in the context must carry the team the server reported."""
         from airflow.sdk.plugins_manager import AirflowPlugin

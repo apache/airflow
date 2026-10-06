@@ -26,7 +26,8 @@ from uuid import UUID
 import attrs
 import jinja2
 from jinja2.meta import find_undeclared_variables
-from sqlalchemy import select, tuple_
+from sqlalchemy import inspect, select, tuple_
+from sqlalchemy.orm.attributes import NO_VALUE
 
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
@@ -147,11 +148,19 @@ def prepare_task_log_contexts(
     if session is None:
         with create_session(scoped=False) as session:
             return prepare_task_log_contexts(tis, session=session)
-    run_keys = {(ti.dag_id, ti.run_id) for ti in tis}
-    runs = {
-        (run.dag_id, run.run_id): run
-        for run in session.scalars(select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(run_keys)))
-    }
+    runs: dict[tuple[str, str], DagRun] = {}
+    for ti in tis:
+        loaded_run: DagRun | None = inspect(ti).attrs.dag_run.loaded_value
+        if loaded_run is not NO_VALUE and loaded_run is not None:
+            runs[ti.dag_id, ti.run_id] = loaded_run
+    missing_run_keys = {(ti.dag_id, ti.run_id) for ti in tis} - runs.keys()
+    if missing_run_keys:
+        runs.update(
+            ((run.dag_id, run.run_id), run)
+            for run in session.scalars(
+                select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(missing_run_keys))
+            )
+        )
     template_ids = {run.log_template_id for run in runs.values() if run.log_template_id is not None}
     templates: dict[int | None, str | None] = {
         template.id: template.filename

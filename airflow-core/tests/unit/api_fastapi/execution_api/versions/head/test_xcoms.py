@@ -108,13 +108,14 @@ def test_xcom_write_coordinates_must_match_the_calling_task_instance(
     assert client.post(url, params=other, json="regional").status_code == 404
     assert client.delete(url, params=other).status_code == 404
     assert client.post(url, params=own, json="legacy").status_code == 201
+    assert client.delete(url, params=other).status_code == 404
     assert client.get(url, params=own).json() == {"key": "key", "value": "legacy"}
     assert client.get(url, params=other).status_code == 404
     assert client.delete(url, params=own).status_code == 200
 
 
 @pytest.fixture
-def loop_xcoms(client, dag_maker, session):
+def loop_xcoms(dag_maker, session, authenticate_as):
     @task_group
     def body():
         EmptyOperator(task_id="producer") >> EmptyOperator(task_id="consumer")
@@ -145,13 +146,8 @@ def loop_xcoms(client, dag_maker, session):
             task_instance_id=ti.id, key="key", value=value, serialize=False, session=session
         )
     session.commit()
-    exec_app = client.app.routes[-1].app
-    old_auth = exec_app.dependency_overrides[require_auth]
-    exec_app.dependency_overrides[require_auth] = lambda: TIToken(
-        id=consumer.id, claims=TIClaims(scope="execution")
-    )
-    yield dr, producer, consumer, previous
-    exec_app.dependency_overrides[require_auth] = old_auth
+    authenticate_as(consumer)
+    return dr, producer, consumer, previous
 
 
 def test_loop_xcom_omission_uses_consumer_pass_and_retained_region(client, loop_xcoms):
@@ -179,6 +175,25 @@ def test_loop_prior_dates_requires_explicit_iteration_but_allows_outside_produce
         "key": "key",
         "value": "outside",
     }
+
+
+def test_loop_prior_dates_for_unknown_target_run_falls_through_to_plain_read(client, loop_xcoms):
+    dr, producer, _, _ = loop_xcoms
+
+    response = client.get(
+        f"/execution/xcoms/{dr.dag_id}/other_dag_run/{producer.task_id}/key",
+        params={"include_prior_dates": True},
+    )
+
+    assert response.status_code == 404
+
+
+def test_loop_xcom_write_and_delete_for_several_live_passes_conflict(client, loop_xcoms):
+    dr, producer, _, _ = loop_xcoms
+    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}/key"
+
+    assert client.post(url, json="value").status_code == 409
+    assert client.delete(url).status_code == 409
 
 
 @pytest.mark.parametrize("current_regional", [False, True])

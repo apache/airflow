@@ -62,6 +62,9 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddTerminalStateRetryReasonField,
     IdentifyArchivedTaskStateUpdates,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_10_30_xcom_params import (
+    AddRegionSelectorsToXComFilterParams,
+)
 
 bundle = VersionBundle(
     HeadVersion(),
@@ -74,6 +77,7 @@ bundle = VersionBundle(
         AddMultiTeamToTIRunContext,
         AddStoppedTaskReport,
         AddTaskInstanceRegionCoordinates,
+        AddRegionSelectorsToXComFilterParams,
         IdentifyArchivedTaskStateUpdates,
     ),
     Version(

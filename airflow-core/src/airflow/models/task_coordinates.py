@@ -184,14 +184,15 @@ class TaskCoordinateResolver:
         if region_index is not None and region_id is None:
             raise ValueError("region_index requires an explicit producer region_id")
         if not previous_iteration and (
-            region_id == UUID(int=0) or (region_id is None and not self.has_regions(dag_id, run_id, task_id))
+            region_id == SENTINEL_REGION_ID
+            or (region_id is None and not self.has_regions(dag_id, run_id, task_id))
         ):
             query = select(TaskInstance).where(
                 TaskInstance.working_set.is_(True),
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id == task_id,
-                TaskInstance.region_id == UUID(int=0),
+                TaskInstance.region_id == SENTINEL_REGION_ID,
             )
             if region_index is not None:
                 query = query.where(TaskInstance.region_index == region_index)

@@ -333,7 +333,8 @@ class RuntimeTaskInstance(TaskInstance):
                         dag_id=self.dag_id,
                         run_id=self.run_id,
                         task_id=self.task_id,
-                        map_index=self.map_index if self.map_index is not None else -1,
+                        map_index=self.region_index if self.region_index is not None else -1,
+                        region_id=self.region_id or UUID(int=0),
                     ),
                 ),
             }

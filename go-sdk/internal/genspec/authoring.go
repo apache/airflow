@@ -194,6 +194,7 @@ var taskGroupShape = authoringShape{
 		"_group_id":            "a positional parameter of DagRef.TaskGroup and TaskGroupRef.TaskGroup",
 		"children":             "the tasks and groups added through the group",
 		"is_mapped":            "derived from whether the group is mapped, which the SDK does not model yet",
+		"loop":                 "the gate and terminal ids are derived by the Python loop builder, which the SDK does not model",
 		"upstream_group_ids":   "the edges Before and After declare",
 		"downstream_group_ids": "the edges Before and After declare",
 		"upstream_task_ids":    "the edges Before and After declare",

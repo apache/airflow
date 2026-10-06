@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from functools import partial
 from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
@@ -39,6 +40,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.exceptions import TaskNotFound
+from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError
 from airflow.models.task_coordinates import (
     TaskCoordinateResolver,
@@ -173,17 +175,17 @@ def _build_xcom_read(
                 raise ValueError(
                     "Prior-run lookup requires producer coordinates resolved separately for each run"
                 )
-            try:
-                task = resolver.get_task(
-                    dag_id,
-                    run_id,
-                    task_id,
-                    dag_version_id=caller.dag_version_id
-                    if caller and (caller.dag_id, caller.run_id) == (dag_id, run_id)
-                    else None,
-                )
-            except TaskNotFound:
-                task = None
+            task = None
+            if session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)):
+                with suppress(TaskNotFound):
+                    task = resolver.get_task(
+                        dag_id,
+                        run_id,
+                        task_id,
+                        dag_version_id=caller.dag_version_id
+                        if caller and (caller.dag_id, caller.run_id) == (dag_id, run_id)
+                        else None,
+                    )
             if task is not None and enclosing_loop(task) is not None:
                 raise ValueError(
                     "Prior-date loop lookup requires an explicit target run and producer coordinates"
@@ -667,7 +669,7 @@ def delete_xcom(
     token=CurrentTIToken,
 ):
     """Delete a single XCom Value."""
-    owner = _find_writer_id(
+    owner = _get_writer_id(
         token.id,
         dag_id=dag_id,
         run_id=run_id,
@@ -677,12 +679,11 @@ def delete_xcom(
         region_index=region_index,
         session=session,
     )
-    if owner is not None:
-        XComModel.delete_for_attempts(
-            producer_ids=select(TaskInstance.id).where(TaskInstance.id == owner),
-            key=key,
-            session=session,
-        )
+    XComModel.delete_for_attempts(
+        producer_ids=select(TaskInstance.id).where(TaskInstance.id == owner),
+        key=key,
+        session=session,
+    )
     return {"message": f"XCom with key: {key} successfully deleted."}
 
 
@@ -711,7 +712,14 @@ def _find_writer_id(
     )
     if own is not None:
         return own
-    return session.scalar(select(TaskInstance.id).where(*coordinates))
+    live = session.scalars(select(TaskInstance.id).where(*coordinates).limit(2)).all()
+    if len(live) > 1:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"More than one live task instance matches {dag_id}.{task_id} in run {run_id}; "
+            "address one by its region coordinates",
+        )
+    return live[0] if live else None
 
 
 def _get_writer_id(
