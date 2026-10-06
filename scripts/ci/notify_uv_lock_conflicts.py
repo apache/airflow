@@ -17,7 +17,7 @@
 # under the License.
 
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = [
 #     "httpx>=0.27",
 # ]

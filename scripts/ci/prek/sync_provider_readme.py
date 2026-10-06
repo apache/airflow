@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = [
 #   "packaging>=25",
 #   "tabulate>=0.9.0",
-#   "tomli>=2.0.1; python_version < '3.11'",
 # ]
 # ///
 """
