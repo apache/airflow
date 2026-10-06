@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import tempfile
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -35,13 +36,16 @@ from airflow.providers.common.compat.lineage.entities import Column, File, Table
 from airflow.providers.common.compat.sdk import BaseOperator, Context, ObjectStoragePath
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.extractors import OperatorLineage
-from airflow.providers.openlineage.extractors.manager import ExtractorManager
+from airflow.providers.openlineage.extractors.manager import (
+    ExtractorManager,
+    _is_hook_lineage_collector_created,
+)
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     try:
@@ -615,6 +619,69 @@ def test_get_hook_lineage_returns_none_when_nothing_collected(hook_lineage_colle
 
     assert result is None
     mock_sql_fn.assert_not_called()
+
+
+@patch("airflow.providers.common.compat.lineage.hook.get_hook_lineage_collector", autospec=True)
+@patch(
+    "airflow.providers.openlineage.extractors.manager._is_hook_lineage_collector_created",
+    autospec=True,
+    return_value=False,
+)
+def test_get_hook_lineage_does_not_create_collector(mock_created, mock_get_collector):
+    """Creating the collector only to read it back empty imports every provider's asset URI handlers."""
+    result = ExtractorManager().get_hook_lineage(
+        task_instance=MagicMock(spec=TaskInstance), task_instance_state=TaskInstanceState.SUCCESS
+    )
+
+    assert result is None
+    mock_get_collector.assert_not_called()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ caches the collector getter")
+class TestIsHookLineageCollectorCreatedAirflow32:
+    def test_real_getter_is_cached(self):
+        from airflow.sdk import lineage
+
+        assert hasattr(lineage.get_hook_lineage_collector, "cache_info")
+
+    def test_tracks_whether_cached_getter_was_called(self):
+        # A test-local cache instead of clearing the real one: clearing it would let the next caller,
+        # possibly under ``mock_plugin_manager`` with no readers, cache a NoOpCollector for later tests.
+        getter = functools.cache(lambda: object())
+        with patch("airflow.sdk.lineage.get_hook_lineage_collector", new=getter):
+            assert _is_hook_lineage_collector_created() is False
+            getter()
+            assert _is_hook_lineage_collector_created() is True
+
+    def test_true_when_getter_is_not_cached(self):
+        with patch("airflow.sdk.lineage.get_hook_lineage_collector", new=lambda: None):
+            assert _is_hook_lineage_collector_created() is True
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="Airflow before 3.2 keeps the collector in a module global")
+class TestIsHookLineageCollectorCreatedBeforeAirflow32:
+    def test_false_when_collector_never_created(self):
+        with patch("airflow.lineage.hook._hook_lineage_collector", None):
+            assert _is_hook_lineage_collector_created() is False
+
+    def test_true_when_collector_created(self):
+        with patch("airflow.lineage.hook._hook_lineage_collector", object()):
+            assert _is_hook_lineage_collector_created() is True
+
+    def test_true_when_getter_is_replaced(self):
+        from airflow.lineage import hook
+
+        # On Airflow 3.0 and 3.1 the shared ``hook_lineage_collector`` fixture replaces the getter with a
+        # mock. A spec'd mock also passes ``isinstance`` checks against a function, so it is the harder
+        # case to treat as created.
+        with (
+            patch("airflow.lineage.hook._hook_lineage_collector", None),
+            patch(
+                "airflow.lineage.hook.get_hook_lineage_collector",
+                new=MagicMock(spec=hook.get_hook_lineage_collector),
+            ),
+        ):
+            assert _is_hook_lineage_collector_created() is True
 
 
 def test_get_hook_lineage_passes_failed_state(hook_lineage_collector):

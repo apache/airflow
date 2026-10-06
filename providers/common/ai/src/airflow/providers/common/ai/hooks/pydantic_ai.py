@@ -158,6 +158,16 @@ class PydanticAIHook(BaseHook):
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
 
+    @classmethod
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id``, built with ``hook_params``.
+
+        Airflow 3's ``BaseHook.get_hook`` already takes ``hook_params``; Airflow 2's does
+        not, so this mirrors the Airflow 3 body.
+        """
+        return cls.get_connection(conn_id).get_hook(hook_params=hook_params)
+
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Return custom field behaviour for the Airflow connection form."""

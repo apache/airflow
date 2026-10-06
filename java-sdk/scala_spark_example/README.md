@@ -41,7 +41,9 @@ cd scala_spark_example
 ```
 
 `fatJar` is disabled, so `build/bundle/` holds the bundle JAR plus every runtime
-JAR (Spark included) — copy it into a Java coordinator's `jars_root`.
+JAR (Spark included). Copy it into the Dag bundle named by a Java coordinator's
+`task_handler_bundle_name`. Every JAR in that Dag bundle goes on one classpath,
+so give Spark its own Dag bundle, coordinator and queue.
 
 ## Running Spark under the Java SDK
 
@@ -57,7 +59,7 @@ and bypasses that launcher, so the coordinator has to pass them itself via
   "scala-jdk": {
     "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
     "kwargs": {
-      "jars_root": ["/path/to/scala-jars"],
+      "task_handler_bundle_name": "scala-task-handlers",
       "main_class": "org.apache.airflow.example.ScalaSparkBundleBuilder",
       "jvm_args": [
         "-Xmx512m",

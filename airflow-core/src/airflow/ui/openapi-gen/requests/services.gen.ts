@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, GetAssetsUiData, GetAssetsUiResponse, NextRunAssetsData, NextRunAssetsResponse2, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, ListBackfillDagRunsData, ListBackfillDagRunsResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionTestData, GetConnectionTestResponse, EnqueueConnectionTestData, EnqueueConnectionTestResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, BulkDagRunsData, BulkDagRunsResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, ClearDagRunsData, ClearDagRunsResponse, ClearDagRunPartitionsData, ClearDagRunPartitionsResponse, GetDagRunStatsData, GetDagRunStatsResponse, GetDagSourceData, GetDagSourceResponse, GetDagBundlesData, GetDagBundlesResponse, GetDagBundleData, GetDagBundleResponse, GetDagBundleFilesData, GetDagBundleFilesResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, BulkDagsData, BulkDagsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetDagTimetableTypesUiData, GetDagTimetableTypesUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetDagRunStateCountsUiData, GetDagRunStateCountsUiResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskGroupInstancesData, PatchTaskGroupInstancesResponse, PatchTaskGroupInstancesDryRunData, PatchTaskGroupInstancesDryRunResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, ListAssetStateStoreData, ListAssetStateStoreResponse, ClearAssetStateStoreData, ClearAssetStateStoreResponse, GetAssetStateStoreData, GetAssetStateStoreResponse, SetAssetStateStoreData, SetAssetStateStoreResponse, DeleteAssetStateStoreData, DeleteAssetStateStoreResponse, ListTaskStateStoreData, ListTaskStateStoreResponse, ClearTaskStateStoreData, ClearTaskStateStoreResponse, GetTaskStateStoreData, GetTaskStateStoreResponse, SetTaskStateStoreData, SetTaskStateStoreResponse, PatchTaskStateStoreData, PatchTaskStateStoreResponse, DeleteTaskStateStoreData, DeleteTaskStateStoreResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, GetCalendarDeadlinesData, GetCalendarDeadlinesResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, GetAssetsUiData, GetAssetsUiResponse, NextRunAssetsData, NextRunAssetsResponse2, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, ListBackfillDagRunsData, ListBackfillDagRunsResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionTestData, GetConnectionTestResponse, EnqueueConnectionTestData, EnqueueConnectionTestResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, BulkDagRunsData, BulkDagRunsResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, ClearDagRunsData, ClearDagRunsResponse, ClearDagRunPartitionsData, ClearDagRunPartitionsResponse, GetDagRunStatsData, GetDagRunStatsResponse, GetDagVersionDiffData, GetDagVersionDiffResponse, GetDagSourceData, GetDagSourceResponse, GetDagBundlesData, GetDagBundlesResponse, GetDagBundleData, GetDagBundleResponse, GetDagBundleFilesData, GetDagBundleFilesResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, BulkDagsData, BulkDagsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetDagTimetableTypesUiData, GetDagTimetableTypesUiResponse, GetDagFoldersResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetDagRunStateCountsUiData, GetDagRunStateCountsUiResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskGroupInstancesData, PatchTaskGroupInstancesResponse, PatchTaskGroupInstancesDryRunData, PatchTaskGroupInstancesDryRunResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, ListAssetStateStoreData, ListAssetStateStoreResponse, ClearAssetStateStoreData, ClearAssetStateStoreResponse, GetAssetStateStoreData, GetAssetStateStoreResponse, SetAssetStateStoreData, SetAssetStateStoreResponse, DeleteAssetStateStoreData, DeleteAssetStateStoreResponse, ListTaskStateStoreData, ListTaskStateStoreResponse, ClearTaskStateStoreData, ClearTaskStateStoreResponse, GetTaskStateStoreData, GetTaskStateStoreResponse, SetTaskStateStoreData, SetTaskStateStoreResponse, PatchTaskStateStoreData, PatchTaskStateStoreResponse, DeleteTaskStateStoreData, DeleteTaskStateStoreResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, GetCalendarDeadlinesData, GetCalendarDeadlinesResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -421,6 +421,7 @@ export class AssetService {
      * @param data.groupPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.groupPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.dagIds
+     * @param data.hasEvents Filter assets that have events
      * @param data.onlyActive
      * @param data.lastAssetEventTimestampGte
      * @param data.lastAssetEventTimestampGt
@@ -445,6 +446,7 @@ export class AssetService {
                 group_pattern: data.groupPattern,
                 group_prefix_pattern: data.groupPrefixPattern,
                 dag_ids: data.dagIds,
+                has_events: data.hasEvents,
                 only_active: data.onlyActive,
                 last_asset_event_timestamp_gte: data.lastAssetEventTimestampGte,
                 last_asset_event_timestamp_gt: data.lastAssetEventTimestampGt,
@@ -473,6 +475,7 @@ export class AssetService {
                 dag_id: data.dagId
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -983,6 +986,7 @@ export class ConnectionService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 422: 'Validation Error'
@@ -1188,6 +1192,8 @@ export class DagRunService {
      * @param data.dagVersion
      * @param data.bundleVersion
      * @param data.teams
+     * @param data.tags
+     * @param data.tagsMatchMode
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
@@ -1244,6 +1250,8 @@ export class DagRunService {
                 dag_version: data.dagVersion,
                 bundle_version: data.bundleVersion,
                 teams: data.teams,
+                tags: data.tags,
+                tags_match_mode: data.tagsMatchMode,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
                 run_id_prefix_pattern: data.runIdPrefixPattern,
@@ -1514,6 +1522,41 @@ export class ExperimentalService {
                 result: data.result
             },
             errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Experimental: Compare what two stored versions of a Dag currently hold.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     *
+     * Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.baseVersionNumber Version to compare from.
+     * @param data.targetVersionNumber Version to compare to.
+     * @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+     * @returns DagVersionDiffResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDagVersionDiff(data: GetDagVersionDiffData): CancelablePromise<GetDagVersionDiffResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagVersions/diff',
+            path: {
+                dag_id: data.dagId
+            },
+            query: {
+                base_version_number: data.baseVersionNumber,
+                target_version_number: data.targetVersionNumber,
+                max_changes: data.maxChanges
+            },
+            errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -2172,8 +2215,10 @@ export class DagService {
      * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.dagRunState Filter Dags that have any DagRun in the given state.
+     * @param data.dagRunStateWithinHours Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
      * @param data.bundleName
      * @param data.bundleVersion
+     * @param data.relativeFilelocPrefix Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
      * @param data.isFavorite
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
@@ -2206,8 +2251,10 @@ export class DagService {
                 has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 dag_run_state: data.dagRunState,
+                dag_run_state_within_hours: data.dagRunStateWithinHours,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
+                relative_fileloc_prefix: data.relativeFilelocPrefix,
                 order_by: data.orderBy,
                 is_favorite: data.isFavorite,
                 has_asset_schedule: data.hasAssetSchedule,
@@ -2243,6 +2290,31 @@ export class DagService {
             errors: {
                 422: 'Validation Error'
             }
+        });
+    }
+    
+    /**
+     * Get Dag Folders
+     * Get the distinct folders the readable Dags live in, scoped to their bundle.
+     *
+     * A folder is the directory part of a Dag's ``relative_fileloc`` (relative to its
+     * bundle root). Because ``relative_fileloc`` is relative to each bundle, the same
+     * path can exist in several bundles, so every folder is paired with its bundle
+     * name to keep them apart. Dags located directly at the bundle root have no folder
+     * and are not represented here. The result powers the folder navigation tree in
+     * the UI, which reconstructs the hierarchy by splitting each path on ``/`` and
+     * groups it under its bundle when more than one bundle is present.
+     *
+     * Stale Dags are left out to match the Dag list, which hides them by default: keeping
+     * them would surface folders (or whole bundles, once they stop being parsed) that
+     * select down to an empty list.
+     * @returns DagFolderCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDagFolders(): CancelablePromise<GetDagFoldersResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/dags/folders'
         });
     }
     
@@ -3350,6 +3422,7 @@ export class TaskInstanceService {
                 token: data.token
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -3506,6 +3579,7 @@ export class TaskInstanceService {
      * @param data.taskIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.mapIndex
      * @param data.state
+     * @param data.teams
      * @param data.responseReceived
      * @param data.respondedByUserId
      * @param data.respondedByUserName
@@ -3537,6 +3611,7 @@ export class TaskInstanceService {
                 task_id_prefix_pattern: data.taskIdPrefixPattern,
                 map_index: data.mapIndex,
                 state: data.state,
+                teams: data.teams,
                 response_received: data.responseReceived,
                 responded_by_user_id: data.respondedByUserId,
                 responded_by_user_name: data.respondedByUserName,
@@ -3588,7 +3663,7 @@ export class ImportErrorService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
      * @param data.filenamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `filename_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.filenamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.filename Exact filename match. Returns only the import error for this specific file path.
@@ -3624,7 +3699,6 @@ export class JobService {
      * Get Jobs
      * Get all jobs.
      * @param data The data for the request.
-     * @param data.isAlive
      * @param data.startDateGte
      * @param data.startDateGt
      * @param data.startDateLte
@@ -3641,6 +3715,8 @@ export class JobService {
      * @param data.jobType
      * @param data.hostname
      * @param data.executorClass
+     * @param data.teams
+     * @param data.isAlive
      * @returns JobCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3649,7 +3725,6 @@ export class JobService {
             method: 'GET',
             url: '/api/v2/jobs',
             query: {
-                is_alive: data.isAlive,
                 start_date_gte: data.startDateGte,
                 start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
@@ -3665,7 +3740,9 @@ export class JobService {
                 dag_id: data.dagId,
                 job_type: data.jobType,
                 hostname: data.hostname,
-                executor_class: data.executorClass
+                executor_class: data.executorClass,
+                teams: data.teams,
+                is_alive: data.isAlive
             },
             errors: {
                 400: 'Bad Request',
@@ -4675,6 +4752,7 @@ export class VariableService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
+                404: 'Not Found',
                 409: 'Conflict',
                 422: 'Validation Error'
             }
@@ -4733,6 +4811,41 @@ export class DagParsingService {
 }
 
 export class DagVersionService {
+    /**
+     * Experimental: Compare what two stored versions of a Dag currently hold.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     *
+     * Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.baseVersionNumber Version to compare from.
+     * @param data.targetVersionNumber Version to compare to.
+     * @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+     * @returns DagVersionDiffResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDagVersionDiff(data: GetDagVersionDiffData): CancelablePromise<GetDagVersionDiffResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagVersions/diff',
+            path: {
+                dag_id: data.dagId
+            },
+            query: {
+                base_version_number: data.baseVersionNumber,
+                target_version_number: data.targetVersionNumber,
+                max_changes: data.maxChanges
+            },
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
     /**
      * Get Dag Version
      * Get one Dag Version.
@@ -4971,6 +5084,7 @@ export class PartitionedDagRunService {
                 partition_key: data.partitionKey
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -5444,6 +5558,7 @@ export class TeamsService {
                 order_by: data.orderBy
             },
             errors: {
+                403: 'Forbidden',
                 422: 'Validation Error'
             }
         });

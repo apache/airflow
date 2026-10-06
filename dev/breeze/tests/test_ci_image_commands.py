@@ -26,6 +26,7 @@ from airflow_breeze.commands.ci_image_commands import (
     build_ci_image_if_needed,
     confirm_build_if_sources_changed,
     get_ci_image_sources_hash_label,
+    import_mount_cache,
     is_ci_image_built_from_current_sources,
 )
 from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL
@@ -186,3 +187,22 @@ def test_build_ci_image_if_needed_does_not_query_docker_when_marker_present(
     mock_check_if_image_building_is_needed.return_value = False
     build_ci_image_if_needed(command_params=command_params)
     mock_is_ci_image_built_from_current_sources.assert_not_called()
+
+
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.make_sure_builder_configured", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.perform_environment_checks", autospec=True)
+def test_import_mount_cache_does_not_prune_the_imported_cache_mount(
+    mock_perform_environment_checks,
+    mock_make_sure_builder_configured,
+    mock_run_command,
+    tmp_path,
+):
+    cache_file = tmp_path / "ci-cache-mount-save-v3-3.10.tar.gz"
+    cache_file.write_bytes(b"")
+    import_mount_cache.callback(builder="autodetect", cache_file=cache_file)
+    commands = [call.args[0] for call in mock_run_command.call_args_list]
+    assert commands[-2:] == [
+        ["docker", "rmi", "airflow-import-cache"],
+        ["docker", "image", "prune", "-f"],
+    ]

@@ -316,6 +316,61 @@ If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be
 Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers``
 as the short hand operator.
 
+Finding out what CI will run for your change
+--------------------------------------------
+
+``breeze verify`` reads the files changed against the target branch (the merge-base of
+``--base-ref`` and ``HEAD``, plus untracked files), runs the same selective-checks logic CI uses
+and lists the commands to run locally for the change. Nothing is executed. The only non-zero exit
+is a usage error such as a base ref git cannot resolve.
+
+By default ``--base-ref`` is ``main`` on the git remote that points at apache/airflow (``upstream``
+if several do), the same base GitHub compares a PR with. A local ``main`` that is behind the
+``main`` your branch has merged would count every merged-in commit as your change. Without such a
+remote, ``breeze verify`` falls back to the local ``main`` branch and says so. It also warns when
+the branch has merged commits the base does not have, for example after GitHub's "Update branch"
+when the remote was not fetched since. With ``--json`` the warnings go to stderr.
+
+.. code-block:: bash
+
+     breeze verify
+     breeze verify --json
+     breeze verify --full
+     breeze verify --base-ref main
+
+Each row says what kind of check it is, whether it runs on the host or needs Docker and the
+CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
+(breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
+check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
+Static checks are not listed either: ``prek`` already picks the hooks to run for the changed files,
+so run it as usual. The exception is the ``mypy-providers`` and ``migration-round-trip`` hooks,
+which CI runs but a default ``prek install`` does not (they are ``pre-push`` or ``manual`` stage
+hooks). When the change triggers them, ``breeze verify`` prints the
+``prek run --stage manual <hook> --from-ref <base>`` command to run each one, and ``--json``
+lists them under ``manual_prek_hooks``.
+Use ``--json`` for machine-readable output with the same fields.
+
+When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
+The default list leaves that expansion out and only shows what the changed files match themselves,
+with a note that CI will run more. ``--full`` lists everything CI runs for the default matrix cell
+(default Python, sqlite), apart from static checks.
+
+Even ``--full`` is not the full CI matrix. Other Python versions, Postgres and MySQL,
+lowest-dependency runs, Kubernetes, Helm, e2e suites, the provider compatibility matrix and ARM
+runners only run in CI. Two more caveats. Selective checks compare ``pyproject.toml`` contents
+between ``HEAD`` and ``HEAD^`` only, so dependency changes that are uncommitted or in earlier
+commits of your branch are not detected as such (test selection is unaffected, only the
+dependency-bump checks are). Packaging steps CI runs around some tests (building and
+twine-checking the Task SDK and airflow-ctl wheels, regenerating the Python API client from its
+own repository) are not listed.
+
+These are all available flags of ``verify`` command:
+
+.. image:: ./images/output_verify.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_verify.svg
+  :width: 100%
+  :alt: Breeze verify
+
 Running static checks
 ---------------------
 
@@ -718,19 +773,37 @@ After returning to the host shell, stop the remaining Docker Compose services:
 
    breeze down
 
-``breeze down`` discovers every running docker compose project that breeze knows
-about — ``breeze shell``, ``breeze testing``, ``breeze build-docs``, ``breeze db``,
-release-management, registry, ``breeze run``, and prek-hook compose projects — by
-reading the ``com.docker.compose.project`` label that compose sets on every container
-it creates. Each matching project is brought down with ``--remove-orphans`` and
-``--volumes`` (unless ``--preserve-volumes`` is passed). A running
-``breeze start-airflow`` container must exit first; otherwise it continues to use
-the project's forwarded ports, network, and volumes.
+In a linked Git worktree, Breeze defaults to the project name ``breeze-<worktree directory name>``.
+The directory name is lowercased, and characters other than letters, digits, underscores, and
+hyphens are replaced with hyphens. The main checkout defaults to ``breeze``. Use ``--project-name``
+to override this default; worktrees with the same normalized directory name share a default project name.
 
-If you have an unrelated docker compose project running on the host that does not
-match any breeze prefix, it is left alone by default. Pass ``--all-projects`` to
-also bring those down. To restrict the cleanup to a single named project (useful
-in CI steps), pass ``--project-name <name>``.
+Before Docker-backed commands run, Breeze removes labelled resources belonging to deleted worktrees.
+This includes running containers and leftover named volumes, even when no containers remain.
+Help and commands that do not use Docker do not trigger cleanup.
+
+Please note that automatic cleanup is best-effort: disappearing or busy resources produce a warning without
+aborting the command. Remaining resources are retried on the next Docker-backed command.
+Explicit ``breeze down`` reports Docker failures as errors.
+
+``breeze down`` removes containers, networks, and volumes for Breeze projects with no worktree path
+and for projects belonging to the current checkout.
+It also removes Breeze-owned resources whose absolute worktree path no longer exists,
+including running containers. Paths are checked on the machine running Breeze, so this
+stale-worktree detection assumes a local Docker daemon.
+
+Pass ``--all-worktrees`` to include other checkouts and every project with the ``org.apache.airflow.breeze=true``
+ownership label. Projects predating the Breeze labels are included when their name is ``breeze``
+or starts with ``breeze-``, preserving the legacy cleanup behavior.
+Use ``--project-name <name>`` to restrict removal to one exact Compose project; this also
+disables stale-worktree cleanup for other projects and cannot be combined with ``--all-worktrees``.
+
+Discovery includes volumes and networks even when no containers remain. Resources are removed
+directly through Docker, so deleted worktrees do not need their Compose files restored.
+``--preserve-volumes`` keeps named and anonymous volumes, including those from deleted worktrees.
+Shared MyPy and bytecode caches remain controlled by their explicit cleanup flags.
+Unlike ``breeze cleanup``, ``down`` does not delete local source files, environments, images,
+or build caches unless an explicit cache-cleanup flag is passed.
 
 These are all available flags of ``down`` command:
 

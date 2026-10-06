@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import os
 import pathlib
 import stat
 from typing import TYPE_CHECKING, Any
@@ -36,17 +35,6 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators")
-
-
-def convert_roots(
-    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    """Normalize a coordinator's root-directories kwarg into a list of expanded paths."""
-    if value is None:
-        return []
-    if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value).expanduser()]
-    return [pathlib.Path(v).expanduser() for v in value]
 
 
 def walk_files(

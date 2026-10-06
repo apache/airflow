@@ -59,6 +59,47 @@ from airflow.utils.state import TaskInstanceState
 log = structlog.get_logger(__name__)
 
 
+def _discard_task_state_store(tis: Sequence[TI], session: Session, *, event: str) -> None:
+    """
+    Discard the task state store entries of each task instance.
+
+    A failure is logged and re-raised so the request fails and the session rolls back, rather than
+    reporting success while some entries survive undiscarded.
+
+    This only drops the metadata DB reference row via ``_get_db_backend()``; it does not go through
+    ``get_state_backend()``. A custom ``[workers] state_store_backend`` payload is left orphaned
+    with no reclaim path other than its own lifecycle/TTL policy, and a custom ``[state_store]
+    backend`` is not touched at all: the worker still reads and writes there, so a clear reports
+    success while the actual state survives and a later attempt can resume from it. Closing this
+    gap needs a server-side path to the configured state backend and is tracked for a future
+    change; today, this discard is only exact for the default metastore backend.
+
+    :param event: what prompted the discard, used as the log event name.
+    """
+    backend = _get_db_backend()
+    for ti in tis:
+        scope = TaskScope(
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index if ti.map_index is not None else -1,
+        )
+        try:
+            backend.clear(scope=scope, session=session)
+        except Exception:
+            log.warning(
+                "Failed to discard task state",
+                discard_event=event,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+                map_index=ti.map_index,
+                exc_info=True,
+            )
+            raise
+    log.info(event, task_instance_count=len(tis))
+
+
 def _clear_task_state_store_on_success(tis: Sequence[TI], session: Session) -> None:
     """Clear task state store rows for each TI if clear_on_success is enabled."""
     if not conf.getboolean("state_store", "clear_on_success", fallback=False):

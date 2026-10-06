@@ -89,6 +89,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "cassandra",
     "drill",
     "elasticsearch",
+    "opensearch",
     "tinkerpop",
     "kafka",
     "localstack",
@@ -120,6 +121,7 @@ TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
     "cassandra": "apache.cassandra",
     "drill": "apache.drill",
     "elasticsearch": "elasticsearch",
+    "opensearch": "opensearch",
     "tinkerpop": "apache.tinkerpop",
     "kafka": "apache.kafka",
     "localstack": "amazon",
@@ -137,7 +139,7 @@ OTEL_INTEGRATION = "otel"
 OPENLINEAGE_INTEGRATION = "openlineage"
 OPENSEARCH_INTEGRATION = "opensearch"
 OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, KEYCLOAK_INTEGRATION]
-OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION, OPENSEARCH_INTEGRATION]
+OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_CORE_INTEGRATIONS = sorted(
     [
@@ -185,19 +187,8 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = [
     "docker-compose",
 ]
 
-# Every docker compose project name that any breeze command, prek hook, or
-# CI workflow uses. `breeze down` discovers running compose projects via the
-# `com.docker.compose.project` label and only touches the ones that match
-# either an exact entry in `KNOWN_DOCKER_COMPOSE_PROJECT_NAMES` or one of the
-# prefixes in `KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES`. When you add a new
-# project_name pattern anywhere (new breeze command, new prek hook, new CI
-# step), update this list so `breeze down` stays a one-shot cleanup.
-KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = [
-    "breeze",  # default `breeze shell` / `breeze start-airflow`
-]
-KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = [
-    "breeze-",  # breeze-registry-*, breeze-backfill-*, *-run-*
-]
+KNOWN_DOCKER_COMPOSE_PROJECT_NAMES = ["breeze"]
+KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES = ["breeze-"]
 ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
 DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
@@ -206,7 +197,15 @@ DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0", "v1.35.0"]
+ALLOWED_KUBERNETES_VERSIONS = [
+    "v1.31.12",
+    "v1.32.11",
+    "v1.33.12",
+    "v1.34.11",
+    "v1.35.8",
+    "v1.36.4",
+    "v1.37.0",
+]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -812,7 +811,7 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.31.0"
+KIND_VERSION = "v0.33.0"
 HELM_VERSION = "v3.19.0"
 SKAFFOLD_VERSION = "v2.17.0"
 
@@ -873,7 +872,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.1",
-        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica common.ai opensearch",
+        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica modal opensearch",
         "run-unit-tests": "true",
     },
     {

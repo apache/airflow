@@ -25,7 +25,6 @@
         "title": "Geriye dönük çalıştırma oluşturuldu"
       }
     },
-    "unpause": "Tetiklendiğinde {{dag_display_name}} duraklatmasını kaldır",
     "validation": {
       "datesRequired": "Hem Veri Aralığı Başlangıç Tarihi hem de Bitiş Tarihi sağlanmalıdır.",
       "startBeforeEnd": "Veri Aralığı Başlangıç Tarihi, Veri Aralığı Bitiş Tarihine eşit veya daha küçük olmalıdır."
@@ -150,8 +149,7 @@
         "title": "Dag Çalıştırması Tetiklendi"
       }
     },
-    "triggerAgainWithConfig": "Tekrar bir yapılandırma ile tetikleyin",
-    "unpause": "Tetiklendiğinde {{dagDisplayName}} duraklatmasını kaldır"
+    "triggerAgainWithConfig": "Tekrar bir yapılandırma ile tetikleyin"
   },
   "trimText": {
     "details": "Detaylar",

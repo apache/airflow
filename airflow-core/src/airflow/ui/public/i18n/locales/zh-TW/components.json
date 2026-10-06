@@ -35,7 +35,6 @@
         "title": "已觸發 Dag 執行"
       }
     },
-    "unpause": "觸發時取消暫停 {{dag_display_name}}",
     "validation": {
       "datesRequired": "必須提供資料區間的開始與結束日期。",
       "startBeforeEnd": "資料區間起始日期必須早於或等於結束日期。"
@@ -174,8 +173,7 @@
         "title": "已觸發 Dag 執行"
       }
     },
-    "triggerAgainWithConfig": "使用此設定再次觸發",
-    "unpause": "觸發時取消暫停 {{dagDisplayName}}"
+    "triggerAgainWithConfig": "使用此設定再次觸發"
   },
   "trimText": {
     "details": "詳細資訊",

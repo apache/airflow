@@ -258,3 +258,24 @@ describe("FilterBar keyboard handling", () => {
     await waitFor(() => expect(document.querySelector('input[id^="react-select"]')).not.toBeNull());
   });
 });
+
+describe("FilterBar URL synchronization", () => {
+  const configs = [{ key: "dag_id", label: "Dag ID", type: "text" as const }];
+
+  it("updates an existing filter when its external value changes", async () => {
+    const { rerender } = render(
+      <FilterBar configs={configs} initialValues={{ dag_id: "dag_a" }} onFiltersChange={vi.fn()} />,
+      { wrapper },
+    );
+
+    expect(screen.getByTestId("dag_id-pill")).toHaveTextContent("Dag ID: dag_a");
+
+    rerender(<FilterBar configs={configs} initialValues={{ dag_id: "dag_b" }} onFiltersChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByTestId("dag_id-pill")).toHaveTextContent("Dag ID: dag_b"));
+
+    rerender(<FilterBar configs={configs} initialValues={{}} onFiltersChange={vi.fn()} />);
+
+    await waitFor(() => expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument());
+  });
+});

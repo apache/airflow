@@ -60,22 +60,45 @@ describe("Dag Filters", () => {
     expect(await screen.findByTestId("scheduling_state-pill")).toHaveTextContent("schedulingState.active");
   });
 
-  it("Filter by selected last run state", async () => {
+  it("Filter by selected run state, matching the latest run by default", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
     fireEvent.click(screen.getByTestId("add-filter-button"));
-    fireEvent.click(await screen.findByTestId("add-filter-last_dag_run_state"));
+    fireEvent.click(await screen.findByTestId("add-filter-run_state"));
 
     // A newly added select opens straight onto its options, so there is no trigger to click.
-    await waitFor(() => screen.getByTestId("last_dag_run_state-filter-success").click());
+    await waitFor(() => screen.getByTestId("run_state-filter-success").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    fireEvent.click(await screen.findByTestId("last_dag_run_state-pill"));
-    await waitFor(() => screen.getByTestId("last_dag_run_state-filter").click());
-    await waitFor(() => screen.getByTestId("last_dag_run_state-filter-failed").click());
+    fireEvent.click(await screen.findByTestId("run_state-pill"));
+    await waitFor(() => screen.getByTestId("run_state-filter").click());
+    await waitFor(() => screen.getByTestId("run_state-filter-failed").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+  });
+
+  it("Widens the run state filter to a time lookback", async () => {
+    render(<AppWrapper initialEntries={["/dags?last_dag_run_state=failed"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+    expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+
+    fireEvent.click(await screen.findByTestId("run_state-pill"));
+    await waitFor(() => screen.getByTestId("run_state-lookback").click());
+    await waitFor(() => screen.getByTestId("run_state-lookback-168").click());
+
+    // The mock treats every Dag as having some failed run within the window.
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+  });
+
+  it("Restores the run state pill from any-run URL params", async () => {
+    render(<AppWrapper initialEntries={["/dags?dag_run_state=failed&dag_run_state_within_hours=168"]} />);
+
+    const pill = await screen.findByTestId("run_state-pill");
+
+    expect(pill).toHaveTextContent("filters.runState");
   });
 
   it("keeps the listed Dags on screen while a newly added filter is still loading", async () => {
@@ -92,11 +115,11 @@ describe("Dag Filters", () => {
     );
 
     fireEvent.click(screen.getByTestId("add-filter-button"));
-    fireEvent.click(await screen.findByTestId("add-filter-last_dag_run_state"));
-    await waitFor(() => screen.getByTestId("last_dag_run_state-filter-success").click());
+    fireEvent.click(await screen.findByTestId("add-filter-run_state"));
+    await waitFor(() => screen.getByTestId("run_state-filter-success").click());
 
     await waitFor(() => {
-      expect(screen.getByTestId("last_dag_run_state-pill")).toBeInTheDocument();
+      expect(screen.getByTestId("run_state-pill")).toBeInTheDocument();
       expect(screen.getByRole("progressbar")).toBeVisible();
     });
 
@@ -299,5 +322,39 @@ describe("Dag sorting", () => {
     await waitFor(() => expect(requestedOrderBy.at(-1)).toEqual(["-last_run_run_after", "dag_display_name"]));
     expect(screen.getByTestId("sort-index-last_run_run_after")).toHaveTextContent("1");
     expect(screen.getByTestId("sort-index-dag_display_name")).toHaveTextContent("2");
+  });
+});
+
+describe("Dags table", () => {
+  it.each([
+    "dag_display_name",
+    "timetable_description",
+    "next_dagrun",
+    "last_run_run_after",
+    "tags",
+    "team_name",
+  ])("keeps the %s cell on one line", async (columnId) => {
+    server.use(
+      http.get("/ui/config", () => HttpResponse.json({ multi_team: true, page_size: 15 })),
+      http.get("/ui/dags", () =>
+        HttpResponse.json({
+          dags: [
+            {
+              ...successDag,
+              next_dagrun_run_after: "2025-01-14T00:00:00Z",
+              team_name: "team_a",
+              timetable_summary: "@daily",
+            },
+          ],
+          total_entries: 1,
+        }),
+      ),
+    );
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify("table"));
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    const cell = await screen.findByTestId(`table-cell-${columnId}`);
+
+    await waitFor(() => expect(cell.firstElementChild).toHaveStyle({ whiteSpace: "nowrap" }));
   });
 });

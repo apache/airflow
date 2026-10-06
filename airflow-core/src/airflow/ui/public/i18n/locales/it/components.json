@@ -23,7 +23,6 @@
         "title": "Backfill generato"
       }
     },
-    "unpause": "Sospendi {{dag_display_name}} al trigger",
     "validation": {
       "datesRequired": "Devi fornire sia la Data di Inizio che la Data di Fine.",
       "startBeforeEnd": "La Data di Inizio deve essere precedente o uguale alla Data di Fine."
@@ -137,8 +136,7 @@
         "description": "Il run del Dag è stato attivato con successo.",
         "title": "Run del Dag attivato"
       }
-    },
-    "unpause": "Sospendi {{dagDisplayName}} al trigger"
+    }
   },
   "trimText": {
     "details": "Dettagli",

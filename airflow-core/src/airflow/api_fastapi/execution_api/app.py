@@ -38,6 +38,7 @@ from fastapi.routing import APIRoute
 from opentelemetry import context as otel_context, propagate as otel_propagate
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from airflow import settings
 from airflow.api_fastapi.auth.tokens import (
     JWTGenerator,
     JWTValidator,
@@ -437,6 +438,7 @@ class InProcessExecutionAPI:
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
+            cm.push_async_callback(settings.dispose_async_engine)
             await cm.enter_async_context(app.router.lifespan_context(app))
 
         cm = AsyncExitStack()

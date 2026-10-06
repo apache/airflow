@@ -1106,7 +1106,9 @@ def import_mount_cache(
     console_print("[info]Built temporary image and copied cache[/]")
     console_print("[info]Removing temporary image[/]")
     run_command(["docker", "rmi", "airflow-import-cache"], check=True)
-    run_command(["docker", "system", "prune", "-f"], check=True)
+    # Not `docker system prune`: it also removes unused build cache, which includes the cache
+    # mount that was just filled, so the next build would start with an empty uv cache.
+    run_command(["docker", "image", "prune", "-f"], check=True)
     console_print("[info]Built temporary image and copying context[/]")
     console_print(f"[info]Removing context: {context}[/]")
     context_cache_file.unlink()

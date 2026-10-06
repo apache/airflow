@@ -494,7 +494,7 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
-    output_command_list: list[str]
+    auth_environment_command_list: list[str]
     exclude_operation_names: list[str]
     exclude_method_names: list[str]
     help_texts: dict[str, dict[str, str]]
@@ -511,8 +511,7 @@ class CommandFactory:
         # Excluded Lists are in Class Level for further usage and avoid searching them
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
-        # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = [
+        self.auth_environment_command_list = [
             "list",
             "get",
             "create",
@@ -797,8 +796,11 @@ class CommandFactory:
                             )
                         )
 
-            if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
-                args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
+            args.append(ARG_OUTPUT)
+            # ``-e/--env`` is inert here (nothing reads ``args.env``), so widening it would only let more
+            # commands accept it and silently target production: https://github.com/apache/airflow/issues/70519
+            if any(operation.get("name").startswith(cmd) for cmd in self.auth_environment_command_list):
+                args.append(ARG_AUTH_ENVIRONMENT)
 
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
@@ -1218,6 +1220,23 @@ TASK_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.task_command.failed_deps"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_MAP_INDEX,
+        ),
+    ),
+    ActionCommand(
+        name="state",
+        help="Get the state of a task instance",
+        description=(
+            "Get the state of a task instance. "
+            "Select the run with either run_id or --logical-date (pass exactly one). "
+            "Prints the state value, or None when the task instance has no state yet."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.state"),
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,

@@ -29,7 +29,7 @@ import { Tooltip, type TooltipProps } from "src/system-components";
 
 import Time from "src/components/Time";
 
-import { sortStateEntries, useDurationFormat } from "src/utils";
+import { formatNumber, sortStateEntries, useDurationFormat } from "src/utils";
 
 /** Grid summary plus optional schedule/queue hints (e.g. Gantt segment tooltips). */
 type LightGridTaskInstanceSummaryWithWhen = {
@@ -45,7 +45,7 @@ type Props = {
 } & Omit<TooltipProps, "content">;
 
 const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, tooltip, ...rest }: Props) => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { formatElapsed, renderDuration } = useDurationFormat();
 
   const hasTooltip = tooltip !== undefined && tooltip !== null;
@@ -148,7 +148,7 @@ const TaskInstanceTooltip = ({ children, positioning, runId, taskInstance, toolt
                         width="10px"
                       />
                       <Text fontSize="xs">
-                        {count} {translate(`common:states.${state}`)}
+                        {formatNumber(count, i18n.language)} {translate(`common:states.${state}`)}
                       </Text>
                     </HStack>
                   ))}

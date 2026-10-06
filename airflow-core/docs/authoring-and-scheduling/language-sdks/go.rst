@@ -48,7 +48,8 @@ Prerequisites
 
 * Go 1.24 or later to build and pack bundles. This is a build-time requirement only; the worker that runs a
   packed bundle needs no Go toolchain, because the bundle is a self-contained native executable.
-* The packed bundle must be accessible from the Airflow worker, under a directory the coordinator scans.
+* The packed bundle must be accessible from the Airflow worker and the Dag processor, in the Dag bundle the
+  coordinator scans, and built for the operating system and CPU architecture of both.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 
@@ -178,33 +179,46 @@ to pass on with ``bundle.Register(reports.Handlers()...)``.
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Register the coordinator and route the queue to it under ``[sdk]`` in ``airflow.cfg`` (or the equivalent
-``AIRFLOW__SDK__*`` environment variables):
+Register a Dag bundle for the packed bundles, register the coordinator, and route the queue to it in
+``airflow.cfg`` (or the equivalent ``AIRFLOW__*`` environment variables):
 
 .. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+        {
+          "name": "go-task-handlers",
+          "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+          "kwargs": {"path": "/opt/airflow/go-task-handlers"}
+        }
+      ]
 
     [sdk]
     coordinators = {
       "go": {
         "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
-        "kwargs": {"executables_root": ["~/airflow/executable-bundles"]}
+        "kwargs": {"task_handler_bundle_name": "go-task-handlers"}
       }
     }
     queue_to_coordinator = {"golang": "go"}
 
-``executables_root`` is one or more directories the coordinator scans for bundles; ``queue_to_coordinator``
-routes stub tasks with ``queue="golang"`` to this Go coordinator. See :ref:`go-sdk/coordinator-config` for
-the full list of accepted ``kwargs``.
+``task_handler_bundle_name`` names the Dag bundle the coordinator scans for packed bundles;
+``queue_to_coordinator`` routes stub tasks with ``queue="golang"`` to this Go coordinator. See
+:ref:`go-sdk/coordinator-config` for the full list of accepted ``kwargs`` and how bundles are located.
 
 There is no separate Go worker to run: the Airflow worker forks the bundle binary once per task instance.
 
 .. note::
 
-  The coordinator is part of the Airflow worker, so the ``[sdk]`` config (and the bundle files in
-  ``executables_root``) only need to be present wherever tasks actually execute. With ``CeleryExecutor``,
-  setting it on the Celery workers is sufficient. With ``LocalExecutor``, tasks run inside the scheduler
-  process, so it must be set where the scheduler can read it. The API server and Dag processor do not need
-  it.
+  The ``[sdk]`` config and the packed bundle files must be present wherever tasks execute and on the Dag
+  processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with ``LocalExecutor``, they run
+  inside the scheduler process. The Dag processor checks the stub tasks of each Python Dag against the task
+  handlers the packed bundles register, so it runs them too and needs bundles built for its operating
+  system and CPU architecture. The API server does not need any of it. Register the Dag bundle in
+  ``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker
+  and the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config
+  is read it is rejected if the name is missing there.
 
 Writing tasks
 -------------
@@ -444,24 +458,24 @@ Build and pack in one step; any flags after ``--`` are forwarded verbatim to ``g
 
     go tool airflow-go-pack ./example/bundle -- -trimpath -tags=prod
 
-Use ``--output <path>`` to write the packed bundle straight into a directory the coordinator scans
-(``executables_root``):
+Use ``--output <path>`` to write the packed bundle straight into the directory of the Dag bundle the
+coordinator scans (see `Deploying`_):
 
 .. code-block:: bash
 
-    go tool airflow-go-pack --output ~/airflow/executable-bundles/sample-dag-bundle ./example/bundle
+    go tool airflow-go-pack --output /opt/airflow/go-task-handlers/sample-dag-bundle ./example/bundle
 
 Cross-platform builds
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The worker that runs a bundle often uses a different operating system or CPU architecture than your build
-machine (for example, deploying to a Linux host from an Apple-silicon ``darwin/arm64`` laptop). Pass
-``--goos`` / ``--goarch`` and the packer cross-builds for you:
+The worker and the Dag processor that run a bundle often use a different operating system or CPU
+architecture than your build machine (for example, deploying to a Linux host from an Apple-silicon
+``darwin/arm64`` laptop). Pass ``--goos`` / ``--goarch`` and the packer cross-builds for you:
 
 .. code-block:: bash
 
     go tool airflow-go-pack --goos linux --goarch amd64 \
-      --output ~/airflow/executable-bundles/sample-dag-bundle \
+      --output /opt/airflow/go-task-handlers/sample-dag-bundle \
       ./example/bundle
 
 Alternatively, pack a pre-built binary with ``--executable`` / ``--source``. The packer normally execs the
@@ -485,11 +499,15 @@ with ``--airflow-metadata``:
 Deploying
 ~~~~~~~~~
 
-Copy or mount the packed bundle into a directory listed in the coordinator's ``executables_root``. The
-:class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` scans those directories recursively,
+Copy or mount the packed bundle into the Dag bundle named by the coordinator's ``task_handler_bundle_name``.
+The :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` scans that Dag bundle recursively,
 matches the incoming ``dag_id`` against each bundle's manifest, verifies the bundle's integrity hash, and
 launches the matching bundle. Bundles are identified by the trailer magic, not by filename (no extension on
 Linux/macOS, ``.exe`` on Windows), so the file name on the worker is irrelevant.
+
+The matching bundle is marked executable before it is launched, so any Dag bundle works, including an
+object-store one such as ``S3DagBundle`` that has no concept of file permissions and so cannot preserve
+the execute bit the build produced.
 
 .. _go-sdk/coordinator-config:
 
@@ -506,14 +524,28 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - Parameter
      - Default
      - Description
-   * - ``executables_root``
-     - *(required)*
-     - One or more directories scanned recursively for executable bundles. Accepts a string,
-       a path, or a list of strings/paths.
+   * - ``task_handler_bundle_name``
+     - *(task's own Dag bundle)*
+     - Name of the Dag bundle scanned recursively for executable bundles. It is used only by
+       mixed-language Dags, to locate the task handlers for the ``@task.stub`` tasks of a Python Dag;
+       Dags defined natively in a language SDK do not use it. It must be registered in
+       ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]`` configuration is
+       loaded, so a typo fails there rather than on the first task.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the bundle subprocess to connect after launch. Increase this if your
        bundle startup is slow (e.g. on constrained hardware).
+
+.. note::
+
+  **Locating bundles.** The packed bundles for the ``@task.stub`` tasks of a Python Dag are read from a Dag
+  bundle, so they are delivered, refreshed and versioned by the same machinery as your Dags.
+
+  * The expected layout is a separate Dag bundle for the packed bundles, named by
+    ``task_handler_bundle_name``, rather than the Dag bundle that holds your ``.py`` files. The task
+    uses the version that Dag bundle is on when it starts, pinned for the whole task.
+  * If ``task_handler_bundle_name`` is unset, packed bundles are read from the **task's own** Dag
+    bundle, pinned to the version the run was created with.
 
 .. _go-sdk/limitations:
 

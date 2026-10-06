@@ -23,9 +23,17 @@ package org.apache.airflow.sdk.internal
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
+import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.LiteralArg
 import org.apache.airflow.sdk.MissingXComException
 import org.apache.airflow.sdk.TaskInput
+import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.execution.ArgBinding
 import org.apache.airflow.sdk.execution.Logger
 import java.lang.reflect.Field
@@ -42,6 +50,15 @@ import java.lang.reflect.Type
  * graph the scheduler ordered the run by. Flat data parameters resolve the
  * binding at their position (through [TaskArgs]); [TaskInput] fields resolve
  * bindings by name.
+ *
+ * A natively authored Dag has no stub call site, so the supervisor sends no
+ * bindings for it and the inputs the Dag itself wired stand in. When the
+ * supervisor sends bindings they are used for every parameter; the Dag's own
+ * inputs are read only when it sends none.
+ *
+ * A count that does not match is fatal for flat parameters and a warning for a
+ * [TaskInput]: a position has no name to fall back on, while a field does, so
+ * the task still runs on what it can bind.
  */
 object ArgValues {
   private val mapper: ObjectMapper = JsonMapper.builder().build().findAndRegisterModules()
@@ -68,9 +85,18 @@ object ArgValues {
    */
   @JvmStatic
   fun <I : TaskInput> bindInput(
+    context: Context,
     client: Client,
     type: Class<I>,
   ): I {
+    // Runtime bindings carry argument names to match fields against. A wired
+    // input carries none, so it decodes into the whole input at once -- which
+    // is well defined because a TaskInput is a task's only data parameter.
+    wiredInputs(context, client)?.let { wired ->
+      warnWiredArity(client, type, wired.size)
+      return type.cast(decode(resolveWiredAll(wired.take(1), client).single(), type))
+        ?: throw missingInput(wired[0], type.simpleName)
+    }
     val input = newInput(type)
     val arguments = ArgIndex(client.argBindings)
     val unfilled = mutableListOf<String>()
@@ -146,6 +172,104 @@ object ArgValues {
     binding: ArgBinding,
     type: Type,
   ): Any? = decode(client.resolveBinding(binding), type)
+
+  /**
+   * Reports a Dag that wired more inputs than a [TaskInput] can take. A
+   * [TaskInput] is a task's only data parameter, so exactly one input feeds
+   * it; the extras are ignored and the first input is used, leaving the task
+   * to run on what it can bind rather than failing the run outright.
+   */
+  private fun warnWiredArity(
+    client: Client,
+    type: Class<*>,
+    wired: Int,
+  ) {
+    if (wired <= 1) return
+    logger.warning(
+      "Dag's call passed argument(s) the task handler does not declare",
+      mapOf(
+        "task_id" to client.details.ti.taskId,
+        "input" to type.simpleName,
+        "declared" to 1,
+        "wired" to wired,
+      ),
+    )
+  }
+
+  /**
+   * Resolves every wired input at once: each upstream is read once however
+   * many parameters it feeds, and several upstreams are read concurrently.
+   * The supervisor protocol matches responses to requests by id, so a task
+   * wired to several upstreams waits roughly one round trip rather than one
+   * per parameter.
+   */
+  internal fun resolveWiredAll(
+    inputs: List<Arg<*>>,
+    client: Client,
+  ): List<Any?> {
+    val upstreams = inputs.filterIsInstance<TaskRef<*>>().map { it.def.id }.distinct()
+    val fetched =
+      when (upstreams.size) {
+        0 -> emptyMap()
+        1 -> mapOf(upstreams[0] to client.getXCom(taskId = upstreams[0]))
+        else ->
+          runBlocking {
+            upstreams.map { taskId -> async(Dispatchers.IO) { taskId to client.getXCom(taskId = taskId) } }.awaitAll()
+          }.toMap()
+      }
+    return inputs.map { input ->
+      when (input) {
+        is TaskRef<*> -> fetched[input.def.id]
+        is LiteralArg<*> -> input.value
+      }
+    }
+  }
+
+  /** Decodes an already-resolved wired value into [type], passing null through. */
+  internal fun decodeWired(
+    value: Any?,
+    type: Type,
+  ): Any? = decode(value, type)
+
+  /**
+   * The inputs the Dag wired for this task, or null when the run's arguments
+   * come from the stub call site. A task with no wired inputs reads the
+   * bindings, so a stub call that bound nothing keeps its own diagnostics.
+   */
+  internal fun wiredInputs(
+    context: Context,
+    client: Client,
+  ): List<Arg<*>>? = if (client.argBindings.isEmpty()) context.taskDef?.inputs?.takeIf { it.isNotEmpty() } else null
+
+  /**
+   * The failure for a wired argument that resolved to nothing where a value is
+   * required, naming [target] — the position of the parameter it feeds.
+   */
+  internal fun missingWired(
+    input: Arg<*>,
+    target: String,
+  ): MissingXComException =
+    when (input) {
+      is TaskRef<*> -> MissingXComException(input.def.id, target)
+      is LiteralArg<*> ->
+        MissingXComException(
+          "Task parameter '$target' is wired to a null literal, but has a primitive type that cannot " +
+            "be null; declare a boxed type (e.g. Integer instead of int) to receive null.",
+        )
+    }
+
+  /** The failure for a wired input that resolved to nothing for a [TaskInput]. */
+  private fun missingInput(
+    input: Arg<*>,
+    target: String,
+  ): MissingXComException =
+    when (input) {
+      is TaskRef<*> ->
+        MissingXComException(
+          "Input '$target' requires an XCom from task '${input.def.id}', but none was pushed.",
+        )
+      is LiteralArg<*> -> MissingXComException("Input '$target' is wired to a null literal, so there is nothing to bind.")
+    }
 
   /**
    * Builds the failure for a binding that resolved to nothing where a value is
