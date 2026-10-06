@@ -287,7 +287,13 @@ Its values are Python names, which `tsc` cannot see and does not check.
 Airflow launches the bundled entrypoint with `--comm=host:port` and
 `--logs=host:port`. `bundle.serve()` connects to those sockets, receives the
 task startup message, finds the registered handler for the Dag/task pair, and
-reports the terminal task state back to Airflow.
+reports the terminal task state back to Airflow. To check the stub tasks of a
+Python Dag, the Dag processor also starts the bundle a stub task would run and
+asks which task handlers it registers. `bundle.serve()` then answers with every
+`TaskHandler`, keyed by Dag id, without running any handler. Types are erased,
+so the Dag processor checks only that each stub task has a handler, not its
+arguments. The tasks of a Dag declared in TypeScript are not task handlers, so
+the answer leaves them out.
 
 See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for
 a coordinator-runtime example that packs a bundle with `airflow-ts-pack` and

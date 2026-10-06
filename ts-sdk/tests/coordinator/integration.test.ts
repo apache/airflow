@@ -81,8 +81,8 @@ type Responder = (
   body: Record<string, unknown>,
 ) => { body: unknown; error?: unknown } | null;
 
-function frameBytes(id: number, body: unknown, isResponse: boolean): Buffer {
-  const arr = isResponse ? [id, body, null] : [id, body];
+function frameBytes(id: number, body: unknown, isResponse: boolean, error: unknown = null): Buffer {
+  const arr = isResponse ? [id, body, error] : [id, body];
   const payload = Buffer.from(encode(arr));
   const header = Buffer.alloc(4);
   header.writeUInt32BE(payload.length, 0);
@@ -203,7 +203,7 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
           // runtime never hangs on auto-generated RPCs (e.g. the
           // return_value XCom push).
           { body: null };
-        commSock.write(frameBytes(f.id, reply.body, true));
+        commSock.write(frameBytes(f.id, reply.body, true, reply.error));
         continue;
       }
       // Arity-3: a response from the runtime. The terminal frame
@@ -218,10 +218,12 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
   // Wait for the runtime to finish AND for the comm socket to deliver
   // its final bytes (FIN signals that all preceding frames are flushed).
   const commSocketEnded = new Promise<void>((resolve) => commSock.on("end", () => resolve()));
-  await Promise.all([runtimeDone, commSocketEnded]);
-
-  comm.server.close();
-  logs.server.close();
+  try {
+    await Promise.all([runtimeDone, commSocketEnded]);
+  } finally {
+    comm.server.close();
+    logs.server.close();
+  }
 
   const lines = Buffer.concat(logChunks).toString("utf8").split("\n").filter(Boolean);
   const logRecords = lines.map((l) => JSON.parse(l) as Record<string, unknown>);
@@ -907,6 +909,87 @@ describe("coordinator runtime integration", () => {
           'Dag "broken_dag": schedule for Dag "broken_dag" is empty',
         ),
       });
+    });
+  });
+
+  describe("TaskHandlerParseRequest", () => {
+    const parseRequest = {
+      type: "TaskHandlerParseRequest",
+      file: "/bundles/etl.min.mjs",
+      bundle_path: "/bundles",
+      bundle_name: "ts-task-handlers",
+    };
+
+    it("sends every task handler as one request, and runs no handler", async () => {
+      let called = false;
+      // A Dag declared in TypeScript is not a task handler, so the answer leaves it out.
+      testDag.task("extract", async () => {
+        called = true;
+      })();
+      bundle.register(
+        new TaskHandler("py_dag", "transform", async () => {
+          called = true;
+        }),
+      );
+
+      const result = await driveSupervisor(parseRequest);
+
+      expect(result.firstResponse).toBeNull();
+      expect(result.runtimeRequests).toEqual([
+        {
+          type: "TaskHandlerParsingResult",
+          body: {
+            type: "TaskHandlerParsingResult",
+            fileloc: "/bundles/etl.min.mjs",
+            task_handlers: {
+              py_dag: [{ task_id: "transform", binding: "named", params: null }],
+            },
+          },
+        },
+      ]);
+      expect(called).toBe(false);
+    });
+
+    it("fails when Airflow answers the result with an error", async () => {
+      bundle.register(new TaskHandler("py_dag", "transform", async () => undefined));
+
+      await expect(
+        driveSupervisor(parseRequest, () => ({
+          body: null,
+          error: {
+            error: "generic_error",
+            detail: { message: "A parse result was already received" },
+          },
+        })),
+      ).rejects.toThrow(/did not acknowledge the TaskHandlerParsingResult/);
+    });
+
+    it("fails when the socket closes before Airflow acknowledges the result", async () => {
+      bundle.register(new TaskHandler("py_dag", "transform", async () => undefined));
+      const comm = await listen();
+      const logs = await listen();
+      const commAccept = acceptOne(comm.server);
+      const logsAccept = acceptOne(logs.server);
+      const runtimeDone = startCoordinator(bundle, {
+        commAddr: `127.0.0.1:${comm.port}`,
+        logsAddr: `127.0.0.1:${logs.port}`,
+        argv: [],
+      });
+      const [commSock, logsSock] = await Promise.all([commAccept, logsAccept]);
+      logsSock.resume();
+      // The result arrives as a request, and the socket closes without a reply.
+      commSock.once("data", () => commSock.destroy());
+
+      commSock.write(frameBytes(0, parseRequest, true));
+
+      try {
+        await expect(runtimeDone).rejects.toThrow(
+          /did not acknowledge the TaskHandlerParsingResult/,
+        );
+      } finally {
+        comm.server.close();
+        logs.server.close();
+      }
     });
   });
 

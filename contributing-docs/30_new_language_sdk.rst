@@ -146,8 +146,8 @@ runs and its supervisor schema version, found in the Dag bundle at
 *bundle_path* itself, because ``self._get_scan_roots()`` is not set there. It
 raises ``FileNotFoundError`` when the task would find no artifact it can run,
 or ``ValueError`` when the artifact it found uses a supervisor schema version
-this Task SDK does not know (``ExecutableCoordinator`` skips such bundles, so
-it raises ``FileNotFoundError`` instead).
+this Task SDK does not know (``ExecutableCoordinator`` and ``NodeCoordinator``
+skip such bundles, so they raise ``FileNotFoundError`` instead).
 
 ``_build_parse_task_handler_command`` builds the command that starts the
 runtime for the artifact at *path*, which ``_find_task_handler_artifact``
@@ -162,7 +162,8 @@ not started. The runtime answers as described in
 Both defaults raise ``NotImplementedError``, so the stub tasks of a coordinator
 that does not implement them are not checked. ``ExecutableCoordinator``
 implements both for executable bundles. ``JavaCoordinator`` implements both for
-JARs, and its probe runs the same command as a task.
+JARs, and its probe runs the same command as a task. ``NodeCoordinator``
+implements both for packed ``*.min.mjs`` bundles.
 
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~
