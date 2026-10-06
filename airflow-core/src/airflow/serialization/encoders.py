@@ -442,6 +442,7 @@ class _Serializer:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
             "timetable": encode_timetable(timetable.timetable),
+            "batch_asset_events": timetable.batch_asset_events,
         }
 
     @serialize_timetable.register

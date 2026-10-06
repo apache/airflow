@@ -47,8 +47,9 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         *,
         timetable: Timetable,
         assets: Collection[SerializedAsset] | SerializedAssetBase,
+        batch_asset_events: bool = True,
     ) -> None:
-        super().__init__(assets)
+        super().__init__(assets, batch_asset_events=batch_asset_events)
         self.timetable = timetable
         self.description = f"Triggered by assets or {timetable.description}"
         self.periodic = timetable.periodic
@@ -62,6 +63,7 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         return cls(
             assets=decode_asset_like(data["asset_condition"]),
             timetable=decode_timetable(data["timetable"]),
+            batch_asset_events=data.get("batch_asset_events", True),
         )
 
     def validate(self) -> None:
@@ -76,6 +78,7 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         return {
             "asset_condition": encode_asset_like(self.asset_condition),
             "timetable": encode_timetable(self.timetable),
+            "batch_asset_events": self.batch_asset_events,
         }
 
     @property

@@ -228,6 +228,9 @@ class Timetable(Protocol):
     asset_condition: SerializedAssetBase = _NullAsset()
     """The asset condition that triggers a DAG using this timetable."""
 
+    batch_asset_events: bool = True
+    """Whether queued asset events are consumed together in one Dag run."""
+
     partitioned: bool = False
     """Whether this timetable considers asset partitions.
 
