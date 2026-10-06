@@ -224,6 +224,7 @@ provider_info = "airflow.providers.common.ai.get_provider_info:get_provider_info
 
 [project.entry-points."airflow.plugins"]
 hitl_review = "airflow.providers.common.ai.plugins.hitl_review:HITLReviewPlugin"
+ai_model_panel = "airflow.providers.common.ai.plugins.model_panel:ModelPanelPlugin"
 
 [tool.hatch.version]
 path = "src/airflow/providers/common/ai/__init__.py"
