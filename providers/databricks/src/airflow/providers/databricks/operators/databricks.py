@@ -892,6 +892,11 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
+        if self.outlets and not self.wait_for_termination:
+            self.log.warning(
+                "outlets are set with wait_for_termination=False. The asset event will mean the "
+                "Databricks run was submitted, not that the table was refreshed."
+            )
         self.deferrable = deferrable
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
@@ -1402,6 +1407,11 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
+        if self.outlets and not self.wait_for_termination:
+            self.log.warning(
+                "outlets are set with wait_for_termination=False. The asset event will mean the "
+                "Databricks run was submitted, not that the table was refreshed."
+            )
         self.deferrable = deferrable
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.repair_run = repair_run
@@ -1713,6 +1723,11 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
+        if self.outlets and not self.wait_for_termination:
+            self.log.warning(
+                "outlets are set with wait_for_termination=False. The asset event will mean the "
+                "SQL statement was submitted, not that the table was refreshed."
+        )
         self.deferrable = deferrable
         self.query_tags = query_tags or {}
         self.include_airflow_query_tags = include_airflow_query_tags
