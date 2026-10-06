@@ -18,9 +18,12 @@
 ---
 name: "[v3-4-test] Scheduled CI upgrade check"
 on:  # yamllint disable-line rule:truthy
-  schedule:
-    # Tue, Thu at 06:00 UTC — the days main does not run, so the two never overlap.
-    - cron: '0 6 * * 2,4'
+  # Schedule paused while v3-4-test is fast-forwarded to main for the 3.4.0 betas - upgrades
+  # land on main and reach v3-4-test with the next fast-forward. Re-enable when cherry-picking
+  # starts (see "Beta releases" in dev/README_RELEASE_AIRFLOW.md).
+  # schedule:
+  #   # Tue, Thu at 06:00 UTC — the days main does not run, so the two never overlap.
+  #   - cron: '0 6 * * 2,4'
   workflow_dispatch:
 permissions:
   contents: write
