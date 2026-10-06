@@ -178,3 +178,29 @@ DatabricksRunNowDeferrableOperator
 Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksRunNowOperator` operator.
 
 It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
+Explicit assets
+---------------
+
+``DatabricksRunNowOperator`` does not infer Databricks table assets produced by
+a job. Declare known outputs explicitly using ``outlets``::
+
+    from airflow.sdk import Asset
+
+    DatabricksRunNowOperator(
+        task_id="run_now",
+        job_id=jobs_create_named.output,
+        outlets=[
+            Asset("databricks://my-workspace.cloud.databricks.com/default/my_airflow_table")
+        ],
+    )
+
+An outlet is a declared output asset and does not automatically verify that the
+job produced a new table commit.
+
+When ``wait_for_termination=False``, a successful task means that the Databricks
+run was submitted successfully, not that the declared table was refreshed.
+The operator emits a warning when outlets are configured in this mode.
+
+With synchronous or deferrable execution, the outlet event represents successful
+remote job completion. Remote failure or cancellation does not produce a
+successful outlet event.
