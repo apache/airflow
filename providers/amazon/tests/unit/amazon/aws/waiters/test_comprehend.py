@@ -119,6 +119,8 @@ class TestComprehendDocumentClassifierDeletableWaiter(TestComprehendCustomWaiter
 
         ComprehendHook().get_waiter(self.WAITER_NAME).wait(DocumentClassifierArn="arn")
 
+        mock_describe_document_classifier.assert_called_once_with(DocumentClassifierArn="arn")
+
     @pytest.mark.parametrize("state", ["SUBMITTED", "TRAINING", "STOP_REQUESTED"])
     def test_document_classifier_deletable_retries_while_in_progress(
         self, state, mock_describe_document_classifier
@@ -129,6 +131,22 @@ class TestComprehendDocumentClassifierDeletableWaiter(TestComprehendCustomWaiter
             ComprehendHook().get_waiter(self.WAITER_NAME).wait(
                 DocumentClassifierArn="arn", WaiterConfig={"Delay": 0.01, "MaxAttempts": 2}
             )
+
+        assert mock_describe_document_classifier.call_count == 2
+
+    def test_document_classifier_deletable_fails_while_already_deleting(
+        self, mock_describe_document_classifier
+    ):
+        mock_describe_document_classifier.return_value = {
+            "DocumentClassifierProperties": {"Status": "DELETING"}
+        }
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            ComprehendHook().get_waiter(self.WAITER_NAME).wait(
+                DocumentClassifierArn="arn", WaiterConfig={"Delay": 0.01, "MaxAttempts": 2}
+            )
+
+        mock_describe_document_classifier.assert_called_once_with(DocumentClassifierArn="arn")
 
     def test_document_classifier_deletable_wait(self, mock_describe_document_classifier):
         wait = {"DocumentClassifierProperties": {"Status": "STOP_REQUESTED"}}

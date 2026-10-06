@@ -108,6 +108,12 @@
                 {
                     "matcher": "path",
                     "argument": "DocumentClassifierProperties.Status",
+                    "expected": "DELETING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "DocumentClassifierProperties.Status",
                     "expected": "SUBMITTED",
                     "state": "retry"
                 },

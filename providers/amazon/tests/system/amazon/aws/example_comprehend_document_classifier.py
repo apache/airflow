@@ -114,7 +114,7 @@ def document_classifier_workflow():
     # [END howto_sensor_create_document_classifier]
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
-    def delete_classifier():
+    def delete_classifier(classifier_name: str):
         hook = ComprehendHook()
         classifiers = hook.conn.list_document_classifiers(
             Filter={"DocumentClassifierName": classifier_name},
@@ -135,7 +135,7 @@ def document_classifier_workflow():
     chain(
         create_document_classifier,
         await_create_document_classifier,
-        delete_classifier(),
+        delete_classifier(classifier_name),
     )
 
 
