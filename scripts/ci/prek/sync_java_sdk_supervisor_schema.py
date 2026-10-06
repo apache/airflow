@@ -18,11 +18,16 @@
 """
 Keep the Java SDK's bundled Supervisor Schema in sync with ``airflowSupervisorSchemaVersion``.
 
-The Gradle task ``:sdk:syncSupervisorSchema`` downloads a fresh ``schema.json`` when the
-``api_version`` inside it differs from the version declared in ``java-sdk/gradle.properties``.
-Starting Gradle for that comparison costs over a minute on a cold CI runner (wrapper download,
-JVM start, plugin resolution), so this hook does the same comparison in Python first and only
-hands over to Gradle when the two versions actually differ.
+The Gradle task ``:sdk:syncSupervisorSchema`` copies the Task SDK's snapshot over ``schema.json`` when the
+snapshot declares the version in ``java-sdk/gradle.properties``, and otherwise downloads the published
+schema.
+Starting Gradle costs over a minute on a cold CI runner (wrapper download, JVM start, plugin
+resolution), so this hook compares the ``api_version`` inside ``schema.json`` with the configured version
+in Python first and only hands over to Gradle when they differ.
+
+The copy runs only when asked. Code generation reads the committed ``schema.json`` and no build step runs
+the task, so a change to the Task SDK's snapshot neither fails nor rewrites anything. To pick such a change
+up, run ``java-sdk/gradlew -p java-sdk :sdk:syncSupervisorSchema`` and commit the file.
 """
 
 from __future__ import annotations

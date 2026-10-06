@@ -19,7 +19,6 @@
 
 package org.apache.airflow.e2e;
 
-import java.util.List;
 import org.apache.airflow.sdk.*;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,7 +26,7 @@ import org.jetbrains.annotations.NotNull;
  * Bundle for the runner-behaviour E2E tests: deliberately broken task classes that exercise
  * instantiation failures, and a task that round-trips Airflow Variables through the supervisor.
  */
-public class TestBundleBuilder implements BundleBuilder {
+public class TestBundleBuilder {
   public static class MissingNoArgConstructor implements Task {
     public MissingNoArgConstructor(String unused) {}
 
@@ -60,19 +59,15 @@ public class TestBundleBuilder implements BundleBuilder {
     }
   }
 
-  @NotNull
-  @Override
-  public Iterable<DagDef> getDags() {
-    var uninstantiable = new DagDef("java_uninstantiable");
-    uninstantiable.addTask("missing_no_arg_constructor", MissingNoArgConstructor.class);
-    uninstantiable.addTask("non_static_inner", NonStaticInner.class);
-    var variableWrite = new DagDef("java_variable_write");
-    variableWrite.addTask("write_and_delete", WriteAndDeleteVariable.class);
-    return List.of(uninstantiable, variableWrite);
+  public static Bundle build() {
+    return new Bundle()
+        .register(
+            "java_uninstantiable", "missing_no_arg_constructor", MissingNoArgConstructor.class)
+        .register("java_uninstantiable", "non_static_inner", NonStaticInner.class)
+        .register("java_variable_write", "write_and_delete", WriteAndDeleteVariable.class);
   }
 
   public static void main(String[] args) {
-    var bundle = new TestBundleBuilder().build();
-    Server.create(args).serve(bundle);
+    Server.create(args).serve(build());
   }
 }

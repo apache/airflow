@@ -89,10 +89,12 @@ public class InterfaceExampleBuilder {
     }
   }
 
-  public static DagDef build() {
-    return new DagDef("java_interface_example")
-        .addTask("extract", Extract.class)
-        .addTask("transform", Transform.class)
-        .addTask("summarize", Summarize.class);
+  // The Python Dag file owns java_interface_example, so its tasks register as
+  // task handlers rather than as a Dag declared in Java.
+  public static Bundle registerInto(Bundle bundle) {
+    return bundle
+        .register("java_interface_example", "extract", Extract.class)
+        .register("java_interface_example", "transform", Transform.class)
+        .register("java_interface_example", "summarize", Summarize.class);
   }
 }

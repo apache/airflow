@@ -85,6 +85,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
@@ -96,6 +97,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T1 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -103,6 +105,7 @@ class BuilderTest {
              }
            }
 
+           @GeneratedDagTask
            public static final class T2 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -110,6 +113,7 @@ class BuilderTest {
              }
            }
 
+           @GeneratedDagTask
            public static final class T3 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -159,6 +163,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
@@ -168,6 +173,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -222,6 +228,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
          import org.apache.airflow.sdk.internal.TypeRef;
 
@@ -232,6 +239,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -284,6 +292,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -296,6 +305,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T1 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -340,6 +350,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
@@ -348,6 +359,7 @@ class BuilderTest {
              dag.addTask(new TaskDef("t", T.class));
              return dag;
            }
+           @GeneratedDagTask
            public static final class T implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -404,6 +416,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
          import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
          import org.apache.airflow.sdk.internal.TaskArgs;
 
          public final class TestExampleBuilder {
@@ -414,6 +427,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class Flat implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -424,6 +438,7 @@ class BuilderTest {
              }
            }
 
+           @GeneratedDagTask
            public static final class Named implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -682,6 +697,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -690,6 +706,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class T1 implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -803,6 +820,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.TaskDef;
          import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.GeneratedDagTask;
 
          public final class TestExampleBuilder {
            public static DagDef build() {
@@ -811,6 +829,7 @@ class BuilderTest {
              return dag;
            }
 
+           @GeneratedDagTask
            public static final class Score implements Task {
              @Override
              public void execute(Context context, Client client) throws Exception {
@@ -858,6 +877,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.internal.TaskArgs;
+         import org.apache.airflow.sdk.internal.TaskParams;
 
          /**
           * Registers {@link TestExample}'s task handlers against the Dags the Python file owns.
@@ -869,6 +889,8 @@ class BuilderTest {
            }
 
            public static final class Score implements Task {
+             public static final TaskParams AIRFLOW_TASK_PARAMS = TaskParams.of(TaskParams.param("rows", long.class));
+
              @Override
              public void execute(Context context, Client client) throws Exception {
                TaskArgs args = TaskArgs.of(context, client, 1);
@@ -878,9 +900,112 @@ class BuilderTest {
            }
 
            public static final class Audit implements Task {
+             public static final TaskParams AIRFLOW_TASK_PARAMS = TaskParams.of();
+
              @Override
              public void execute(Context context, Client client) throws Exception {
                new TestExample().audit();
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("record each handler's data parameters for the runtime to declare")
+  fun generateHandlerTaskParams() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import java.util.List;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Client;
+        import org.apache.airflow.sdk.Context;
+        import org.apache.airflow.sdk.TaskInput;
+        public class TestExample {
+          public static class ScoreInput implements TaskInput {
+            public String region;
+          }
+
+          @Builder.TaskHandler(dag = "etl")
+          public void flat(Client client, long rows, Integer limit, List<String> regions) {}
+
+          @Builder.TaskHandler(dag = "etl")
+          public void named(ScoreInput input) {}
+
+          @Builder.TaskHandler(dag = "etl")
+          public void none(Context context) {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleHandlers")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleHandlers",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Integer;
+         import java.lang.Long;
+         import java.lang.Override;
+         import java.lang.String;
+         import java.util.List;
+         import org.apache.airflow.sdk.Bundle;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.internal.ArgValues;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+         import org.apache.airflow.sdk.internal.TaskParams;
+         import org.apache.airflow.sdk.internal.TypeRef;
+
+         /**
+          * Registers {@link TestExample}'s task handlers against the Dags the Python file owns.
+          */
+         public final class TestExampleHandlers {
+           public static void registerInto(Bundle bundle) {
+             bundle.register("etl", "flat", Flat.class);
+             bundle.register("etl", "named", Named.class);
+             bundle.register("etl", "none", None.class);
+           }
+
+           public static final class Flat implements Task {
+             public static final TaskParams AIRFLOW_TASK_PARAMS = TaskParams.of(
+                 TaskParams.param("rows", long.class),
+                 TaskParams.param("limit", Integer.class),
+                 TaskParams.param("regions", new TypeRef<List<String>>() {}));
+
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TaskArgs args = TaskArgs.of(context, client, 3);
+               long rows = args.require(0, Long.class);
+               Integer limit = args.get(1, Integer.class);
+               List<String> regions = args.get(2, new TypeRef<List<String>>() {});
+               new TestExample().flat(client, rows, limit, regions);
+             }
+           }
+
+           public static final class Named implements Task {
+             public static final TaskParams AIRFLOW_TASK_PARAMS = TaskParams.input(TestExample.ScoreInput.class);
+
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TestExample.ScoreInput input = ArgValues.bindInput(context, client, TestExample.ScoreInput.class);
+               new TestExample().named(input);
+             }
+           }
+
+           public static final class None implements Task {
+             public static final TaskParams AIRFLOW_TASK_PARAMS = TaskParams.of();
+
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().none(context);
              }
            }
          }
@@ -941,6 +1066,7 @@ class BuilderTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.Task;
          import org.apache.airflow.sdk.internal.TaskArgs;
+         import org.apache.airflow.sdk.internal.TaskParams;
 
          /**
           * Registers {@link TestExample.Inner}'s task handlers against the Dags the Python file owns.
@@ -951,6 +1077,8 @@ class BuilderTest {
            }
 
            public static final class Score implements Task {
+             public static final TaskParams AIRFLOW_TASK_PARAMS = TaskParams.of(TaskParams.param("rows", long.class));
+
              @Override
              public void execute(Context context, Client client) throws Exception {
                TaskArgs args = TaskArgs.of(context, client, 1);

@@ -23,6 +23,7 @@ package org.apache.airflow.sdk
 
 import com.squareup.javapoet.ClassName
 import com.squareup.javapoet.CodeBlock
+import com.squareup.javapoet.FieldSpec
 import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.MethodSpec
 import com.squareup.javapoet.ParameterizedTypeName
@@ -31,8 +32,10 @@ import com.squareup.javapoet.TypeSpec
 import org.apache.airflow.sdk.internal.ArgValues
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.FieldType
+import org.apache.airflow.sdk.internal.GeneratedDagTask
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.TaskArgs
+import org.apache.airflow.sdk.internal.TaskParams
 import org.apache.airflow.sdk.internal.TypeRef
 import org.apache.airflow.sdk.internal.foldArgName
 import org.apache.airflow.sdk.internal.registrarName
@@ -68,7 +71,8 @@ import javax.tools.Diagnostic
  * For each class annotated with [Builder.Dag], generates a `*Builder` class
  * containing:
  *
- * - One inner class per [Builder.Task]-annotated method, implementing [Task].
+ * - One inner class per [Builder.Task]-annotated method, implementing [Task]
+ *   and marked [GeneratedDagTask].
  * - A static `build()` method that constructs the [DagDef], lowers every
  *   explicitly-written `@Builder.Dag` attribute into a `DagDef.config` call,
  *   and registers those inner classes as [TaskDef]s, each carrying its
@@ -129,7 +133,8 @@ class BuilderProcessor : AbstractProcessor() {
   /**
    * Generates the registrar for a class of [Builder.TaskHandler] methods: one
    * [Task] implementation per handler, and a `registerInto` that binds each to
-   * the Dag and task the annotation names.
+   * the Dag and task the annotation names. Each implementation carries its
+   * handler's [TaskParams], so the runtime can report how it binds.
    *
    * There is no Dag to build here — the Python Dag file owns it — so this is a
    * registrar rather than a builder.
@@ -162,7 +167,12 @@ class BuilderProcessor : AbstractProcessor() {
         "@Builder.TaskHandler on '${inner.simpleName}' must name the Dag the Python file declares"
       }
       val innerName = inner.simpleName.toString().replaceFirstChar(Char::uppercase)
-      registrar.addType(buildTask(innerName, inner, el))
+      registrar.addType(
+        buildTask(innerName, inner, el)
+          .toBuilder()
+          .addField(taskParamsField(collectDataParams(inner)))
+          .build(),
+      )
       registerInto.addStatement(
         $$"bundle.register($S, $S, $L.class)",
         handler.dag,
@@ -198,7 +208,12 @@ class BuilderProcessor : AbstractProcessor() {
       val taskAnn = inner.getAnnotation(Builder.Task::class.java) ?: continue
       val innerName = inner.simpleName.toString().replaceFirstChar(Char::uppercase)
 
-      builderClass.addType(buildTask(innerName, inner, el))
+      builderClass.addType(
+        buildTask(innerName, inner, el)
+          .toBuilder()
+          .addAnnotation(GENERATED_DAG_TASK_TYPE)
+          .build(),
+      )
 
       buildMethod.addStatement(
         $$"dag.addTask($L)",
@@ -415,6 +430,26 @@ class BuilderProcessor : AbstractProcessor() {
     return params
   }
 
+  /**
+   * Emits the [TaskParams.FIELD] field recording a handler's data parameters:
+   * its [TaskInput] type, or each flat parameter's name and declared type.
+   */
+  private fun taskParamsField(dataParams: List<DataParam>): FieldSpec {
+    val input = dataParams.singleOrNull { it.isTaskInput }
+    val value =
+      if (input != null) {
+        CodeBlock.of($$"$T.input($T.class)", TASK_PARAMS_TYPE, TypeName.get(input.type))
+      } else {
+        val params =
+          dataParams.map { CodeBlock.of($$"$T.param($S, $L)", TASK_PARAMS_TYPE, it.name, typeToken(TypeName.get(it.type))) }
+        CodeBlock.of($$"$T.of($L)", TASK_PARAMS_TYPE, CodeBlock.join(params, ", "))
+      }
+    return FieldSpec
+      .builder(TASK_PARAMS_TYPE, TaskParams.FIELD, Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+      .initializer(value)
+      .build()
+  }
+
   private fun ProcessingEnvironment.isTaskInput(type: TypeMirror): Boolean {
     val marker = elementUtils.getTypeElement(TASK_INPUT_TYPE.canonicalName()) ?: return false
     return !type.kind.isPrimitive && typeUtils.isAssignable(type, marker.asType())
@@ -499,6 +534,8 @@ private val CLIENT_TYPE = ClassName.get(Client::class.java)
 private val CONTEXT_TYPE = ClassName.get(Context::class.java)
 private val TASK_INPUT_TYPE = ClassName.get(TaskInput::class.java)
 private val TASK_ARGS_TYPE = ClassName.get(TaskArgs::class.java)
+private val TASK_PARAMS_TYPE = ClassName.get(TaskParams::class.java)
+private val GENERATED_DAG_TASK_TYPE = ClassName.get(GeneratedDagTask::class.java)
 private val TYPE_REF_TYPE = ClassName.get(TypeRef::class.java)
 private val ARG_VALUES_TYPE = ClassName.get(ArgValues::class.java)
 
@@ -530,11 +567,16 @@ private fun positionalAccess(
 ): CodeBlock {
   val type = TypeName.get(param.type)
   val reader = if (type.isPrimitive) "require" else "get"
-  val target =
-    if (type is ParameterizedTypeName) {
-      CodeBlock.of($$"new $T<$T>() {}", TYPE_REF_TYPE, type)
-    } else {
-      CodeBlock.of($$"$T.class", type.box())
-    }
-  return CodeBlock.of($$"$L.$L($L, $L)", argsLocal, reader, param.position, target)
+  return CodeBlock.of($$"$L.$L($L, $L)", argsLocal, reader, param.position, typeToken(type.box()))
 }
+
+/**
+ * Emits a runtime token for [type]: a [TypeRef] when it has type arguments,
+ * which a `Class` literal cannot carry, otherwise its `Class` literal.
+ */
+private fun typeToken(type: TypeName): CodeBlock =
+  if (type is ParameterizedTypeName) {
+    CodeBlock.of($$"new $T<$T>() {}", TYPE_REF_TYPE, type)
+  } else {
+    CodeBlock.of($$"$T.class", type)
+  }

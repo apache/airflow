@@ -19,12 +19,22 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.GeneratedDagTask
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 internal class BundleTest {
   private class NoOp : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  /** Stands in for a task class the processor generated for a `@Builder.Dag` task. */
+  @GeneratedDagTask
+  private class GeneratedDagNoOp : Task {
     override fun execute(
       context: Context,
       client: Client,
@@ -192,6 +202,25 @@ internal class BundleTest {
         "registering task handlers for them",
       error.message,
     )
+  }
+
+  @Test
+  @DisplayName("Should reject a class generated for a Builder.Dag task as a task handler")
+  fun shouldRejectClassGeneratedForDagTask() {
+    val bundle = Bundle()
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        bundle.register("etl", "score", GeneratedDagNoOp::class.java)
+      }
+
+    Assertions.assertEquals(
+      "org.apache.airflow.sdk.BundleTest\$GeneratedDagNoOp was generated for a @Builder.Dag task, " +
+        "which belongs to a Dag declared in Java; a task of a Dag the Python file owns is a task " +
+        "handler, so declare it with @Builder.TaskHandler, or register a Task class you wrote",
+      error.message,
+    )
+    Assertions.assertEquals(emptySet<String>(), bundle.taskHandlers.keys)
   }
 
   @Test

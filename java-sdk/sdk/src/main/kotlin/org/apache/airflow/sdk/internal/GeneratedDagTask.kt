@@ -17,12 +17,18 @@
  * under the License.
  */
 
-package org.apache.airflow.k8sexample;
+package org.apache.airflow.sdk.internal
 
-import org.apache.airflow.sdk.*;
-
-public class K8sBundleBuilder {
-  public static void main(String[] args) {
-    Server.create(args).serve(new Bundle().register(CombinedExample.class));
-  }
-}
+/**
+ * @suppress
+ *
+ * Marks a task class the annotation processor generated for a
+ * `@Builder.Task` method of a `@Builder.Dag` class. Such a task belongs to a
+ * Dag declared in Java, so [org.apache.airflow.sdk.Bundle.register] refuses
+ * it as a task handler.
+ *
+ * Public so that generated code can carry it; not user-facing API.
+ */
+@Retention(AnnotationRetention.RUNTIME)
+@Target(AnnotationTarget.CLASS)
+annotation class GeneratedDagTask
