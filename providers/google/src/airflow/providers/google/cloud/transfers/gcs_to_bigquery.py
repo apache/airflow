@@ -494,6 +494,7 @@ class GCSToBigQueryOperator(BaseOperator):
                         project_id=self.project_id or self.hook.project_id,
                         location=self.location or self.hook.location,
                         impersonation_chain=self.impersonation_chain,
+                        cancel_on_kill=self.cancel_on_kill,
                     ),
                     method_name="execute_complete",
                 )
