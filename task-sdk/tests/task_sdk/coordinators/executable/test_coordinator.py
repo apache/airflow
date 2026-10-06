@@ -62,7 +62,7 @@ def _make_metadata(dag_ids, source_filename: str = "example.go") -> dict:
             "version": "0.1.0",
             "supervisor_schema_version": "2026-06-16",
         },
-        "source": source_filename,
+        "entrypoint_path": source_filename,
         "dags": {dag_id: {"tasks": ["task1"]} for dag_id in dag_ids},
     }
 

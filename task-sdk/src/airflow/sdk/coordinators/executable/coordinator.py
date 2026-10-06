@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import pathlib
@@ -185,7 +186,23 @@ class _BinaryDigestCache:
 _digest_cache = _BinaryDigestCache(maxsize=_VERIFY_CACHE_MAXSIZE)
 
 
-def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
+@attrs.define
+class _VerifiedBundle:
+    """A bundle whose trailer and binary digest check out, with its metadata and the open file."""
+
+    file: BinaryIO
+    footer: _Footer
+    metadata: dict[str, Any]
+
+
+@contextlib.contextmanager
+def _open_verified_bundle(path: pathlib.Path) -> Iterator[_VerifiedBundle | None]:
+    """
+    Open *path* and yield it as a verified bundle, or ``None`` when it is not a usable one.
+
+    The file stays open for the ``with`` block, so a caller can read more regions from the
+    bundle it verified.
+    """
     # One open per bundle: trailer-parse, hash (on cache miss), and
     # metadata-read all share the same fd, and the stat that keys the
     # digest cache comes from that fd too. This both halves the syscall
@@ -195,22 +212,26 @@ def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
         f = open(path, "rb")
     except OSError as exc:
         log.debug("Cannot open bundle file; skipping", path=str(path), error=str(exc))
-        return None
+        yield None
+        return
 
     with f:
         try:
             st = os.fstat(f.fileno())
         except OSError as exc:
             log.debug("Cannot stat bundle file; skipping", path=str(path), error=str(exc))
-            return None
+            yield None
+            return
 
         try:
             footer = _Footer.read(f, path, st.st_size)
         except (OSError, ValueError) as exc:
             log.debug("Invalid bundle trailer; skipping", path=str(path), error=str(exc))
-            return None
+            yield None
+            return
         if footer is None:
-            return None
+            yield None
+            return
 
         cache_key: _DigestKey = (str(path), footer.source_start, st.st_ino, st.st_mtime_ns, st.st_size)
         actual_digest = _digest_cache.get(cache_key)
@@ -219,7 +240,8 @@ def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
                 actual_digest = _hash_open_file(f, footer.source_start, path)
             except (OSError, ValueError) as exc:
                 log.debug("Failed to hash bundle binary region", path=str(path), error=str(exc))
-                return None
+                yield None
+                return
             _digest_cache.put(cache_key, actual_digest)
 
         if actual_digest != footer.binary_sha256:
@@ -229,20 +251,30 @@ def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
                 expected=footer.binary_sha256.hex(),
                 actual=actual_digest.hex(),
             )
-            return None
+            yield None
+            return
 
         try:
             f.seek(footer.metadata_start)
             metadata_bytes = f.read(footer.metadata_len)
         except OSError as exc:
             log.debug("Cannot read bundle metadata; skipping", path=str(path), error=str(exc))
-            return None
+            yield None
+            return
 
-    try:
-        return parse_metadata_mapping(metadata_bytes, source="bundle metadata")
-    except ValueError as exc:
-        log.debug("Cannot decode bundle metadata; skipping", path=str(path), error=str(exc))
-        return None
+        try:
+            metadata = parse_metadata_mapping(metadata_bytes, source="bundle metadata")
+        except ValueError as exc:
+            log.debug("Cannot decode bundle metadata; skipping", path=str(path), error=str(exc))
+            yield None
+            return
+
+        yield _VerifiedBundle(file=f, footer=footer, metadata=metadata)
+
+
+def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
+    with _open_verified_bundle(path) as bundle:
+        return None if bundle is None else bundle.metadata
 
 
 def _dag_ids(metadata: dict[str, Any]) -> set[str]:
