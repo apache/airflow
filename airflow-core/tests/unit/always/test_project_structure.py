@@ -125,7 +125,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/utils/test_bigquery.py",
             "providers/google/tests/unit/google/cloud/utils/test_bigquery_get_data.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
-            "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
         ]
         modules_files: list[pathlib.Path] = list(
             AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/src/airflow/providers/**/*.py")
