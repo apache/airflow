@@ -394,6 +394,11 @@ function buildDagGraph(dag: Dag): DagGraph {
    * A group holding no tasks has neither, so the edge steps over it and
    * continues along the group edges beyond — `x >> empty >> y` still runs `y`
    * after `x`, as Python's `find_leaves` walk does.
+   *
+   * On the upstream side that walk has one more step: a group that still comes
+   * up empty stands for the group holding it, so an edge out of an empty
+   * nested group reaches the tasks around it. Python gives a group standing
+   * downstream no such fallback, and neither does this.
    */
   const tasksAt = (id: string, side: "upstream" | "downstream"): string[] => {
     if (!groups.has(id)) return [id];
@@ -408,11 +413,16 @@ function buildDagGraph(dag: Dag): DagGraph {
     if (seen.has(id)) return [];
     seen.add(id);
     const next = side === "upstream" ? upstreamsOf.get(id) : downstreamsOf.get(id);
-    return [...(next ?? [])].flatMap((other) => {
+    const beyond = [...(next ?? [])].flatMap((other) => {
       if (!groups.has(other)) return [other];
       const own = side === "upstream" ? ends.leaves(other) : ends.roots(other);
       return own.length > 0 ? own : tasksBeyond(other, side, seen);
     });
+    if (beyond.length > 0 || side === "downstream") return beyond;
+    const parent = groups.get(id)?.parentGroupId;
+    if (parent === undefined) return [];
+    const own = ends.leaves(parent);
+    return own.length > 0 ? own : tasksBeyond(parent, side, seen);
   };
   const setsFor = (groupId: string): GroupEdgeSets => {
     let sets = groupEdges.get(groupId);
