@@ -188,7 +188,7 @@ export const CallbackLogs = () => {
         </RouterLink>
       </Link>
       {deadline === undefined ? undefined : (
-        <Box mb={2}>
+        <Box mb={4.5}>
           <DataTable
             columns={getCallbackColumns(translate, dagRun?.end_date, renderDuration).filter(
               (column) => !("accessorKey" in column && column.accessorKey === "logs"),
