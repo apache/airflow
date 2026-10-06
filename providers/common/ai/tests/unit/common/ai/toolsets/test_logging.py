@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from pydantic_ai import RunContext
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import (
     ApprovalRequired,
     CallDeferred,
@@ -30,7 +32,9 @@ from pydantic_ai.exceptions import (
     SkipToolValidation,
     ToolFailed,
 )
-from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.toolsets import FunctionToolset, PrefixedToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset, ToolLoggingCapability
@@ -218,8 +222,33 @@ class TestToolLoggingCapability:
         assert wrapped.wrapped is toolset
         assert wrapped.logger is logger
 
-    def test_ordering_is_innermost(self, logger):
-        assert ToolLoggingCapability(logger=logger).get_ordering().position == "innermost"
+    def test_ordering_keeps_logging_inside_other_capability_wrappers(self, logger, caplog):
+        class PrefixingCapability(AbstractCapability[Any]):
+            def get_wrapper_toolset(self, toolset):
+                return PrefixedToolset(toolset, prefix="outer")
+
+        def my_tool() -> str:
+            return "tool-result"
+
+        def model_fn(messages, info):
+            if any(isinstance(part, ToolReturnPart) for message in messages for part in message.parts):
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(
+                parts=[ToolCallPart(tool_name="outer_my_tool", args={}, tool_call_id="call-1")]
+            )
+
+        agent = Agent(
+            FunctionModel(model_fn),
+            tools=[my_tool],
+            capabilities=[PrefixingCapability(), ToolLoggingCapability(logger=logger)],
+        )
+
+        with caplog.at_level(logging.INFO, logger="test.logging_toolset"):
+            result = agent.run_sync("run the tool")
+
+        assert result.output == "done"
+        assert any(record.message == "::group::Tool call: my_tool" for record in caplog.records)
+        assert not any(record.message == "::group::Tool call: outer_my_tool" for record in caplog.records)
 
     def test_is_not_serializable(self):
         assert ToolLoggingCapability.get_serialization_name() is None

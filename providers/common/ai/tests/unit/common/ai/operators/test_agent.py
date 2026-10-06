@@ -1346,6 +1346,39 @@ class TestAgentOperatorCapabilities:
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert create_call.kwargs["capabilities"] == [thinking, search, PromptCaching()]
 
+    @pytest.mark.parametrize(
+        "wrap",
+        [
+            pytest.param(lambda capability: capability, id="direct"),
+            pytest.param(lambda capability: CombinedCapability([Thinking(), capability]), id="combined"),
+            pytest.param(lambda capability: PrefixTools(wrapped=capability, prefix="custom"), id="wrapped"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_declared_tool_logging_capability_prevents_default(
+        self, mock_hook_cls, make_mock_run_result, wrap
+    ):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            "ok", make_mock_run_result
+        )
+        custom_logging = ToolLoggingCapability(logger=MagicMock(spec=logging.Logger))
+        declared = wrap(custom_logging)
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="llm",
+            capabilities=[declared],
+        )
+
+        op.execute(context=_make_context())
+
+        capabilities = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["capabilities"]
+        assert capabilities[0] is declared
+        assert not any(
+            isinstance(capability, ToolLoggingCapability) and capability is not custom_logging
+            for capability in capabilities
+        )
+
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_capabilities_in_both_places_are_refused(self, mock_hook_cls):
         op = AgentOperator(

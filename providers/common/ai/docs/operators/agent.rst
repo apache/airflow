@@ -376,8 +376,9 @@ Parameters
 - ``enable_tool_logging``: Wrap the assembled function toolset in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
   tools supplied through ``toolsets=``, ``agent_params={"tools": [...]}``, and
-  capabilities are logged in real time. Output tools and provider-native tools
-  are not covered. Default ``True``.
+  capabilities are logged in real time. Output tools, provider-native tools, and
+  tools another capability adds through its own wrapper (code mode's ``run_code``,
+  ToolSearch's ``search_tools``) are not covered. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
 - .. _agent-usage-budget:

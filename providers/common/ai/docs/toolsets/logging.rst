@@ -38,9 +38,9 @@ capability through its own wrapper toolset, such as ToolSearch's
 ``search_tools`` and CodeMode's ``run_code``, are also not covered.
 
 ``AgentOperator`` adds ``ToolLoggingCapability`` automatically when
-``enable_tool_logging=True``. Do not also add it to ``capabilities=`` or calls
-will be logged twice. To supply your own instance, set
-``enable_tool_logging=False`` first.
+``enable_tool_logging=True``. If ``capabilities=`` already contains one,
+including inside a combined or wrapper capability, the operator does not add
+another, so the logger on the supplied instance is used.
 
 You can also use ``LoggingToolset`` directly with any pydantic-ai ``Agent``:
 
