@@ -297,7 +297,12 @@ Parameters
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
   Default ``False`` -- only SELECT-family and read-only metadata
-  (``DESCRIBE``/``SHOW``) statements are permitted.
+  (``DESCRIBE``/``SHOW``) statements are permitted. To have a person approve a
+  ``query`` call before it runs, wrap the toolset with ``.approval_required()`` and
+  return ``tool_def.name == "query"`` from its function. Reads and writes both go
+  through ``query``, and a task instance can pause for approval once per Dag run, so
+  this fits an agent that runs one query, such as a single write; see
+  :doc:`../tool_approval`.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
   Rows beyond it are not read out of a DBAPI cursor; what the driver has already
   transferred is its own call. See :ref:`bounded-query-results`.
