@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
 
 import click
@@ -28,7 +29,7 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
-from airflow_breeze.utils.gh_workflow_utils import trigger_workflow_and_monitor
+from airflow_breeze.utils.gh_workflow_utils import get_staging_only_commits, trigger_workflow_and_monitor
 from airflow_breeze.utils.github import run_gh_command
 
 WORKFLOW_NAME_MAPS = {
@@ -333,7 +334,25 @@ def workflow_run_sync_staging_to_main():
         "[warning]If a vote for ANY other release is in progress, its staging docs live on those "
         "branches - SKIP this step, or you will overwrite the docs prepared for that vote.[/warning]"
     )
-    answer = user_confirm("Is no other release vote in progress, and should staging be reset to main?")
+    dropped_commits_count = 0
+    for repo in (APACHE_AIRFLOW_SITE_REPO, APACHE_AIRFLOW_SITE_ARCHIVE_REPO):
+        try:
+            staging_only_commits = get_staging_only_commits(repo)
+        except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as e:
+            console_print(f"[warning]Could not compare staging to main in {repo}: {e!r}[/warning]")
+            continue
+        if staging_only_commits:
+            dropped_commits_count += len(staging_only_commits)
+            console_print(f"[warning]Commits only on `staging` in {repo} that will be dropped:[/warning]")
+            for commit in staging_only_commits:
+                console_print(f"  {commit}")
+    prompt = "Is no other release vote in progress, and should staging be reset to main?"
+    if dropped_commits_count:
+        prompt = (
+            f"{dropped_commits_count} commit(s) only on staging will be dropped. "
+            "Is no other release vote in progress, and should staging be reset to main?"
+        )
+    answer = user_confirm(prompt)
     if answer != Answer.YES:
         console_print("[info]Skipping the reset of staging to main.[/info]")
         sys.exit(0 if answer == Answer.NO else 1)

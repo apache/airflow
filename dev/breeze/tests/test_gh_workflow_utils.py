@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import subprocess
 from unittest import mock
 
@@ -25,6 +26,7 @@ import pytest
 from airflow_breeze.utils.gh_workflow_utils import (
     NEW_RUN_TIMEOUT_SECONDS,
     get_latest_workflow_run_id,
+    get_staging_only_commits,
     monitor_workflow_run,
     trigger_workflow_and_monitor,
     wait_for_new_workflow_run,
@@ -132,3 +134,32 @@ def test_monitor_workflow_run_fails_on_any_unsuccessful_conclusion(mock_info, co
         monitor_workflow_run(run_id="123", repo="apache/airflow")
 
     assert exc_info.value.code == 1
+
+
+@mock.patch("airflow_breeze.utils.gh_workflow_utils.run_gh_command")
+def test_get_staging_only_commits_formats_sha_date_and_subject(mock_run_gh_command):
+    mock_run_gh_command.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=json.dumps(
+            {
+                "commits": [
+                    {
+                        "sha": "abc1234567890",
+                        "commit": {
+                            "message": "Add staged docs\n\nLonger body",
+                            "committer": {"date": "2026-09-30T10:11:12Z"},
+                        },
+                    }
+                ]
+            }
+        ),
+        stderr="",
+    )
+
+    assert get_staging_only_commits("apache/airflow-site") == ["abc1234 2026-09-30 Add staged docs"]
+    assert mock_run_gh_command.call_args.args[0] == [
+        "gh",
+        "api",
+        "repos/apache/airflow-site/compare/main...staging",
+    ]

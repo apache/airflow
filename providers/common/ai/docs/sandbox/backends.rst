@@ -302,6 +302,8 @@ sandbox whose command times out, or that never becomes ready, is torn down
 immediately. If the worker dies first, the server-side TTL archives the sandbox
 rather than deleting it, preserving its snapshot until an operator removes it.
 
+.. _sandbox-backend-sbx:
+
 sbx (Docker Sandboxes, local)
 -----------------------------
 

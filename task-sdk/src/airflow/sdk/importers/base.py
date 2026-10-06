@@ -264,8 +264,13 @@ class AbstractDagImporter(ABC, Generic[DefT]):
         """Import DAGs from a DAG definition."""
 
     @abstractmethod
-    def get_source_code(self, definition: DagDefinition) -> DagSourceCode:
-        """Retrieve the raw source code and its language identifier for the specified DAG definition."""
+    def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
+        """
+        Retrieve the raw source code and its language identifier for the specified DAG definition.
+
+        :param dag_id: The DAG whose own source is wanted, when *definition* may hold more than one.
+            An importer that cannot distinguish between the DAGs of one definition ignores it.
+        """
 
     def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
         """

@@ -26,6 +26,7 @@ from unittest import mock
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import Column, MetaData, String, Table, create_engine, select
+from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
@@ -113,6 +114,16 @@ class TestFilterParam:
 
 
 class TestSortParam:
+    def test_sort_columns_and_primary_key_use_the_selected_alias(self):
+        rows = select(DagRun).subquery("filtered_runs")
+        entity = aliased(DagRun, rows)
+        param = SortParam(["run_id"], entity).set_value(["run_id"])
+
+        query = param.to_orm(select(entity))
+
+        assert all(column.table is rows for _, column, _ in param.get_resolved_columns())
+        assert "ORDER BY filtered_runs.run_id ASC, filtered_runs.id ASC" in str(query)
+
     def test_sort_param_max_number_of_filers(self):
         param = SortParam([], None, None)
         n_filters = param.MAX_SORT_PARAMS + 1
