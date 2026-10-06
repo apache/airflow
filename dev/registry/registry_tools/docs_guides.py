@@ -73,7 +73,7 @@ def is_guide_page(relative_path: str) -> bool:
 _INLINE_LITERAL_NAME = r"``(@?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)``"
 _INLINE_LITERAL_NAME_RE = re.compile(_INLINE_LITERAL_NAME)
 
-# Only titles that either open with, or end a colon-led clause with, a run of
+# Only titles that consist solely of, or end a colon-led clause with, a run of
 # inline-literal names are treated as documenting them, so prose headings
 # ("Bounded query results") never produce a link. A run is one or more names
 # joined by "&", ",", "/" or "and" -- how guides write a section that covers both

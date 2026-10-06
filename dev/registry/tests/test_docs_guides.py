@@ -114,6 +114,12 @@ def test_collect_guide_anchors_ignores_a_title_that_opens_with_a_name_then_conti
     assert collect_guide_anchors({"sandbox/configuration.rst": guide}) == {}
 
 
+def test_collect_guide_anchors_names_only_the_trailing_run_of_a_colon_title():
+    guide = "``A``: ``B``\n-------------\n\nProse.\n"
+
+    assert collect_guide_anchors({"page.rst": guide}) == {"B": "page.html#a-b"}
+
+
 def test_collect_guide_anchors_prefers_first_sorted_page_among_page_titles():
     # Both pages title themselves after SQLToolset, so neither title beats the
     # other on that basis alone; the tie is broken by sorted page order.
