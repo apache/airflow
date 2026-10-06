@@ -193,6 +193,29 @@ class AirflowSdkPluginTest {
   }
 
   @Test
+  fun leavesTheSourcesPayloadOutOfANonBundleJar(
+    @TempDir dir: File,
+  ) {
+    project(dir)
+    dir.write(
+      "build.gradle",
+      File(dir, "build.gradle").readText() + "\njava { withSourcesJar() }\n",
+    )
+
+    gradle(dir, "jar", "sourcesJar")
+
+    val sources = File(dir, "build/libs/bundle-test-sources.jar")
+    assertFalse(entries(sources).any { it.startsWith("META-INF/airflow") })
+    JarFile(sources).use { assertNull(it.manifest.mainAttributes.getValue("Airflow-Java-SDK-Sources")) }
+    JarFile(File(dir, "build/libs/bundle-test.jar")).use {
+      assertEquals(
+        "META-INF/airflow/sources.json",
+        it.manifest.mainAttributes.getValue("Airflow-Java-SDK-Sources"),
+      )
+    }
+  }
+
+  @Test
   fun skipsEverythingWithoutMainClass(
     @TempDir dir: File,
   ) {
