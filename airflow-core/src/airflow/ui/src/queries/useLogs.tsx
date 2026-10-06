@@ -25,7 +25,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
-import { useTaskInstanceServiceGetLog } from "openapi/queries";
+import { useDeadlinesServiceGetCallbackLogs, useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
   StructuredLogMessage,
   TaskInstanceResponse,
@@ -303,6 +303,17 @@ const truncateData = (data: TaskInstancesLogResponse | undefined, limit?: number
   };
 };
 
+// Build a 1:1 searchable text array from parsedLogs so search indices align
+// with the rendered output. Each entry maps to exactly one line.
+const getSearchableText = (parsedLogs: Array<ParsedLogEntry> | undefined): Array<string> =>
+  (parsedLogs ?? []).map((entry) => {
+    if (typeof entry.element === "string") {
+      return entry.element;
+    }
+
+    return entry.element ? innerText(entry.element) : "";
+  });
+
 export const useLogs = (
   {
     accept = "application/x-ndjson",
@@ -353,15 +364,44 @@ export const useLogs = (
     tryNumber,
   });
 
-  // Build a 1:1 searchable text array from parsedLogs so search indices align
-  // with the rendered output. Each entry maps to exactly one line.
-  const searchableText: Array<string> = (parsedData.parsedLogs ?? []).map((entry) => {
-    if (typeof entry.element === "string") {
-      return entry.element;
-    }
+  return {
+    parsedData: { ...parsedData, searchableText: getSearchableText(parsedData.parsedLogs) },
+    ...rest,
+    fetchedData: data,
+  };
+};
 
-    return entry.element ? innerText(entry.element) : "";
+type CallbackLogsProps = {
+  callbackId: string;
+  dagId: string;
+  dagRunId: string;
+  logLevelFilters?: Array<string>;
+  showLogLevel?: boolean;
+  showSource?: boolean;
+  showTimestamp?: boolean;
+  sourceFilters?: Array<string>;
+};
+
+export const useCallbackLogs = ({ callbackId, dagId, dagRunId, ...displayOptions }: CallbackLogsProps) => {
+  const { t: translate } = useTranslation();
+
+  const { data, ...rest } = useDeadlinesServiceGetCallbackLogs({
+    accept: "application/x-ndjson",
+    callbackId,
+    dagId,
+    dagRunId,
   });
 
-  return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
+  const parsedData = parseLogs({
+    data: parseStreamingLogContent(data),
+    ...displayOptions,
+    translate,
+    tryNumber: 1,
+  });
+
+  return {
+    parsedData: { ...parsedData, searchableText: getSearchableText(parsedData.parsedLogs) },
+    ...rest,
+    fetchedData: data,
+  };
 };
