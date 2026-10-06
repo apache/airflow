@@ -51,7 +51,7 @@ private class NoopArgTask : Task {
   ) = Unit
 }
 
-/** Resolution of the inputs a Dag declared in Java, without runtime bindings. */
+/** Resolution of the inputs a `@Builder.Deps` class recorded, without runtime bindings. */
 internal class ArgValuesTest {
   /** Upstream task ids read through the transport, in arrival order. */
   private val pulls = java.util.concurrent.CopyOnWriteArrayList<String>()
@@ -119,8 +119,7 @@ internal class ArgValuesTest {
       .distinct()
       .forEach { dag.addTask(it) }
     val def = TaskDef("consumer", NoopArgTask::class.java)
-    dag.addTask(def)
-    def.inputs += inputs
+    Refs.record(dag, listOf("consumer")) { Refs.call<Unit>(def, *inputs.toTypedArray()) }
     return contextWithoutTaskDef().also { it.taskDef = def }
   }
 

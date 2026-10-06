@@ -34,3 +34,26 @@ package org.apache.airflow.sdk.internal
  *    returns it.
  */
 fun registrarName(binaryName: String): String = "${binaryName.replace('$', '_')}Handlers"
+
+/**
+ * @suppress
+ *
+ * Names the builder generated for a `@Builder.Dag` class: a top-level class
+ * in the Dag class's package, named by the annotation's `to` or, when that is
+ * blank, `<Class>Builder`.
+ *
+ * Public so the annotation processor emits the name the runtime looks up; not
+ * user-facing API.
+ *
+ * @param packageName Package of the Dag class; empty for the default package.
+ * @param simpleName Simple name of the Dag class.
+ * @param to The annotation's `to` attribute.
+ */
+fun builderName(
+  packageName: String,
+  simpleName: String,
+  to: String,
+): String {
+  val name = to.ifBlank { "${simpleName}Builder" }
+  return if (packageName.isEmpty()) name else "$packageName.$name"
+}
