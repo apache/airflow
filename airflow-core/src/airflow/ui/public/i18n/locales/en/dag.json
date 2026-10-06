@@ -43,7 +43,12 @@
       "alertName": "Deadline Alert",
       "callback": "Callback",
       "deadlineTime": "Deadline Time",
+      "missedBy": "Missed by",
       "type": "Type"
+    },
+    "types": {
+      "executor": "Sync",
+      "triggerer": "Async"
     }
   },
   "code": {

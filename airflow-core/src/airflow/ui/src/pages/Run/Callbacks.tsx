@@ -18,12 +18,13 @@
  */
 import { Box, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import dayjs from "dayjs";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { FiFileText } from "react-icons/fi";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
-import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
@@ -33,13 +34,63 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 
-import { useAutoRefresh } from "src/utils";
+import { type DurationFormat, useAutoRefresh, useDurationFormat } from "src/utils";
 
 type CallbackRow = { row: { original: DeadlineResponse } };
 
 const ACTIVE_STATES = new Set(["pending", "queued", "running"]);
 
-const createColumns = (translate: TFunction): Array<ColumnDef<DeadlineResponse>> => [
+// Display labels only; the API value (and sorting) stays "executor" / "triggerer".
+const CALLBACK_TYPE_LABELS: Record<string, string> = {
+  executor: "callbacks.types.executor",
+  triggerer: "callbacks.types.triggerer",
+};
+
+export const translateCallbackType = (translate: TFunction, type: string) => {
+  const key = CALLBACK_TYPE_LABELS[type];
+
+  return key === undefined ? type : translate(`dag:${key}`);
+};
+
+// How late the run finished relative to the deadline, like the run header's deadline badge.
+export const getMissedBy = ({
+  deadline,
+  renderDuration,
+  runEndDate,
+  translate,
+}: {
+  readonly deadline: DeadlineResponse;
+  readonly renderDuration: DurationFormat["renderDuration"];
+  readonly runEndDate: string | null | undefined;
+  readonly translate: TFunction;
+}) => {
+  if (!deadline.missed) {
+    return "-";
+  }
+  if (runEndDate === null || runEndDate === undefined) {
+    return translate("dag:deadlineStatus.stillRunning");
+  }
+  const diff = dayjs(runEndDate).diff(dayjs(deadline.deadline_time));
+
+  return diff < 0 ? "-" : (renderDuration(diff / 1000) ?? "-");
+};
+
+export const CallbackStateBadge = ({ state }: { readonly state?: DeadlineResponse["callback_state"] }) => {
+  const { t: translate } = useTranslation("common");
+
+  return (
+    // "pending" is callback-only, so it borrows the "scheduled" badge style.
+    <StateBadge state={state === "pending" ? "scheduled" : state}>
+      {state === null || state === undefined ? translate("states.no_status") : translate(`states.${state}`)}
+    </StateBadge>
+  );
+};
+
+const createColumns = (
+  translate: TFunction,
+  runEndDate: string | null | undefined,
+  renderDuration: DurationFormat["renderDuration"],
+): Array<ColumnDef<DeadlineResponse>> => [
   {
     accessorKey: "callback_path",
     cell: ({ row: { original } }: CallbackRow) => (
@@ -50,6 +101,7 @@ const createColumns = (translate: TFunction): Array<ColumnDef<DeadlineResponse>>
   },
   {
     accessorKey: "callback_type",
+    cell: ({ row: { original } }: CallbackRow) => translateCallbackType(translate, original.callback_type),
     header: translate("callbacks.columns.type"),
   },
   {
@@ -58,14 +110,7 @@ const createColumns = (translate: TFunction): Array<ColumnDef<DeadlineResponse>>
       row: {
         original: { callback_state: state },
       },
-    }: CallbackRow) => (
-      // "pending" is callback-only, so it borrows the "scheduled" badge style.
-      <StateBadge state={state === "pending" ? "scheduled" : state}>
-        {state === null || state === undefined
-          ? translate("common:states.no_status")
-          : translate(`common:states.${state}`)}
-      </StateBadge>
-    ),
+    }: CallbackRow) => <CallbackStateBadge state={state} />,
     header: translate("common:state"),
   },
   {
@@ -80,9 +125,11 @@ const createColumns = (translate: TFunction): Array<ColumnDef<DeadlineResponse>>
     header: translate("callbacks.columns.deadlineTime"),
   },
   {
-    accessorKey: "created_at",
-    cell: ({ row: { original } }: CallbackRow) => <Time datetime={original.created_at} />,
-    header: translate("common:table.createdAt"),
+    accessorKey: "missed_by",
+    cell: ({ row: { original } }: CallbackRow) =>
+      getMissedBy({ deadline: original, renderDuration, runEndDate, translate }),
+    enableSorting: false,
+    header: translate("callbacks.columns.missedBy"),
   },
   {
     accessorKey: "logs",
@@ -104,6 +151,9 @@ export const Callbacks = () => {
   const { dagId = "", runId = "" } = useParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const refetchInterval = useAutoRefresh({ dagId });
+  const { renderDuration } = useDurationFormat();
+  // Already loaded (and refreshed while running) by the Run page.
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId });
 
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
@@ -129,7 +179,7 @@ export const Callbacks = () => {
   return (
     <Box>
       <DataTable
-        columns={createColumns(translate)}
+        columns={createColumns(translate, dagRun?.end_date, renderDuration)}
         data={data?.deadlines ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

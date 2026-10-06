@@ -18,17 +18,25 @@
  */
 import { useState } from "react";
 
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Badge, Box, Heading, HStack, Link, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiAlertTriangle, FiArrowLeft, FiClock } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
+
+import {
+  useDagRunServiceGetDagRun,
+  useDeadlinesServiceGetDagDeadlineAlerts,
+  useDeadlinesServiceGetDeadlines,
+} from "openapi/queries";
 
 import { Modal } from "src/system-components";
 
 import { TaskLogContent, type TaskLogContentProps } from "src/pages/TaskInstance/Logs/TaskLogContent";
 import { TaskLogHeader, type TaskLogHeaderProps } from "src/pages/TaskInstance/Logs/TaskLogHeader";
 import { getDownloadText } from "src/pages/TaskInstance/Logs/utils";
+
+import Time from "src/components/Time";
 
 import {
   LOG_SHOW_LOG_LEVEL_KEY,
@@ -41,6 +49,10 @@ import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { useCallbackLogs } from "src/queries/useLogs";
+import { useDurationFormat } from "src/utils";
+import { translateCompletionRule } from "src/utils/deadlines";
+
+import { CallbackStateBadge, getMissedBy, translateCallbackType } from "./Callbacks";
 
 export const CallbackLogs = () => {
   const { callbackId = "", dagId = "", runId = "" } = useParams();
@@ -60,6 +72,26 @@ export const CallbackLogs = () => {
   const [expanded, setExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
+
+  // Same params as the Callbacks tab's first page, so this is usually served from its cache.
+  const pageSize = useConfig("fallback_page_limit") as number;
+  const { data: deadlines } = useDeadlinesServiceGetDeadlines({
+    dagId,
+    dagRunId: runId,
+    limit: pageSize,
+    offset: 0,
+  });
+  const deadline = deadlines?.deadlines.find((dl) => dl.callback_id === callbackId);
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId });
+  const { locale, renderDuration } = useDurationFormat();
+  // Same params as the run header's deadline badge.
+  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId, limit: 100 });
+  const alert = alertData?.deadline_alerts.find(({ id }) => id === deadline?.alert_id);
+  // Skipped for a dynamic interval, whose rule would not name a length.
+  const completionRule =
+    alert?.interval === null || alert?.interval === undefined
+      ? undefined
+      : translateCompletionRule(translate, alert, locale);
 
   const { error, fetchedData, isLoading, parsedData } = useCallbackLogs({
     callbackId,
@@ -168,6 +200,68 @@ export const CallbackLogs = () => {
           {translate("callbacks.allCallbacks")}
         </RouterLink>
       </Link>
+      {deadline === undefined ? undefined : (
+        <HStack alignItems="flex-start" bg="bg.muted" borderRadius="md" flexWrap="wrap" gap={6} mb={2} p={3}>
+          {[
+            {
+              label: translate("callbacks.columns.alertName"),
+              value:
+                deadline.alert_name === null && completionRule === undefined ? undefined : (
+                  <>
+                    {deadline.alert_name}
+                    {completionRule === undefined ? undefined : (
+                      <Text color="fg.muted" fontSize="xs">
+                        {completionRule}
+                      </Text>
+                    )}
+                  </>
+                ),
+            },
+            {
+              label: translate("callbacks.columns.deadlineTime"),
+              value: (
+                <HStack gap={2}>
+                  <Time datetime={deadline.deadline_time} />
+                  <Badge colorPalette={deadline.missed ? "red" : "blue"} size="sm" variant="solid">
+                    {deadline.missed ? <FiAlertTriangle /> : <FiClock />}
+                    {translate(deadline.missed ? "deadlineStatus.missed" : "deadlineStatus.upcoming")}
+                  </Badge>
+                </HStack>
+              ),
+            },
+            {
+              label: translate("callbacks.columns.missedBy"),
+              value: getMissedBy({ deadline, renderDuration, runEndDate: dagRun?.end_date, translate }),
+            },
+            {
+              label: translate("callbacks.columns.type"),
+              value: translateCallbackType(translate, deadline.callback_type),
+            },
+            {
+              label: translate("common:state"),
+              value: <CallbackStateBadge state={deadline.callback_state} />,
+            },
+            { label: translate("callbacks.columns.callback"), value: deadline.callback_path },
+          ]
+            .filter(({ value }) => value !== null && value !== undefined)
+            .map(({ label, value }) => (
+              <Box key={label}>
+                <Box
+                  color="fg.muted"
+                  fontSize="xs"
+                  fontWeight="medium"
+                  lineHeight="1"
+                  textTransform="uppercase"
+                >
+                  {label}
+                </Box>
+                <Box fontSize="sm" mt={1}>
+                  {value}
+                </Box>
+              </Box>
+            ))}
+        </HStack>
+      )}
       <TaskLogHeader {...logHeaderProps} />
       <TaskLogContent {...logContentProps} />
       <Modal
