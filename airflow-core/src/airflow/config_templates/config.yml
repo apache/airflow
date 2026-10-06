@@ -2913,8 +2913,8 @@ scheduler:
       default: "1000"
     use_job_schedule:
       description: |
-        Turn off scheduler use of cron intervals by setting this to ``False``.
-        DAGs submitted manually in the web UI or with trigger_dag will still run.
+        Set to ``False`` to stop the scheduler creating Dag runs from Dag timetables.
+        Manually triggered and asset-triggered Dag runs are still created.
       version_added: 1.10.2
       type: boolean
       example: ~

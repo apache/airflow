@@ -822,7 +822,19 @@ class DagModel(Base):
                     k: v for k, v in triggered_date_by_dag.items() if k not in exclusion_list
                 }
 
-        time_due = cls.next_dagrun_create_after <= func.now()
+        # This predicate is the only place ``[scheduler] use_job_schedule = False`` is enforced:
+        # the scheduler creates a run for every non-asset Dag this query returns, so Dags due by
+        # their timetable must be left out of the query itself, not filtered afterwards.
+        if include_scheduled:
+            time_due = cls.next_dagrun_create_after <= func.now()
+            needs_dagrun = or_(
+                cls.dag_id.in_(asset_triggered_dag_ids),
+                and_(cls.dag_id.in_(asset_gated_ready_dag_ids), time_due),
+                and_(cls.timetable_asset_gated == expression.false(), time_due),
+            )
+        else:
+            needs_dagrun = cls.dag_id.in_(asset_triggered_dag_ids)
+
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
         query = (
             select(cls)
@@ -832,18 +844,11 @@ class DagModel(Base):
                 cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
                 cls.exceeds_max_non_backfill == expression.false(),
-                or_(
-                    cls.dag_id.in_(asset_triggered_dag_ids),
-                    and_(cls.dag_id.in_(asset_gated_ready_dag_ids), time_due),
-                    and_(cls.timetable_asset_gated == expression.false(), time_due),
-                ),
+                needs_dagrun,
             )
             .order_by(cls.next_dagrun_create_after)
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
-        if not include_scheduled:
-            # Dags due by their timetable get no run, so they would stay due and could fill the batch.
-            query = query.where(cls.dag_id.in_(asset_triggered_dag_ids))
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),

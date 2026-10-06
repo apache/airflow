@@ -2755,7 +2755,10 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         assert sorted(dag_model.dag_id for dag_model in query) == ["asset_triggered", "due_by_schedule"]
 
-        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session, include_scheduled=False)
+        # With one slot, the due Dag would take it unless the filter is in the SQL query itself:
+        # the asset Dag has no next_dagrun_create_after, which sorts last on Postgres.
+        with mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1):
+            query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session, include_scheduled=False)
         assert [dag_model.dag_id for dag_model in query] == ["asset_triggered"]
         assert list(triggered_date_by_dag) == ["asset_triggered"]
 
