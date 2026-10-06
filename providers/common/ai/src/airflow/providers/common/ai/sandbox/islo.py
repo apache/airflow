@@ -122,6 +122,12 @@ def _translate_islo_errors(operation: str) -> Iterator[None]:
         raise SandboxTerminalError(f"Islo could not {operation}: {type(e).__name__}.") from e
 
 
+def _raise_translated(error: Exception, operation: str) -> NoReturn:
+    """Raise ``error`` the way :func:`_translate_islo_errors` would have, for an error caught elsewhere."""
+    with _translate_islo_errors(operation):
+        raise error
+
+
 def _api_error_message(error: Exception) -> str:
     """Return the ``message`` of an Islo error body, trimmed for a prompt, or ``""``."""
     body = getattr(error, "body", None)
@@ -277,8 +283,12 @@ class IsloSandboxBackend(SandboxBackend):
                 f"Islo sandbox {getattr(info, 'name', '?')!r} cannot serve requests (status={status!r})."
             )
 
-    def create(self, *, spec: SandboxSpec | None = None) -> str:
-        if spec is not None and spec.owner is not None:
+    @staticmethod
+    def _check_spec(spec: SandboxSpec | None) -> None:
+        """Refuse a spec this backend cannot carry faithfully, before anything is provisioned."""
+        if spec is None:
+            return
+        if spec.owner is not None:
             # An owner exists so that a later task can attach to the sandbox, and the
             # ownership rules live in per-sandbox metadata this backend keeps none of,
             # so recording one would promise an attach that cannot be checked.
@@ -288,23 +298,26 @@ class IsloSandboxBackend(SandboxBackend):
                 "to from another task. Drop owner, or provision the sandbox on a backend that supports "
                 "attaching, such as ModalSandboxBackend."
             )
-        if spec is not None and spec.allow_egress_to:
+        if spec.allow_egress_to:
             raise SandboxTerminalError(
                 "The Islo backend cannot apply a per-domain egress allowlist; it can only turn "
                 "outbound access on or off. Drop allow_egress_to, or use a backend with "
                 "per-domain network rules."
             )
-        if spec is not None and spec.allow_egress_to_cidrs:
+        if spec.allow_egress_to_cidrs:
             raise SandboxTerminalError(
                 "SandboxSpec names allow_egress_to_cidrs, which the Islo backend cannot enforce: "
                 "it can only turn outbound access on or off. Drop allow_egress_to_cidrs, or use "
                 "a backend with an address-layer allowlist."
             )
-        if spec is not None and spec.env and "PATH" in spec.env:
+        if spec.env and "PATH" in spec.env:
             raise SandboxTerminalError(
                 "Islo sets PATH for every command itself and drops a PATH given at creation; "
                 "remove PATH from SandboxSpec.env."
             )
+
+    def create(self, *, spec: SandboxSpec | None = None) -> str:
+        self._check_spec(spec)
         with _translate_islo_errors("create a sandbox"):
             from islo.types import AutoResumePolicy, LifecyclePolicy
 
@@ -363,8 +376,7 @@ class IsloSandboxBackend(SandboxBackend):
                 )
             except Exception as e:
                 if not _is_transient_error(e):
-                    with _translate_islo_errors("poll a sandbox command"):
-                        raise
+                    _raise_translated(e, "poll a sandbox command")
                 # One failed poll says nothing about the command; the deadline decides.
                 last_error = e
             else:
@@ -375,8 +387,7 @@ class IsloSandboxBackend(SandboxBackend):
             interval = min(interval * _POLL_BACKOFF, _POLL_MAX)
         if last_error is not None:
             # Nothing was heard after the last failure, so "timed out" would be a guess.
-            with _translate_islo_errors("poll a sandbox command"):
-                raise last_error
+            _raise_translated(last_error, "poll a sandbox command")
         return None
 
     def _destroy_after_timeout(self, sandbox: str) -> None:
@@ -486,8 +497,7 @@ class IsloSandboxBackend(SandboxBackend):
 
         status = error.status_code if isinstance(error, ApiError) else None
         if status is None or status in _TERMINAL_FILE_OP_STATUSES or status > 500:
-            with _translate_islo_errors(f"{operation} a sandbox file"):
-                raise error
+            _raise_translated(error, f"{operation} a sandbox file")
         with _translate_islo_errors(f"check a sandbox after a failed file {operation}"):
             info = self._get_client().sandboxes.get_sandbox(
                 sandbox, request_options=self._request_options(timeout=_FILE_OP_TIMEOUT)
@@ -616,6 +626,5 @@ class IsloSandboxBackend(SandboxBackend):
             )
         except NotFoundError:
             return
-        except Exception:
-            with _translate_islo_errors("delete a sandbox"):
-                raise
+        except Exception as e:
+            _raise_translated(e, "delete a sandbox")
