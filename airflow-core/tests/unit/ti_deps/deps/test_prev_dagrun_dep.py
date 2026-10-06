@@ -96,6 +96,50 @@ class TestPrevDagrunDep:
             assert dep.is_met(ti=ti, dep_context=dep_context)
             mock_has_any_prior_tis.assert_called_once_with(ti, session=ANY)
 
+    def test_prev_dagrun_with_manual_run_logical_date_null(self, session):
+        dag = DAG(
+            "test_depends_on_past_with_null_logical_date",
+            schedule=None,
+            start_date=START_DATE,
+        )
+        task = BaseOperator(
+            task_id="test_task",
+            dag=dag,
+            depends_on_past=True,
+            start_date=START_DATE,
+            wait_for_downstream=False,
+        )
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        first_run_after = convert_to_utc(datetime(2016, 1, 1))
+        first_dr = scheduler_dag.create_dagrun(
+            run_id="manual__2016-01-01T00:00:00+00:00",
+            state=DagRunState.RUNNING,
+            logical_date=None,
+            run_type=DagRunType.MANUAL,
+            data_interval=None,
+            run_after=first_run_after,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        first_ti = first_dr.get_task_instance(task.task_id, session=session)
+        first_ti.set_state(TaskInstanceState.FAILED, session=session)
+
+        second_run_after = convert_to_utc(datetime(2016, 1, 2))
+        second_dr = scheduler_dag.create_dagrun(
+            run_id="manual__2016-01-02T00:00:00+00:00",
+            state=DagRunState.RUNNING,
+            logical_date=None,
+            run_type=DagRunType.MANUAL,
+            data_interval=None,
+            run_after=second_run_after,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        second_ti = second_dr.get_task_instance(task.task_id, session=session)
+        second_ti.task = task
+
+        dep_context = DepContext(ignore_depends_on_past=False)
+        assert not PrevDagrunDep().is_met(ti=second_ti, dep_context=dep_context)
+
 
 @pytest.mark.parametrize(
     "kwargs",
