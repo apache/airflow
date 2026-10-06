@@ -765,6 +765,7 @@ func TestSerializeWritesTheLabelsOfEdges(t *testing.T) {
 	assertJSON(t, `{
 		"extract": {
 			"load": {"label": "rows"},
+			"transform.clean": {"label": "to transform"},
 			"transform.upstream_join_id": {"label": "to transform"}
 		},
 		"transform.downstream_join_id": {"publish.upstream_join_id": {"label": "to publish"}},

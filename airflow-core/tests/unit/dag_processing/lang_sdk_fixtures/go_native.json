@@ -534,6 +534,12 @@
         "extract": {
           "load": {
             "label": "rows"
+          },
+          "transform.clean": {
+            "label": "to transform"
+          },
+          "transform.upstream_join_id": {
+            "label": "to transform"
           }
         },
         "publish.downstream_join_id": {
@@ -612,7 +618,9 @@
               "ui_color": "CornflowerBlue",
               "ui_fgcolor": "#000",
               "upstream_group_ids": [],
-              "upstream_task_ids": []
+              "upstream_task_ids": [
+                "extract"
+              ]
             }
           ]
         },
@@ -632,7 +640,8 @@
           "__var": {
             "_task_module": "airflow.sdk.coordinators.executable",
             "downstream_task_ids": [
-              "load"
+              "load",
+              "transform.clean"
             ],
             "is_stub": true,
             "language": "go",

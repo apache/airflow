@@ -182,10 +182,10 @@ func (*TaskGroupRef) node() {}
 // edges are declared: load << empty << extract adds no edge, and an empty group with no task
 // before it falls back to the last tasks of the group that holds it, or of the whole Dag.
 //
-// A [Label] on an edge to or from a group labels that edge, and none of the edges between tasks
-// that it stands for. Depending on which end is the receiver and which groups hold the ends,
-// Python labels those edges as well, as extract >> Label("rows") >> transform does when no group
-// holds extract, or replaces the receiver with a group that holds it.
+// A [Label] on an edge to or from a group labels that edge. On an edge from a task that no group
+// holds to a group with tasks, it also labels the edges to the first tasks of the group, as Python's
+// extract >> Label("rows") >> transform does. When a group holds the task at either end, Python
+// may replace that task with its group instead.
 //
 // Before panics for the reasons that TaskRef.Before lists. It also panics if:
 //   - g or a node is a *TaskGroupRef that DagRef.TaskGroup or TaskGroupRef.TaskGroup did not
@@ -387,16 +387,23 @@ func (d *DagRef) expandGroupEdgesLocked() []expandedEdge {
 		upstreams := expansion.tasksAt(edge.upstream, false)
 		downstreams := expansion.tasksAt(edge.downstream, true)
 		d.groupEdges[i].upstreamTasks = upstreams
+		// Python's extract >> Label("rows") >> transform also labels the edge from extract to each
+		// first task of transform when no group holds extract.
+		var label string
+		if edge.upstream.task != nil && edge.upstream.task.group == nil &&
+			edge.downstream.group != nil &&
+			len(expansion.ends(edge.downstream.group, true)) > 0 {
+			label = d.groupEdgeLabels[from]
+		}
 		for _, upstream := range upstreams {
 			for _, downstream := range downstreams {
 				key := edgeKey{upstream: upstream.taskID, downstream: downstream.taskID}
 				if _, exists := d.edgeLabels[key]; exists {
 					continue
 				}
-				// The label of a group edge stays on the group edge, as TaskGroupRef.Before says.
 				// Stepping over a group that holds no task can lead back to the task it started
 				// from, as extract >> empty >> extract does, and the cycle check reports that.
-				d.addEdgeLocked(upstream, downstream, "")
+				d.addEdgeLocked(upstream, downstream, label)
 				added = append(added, expandedEdge{key: key, from: from})
 			}
 		}

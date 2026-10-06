@@ -251,9 +251,7 @@ dags:
       - task_id: short
       - task_id: long
 
-  # Labelled edges between two tasks, two groups, and a group and a task. An edge from a task to a
-  # group is left out, because Python labels it on the roots of the group, where the Go SDK labels
-  # it on the join node of the group.
+  # Labelled edges between two tasks, a task and a group, two groups, and a group and a task.
   - dag_id: conformance_edge_labels
     requires: [edge_labels]
     spec:
@@ -269,6 +267,7 @@ dags:
       - task_id: notify
     order_edges:
       - [extract, load, rows]
+      - [extract, transform, to transform]
       - [transform, publish, to publish]
       - [publish, notify, to notify]
 
