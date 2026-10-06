@@ -963,6 +963,37 @@ func TestAnEdgeStepsOverAGroupWithNoTask(t *testing.T) {
 	assertTasks(t, loaded.upstreams, extracted)
 }
 
+// TestAnEdgeOutOfAnEmptyNestedGroupLeavesFromTheGroupHoldingIt pins Python's find_leaves, which
+// stands an empty group in for its parent. An edge into an empty group has no such step.
+func TestAnEdgeOutOfAnEmptyNestedGroupLeavesFromTheGroupHoldingIt(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	loaded := orderedTask(t, dag, "load")
+	outer := dag.TaskGroup("outer")
+	held := groupTask(t, outer, "t")
+	spare := outer.TaskGroup("spare")
+
+	spare.Before(loaded)
+	extracted.Before(outer)
+	Bundle().Register(dag)
+
+	assertTasks(t, held.downstreams, loaded)
+	assertTasks(t, loaded.upstreams, held)
+}
+
+func TestAnEdgeIntoAnEmptyNestedGroupDoesNotStepToTheGroupHoldingIt(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	outer := dag.TaskGroup("outer")
+	groupTask(t, outer, "t")
+	spare := outer.TaskGroup("spare")
+
+	extracted.Before(spare)
+	Bundle().Register(dag)
+
+	assert.Empty(t, extracted.downstreams)
+}
+
 func TestAnEdgeStepsOverGroupsWithNoTaskInARow(t *testing.T) {
 	dag := Dag("etl")
 	transform := dag.TaskGroup("transform")

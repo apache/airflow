@@ -510,6 +510,7 @@ func (e *groupExpansion) tasksBeyond(
 	if first {
 		next = e.downstreams[group]
 	}
+	before := len(*found)
 	for _, node := range next {
 		if node.group == nil {
 			*found = append(*found, node.task)
@@ -521,6 +522,16 @@ func (e *groupExpansion) tasksBeyond(
 		}
 		e.tasksBeyond(node.group, first, seen, found)
 	}
+	if len(*found) > before || first || group.parent == nil {
+		return
+	}
+	// An edge out of an empty nested group leaves from the group that holds it, as Python's
+	// find_leaves steps up to the parent group. An edge into an empty group has no such step.
+	if ends := e.ends(group.parent, false); len(ends) > 0 {
+		*found = append(*found, ends...)
+		return
+	}
+	e.tasksBeyond(group.parent, first, seen, found)
 }
 
 // ends returns the first tasks of group when first is true, and its last tasks otherwise, as the

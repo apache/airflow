@@ -666,6 +666,23 @@ func TestSerializeWritesAConditionAsABranch(t *testing.T) {
 	assert.NotContains(t, serializedTask(t, got, "load"), "_can_skip_downstream")
 }
 
+func TestSerializeWritesASwitchAsABranch(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(readRows)
+	loaded := dag.Task(load)
+	reported := dag.Task(ping)
+	dag.Switch(pickPathFromRows, Inputs(read)).Case(loaded).Case(reported)
+
+	got := serializedDag(t, dag)
+
+	assertJSON(t, `{
+		"_arg_bindings": [{"name": "arg0", "kind": "xcom", "task_id": "readRows"}],
+		"_can_skip_downstream": true,
+		"downstream_task_ids": ["load", "ping"]
+	}`, withoutKeys(serializedTask(t, got, "pickPathFromRows"), goTaskFields...))
+	assert.NotContains(t, serializedTask(t, got, "load"), "_can_skip_downstream")
+}
+
 func TestSerializeWritesTheLabelsOfEdges(t *testing.T) {
 	dag := Dag("etl")
 	extracted := orderedTask(t, dag, "extract")

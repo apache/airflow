@@ -459,7 +459,7 @@ func (d *DagRef) serializeTaskLocked(task *TaskRef) map[string]any {
 		if len(task.inputs) > 0 {
 			data["_arg_bindings"] = serializeArgBindings(task.inputs)
 		}
-		if task.ifRef != nil {
+		if task.decider != nil {
 			// Python writes _can_skip_downstream for a branch operator. Airflow reads the skipmixin_key XCom
 			// of the condition only when the flag is set, before it runs a task that comes after the
 			// condition.
