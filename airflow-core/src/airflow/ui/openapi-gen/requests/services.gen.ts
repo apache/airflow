@@ -5288,14 +5288,11 @@ export class DeadlinesService {
     
     /**
      * Get Callback Logs
-     * Get execution logs for a callback associated with a deadline.
-     *
-     * Returns the logs produced during callback execution. These logs are uploaded
-     * to remote storage (or written locally) by the callback supervisor after execution.
+     * Get the execution logs of a deadline callback.
      * @param data The data for the request.
-     * @param data.callbackId
      * @param data.dagId
      * @param data.dagRunId
+     * @param data.callbackId
      * @param data.accept
      * @returns TaskInstancesLogResponse Successful Response
      * @throws ApiError
@@ -5305,9 +5302,9 @@ export class DeadlinesService {
             method: 'GET',
             url: '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs',
             path: {
-                callback_id: data.callbackId,
                 dag_id: data.dagId,
-                dag_run_id: data.dagRunId
+                dag_run_id: data.dagRunId,
+                callback_id: data.callbackId
             },
             headers: {
                 accept: data.accept

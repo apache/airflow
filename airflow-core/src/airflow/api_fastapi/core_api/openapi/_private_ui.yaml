@@ -1417,24 +1417,12 @@ paths:
       tags:
       - Deadlines
       summary: Get Callback Logs
-      description: 'Get execution logs for a callback associated with a deadline.
-
-
-        Returns the logs produced during callback execution. These logs are uploaded
-
-        to remote storage (or written locally) by the callback supervisor after execution.'
+      description: Get the execution logs of a deadline callback.
       operationId: get_callback_logs
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: callback_id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-          title: Callback Id
       - name: dag_id
         in: path
         required: true
@@ -1447,6 +1435,13 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: callback_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Callback Id
       - name: accept
         in: header
         required: false

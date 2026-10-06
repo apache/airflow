@@ -364,23 +364,15 @@ export const useLogs = (
     tryNumber,
   });
 
-  return {
-    parsedData: { ...parsedData, searchableText: getSearchableText(parsedData.parsedLogs) },
-    ...rest,
-    fetchedData: data,
-  };
+  const searchableText = getSearchableText(parsedData.parsedLogs);
+
+  return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
 };
 
-type CallbackLogsProps = {
-  callbackId: string;
-  dagId: string;
-  dagRunId: string;
-  logLevelFilters?: Array<string>;
-  showLogLevel?: boolean;
-  showSource?: boolean;
-  showTimestamp?: boolean;
-  sourceFilters?: Array<string>;
-};
+type CallbackLogsProps = { callbackId: string; dagRunId: string } & Omit<
+  Props,
+  "accept" | "limit" | "taskInstance" | "tryNumber"
+>;
 
 export const useCallbackLogs = ({ callbackId, dagId, dagRunId, ...displayOptions }: CallbackLogsProps) => {
   const { t: translate } = useTranslation();
@@ -398,10 +390,7 @@ export const useCallbackLogs = ({ callbackId, dagId, dagRunId, ...displayOptions
     translate,
     tryNumber: 1,
   });
+  const searchableText = getSearchableText(parsedData.parsedLogs);
 
-  return {
-    parsedData: { ...parsedData, searchableText: getSearchableText(parsedData.parsedLogs) },
-    ...rest,
-    fetchedData: data,
-  };
+  return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
 };

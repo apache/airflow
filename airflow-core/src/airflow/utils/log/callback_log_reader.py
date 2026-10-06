@@ -46,40 +46,23 @@ def validate_log_path_component(component: str) -> str:
     return component
 
 
-def _get_callback_log_relative_paths(dag_id: str, run_id: str, callback_id: str) -> list[str]:
+def read_callback_log(
+    dag_id: str, run_id: str, callback_id: str
+) -> Generator[StructuredLogMessage, None, None]:
     """
-    Construct the relative log paths for a callback execution.
+    Stream callback logs, trying remote storage first and then the local filesystem.
 
-    The executor path matches the format used in ExecuteCallback.make():
-        executor_callbacks/{dag_id}/{run_id}/{callback_id}
-    The triggerer path matches what TriggerLoggingFactory writes for callback triggers:
-        triggerer_callbacks/{dag_id}/{run_id}/{callback_id}
+    Executor callbacks log to ``executor_callbacks/...`` (see ``ExecuteCallback.make()``) and
+    triggerer callbacks to ``triggerer_callbacks/...`` (see ``TriggerLoggingFactory``).
     """
     for component in (dag_id, run_id, callback_id):
         validate_log_path_component(component)
-    return [
-        f"executor_callbacks/{dag_id}/{run_id}/{callback_id}",
-        f"triggerer_callbacks/{dag_id}/{run_id}/{callback_id}",
-    ]
-
-
-def read_callback_log(
-    dag_id: str,
-    run_id: str,
-    callback_id: str,
-) -> Generator[StructuredLogMessage, None, None]:
-    """
-    Stream callback logs from remote and/or local storage.
-
-    Tries both executor_callbacks and triggerer_callbacks paths. For each path, tries
-    remote storage first (if configured), then falls back to the local filesystem.
-    """
-    relative_paths = _get_callback_log_relative_paths(dag_id, run_id, callback_id)
 
     sources: LogSourceInfo = []
     log_streams: list[RawLogStream] = []
 
-    for relative_path in relative_paths:
+    for prefix in ("executor_callbacks", "triggerer_callbacks"):
+        relative_path = f"{prefix}/{dag_id}/{run_id}/{callback_id}"
         with suppress(Exception):
             remote_sources, remote_log_streams = _read_callback_remote_logs(relative_path)
             sources.extend(remote_sources)
@@ -103,15 +86,13 @@ def read_callback_log(
 
 
 def _read_callback_remote_logs(relative_path: str) -> StreamingLogResponse:
-    """Read callback logs from the configured remote log storage."""
     from airflow.logging_config import get_remote_task_log
 
     remote_io = get_remote_task_log()
     if remote_io is None:
         return [], []
 
-    # Callbacks have no TaskInstance, so pass ti=None; remote handlers only use it
-    # for optional metadata (e.g. CloudWatch end_date) and read by relative path.
+    # Callbacks have no TaskInstance; remote handlers only use ``ti`` for optional metadata.
     if stream_method := getattr(remote_io, "stream", None):
         sources, logs = stream_method(relative_path, None)
         return sources, logs or []
@@ -124,7 +105,6 @@ def _read_callback_remote_logs(relative_path: str) -> StreamingLogResponse:
 
 
 def _read_callback_local_logs(relative_path: str) -> StreamingLogResponse:
-    """Read callback logs from the local filesystem with the task handler's symlink-safe reader."""
+    """Read with the task handler's symlink-safe local reader."""
     base_log_folder = os.path.realpath(conf.get("logging", "base_log_folder"))
-    log_path = Path(base_log_folder, *(validate_log_path_component(p) for p in relative_path.split("/")))
-    return FileTaskHandler(base_log_folder)._read_from_local(log_path)
+    return FileTaskHandler(base_log_folder)._read_from_local(Path(base_log_folder, relative_path))

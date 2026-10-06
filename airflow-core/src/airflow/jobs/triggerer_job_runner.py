@@ -860,8 +860,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 watched_assets = {a.name: a.uri for a in trigger.assets}
 
             if callback := getattr(trigger, "callback", None):
-                # Callback triggers get dedicated logging so their output is captured to a
-                # file the UI callback log endpoint can read.
+                # Log callback triggers to a file the UI callback logs endpoint can read.
                 callback_data = callback.data or {}
                 context = (callback_data.get("kwargs") or {}).get("context") or {}
                 dag_run_data = context.get("dag_run") or {}

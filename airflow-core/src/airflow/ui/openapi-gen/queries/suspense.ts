@@ -2160,14 +2160,11 @@ export const useDeadlinesServiceGetDagDeadlineAlertsSuspense = <TData = Common.D
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy, versionNumber }, queryKey), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy, versionNumber }) as TData, ...options });
 /**
 * Get Callback Logs
-* Get execution logs for a callback associated with a deadline.
-*
-* Returns the logs produced during callback execution. These logs are uploaded
-* to remote storage (or written locally) by the callback supervisor after execution.
+* Get the execution logs of a deadline callback.
 * @param data The data for the request.
-* @param data.callbackId
 * @param data.dagId
 * @param data.dagRunId
+* @param data.callbackId
 * @param data.accept
 * @returns TaskInstancesLogResponse Successful Response
 * @throws ApiError

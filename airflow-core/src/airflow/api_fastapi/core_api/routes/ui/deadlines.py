@@ -233,16 +233,6 @@ def get_dag_deadline_alerts(
     return DeadlineAlertCollectionResponse(deadline_alerts=alerts, total_entries=total_entries)
 
 
-def _validated_log_path_params(dag_id: str, dag_run_id: str) -> tuple[str, str]:
-    """Reject dag_id/dag_run_id values that are unsafe as log path components (path traversal)."""
-    for param_name, param_value in (("dag_id", dag_id), ("dag_run_id", dag_run_id)):
-        try:
-            validate_log_path_component(param_value)
-        except ValueError:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid characters in {param_name}")
-    return dag_id, dag_run_id
-
-
 @deadlines_router.get(
     "/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs",
     responses={
@@ -252,39 +242,29 @@ def _validated_log_path_params(dag_id: str, dag_run_id: str) -> tuple[str, str]:
             "content": ndjson_example_response_for_get_log,
         },
     },
-    dependencies=[
-        Depends(
-            requires_access_dag(
-                method="GET",
-                access_entity=DagAccessEntity.TASK_LOGS,
-            )
-        ),
-    ],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_LOGS))],
     response_model=TaskInstancesLogResponse,
     response_model_exclude_unset=True,
 )
 def get_callback_logs(
-    path_params: Annotated[tuple[str, str], Depends(_validated_log_path_params)],
+    dag_id: str,
+    dag_run_id: str,
     callback_id: UUID,
     accept: HeaderAcceptJsonOrNdjson,
     session: SessionDep,
 ):
-    """
-    Get execution logs for a callback associated with a deadline.
-
-    Returns the logs produced during callback execution. These logs are uploaded
-    to remote storage (or written locally) by the callback supervisor after execution.
-    """
-    dag_id, dag_run_id = path_params
+    """Get the execution logs of a deadline callback."""
+    # Both are used as log path components, so reject anything that could escape the log folder.
+    for param_name, param_value in (("dag_id", dag_id), ("dag_run_id", dag_run_id)):
+        try:
+            validate_log_path_component(param_value)
+        except ValueError:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid characters in {param_name}")
 
     deadline_exists = session.scalar(
         select(Deadline.id)
         .join(Deadline.dagrun)
-        .where(
-            Deadline.callback_id == callback_id,
-            DagRun.dag_id == dag_id,
-            DagRun.run_id == dag_run_id,
-        )
+        .where(Deadline.callback_id == callback_id, DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
         .limit(1)
     )
     if deadline_exists is None:

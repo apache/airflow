@@ -57,8 +57,7 @@ export const Run = () => {
     },
   );
 
-  // Like the Required Actions tab, the Callbacks tab is only shown when the run has callbacks
-  // (every deadline has one).
+  // Like Required Actions, the Callbacks tab only shows when the run has callbacks (one per deadline).
   const { data: deadlines } = useDeadlinesServiceGetDeadlines(
     { dagId, dagRunId: runId, limit: 1 },
     undefined,
@@ -71,9 +70,9 @@ export const Run = () => {
   const tabs = [
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
+    // matchPaths keeps the tab active on a callback's logs page.
     ...(hasCallbacks
       ? [
-          // Also active on a callback's logs (callbacks/:callbackId/logs).
           {
             icon: <FiPhoneCall />,
             label: translate("tabs.callbacks"),

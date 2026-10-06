@@ -55,11 +55,11 @@ const { useDeadlinesServiceGetDeadlines } = await import("openapi/queries");
 
 describe("Run", () => {
   it.each([
-    { expected: false, totalEntries: 0 },
-    { expected: true, totalEntries: 1 },
+    { tabCount: 0, totalEntries: 0 },
+    { tabCount: 1, totalEntries: 1 },
   ])(
     "shows the Callbacks tab only when the run has callbacks ($totalEntries)",
-    ({ expected, totalEntries }) => {
+    ({ tabCount, totalEntries }) => {
       vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
         data: { deadlines: [], total_entries: totalEntries },
       } as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>);
@@ -74,13 +74,7 @@ describe("Run", () => {
         </BaseWrapper>,
       );
 
-      const callbacksTab = screen.queryByTitle(i18n.t("dag:tabs.callbacks"));
-
-      if (expected) {
-        expect(callbacksTab).toBeInTheDocument();
-      } else {
-        expect(callbacksTab).not.toBeInTheDocument();
-      }
+      expect(screen.queryAllByTitle(i18n.t("dag:tabs.callbacks"))).toHaveLength(tabCount);
       expect(screen.getByTitle(i18n.t("dag:tabs.assetEvents"))).toBeInTheDocument();
     },
   );
