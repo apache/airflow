@@ -21,7 +21,7 @@ import re
 import threading
 import time
 from contextlib import suppress
-from datetime import timedelta
+from datetime import UTC, timedelta
 from importlib import import_module
 from io import StringIO
 from unittest.mock import MagicMock, call, mock_open, patch
@@ -1887,7 +1887,6 @@ class TestConnectionTestRequestCleanup:
 
     def test_extra_filters_keep_in_flight_rows(self):
         """Even past the cutoff, PENDING/QUEUED/RUNNING rows survive cleanup; SUCCESS/FAILED don't."""
-        from datetime import timezone
 
         import uuid6
 
@@ -1903,7 +1902,7 @@ class TestConnectionTestRequestCleanup:
                 ct = ConnectionTestRequest(connection_id=f"cleanup_probe_{state.value}", conn_type="http")
                 ct.id = uuid6.uuid7()
                 ct.state = state
-                ct.updated_at = old.in_timezone(timezone.utc)
+                ct.updated_at = old.in_timezone(UTC)
                 s.add(ct)
                 seeded[state.value] = str(ct.id)
             s.commit()

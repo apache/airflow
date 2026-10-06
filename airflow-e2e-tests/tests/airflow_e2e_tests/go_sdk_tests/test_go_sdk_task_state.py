@@ -23,7 +23,7 @@ proven to have reached the database.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 
 import pytest
@@ -54,7 +54,7 @@ class _CompletedRun:
 @pytest.fixture(scope="module")
 def completed_run() -> _CompletedRun:
     client = AirflowClient()
-    resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(timezone.utc).isoformat()})
+    resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(UTC).isoformat()})
     run_id = resp["dag_run_id"]
     state = client.wait_for_dag_run(dag_id=_DAG_ID, run_id=run_id, timeout=_GO_TASK_TIMEOUT)
     ti_resp = client.get_task_instances(dag_id=_DAG_ID, run_id=run_id)

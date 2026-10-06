@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
@@ -29,7 +29,7 @@ from tests_common.test_utils.db import clear_db_runs
 CURRENT_ID = UUID("01960000-0000-7000-8000-000000000002")
 HISTORY_ID = UUID("01960000-0000-7000-8000-000000000001")
 DANGLING_VERSION = UUID("01960000-0000-7000-8000-000000000099")
-NOW = datetime(2026, 9, 29, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 29, tzinfo=UTC)
 COORDINATES = {"dag_id": "ownership", "task_id": "task", "run_id": "manual", "map_index": -1}
 
 

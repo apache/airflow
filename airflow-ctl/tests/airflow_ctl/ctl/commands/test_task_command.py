@@ -52,7 +52,7 @@ class TestFailedDeps:
     dag_id = "test_dag"
     run_id = "test_run"
     task_id = "test_task"
-    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
 
     def _make_task_instance(self, state: TaskInstanceState | None) -> TaskInstanceResponse:
         return TaskInstanceResponse(
@@ -404,7 +404,7 @@ class TestStatesForDagRun:
     parser = cli_parser.get_parser()
     dag_id = "test_dag"
     run_id = "test_run"
-    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
 
     def _make_task_instance(
         self,
@@ -462,8 +462,8 @@ class TestStatesForDagRun:
 
     @mock.patch("airflowctl.ctl.commands.task_command.AirflowConsole")
     def test_states_for_dag_run_by_run_id(self, mock_console_cls):
-        start_date = datetime.datetime(2025, 1, 1, 1, tzinfo=datetime.timezone.utc)
-        end_date = datetime.datetime(2025, 1, 1, 2, tzinfo=datetime.timezone.utc)
+        start_date = datetime.datetime(2025, 1, 1, 1, tzinfo=datetime.UTC)
+        end_date = datetime.datetime(2025, 1, 1, 2, tzinfo=datetime.UTC)
         api_client = self._make_api_client(
             [
                 self._make_task_instance("task_a", start_date=start_date, end_date=end_date),
@@ -663,7 +663,7 @@ class TestState:
     dag_id = "test_dag"
     run_id = "test_run"
     task_id = "test_task"
-    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
 
     def _make_task_instance(self, state: TaskInstanceState | None) -> TaskInstanceResponse:
         return TaskInstanceResponse(

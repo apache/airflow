@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import json
 import pickle
-import sys
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -198,7 +197,6 @@ class TestClient:
         assert unpickled.response.status_code == 404
         assert unpickled.request.url == "http://error"
 
-    @pytest.mark.skipif(sys.version_info < (3, 11), reason="Exception notes (PEP 678) require Python 3.11")
     def test_server_error_detail_added_as_note(self):
         """Notes survive uncaught propagation, handled sites still log detail directly."""
         responses = [httpx.Response(404, json={"detail": {"message": "Invalid input"}})]
@@ -1392,7 +1390,7 @@ class TestAssetEventOperations:
         result = client.asset_events.get(
             name="this_asset",
             partition_key_regexp_pattern=r"^us\|2024-.*",
-            after=datetime(2023, 6, 1, tzinfo=dt_timezone.utc),
+            after=datetime(2023, 6, 1, tzinfo=UTC),
             limit=5,
             ascending=False,
         )
@@ -2006,7 +2004,7 @@ class TestDagsOperations:
             relative_fileloc="dags/example.py",
             owners="owner_1",
             tags=["a_tag", "z_tag"],
-            next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            next_dagrun=datetime(2026, 4, 13, tzinfo=UTC),
         )
 
     def test_get_url_quotes_dag_id_as_single_path_segment(self):
@@ -2129,7 +2127,7 @@ class TestTaskStateOperations:
         assert result.error == ErrorType.TASK_STORE_NOT_FOUND
 
     def test_set_success(self):
-        expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)
+        expires = datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.method == "PUT"
@@ -2160,7 +2158,7 @@ class TestTaskStateOperations:
 
     def test_set_with_expires_at_sends_field(self):
         """expires_at is forwarded as an ISO datetime string in the request body."""
-        expires = datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)
+        expires = datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             body = json.loads(request.content)

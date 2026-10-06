@@ -129,9 +129,7 @@ def create_record(sequence_number="1", data=b"message", *, include_timestamp=Tru
         "Data": data,
     }
     if include_timestamp:
-        record["ApproximateArrivalTimestamp"] = datetime.datetime(
-            2026, 8, 4, 12, 30, tzinfo=datetime.timezone.utc
-        )
+        record["ApproximateArrivalTimestamp"] = datetime.datetime(2026, 8, 4, 12, 30, tzinfo=datetime.UTC)
     return record
 
 
