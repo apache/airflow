@@ -4688,6 +4688,7 @@ mcp = [
     { name = "pydantic-ai-slim", extra = ["mcp"] },
 ]
 modal = [
+    { name = "apache-airflow-providers-modal" },
     { name = "modal" },
 ]
 openai = [
@@ -4726,6 +4727,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["datafusion"] },
     { name = "apache-airflow-providers-git" },
+    { name = "apache-airflow-providers-modal" },
     { name = "apache-airflow-providers-standard" },
     { name = "apache-airflow-task-sdk" },
     { name = "boat-sdk" },
@@ -4752,6 +4754,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'sql'", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-git", marker = "extra == 'skills'", editable = "providers/git" },
+    { name = "apache-airflow-providers-modal", marker = "extra == 'modal'", editable = "providers/modal" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "boat-sdk", marker = "extra == 'boat'", specifier = ">=1.5.0" },
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
@@ -4766,7 +4769,7 @@ requires-dist = [
     { name = "opensandbox", marker = "extra == 'opensandbox'", specifier = ">=1.1.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
-    { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
+    { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.24.0" },
     { name = "pydantic-ai-shields", marker = "extra == 'shields'", specifier = ">=0.3.4" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", specifier = ">=2.33.0" },
@@ -4792,6 +4795,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["datafusion"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-git", editable = "providers/git" },
+    { name = "apache-airflow-providers-modal", editable = "providers/modal" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "boat-sdk", specifier = ">=1.5.0" },

@@ -119,15 +119,14 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         non-numeric string -- fails the task with a ``ValueError`` naming the
         field and the rendered value, instead of silently disabling the
         limit. A ``UsageLimits`` instance passed directly is used as-is and
-        is not templated or validated. ``None`` (default) means no
-        enforcement.
+        is not templated or validated. ``None`` (default) sets no token, cost,
+        or tool-call limits, but pydantic-ai still caps the run at its default
+        ``request_limit`` of ``50`` requests.
 
-        A dict that omits ``request_limit`` still gets pydantic-ai's default of
-        ``50`` requests -- pass ``"request_limit": None`` explicitly for no
-        request cap. This matches building a ``UsageLimits`` directly, but it is
-        easy to miss when moving from ``usage_limits=None`` to a dict that only
-        sets ``cost_limit``. See :ref:`howto/operator:llm` for the full set of
-        caveats.
+        A dict that omits ``request_limit`` gets the same default of ``50``
+        requests -- pass ``"request_limit": None`` explicitly for no request
+        cap. This matches building a ``UsageLimits`` directly. See
+        :ref:`howto/operator:llm` for the full set of caveats.
     :param require_approval: If ``True``, the task defers after generating
         output and waits for a human reviewer to approve or reject via the
         HITL interface.  Default ``False``. Needs Airflow 3.1+.

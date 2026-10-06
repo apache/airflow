@@ -47,7 +47,7 @@ export const Details = () => {
       dagRunId: runId,
     },
     undefined,
-    { refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false) },
+    { refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval },
   );
 
   const { data: dagRunStats } = useDagRunServiceGetDagRunStats({ dagId, dagRunId: runId });

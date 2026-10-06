@@ -140,11 +140,7 @@ export const getSafeExternalUrl = (url: string): string | undefined => {
     return trimmed;
   }
 
-  if (SAFE_EXTERNAL_URL_SCHEMES.has(parsed.protocol)) {
-    return trimmed;
-  }
-
-  return undefined;
+  return SAFE_EXTERNAL_URL_SCHEMES.has(parsed.protocol) ? trimmed : undefined;
 };
 
 export const buildTaskInstanceUrl = (params: {

@@ -1,4 +1,4 @@
-/*!
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,14 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Navigate } from "react-router-dom";
 
-import { Dashboard } from "src/pages/Dashboard";
+package org.apache.airflow.sdk.internal
 
-import { useDefaultLandingPage } from "src/hooks/useUserSettings";
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
 
-export const LandingPage = () => {
-  const [defaultLandingPage] = useDefaultLandingPage();
-
-  return defaultLandingPage === "dags" ? <Navigate replace to="/dags" /> : <Dashboard />;
-};
+internal class RegistrarTest {
+  @Test
+  @DisplayName("Should name the builder of a Dag class in the default package with no leading dot")
+  fun shouldNameBuilderInDefaultPackage() {
+    assertEquals("FooBuilder", builderName("", "Foo", ""))
+  }
+}
