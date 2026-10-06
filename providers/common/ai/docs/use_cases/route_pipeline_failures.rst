@@ -28,23 +28,18 @@ What this demonstrates
 ----------------------
 
 * :doc:`../operators/llm_branch` -- ``LLMBranchOperator`` picks one downstream task id.
-* :doc:`../classifier_models` -- a classifier model, so the gate has a confidence to read.
+* :doc:`../decision_models` -- a decision model, so the gate has a confidence to read.
 * :doc:`../approval_gates` -- ``on_uncertain="review"`` routes low-confidence picks to a
   human, with ``approval_timeout`` bounding the wait.
 
 Run it
 ------
 
-1. Install the provider with the classifier extra:
+1. Create the ``decision_default`` connection for the decision model you run, TypeSafe Jev or
+   a server answering the System One API (:doc:`../decision_models` covers both). Both Dags
+   below read it.
 
-   .. code-block:: bash
-
-       pip install "apache-airflow-providers-common-ai[typesafe]"
-
-2. Set ``{"model": "typesafe:jev-1.13.0"}`` in the ``pydanticai_default`` extra. The second
-   Dag below reads the same kind of connection as ``jev_default``.
-
-3. Trigger the Dag:
+2. Trigger the Dag:
 
    .. code-block:: bash
 
@@ -67,13 +62,13 @@ Classify-then-act variant
 -------------------------
 
 When the action depends on the score itself, classify in one task and act in the next
-(:doc:`../classifier_models` explains reading the score). It uses the ``jev_default``
-connection; run it as ``airflow dags test example_classifier_model_confidence``:
+(:doc:`../decision_models` explains reading the score). It uses the same ``decision_default``
+connection; run it as ``airflow dags test example_decision_model_confidence``:
 
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_classifier_model.py
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_decision_model.py
     :language: python
-    :start-after: [START howto_classifier_model_confidence]
-    :end-before: [END howto_classifier_model_confidence]
+    :start-after: [START howto_decision_model_confidence]
+    :end-before: [END howto_decision_model_confidence]
 
 Adapting it
 -----------

@@ -216,7 +216,6 @@
     "renderedTemplates": "渲染後的範本",
     "requiredActions": "待回應的任務實例",
     "runs": "執行紀錄",
-    "storage": "儲存空間",
     "taskInstances": "任務實例",
     "taskStateStore": "任務儲存區",
     "tasks": "任務",

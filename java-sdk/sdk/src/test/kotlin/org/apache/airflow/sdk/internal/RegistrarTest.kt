@@ -1,4 +1,4 @@
-/*!
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,25 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTranslation } from "react-i18next";
-import { MdOutlineStorage, MdSyncAlt } from "react-icons/md";
-import { Outlet } from "react-router-dom";
 
-import { NavTabs } from "src/layouts/Details/NavTabs";
+package org.apache.airflow.sdk.internal
 
-/** Sub-nav tabs shared by the task-store and xcom routes. */
-export const StorageLayout = () => {
-  const { t: translate } = useTranslation("dag");
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
 
-  return (
-    <>
-      <NavTabs
-        tabs={[
-          { icon: <MdSyncAlt />, label: translate("tabs.xcom"), value: "xcom" },
-          { icon: <MdOutlineStorage />, label: translate("tabs.taskStateStore"), value: "task-state-store" },
-        ]}
-      />
-      <Outlet />
-    </>
-  );
-};
+internal class RegistrarTest {
+  @Test
+  @DisplayName("Should name the builder of a Dag class in the default package with no leading dot")
+  fun shouldNameBuilderInDefaultPackage() {
+    assertEquals("FooBuilder", builderName("", "Foo", ""))
+  }
+}

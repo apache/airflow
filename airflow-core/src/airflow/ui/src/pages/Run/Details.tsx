@@ -47,7 +47,7 @@ export const Details = () => {
       dagRunId: runId,
     },
     undefined,
-    { refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false) },
+    { refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval },
   );
 
   const { data: dagRunStats } = useDagRunServiceGetDagRunStats({ dagId, dagRunId: runId });
@@ -61,6 +61,12 @@ export const Details = () => {
   return (
     <Table.Root striped>
       <Table.Body>
+        <Table.Row>
+          <Table.Cell>{translate("dagRun.conf")}</Table.Cell>
+          <Table.Cell>
+            {hasDagRunConfig(dagRun.conf) ? <RenderedJsonField content={dagRun.conf} /> : undefined}
+          </Table.Cell>
+        </Table.Row>
         <Table.Row>
           <Table.Cell>{translate("state")}</Table.Cell>
           <Table.Cell data-testid="dag-run-state">
@@ -191,12 +197,6 @@ export const Details = () => {
                 <DagVersionDetails dagVersion={dagVersion} key={dagVersion.id} />
               ))}
             </VStack>
-          </Table.Cell>
-        </Table.Row>
-        <Table.Row>
-          <Table.Cell>{translate("dagRun.conf")}</Table.Cell>
-          <Table.Cell>
-            {hasDagRunConfig(dagRun.conf) ? <RenderedJsonField content={dagRun.conf} /> : undefined}
           </Table.Cell>
         </Table.Row>
       </Table.Body>

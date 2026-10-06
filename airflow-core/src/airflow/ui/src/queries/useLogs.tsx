@@ -334,10 +334,9 @@ export const useLogs = (
     {
       enabled: Boolean(taskInstance),
       refetchInterval: (query) =>
-        isStatePending(taskInstance?.state) ||
-        dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)
-          ? refetchInterval
-          : false,
+        (isStatePending(taskInstance?.state) ||
+          dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)) &&
+        refetchInterval,
       ...options,
     },
   );

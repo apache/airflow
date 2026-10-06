@@ -88,6 +88,15 @@ def _get_open_fds() -> set[int]:
     return {int(fd) for fd in os.listdir("/proc/self/fd")} if os.path.isdir("/proc/self/fd") else set()
 
 
+def _read_fds(fd_dir: Path) -> dict[str, str]:
+    fds = {}
+    for fd in fd_dir.iterdir():
+        # A descriptor can close between listing the directory and reading its link.
+        with contextlib.suppress(FileNotFoundError):
+            fds[fd.name] = os.readlink(fd)
+    return fds
+
+
 def _is_running(pid: int) -> bool:
     try:
         # Init may not have reaped the killed process yet.
@@ -497,11 +506,18 @@ class TestLangSDKDagFileProcessorProcess:
                 assert time.monotonic() < deadline, "the runtime did not start"
                 proc._service_subprocess(max_wait_time=0.1)
             fd_dir = Path(f"/proc/{proc.pid}/fd")
-            fds = {fd.name: os.readlink(fd) for fd in fd_dir.iterdir()}
+            # The process takes its new name during exec, before the dynamic loader has opened and
+            # closed the libraries it loads, so wait for such a short-lived descriptor to go away.
+            # An inherited descriptor stays open for good.
+            settle_deadline = time.monotonic() + 5
+            while (fds := _read_fds(fd_dir)).keys() != {"0", "1", "2"} and (
+                time.monotonic() < settle_deadline
+            ):
+                time.sleep(0.05)
             proc.kill(signal.SIGKILL)
             proc.close()
 
-        assert sorted(fds) == ["0", "1", "2"]
+        assert sorted(fds) == ["0", "1", "2"], fds
         assert fds["0"] == "/dev/null"
 
 
