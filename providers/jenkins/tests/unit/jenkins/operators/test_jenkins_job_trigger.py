@@ -344,10 +344,15 @@ class TestJenkinsOperator:
         ("parameters", "expected"),
         [
             pytest.param(
-                '{"dry_run": true, "notify": false}', {"dry_run": True, "notify": False}, id="json booleans"
+                '{"dry_run": true, "notify": false}',
+                {"dry_run": "true", "notify": "false"},
+                id="json booleans sent as lowercase strings",
             ),
             pytest.param(
-                '{"dry_run": true, "optional": null}', {"dry_run": True, "optional": None}, id="json null"
+                '{"dry_run": true, "optional": null}', {"dry_run": "true"}, id="json null omits the parameter"
+            ),
+            pytest.param(
+                '{"branch": "main", "retries": 3}', {"branch": "main", "retries": 3}, id="json other values"
             ),
             pytest.param("{'dry_run': True}", {"dry_run": True}, id="python literals"),
         ],
