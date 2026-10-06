@@ -25,7 +25,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, Base
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime
 
 
 class AssetStateStoreModel(Base):
@@ -54,7 +54,7 @@ class AssetStateStoreModel(Base):
     last_updated_by_task_id: Mapped[str | None] = mapped_column(String(250, **COLLATION_ARGS), nullable=True)
     last_updated_by_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_updated_by_task_instance_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
-    last_updated_by_region_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+    last_updated_by_region_id: Mapped[UUID | None] = mapped_column(CompactUUID(), nullable=True)
     last_updated_by_region_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_updated_by_try_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

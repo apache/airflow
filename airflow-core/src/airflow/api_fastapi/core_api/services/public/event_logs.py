@@ -27,9 +27,11 @@ from airflow.models.taskinstance import TaskInstance
 
 def event_log_public_map_index():
     """Resolve an attributed execution's public index without guessing once its row has been purged."""
+    # The Table, unlike the ORM entity, is not narrowed to working_set rows, so archived tries still resolve.
+    task_instances = TaskInstance.__table__
     attributed = (
-        select(public_map_index_expression(TaskInstance))
-        .where(TaskInstance.id == Log.task_instance_id)
+        select(public_map_index_expression(task_instances))
+        .where(task_instances.c.id == Log.task_instance_id)
         .correlate(Log)
         .scalar_subquery()
     )

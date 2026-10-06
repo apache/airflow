@@ -105,7 +105,6 @@ BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
 
 if AIRFLOW_V_3_4_PLUS:
-    from airflow.models.asset import AssetEvent, AssetModel
     from airflow.models.dagbag import DBDagBag
     from airflow.models.dynamic_region import DynamicRegion
 _UTILS = "airflow.providers.openlineage.utils.utils"
@@ -3879,47 +3878,6 @@ def test_orm_lineage_facets_project_public_index(dag_maker, session, mapped):
 
 class TestExtractOlInfoFromAssetEvent:
     """Tests for _extract_ol_info_from_asset_event function."""
-
-    @pytest.mark.db_test
-    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region attribution requires Airflow 3.4")
-    def test_cleared_regional_asset_source_keeps_retiring_uuid(self, dag_maker, session):
-        with dag_maker(serialized=True):
-            EmptyOperator(task_id="work")
-        run = dag_maker.create_dagrun()
-        ti = run.task_instances[0]
-        region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
-        asset = AssetModel(name="lineage_source", uri=f"test://lineage/{uuid4()}")
-        session.add_all([region, asset])
-        session.flush()
-        ti.region_id = region.id
-        ti.region_index = 2
-        ti.try_number = 1
-        ti.state = TaskInstanceState.SUCCESS
-        retiring_id = ti.id
-        event = AssetEvent(
-            asset_id=asset.id,
-            source_task_instance_id=retiring_id,
-            source_dag_id=ti.dag_id,
-            source_task_id=ti.task_id,
-            source_run_id=ti.run_id,
-            source_map_index=-1,
-        )
-        session.add(event)
-        session.flush()
-        successor = ti.prepare_db_for_next_try(session)
-        assert successor.id != retiring_id
-        session.commit()
-        session.expire(event)
-        assert event.uri == asset.uri
-
-        with assert_queries_count(1):
-            dependencies = _get_ol_job_dependencies_from_asset_events([event] * 10)
-
-        assert len(dependencies) == 1
-        assert dependencies[0].get("run_id") == str(retiring_id)
-        assert dependencies[0]["job_name"] == f"{run.dag_id}.work"
-        assert len(dependencies[0]["asset_events"]) == 10
-        assert ti in session
 
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region attribution requires Airflow3.4")
     @pytest.mark.parametrize("map_index", [-1, 3])

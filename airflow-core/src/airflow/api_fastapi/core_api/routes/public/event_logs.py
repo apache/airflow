@@ -216,9 +216,7 @@ def get_event_logs(
         # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
         # Making EventLogResponse.when nullable would be a breaking API contract change for
         # clients that currently rely on `when` always being present.
-        select(Log, event_log_public_map_index())
-        .where(Log.dttm.is_not(None))
-        .options(*_eager_load_display_names())
+        select(Log).where(Log.dttm.is_not(None)).options(*_eager_load_display_names())
     )
     event_logs_select, total_entries = paginated_select(
         statement=query,
@@ -258,7 +256,7 @@ def get_event_logs(
         limit=limit,
         session=session,
     )
-    event_logs = session.execute(event_logs_select).all()
+    event_logs = session.execute(event_logs_select.add_columns(event_log_public_map_index())).all()
 
     return EventLogCollectionResponse(
         event_logs=[

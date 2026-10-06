@@ -1617,9 +1617,7 @@ def _get_eagerly_loaded_dagrun_consumed_asset_events(dag_id: str, dag_run_id: st
     return events
 
 
-def _extract_ol_info_from_asset_event(
-    asset_event: AssetEvent, *, source_regions: dict[UUID, UUID] | None = None
-) -> dict[str, str] | None:
+def _extract_ol_info_from_asset_event(asset_event: AssetEvent) -> dict[str, str] | None:
     """
     Extract OpenLineage job information from an AssetEvent.
 
@@ -1636,15 +1634,6 @@ def _extract_ol_info_from_asset_event(
         A dictionary containing `job_name`, `job_namespace`, and optionally
         `run_id`, or `None` if insufficient information is available.
     """
-    if AIRFLOW_V_3_4_PLUS and source_regions:
-        source_id = asset_event.source_task_instance_id
-        region_id = source_regions.get(source_id) if source_id is not None else None
-        if region_id is not None and region_id.int != 0:
-            return {
-                "job_name": f"{asset_event.source_dag_id}.{asset_event.source_task_id}",
-                "job_namespace": conf.namespace(),
-                "run_id": str(source_id),
-            }
     ti = asset_event.source_task_instance
     if ti:
         result = {
@@ -1703,39 +1692,6 @@ def _extract_ol_info_from_asset_event(
     return None
 
 
-def _get_asset_event_source_regions(events: list[AssetEvent]) -> dict[UUID, UUID]:
-    if not AIRFLOW_V_3_4_PLUS:
-        return {}
-    source_ids = {
-        source_id
-        for event in events
-        if isinstance(source_id := getattr(event, "source_task_instance_id", None), UUID)
-    }
-    if not source_ids:
-        return {}
-
-    from sqlalchemy import select
-    from sqlalchemy.orm import object_session
-
-    from airflow.models.asset import AssetEvent
-    from airflow.utils.session import create_session
-
-    session = None
-    for event in events:
-        if isinstance(event, AssetEvent):
-            session = object_session(event)
-            if session is not None:
-                break
-    with nullcontext(session) if session is not None else create_session() as session:
-        return dict(
-            session.execute(
-                select(TaskInstance.id, TaskInstance.region_id).where(TaskInstance.id.in_(source_ids))
-            )
-            .tuples()
-            .all()
-        )
-
-
 def _get_ol_job_dependencies_from_asset_events(events: list[AssetEvent]) -> list[dict[str, Any]]:
     """
     Extract and deduplicate OpenLineage job dependencies from asset events.
@@ -1756,11 +1712,10 @@ def _get_ol_job_dependencies_from_asset_events(events: list[AssetEvent]) -> list
     # Use a dictionary keyed by (namespace, job_name, run_id) to deduplicate
     # Multiple asset events from the same task instance should only create one dependency
     deduplicated_jobs: dict[tuple[str, str, str | None], dict[str, Any]] = {}
-    source_regions = _get_asset_event_source_regions(events)
 
     for asset_event in events:
         # Extract OpenLineage information
-        ol_info = _extract_ol_info_from_asset_event(asset_event, source_regions=source_regions)
+        ol_info = _extract_ol_info_from_asset_event(asset_event)
 
         # Skip if we don't have minimum required info (job_name and namespace)
         if not ol_info:

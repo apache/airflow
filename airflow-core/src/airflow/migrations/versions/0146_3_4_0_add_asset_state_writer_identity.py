@@ -28,6 +28,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.utils.sqlalchemy import CompactUUID
+
 revision = "a5d7b9c13e40"
 down_revision = "c3e7a9182f64"
 branch_labels = None
@@ -40,7 +42,7 @@ def upgrade():
     op.add_column(
         "asset_state_store", sa.Column("last_updated_by_task_instance_id", sa.Uuid(), nullable=True)
     )
-    op.add_column("asset_state_store", sa.Column("last_updated_by_region_id", sa.Uuid(), nullable=True))
+    op.add_column("asset_state_store", sa.Column("last_updated_by_region_id", CompactUUID(), nullable=True))
     op.add_column("asset_state_store", sa.Column("last_updated_by_region_index", sa.Integer(), nullable=True))
     op.add_column("asset_state_store", sa.Column("last_updated_by_try_number", sa.Integer(), nullable=True))
 

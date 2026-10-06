@@ -536,6 +536,17 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         for event_log, expected_event in zip(resp_json["event_logs"], expected_events):
             assert event_log["event"] == expected_event
 
+    def test_get_event_logs_count_query_skips_public_map_index_subquery(self, test_client):
+        with capture_orm_selects("log") as statements:
+            response = test_client.get("/eventLogs")
+
+        assert response.status_code == 200
+        count_statements = [statement for statement in statements if "count(" in statement.lower()]
+        page_statements = [statement for statement in statements if "count(" not in statement.lower()]
+        assert len(count_statements) == 1
+        assert "FROM task_instance" not in count_statements[0]
+        assert any("FROM task_instance" in statement for statement in page_statements)
+
     def test_get_event_logs_selects_only_display_name_columns(self, test_client):
         with capture_orm_selects("log") as statements:
             response = test_client.get("/eventLogs")
