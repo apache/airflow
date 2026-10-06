@@ -136,10 +136,11 @@ class BoatSandboxBackend(SandboxBackend):
     needs only network access and an API key, with no local daemon or host
     virtualization.
 
-    **Credentials are ambient**, the same way Modal's are. On first use the
-    backend reads ``BOAT_API_KEY`` (required) and optional ``BOAT_BASE_URL``
-    from the worker environment. A connection type belongs in a future Boat
-    provider, not here.
+    **Credentials are ambient.** On first use the backend reads ``BOAT_API_KEY``
+    (required) and optional ``BOAT_BASE_URL`` from the worker environment. Modal
+    reads a ``modal`` connection first, but that connection type is owned by the
+    Modal provider; a ``boat`` connection type belongs in a future Boat provider,
+    not in this one.
 
     Boat cannot enforce a deny-all, per-domain, or CIDR egress policy. ``create``
     therefore refuses a :class:`~airflow.providers.common.ai.sandbox.SandboxSpec`

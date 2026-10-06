@@ -275,9 +275,10 @@ Install the SDK extra:
         spec=SandboxSpec(block_network=False),
     )
 
-Credentials are ambient, the same way Modal's are. On first use the backend
-reads ``BOAT_API_KEY`` (required) and optional ``BOAT_BASE_URL`` from the worker
-environment. A connection type waits for a Boat provider.
+Credentials are ambient. On first use the backend reads ``BOAT_API_KEY`` (required)
+and optional ``BOAT_BASE_URL`` from the worker environment. Modal's ``modal``
+connection comes from the Modal provider; a ``boat`` connection type waits for a
+Boat provider.
 
 Constructor parameters:
 
