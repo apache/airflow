@@ -1036,7 +1036,6 @@ class TestGitHook:
     def test_github_app_integration_call_shape(self, monkeypatch):
         """Verify GithubIntegration is called with correct arguments."""
         from datetime import datetime, timedelta, timezone
-        from unittest import mock
 
         mock_integration = mock.MagicMock()
         mock_access_token = mock.MagicMock()
@@ -1082,7 +1081,6 @@ class TestGitHook:
     ):
         """The resolved API base URL reaches PyGithub, which is what makes Enterprise work."""
         from datetime import datetime, timedelta, timezone
-        from unittest import mock
 
         extra = {
             "github_app_id": "12345",
