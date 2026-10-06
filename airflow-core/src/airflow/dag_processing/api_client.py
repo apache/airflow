@@ -85,7 +85,7 @@ class DagProcessorJobAlreadyRunning(RuntimeError):
     """The session's previous Job has not completed or stopped heartbeating yet."""
 
 
-def _get_error_reason(error: httpx.HTTPStatusError) -> str | None:
+def get_error_reason(error: httpx.HTTPStatusError) -> str | None:
     try:
         payload = error.response.json()
     except ValueError:
@@ -269,7 +269,7 @@ class DagProcessorAPIClient(Client):
         try:
             return self._register_job(retry=retry)
         except httpx.HTTPStatusError as error:
-            if error.response.status_code == 409 and _get_error_reason(error) == "job_running":
+            if error.response.status_code == 409 and get_error_reason(error) == "job_running":
                 raise DagProcessorJobAlreadyRunning(
                     "The previous Dag processor Job is still alive"
                 ) from error
@@ -297,7 +297,7 @@ class DagProcessorAPIClient(Client):
                 )
                 break
             except httpx.HTTPStatusError as error:
-                if error.response.status_code == 409 and _get_error_reason(error) == "registration_retired":
+                if error.response.status_code == 409 and get_error_reason(error) == "registration_retired":
                     self._restart_required = True
                     raise DagProcessorRegistrationRetired(
                         "The Dag processor registration has ended; restart required"
@@ -382,7 +382,7 @@ class DagProcessorAPIClient(Client):
             kwargs["headers"] = headers
             return super().request(*args, retry=retry, **kwargs)
         except httpx.HTTPStatusError as error:
-            if error.response.status_code == 403 and _get_error_reason(error) == "job_closed":
+            if error.response.status_code == 403 and get_error_reason(error) == "job_closed":
                 self._restart_required = True
                 raise DagProcessorRegistrationRetired(
                     "The Dag processor Job has completed or been replaced; restart required"

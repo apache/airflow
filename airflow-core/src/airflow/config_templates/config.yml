@@ -3426,7 +3426,8 @@ dag_processor:
         After this, the scheduler ends the Job and releases the callbacks and parse requests it
         claimed, and a processor that could not reach the API stops. Processors do not heartbeat
         while initializing, refreshing, or listing a single bundle, so set this above the longest
-        of those operations.
+        of those operations. It also bounds how long a processor retries preparing the bundle
+        version of a claimed callback before acknowledging the callback as failed.
       version_added: 3.5.0
       type: integer
       example: ~

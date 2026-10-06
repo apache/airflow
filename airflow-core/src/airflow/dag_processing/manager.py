@@ -159,6 +159,18 @@ class PendingDagPublication:
     next_attempt_time: float = 0.0
 
 
+@attrs.define
+class DeferredCallback:
+    """A claimed callback whose bundle could not be prepared, retried until it expires."""
+
+    expires_at: float
+    attempts: int = 0
+    next_attempt_time: float = 0.0
+
+
+_MAX_CALLBACK_RETRY_DELAY = 60.0
+
+
 @dataclass(frozen=True)
 class DagFileInfo:
     """Information about a DAG file."""
@@ -308,6 +320,7 @@ class DagFileProcessorManager(LoggingMixin):
     _parsing_start_time: float | None = attrs.field(default=None, init=False)
     _callback_claims: dict[int, ProcessorWorkItem] = attrs.field(factory=dict, init=False)
     _deferred_api_callbacks: list[CallbackRequest] = attrs.field(factory=list, init=False)
+    _deferred_callback_retries: dict[int, DeferredCallback] = attrs.field(factory=dict, init=False)
     _callback_attempts: dict[UUID, list[ProcessorWorkItem]] = attrs.field(factory=dict, init=False)
     _priority_claims: dict[str, ProcessorWorkItem] = attrs.field(factory=dict, init=False)
     _pending_work_acks: list[tuple[Literal["callbacks", "priority"], ProcessorWorkItem, bool]] = attrs.field(
@@ -367,12 +380,17 @@ class DagFileProcessorManager(LoggingMixin):
             return {}
         missing = [name for name in bundle_names if name not in self._bundle_name_to_team_name]
         if missing:
-            if self.api_client is not None:
-                queried = {bundle.name: bundle.team_name for bundle in self.api_client.get_bundles()}
+            try:
+                if self.api_client is not None:
+                    queried = {bundle.name: bundle.team_name for bundle in self.api_client.get_bundles()}
+                else:
+                    queried = DagBundleModel.get_team_names(missing)
+            except httpx.HTTPError:
+                # Team names only tag metrics, so parsing continues and the lookup is retried later.
+                self.log.warning("Unable to look up the teams of bundles %s; retrying later", missing)
             else:
-                queried = DagBundleModel.get_team_names(missing)
-            for name in missing:
-                self._bundle_name_to_team_name[name] = queried.get(name)
+                for name in missing:
+                    self._bundle_name_to_team_name[name] = queried.get(name)
         return {name: self._bundle_name_to_team_name.get(name) for name in bundle_names}
 
     def _get_team_name(self, bundle_name: str) -> str | None:
@@ -901,6 +919,16 @@ class DagFileProcessorManager(LoggingMixin):
         for item in self._callback_attempts.pop(proc.id, []):
             self._pending_work_acks.append(("callbacks", item, proc._exit_code != 0))
 
+    def _finish_priority_claims(self, file: DagFileInfo, *, failed: bool) -> None:
+        """Acknowledge the priority requests a parse of *file* served, as the database path consumes them."""
+        for key, item in list(self._priority_claims.items()):
+            if item.bundle_name == file.bundle_name and (
+                item.relative_fileloc == str(file.rel_path)
+                or item.relative_fileloc.startswith(str(file.rel_path) + "/")
+            ):
+                self._pending_work_acks.append(("priority", item, failed))
+                del self._priority_claims[key]
+
     @provide_session
     @retry_db_transaction
     def _fetch_callbacks_from_db(
@@ -1003,10 +1031,16 @@ class DagFileProcessorManager(LoggingMixin):
                 self._pending_work_acks.append(("callbacks", item, True))
                 self._deferred_api_callbacks.remove(request)
             return
+        retry = self._deferred_callback_retries.get(id(request))
+        if retry is not None and time.monotonic() < retry.next_attempt_time:
+            return
         self.heartbeat()
         bundle = self.prepare_callback_bundle(request)
         if bundle is None:
+            if id(request) in self._callback_claims:
+                self._defer_claimed_callback(request)
             return
+        self._deferred_callback_retries.pop(id(request), None)
 
         file_info = DagFileInfo(
             rel_path=Path(request.filepath),
@@ -1020,6 +1054,29 @@ class DagFileProcessorManager(LoggingMixin):
         self._add_files_to_queue([file_info], mode="front")
         team_name = self._get_team_name(file_info.bundle_name)
         stats.incr("dag_processing.other_callback_count", tags=prune_dict({"team_name": team_name}))
+
+    def _defer_claimed_callback(self, request: CallbackRequest) -> None:
+        """Retry preparing a claimed callback's bundle with backoff, then acknowledge it as failed."""
+        now = time.monotonic()
+        timeout = conf.getint("dag_processor", "job_heartbeat_timeout")
+        retry = self._deferred_callback_retries.setdefault(id(request), DeferredCallback(now + timeout))
+        if now >= retry.expires_at:
+            self.log.error(
+                "Dropping %s for %s in bundle %s: its bundle version %s could not be prepared within %s seconds",
+                type(request).__name__,
+                request.filepath,
+                request.bundle_name,
+                request.bundle_version,
+                timeout,
+            )
+            self._pending_work_acks.append(("callbacks", self._callback_claims.pop(id(request)), True))
+            self._deferred_api_callbacks.remove(request)
+            del self._deferred_callback_retries[id(request)]
+            return
+        retry.attempts += 1
+        retry.next_attempt_time = min(
+            now + min(2 ** (retry.attempts - 1), _MAX_CALLBACK_RETRY_DELAY), retry.expires_at
+        )
 
     def _log_dropped_lang_sdk_callback(self, request: CallbackRequest) -> None:
         if isinstance(request, DagCallbackRequest):
@@ -1317,8 +1374,7 @@ class DagFileProcessorManager(LoggingMixin):
         definition_locs: defaultdict[Path, set[str]] = defaultdict(set)
         for _, item in registry.list_dag_definitions(bundle, safe_mode=self.dag_discovery_safe_mode):
             if isinstance(item, DagImportError):
-                if self.api_client is not None:
-                    raise ValueError(f"Discovery did not complete for bundle {bundle.name}")
+                # An unreadable source stays present, so its Dags are kept and parsing reports the error.
                 # Importers report a source either absolutely or relative to the bundle.
                 rel_fileloc = os.path.relpath(bundle.path / item.source_reference, bundle.path)
             else:
@@ -1685,8 +1741,11 @@ class DagFileProcessorManager(LoggingMixin):
                     file.bundle_name,
                 )
                 self._record_failed_publication(file, next_stat)
+                self._finish_priority_claims(file, failed=True)
                 return
 
+        if proc.parsing_result is None and not is_callback_only:
+            self._finish_priority_claims(file, failed=True)
         self._file_stats[file] = next_stat
 
     def _record_failed_publication(self, file: DagFileInfo, stat: DagFileStat) -> None:
@@ -1712,6 +1771,17 @@ class DagFileProcessorManager(LoggingMixin):
             try:
                 self.api_client.publish_parse_result(pending.body)
             except Exception as error:
+                from airflow.dag_processing.api_client import get_error_reason
+
+                if isinstance(error, httpx.HTTPStatusError) and get_error_reason(error) == "source_changed":
+                    # Another processor's inventory moved the revision; refreshing fetches it.
+                    self.log.info(
+                        "Bundle %s changed before %s was published; reparsing", file.bundle_name, file
+                    )
+                    del self._pending_publications[file]
+                    self.request_bundle_refresh(file.bundle_name)
+                    self._add_files_to_queue([file], mode="front")
+                    return
                 retryable = isinstance(error, httpx.RequestError) or (
                     isinstance(error, httpx.HTTPStatusError) and error.response.status_code >= 500
                 )
@@ -1729,15 +1799,10 @@ class DagFileProcessorManager(LoggingMixin):
                     return
                 self.log.exception("Failed to publish parsing result for %s", file)
                 self._record_failed_publication(file, pending.stat)
+                self._finish_priority_claims(file, failed=True)
             else:
                 self._file_stats[file] = pending.stat
-                for key, item in list(self._priority_claims.items()):
-                    if item.bundle_name == file.bundle_name and (
-                        item.relative_fileloc == str(file.rel_path)
-                        or item.relative_fileloc.startswith(str(file.rel_path) + "/")
-                    ):
-                        self._pending_work_acks.append(("priority", item, False))
-                        del self._priority_claims[key]
+                self._finish_priority_claims(file, failed=False)
             del self._pending_publications[file]
             return
 
@@ -1747,6 +1812,7 @@ class DagFileProcessorManager(LoggingMixin):
         result = proc.parsing_result
         if result is None or self.api_client is None:
             raise ValueError("API publication requires a client and completed parse result")
+        published_dag_ids = {dag.dag_id for dag in result.serialized_dags}
         warnings = [
             ParseWarning(
                 **{
@@ -1756,6 +1822,8 @@ class DagFileProcessorManager(LoggingMixin):
             )
             for warning in result.warnings or []
         ]
+        # The API accepts warnings only for published Dags; a Dag that failed to serialize has an import error.
+        warnings = [warning for warning in warnings if warning.dag_id in published_dag_ids]
         source_codes = {}
         for dag in result.serialized_dags:
             source = result.dag_source_codes.get(dag.fileloc)
@@ -2190,6 +2258,8 @@ class DagFileProcessorManager(LoggingMixin):
                     last_num_of_db_queries=0,
                 )
                 self._file_stats[file] = stat
+                if not processor.had_callbacks:
+                    self._finish_priority_claims(file, failed=True)
 
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:

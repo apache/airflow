@@ -547,7 +547,8 @@ bundle refresh waits for active imports; a forced refresh invalidates and requeu
 older in-flight result from that manager.
 
 Complete inventories update bundle metadata and deactivate definitions that disappeared.
-Each inventory carries the previously observed server revision; conflicting refreshes must
+A file, archive, or archive member that cannot be read during discovery counts as present,
+so its Dags stay active and parsing it reports the import error. Each inventory carries the previously observed server revision; conflicting refreshes must
 rediscover before retrying. Imports carry the accepted revision, so an older snapshot cannot
 publish after a changed inventory. Only accepted publications establish missing Dags within
 a file. Import errors use the server's clock and stale threshold; rejected requests and
@@ -558,9 +559,11 @@ Callback and priority requests remain stored while claimed. A lost claim respons
 acknowledgment can be retried, and requests from a retired Job become available to another
 processor. A callback acknowledgment confirms delivery, not successful execution of user
 code. As with other at-least-once delivery, a crash after a callback's side effect and before
-acknowledgment can repeat that side effect. A requested bundle version that is temporarily
-unavailable remains pending. Priority requests are acknowledged after accepted publication
-or after complete discovery confirms that their definition is absent.
+acknowledgment can repeat that side effect. When a callback's bundle version cannot be
+prepared, the processor retries with backoff for up to ``[dag_processor] job_heartbeat_timeout``
+and then acknowledges the callback as failed. Priority requests are acknowledged once a parse
+of their file is published, times out, crashes, or is permanently rejected, or after complete
+discovery confirms that their definition is absent.
 
 The manager retains a bounded queue of pending publications and sends at most one
 short HTTP attempt per loop. Retries keep the same payload and identity while
@@ -596,7 +599,8 @@ manager fails liveness even while the API remains healthy; a transient API outag
 readiness without immediately failing liveness.
 
 For Helm, set the token-file option under ``config.dag_processor`` to select the local
-probe. Disable the processor's migration-wait init container, provision the catalog
+probe. The chart then replaces processor pods with the ``Recreate`` strategy, because pods
+that share a session token cannot run their Jobs side by side. Disable the processor's migration-wait init container, provision the catalog
 separately, and remove server credentials from the pod. The Compose example selects the
 local probe when ``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` is set. Neither
 example removes shared credentials or adds database-denying network policies automatically.

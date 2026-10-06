@@ -3,6 +3,7 @@ airflow-core/src/airflow/api_fastapi/execution_api/versions/v2026_04_06.py::1
 airflow-core/src/airflow/cli/commands/task_command.py::7
 airflow-core/src/airflow/cli/commands/triggerer_command.py::1
 airflow-core/src/airflow/configuration.py::1
+airflow-core/src/airflow/dag_processing/api_client.py::3
 airflow-core/src/airflow/dag_processing/dagbag.py::3
 airflow-core/src/airflow/dag_processing/importer_routing.py::1
 airflow-core/src/airflow/dag_processing/lang_sdk_processor.py::6
