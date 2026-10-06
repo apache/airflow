@@ -80,7 +80,7 @@ dependencies = [
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.2.2",  # Whenever updating the version, run test_fab_alignment.py to verify.
     # Transitive via flask-appbuilder -> flask-jwt-extended; pinned here so the FAB
-    # provider keeps installing cleanly when paired with older airflow-core releases
+    # provider keeps installing cleanly when paired with older ``apache-airflow-core`` releases
     # (the compat-3.0.6 matrix job) whose own pyjwt floor predates `jwt.types.Options`
     # (added in PyJWT 2.11.0). Without this, `from jwt.types import Options` in
     # `flask_jwt_extended.tokens` raises ImportError at module import time.

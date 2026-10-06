@@ -287,7 +287,7 @@ class TestEmbeddingOperatorPersist:
         nodes_arg = _li["VectorStoreIndex"].call_args.args[0]
         assert nodes_arg[0].embedding == [0.1]
 
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_cloud_uri_persist_dir_uses_object_storage_path(self, mock_get_embed, mock_osp_cls, _li):
         # ``ObjectStoragePath.__str__`` returns ``<scheme>://<conn_id>@<bucket>/...``

@@ -285,6 +285,15 @@ export const UseExperimentalServiceWaitDagRunUntilFinishedKeyFn = ({ dagId, dagR
   interval: number;
   result?: string[];
 }, queryKey?: Array<unknown>) => [useExperimentalServiceWaitDagRunUntilFinishedKey, ...(queryKey ?? [{ dagId, dagRunId, interval, result }])];
+export type ExperimentalServiceGetDagVersionDiffDefaultResponse = Awaited<ReturnType<typeof ExperimentalService.getDagVersionDiff>>;
+export type ExperimentalServiceGetDagVersionDiffQueryResult<TData = ExperimentalServiceGetDagVersionDiffDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useExperimentalServiceGetDagVersionDiffKey = "ExperimentalServiceGetDagVersionDiff";
+export const UseExperimentalServiceGetDagVersionDiffKeyFn = ({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}, queryKey?: Array<unknown>) => [useExperimentalServiceGetDagVersionDiffKey, ...(queryKey ?? [{ baseVersionNumber, dagId, maxChanges, targetVersionNumber }])];
 export type DagSourceServiceGetDagSourceDefaultResponse = Awaited<ReturnType<typeof DagSourceService.getDagSource>>;
 export type DagSourceServiceGetDagSourceQueryResult<TData = DagSourceServiceGetDagSourceDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagSourceServiceGetDagSourceKey = "DagSourceServiceGetDagSource";
@@ -410,7 +419,7 @@ export const UseDagServiceGetDagTagsKeyFn = ({ limit, offset, orderBy, tagNamePa
 export type DagServiceGetDagsUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagsUi>>;
 export type DagServiceGetDagsUiQueryResult<TData = DagServiceGetDagsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagsUiKey = "DagServiceGetDagsUi";
-export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }: {
+export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -433,12 +442,13 @@ export const UseDagServiceGetDagsUiKeyFn = ({ assetDependency, bundleName, bundl
   orderBy?: string[];
   owners?: string[];
   paused?: boolean;
+  relativeFilelocPrefix?: string;
   schedulingState?: DagSchedulingState;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
   teams?: string[];
   timetableType?: string[];
-} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }])];
+} = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagsUiKey, ...(queryKey ?? [{ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }])];
 export type DagServiceGetDagTimetableTypesUiDefaultResponse = Awaited<ReturnType<typeof DagService.getDagTimetableTypesUi>>;
 export type DagServiceGetDagTimetableTypesUiQueryResult<TData = DagServiceGetDagTimetableTypesUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetDagTimetableTypesUiKey = "DagServiceGetDagTimetableTypesUi";
@@ -447,6 +457,10 @@ export const UseDagServiceGetDagTimetableTypesUiKeyFn = ({ limit, offset, timeta
   offset?: number;
   timetableTypePrefixPattern?: string;
 } = {}, queryKey?: Array<unknown>) => [useDagServiceGetDagTimetableTypesUiKey, ...(queryKey ?? [{ limit, offset, timetableTypePrefixPattern }])];
+export type DagServiceGetDagFoldersDefaultResponse = Awaited<ReturnType<typeof DagService.getDagFolders>>;
+export type DagServiceGetDagFoldersQueryResult<TData = DagServiceGetDagFoldersDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagFoldersKey = "DagServiceGetDagFolders";
+export const UseDagServiceGetDagFoldersKeyFn = (queryKey?: Array<unknown>) => [useDagServiceGetDagFoldersKey, ...(queryKey ?? [])];
 export type DagServiceGetLatestRunInfoDefaultResponse = Awaited<ReturnType<typeof DagService.getLatestRunInfo>>;
 export type DagServiceGetLatestRunInfoQueryResult<TData = DagServiceGetLatestRunInfoDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagServiceGetLatestRunInfoKey = "DagServiceGetLatestRunInfo";
@@ -954,6 +968,15 @@ export const UseVariableServiceGetVariablesKeyFn = ({ limit, offset, orderBy, va
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}, queryKey?: Array<unknown>) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }])];
+export type DagVersionServiceGetDagVersionDiffDefaultResponse = Awaited<ReturnType<typeof DagVersionService.getDagVersionDiff>>;
+export type DagVersionServiceGetDagVersionDiffQueryResult<TData = DagVersionServiceGetDagVersionDiffDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagVersionServiceGetDagVersionDiffKey = "DagVersionServiceGetDagVersionDiff";
+export const UseDagVersionServiceGetDagVersionDiffKeyFn = ({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}, queryKey?: Array<unknown>) => [useDagVersionServiceGetDagVersionDiffKey, ...(queryKey ?? [{ baseVersionNumber, dagId, maxChanges, targetVersionNumber }])];
 export type DagVersionServiceGetDagVersionDefaultResponse = Awaited<ReturnType<typeof DagVersionService.getDagVersion>>;
 export type DagVersionServiceGetDagVersionQueryResult<TData = DagVersionServiceGetDagVersionDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagVersionServiceGetDagVersionKey = "DagVersionServiceGetDagVersion";

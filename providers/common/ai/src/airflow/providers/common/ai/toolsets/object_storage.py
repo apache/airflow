@@ -44,7 +44,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
     serialize_for_llm,
 )
-from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, ObjectStoragePath
 
 if TYPE_CHECKING:
@@ -147,6 +147,10 @@ class ObjectStorageToolset(AirflowToolset):
         ``reports_read_file``. Set this when one agent has another toolset with the same tool
         names, such as a second ``ObjectStorageToolset`` or a ``SandboxToolset``, whose
         ``read_file`` would collide, since duplicate tool names are rejected.
+    :param max_retries: How many times the model may correct a call with invalid arguments
+        before the run fails. A failed read goes back to the model without using it.
+        ``None`` (the default) uses the agent's tool retry budget, its ``retries``, as
+        pydantic-ai's own toolsets do.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -162,7 +166,9 @@ class ObjectStorageToolset(AirflowToolset):
         max_read_bytes: int = 10 * 1024 * 1024,
         max_output_bytes: int = 50 * 1024,
         tool_prefix: str = "",
+        max_retries: int | None = None,
     ) -> None:
+        self._max_retries = validate_max_retries(max_retries)
         for name, value in (
             ("max_files", max_files),
             ("max_read_bytes", max_read_bytes),
@@ -188,6 +194,7 @@ class ObjectStorageToolset(AirflowToolset):
         return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
+        max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
         for base, schema in _SCHEMAS.items():
             name = self._tool_name(base)
@@ -199,7 +206,7 @@ class ObjectStorageToolset(AirflowToolset):
                     parameters_json_schema=schema,
                     **return_schema_kwargs({"type": "string"}),
                 ),
-                max_retries=1,
+                max_retries=max_retries,
                 args_validator=build_args_validator(schema),
             )
         return tools

@@ -28,7 +28,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.usage import RequestUsage
 
 from airflow.providers.common.ai.durable.storage import DurableStorage
-from airflow.sdk import ObjectStoragePath
+from airflow.providers.common.compat.sdk import ObjectStoragePath
 
 
 @pytest.fixture

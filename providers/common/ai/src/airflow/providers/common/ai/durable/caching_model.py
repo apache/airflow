@@ -21,14 +21,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.wrapper import WrapperModel
 
 from airflow.providers.common.ai.durable.base import build_model_step_key, build_tool_step_key
 from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
-log = structlog.get_logger(logger_name="task")
+log = get_task_logger()
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage

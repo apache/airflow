@@ -149,6 +149,9 @@ dependencies = [
 "standard" = [
     "apache-airflow-providers-standard"
 ]
+"common.ai" = [
+    "apache-airflow-providers-common-ai>=0.10.0",  # use next version
+]
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"
 ]
@@ -168,6 +171,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-apache-hive",
     "apache-airflow-providers-cncf-kubernetes",
+    "apache-airflow-providers-common-ai",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-common-sql",
@@ -186,7 +190,7 @@ dev = [
     "apache-airflow-providers-amazon[aiobotocore]",
     "apache-airflow-providers-postgres",
     "aws_xray_sdk>=2.12.0",
-    "moto[cloudformation,glue]>=5.1.2",
+    "moto[cloudformation,glue]>=5.2.2",
     "mypy-boto3-appflow>=1.37.0",
     "mypy-boto3-rds>=1.34.90",
     "mypy-boto3-redshift-data>=1.34.0",

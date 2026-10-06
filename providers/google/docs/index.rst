@@ -213,6 +213,7 @@ Dependent package                                                               
 `apache-airflow-providers-apache-beam <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam>`_            ``apache.beam``
 `apache-airflow-providers-apache-cassandra <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra>`_  ``apache.cassandra``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
+`apache-airflow-providers-common-ai <https://airflow.apache.org/docs/apache-airflow-providers-common-ai>`_                ``common.ai``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 `apache-airflow-providers-facebook <https://airflow.apache.org/docs/apache-airflow-providers-facebook>`_                  ``facebook``
 `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                          ``http``
@@ -242,11 +243,11 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-google[apache.beam]
 
 
-====================  ====================================================
+====================  =====================================================
 Extra                 Dependencies
-====================  ====================================================
+====================  =====================================================
 ``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
-``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
+``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.22.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
 ``oracle``            ``apache-airflow-providers-oracle>=3.1.0``
@@ -266,8 +267,9 @@ Extra                 Dependencies
 ``trino``             ``apache-airflow-providers-trino``
 ``http``              ``apache-airflow-providers-http``
 ``standard``          ``apache-airflow-providers-standard``
+``common.ai``         ``apache-airflow-providers-common-ai>=0.10.0``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-====================  ====================================================
+====================  =====================================================
 
 Downloading official packages
 -----------------------------

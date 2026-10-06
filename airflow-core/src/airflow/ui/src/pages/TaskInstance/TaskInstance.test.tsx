@@ -160,7 +160,8 @@ describe("TaskInstance", () => {
     ["tabs.auditLog", "events"],
     ["tabs.mappedTaskInstances_other", "task_instances"],
     ["tabs.renderedTemplates", "rendered_templates"],
-    ["tabs.storage", "xcom"],
+    ["tabs.xcom", "xcom"],
+    ["tabs.taskStateStore", "task-state-store"],
     ["tabs.assetEvents", "asset_events"],
     ["tabs.code", "code"],
   ])("does not carry try selection into %s", async (label, destination) => {

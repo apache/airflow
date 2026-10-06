@@ -36,3 +36,18 @@ def test_run_unit_tests_aborts_when_the_job_budget_is_missing_in_github_actions(
     )
     assert result.returncode == 1
     assert "JOB_START_EPOCH and JOB_TIMEOUT_MINUTES must both be set" in result.stdout
+
+
+def test_providers_db_tests_fail_when_breeze_fails(tmp_path):
+    """A parallel breeze run exits 1 when any test type fails, so that must fail the job, as for core."""
+    (tmp_path / "breeze").write_text("#!/usr/bin/env bash\nexit 1\n")
+    (tmp_path / "breeze").chmod(0o755)
+    result = subprocess.run(
+        ["bash", str(SCRIPT_PATH), "providers", "DB"],
+        env={"PATH": f"{tmp_path}:{MINIMAL_ENVIRONMENT['PATH']}"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "The providers test DB failed! Giving up" in result.stdout

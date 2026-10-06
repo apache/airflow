@@ -242,14 +242,42 @@ func (c *CoordinatorClient) PushXCom(
 		TaskID: ti.TaskID,
 		RunID:  ti.RunID,
 	}
-	// map_index mirrors Python's SetXCom.map_index (int | None): -1 is the
-	// unmapped sentinel, omitted from the payload rather than sent. Assign the
-	// pointer, not the dereferenced int, so an explicit index 0 survives omitempty
-	// (see GetXCom).
-	if ti.MapIndex != nil && *ti.MapIndex != -1 {
-		msg.MapIndex = ti.MapIndex
-	}
+	msg.MapIndex = omittedMapIndex(ti.MapIndex)
 
 	_, err := c.comm.Communicate(ctx, msg)
+	return err
+}
+
+// deleteXCom asks the supervisor to delete the XCom of ti with the given key. Like PushXCom, it
+// leaves map_index out for an unmapped task instance, and the Execution API then deletes the XCom
+// with map_index -1.
+func (c *CoordinatorClient) deleteXCom(ctx context.Context, ti sdk.TaskInstance, key string) error {
+	msg := genmodels.DeleteXCom{
+		Key:    key,
+		DagID:  ti.DagID,
+		TaskID: ti.TaskID,
+		RunID:  ti.RunID,
+	}
+	msg.MapIndex = omittedMapIndex(ti.MapIndex)
+
+	_, err := c.comm.Communicate(ctx, msg)
+	return err
+}
+
+// omittedMapIndex returns mapIndex, or nil for the unmapped sentinel -1, so that msgpack omits
+// map_index from the payload instead of sending it. An explicit index 0 survives omitempty because
+// the pointer, not the dereferenced int, is returned (see GetXCom).
+func omittedMapIndex(mapIndex *int) *int {
+	if mapIndex == nil || *mapIndex == -1 {
+		return nil
+	}
+	return mapIndex
+}
+
+// skipDownstreamTasks asks the supervisor to mark the tasks with the given task_ids as skipped
+// in the Dag run of the running task. Airflow does not change a task instance that is running,
+// has succeeded or has failed.
+func (c *CoordinatorClient) skipDownstreamTasks(ctx context.Context, taskIDs []string) error {
+	_, err := c.comm.Communicate(ctx, genmodels.SkipDownstreamTasks{Tasks: taskIDs})
 	return err
 }

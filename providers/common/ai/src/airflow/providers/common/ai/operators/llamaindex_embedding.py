@@ -228,7 +228,7 @@ class LlamaIndexEmbeddingOperator(BaseOperator):
     def _persist(self, index: Any, persist_dir: str) -> None:
         """Persist the index to ``persist_dir``; cloud URIs go through ObjectStoragePath."""
         if "://" in persist_dir:
-            from airflow.sdk import ObjectStoragePath
+            from airflow.providers.common.compat.sdk import ObjectStoragePath
 
             target = ObjectStoragePath(persist_dir, conn_id=self.persist_conn_id)
             target.mkdir(parents=True, exist_ok=True)

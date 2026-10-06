@@ -99,8 +99,8 @@ as a task failure.
 ``require_approval=True needs Airflow 3.1+`` / ``DecisionPolicy(on_uncertain='review') needs Airflow 3.1+`` / ``approval_assigned_users needs Airflow 3.1+`` / ``Human in the loop functionality needs Airflow 3.1+``
     Human-in-the-loop review, whether through ``require_approval``,
     ``DecisionPolicy(on_uncertain="review")`` or ``enable_hitl_review``, needs Airflow 3.1
-    or later. Upgrade the core, or use ``on_uncertain="fail"`` and drop the review flags
-    on an older core. See :doc:`approval_gates` and :doc:`hitl_review`.
+    or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
+    on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
 ``durable=True and enable_hitl_review=True cannot be used together`` / ``durable=True and code_mode=True cannot be used together``
     Durable replay assumes a stable step order across attempts, which neither a human
@@ -134,7 +134,7 @@ Run-time errors
     above.
 
 ``durable=True`` on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
-    On cores older than 3.3 the step cache lives in object storage and
+    On Airflow versions older than 3.3 the step cache lives in object storage and
     ``[common.ai] durable_cache_path`` must be set. On 3.3 and later the task state store
     is used and the option is ignored. See :doc:`durable_execution`.
 
@@ -148,7 +148,7 @@ A structured ``output_type`` arrives downstream as a string or fails to deserial
 A review task waits for a long time
     That is expected: the task is waiting for a reviewer. An approval gate on an LLM operator
     releases its worker slot while it waits (it pauses as awaiting input on Airflow 3.3+, and
-    defers to the triggerer on older cores); a HITL review on ``AgentOperator`` polls from the
+    defers to the triggerer on older Airflow versions); a HITL review on ``AgentOperator`` polls from the
     worker and holds its slot. Set ``approval_timeout`` or ``hitl_timeout`` so an unattended
     review cannot wait forever. See :doc:`approval_gates` and :doc:`hitl_review`.
 

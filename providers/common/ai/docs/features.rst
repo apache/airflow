@@ -26,8 +26,8 @@ you use. Each is a parameter on the operator or decorator.
 - :doc:`structured_output`: ``output_type`` returns a typed Pydantic object through XCom
   instead of a string.
 - :doc:`message_history`: ``message_history`` carries a conversation across agent runs.
-- :doc:`guardrails`: pydantic-ai capabilities and ``pydantic-ai-shields`` guards pass through
-  ``agent_params``.
+- :doc:`capabilities`: ``capabilities=`` adds pydantic-ai capabilities such as ``Thinking`` and
+  ``WebSearch``, and ``pydantic-ai-shields`` guardrails, to an agent.
 - :doc:`code_mode`: ``code_mode=True`` lets the model call several tools from one Python
   snippet instead of one round trip per call.
 - :doc:`approval_gates`: ``require_approval=True`` pauses an LLM operator until a person
@@ -50,7 +50,7 @@ Making retries cheap with ``durable=True`` is a reliability feature and lives un
 
     Structured output <structured_output>
     Message history <message_history>
-    Guardrails <guardrails>
+    Capabilities and guardrails <capabilities>
     Code mode <code_mode>
     Approve outputs <approval_gates>
     Review agent sessions <hitl_review>

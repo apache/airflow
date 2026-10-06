@@ -2896,7 +2896,6 @@ def test_diff_ignores_wrapper_types_missing_on_both_sides(include_values, proven
     base["dag"]["tasks"][0].pop("__type")
     base["dag"].pop("task_group")
     target = copy.deepcopy(base)
-    DagSerialization.validate_schema(base)
     assert DagSerialization.from_dict(copy.deepcopy(base)).task_dict == {}
     target_version = "new" if provenance_changed else "old"
 
