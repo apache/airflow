@@ -20,8 +20,10 @@
 from __future__ import annotations
 
 import os
+import posixpath
 from collections.abc import Sequence
 from functools import cached_property
+from pathlib import PurePosixPath
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
@@ -177,25 +179,22 @@ class GCSToSFTPOperator(BaseOperator):
     def _resolve_destination_path(self, source_object: str, prefix: str | None = None) -> str:
         if not self.keep_directory_structure:
             if prefix:
-                source_object = os.path.relpath(source_object, start=prefix)
+                source_object = posixpath.relpath(source_object, start=prefix)
             else:
-                source_object = os.path.basename(source_object)
+                source_object = posixpath.basename(source_object)
         # GCS object names are arbitrary UTF-8 strings controlled by whoever can
         # write to the source bucket, so ``..`` segments or an absolute prefix
         # could canonicalise outside ``destination_path`` on the SFTP server.
-        # Resolve the join and require it to stay within the configured base.
-        resolved = os.path.normpath(os.path.join(self.destination_path, source_object))
-        base = os.path.normpath(self.destination_path)
-        escapes = (
-            resolved == ".."
-            or resolved.startswith(".." + os.sep)
-            # An absolute source_object absorbed a relative base entirely.
-            or (os.path.isabs(resolved) and not os.path.isabs(base))
-            # A configured base directory must remain the prefix of the result.
-            # ``base == "."`` is the SFTP login directory, where any non-escaping
-            # relative path is already in-bounds.
-            or (base != "." and resolved != base and not resolved.startswith(base.rstrip(os.sep) + os.sep))
-        )
+        # The trusted base may contain ".." and refers to the remote server's working directory.
+        base = posixpath.normpath(self.destination_path)
+        resolved = posixpath.normpath(posixpath.join(base, source_object))
+        try:
+            relative_path = PurePosixPath(resolved).relative_to(base)
+        except ValueError:
+            escapes = True
+        else:
+            # Pure paths retain ".."; an extra parent beyond a base such as ".." still escapes.
+            escapes = ".." in relative_path.parts
         if escapes:
             raise ValueError(
                 f"Refusing to copy GCS object {source_object!r}: resolved destination "

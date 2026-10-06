@@ -956,7 +956,7 @@ class TestUpdateDagParsingResults:
             parse_duration=None,
             warnings=set(),
             session=session,
-            dag_source_codes={dag.fileloc: DagSourceCode(source_code="dag_id: yaml_dag\n", language="yaml")},
+            dag_source_codes={dag.dag_id: DagSourceCode(source_code="dag_id: yaml_dag\n", language="yaml")},
         )
 
         dag_code = DagCode.get_latest_dagcode("yaml_dag", session=session)

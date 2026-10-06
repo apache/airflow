@@ -66,7 +66,6 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.hitl import HITLDetail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import handle_event_submit
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1798,11 +1797,9 @@ class TestDag:
             dag_run_state=dag_run_state,
             session=session,
         )
-        session.refresh(upstream_ti)
-        session.refresh(ti)
         session.refresh(ti2)
-        assert upstream_ti.state is None  # cleared
-        assert ti.state is None  # cleared
+        assert dagrun_1.get_task_instance("make_arg_lists", session=session).state is None  # cleared
+        assert dagrun_1.get_task_instance(task_id, map_index=0, session=session).state is None  # cleared
         assert ti2.state == State.SUCCESS  # not cleared
         dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
 
@@ -1853,6 +1850,33 @@ class TestDag:
         assert ti.max_tries == 2
         assert ti.state == (TaskInstanceState.SUCCESS if succeed_on_last_try else TaskInstanceState.FAILED)
         assert dr.state == (DagRunState.SUCCESS if succeed_on_last_try else DagRunState.FAILED)
+
+    def test_dag_test_without_logical_date_keeps_other_runs_task_instances(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="test_dateless_dag_test", schedule=None, start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def check_task():
+            pass
+
+        with dag:
+            check_task()
+
+        _create_dagrun(
+            dag,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_type=DagRunType.SCHEDULED,
+            state=DagRunState.SUCCESS,
+        )
+        run_id = session.scalar(select(DagRun.run_id).where(DagRun.dag_id == dag.dag_id))
+        session.execute(update(TI).where(TI.run_id == run_id).values(state=TaskInstanceState.SUCCESS))
+        session.commit()
+
+        dag.test(logical_date=None)
+
+        session.expire_all()
+        states = session.scalars(select(TI.state).where(TI.run_id == run_id)).all()
+        assert states == [TaskInstanceState.SUCCESS]
 
     def test_dag_test_with_dependencies(self, testing_dag_bundle):
         dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
@@ -1907,10 +1931,9 @@ class TestDag:
         assert state_during_callback == TaskInstanceState.RUNNING
         assert value == "written"
         with create_session() as session:
-            history = session.scalar(
-                select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
-            )
+            history = session.get(TI, old_id)
             assert history is not None
+            assert history.working_set is None
             assert history.end_date == end_date
             ti = dr.get_task_instance("fail_once", session=session)
             assert ti.id != old_id

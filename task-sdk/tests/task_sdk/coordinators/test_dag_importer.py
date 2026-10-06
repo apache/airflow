@@ -37,7 +37,7 @@ from airflow.sdk.execution_time.coordinator import (
     _CoordinatorSpec,
     get_coordinator_manager,
 )
-from airflow.sdk.importers import DagImportResult, DagSourceCode, reset_importer_registry
+from airflow.sdk.importers import DagSourceCode, FilesystemDagDefinition, reset_importer_registry
 
 from tests_common.test_utils.config import conf_vars
 
@@ -55,10 +55,7 @@ class _NativeImporter(CoordinatorDagImporter):
     artifact_suffix = ".min.native"
     supported_extensions = [".native"]
 
-    def import_definition(self, definition, bundle):
-        return DagImportResult()
-
-    def get_source_code(self, definition) -> DagSourceCode:
+    def get_source_code(self, definition, dag_id: str | None = None) -> DagSourceCode:
         return DagSourceCode("", "native")
 
     def might_contain_dag(self, definition, safe_mode: bool) -> bool:
@@ -107,6 +104,19 @@ def test_lists_only_its_artifacts(importer, tmp_path):
     definitions = list(importer.list_dag_definitions(SimpleNamespace(name="testing", path=tmp_path)))
 
     assert [d.path.name for d in definitions] == ["main.min.native"]
+
+
+def test_import_definition_reports_that_only_the_dag_processor_parses_it(importer, tmp_path):
+    bundle_file = tmp_path / "main.min.native"
+    bundle_file.write_text("")
+    definition = FilesystemDagDefinition(bundle_file)
+
+    result = importer.import_definition(definition, SimpleNamespace(name="testing", path=tmp_path))
+
+    assert result.dags == []
+    assert [error.message for error in result.errors] == [
+        "A native Lang-SDK Dag is parsed only by the Dag processor"
+    ]
 
 
 class TestGetParsingCoordinator:

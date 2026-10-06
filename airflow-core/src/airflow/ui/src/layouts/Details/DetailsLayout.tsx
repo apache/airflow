@@ -40,7 +40,7 @@ import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import DrainingBanner from "src/components/Banner/DrainingBanner";
-import { DAGWarningsModal } from "src/components/DAGWarningsModal";
+import { countDagWarnings, DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
@@ -50,7 +50,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
-import { useAutoRefresh } from "src/utils";
+import { formatNumber, useAutoRefresh } from "src/utils";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -95,7 +95,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const { dagId = "", runId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
   const { data: dag } = useDagServiceGetDag({ dagId }, undefined, {
-    refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
+    refetchInterval: (query) => query.state.data?.scheduling_state === "draining" && refetchInterval,
   });
   // Only asked while the Dag can still be drained; the answer decides whether
   // pausing needs to offer the drain choice at all.
@@ -441,7 +441,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                       <>
                         <IconButton
                           colorPalette={Boolean(error) ? "red" : "orange"}
-                          label={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
+                          label={`${translate("common:dagWarnings")} (${formatNumber(countDagWarnings(warningData?.total_entries, error), i18n.language)})`}
                           margin="2"
                           marginBottom="-1"
                           onClick={onOpen}

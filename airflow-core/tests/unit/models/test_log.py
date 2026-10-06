@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import InvalidRequestError
@@ -41,6 +43,32 @@ pytestmark = pytest.mark.db_test
 
 
 class TestLogTaskInstanceReproduction:
+    def test_coordinate_join_selects_only_current_task_instance(self, dag_maker, session):
+        with dag_maker("log_attempt_history", session=session):
+            EmptyOperator(task_id="task")
+        run = dag_maker.create_dagrun()
+        ti = run.get_task_instance("task")
+        ti.state = TaskInstanceState.SUCCESS
+        ti = session.merge(ti)
+        session.flush()
+        log = Log(event="attempt_event", task_instance=ti)
+        session.add(log)
+        session.flush()
+        log_id = log.id
+        old_id = ti.id
+        successor = ti.prepare_db_for_next_try(session)
+        successor_id = successor.id
+        session.commit()
+        session.expunge_all()
+
+        rows = session.execute(
+            select(Log).where(Log.id == log_id).options(joinedload(Log.task_instance))
+        ).all()
+
+        assert len(rows) == 1
+        assert rows[0][0].task_instance.id == successor_id
+        assert rows[0][0].task_instance.id != old_id
+
     def test_log_task_instance_raises_without_joinedload(self, dag_maker, session):
         """Accessing Log.task_instance without joinedload should raise."""
         with dag_maker("dag_raise_test", session=session):
@@ -118,6 +146,26 @@ class TestLogTaskInstanceReproduction:
 
 
 DAG_IN_TEAM = "dag_owned_by_a_team"
+
+
+class TestLogTaskInstanceId:
+    @pytest.fixture
+    def ti(self, dag_maker, session):
+        with dag_maker("log_task_instance_id", session=session):
+            EmptyOperator(task_id="task")
+        return dag_maker.create_dagrun().get_task_instance("task")
+
+    def test_records_the_attempt_that_wrote_the_event(self, ti):
+        assert Log(event="event", task_instance=ti).task_instance_id == ti.id
+
+    def test_task_instance_key_has_no_attempt(self, ti):
+        assert Log(event="event", task_instance=ti.key).task_instance_id is None
+
+    def test_explicit_attempt_id_overrides_the_task_instance(self, ti):
+        attempt_id = uuid4()
+        assert (
+            Log(event="event", task_instance=ti, task_instance_id=attempt_id).task_instance_id == attempt_id
+        )
 
 
 class TestLogTeamName:

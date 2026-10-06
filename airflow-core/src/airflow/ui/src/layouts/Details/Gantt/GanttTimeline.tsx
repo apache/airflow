@@ -289,10 +289,10 @@ export const GanttTimeline = ({
             // from the filtered list so the adjacent execution bar keeps rounded corners.
             const segments =
               bodyWidthPx > 0
-                ? allSegments.filter((segment) =>
-                    segment.state !== "scheduled" && segment.state !== "queued"
-                      ? true
-                      : segmentLayout(segment).widthPx >= MIN_SEGMENT_RENDER_PX,
+                ? allSegments.filter(
+                    (segment) =>
+                      (segment.state !== "scheduled" && segment.state !== "queued") ||
+                      segmentLayout(segment).widthPx >= MIN_SEGMENT_RENDER_PX,
                   )
                 : allSegments;
             const taskId = node.id;
@@ -341,9 +341,9 @@ export const GanttTimeline = ({
 
                     // Task groups don't have a try number
                     const touchesNext =
-                      tryNumber === undefined ? false : segments[segIndex + 1]?.tryNumber === tryNumber;
+                      tryNumber !== undefined && segments[segIndex + 1]?.tryNumber === tryNumber;
                     const touchesPrev =
-                      tryNumber === undefined ? false : segments[segIndex - 1]?.tryNumber === tryNumber;
+                      tryNumber !== undefined && segments[segIndex - 1]?.tryNumber === tryNumber;
 
                     return (
                       <TaskInstanceTooltip

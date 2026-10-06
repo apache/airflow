@@ -85,13 +85,10 @@ const matchesOperators = (
 const matchesOperatorNames = (
   criteria: Array<string>,
   { task, taskInstance }: AppliesToContext,
-): boolean | undefined => {
-  if (taskInstance !== undefined) {
-    return matchesAnyName(criteria, knownNames(taskInstance.operator_name));
-  }
-
-  return matchesAnyName(criteria, knownNames(task?.operator_name));
-};
+): boolean | undefined =>
+  taskInstance === undefined
+    ? matchesAnyName(criteria, knownNames(task?.operator_name))
+    : matchesAnyName(criteria, knownNames(taskInstance.operator_name));
 
 /**
  * Decide whether a plugin view should be shown for the current route.
@@ -127,10 +124,6 @@ export const matchesAppliesTo = (view: PluginView, context: AppliesToContext): b
   ].filter((verdict) => verdict !== undefined);
 
   // No criterion was evaluable (either none configured, or none judgeable here).
-  if (verdicts.length === 0) {
-    return true;
-  }
-
   return verdicts.every(Boolean);
 };
 

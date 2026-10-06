@@ -47,6 +47,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
+    TASK_INSTANCE_ID_LABEL,
     KubernetesJob,
     KubernetesResults,
     KubernetesWatch,
@@ -4366,6 +4367,7 @@ class TestKubernetesExecutorUuid:
         )
 
         assert pod.metadata.annotations["task_instance_id"] == str(uuid_workload.ti.id)
+        assert pod.metadata.labels[TASK_INSTANCE_ID_LABEL] == str(uuid_workload.ti.id)
         assert pod.metadata.annotations["dag_id"] == "uuid_dag"
         assert pod.metadata.annotations["try_number"] == "1"
 
@@ -4395,6 +4397,33 @@ class TestKubernetesExecutorUuid:
         statement = session.scalar.call_args.args[0]
         assert statement.compile().params == {"id_1": uuid_workload.ti.id}
         assert state == State.RESTARTING
+
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_get_streaming_task_log_selects_pod_by_attempt_uuid_label(self, mock_get_kube_client):
+        ti_id = uuid4()
+        mock_kube_client = mock_get_kube_client.return_value
+        mock_kube_client.list_namespaced_pod.return_value.items = [
+            k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="current"))
+        ]
+        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_"]
+        ti = mock.MagicMock(
+            id=ti_id,
+            try_number=2,
+            dag_id="test_k8s_log_dag",
+            task_id="test_task",
+            map_index=-1,
+            run_id="test_run",
+            queued_by_job_id=None,
+            hostname="",
+            executor_config={},
+        )
+
+        messages, _ = KubernetesExecutor().get_streaming_task_log(ti=ti, try_number=2)
+
+        assert messages[-1] == "Found logs through kube API"
+        label_selector = mock_kube_client.list_namespaced_pod.call_args.kwargs["label_selector"]
+        assert f"{TASK_INSTANCE_ID_LABEL}={ti_id}" in label_selector.split(",")
+        assert mock_kube_client.read_namespaced_pod_log.call_args.kwargs["name"] == "current"
 
     def test_revoke_selects_uuid_among_pods_with_reused_coordinates(self, uuid_workload, mocker):
         executor = KubernetesExecutor()

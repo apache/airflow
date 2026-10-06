@@ -24,11 +24,16 @@ deserializer. The two are then compared field by field, so this fails both when 
 apart and when Airflow cannot read what the SDK writes.
 
 The SDK's serializer is the command after ``--``. It runs from the repository root, with the paths of
-test_dags.yaml and of the JSON file to write appended, and writes each Dag as
+a copy of test_dags.yaml and of the JSON file to write appended, and writes each Dag as
 ``DagSerialization.to_dict`` would, keyed by Dag id. The Python side needs ``uv``::
 
     python3 scripts/ci/lang_sdk_serialization/compare.py --sdk typescript -- \
         pnpm --dir ts-sdk exec tsx tests/conformance/serialize_typescript.ts
+
+A Dag of test_dags.yaml may list the features that it ``requires`` of an SDK. ``--supports`` names the
+features the SDK has, as a comma-separated list or ``all``, and the copy of test_dags.yaml holds only
+the Dags whose features are all among them. A Dag that requires nothing is always in it, and the SDK
+has to write exactly the Dags of the copy.
 
 On a failure the files are kept, and their directory is printed.
 """
@@ -37,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -48,6 +54,12 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
 TEST_DAGS = HERE / "test_dags.yaml"
 SCHEMA = REPO_ROOT / "airflow-core" / "src" / "airflow" / "serialization" / "schema.json"
+
+# The features that a Dag of test_dags.yaml may require of an SDK. The comment at the top of
+# test_dags.yaml says what each one adds to a Dag.
+FEATURES = frozenset(
+    {"branch", "switch", "edge_labels", "group_options", "trigger_dag_run", "literal_inputs"}
+)
 
 # Name the file a Dag was declared in: Python's own Dag file, or the SDK's bundle.
 DAG_KEYS_NOT_COMPARED = frozenset({"fileloc", "relative_fileloc", "_processor_dags_folder"})
@@ -70,6 +82,58 @@ TASK_KEYS_NOT_COMPARED = frozenset(
         "_arg_bindings",
     }
 )
+
+
+def parse_features(value: str) -> frozenset[str]:
+    """Read the value of ``--supports``: ``all``, or feature names separated by commas."""
+    if value == "all":
+        return FEATURES
+    features = frozenset(name for name in value.split(",") if name)
+    if unknown := features - FEATURES:
+        raise SystemExit(f"--supports names {sorted(unknown)}, which are not among {sorted(FEATURES)}")
+    return features
+
+
+CASE_START = re.compile(r"^  - dag_id: (\S+)\s*$")
+CASE_REQUIRES = re.compile(r"^    requires: \[([^\]]*)\]\s*$")
+
+
+def find_comment_start(lines: list[str], index: int) -> int:
+    """Return the index of the first of the comment lines right above ``lines[index]``."""
+    while index > 0 and lines[index - 1].lstrip().startswith("#"):
+        index -= 1
+    return index
+
+
+def filter_cases(text: str, supported: frozenset[str]) -> tuple[str, list[str]]:
+    """
+    Keep the Dags of test_dags.yaml whose required features are all supported.
+
+    Works on the text, so the copy keeps the tags and the comments of the original and needs no YAML
+    parser. A Dag starts at its ``  - dag_id:`` line, with the comment lines right above it, and writes
+    ``requires`` as a list on one line. Returns the copy and the ids of the Dags in it.
+    """
+    lines = text.splitlines(keepends=True)
+    starts = [index for index, line in enumerate(lines) if CASE_START.match(line)]
+    # The comment that explains a Dag sits right above it, so it goes with the Dag.
+    starts = [find_comment_start(lines, index) for index in starts]
+    kept = lines[: starts[0]]
+    ids = []
+    for position, start in enumerate(starts):
+        block = lines[start : starts[position + 1] if position + 1 < len(starts) else len(lines)]
+        dag_id = next(match.group(1) for line in block if (match := CASE_START.match(line)))
+        required: set[str] = set()
+        for line in block:
+            if match := CASE_REQUIRES.match(line):
+                required = {name.strip() for name in match.group(1).split(",") if name.strip()}
+        if unknown := required - FEATURES:
+            raise SystemExit(
+                f"Dag {dag_id} requires {sorted(unknown)}, which are not among {sorted(FEATURES)}"
+            )
+        if required <= supported:
+            kept.extend(block)
+            ids.append(dag_id)
+    return "".join(kept), ids
 
 
 def run(command: list[str]) -> None:
@@ -186,14 +250,30 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--sdk", required=True, help="the SDK's name, as in serialized_<sdk>.json")
+    parser.add_argument(
+        "--supports",
+        default="",
+        type=parse_features,
+        help="the features the SDK has, as names separated by commas or `all`; none by default",
+    )
     parser.add_argument("command", nargs="+", help="the SDK's serializer, after --")
     args = parser.parse_args(argv)
 
     directory = Path(tempfile.mkdtemp(prefix=f"{args.sdk}-serialization-"))
+    test_dags = directory / TEST_DAGS.name
     python_output = directory / "serialized_python.json"
     sdk_output = directory / f"serialized_{args.sdk}.json"
     received_output = directory / f"received_{args.sdk}.json"
-    run([*args.command, str(TEST_DAGS), str(sdk_output)])
+    filtered, dag_ids = filter_cases(TEST_DAGS.read_text(), args.supports)
+    test_dags.write_text(filtered)
+    run([*args.command, str(test_dags), str(sdk_output)])
+    if (written := sorted(json.loads(sdk_output.read_text()))) != sorted(dag_ids):
+        print(
+            f"The {args.sdk} SDK wrote the Dags {written}, but it supports {sorted(args.supports)} and so "
+            f"should write {sorted(dag_ids)}. The files are kept in {directory}",
+            file=sys.stderr,
+        )
+        return 1
     run(
         [
             "uv",
@@ -205,7 +285,7 @@ def main(argv: list[str] | None = None) -> int:
             "--no-dev",
             "python",
             str(HERE / "serialize_python.py"),
-            str(TEST_DAGS),
+            str(test_dags),
             str(python_output),
             "--receive",
             str(sdk_output),
@@ -225,7 +305,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"The serializations are kept in {directory}", file=sys.stderr)
         return 1
     shutil.rmtree(directory)
-    print(f"The {args.sdk} SDK serializes all {len(python)} Dags of {TEST_DAGS.name} as Python does")
+    print(
+        f"The {args.sdk} SDK serializes the {len(python)} Dags of {TEST_DAGS.name} it supports as Python does"
+    )
     return 0
 
 

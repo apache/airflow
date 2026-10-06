@@ -35,7 +35,6 @@
       "connectionIdRequired": "L'ID de connexió és obligatori",
       "connectionIdRequirement": "L'ID de connexió no pot tenir únicament espais",
       "connectionTypeRequired": "El tipus de connexió és obligatori",
-      "extraFields": "Camps addicionals",
       "extraFieldsJson": "Camps addicionals JSON",
       "helperText": "Falta el tipus de connexió? Assegureu-vos d'haver instal·lat el paquet de proveïdors d'Airflow corresponent.",
       "helperTextForRedactedFields": "Els camps redactats ('***') romandran sense canvis si no es modifiquen.",
