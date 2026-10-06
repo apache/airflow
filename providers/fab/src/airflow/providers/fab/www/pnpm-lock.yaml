@@ -33,7 +33,7 @@ importers:
         version: 1.14.2
       moment-timezone:
         specifier: '>=0.5.35'
-        version: 0.6.4
+        version: 0.6.5
     devDependencies:
       '@babel/core':
         specifier: ^8.0.6
@@ -1673,8 +1673,8 @@ packages:
       moment: ^2.8.0
       webpack: ^1 || ^2 || ^3 || ^4 || ^5
 
-  moment-timezone@0.6.4:
-    resolution: {integrity: sha512-JHUK8Mgheach4uMQmIV/pIfrv0ubPiDCPPqc7Mi604je1UblP6Gbm+FfV+Oh88KP03rZqGCZG3t0wmpfdlDv+w==}
+  moment-timezone@0.6.5:
+    resolution: {integrity: sha512-KKzZAxGv2Qx4cnk6eSlvf4C+DLFW52vmMY5MN7UARY7GONbozkutylQG3DrrtmLCTXdQ5XZrqao9cI16bLFzXA==}
 
   moment@2.31.0:
     resolution: {integrity: sha512-0acOTfMiWOheYS4eoWb80yYMb/JLvVv9SHbs2PehaDzfUG0Bw855SKyk0IKTnPGa5+U2bmi3W68l1+sGLX/pvw==}
@@ -3971,7 +3971,7 @@ snapshots:
       moment: 2.31.0
       webpack: 5.111.1(postcss@8.5.28)(webpack-cli@7.2.3)
 
-  moment-timezone@0.6.4:
+  moment-timezone@0.6.5:
     dependencies:
       moment: 2.31.0
 

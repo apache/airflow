@@ -63,7 +63,7 @@
   },
   "dependencies": {
     "jquery-ui": "^1.14.2",
-    "moment-timezone": "^0.6.4"
+    "moment-timezone": "^0.6.5"
   },
   "packageManager": "pnpm@10.28.1",
   "pnpm": {
