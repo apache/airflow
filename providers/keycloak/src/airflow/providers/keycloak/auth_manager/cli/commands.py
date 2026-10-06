@@ -277,28 +277,31 @@ def _attach_default_role_permissions(
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
-
-    _attach_policy_to_resource_permission(
-        client,
-        client_uuid,
-        permission_name="User",
-        policy_name=_role_policy_name("User"),
-        resource_names=[KeycloakResource.DAG.value, KeycloakResource.ASSET.value],
-        _dry_run=_dry_run,
-    )
-    _attach_policy_to_resource_permission(
-        client,
-        client_uuid,
-        permission_name="Op",
-        policy_name=_role_policy_name("Op"),
-        resource_names=[
-            KeycloakResource.CONNECTION.value,
-            KeycloakResource.POOL.value,
-            KeycloakResource.VARIABLE.value,
-            KeycloakResource.BACKFILL.value,
-        ],
-        _dry_run=_dry_run,
-    )
+    for role_name in ("User", "Op", "Admin"):
+        _attach_policy_to_resource_permission(
+            client,
+            client_uuid,
+            permission_name="User",
+            policy_name=_role_policy_name(role_name),
+            resource_names=[KeycloakResource.DAG.value, KeycloakResource.ASSET.value],
+            decision_strategy="AFFIRMATIVE",
+            _dry_run=_dry_run,
+        )
+    for role_name in ("Op", "Admin"):
+        _attach_policy_to_resource_permission(
+            client,
+            client_uuid,
+            permission_name="Op",
+            policy_name=_role_policy_name(role_name),
+            resource_names=[
+                KeycloakResource.CONNECTION.value,
+                KeycloakResource.POOL.value,
+                KeycloakResource.VARIABLE.value,
+                KeycloakResource.BACKFILL.value,
+            ],
+            decision_strategy="AFFIRMATIVE",
+            _dry_run=_dry_run,
+        )
     for role_name in ("Admin", SUPER_ADMIN_ROLE_NAME):
         _attach_policy_to_scope_permission(
             client,
