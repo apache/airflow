@@ -22,7 +22,7 @@ import threading
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic_ai import Agent
+from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
@@ -553,6 +553,26 @@ class TestHookToolsetPinnedArguments:
 
         assert "bucket is fixed for this tool" in answer
         assert hook.calls == [expected_call]
+
+    def test_an_approval_gate_is_never_asked_about_a_pinned_argument(self):
+        """The refusal happens during validation, before an approval gate sees the call."""
+        ts = HookToolset(
+            _RecordingHook(), allowed_methods=["list_keys"], pinned_arguments={"bucket": "reports"}
+        )
+        attempts = iter([{"bucket": "payroll", "prefix": "x"}, {"prefix": "x"}])
+
+        def model(messages, info):
+            return ModelResponse(parts=[ToolCallPart("list_keys", next(attempts), tool_call_id="c")])
+
+        agent = Agent(
+            FunctionModel(model),
+            toolsets=[ts.approval_required()],
+            output_type=[str, DeferredToolRequests],
+        )
+        output = agent.run_sync("list").output
+
+        assert isinstance(output, DeferredToolRequests)
+        assert [call.args for call in output.approvals] == [{"prefix": "x"}]
 
     def test_a_method_that_modifies_its_argument_cannot_change_the_pin(self):
         hook = _RecordingKwargsHook()

@@ -81,7 +81,7 @@ class HookToolset(AirflowToolset):
         the model could still choose the value through it. Expose such a method from a
         second ``HookToolset``.
     :param max_retries: How many times the model may correct a call with invalid arguments,
-        or one that changes a pinned argument, before the run fails. An exception from the
+        or one that supplies a pinned argument, before the run fails. An exception from the
         hook itself fails the run straight away. ``None`` (the default) uses the agent's
         tool retry budget, its ``retries``, as pydantic-ai's own toolsets do.
     """
@@ -180,15 +180,13 @@ class HookToolset(AirflowToolset):
             for param_name, param_desc in param_docs.items():
                 if param_name in json_schema.get("properties", {}):
                     json_schema["properties"][param_name]["description"] = param_desc
-            # Validate against a schema that still accepts the pinned names, so a model that sends
-            # one anyway reaches execute_tool and is told it is fixed, instead of getting a generic
-            # extra-input error. The model is shown the schema without them.
-            args_schema = copy.deepcopy(json_schema)
-            if required := [name for name in args_schema.get("required", []) if name not in self._pinned]:
-                args_schema["required"] = required
-            else:
-                args_schema.pop("required", None)
             _drop_properties(json_schema, self._pinned)
+            # The validator accepts the pinned names, with any value, so a model that sends one
+            # anyway is told it is fixed rather than given a generic extra-input or type error.
+            args_schema = {
+                **json_schema,
+                "properties": {**json_schema["properties"], **dict.fromkeys(self._pinned, {})},
+            }
 
             # sequential=True keeps pydantic-ai from running these calls concurrently
             # within a turn; run_blocking's process-wide lock serializes them with the
@@ -209,8 +207,18 @@ class HookToolset(AirflowToolset):
                 tool_def=tool_def,
                 max_retries=max_retries,
                 args_validator=build_args_validator(args_schema),
+                # Refused during validation, so an approval gate never asks about such a call.
+                args_validator_func=self._refuse_pinned if self._pinned else None,
             )
         return tools
+
+    def _refuse_pinned(self, ctx: RunContext[Any], /, **tool_args: Any) -> None:
+        if supplied := sorted(self._pinned.keys() & tool_args.keys()):
+            one = len(supplied) == 1
+            raise ModelRetry(
+                f"{', '.join(supplied)} {'is' if one else 'are'} fixed for this tool: call it again "
+                f"without {'it' if one else 'them'}."
+            )
 
     async def execute_tool(
         self,
@@ -222,12 +230,8 @@ class HookToolset(AirflowToolset):
     ) -> Any:
         method_name = name.removeprefix(self._tool_name_prefix) if self._tool_name_prefix else name
         method: Callable[..., Any] = getattr(self._hook, method_name)
-        if supplied := sorted(self._pinned.keys() & tool_args.keys()):
-            one = len(supplied) == 1
-            raise ModelRetry(
-                f"{', '.join(supplied)} {'is' if one else 'are'} fixed for this tool: call it again "
-                f"without {'it' if one else 'them'}."
-            )
+        # The framework bridges validate arguments without args_validator_func, so check again here.
+        self._refuse_pinned(ctx, **tool_args)
         # A copy per call, so a method that modifies an argument it is given cannot change the pin.
         result = await self.run_blocking(method, **tool_args, **copy.deepcopy(self._pinned))
         return serialize_for_llm(result)

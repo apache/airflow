@@ -107,8 +107,9 @@ the Dag author's decision, such as which bucket a storage hook reads, pin them:
     )
 
 A pinned argument is left out of the schema the model sees and passed to every allowed
-method. If the model supplies it anyway, the call is refused and the model is told the
-argument is fixed (see :ref:`hook-toolset-restricted`).
+method. If the model supplies it anyway, the call is refused while its arguments are
+validated, before an approval gate or the hook sees it. When the rest of the call is
+valid, the model is told the argument is fixed (see :ref:`hook-toolset-restricted`).
 
 A pin binds one parameter name, so every allowed method has to take it by that name.
 When one does not, the toolset raises ``ValueError`` when it is created: a method that
@@ -172,7 +173,7 @@ Parameters
 - ``pinned_arguments``: Arguments fixed by the Dag author rather than chosen by the
   model. See above.
 - ``max_retries``: How many times the model may correct a call with invalid arguments,
-  or one that changes a pinned argument. Default ``None``, the agent's ``retries``. See
+  or one that supplies a pinned argument. Default ``None``, the agent's ``retries``. See
   :ref:`toolset-retry-budget`.
 
 When to choose it

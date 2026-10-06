@@ -234,7 +234,7 @@ the call. What counts differs by toolset:
 
 - ``SQLToolset`` and ``DataFusionToolset`` turn every query error into ``ModelRetry``,
   so a misspelled column and a dropped connection both count.
-- ``HookToolset`` counts invalid arguments and a call that tries to change a pinned
+- ``HookToolset`` counts invalid arguments and a call that supplies a pinned
   argument. An exception from the hook itself fails the run straight away.
 - ``ObjectStorageToolset`` counts invalid arguments only. A path that does not exist or
   cannot be read goes back to the model as a failed result without using the budget;
