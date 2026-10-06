@@ -27,12 +27,17 @@ twice. With durable execution, each step the agent completes is recorded in a jo
 kept for the task instance, and the retry replays the recorded steps instead of running
 them again. Only the steps the failed attempt never finished run live.
 
+.. meta::
+    :description: Set durable=True on an agent task so that a retry replays the model and tool calls that already finished instead of running and paying for them again.
+
+.. note::
+
 Durable execution only helps a task that has retries. To decide *whether* a failure is
 worth retrying, see :doc:`retry_policies`; a retried ``LLMBatchOperator`` re-attaches to
 its running batch instead (:ref:`llm-batch-reattach`). To resume a Strands Agents agent on a
 retry, see :ref:`howto/frameworks:strands-durable`; for an OpenAI Agents SDK agent, see
 :ref:`howto/frameworks:openai-agents-durable`.
-
+ 
 Turn it on
 ----------
 

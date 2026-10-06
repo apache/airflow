@@ -18,6 +18,9 @@
 Sandbox configuration and lifecycle
 ===================================
 
+.. meta::
+    :description: Configure what a sandbox is provisioned with (network, environment, credentials), get results out of it, share one between tasks, and how it behaves on failure, retry and cleanup.
+
 .. note::
 
     Experimental: this can change or be removed in a minor release of this provider.

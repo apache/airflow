@@ -20,6 +20,9 @@
 Document and RAG pipelines
 ==========================
 
+.. meta::
+    :description: Build a retrieval pipeline from three ordinary tasks: load documents, embed them with LlamaIndex, and retrieve the closest chunks to answer a question with LLMOperator.
+
 .. note::
 
     Experimental: this can change or be removed in a minor release of this provider.
