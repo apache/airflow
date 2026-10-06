@@ -6433,7 +6433,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     WILDCARD_ENDPOINT = "/dags/~/dagRuns/~/taskInstances"
 
     @pytest.mark.parametrize("delete_mode", ["single", "bulk-exact", "bulk-all"])
-    def test_delete_removes_current_and_retired_tries(self, test_client, session, delete_mode):
+    def test_delete_removes_current_and_archived_tries(self, test_client, session, delete_mode):
         current_tis = self.create_task_instances(
             session,
             task_instances=[{"task_id": self.TASK_ID, "state": State.SUCCESS, "map_indexes": (0, 1, 2)}],

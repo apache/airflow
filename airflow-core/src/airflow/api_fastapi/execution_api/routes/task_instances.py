@@ -88,7 +88,7 @@ from airflow.api_fastapi.execution_api.services.task_instances import (
     client_supports_arg_bindings,
     get_arg_bindings,
 )
-from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyRetiredTaskStateUpdates
+from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
@@ -472,7 +472,7 @@ def ti_update_state(
         _raise_ti_not_in_live_table(task_instance_id, archived_in_history=False)
     if working_set is None:
         _raise_ti_not_in_live_table(
-            task_instance_id, archived_in_history=IdentifyRetiredTaskStateUpdates.is_applied
+            task_instance_id, archived_in_history=IdentifyArchivedTaskStateUpdates.is_applied
         )
 
     # TIStateUpdate can include terminal and intermediate states. This idempotency check handles
@@ -1084,7 +1084,7 @@ async def ti_heartbeat(
     except NoResultFound:
         _raise_ti_not_in_live_table(task_instance_id, archived_in_history=False)
     if working_set is None:
-        # A retired attempt was likely cleared while running, so return 410 Gone
+        # An archived attempt was likely cleared while running, so return 410 Gone
         # instead of 404 Not Found to give the client a more specific signal.
         _raise_ti_not_in_live_table(task_instance_id, archived_in_history=True)
 

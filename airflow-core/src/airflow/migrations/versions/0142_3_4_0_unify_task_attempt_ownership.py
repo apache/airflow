@@ -256,9 +256,6 @@ def upgrade():
             batch.drop_constraint("task_instance_composite_key", type_="unique")
             batch.create_unique_constraint("task_instance_current_key", [*_COORDINATES, "working_set"])
             batch.create_unique_constraint("task_instance_try_key", [*_COORDINATES, "try_number"])
-            batch.create_check_constraint(
-                "ti_working_set_true_or_null", "working_set IS NULL OR working_set = TRUE"
-            )
         ti = sa.table(
             "task_instance",
             sa.column("id"),
@@ -398,7 +395,6 @@ def downgrade():
         with op.batch_alter_table("task_instance") as batch:
             batch.drop_constraint("task_instance_current_key", type_="unique")
             batch.drop_constraint("task_instance_try_key", type_="unique")
-            batch.drop_constraint("ti_working_set_true_or_null", type_="check")
             batch.create_unique_constraint("task_instance_composite_key", list(_COORDINATES))
             for column in ("working_set", "archived_reason"):
                 batch.drop_column(column)

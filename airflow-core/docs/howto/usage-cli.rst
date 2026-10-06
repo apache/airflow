@@ -233,7 +233,7 @@ You can optionally provide a list of tables to perform deletes on with ``--table
   ``xcom_v1`` and ``xcom_v2``, all of which the ``--dry-run`` output lists.
 
   ``--tables xcom`` selects both XCom stores. ``--tables task_instance_history`` selects only
-  retired attempts from ``task_instance``. Selecting ``xcom_v2`` also removes legacy values
+  older tries from ``task_instance``. Selecting ``xcom_v2`` also removes legacy values
   shadowed by the selected v2 rows, so those values cannot reappear after cleanup.
 
   That list is maintained per table rather than derived from the schema, so it does not cover every

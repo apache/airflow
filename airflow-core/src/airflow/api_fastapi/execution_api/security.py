@@ -43,7 +43,7 @@ Enforcement flow:
        - ``ti:self`` scope — checks that the JWT ``sub`` matches the
          ``{task_instance_id}`` path parameter.
        - Mutating task requests — checks that the attempt UUID still exists
-         in the live TI table. Already-admitted requests may finish after retirement.
+         in the live TI table. Already-admitted requests may finish after archival.
     3. ``ExecutionAPIRoute`` precomputes ``allowed_token_types`` from
        ``token:*`` Security scopes at route registration time. Routes
        without explicit ``token:*`` scopes default to execution-only.
@@ -231,9 +231,9 @@ async def require_auth(
         and not getattr(route, _SKIP_AUTO_TI_ATTEMPT_LIVE, False)
     ):
         # The versions package imports routes, which depend on this module.
-        from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyRetiredTaskStateUpdates
+        from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 
-        if IdentifyRetiredTaskStateUpdates.is_applied:
+        if IdentifyArchivedTaskStateUpdates.is_applied:
             await _require_live_attempt(token, allow_callback="task_instance_id" not in request.path_params)
             request.scope[_REQUEST_SCOPE_LIVE_ATTEMPT_KEY] = True
 
@@ -244,9 +244,9 @@ async def _require_live_attempt(token: TIToken, *, allow_callback: bool) -> None
     """
     Reject mutations from an attempt whose UUID is no longer in the working set.
 
-    This is an admission check, not a lock: retirement may race with an already
+    This is an admission check, not a lock: archival may race with an already
     admitted request. Use a fresh session so a prior transaction's snapshot
-    cannot keep a retired UUID visible. Historical attempts never grant access.
+    cannot keep an archived UUID visible. Historical attempts never grant access.
     """
     async with create_session_async() as session:
         attempt = (

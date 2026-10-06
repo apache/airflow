@@ -66,7 +66,7 @@ def _clear(session):
 
 @pytest.fixture
 def ownership_session(session):
-    """Hold the rows migration 0142 leaves behind for one retired and one current attempt."""
+    """Hold the rows migration 0142 leaves behind for one archived and one current attempt."""
     from airflow.models.dagrun import DagRun
     from airflow.models.hitl import HITLDetail
     from airflow.models.renderedtifields import LegacyRenderedTaskInstanceFields

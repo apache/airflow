@@ -270,7 +270,7 @@ class TestArgBindingsFieldBackwardCompat:
 
 
 @pytest.fixture
-def retired_attempt(client, exec_app, monkeypatch, create_task_instance, session):
+def archived_attempt(client, exec_app, monkeypatch, create_task_instance, session):
     """A running attempt, authenticated with a signed token, that has since been retried."""
     ti = create_task_instance(state=State.RUNNING)
     session.commit()
@@ -291,9 +291,9 @@ def retired_attempt(client, exec_app, monkeypatch, create_task_instance, session
     ],
 )
 def test_mutations_after_retry_response_by_version(
-    client, retired_attempt, session, version, rtif_status, heartbeat_status, xcom_status, xcom_kept
+    client, archived_attempt, session, version, rtif_status, heartbeat_status, xcom_status, xcom_kept
 ):
-    ti, successor = retired_attempt
+    ti, successor = archived_attempt
     client.headers["Airflow-API-Version"] = version
 
     rtif = client.put(f"/execution/task-instances/{ti.id}/rtif", json={"field": "late"})

@@ -35,7 +35,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.security import CurrentTIToken
-from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyRetiredTaskStateUpdates
+from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.db import get_query_count
@@ -350,14 +350,14 @@ def get_xcom(
         and not params.include_prior_dates
         and params.offset is None
     ):
-        identify_retired = IdentifyRetiredTaskStateUpdates.is_applied
+        identify_archived = IdentifyArchivedTaskStateUpdates.is_applied
         raise HTTPException(
-            status_code=status.HTTP_410_GONE if identify_retired else status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_410_GONE if identify_archived else status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
                 "message": (
                     "Task Instance not found in the working set; its attempt has been archived"
-                    if identify_retired
+                    if identify_archived
                     else "Task Instance not found"
                 ),
             },

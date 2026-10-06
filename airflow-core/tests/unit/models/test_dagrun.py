@@ -1366,14 +1366,14 @@ class TestDagRun:
         dm = session.scalar(select(DagModel).options(joinedload(DagModel.dag_versions)))
         assert dag_run.dag_versions[0].id == dm.dag_versions[0].id
 
-    def test_retired_task_instance_version_relationship_and_indexed_lookup(self, dag_maker, session):
-        with dag_maker("retired_version_lookup", session=session):
+    def test_archived_task_instance_version_relationship_and_indexed_lookup(self, dag_maker, session):
+        with dag_maker("archived_version_lookup", session=session):
             EmptyOperator(task_id="task")
         dag_run = dag_maker.create_dagrun()
         ti = session.merge(dag_run.get_task_instance("task"))
         version_id = ti.dag_version_id
         ti.state = TaskInstanceState.SUCCESS
-        ti.retire(reason="retry", session=session)
+        ti.archive(reason="retry", session=session)
         session.expire(ti, ["dag_version"])
         assert ti.dag_version.id == version_id
 

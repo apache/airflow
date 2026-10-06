@@ -60,7 +60,7 @@ def get_gantt_data(
     session: SessionDep,
 ) -> GanttResponse:
     """Get all task instance tries for Gantt chart."""
-    # Pending retries retain timing for backoff; only the retired attempt belongs on the chart.
+    # Pending retries retain timing for backoff; only the archived attempt belongs on the chart.
     current_tis = select(
         TaskInstance.task_id.label("task_id"),
         TaskInstance.task_display_name.label("task_display_name"),  # type: ignore[attr-defined]

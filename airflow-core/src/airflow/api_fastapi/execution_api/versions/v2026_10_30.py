@@ -45,7 +45,7 @@ class AddStoppedTaskReport(VersionChange):
     )
 
 
-class IdentifyRetiredTaskStateUpdates(VersionChangeWithSideEffects):
+class IdentifyArchivedTaskStateUpdates(VersionChangeWithSideEffects):
     """Reject every mutation from an archived attempt with 410; older clients keep each endpoint's own response."""
 
     description = __doc__

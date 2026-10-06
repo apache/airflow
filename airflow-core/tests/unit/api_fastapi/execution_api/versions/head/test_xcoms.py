@@ -402,7 +402,7 @@ class TestXComsGetEndpoint:
         ("version", "expected_status"),
         [("2025-04-11", 404), ("2026-06-30", 404), ("2026-10-30", 410)],
     )
-    def test_retired_attempt_read_response_by_version(
+    def test_archived_attempt_read_response_by_version(
         self, client, exec_app, monkeypatch, create_task_instance, session, version, expected_status
     ):
         attempt = create_task_instance(state=TaskInstanceState.RUNNING)

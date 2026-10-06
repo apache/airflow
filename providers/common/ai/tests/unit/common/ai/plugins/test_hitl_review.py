@@ -687,13 +687,13 @@ class TestIsTaskCompleted:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Attempt ownership starts in Airflow 3.4")
     @pytest.mark.parametrize(
-        ("old_state", "retired_state"),
+        ("old_state", "archived_state"),
         [
-            pytest.param("success", "success", id="retired-success"),
-            pytest.param("running", "failed", id="retired-failed-retry"),
+            pytest.param("success", "success", id="archived-success"),
+            pytest.param("running", "failed", id="archived-failed-retry"),
         ],
     )
-    def test_ignores_historical_attempt_state(self, session, dag_maker, old_state, retired_state):
+    def test_ignores_historical_attempt_state(self, session, dag_maker, old_state, archived_state):
         from airflow.utils.state import TaskInstanceState
 
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
@@ -702,7 +702,7 @@ class TestIsTaskCompleted:
         old = run.get_task_instance("t", session=session)
         old.state = TaskInstanceState(old_state)
         current = old.prepare_db_for_next_try(session)
-        assert old.state == TaskInstanceState(retired_state)
+        assert old.state == TaskInstanceState(archived_state)
         current.state = TaskInstanceState.RUNNING
         session.flush()
 

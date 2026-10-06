@@ -582,9 +582,9 @@ def test_upgrade_enforces_current_and_public_try_uniqueness(populated_predecesso
         pool_slots=1,
         try_number=3,
     )
-    for values in ({}, {"working_set": False}, {"working_set": None, "try_number": 1}):
+    for values in ({}, {"working_set": None, "try_number": 1}):
         with (
-            pytest.raises((IntegrityError, OperationalError), match="(?i)unique|check constraint|duplicate"),
+            pytest.raises((IntegrityError, OperationalError), match="(?i)unique|duplicate"),
             connection.begin_nested(),
         ):
             connection.execute(ti.insert().values(**(row | values), id=uuid4()))

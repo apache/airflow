@@ -261,7 +261,7 @@ def test_missing_mapped_index_uses_retained_max_try(dag_maker, session):
     expand_mapped_task_instances(dag.task_dict[mapped.task_id], run.run_id, session=session)
     removed = run.get_task_instance(mapped.task_id, map_index=1, session=session)
     removed.try_number = 3
-    removed.retire(reason="retry", session=session)
+    removed.archive(reason="retry", session=session)
 
     new_tis = run._revise_map_indexes_if_mapped(
         dag.task_dict[mapped.task_id], dag_version_id=run.created_dag_version_id, session=session
@@ -1877,7 +1877,7 @@ def test_placeholder_promotion_keeps_legacy_owner_and_avoids_historical_try_coll
     historical.try_number = 3
     session.add(historical)
     session.flush()
-    historical.retire(reason="retry", session=session)
+    historical.archive(reason="retry", session=session)
     session.add(
         LegacyTaskDataOwner(
             dag_id=run.dag_id,

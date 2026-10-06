@@ -329,7 +329,7 @@ def sample_update_payload() -> dict[str, Any]:
 
 
 class TestUpdateHITLDetailEndpoint:
-    def test_response_rejects_attempt_retired_after_lookup(
+    def test_response_rejects_attempt_archived_after_lookup(
         self,
         test_client,
         sample_ti,
@@ -341,7 +341,7 @@ class TestUpdateHITLDetailEndpoint:
     ):
         get_task_instance = hitl_routes._get_task_instance_with_hitl_detail
 
-        def retire_after_lookup(*args, **kwargs):
+        def archive_after_lookup(*args, **kwargs):
             task_instance = get_task_instance(*args, **kwargs)
             with Session(bind=session.get_bind()) as other_session:
                 current = other_session.get(TIModel, task_instance.id)
@@ -350,7 +350,10 @@ class TestUpdateHITLDetailEndpoint:
             return task_instance
 
         mocker.patch.object(
-            hitl_routes, "_get_task_instance_with_hitl_detail", autospec=True, side_effect=retire_after_lookup
+            hitl_routes,
+            "_get_task_instance_with_hitl_detail",
+            autospec=True,
+            side_effect=archive_after_lookup,
         )
 
         response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)

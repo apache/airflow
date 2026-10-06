@@ -857,15 +857,15 @@ class TestTaskInstance:
 
         # Clear the task instance.
         dag.clear()
-        retired = ti
-        ti = retired.dag_run.get_task_instance(
-            retired.task_id, map_index=retired.map_index, session=dag_maker.session
+        archived = ti
+        ti = archived.dag_run.get_task_instance(
+            archived.task_id, map_index=archived.map_index, session=dag_maker.session
         )
-        assert ti.id != retired.id
+        assert ti.id != archived.id
         assert ti.state == State.NONE
         assert ti.try_number == 1
-        # The reschedules stay with the retired attempt and none carry over to the new one.
-        assert len(task_reschedules_for_ti(retired)) == 1
+        # The reschedules stay with the archived attempt and none carry over to the new one.
+        assert len(task_reschedules_for_ti(archived)) == 1
         assert not task_reschedules_for_ti(ti)
 
     @pytest.mark.usefixtures("test_pool")
@@ -925,15 +925,15 @@ class TestTaskInstance:
 
         # Clear the task instance.
         dag.clear()
-        retired = ti
-        ti = retired.dag_run.get_task_instance(
-            retired.task_id, map_index=retired.map_index, session=dag_maker.session
+        archived = ti
+        ti = archived.dag_run.get_task_instance(
+            archived.task_id, map_index=archived.map_index, session=dag_maker.session
         )
-        assert ti.id != retired.id
+        assert ti.id != archived.id
         assert ti.state == State.NONE
         assert ti.try_number == 1
-        # The reschedules stay with the retired attempt and none carry over to the new one.
-        assert len(task_reschedules_for_ti(retired)) == 1
+        # The reschedules stay with the archived attempt and none carry over to the new one.
+        assert len(task_reschedules_for_ti(archived)) == 1
         assert not task_reschedules_for_ti(ti)
 
     def test_depends_on_past_catchup_true(self, dag_maker):
@@ -2798,7 +2798,7 @@ class TestTaskInstance:
         session.flush()
 
         with time_machine.travel(archive_time, tick=False):
-            ti.retire(reason="retry", session=session)
+            ti.archive(reason="retry", session=session)
         session.flush()
 
         tih = session.scalars(
@@ -2891,12 +2891,12 @@ class TestTaskInstance:
         [
             pytest.param(None, {-1: 2, 0: 5, 1: 6}, id="all-indexes"),
             pytest.param((0,), {0: 5}, id="selected-current-index"),
-            pytest.param((1,), {1: 6}, id="selected-retired-index"),
+            pytest.param((1,), {1: 6}, id="selected-archived-index"),
             pytest.param((), {}, id="empty-indexes"),
             pytest.param((99,), {}, id="missing-index"),
         ],
     )
-    def test_get_last_try_numbers_includes_current_and_retired_attempts(
+    def test_get_last_try_numbers_includes_current_and_archived_attempts(
         self, ownership_session, map_indexes, expected
     ):
         session = ownership_session
@@ -2930,7 +2930,7 @@ class TestTaskInstance:
         assert result == expected
 
     @pytest.mark.execution_timeout(10)
-    def test_retirement_preserves_attempt_and_children_and_returns_successor(self, ownership_session):
+    def test_archival_preserves_attempt_and_children_and_returns_successor(self, ownership_session):
         session = ownership_session
         attempt = session.get(TaskInstance, CURRENT_ID)
         original_try = attempt.try_number
@@ -2966,7 +2966,7 @@ class TestTaskInstance:
         XComModel.set_for_attempt(task_instance_id=attempt.id, key="late", value=1, session=session)
         assert XComModelV2.get_for_attempt(successor.id, "late", session=session) is None
 
-        with pytest.raises(ValueError, match="retired"):
+        with pytest.raises(ValueError, match="archived"):
             attempt.prepare_db_for_next_try(session)
 
         assert (
@@ -2979,7 +2979,7 @@ class TestTaskInstance:
         )
         assert successor.working_set is True
 
-    def test_retirement_carries_the_note_to_the_successor(self, ownership_session):
+    def test_archival_carries_the_note_to_the_successor(self, ownership_session):
         session = ownership_session
         attempt = session.get(TaskInstance, CURRENT_ID)
         attempt.note = "needs a look"
@@ -3012,7 +3012,7 @@ class TestTaskInstance:
             pytest.param(5, False, id="other-map-index"),
         ],
     )
-    def test_delete_attempts_removes_current_and_retired_attempts_with_their_data(
+    def test_delete_attempts_removes_current_and_archived_attempts_with_their_data(
         self, ownership_session, map_index, deleted
     ):
         session = ownership_session
@@ -3040,7 +3040,7 @@ class TestTaskInstance:
         assert set(session.scalars(select(XComModelV2.task_instance_id))) == expected
         assert set(session.scalars(select(RenderedTaskInstanceFields.task_instance_id))) == expected
 
-    def test_orm_statements_ignore_retired_attempts_unless_asked(self, ownership_session):
+    def test_orm_statements_ignore_archived_attempts_unless_asked(self, ownership_session):
         session = ownership_session
         session.expunge_all()
         include_all_attempts = {"include_all_attempts": True}
@@ -3058,19 +3058,19 @@ class TestTaskInstance:
             .execution_options(**include_all_attempts)
         )
 
-    def test_primary_key_lookups_see_retired_attempts(self, ownership_session):
+    def test_primary_key_lookups_see_archived_attempts(self, ownership_session):
         session = ownership_session
         session.expunge_all()
 
-        retired = session.get(TaskInstance, HISTORY_ID)
+        archived = session.get(TaskInstance, HISTORY_ID)
 
-        assert retired is not None
-        assert retired.working_set is None
-        retired.state = TaskInstanceState.SKIPPED
-        merged = session.merge(retired)
-        assert merged is retired
+        assert archived is not None
+        assert archived.working_set is None
+        archived.state = TaskInstanceState.SKIPPED
+        merged = session.merge(archived)
+        assert merged is archived
 
-    def test_bulk_update_ignores_retired_attempts(self, ownership_session):
+    def test_bulk_update_ignores_archived_attempts(self, ownership_session):
         session = ownership_session
 
         updated = session.execute(update(TaskInstance).values(pid=99)).rowcount
@@ -3085,17 +3085,17 @@ class TestTaskInstance:
         assert pids[CURRENT_ID] == 99
         assert pids[HISTORY_ID] != 99
 
-    def test_retired_attempt_loads_through_relationships_and_refresh(self, ownership_session):
+    def test_archived_attempt_loads_through_relationships_and_refresh(self, ownership_session):
         session = ownership_session
-        retired = session.get(TaskInstance, HISTORY_ID, execution_options={"include_all_attempts": True})
-        retired.note = "kept"
+        archived = session.get(TaskInstance, HISTORY_ID, execution_options={"include_all_attempts": True})
+        archived.note = "kept"
         session.flush()
         session.expire_all()
 
         note = session.scalar(select(TaskInstanceNote).where(TaskInstanceNote.ti_id == HISTORY_ID))
         assert note.task_instance.id == HISTORY_ID
-        retired.refresh_from_db(session=session)
-        assert retired.working_set is None
+        archived.refresh_from_db(session=session)
+        assert archived.working_set is None
 
     def test_filter_for_tis_selects_only_the_current_attempt(self, ownership_session):
         session = ownership_session
@@ -3186,9 +3186,9 @@ class TestTaskInstance:
     @pytest.mark.parametrize(
         ("delete_method", "deleted_attempt"),
         [
-            pytest.param("orm", "retired", id="retired-orm"),
+            pytest.param("orm", "archived", id="archived-orm"),
             pytest.param("orm", "current", id="current-orm"),
-            pytest.param("bulk", "retired", id="retired-bulk"),
+            pytest.param("bulk", "archived", id="archived-bulk"),
             pytest.param("bulk", "current", id="current-bulk"),
             pytest.param("dagrun", None, id="dagrun"),
         ],
@@ -3197,9 +3197,9 @@ class TestTaskInstance:
         self, ownership_session, delete_method, deleted_attempt
     ):
         session = ownership_session
-        retired = session.get(TaskInstance, CURRENT_ID)
-        current = retired.prepare_db_for_next_try(session)
-        for attempt in (retired, current):
+        archived = session.get(TaskInstance, CURRENT_ID)
+        current = archived.prepare_db_for_next_try(session)
+        for attempt in (archived, current):
             XComModel.set_for_attempt(task_instance_id=attempt.id, key="deletion", value=1, session=session)
             RenderedTaskInstanceFields.set_for_attempt(
                 task_instance_id=attempt.id, rendered_fields={"owner": str(attempt.id)}, session=session
@@ -3207,7 +3207,7 @@ class TestTaskInstance:
         session.flush()
 
         if delete_method == "dagrun":
-            session.delete(retired.dag_run)
+            session.delete(archived.dag_run)
             session.flush()
 
             assert session.scalar(sa.select(sa.func.count()).select_from(TaskInstance)) == 0
@@ -3222,7 +3222,7 @@ class TestTaskInstance:
                 assert session.scalar(sa.text(f"SELECT count(*) FROM {name}")) == 0
             return
 
-        target, retained = (retired, current) if deleted_attempt == "retired" else (current, retired)
+        target, retained = (archived, current) if deleted_attempt == "archived" else (current, archived)
         if delete_method == "orm":
             session.delete(target)
         else:
@@ -4156,8 +4156,8 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
     assert ti.try_number == 1  # stays 1
 
 
-@pytest.mark.parametrize("retired", [False, True], ids=["current", "historical"])
-def test_delete_dagversion_restricted_when_taskinstance_exists(dag_maker, session, retired):
+@pytest.mark.parametrize("archived", [False, True], ids=["current", "historical"])
+def test_delete_dagversion_restricted_when_taskinstance_exists(dag_maker, session, archived):
     """
     Ensure that deleting a DagVersion with existing TaskInstance references is restricted (ON DELETE RESTRICT).
     """
@@ -4171,9 +4171,9 @@ def test_delete_dagversion_restricted_when_taskinstance_exists(dag_maker, sessio
 
     ti = session.scalars(select(TaskInstance).where(TaskInstance.dag_version_id == version.id)).first()
     assert ti is not None
-    if retired:
+    if archived:
         ti.state = TaskInstanceState.SUCCESS
-        ti.retire(reason="retry", session=session)
+        ti.archive(reason="retry", session=session)
         assert ti.dag_version_id == version.id
 
     session.delete(version)

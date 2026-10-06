@@ -806,11 +806,11 @@ def test_queue_column_max_len_matches_ti_column_max_len() -> None:
 
 
 @pytest.mark.need_serialized_dag
-def test_get_sorted_triggers_ignores_retired_task_instance(session, create_task_instance):
+def test_get_sorted_triggers_ignores_archived_task_instance(session, create_task_instance):
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     session.add(trigger)
     session.flush()
-    task_instance = create_task_instance(task_id="retired_trigger_owner")
+    task_instance = create_task_instance(task_id="archived_trigger_owner")
     task_instance.trigger_id = trigger.id
     task_instance.prepare_db_for_next_try(session)
     session.commit()

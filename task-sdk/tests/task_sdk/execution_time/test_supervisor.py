@@ -4250,7 +4250,7 @@ class TestHandleRequest:
         proc.client.task_instances.finish.assert_called_once()
 
     @pytest.mark.parametrize("status_code", [404, 409, 410])
-    def test_server_termination_acknowledgement_after_retirement(self, watched_subprocess, status_code):
+    def test_server_termination_acknowledgement_after_archival(self, watched_subprocess, status_code):
         proc, _ = watched_subprocess
         proc._exit_code = -signal.SIGTERM
         proc._terminal_state = SERVER_TERMINATED

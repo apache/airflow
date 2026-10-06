@@ -248,7 +248,7 @@ def make_multiple_dags(dag_maker, session):
 
 class TestHistoricalMetricsDataEndpoint:
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
-    def test_retired_task_instance_is_excluded_from_state_counts(self, test_client, session):
+    def test_archived_task_instance_is_excluded_from_state_counts(self, test_client, session):
         ti = session.scalar(select(TaskInstance).where(TaskInstance.state == TaskInstanceState.SUCCESS))
         successor = ti.prepare_db_for_next_try(session)
         successor.state = TaskInstanceState.RUNNING

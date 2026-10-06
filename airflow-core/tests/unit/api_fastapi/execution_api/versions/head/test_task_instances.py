@@ -2566,7 +2566,7 @@ class TestTIUpdateState:
     def test_ti_update_state_retry_policy_overrides_persisted_in_history(
         self, client, session, create_task_instance
     ):
-        """The retired attempt keeps its retry policy and rendered-index values."""
+        """The archived attempt keeps its retry policy and rendered-index values."""
         ti = create_task_instance(
             task_id="test_retry_policy_override_history",
             state=State.RUNNING,

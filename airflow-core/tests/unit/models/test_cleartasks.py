@@ -80,7 +80,7 @@ class TestClearTasks:
             ),
         ],
     )
-    def test_clear_detached_attempt_retires_its_uuid_before_inserting_successor(
+    def test_clear_detached_attempt_archives_its_uuid_before_inserting_successor(
         self, create_task_instance, session, mocker, state, dag_metadata_missing, archived_state
     ):
         attempt = create_task_instance(state=state, session=session)
@@ -105,21 +105,21 @@ class TestClearTasks:
         assert successor.id != old_id
         assert (successor.try_number, successor.working_set, successor.state) == (2, True, None)
 
-    @pytest.mark.parametrize(("non_current", "expected_rows"), [("deleted", 0), ("retired", 2)])
+    @pytest.mark.parametrize(("non_current", "expected_rows"), [("deleted", 0), ("archived", 2)])
     def test_clear_rejects_non_current_attempt_without_allocating_successor(
         self, create_task_instance, session, non_current, expected_rows
     ):
         attempt = create_task_instance(state=TaskInstanceState.SUCCESS, session=session)
         attempt.try_number = 1
         session.commit()
-        if non_current == "retired":
+        if non_current == "archived":
             attempt.prepare_db_for_next_try(session)
         else:
             session.expunge(attempt)
             session.delete(session.get(TaskInstance, attempt.id))
         session.commit()
 
-        with pytest.raises(ValueError, match="retired task instance cannot be cleared"):
+        with pytest.raises(ValueError, match="archived task instance cannot be cleared"):
             clear_task_instances([attempt], session=session)
 
         assert (

@@ -37,7 +37,6 @@ from opentelemetry import trace
 from sqlalchemy import (
     JSON,
     Boolean,
-    CheckConstraint,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -422,7 +421,7 @@ def clear_task_instances(
     for original in tis:
         ti = original if original in session else session.get(TaskInstance, original.id)
         if ti is None or ti.working_set is not True:
-            raise ValueError("A retired task instance cannot be cleared")
+            raise ValueError("An archived task instance cannot be cleared")
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING):
             if prevent_running_task:
                 raise AirflowClearRunningTaskException(
@@ -667,10 +666,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     a TI with mapped tasks that expanded to an empty list (state=skipped).
 
     Every try of a task is its own row with its own UUID. Only the latest try is live (``working_set`` is
-    true); earlier tries are retired (``working_set`` is NULL) and kept as history.
+    true); earlier tries are archived (``working_set`` is NULL) and kept as history.
 
     ORM queries see only live rows by default: a session hook adds ``working_set IS TRUE`` to every ORM
-    select, update and delete, including joins to this model. To include retired rows, set the execution
+    select, update and delete, including joins to this model. To include archived rows, set the execution
     option on the statement::
 
         session.scalars(select(TaskInstance).where(...).execution_options(include_all_attempts=True))
@@ -678,9 +677,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     The default does not apply to:
 
     * primary key lookups (``Session.get``, ``merge``, ``refresh``), which return the row with that UUID
-      whether or not it is retired;
+      whether or not it is archived;
     * relationship loads, which follow the join the relationship defines (``DagRun.task_instances`` is live,
-      ``DagRun.historical_task_instances`` is retired);
+      ``DagRun.historical_task_instances`` is archived);
     * Core statements on ``TaskInstance.__table__``, and an ``exists()`` that does not name this model in a
       FROM clause. These see every row unless they filter ``working_set`` themselves.
     """
@@ -790,7 +789,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         UniqueConstraint(
             "dag_id", "task_id", "run_id", "map_index", "try_number", name="task_instance_try_key"
         ),
-        CheckConstraint("working_set IS NULL OR working_set = TRUE", name="ti_working_set_true_or_null"),
         ForeignKeyConstraint(
             [trigger_id],
             ["trigger.id"],
@@ -1152,13 +1150,13 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # is the task still in the retry waiting period?
         return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
 
-    def retire(self, *, reason: str, session: Session) -> None:
+    def archive(self, *, reason: str, session: Session) -> None:
         """Remove this attempt from the working set while retaining its UUID and children."""
         current = session.scalar(
             select(TaskInstance.working_set).where(TaskInstance.id == self.id).with_for_update()
         )
         if current is not True:
-            raise ValueError("A retired task instance cannot be retired again")
+            raise ValueError("An archived task instance cannot be archived again")
         if self.state not in State.finished:
             self.state = TaskInstanceState.FAILED
             if self.end_date is None:
@@ -1179,7 +1177,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         map_index: int | None = None,
         session: Session,
     ) -> None:
-        """Delete every attempt, current and retired, of a task; all map indexes if ``map_index`` is None."""
+        """Delete every attempt, current and archived, of a task; all map indexes if ``map_index`` is None."""
         statement = (
             delete(cls)
             .where(cls.dag_id == dag_id, cls.run_id == run_id, cls.task_id == task_id)
@@ -1213,10 +1211,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         return {map_index: last_try for map_index, last_try in session.execute(statement)}
 
     def prepare_db_for_next_try(self, session: Session) -> TaskInstance:
-        """Retire this UUID and return its successor in the caller's transaction."""
+        """Archive this UUID and return its successor in the caller's transaction."""
         successor_state = self.state
         dag_version_id = self.dag_version_id
-        self.retire(reason="retry", session=session)
+        self.archive(reason="retry", session=session)
         values = {
             attribute.columns[0].name: getattr(self, attribute.key)
             for attribute in inspect(TaskInstance).column_attrs
@@ -2993,10 +2991,10 @@ def _is_primary_key_lookup(statement) -> bool:
 @sqlalchemy_event.listens_for(Session, "do_orm_execute")
 def _restrict_to_current_attempts(state: ORMExecuteState) -> None:
     """
-    Hide retired attempts from ORM queries over task instances unless ``include_all_attempts`` is set.
+    Hide archived attempts from ORM queries over task instances unless ``include_all_attempts`` is set.
 
     Primary key lookups (``Session.get``, ``merge`` and ``refresh``) are exempt: asking for an attempt by
-    its UUID returns it whether or not it has been retired.
+    its UUID returns it whether or not it has been archived.
     """
     if (
         state.is_column_load

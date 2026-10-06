@@ -259,7 +259,7 @@ class TestDBCleanup:
                     *attempt_archives,
                 }
 
-    def test_task_instance_history_alias_cleans_only_retired_attempts(self, ownership_session):
+    def test_task_instance_history_alias_cleans_only_older_tries(self, ownership_session):
         session = ownership_session
         session.execute(
             sa.update(TaskInstance).values(start_date=NOW).execution_options(include_all_attempts=True)

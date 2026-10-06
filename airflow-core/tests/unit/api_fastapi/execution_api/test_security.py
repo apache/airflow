@@ -319,24 +319,24 @@ class TestAttemptLiveness:
         monkeypatch.setitem(exec_app.dependency_overrides, _jwt_bearer, authenticated_token)
         return ti, token
 
-    @pytest.mark.parametrize("retirement", ["retry", "delete"])
-    def test_retired_attempt_cannot_replace_or_delete_xcom(self, client, caller, session, retirement):
+    @pytest.mark.parametrize("archival", ["retry", "delete"])
+    def test_archived_attempt_cannot_replace_or_delete_xcom(self, client, caller, session, archival):
         ti, token = caller
         path = f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/result"
         assert client.post(path, json="original").status_code == 201
         old_id = ti.id
-        if retirement == "retry":
+        if archival == "retry":
             successor = ti.prepare_db_for_next_try(session)
             successor.state = TaskInstanceState.UP_FOR_RETRY
         else:
             session.delete(ti)
         session.commit()
 
-        expected_status = 410 if retirement == "retry" else 404
+        expected_status = 410 if archival == "retry" else 404
         assert client.post(path, json="stale").status_code == expected_status
         assert client.delete(path).status_code == expected_status
 
-        if retirement == "retry":
+        if archival == "retry":
             assert (
                 session.scalar(
                     select(TaskInstance.id)
@@ -364,7 +364,7 @@ class TestAttemptLiveness:
         finally:
             Variable.delete(key)
 
-    RETIRED_ROUTES = [
+    ARCHIVED_ROUTES = [
         ("put", "/execution/store/ti/{ti_id}/key", {"value": "stale"}),
         ("delete", "/execution/store/ti/{ti_id}/key", None),
         ("delete", "/execution/store/ti/{ti_id}", None),
@@ -382,9 +382,9 @@ class TestAttemptLiveness:
 
     @pytest.mark.parametrize(
         ("method", "path", "body"),
-        [pytest.param(*route, id=f"{route[0]}:{route[1]}") for route in RETIRED_ROUTES],
+        [pytest.param(*route, id=f"{route[0]}:{route[1]}") for route in ARCHIVED_ROUTES],
     )
-    def test_retired_attempt_rejected_before_mutation(self, client, caller, session, method, path, body):
+    def test_archived_attempt_rejected_before_mutation(self, client, caller, session, method, path, body):
         ti, token = caller
         path = path.format(ti_id=token.id, dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id)
         ti.prepare_db_for_next_try(session)
@@ -448,26 +448,26 @@ class TestAttemptLiveness:
         finally:
             Variable.delete(key)
 
-    @pytest.mark.parametrize("delete_rejected", [False, True], ids=["accepted", "retired-token-rejected"])
+    @pytest.mark.parametrize("delete_rejected", [False, True], ids=["accepted", "archived-token-rejected"])
     def test_trusted_in_process_xcom_uses_current_owner_without_attempt_token(
         self, caller, create_task_instance, session, monkeypatch, delete_rejected
     ):
-        retired, _ = caller
+        archived, _ = caller
         XComModel.set_for_attempt(
-            task_instance_id=retired.id, key="key", value="retired", serialize=False, session=session
+            task_instance_id=archived.id, key="key", value="archived", serialize=False, session=session
         )
-        current = retired.prepare_db_for_next_try(session)
+        current = archived.prepare_db_for_next_try(session)
         other = create_task_instance(dag_id="other_dag", task_id="other_task")
         session.commit()
-        path = f"/xcoms/{retired.dag_id}/{retired.run_id}/{retired.task_id}/key"
+        path = f"/xcoms/{archived.dag_id}/{archived.run_id}/{archived.task_id}/key"
 
         with TestClient(InProcessExecutionAPI().app) as client:
             other_attempt = {"X-Airflow-In-Process-Attempt-Id": str(other.id)}
             assert client.post(path, json="other", headers=other_attempt).status_code == 201
             assert client.delete(path, headers=other_attempt).status_code == 200
-            retired_header = {"X-Airflow-In-Process-Attempt-Id": str(retired.id)}
-            assert client.post(path, json="stale", headers=retired_header).status_code == 410
-            assert client.delete(path, headers=retired_header).status_code == 410
+            archived_header = {"X-Airflow-In-Process-Attempt-Id": str(archived.id)}
+            assert client.post(path, json="stale", headers=archived_header).status_code == 410
+            assert client.delete(path, headers=archived_header).status_code == 410
             assert client.post(path, json="current").status_code == 201
             session.expire_all()
             assert XComModelV2.get_for_attempt(current.id, "key", session=session).value == "current"
@@ -480,7 +480,7 @@ class TestAttemptLiveness:
 
                 def delete(self, path, *, params):
                     headers = (
-                        {"X-Airflow-In-Process-Attempt-Id": str(retired.id)} if delete_rejected else None
+                        {"X-Airflow-In-Process-Attempt-Id": str(archived.id)} if delete_rejected else None
                     )
                     response = client.delete(f"/{path}", params=params, headers=headers)
                     if response.status_code != 200:
@@ -501,10 +501,10 @@ class TestAttemptLiveness:
             with patch.object(BaseXCom, "purge", autospec=True) as purge:
                 kwargs = {
                     "key": "key",
-                    "dag_id": retired.dag_id,
-                    "run_id": retired.run_id,
-                    "task_id": retired.task_id,
-                    "map_index": retired.map_index,
+                    "dag_id": archived.dag_id,
+                    "run_id": archived.run_id,
+                    "task_id": archived.task_id,
+                    "map_index": archived.map_index,
                 }
                 if delete_rejected:
                     with pytest.raises(RuntimeError, match="DELETE rejected: 410"):
@@ -519,10 +519,10 @@ class TestAttemptLiveness:
         assert (current_row.value if current_row is not None else None) == (
             "current" if delete_rejected else None
         )
-        assert XComModelV2.get_for_attempt(retired.id, "key", session=session).value == "retired"
+        assert XComModelV2.get_for_attempt(archived.id, "key", session=session).value == "archived"
 
     @pytest.mark.parametrize("operation", ["xcom_write", "xcom_delete", "rtif_write", "variable_write"])
-    def test_admitted_child_mutation_stays_with_retired_uuid(
+    def test_admitted_child_mutation_stays_with_archived_uuid(
         self, client, caller, session, monkeypatch, request, operation
     ):
         attempt, _ = caller
@@ -621,12 +621,12 @@ class TestAttemptLiveness:
             assert RenderedTaskInstanceFields.get_for_attempt(old_id, session=session) is None
 
     def test_public_execution_api_ignores_in_process_attempt_header(self, client, caller, session):
-        retired, _ = caller
-        successor = retired.prepare_db_for_next_try(session)
+        archived, _ = caller
+        successor = archived.prepare_db_for_next_try(session)
         session.commit()
 
         response = client.post(
-            f"/execution/xcoms/{retired.dag_id}/{retired.run_id}/{retired.task_id}/value",
+            f"/execution/xcoms/{archived.dag_id}/{archived.run_id}/{archived.task_id}/value",
             headers={"X-Airflow-In-Process-Attempt-Id": str(successor.id)},
             json="spoofed",
         )

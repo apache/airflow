@@ -340,7 +340,7 @@ class _XComOperations:
             specified DAG run are returned. If *True*, all matching XComs are
             returned regardless of the run it belongs to.
         :param limit: Limiting returning XComs
-        :param try_number: Read the XComs of this public try, current or retired, instead of
+        :param try_number: Read the XComs of this public try, current or archived, instead of
             the current attempt.
         """
         if key is not None and not key:
