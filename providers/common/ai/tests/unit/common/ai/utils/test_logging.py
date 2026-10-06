@@ -291,7 +291,8 @@ class TestFormatUsageForXcom:
             cost=Decimal("0.25"),
         )
 
-        assert format_usage_for_xcom(usage) == {
+        assert format_usage_for_xcom(usage, model_name="gpt-5") == {
+            "model_name": "gpt-5",
             "requests": 3,
             "input_tokens": 10,
             "output_tokens": 5,
@@ -304,6 +305,10 @@ class TestFormatUsageForXcom:
 
     def test_none_cost_stays_none_not_stringified(self):
         assert format_usage_for_xcom(RunUsage(cost=None))["cost"] is None
+
+    def test_omitted_model_name_defaults_to_none(self):
+        """The failure path has no resolved model yet -- the field stays present but unset."""
+        assert format_usage_for_xcom(RunUsage())["model_name"] is None
 
 
 class TestLogOutputDebug:

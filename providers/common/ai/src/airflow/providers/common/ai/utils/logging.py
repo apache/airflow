@@ -94,14 +94,16 @@ def _log_cache_and_cost(logger: Logger | logging.Logger, usage: RunUsage) -> Non
         logger.info("LLM run cost: $%s (USD, best-effort)", format(usage.cost, "f"))
 
 
-# XCom key the LLM and agent operators publish the run's resolved model name under, so downstream
-# tasks and the UI can read which model actually answered without parsing the decision record.
-MODEL_NAME_XCOM_KEY = "model_name"
+def format_usage_for_xcom(usage: RunUsage, *, model_name: str | None = None) -> dict[str, Any]:
+    """
+    Build the XCom ``usage`` payload -- shared by the success and failure paths.
 
-
-def format_usage_for_xcom(usage: RunUsage) -> dict[str, Any]:
-    """Build the XCom ``usage`` payload -- shared by the success and failure paths."""
+    :param model_name: The run's resolved model, so downstream tasks and the UI can read
+        which model answered alongside its usage without a second XCom lookup. Omitted
+        (``None``) on the failure path, where a run may not have reached a model response.
+    """
     return {
+        "model_name": model_name,
         "requests": usage.requests,
         "input_tokens": usage.input_tokens,
         "output_tokens": usage.output_tokens,

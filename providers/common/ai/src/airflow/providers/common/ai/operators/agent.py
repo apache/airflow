@@ -52,7 +52,6 @@ from airflow.providers.common.ai.observability import (
 )
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import (
-    MODEL_NAME_XCOM_KEY,
     format_usage_for_xcom,
     log_run_summary,
     log_run_usage,
@@ -1387,14 +1386,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         context["task_instance"].xcom_push(key="message_history", value=transcript)
 
     def _emit_run_metadata(self, context: Context, result: Any, *, usage: RunUsage) -> None:
-        """Expose the pydantic-ai run id, resolved model name, and token usage on XCom."""
+        """Expose the pydantic-ai run id and resolved model name/token usage on XCom."""
         if not self.do_xcom_push:
             return
         ti = context["task_instance"]
         ti.xcom_push(key="run_id", value=result.run_id)
-        ti.xcom_push(key="usage", value=format_usage_for_xcom(usage))
-        if (model_name := getattr(result.response, "model_name", None)) is not None:
-            ti.xcom_push(key=MODEL_NAME_XCOM_KEY, value=model_name)
+        model_name = getattr(result.response, "model_name", None)
+        ti.xcom_push(key="usage", value=format_usage_for_xcom(usage, model_name=model_name))
 
     def regenerate_with_feedback(self, *, feedback: str, message_history: Any) -> tuple[str, Any]:
         """
