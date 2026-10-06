@@ -85,7 +85,6 @@ const ClearTaskInstanceDialog = (props: Props) => {
   /* eslint-enable react/destructuring-assignment */
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
-  const isDialogOpen = openDialog && !open;
 
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
@@ -258,7 +257,10 @@ const ClearTaskInstanceDialog = (props: Props) => {
         }
         lazyMount
         onOpenChange={onCloseDialog}
-        open={isDialogOpen}
+        // Stays open behind the confirmation dialog: closing it unmounts the dismissable
+        // layer below the confirmation dialog, and zag then dismisses the confirmation
+        // dialog too — before its dry run resolves, so the clear is never sent.
+        open={openDialog}
         title={
           <>
             <strong>
