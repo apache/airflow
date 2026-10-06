@@ -78,6 +78,22 @@ class TestBaseXCom:
             assert sent_message.run_id == "test_run"
             assert sent_message.map_index == map_index
 
+    def test_delete_does_not_purge_when_delete_is_rejected(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.side_effect = [
+            XComResult(key="key", value="remote://original"),
+            RuntimeError("DELETE rejected: 410"),
+        ]
+
+        with mock.patch.object(BaseXCom, "purge", autospec=True) as purge:
+            with pytest.raises(RuntimeError, match="DELETE rejected: 410"):
+                BaseXCom.delete(key="key", task_id="task", dag_id="dag", run_id="run")
+
+        purge.assert_not_called()
+        assert mock_supervisor_comms.send.call_args_list == [
+            mock.call(GetXCom(key="key", task_id="task", dag_id="dag", run_id="run")),
+            mock.call(DeleteXCom(key="key", task_id="task", dag_id="dag", run_id="run")),
+        ]
+
     @pytest.mark.asyncio
     async def test_aget_one_returns_value(self, mock_supervisor_comms):
         """aget_one awaits asend and returns the deserialized value."""

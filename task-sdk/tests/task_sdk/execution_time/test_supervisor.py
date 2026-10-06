@@ -4249,6 +4249,22 @@ class TestHandleRequest:
         assert exc.value is error
         proc.client.task_instances.finish.assert_called_once()
 
+    @pytest.mark.parametrize("status_code", [404, 409, 410])
+    def test_server_termination_acknowledgement_after_archival(self, watched_subprocess, status_code):
+        proc, _ = watched_subprocess
+        proc._exit_code = -signal.SIGTERM
+        proc._terminal_state = SERVER_TERMINATED
+        proc.client.task_instances.finish.side_effect = ServerResponseError(
+            message="Acknowledgement rejected",
+            request=httpx.Request("PATCH", "http://test/task-instances/state"),
+            response=httpx.Response(status_code),
+        )
+
+        proc.update_task_state_if_needed()
+
+        proc.client.task_instances.finish.assert_called_once()
+        assert proc._pending_terminal_state_msg is None
+
     def test_task_state_retry_reason_forwarded_to_finish(self, watched_subprocess, mocker):
         """A TaskState message's retry_reason must reach the deferred finish() call."""
         watched_subprocess, _ = watched_subprocess
@@ -4487,9 +4503,13 @@ class TestInProcessTestSupervisor:
         fake_task_instances.start.return_value = make_ti_context()
         fake_client = mock.MagicMock(spec_set=["task_instances"])
         fake_client.task_instances = fake_task_instances
-        monkeypatch.setattr(
-            InProcessTestSupervisor, "_api_client", staticmethod(lambda dag=None: fake_client)
-        )
+
+        def fake_api_client(dag, attempt_id):
+            assert dag is task.dag
+            assert attempt_id == ti.id
+            return fake_client
+
+        monkeypatch.setattr(InProcessTestSupervisor, "_api_client", staticmethod(fake_api_client))
 
         result = InProcessTestSupervisor.start(what=ti, task=task)
 

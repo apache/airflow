@@ -31,6 +31,7 @@ from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
+from uuid import uuid4
 
 from sqlalchemy import and_, column, func, inspect, literal, literal_column, or_, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
@@ -51,7 +52,7 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-    from sqlalchemy import Select
+    from sqlalchemy import Select, Table
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
 
@@ -258,11 +259,8 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
-        dependent_tables=["task_instance_history", "xcom", "task_reschedule"],
+        dependent_tables=["xcom_v1", "xcom_v2", "task_reschedule"],
         dag_id_column_name="dag_id",
-    ),
-    _TableConfig(
-        table_name="task_instance_history", recency_column_name="start_date", dag_id_column_name="dag_id"
     ),
     _TableConfig(
         table_name="task_state_store",
@@ -277,7 +275,13 @@ config_list: list[_TableConfig] = [
         extra_columns=["ti_id"],
         dag_id_scope=_IndirectDagScope(fk_column="ti_id", referenced_table="task_instance"),
     ),
-    _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(table_name="xcom_v1", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    _TableConfig(
+        table_name="xcom_v2",
+        recency_column_name="timestamp",
+        extra_columns=["task_instance_id"],
+        dag_id_scope=_IndirectDagScope(fk_column="task_instance_id", referenced_table="task_instance"),
+    ),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(
         table_name="callback",
@@ -352,6 +356,12 @@ if (
     config_list.append(_TableConfig(table_name="session", recency_column_name="expiry"))
 
 config_dict: dict[str, _TableConfig] = {x.table_name: x for x in sorted(config_list)}
+_LEGACY_TABLE_ALIASES = {"xcom": ("xcom_v1", "xcom_v2")}
+_HISTORY_CONFIG = dataclasses.replace(
+    config_dict["task_instance"],
+    dependent_tables=None,
+    extra_filters=[literal_column(f"{_BASE_TABLE_ALIAS}.working_set").is_(None)],
+)
 
 
 def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
@@ -383,6 +393,81 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
         raise AirflowException(f"Export format {export_format} is not supported.")
 
 
+_ATTEMPT_UUID_CHILDREN = {
+    "legacy_task_data_owner": "task_instance_id",
+    "xcom_v2": "task_instance_id",
+    "rtif_v2": "task_instance_id",
+    "task_instance_note": "ti_id",
+    "task_reschedule": "ti_id",
+    "hitl_detail": "ti_id",
+}
+_ATTEMPT_ARCHIVE_TABLES = {*_ATTEMPT_UUID_CHILDREN, "xcom_v1", "rtif_v1", "task_instance"}
+
+
+def _archive_cascading_attempt_data(
+    *, source, parent_archive, archives: dict[str, Table], archive_suffix: str, session: Session
+) -> None:
+    """Archive owned rows under parent locks before their FK cascades run."""
+    names = [_format_table_name(source.schema, name) for name in _ATTEMPT_ARCHIVE_TABLES]
+    metadata = reflect_tables(names, session)
+    tables = {
+        name: metadata.tables[_format_table_name(source.schema, name)] for name in _ATTEMPT_ARCHIVE_TABLES
+    }
+    ti = tables["task_instance"]
+    if source.name == "task_instance":
+        producer_ids = select(ti.c.id).where(ti.c.id.in_(select(parent_archive.c.id)))
+    else:
+        producer_ids = select(ti.c.id).where(
+            tuple_(ti.c.dag_id, ti.c.run_id).in_(select(parent_archive.c.dag_id, parent_archive.c.run_id))
+        )
+    selections = {
+        name: select(tables[name]).where(tables[name].c[fk].in_(producer_ids))
+        for name, fk in _ATTEMPT_UUID_CHILDREN.items()
+    }
+    owner = tables["legacy_task_data_owner"]
+    coordinates = ("dag_id", "task_id", "run_id", "map_index")
+    for name in ("xcom_v1", "rtif_v1"):
+        child = tables[name]
+        selections[name] = select(child).where(
+            tuple_(*(child.c[c] for c in coordinates)).in_(
+                select(*(owner.c[c] for c in coordinates)).where(owner.c.task_instance_id.in_(producer_ids))
+            )
+        )
+    if source.name == "dag_run":
+        selections["task_instance"] = select(ti).where(ti.c.id.in_(producer_ids))
+
+    if not archives:
+        archive_names = {}
+        for name in selections:
+            archive_name = _format_table_name(
+                source.schema, f"{ARCHIVE_TABLE_PREFIX}{name}__{archive_suffix}"
+            )
+            if session.get_bind().dialect.name == "mysql":
+                original_name = _format_table_name(source.schema, name)
+                session.execute(text(f"CREATE TABLE {archive_name} LIKE {original_name}"))
+            else:
+                session.execute(CreateTableAs(archive_name, select(tables[name]).where(literal(False))))
+            archive_names[name] = archive_name
+        # MySQL DDL commits implicitly. Create every archive before taking row locks.
+        session.commit()
+        archive_metadata = reflect_tables(list(archive_names.values()), session)
+        archives.update(
+            {name: archive_metadata.tables[archive_name] for name, archive_name in archive_names.items()}
+        )
+    parent_ids = select(parent_archive.c.id)
+    lock_queries = [select(source.c.id).where(source.c.id.in_(parent_ids))]
+    if source.name == "dag_run":
+        lock_queries.append(producer_ids)
+    for query in lock_queries:
+        for _ in session.execute(query.with_for_update().execution_options(yield_per=1000)):
+            pass
+    for name, query in selections.items():
+        for _ in session.execute(query.with_for_update().execution_options(yield_per=1000)):
+            pass
+        archive = archives[name]
+        session.execute(archive.insert().from_select(list(archive.c), query))
+
+
 def _do_delete(
     *,
     query: Select,
@@ -400,6 +485,8 @@ def _do_delete(
     dialect_name = bind.dialect.name
     batch_counter = itertools.count(1)
     source_table_name = _format_table_name(orm_model.schema, orm_model.name)
+    attempt_archives: dict[str, Table] = {}
+    attempt_archive_suffix = uuid4().hex[:16]
 
     while True:
         limited_query = query.limit(batch_size) if batch_size else query
@@ -451,6 +538,14 @@ def _do_delete(
             source_table = metadata.tables[source_table_name]
             target_table = metadata.tables[target_table_name]
             logger.debug("rows moved; purging from %s", source_table.name)
+            if not skip_archive and source_table.name in {"task_instance", "dag_run"}:
+                _archive_cascading_attempt_data(
+                    source=source_table,
+                    parent_archive=target_table,
+                    archives=attempt_archives,
+                    archive_suffix=attempt_archive_suffix,
+                    session=session,
+                )
             if dialect_name == "sqlite":
                 pk_cols = source_table.primary_key.columns
                 delete = source_table.delete().where(
@@ -719,6 +814,15 @@ def _cleanup_table(
     num_rows = _check_for_rows(session=session, query=query, print_rows=False)
 
     if num_rows and not dry_run:
+        if orm_model.name == "xcom_v2":
+            legacy_query = _shadowed_legacy_xcom_query(query)
+            _do_delete(
+                query=legacy_query,
+                orm_model=config_dict["xcom_v1"].orm_model,
+                skip_archive=skip_archive,
+                session=session,
+                batch_size=batch_size,
+            )
         _do_delete(
             query=query,
             orm_model=orm_model,
@@ -730,6 +834,36 @@ def _cleanup_table(
         )
 
     session.commit()
+
+
+def _shadowed_legacy_xcom_query(v2_query: Select) -> Select:
+    legacy = aliased(config_dict["xcom_v1"].orm_model, name=_BASE_TABLE_ALIAS)
+    owner = table(
+        "legacy_task_data_owner",
+        column("dag_id"),
+        column("task_id"),
+        column("run_id"),
+        column("map_index"),
+        column("task_instance_id"),
+    )
+    selected_v2 = v2_query.subquery("selected_v2")
+    coordinates = ("dag_id", "task_id", "run_id", "map_index")
+    shadowed = (
+        select(literal(1))
+        .select_from(
+            owner.join(
+                selected_v2,
+                owner.c.task_instance_id == literal_column("selected_v2.task_instance_id"),
+            )
+        )
+        .where(
+            *(literal_column(f"{_BASE_TABLE_ALIAS}.{name}") == owner.c[name] for name in coordinates),
+            literal_column(f"{_BASE_TABLE_ALIAS}.key") == literal_column("selected_v2.key"),
+        )
+        .correlate(legacy)
+        .exists()
+    )
+    return select(text(f"{_BASE_TABLE_ALIAS}.*")).select_from(legacy).where(shadowed)
 
 
 def _confirm_delete(
@@ -807,8 +941,11 @@ def _suppress_with_logging(table: str, session: Session) -> Generator[SimpleName
 
 def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str], dict[str, _TableConfig]]:
     desired_table_names = set(table_names or config_dict)
+    desired_table_names = {
+        expanded for name in desired_table_names for expanded in _LEGACY_TABLE_ALIASES.get(name, (name,))
+    }
 
-    outliers = desired_table_names - set(config_dict.keys())
+    outliers = desired_table_names - (config_dict.keys() | {"task_instance_history"})
     if outliers:
         logger.warning(
             "The following table(s) are not valid choices and will be skipped: %s",
@@ -823,7 +960,7 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str],
         if table in visited:
             return
         visited.add(table)
-        config = config_dict[table]
+        config = _HISTORY_CONFIG if table == "task_instance_history" else config_dict[table]
         for dep in config.dependent_tables or []:
             collect_deps(dep)
         effective_table_names.append(table)
@@ -831,7 +968,9 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[list[str],
     for table_name in desired_table_names:
         collect_deps(table_name)
 
-    effective_config_dict = {n: config_dict[n] for n in effective_table_names}
+    effective_config_dict = {
+        n: _HISTORY_CONFIG if n == "task_instance_history" else config_dict[n] for n in effective_table_names
+    }
 
     if not effective_config_dict:
         raise SystemExit("No tables selected for db cleanup. Please choose valid table names.")
@@ -843,6 +982,19 @@ def _get_archived_table_names(table_names: list[str] | None, session: Session) -
     inspector = inspect(session.bind)
     _, effective_config_dict = _effective_table_names(table_names=table_names)
     schemas = {config.schema_name for config in effective_config_dict.values()}
+    archive_sources = {
+        config.bare_table_name
+        for name, config in effective_config_dict.items()
+        if name != "task_instance_history"
+    }
+    if "xcom_v2" in archive_sources:
+        archive_sources.add("xcom_v1")
+    if "xcom_v1" in archive_sources or "xcom_v2" in archive_sources:
+        archive_sources.add("xcom")
+    if "task_instance_history" in effective_config_dict or "task_instance" in archive_sources:
+        archive_sources.add("task_instance_history")
+    if archive_sources & {"task_instance", "dag_run"}:
+        archive_sources.update(_ATTEMPT_ARCHIVE_TABLES)
 
     archived_table_names: list[str] = []
     for schema in schemas:
@@ -857,7 +1009,7 @@ def _get_archived_table_names(table_names: list[str] | None, session: Session) -
             _format_table_name(schema, name)
             for name in db_table_names
             if (
-                any(f"__{config.bare_table_name}__" in name for config in effective_config_dict.values())
+                any(f"__{source}__" in name for source in archive_sources)
                 or (schema is None and name in ARCHIVED_TABLES_FROM_DB_MIGRATIONS)
             )
         )
@@ -930,7 +1082,8 @@ def run_cleanup(
     }
     failed_tables: list[str] = []
     for table_name, table_config in effective_config_dict.items():
-        if table_name in existing_tables:
+        physical_name = _format_table_name(table_config.schema_name, table_config.bare_table_name)
+        if physical_name in existing_tables:
             with _suppress_with_logging(table_name, session) as ctx:
                 _cleanup_table(
                     clean_before_timestamp=clean_before_timestamp,

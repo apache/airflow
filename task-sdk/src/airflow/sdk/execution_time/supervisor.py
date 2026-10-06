@@ -1762,7 +1762,11 @@ class ActivitySubprocess(WatchedSubprocess):
                     pid=self.pid,
                 )
             except ServerResponseError as error:
-                if error.response.status_code not in (HTTPStatus.NOT_FOUND, HTTPStatus.CONFLICT):
+                if error.response.status_code not in (
+                    HTTPStatus.NOT_FOUND,
+                    HTTPStatus.CONFLICT,
+                    HTTPStatus.GONE,
+                ):
                     raise
                 log.info(
                     "Termination acknowledgement rejected; task process has already stopped",
@@ -2504,7 +2508,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
             pid=os.getpid(),  # Use current process
             process=psutil.Process(),  # Current process
             process_log=logger or structlog.get_logger(logger_name="task").bind(),
-            client=client if client is not None else cls._api_client(task.dag),
+            client=client if client is not None else cls._api_client(task.dag, what.id),
             **kwargs,
         )
 
@@ -2549,7 +2553,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
         return TaskRunResult(ti=ti, state=state, msg=msg, error=error)
 
     @staticmethod
-    def _api_client(dag=None):
+    def _api_client(dag=None, attempt_id: UUID | None = None):
         api = in_process_api_server()
         from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 
@@ -2565,8 +2569,13 @@ class InProcessTestSupervisor(ActivitySubprocess):
             api.app.dependency_overrides.pop(dag_bag_from_app, None)
 
         client = InProcessTestSupervisor._Client(
-            base_url=None, token="", dry_run=True, transport=api.transport
+            base_url=None,
+            token="",
+            dry_run=True,
+            transport=api.transport,
         )
+        if attempt_id is not None:
+            client.headers["X-Airflow-In-Process-Attempt-Id"] = str(attempt_id)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
         return client

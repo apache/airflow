@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_4_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
@@ -395,14 +395,24 @@ class TestReadXcomByPrefix:
         )
         session.commit()
 
-        stored = session.scalar(
-            select(XComModel.value).where(
-                XComModel.dag_id == "d",
-                XComModel.task_id == "t",
-                XComModel.run_id == "r",
-                XComModel.key == f"{XCOM_AGENT_OUTPUT_PREFIX}1",
+        if AIRFLOW_V_3_4_PLUS:
+            read = XComModel.get_many(
+                run_id="r",
+                dag_ids="d",
+                task_ids="t",
+                key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
             )
-        )
+            entity = read.column_descriptions[0]["entity"]
+            stored = session.scalar(read.with_only_columns(entity.value))
+        else:
+            stored = session.scalar(
+                select(XComModel.value).where(
+                    XComModel.dag_id == "d",
+                    XComModel.task_id == "t",
+                    XComModel.run_id == "r",
+                    XComModel.key == f"{XCOM_AGENT_OUTPUT_PREFIX}1",
+                )
+            )
         assert stored == output_value
 
         result = _read_xcom_by_prefix(
@@ -614,6 +624,28 @@ class TestWriteXcom:
         assert result == expected
         _clear_db()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Attempt ownership starts in Airflow 3.4")
+    def test_write_uses_current_attempt_after_retry(self, session, dag_maker):
+        from airflow.models.xcom import XComModelV2
+        from airflow.utils.state import TaskInstanceState
+
+        _clear_db()
+        with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id="t")
+        run = dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
+        dag_maker.sync_dagbag_to_db()
+        old = run.get_task_instance("t", session=session)
+        old.state = TaskInstanceState.RUNNING
+        _write_xcom(session, dag_id="d", run_id="r", task_id="t", key="owner", value="old")
+
+        current = old.prepare_db_for_next_try(session)
+        _write_xcom(session, dag_id="d", run_id="r", task_id="t", key="owner", value="current")
+
+        assert XComModelV2.get_for_attempt(old.id, "owner", session=session).value == "old"
+        assert XComModelV2.get_for_attempt(current.id, "owner", session=session).value == "current"
+        assert _read_xcom(session, dag_id="d", run_id="r", task_id="t", key="owner") == "current"
+        _clear_db()
+
 
 class TestGetBaseUrlPath:
     def test_default_base_url(self):
@@ -652,6 +684,29 @@ class TestIsTaskCompleted:
 
         result = _is_task_completed(session, dag_id="d", run_id="r", task_id="t", map_index=-1)
         assert result is False
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Attempt ownership starts in Airflow 3.4")
+    @pytest.mark.parametrize(
+        ("old_state", "archived_state"),
+        [
+            pytest.param("success", "success", id="archived-success"),
+            pytest.param("running", "failed", id="archived-failed-retry"),
+        ],
+    )
+    def test_ignores_historical_attempt_state(self, session, dag_maker, old_state, archived_state):
+        from airflow.utils.state import TaskInstanceState
+
+        with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id="t")
+        run = dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
+        old = run.get_task_instance("t", session=session)
+        old.state = TaskInstanceState(old_state)
+        current = old.prepare_db_for_next_try(session)
+        assert old.state == TaskInstanceState(archived_state)
+        current.state = TaskInstanceState.RUNNING
+        session.flush()
+
+        assert _is_task_completed(session, dag_id="d", run_id="r", task_id="t") is False
 
 
 class TestBuildSessionResponse:
