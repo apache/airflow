@@ -18,7 +18,7 @@
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -30,6 +30,9 @@ import { XComEntry } from "./XComEntry";
 const server = setupServer();
 const entryUrl = "/api/v2/dags/test_dag/dagRuns/test_run/taskInstances/test_task/xcomEntries/:xcomKey";
 const entryProps = { dagId: "test_dag", mapIndex: -1, runId: "test_run", taskId: "test_task" };
+
+// i18n resources are not loaded in unit tests, so translated text renders as its key.
+const errorTitle = "error.title";
 
 beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
 afterEach(() => server.resetHandlers());
@@ -59,17 +62,45 @@ describe("XComEntry", () => {
       { wrapper: Wrapper },
     );
 
-    const trigger = await screen.findByRole("button", { name: `${String(status)} ${detail}` });
+    const trigger = await screen.findByRole("button", { name: `${errorTitle} ${String(status)}` });
 
+    expect(trigger).toHaveTextContent(String(status));
+    expect(trigger).not.toHaveTextContent(detail);
+    expect(await screen.findByText("Another XCom value")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /copy/iu })).toHaveLength(1);
     expect(screen.queryByTestId("error-alert")).not.toBeInTheDocument();
+
     fireEvent.click(trigger);
 
-    const alert = await screen.findByTestId("error-alert");
+    const dialog = await screen.findByRole("dialog", { name: errorTitle });
+    const alert = within(dialog).getByTestId("error-alert");
 
     expect(alert).toHaveTextContent(String(status));
     expect(alert).toHaveTextContent(detail);
-    expect(await screen.findByText("Another XCom value")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /copy/iu })).toHaveLength(1);
+  });
+
+  it("closes the full error details from the modal close button", async () => {
+    server.use(
+      http.get(entryUrl, () => HttpResponse.json({ detail: "XCom entry was deleted" }, { status: 404 })),
+    );
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <XComEntry {...entryProps} xcomKey="failed_entry" />
+      </QueryClientProvider>,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: `${errorTitle} 404` }));
+
+    const dialog = await screen.findByRole("dialog", { name: errorTitle });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: `${errorTitle} 404` })).toBeInTheDocument();
   });
 
   it("shows a refetch error instead of allowing a stale value to be copied", async () => {
@@ -92,12 +123,47 @@ describe("XComEntry", () => {
 
     await act(() => queryClient.invalidateQueries());
 
-    expect(await screen.findByTestId("xcom-entry-error")).toHaveTextContent("XCom entry was deleted");
+    expect(await screen.findByTestId("xcom-entry-error")).toHaveTextContent("404");
     expect(screen.queryByText("Stale value")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /copy/iu })).not.toBeInTheDocument();
   });
 
-  it("uses the error message for structured details and exposes the full validation error", async () => {
+  it("keeps new error details closed after a successful refetch", async () => {
+    server.use(
+      http.get(entryUrl, () => HttpResponse.json({ detail: "XCom entry was deleted" }, { status: 404 })),
+    );
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <XComEntry {...entryProps} xcomKey="return_value" />
+      </QueryClientProvider>,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: `${errorTitle} 404` }));
+    await screen.findByRole("dialog", { name: errorTitle });
+
+    server.use(
+      http.get(entryUrl, () => HttpResponse.json({ key: "return_value", value: "Recovered value" })),
+    );
+    await act(() => queryClient.invalidateQueries());
+    await screen.findByText("Recovered value");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    server.use(
+      http.get(entryUrl, () =>
+        HttpResponse.json({ detail: "Unable to deserialize the XCom value" }, { status: 500 }),
+      ),
+    );
+    await act(() => queryClient.invalidateQueries());
+
+    expect(await screen.findByRole("button", { name: `${errorTitle} 500` })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("exposes the full validation error for structured details", async () => {
     server.use(
       http.get(entryUrl, () =>
         HttpResponse.json(
@@ -116,9 +182,11 @@ describe("XComEntry", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "422 Validation Error" }));
+    fireEvent.click(await screen.findByRole("button", { name: `${errorTitle} 422` }));
 
-    expect(await screen.findByTestId("error-alert")).toHaveTextContent("query.map_index Invalid map index");
+    const dialog = await screen.findByRole("dialog", { name: errorTitle });
+
+    expect(within(dialog).getByTestId("error-alert")).toHaveTextContent("query.map_index Invalid map index");
   });
 
   it("shows a network error without an HTTP status or copy button", async () => {
@@ -133,10 +201,16 @@ describe("XComEntry", () => {
       { wrapper: Wrapper },
     );
 
-    const trigger = await screen.findByTestId("xcom-entry-error");
+    const trigger = await screen.findByRole("button", { name: errorTitle });
 
-    expect(trigger).toHaveTextContent("Network Error");
+    expect(trigger).toHaveTextContent(errorTitle);
     expect(trigger).not.toHaveTextContent("undefined");
     expect(screen.queryByRole("button", { name: /copy/iu })).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    const dialog = await screen.findByRole("dialog", { name: errorTitle });
+
+    expect(within(dialog).getByTestId("error-alert")).toHaveTextContent("Network Error");
   });
 });
