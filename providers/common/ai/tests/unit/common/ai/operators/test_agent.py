@@ -77,6 +77,7 @@ from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 from airflow.providers.common.ai.utils.toolsets import find_toolset
@@ -1826,10 +1827,10 @@ class TestAgentOperatorMessageHistory:
         op.execute(context=context)
 
         assert "message_history" not in mock_agent.run_sync.call_args.kwargs
-        # The transcript is not emitted without history, but run id + usage (with model_name) always are.
+        # The transcript is not emitted without history, but run id + usage + model always are.
         pushed_keys = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
         assert "message_history" not in pushed_keys
-        assert pushed_keys == {"run_id", "usage"}
+        assert pushed_keys == {"run_id", "usage", MODEL_NAME_XCOM_KEY}
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_transcript_emitted_to_xcom_when_history_set(self, mock_hook_cls, make_mock_run_result):
@@ -1844,7 +1845,7 @@ class TestAgentOperatorMessageHistory:
 
         ti = context["task_instance"]
         pushes = {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list}
-        assert set(pushes) == {"run_id", "usage", "message_history"}
+        assert set(pushes) == {"run_id", "usage", "message_history", MODEL_NAME_XCOM_KEY}
         restored = ModelMessagesTypeAdapter.validate_json(pushes["message_history"])
         assert len(restored) == 2
 
@@ -2233,7 +2234,7 @@ class TestAgentOperatorSandboxHandleTemplating:
 class TestAgentOperatorRunIdentity:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_run_id_usage_and_model_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
-        """The pydantic-ai run id is exposed on its own key; the resolved model name travels with usage."""
+        """The pydantic-ai run id, resolved model name, and token usage are exposed on XCom."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_agent.run_sync.return_value.run_id = "the-run-id"
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -2246,8 +2247,8 @@ class TestAgentOperatorRunIdentity:
             c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
         }
         assert pushes["run_id"] == "the-run-id"
+        assert pushes[MODEL_NAME_XCOM_KEY] == "test-model"
         assert pushes["usage"] == {
-            "model_name": "test-model",
             "requests": 1,
             "input_tokens": 0,
             "output_tokens": 0,
@@ -2357,7 +2358,6 @@ class TestAgentOperatorUsageBudget:
         }
         assert pushes["run_id"] == str(context["task_instance"].id)
         assert pushes["usage"] == {
-            "model_name": None,
             "requests": 1,
             "input_tokens": 10,
             "output_tokens": 0,

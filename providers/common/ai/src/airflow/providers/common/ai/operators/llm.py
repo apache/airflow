@@ -43,7 +43,7 @@ from airflow.providers.common.ai.utils.decision import (
     timed_out_record,
     validate_decision_policy,
 )
-from airflow.providers.common.ai.utils.logging import format_usage_for_xcom, log_run_summary
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY, log_run_summary
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.notifier import BaseNotifier
@@ -307,9 +307,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         output = result.output
 
         model_confidence = ModelConfidence.from_result(result)
-        self._push_xcom(
-            context, "usage", format_usage_for_xcom(result.usage, model_name=model_confidence.model)
-        )
+        if model_confidence.model is not None:
+            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
         # Gated by the least confident of the fields that reported a confidence; a field whose type
         # reports none is not gated. A bare output type is the one field ``response``.
         fields = list(model_confidence.confidence) or ["response"]
