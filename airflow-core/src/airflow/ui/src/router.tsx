@@ -137,7 +137,7 @@ export const routerConfig = [
       },
       {
         element: <TimeSchedule />,
-        path: "home/time_schedule",
+        path: "time-schedule",
       },
       {
         element: <AssetsList />,

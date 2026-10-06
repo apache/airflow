@@ -36,7 +36,7 @@ def _make_item(*, start: pendulum.DateTime, duration_minutes: int, run_id: str) 
         is_placeholder=False,
         is_planned=False,
         is_time_scheduled=True,
-        label="example_dag",
+        dag_display_name="example_dag",
         run_count=1,
         start_date=start,
         state=DagRunState.SUCCESS,

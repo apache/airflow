@@ -19,25 +19,35 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
 
 import { Box, Text } from "@chakra-ui/react";
+import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 
-import { TimelineBar } from "./TimelineBar";
-import { WEEK_LABEL_LINE_HEIGHT_PX } from "./constants";
-import { dayjs } from "./dateUtils";
-import { buildTimeMarkers, buildWeekItemLayouts } from "./timelineUtils";
-import type { TimeMarker, TimeScale, TimelineItem } from "./types";
+import type { TimeScheduleItem } from "openapi/requests/types.gen";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { TimelineBar } from "./TimelineBar";
+import {
+  WEEK_LABEL_LINE_HEIGHT_PX,
+  DAY_MINUTES,
+  WEEK_HEADER_HEIGHT_PX,
+  WEEK_TIME_LABEL_WIDTH_PX,
+  WEEK_DAY_MIN_WIDTH_PX,
+  TIMELINE_MIN_HEIGHT_PX,
+  TIME_SLOT_SIZE_PX,
+} from "./constants";
+import { buildTimeMarkers, buildWeekItemLayouts } from "./timelineUtils";
+import type { TimeMarker, TimeScale } from "./types";
+
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 type WeekTimelineProps = {
   readonly chartBodyRef: RefObject<HTMLDivElement | null>;
   readonly chartRootRef: RefObject<HTMLDivElement | null>;
   readonly chartViewportHeight: string;
   readonly hourMarkers: Array<Pick<TimeMarker, "minute" | "position">>;
-  readonly items: Array<TimelineItem>;
+  readonly items: Array<TimeScheduleItem>;
   readonly onMouseLeave: () => void;
   readonly onMouseMove: (event: ReactMouseEvent<HTMLDivElement>) => void;
-  readonly renderTooltip: (item: TimelineItem) => ReactNode;
+  readonly renderTooltip: (item: TimeScheduleItem) => ReactNode;
   readonly selectedTimezone: string;
   readonly timeScale: TimeScale;
   readonly weekHeaderRef: RefObject<HTMLDivElement | null>;
@@ -56,8 +66,8 @@ export const WeekTimeline = ({
   timeScale,
   weekHeaderRef,
 }: WeekTimelineProps) => {
-  const { t: translate } = useTranslation();
-  const contentHeight = (24 * 60 * 40) / timeScale;
+  const { t: translate } = useTranslation("dag");
+  const contentHeight = (DAY_MINUTES * TIME_SLOT_SIZE_PX) / timeScale;
   const timeMarkers = buildTimeMarkers(timeScale);
 
   return (
@@ -67,13 +77,22 @@ export const WeekTimeline = ({
       borderWidth="1px"
       data-testid="time-schedule-week-grid"
       height={chartViewportHeight}
-      minHeight="420px"
+      minHeight={`${TIMELINE_MIN_HEIGHT_PX}px`}
       overflow="hidden"
       overscrollBehavior="auto"
     >
       <Box data-testid="time-schedule-week-header" overflow="hidden" ref={weekHeaderRef}>
-        <Box display="grid" gridTemplateColumns="56px repeat(7, minmax(160px, 1fr))" minWidth="1120px">
-          <Box bg="bg.subtle" borderBottomColor="border.subtle" borderBottomWidth="1px" height="40px" />
+        <Box
+          display="grid"
+          gridTemplateColumns={`${WEEK_TIME_LABEL_WIDTH_PX}px repeat(7, minmax(${WEEK_DAY_MIN_WIDTH_PX}px, 1fr))`}
+          minWidth={`${WEEK_TIME_LABEL_WIDTH_PX + 7 * WEEK_DAY_MIN_WIDTH_PX}px`}
+        >
+          <Box
+            bg="bg.subtle"
+            borderBottomColor="border.subtle"
+            borderBottomWidth="1px"
+            height={`${WEEK_HEADER_HEIGHT_PX}px`}
+          />
           {WEEKDAYS.map((weekday) => (
             <Box
               alignItems="center"
@@ -83,12 +102,12 @@ export const WeekTimeline = ({
               borderLeftColor="border.subtle"
               borderLeftWidth="1px"
               display="flex"
-              height="40px"
+              height={`${WEEK_HEADER_HEIGHT_PX}px`}
               justifyContent="center"
               key={weekday}
             >
               <Text fontSize="sm" fontWeight="semibold">
-                {translate(`timeSchedule.weekday.${weekday}`)}
+                {translate(`calendar.weekdays.${weekday}`)}
               </Text>
             </Box>
           ))}
@@ -96,7 +115,7 @@ export const WeekTimeline = ({
       </Box>
       <Box
         data-testid="time-schedule-week-body"
-        height="calc(100% - 40px)"
+        height={`calc(100% - ${WEEK_HEADER_HEIGHT_PX}px)`}
         minHeight={0}
         onMouseDown={() => chartRootRef.current?.focus({ preventScroll: true })}
         onMouseLeave={onMouseLeave}
@@ -107,7 +126,11 @@ export const WeekTimeline = ({
         pt="10px"
         ref={chartBodyRef}
       >
-        <Box display="grid" gridTemplateColumns="56px repeat(7, minmax(160px, 1fr))" minWidth="1120px">
+        <Box
+          display="grid"
+          gridTemplateColumns={`${WEEK_TIME_LABEL_WIDTH_PX}px repeat(7, minmax(${WEEK_DAY_MIN_WIDTH_PX}px, 1fr))`}
+          minWidth={`${WEEK_TIME_LABEL_WIDTH_PX + 7 * WEEK_DAY_MIN_WIDTH_PX}px`}
+        >
           <Box height={`${contentHeight}px`} position="relative">
             {timeMarkers.map(({ label, minute, position }) => (
               <Text
@@ -125,7 +148,7 @@ export const WeekTimeline = ({
           </Box>
           {WEEKDAYS.map((_, day) => {
             const dayItems = items.filter(
-              (item) => item.startDate !== null && dayjs(item.startDate).tz(selectedTimezone).day() === day,
+              (item) => item.start_date !== null && dayjs(item.start_date).tz(selectedTimezone).day() === day,
             );
             const layouts = buildWeekItemLayouts({ contentHeight, items: dayItems, selectedTimezone });
 
@@ -153,12 +176,12 @@ export const WeekTimeline = ({
                   <TimelineBar
                     height={`${height}px`}
                     item={item}
-                    key={item.dagRunId}
+                    key={item.dag_run_id}
                     labelLineClamp={Math.max(1, Math.floor(height / WEEK_LABEL_LINE_HEIGHT_PX))}
                     left={`calc(${(column / columnCount) * 100}% + 2px)`}
                     renderTooltip={renderTooltip}
                     showDagLabel
-                    testId={`time-schedule-week-bar-${item.dagRunId}`}
+                    testId={`time-schedule-week-bar-${item.dag_run_id}`}
                     top={`${top}px`}
                     width={`calc(${100 / columnCount}% - 4px)`}
                   />

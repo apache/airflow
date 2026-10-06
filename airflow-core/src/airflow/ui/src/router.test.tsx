@@ -63,7 +63,7 @@ describe("Dag route handles", () => {
 
 describe("Time Schedule route", () => {
   it("matches the Dashboard Time Schedule path", () => {
-    expect(matchRoutes(routerConfig, "/home/time_schedule")).toHaveLength(2);
+    expect(matchRoutes(routerConfig, "/time-schedule")).toHaveLength(2);
   });
 });
 

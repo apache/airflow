@@ -26,30 +26,16 @@ export type RowSortMode = "dagIdAscending" | "dagIdDescending" | "startTime";
 export type TimeScale = 1 | 5 | 10 | 15 | 20 | 30 | 40 | 50 | 60;
 export type ViewMode = "day" | "week";
 
-export type TimelineItem = {
-  readonly dagId: string;
-  readonly dagRunId: string;
-  readonly durationMs: number;
-  readonly endDate: string | null;
-  readonly isPlaceholder: boolean;
-  readonly isPlanned: boolean;
-  readonly isTimeScheduled: boolean;
-  readonly label: string;
-  readonly runCount: number;
-  readonly startDate: string | null;
-  readonly state: TimeScheduleItem["state"];
-};
-
 export type TimelineRow = {
-  readonly dagId: string;
-  readonly isTimeScheduled: boolean;
-  readonly items: Array<TimelineItem>;
-  readonly label: string;
+  readonly dag_display_name: string;
+  readonly dag_id: string;
+  readonly is_time_scheduled: boolean;
+  readonly items: Array<TimeScheduleItem>;
 };
 
 export type DayRowLayout = {
   readonly height: number;
-  readonly items: Array<{ readonly item: TimelineItem; readonly lane: number }>;
+  readonly items: Array<{ readonly item: TimeScheduleItem; readonly lane: number }>;
   readonly row: TimelineRow;
   readonly top: number;
 };
@@ -58,7 +44,7 @@ export type WeekItemLayout = {
   readonly column: number;
   readonly columnCount: number;
   readonly height: number;
-  readonly item: TimelineItem;
+  readonly item: TimeScheduleItem;
   readonly top: number;
 };
 

@@ -16,16 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { dayjs } from "./dateUtils";
-import type {
-  DayRowLayout,
-  RowSortMode,
-  TimeMarker,
-  TimeScale,
-  TimelineItem,
-  TimelineRow,
-  WeekItemLayout,
-} from "./types";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+import type { TimeScheduleItem } from "openapi/requests/types.gen";
+
+import { renderDuration } from "src/utils/datetimeUtils";
+
+import {
+  DAY_DURATION_MS,
+  DAY_MINUTES,
+  DAY_ROW_MIN_HEIGHT_PX,
+  DAY_LANE_HEIGHT_PX,
+  DAY_ROW_PADDING_PX,
+} from "./constants";
+import type { DayRowLayout, RowSortMode, TimeMarker, TimeScale, TimelineRow, WeekItemLayout } from "./types";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const getLocalStartTimeSortValue = (startDate: string | null, selectedTimezone: string) => {
   if (startDate === null) {
@@ -43,7 +52,7 @@ const getLocalStartTimeSortValue = (startDate: string | null, selectedTimezone: 
 };
 
 type BuildTimelineRowsParams = {
-  readonly items: Array<TimelineItem>;
+  readonly items: Array<TimeScheduleItem>;
   readonly rowSortMode: RowSortMode;
   readonly selectedTimezone: string;
 };
@@ -53,90 +62,74 @@ export const buildTimelineRows = ({
   rowSortMode,
   selectedTimezone,
 }: BuildTimelineRowsParams): Array<TimelineRow> => {
-  const rowsByDagId = new Map<string, Array<TimelineItem>>();
+  const rowsByDagId = new Map<string, Array<TimeScheduleItem>>();
 
   items.forEach((item) => {
-    const rowItems = rowsByDagId.get(item.dagId);
+    const rowItems = rowsByDagId.get(item.dag_id);
 
     if (rowItems) {
       rowItems.push(item);
     } else {
-      rowsByDagId.set(item.dagId, [item]);
+      rowsByDagId.set(item.dag_id, [item]);
     }
   });
 
   return Array.from(rowsByDagId, ([dagId, rowItems]) => ({
-    dagId,
-    isTimeScheduled: rowItems.some((item) => item.isTimeScheduled),
+    dag_display_name: rowItems[0]?.dag_display_name ?? dagId,
+    dag_id: dagId,
+    is_time_scheduled: rowItems.some((item) => item.is_time_scheduled),
     items: rowItems.sort(
       (left, right) =>
-        getLocalStartTimeSortValue(left.startDate, selectedTimezone) -
-        getLocalStartTimeSortValue(right.startDate, selectedTimezone),
+        getLocalStartTimeSortValue(left.start_date, selectedTimezone) -
+        getLocalStartTimeSortValue(right.start_date, selectedTimezone),
     ),
-    label: rowItems[0]?.label ?? dagId,
   })).sort((left, right) => {
     if (rowSortMode === "dagIdAscending") {
-      return left.dagId.localeCompare(right.dagId);
+      return left.dag_id.localeCompare(right.dag_id);
     }
     if (rowSortMode === "dagIdDescending") {
-      return right.dagId.localeCompare(left.dagId);
+      return right.dag_id.localeCompare(left.dag_id);
     }
-    if (left.isTimeScheduled !== right.isTimeScheduled) {
-      return Number(right.isTimeScheduled) - Number(left.isTimeScheduled);
+    if (left.is_time_scheduled !== right.is_time_scheduled) {
+      return Number(right.is_time_scheduled) - Number(left.is_time_scheduled);
     }
     const difference =
-      getLocalStartTimeSortValue(left.items[0]?.startDate ?? null, selectedTimezone) -
-      getLocalStartTimeSortValue(right.items[0]?.startDate ?? null, selectedTimezone);
+      getLocalStartTimeSortValue(left.items[0]?.start_date ?? null, selectedTimezone) -
+      getLocalStartTimeSortValue(right.items[0]?.start_date ?? null, selectedTimezone);
 
-    return difference || left.dagId.localeCompare(right.dagId);
+    return difference || left.dag_id.localeCompare(right.dag_id);
   });
 };
 
 export const getPosition = (value: dayjs.Dayjs, dayStart: dayjs.Dayjs) =>
-  Math.max(0, Math.min(100, (value.diff(dayStart) / (24 * 60 * 60 * 1000)) * 100));
+  Math.max(0, Math.min(100, (value.diff(dayStart) / DAY_DURATION_MS) * 100));
 
-export const formatDurationLabel = (durationMs: number) => {
-  if (durationMs <= 0) {
-    return "";
-  }
-  const seconds = Math.max(1, Math.round(durationMs / 1000));
-
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-  const minutes = Math.floor(seconds / 60);
-
-  if (minutes < 60) {
-    return `${minutes}m`;
-  }
-
-  return minutes % 60 > 0 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${Math.floor(minutes / 60)}h`;
-};
-
-const STATE_ICON_AND_SPACING_WIDTH_PX = 30;
+const STATE_ICON_AND_SPACING_WIDTH_PX = 18;
 const DURATION_CHARACTER_WIDTH_PX = 10;
-const TIMELINE_BAR_BREATHING_ROOM_PX = 4;
 
-export const getTimelineBarMinimumWidth = (durationMs: number) =>
+export const getTimelineDurationSeconds = (durationMs: number) =>
+  durationMs >= 60_000 ? Math.floor(durationMs / 60_000) * 60 : durationMs / 1000;
+
+export const getTimelineBarMinimumWidth = (durationMs: number, locale?: string) =>
   STATE_ICON_AND_SPACING_WIDTH_PX +
-  formatDurationLabel(durationMs).length * DURATION_CHARACTER_WIDTH_PX +
-  TIMELINE_BAR_BREATHING_ROOM_PX;
+  (durationMs > 0 ? (renderDuration(getTimelineDurationSeconds(durationMs), locale)?.length ?? 0) : 0) *
+    DURATION_CHARACTER_WIDTH_PX;
 
-export const getVisualDurationWidth = (durationMs: number) =>
-  durationMs <= 0
-    ? getTimelineBarMinimumWidth(durationMs)
-    : `max(${getTimelineBarMinimumWidth(durationMs)}px, ${(durationMs / 60_000 / (24 * 60)) * 100}%)`;
+export const getVisualDurationWidth = (durationMs: number, locale?: string) =>
+  `max(${getTimelineBarMinimumWidth(durationMs, locale)}px, ${(durationMs / DAY_DURATION_MS) * 100}%)`;
 
 export const getTimelineBarLeft = (startPosition: number, width: number | string) =>
   `min(${startPosition}%, calc(100% - ${typeof width === "number" ? `${width}px` : width}))`;
 
 type BuildDayRowLayoutsParams = {
+  readonly locale?: string;
   readonly rows: Array<TimelineRow>;
   readonly selectedTimezone: string;
   readonly timelineWidth: number;
 };
 
 export const buildDayRowLayouts = ({
+  locale,
   rows,
   selectedTimezone,
   timelineWidth,
@@ -146,18 +139,18 @@ export const buildDayRowLayouts = ({
   return rows.map((row) => {
     const laneEnds: Array<number> = [];
     const items = row.items
-      .filter((item) => !item.isPlaceholder && item.startDate !== null)
+      .filter((item) => !item.is_placeholder && item.start_date !== null)
       .sort(
         (left, right) =>
-          getLocalStartTimeSortValue(left.startDate, selectedTimezone) -
-          getLocalStartTimeSortValue(right.startDate, selectedTimezone),
+          getLocalStartTimeSortValue(left.start_date, selectedTimezone) -
+          getLocalStartTimeSortValue(right.start_date, selectedTimezone),
       )
       .map((item) => {
-        const start = dayjs(item.startDate).tz(selectedTimezone);
+        const start = dayjs(item.start_date).tz(selectedTimezone);
         const startX = (getPosition(start, start.startOf("day")) / 100) * timelineWidth;
         const width = Math.max(
-          getTimelineBarMinimumWidth(item.durationMs),
-          (item.durationMs / (24 * 60 * 60 * 1000)) * timelineWidth,
+          getTimelineBarMinimumWidth(item.duration_ms, locale),
+          (item.duration_ms / DAY_DURATION_MS) * timelineWidth,
         );
         let lane = laneEnds.findIndex((laneEnd) => laneEnd <= startX);
 
@@ -170,7 +163,7 @@ export const buildDayRowLayouts = ({
 
         return { item, lane };
       });
-    const height = Math.max(48, laneEnds.length * 20 + 16);
+    const height = Math.max(DAY_ROW_MIN_HEIGHT_PX, laneEnds.length * DAY_LANE_HEIGHT_PX + DAY_ROW_PADDING_PX);
     const layout = { height, items, row, top };
 
     top += height;
@@ -181,7 +174,7 @@ export const buildDayRowLayouts = ({
 
 type BuildWeekItemLayoutsParams = {
   readonly contentHeight: number;
-  readonly items: Array<TimelineItem>;
+  readonly items: Array<TimeScheduleItem>;
   readonly selectedTimezone: string;
 };
 
@@ -191,12 +184,12 @@ export const buildWeekItemLayouts = ({
   selectedTimezone,
 }: BuildWeekItemLayoutsParams): Array<WeekItemLayout> => {
   const positionedItems = items
-    .filter((item) => item.startDate !== null)
+    .filter((item) => item.start_date !== null)
     .map((item) => {
-      const start = dayjs(item.startDate).tz(selectedTimezone);
+      const start = dayjs(item.start_date).tz(selectedTimezone);
       const height = Math.min(
         contentHeight,
-        Math.max(20, (item.durationMs / (24 * 60 * 60 * 1000)) * contentHeight),
+        Math.max(20, (item.duration_ms / DAY_DURATION_MS) * contentHeight),
       );
 
       return { height, item, startY: (getPosition(start, start.startOf("day")) / 100) * contentHeight };
@@ -250,34 +243,32 @@ export const buildWeekItemLayouts = ({
 };
 
 export const buildTimeMarkers = (timeScale: TimeScale): Array<TimeMarker> =>
-  Array.from({ length: Math.floor((24 * 60) / timeScale) + 1 }, (_, index) => {
+  Array.from({ length: Math.floor(DAY_MINUTES / timeScale) + 1 }, (_, index) => {
     const minute = index * timeScale;
 
     return {
       label: `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`,
       minute,
-      position: (minute / (24 * 60)) * 100,
+      position: (minute / DAY_MINUTES) * 100,
     };
   });
 
 export const buildHourMarkers = () =>
   Array.from({ length: 25 }, (_, index) => ({
     minute: index * 60,
-    position: (index * 60 * 100) / (24 * 60),
+    position: (index * 60 * 100) / DAY_MINUTES,
   }));
 
-export const getTimelineItemColorPalette = (item: Pick<TimelineItem, "isPlanned" | "state">) =>
-  item.isPlanned ? "scheduled" : item.state;
-export const getTimelineItemIconState = ({ state }: Pick<TimelineItem, "state">) => {
+export const getTimelineItemColorPalette = (item: Pick<TimeScheduleItem, "is_planned" | "state">) =>
+  item.is_planned ? "scheduled" : item.state;
+export const getTimelineItemIconState = ({ state }: Pick<TimeScheduleItem, "state">) => {
   if (state === "planned") {
     return "scheduled";
   }
 
   return state === "placeholder" ? undefined : state;
 };
-export const getTimelineItemDestination = (item: TimelineItem) =>
-  item.isPlanned || item.isPlaceholder
-    ? `/dags/${item.dagId}/runs`
-    : `/dags/${item.dagId}/runs/${item.dagRunId}`;
-export const getTimelineItemLinkLabel = (item: TimelineItem) =>
-  item.isPlanned || item.isPlaceholder ? `View ${item.label} Dag runs` : `View Dag run ${item.dagRunId}`;
+export const getTimelineItemDestination = (item: TimeScheduleItem) =>
+  item.is_planned || item.is_placeholder
+    ? `/dags/${item.dag_id}/runs`
+    : `/dags/${item.dag_id}/runs/${item.dag_run_id}`;

@@ -22,34 +22,37 @@ import { Box, Link, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as ReactRouterLink } from "react-router-dom";
 
+import type { TimeScheduleItem } from "openapi/requests/types.gen";
+
 import { Tooltip } from "src/system-components";
 
 import { StateIcon } from "src/components/StateIcon";
 
-import { TIMELINE_TOOLTIP_CONTENT_PROPS, WEEK_LABEL_LINE_HEIGHT_PX } from "./constants";
+import { useDurationFormat } from "src/utils";
+
+import { WEEK_LABEL_LINE_HEIGHT_PX } from "./constants";
 import {
-  formatDurationLabel,
+  getTimelineDurationSeconds,
   getTimelineItemColorPalette,
   getTimelineItemDestination,
   getTimelineItemIconState,
-  getTimelineItemLinkLabel,
 } from "./timelineUtils";
-import type { TimelineItem } from "./types";
 
 const STATE_ICON_SIZE_PX = 10;
 const WEEK_STATE_ICON_SIZE_PX = 12;
 
 type TimelineBarProps = {
   readonly height: string;
-  readonly item: TimelineItem;
-  readonly labelLineClamp?: number;
+  readonly item: TimeScheduleItem;
   readonly left: string;
-  readonly renderTooltip: (item: TimelineItem) => ReactNode;
-  readonly showDagLabel?: boolean;
+  readonly renderTooltip: (item: TimeScheduleItem) => ReactNode;
   readonly testId: string;
   readonly top?: string;
   readonly width: number | string;
-};
+} & (
+  | { readonly labelLineClamp: number; readonly showDagLabel: true }
+  | { readonly labelLineClamp?: never; readonly showDagLabel?: false }
+);
 
 export const TimelineBar = ({
   height,
@@ -57,22 +60,24 @@ export const TimelineBar = ({
   labelLineClamp,
   left,
   renderTooltip,
-  showDagLabel = false,
+  showDagLabel,
   testId,
   top,
   width,
 }: TimelineBarProps) => {
   const { t: translate } = useTranslation();
+  const { renderDuration } = useDurationFormat();
   const iconState = getTimelineItemIconState(item);
   const stateLabel = iconState ?? "none";
+  const durationLabel = renderDuration(getTimelineDurationSeconds(item.duration_ms));
 
   return (
-    <Tooltip content={renderTooltip(item)} contentProps={TIMELINE_TOOLTIP_CONTENT_PROPS}>
+    <Tooltip content={renderTooltip(item)}>
       <Link
         _hover={{ textDecoration: "none" }}
-        aria-label={`${getTimelineItemLinkLabel(item)}: ${translate(`states.${stateLabel}`)}`}
+        aria-label={`${item.dag_display_name}: ${translate(`states.${stateLabel}`)}, ${item.run_count} ${translate("dagRun", { count: item.run_count })}`}
         asChild
-        bg={showDagLabel ? "colorPalette.solid" : undefined}
+        bg="colorPalette.solid"
         borderRadius="sm"
         color="inherit"
         colorPalette={getTimelineItemColorPalette(item)}
@@ -80,11 +85,10 @@ export const TimelineBar = ({
         display="block"
         height={height}
         left={left}
-        minWidth={showDagLabel ? undefined : width}
-        opacity={item.isPlanned ? 0.8 : 1}
+        opacity={item.is_planned ? 0.8 : 1}
         overflow="hidden"
         position="absolute"
-        px={showDagLabel ? 2 : item.durationMs > 0 ? 2 : 0}
+        px={showDagLabel ? 2 : 0}
         py={0}
         top={top}
         transform={showDagLabel ? undefined : "translateY(-50%)"}
@@ -98,9 +102,7 @@ export const TimelineBar = ({
               css={{ display: "-webkit-box !important" }}
               fontSize="xs"
               fontWeight="semibold"
-              height={
-                labelLineClamp === undefined ? "100%" : `${labelLineClamp * WEEK_LABEL_LINE_HEIGHT_PX}px`
-              }
+              height={`${labelLineClamp * WEEK_LABEL_LINE_HEIGHT_PX}px`}
               lineHeight={`${WEEK_LABEL_LINE_HEIGHT_PX}px`}
               maxHeight="100%"
               overflow="hidden"
@@ -118,7 +120,7 @@ export const TimelineBar = ({
                 state={iconState}
                 style={{ display: "inline", marginInlineEnd: "4px", verticalAlign: "text-bottom" }}
               />
-              {item.label}
+              {item.dag_display_name}
             </Text>
           ) : (
             <Box
@@ -127,21 +129,26 @@ export const TimelineBar = ({
               borderRadius="md"
               color="colorPalette.contrast"
               display="flex"
+              fontSize="xs"
+              fontWeight="semibold"
               gap={1}
               height="100%"
               justifyContent="center"
               overflow="hidden"
+              px="2px"
               width="100%"
             >
-              <StateIcon
-                aria-hidden="true"
-                color="currentColor"
-                size={STATE_ICON_SIZE_PX}
-                state={iconState}
-              />
-              {item.durationMs > 0 ? (
-                <Text color="colorPalette.contrast" fontSize="xs" fontWeight="semibold" whiteSpace="nowrap">
-                  {formatDurationLabel(item.durationMs)}
+              <Box flexShrink={0} lineHeight={0}>
+                <StateIcon
+                  aria-hidden="true"
+                  color="currentColor"
+                  size={STATE_ICON_SIZE_PX}
+                  state={iconState}
+                />
+              </Box>
+              {item.duration_ms > 0 ? (
+                <Text color="colorPalette.contrast" flexShrink={0} whiteSpace="nowrap">
+                  {durationLabel}
                 </Text>
               ) : null}
             </Box>

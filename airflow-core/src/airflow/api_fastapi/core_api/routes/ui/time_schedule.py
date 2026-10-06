@@ -36,6 +36,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagIdPatternSearch,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
+    QueryPausedFilter,
     QueryTagsFilter,
     QueryTeamsFilter,
     RangeFilter,
@@ -58,7 +59,7 @@ _DAG_BATCH_SIZE = 25
 _SUPPORTED_TIME_SCALES = (1, 5, 10, 15, 20, 30, 40, 50, 60)
 
 
-def _build_run_item(dag_run: DagRun, *, label: str, is_time_scheduled: bool) -> TimeScheduleItem:
+def _build_run_item(dag_run: DagRun, *, dag_display_name: str, is_time_scheduled: bool) -> TimeScheduleItem:
     start_date = dag_run.start_date or dag_run.run_after
     duration_ms = (dag_run.duration or 0) * 1000
     end_date = dag_run.end_date or start_date + timedelta(milliseconds=duration_ms)
@@ -70,7 +71,7 @@ def _build_run_item(dag_run: DagRun, *, label: str, is_time_scheduled: bool) -> 
         is_placeholder=False,
         is_planned=False,
         is_time_scheduled=is_time_scheduled,
-        label=label,
+        dag_display_name=dag_display_name,
         run_count=1,
         start_date=start_date,
         state=dag_run.state or DagRunState.QUEUED,
@@ -81,6 +82,7 @@ def _build_selected_dags_query(
     *,
     dag_id_pattern: QueryDagIdPatternSearch,
     readable_dags_filter: ReadableDagsFilterDep,
+    paused: QueryPausedFilter,
     show_scheduled_only: bool,
     tags: QueryTagsFilter,
     teams: QueryTeamsFilter,
@@ -89,7 +91,7 @@ def _build_selected_dags_query(
     query = select(DagModel).where(DagModel.is_stale == false())
     query = apply_filters_to_select(
         statement=query,
-        filters=[dag_id_pattern, tags, teams, timetable_type, readable_dags_filter],
+        filters=[dag_id_pattern, tags, teams, timetable_type, readable_dags_filter, paused],
     )
     if show_scheduled_only:
         query = query.where(DagModel.timetable_periodic.is_(True))
@@ -135,6 +137,7 @@ def get_time_schedule_stream(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     readable_dags_filter: ReadableDagsFilterDep,
+    paused: QueryPausedFilter,
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", DagRun))],
@@ -170,6 +173,7 @@ def get_time_schedule_stream(
     dag_ids_query = _build_selected_dags_query(
         dag_id_pattern=dag_id_pattern,
         readable_dags_filter=readable_dags_filter,
+        paused=paused,
         show_scheduled_only=show_scheduled_only,
         tags=tags,
         teams=teams,
@@ -212,7 +216,7 @@ def get_time_schedule_stream(
                 run_items = [
                     _build_run_item(
                         dag_run,
-                        label=dag.dag_display_name,
+                        dag_display_name=dag.dag_display_name,
                         is_time_scheduled=dag.timetable_periodic,
                     )
                     for dag_run, dag in dag_rows
@@ -275,7 +279,7 @@ def get_time_schedule_stream(
                         is_placeholder=False,
                         is_planned=True,
                         is_time_scheduled=True,
-                        label=dag.dag_display_name,
+                        dag_display_name=dag.dag_display_name,
                         run_count=0,
                         start_date=start_date,
                         state="planned",
@@ -294,7 +298,7 @@ def get_time_schedule_stream(
                         is_placeholder=True,
                         is_planned=False,
                         is_time_scheduled=False,
-                        label=dag.dag_display_name,
+                        dag_display_name=dag.dag_display_name,
                         run_count=0,
                         start_date=placeholder_start,
                         state="placeholder",

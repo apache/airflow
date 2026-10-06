@@ -16,11 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import dayjs from "dayjs";
-import timezone from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
+import type { ReactNode } from "react";
 
-dayjs.extend(utc);
-dayjs.extend(timezone);
+import { Text, VStack } from "@chakra-ui/react";
+import { FiInfo } from "react-icons/fi";
 
-export { default as dayjs } from "dayjs";
+import { IconButton, Tooltip } from "src/system-components";
+
+type ControlHelpProps = {
+  readonly children: ReactNode;
+  readonly label: string;
+  readonly title: string;
+};
+
+export const ControlHelp = ({ children, label, title }: ControlHelpProps) => (
+  <Tooltip
+    content={
+      <VStack align="start" gap={1.5} maxWidth="xs">
+        <Text fontSize="sm" fontWeight="semibold">
+          {title}
+        </Text>
+        {children}
+      </VStack>
+    }
+    portalled
+  >
+    <IconButton aria-label={label} size="sm">
+      <FiInfo />
+    </IconButton>
+  </Tooltip>
+);

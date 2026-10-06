@@ -27,35 +27,38 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import {
   TIME_SCHEDULE_AGGREGATION_MODE_KEY,
   TIME_SCHEDULE_DAG_RUN_LIMIT_KEY,
-  TIME_SCHEDULE_SCHEDULED_ONLY_KEY,
   TIME_SCHEDULE_VIEW_MODE_KEY,
 } from "src/constants/localStorage";
 import { useTimezone } from "src/context/timezone";
+import { useTimeScheduleData } from "src/queries/useTimeScheduleData";
 import { useDocumentTitle } from "src/utils";
 
 import { DayTimeline } from "./DayTimeline";
-import { TimeScheduleControls, TimeScheduleViewControls } from "./TimeScheduleControls";
+import { TimeScheduleControls } from "./TimeScheduleControls";
+import { TimeScheduleViewControls } from "./TimeScheduleViewControls";
 import { TimelineTooltip } from "./TimelineTooltip";
 import { WeekTimeline } from "./WeekTimeline";
-import { TIMELINE_HORIZONTAL_PADDING } from "./constants";
-import { buildDayRowLayouts } from "./timelineUtils";
+import {
+  TIMELINE_HORIZONTAL_PADDING,
+  DAY_GRID_MIN_HEIGHT_PX,
+  DAY_CONTENT_MIN_HEIGHT_PX,
+  DAY_GRID_BOTTOM_PADDING_PX,
+  DAY_HEADER_HEIGHT_PX,
+} from "./constants";
+import { buildDayRowLayouts, buildTimelineRows } from "./timelineUtils";
 import type { AggregationMode, DagRunLimit, RowSortMode, ViewMode } from "./types";
-import { useTimeScheduleData } from "./useTimeScheduleData";
+import { useTimeScheduleFilters } from "./useTimeScheduleFilters";
 import { useTimelineZoom } from "./useTimelineZoom";
 
 const CHART_VIEWPORT_HEIGHT = "calc(100dvh - 160px)";
 
 export const TimeSchedule = () => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { selectedTimezone } = useTimezone();
   const [viewMode, setViewMode] = useLocalStorage<ViewMode>(TIME_SCHEDULE_VIEW_MODE_KEY, "day");
   const [aggregationMode, setAggregationMode] = useLocalStorage<AggregationMode>(
     TIME_SCHEDULE_AGGREGATION_MODE_KEY,
     "mean",
-  );
-  const [showScheduledOnly, setShowScheduledOnly] = useLocalStorage<boolean>(
-    TIME_SCHEDULE_SCHEDULED_ONLY_KEY,
-    true,
   );
   const [dagRunLimit, setDagRunLimit] = useLocalStorage<DagRunLimit>(TIME_SCHEDULE_DAG_RUN_LIMIT_KEY, 200);
   const [rowSortMode, setRowSortMode] = useState<RowSortMode>("dagIdAscending");
@@ -63,22 +66,27 @@ export const TimeSchedule = () => {
 
   useDocumentTitle(translate("timeSchedule.title"));
 
-  const { controls, dagRunCount, dayRows, error, isLoading, timelineItems } = useTimeScheduleData({
+  const { controls, streamQuery } = useTimeScheduleFilters({
     aggregationMode,
     dagRunLimit,
-    rowSortMode,
     selectedTimezone,
-    showScheduledOnly,
     timeScale: zoom.timeScale,
     viewMode,
   });
+  const { dagRunCount, error, isLoading, timelineItems } = useTimeScheduleData(streamQuery);
+  const dayRows =
+    viewMode === "day" ? buildTimelineRows({ items: timelineItems, rowSortMode, selectedTimezone }) : [];
   const dayRowLayouts = buildDayRowLayouts({
+    locale: i18n.language,
     rows: dayRows,
     selectedTimezone,
     timelineWidth: zoom.chartWidth - TIMELINE_HORIZONTAL_PADDING,
   });
-  const dayGridHeight = Math.max(480, dayRowLayouts.reduce((height, row) => height + row.height, 0) + 32);
-  const chartContentHeight = Math.max(320, dayGridHeight - 48);
+  const dayGridHeight = Math.max(
+    DAY_GRID_MIN_HEIGHT_PX,
+    dayRowLayouts.reduce((height, row) => height + row.height, 0) + DAY_GRID_BOTTOM_PADDING_PX,
+  );
+  const chartContentHeight = Math.max(DAY_CONTENT_MIN_HEIGHT_PX, dayGridHeight - DAY_HEADER_HEIGHT_PX);
   const chartMinWidth = zoom.timeScale === 60 ? undefined : `${zoom.chartWidth}px`;
   const timelineMinWidth =
     zoom.timeScale === 60 ? undefined : `${zoom.chartWidth - TIMELINE_HORIZONTAL_PADDING}px`;
@@ -115,19 +123,15 @@ export const TimeSchedule = () => {
         <VStack align="stretch" gap={3} height="100%" minHeight={0}>
           <Flex align="center" gap={4} justify="space-between" wrap="wrap">
             <Text color="fg.muted" fontSize="sm">
-              {isLoading
-                ? translate("timeSchedule.loading")
-                : translate("timeSchedule.dagRunsRendered", { count: dagRunCount })}
+              {isLoading ? null : `${dagRunCount} ${translate("dagRun", { count: dagRunCount })}`}
             </Text>
             <TimeScheduleViewControls
               aggregationMode={aggregationMode}
               dagRunLimit={dagRunLimit}
               onAggregationModeChange={setAggregationMode}
               onDagRunLimitChange={setDagRunLimit}
-              onScheduledOnlyChange={setShowScheduledOnly}
               onZoomIn={zoom.zoomIn}
               onZoomOut={zoom.zoomOut}
-              showScheduledOnly={showScheduledOnly}
               timeScale={zoom.timeScale}
               zoomInDisabled={zoom.zoomInDisabled}
               zoomOutDisabled={zoom.zoomOutDisabled}

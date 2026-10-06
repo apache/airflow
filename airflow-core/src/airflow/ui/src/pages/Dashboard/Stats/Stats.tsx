@@ -107,7 +107,7 @@ export const Stats = () => {
           icon={<FiCalendar />}
           isRTL={isRTL}
           label={translate("common:timeSchedule.title")}
-          link="/home/time_schedule"
+          link="../time-schedule"
         />
       </Flex>
     </Box>

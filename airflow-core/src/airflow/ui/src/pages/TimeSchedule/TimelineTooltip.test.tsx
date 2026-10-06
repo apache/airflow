@@ -21,8 +21,9 @@ import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { TimeScheduleItem } from "openapi/requests/types.gen";
+
 import { TimelineTooltip } from "./TimelineTooltip";
-import type { TimelineItem } from "./types";
 
 vi.mock("src/components/StateIcon", () => ({
   StateIcon: ({ color, state }: { readonly color?: string; readonly state?: string }) => (
@@ -32,24 +33,24 @@ vi.mock("src/components/StateIcon", () => ({
 
 const { translate } = vi.hoisted(() => ({
   translate: (key: string, options?: { count?: number }) =>
-    key === "states.success" ? "Success" : `${options?.count ?? ""} Dag runs`.trim(),
+    key === "states.success" ? "Success" : options?.count === 1 ? "Dag Run" : "Dag Runs",
 }));
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => Object.fromEntries([["t", translate]]),
+  useTranslation: () => ({ ...Object.fromEntries([["t", translate]]), i18n: { language: "en" } }),
 }));
 
-const item: TimelineItem = {
-  dagId: "example_dag",
-  dagRunId: "run-1",
-  durationMs: 60_000,
-  endDate: "2024-01-01T00:01:00Z",
-  isPlaceholder: false,
-  isPlanned: false,
-  isTimeScheduled: true,
-  label: "example_dag",
-  runCount: 1,
-  startDate: "2024-01-01T00:00:00Z",
+const item: TimeScheduleItem = {
+  dag_display_name: "example_dag",
+  dag_id: "example_dag",
+  dag_run_id: "run-1",
+  duration_ms: 60_000,
+  end_date: "2024-01-01T00:01:00Z",
+  is_placeholder: false,
+  is_planned: false,
+  is_time_scheduled: true,
+  run_count: 1,
+  start_date: "2024-01-01T00:00:00Z",
   state: "success",
 };
 
@@ -66,6 +67,6 @@ describe("TimelineTooltip", () => {
     expect(screen.getByTestId("state-icon")).toHaveAttribute("data-state", "success");
     expect(screen.getByText("Success")).toBeInTheDocument();
     expect(screen.getByText("00:00 – 00:01")).toBeInTheDocument();
-    expect(screen.getByText("1 Dag runs")).toBeInTheDocument();
+    expect(screen.getByText("1 Dag Run")).toBeInTheDocument();
   });
 });

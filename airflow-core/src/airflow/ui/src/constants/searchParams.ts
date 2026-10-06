@@ -111,6 +111,7 @@ export enum SearchParamsKeys {
   RUN_STATE = "run_state",
   RUN_TYPE = "run_type",
   SCHEDULING_STATE = "scheduling_state",
+  SHOW_SCHEDULED_ONLY = "show_scheduled_only",
   SORT = "sort",
   SOURCE = "log_source",
   START_DATE = "start_date",

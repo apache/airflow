@@ -2573,6 +2573,14 @@ paths:
           items:
             type: string
           title: State
+      - name: paused
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Paused
       - name: run_after_gte
         in: query
         required: false
@@ -5564,9 +5572,9 @@ components:
         is_time_scheduled:
           type: boolean
           title: Is Time Scheduled
-        label:
+        dag_display_name:
           type: string
-          title: Label
+          title: Dag Display Name
         run_count:
           type: integer
           title: Run Count
@@ -5593,7 +5601,7 @@ components:
       - is_placeholder
       - is_planned
       - is_time_scheduled
-      - label
+      - dag_display_name
       - run_count
       - start_date
       - state

@@ -34,7 +34,7 @@ class TimeScheduleItem(BaseModel):
     is_placeholder: bool
     is_planned: bool
     is_time_scheduled: bool
-    label: str
+    dag_display_name: str
     run_count: int
     start_date: datetime | None
     state: DagRunState | Literal["placeholder", "planned"]

@@ -19,10 +19,18 @@
 export const TIMELINE_HORIZONTAL_PADDING = 40;
 export const WEEK_LABEL_LINE_HEIGHT_PX = 14;
 
-export const TIMELINE_TOOLTIP_CONTENT_PROPS = {
-  bg: "bg.panel",
-  borderColor: "border.emphasized",
-  borderWidth: "1px",
-  boxShadow: "lg",
-  color: "fg",
-} as const;
+export const DAY_MINUTES = 24 * 60;
+export const DAY_DURATION_MS = DAY_MINUTES * 60_000;
+export const DAY_ROW_MIN_HEIGHT_PX = 48;
+export const DAY_LANE_HEIGHT_PX = 20;
+export const DAY_ROW_PADDING_PX = 16;
+export const DAY_LABEL_WIDTH_PX = 220;
+export const DAY_HEADER_HEIGHT_PX = 48;
+export const TIMELINE_MIN_HEIGHT_PX = 420;
+export const WEEK_HEADER_HEIGHT_PX = 40;
+export const WEEK_TIME_LABEL_WIDTH_PX = 56;
+export const WEEK_DAY_MIN_WIDTH_PX = 160;
+export const TIME_SLOT_SIZE_PX = 40;
+export const DAY_GRID_MIN_HEIGHT_PX = 480;
+export const DAY_CONTENT_MIN_HEIGHT_PX = 320;
+export const DAY_GRID_BOTTOM_PADDING_PX = 32;

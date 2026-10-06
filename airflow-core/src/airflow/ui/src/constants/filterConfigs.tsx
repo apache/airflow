@@ -50,6 +50,7 @@ import {
   runStateFromSearchParams,
   runStateToSearchParams,
 } from "src/components/FilterBar/filters/runStateParams";
+import type { FilterValue } from "src/components/FilterBar/types";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 
@@ -479,6 +480,16 @@ export const useFilterConfigs = () => {
       ],
       placeholder: translate("dags:schedulingState.placeholder"),
       type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.SHOW_SCHEDULED_ONLY]: {
+      fromSearchParams: (params: URLSearchParams) =>
+        params.get(SearchParamsKeys.SHOW_SCHEDULED_ONLY) === "true" ? "true" : undefined,
+      icon: <MdSchedule />,
+      label: translate("common:timeSchedule.scheduledDagsOnly"),
+      toSearchParams: (value: FilterValue) => ({
+        [SearchParamsKeys.SHOW_SCHEDULED_ONLY]: value === "true" ? "true" : "false",
+      }),
+      type: FilterTypes.BOOLEAN,
     },
     [SearchParamsKeys.START_DATE_RANGE]: {
       endKey: SearchParamsKeys.START_DATE_LTE,

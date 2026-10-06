@@ -2348,6 +2348,7 @@ export const ensureUseTeamsServiceListTeamsData = (queryClient: QueryClient, { l
 * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.runType
 * @param data.state
+* @param data.paused
 * @param data.runAfterGte
 * @param data.runAfterGt
 * @param data.runAfterLte
@@ -2364,7 +2365,7 @@ export const ensureUseTeamsServiceListTeamsData = (queryClient: QueryClient, { l
 * @returns string NDJSON stream of aggregated Time Schedule batches
 * @throws ApiError
 */
-export const ensureUseTimeScheduleServiceGetTimeScheduleStreamData = (queryClient: QueryClient, { aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }: {
+export const ensureUseTimeScheduleServiceGetTimeScheduleStreamData = (queryClient: QueryClient, { aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, paused, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }: {
   aggregationMode?: "max" | "mean" | "min";
   dagIdPattern?: string;
   durationGt?: number;
@@ -2372,6 +2373,7 @@ export const ensureUseTimeScheduleServiceGetTimeScheduleStreamData = (queryClien
   durationLt?: number;
   durationLte?: number;
   limit?: number;
+  paused?: boolean;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
@@ -2390,4 +2392,4 @@ export const ensureUseTimeScheduleServiceGetTimeScheduleStreamData = (queryClien
   timetableType?: string[];
   timezone?: string;
   viewMode?: "day" | "week";
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseTimeScheduleServiceGetTimeScheduleStreamKeyFn({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }), queryFn: () => TimeScheduleService.getTimeScheduleStream({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseTimeScheduleServiceGetTimeScheduleStreamKeyFn({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, paused, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }), queryFn: () => TimeScheduleService.getTimeScheduleStream({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, paused, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }) });

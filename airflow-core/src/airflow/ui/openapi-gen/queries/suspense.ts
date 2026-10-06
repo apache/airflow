@@ -2348,6 +2348,7 @@ export const useTeamsServiceListTeamsSuspense = <TData = Common.TeamsServiceList
 * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.runType
 * @param data.state
+* @param data.paused
 * @param data.runAfterGte
 * @param data.runAfterGt
 * @param data.runAfterLte
@@ -2364,7 +2365,7 @@ export const useTeamsServiceListTeamsSuspense = <TData = Common.TeamsServiceList
 * @returns string NDJSON stream of aggregated Time Schedule batches
 * @throws ApiError
 */
-export const useTimeScheduleServiceGetTimeScheduleStreamSuspense = <TData = Common.TimeScheduleServiceGetTimeScheduleStreamDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }: {
+export const useTimeScheduleServiceGetTimeScheduleStreamSuspense = <TData = Common.TimeScheduleServiceGetTimeScheduleStreamDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, paused, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }: {
   aggregationMode?: "max" | "mean" | "min";
   dagIdPattern?: string;
   durationGt?: number;
@@ -2372,6 +2373,7 @@ export const useTimeScheduleServiceGetTimeScheduleStreamSuspense = <TData = Comm
   durationLt?: number;
   durationLte?: number;
   limit?: number;
+  paused?: boolean;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
@@ -2390,4 +2392,4 @@ export const useTimeScheduleServiceGetTimeScheduleStreamSuspense = <TData = Comm
   timetableType?: string[];
   timezone?: string;
   viewMode?: "day" | "week";
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTimeScheduleServiceGetTimeScheduleStreamKeyFn({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }, queryKey), queryFn: () => TimeScheduleService.getTimeScheduleStream({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTimeScheduleServiceGetTimeScheduleStreamKeyFn({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, paused, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }, queryKey), queryFn: () => TimeScheduleService.getTimeScheduleStream({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, paused, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }) as TData, ...options });

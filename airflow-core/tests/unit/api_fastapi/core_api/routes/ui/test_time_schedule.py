@@ -22,7 +22,9 @@ from datetime import timedelta
 
 import pendulum
 import pytest
+from sqlalchemy import update
 
+from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -109,6 +111,21 @@ def test_time_schedule_can_include_unscheduled_dags(test_client):
         "manual_tagged",
         "scheduled_tagged",
     }
+
+
+@pytest.mark.parametrize(
+    ("paused", "expected_dag_id"), [(True, "scheduled_tagged"), (False, "scheduled_other")]
+)
+@pytest.mark.usefixtures("time_schedule_dags")
+def test_time_schedule_filters_paused_dags(test_client, session, paused, expected_dag_id):
+    session.execute(update(DagModel).values(is_paused=False))
+    session.execute(update(DagModel).where(DagModel.dag_id == "scheduled_tagged").values(is_paused=True))
+    session.commit()
+
+    response = test_client.get("/time-schedule", params={"paused": str(paused).lower()})
+
+    assert response.status_code == 200
+    assert {item["dag_id"] for item in _get_stream_items(response)} == {expected_dag_id}
 
 
 def test_time_schedule_returns_an_empty_stream_when_there_are_no_dag_runs(test_client):

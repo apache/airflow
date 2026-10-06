@@ -5583,6 +5583,7 @@ export class TimeScheduleService {
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.runType
      * @param data.state
+     * @param data.paused
      * @param data.runAfterGte
      * @param data.runAfterGt
      * @param data.runAfterLte
@@ -5616,6 +5617,7 @@ export class TimeScheduleService {
                 dag_id_pattern: data.dagIdPattern,
                 run_type: data.runType,
                 state: data.state,
+                paused: data.paused,
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,

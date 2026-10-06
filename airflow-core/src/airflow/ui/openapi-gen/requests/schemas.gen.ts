@@ -12524,9 +12524,9 @@ export const $TimeScheduleItem = {
             type: 'boolean',
             title: 'Is Time Scheduled'
         },
-        label: {
+        dag_display_name: {
             type: 'string',
-            title: 'Label'
+            title: 'Dag Display Name'
         },
         run_count: {
             type: 'integer',
@@ -12558,7 +12558,7 @@ export const $TimeScheduleItem = {
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_run_id', 'duration_ms', 'end_date', 'is_placeholder', 'is_planned', 'is_time_scheduled', 'label', 'run_count', 'start_date', 'state'],
+    required: ['dag_id', 'dag_run_id', 'duration_ms', 'end_date', 'is_placeholder', 'is_planned', 'is_time_scheduled', 'dag_display_name', 'run_count', 'start_date', 'state'],
     title: 'TimeScheduleItem',
     description: 'An aggregated bar in the Time Schedule UI.'
 } as const;

@@ -646,8 +646,8 @@ keys while holding Ctrl on Windows and Linux, or Command on macOS.
 
 The Day view zooms the horizontal time axis. The Week view zooms the vertical time axis.
 
-The browser remembers the view, aggregation, Dag run limit, and **Scheduled Dags only** setting. It does not save the
-zoom level.
+The browser remembers the view, aggregation, and Dag run limit. Filters, including **Scheduled Dags only**, are stored
+in the page URL. The zoom level is not saved.
 
 Dag run limit
 '''''''''''''

@@ -1190,7 +1190,7 @@ export const UseTeamsServiceListTeamsKeyFn = ({ limit, offset, orderBy }: {
 export type TimeScheduleServiceGetTimeScheduleStreamDefaultResponse = Awaited<ReturnType<typeof TimeScheduleService.getTimeScheduleStream>>;
 export type TimeScheduleServiceGetTimeScheduleStreamQueryResult<TData = TimeScheduleServiceGetTimeScheduleStreamDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTimeScheduleServiceGetTimeScheduleStreamKey = "TimeScheduleServiceGetTimeScheduleStream";
-export const UseTimeScheduleServiceGetTimeScheduleStreamKeyFn = ({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }: {
+export const UseTimeScheduleServiceGetTimeScheduleStreamKeyFn = ({ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, paused, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }: {
   aggregationMode?: "max" | "mean" | "min";
   dagIdPattern?: string;
   durationGt?: number;
@@ -1198,6 +1198,7 @@ export const UseTimeScheduleServiceGetTimeScheduleStreamKeyFn = ({ aggregationMo
   durationLt?: number;
   durationLte?: number;
   limit?: number;
+  paused?: boolean;
   runAfterGt?: string;
   runAfterGte?: string;
   runAfterLt?: string;
@@ -1216,7 +1217,7 @@ export const UseTimeScheduleServiceGetTimeScheduleStreamKeyFn = ({ aggregationMo
   timetableType?: string[];
   timezone?: string;
   viewMode?: "day" | "week";
-} = {}, queryKey?: Array<unknown>) => [useTimeScheduleServiceGetTimeScheduleStreamKey, ...(queryKey ?? [{ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }])];
+} = {}, queryKey?: Array<unknown>) => [useTimeScheduleServiceGetTimeScheduleStreamKey, ...(queryKey ?? [{ aggregationMode, dagIdPattern, durationGt, durationGte, durationLt, durationLte, limit, paused, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, showScheduledOnly, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, timeScale, timetableType, timezone, viewMode }])];
 export type AssetServiceCreateAssetEventMutationResult = Awaited<ReturnType<typeof AssetService.createAssetEvent>>;
 export type AssetServiceMaterializeAssetMutationResult = Awaited<ReturnType<typeof AssetService.materializeAsset>>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<ReturnType<typeof BackfillService.createBackfill>>;

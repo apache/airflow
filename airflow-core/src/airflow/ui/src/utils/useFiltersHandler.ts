@@ -107,6 +107,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.RUN_STATE
   | SearchParamsKeys.RUN_TYPE
   | SearchParamsKeys.SCHEDULING_STATE
+  | SearchParamsKeys.SHOW_SCHEDULED_ONLY
   | SearchParamsKeys.START_DATE_RANGE
   | SearchParamsKeys.STATE
   | SearchParamsKeys.SUBJECT_SEARCH

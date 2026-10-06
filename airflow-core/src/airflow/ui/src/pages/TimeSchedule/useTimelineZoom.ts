@@ -27,7 +27,11 @@ import {
   type SetStateAction,
 } from "react";
 
-import { TIMELINE_HORIZONTAL_PADDING } from "./constants";
+import { useHotkeys } from "react-hotkeys-hook";
+
+import { getMetaKey } from "src/utils";
+
+import { TIMELINE_HORIZONTAL_PADDING, DAY_MINUTES, TIME_SLOT_SIZE_PX } from "./constants";
 import { buildHourMarkers, buildTimeMarkers } from "./timelineUtils";
 import type { TimeScale, ViewMode, ZoomAnchor } from "./types";
 
@@ -118,7 +122,7 @@ export const useTimelineZoom = (viewMode: ViewMode) => {
   const pendingZoomAnchorRef = useRef<ZoomAnchor | null>(null);
   const timeScaleRef = useRef<TimeScale>(timeScale);
   const timeMarkers = buildTimeMarkers(timeScale);
-  const chartWidth = Math.max(MIN_CHART_WIDTH, ((24 * 60) / timeScale) * 40);
+  const chartWidth = Math.max(MIN_CHART_WIDTH, (DAY_MINUTES / timeScale) * TIME_SLOT_SIZE_PX);
 
   const zoomAtPoint = (nextScale: TimeScale, clientX?: number, clientY?: number) => {
     zoomTimeline({
@@ -150,6 +154,7 @@ export const useTimelineZoom = (viewMode: ViewMode) => {
     lastPointerRef.current = null;
   };
 
+  // Restore the zoom anchor before paint so resizing does not cause a visible scroll jump.
   useLayoutEffect(() => {
     const anchor = pendingZoomAnchorRef.current;
     const viewport = chartBodyRef.current;
@@ -180,6 +185,7 @@ export const useTimelineZoom = (viewMode: ViewMode) => {
     pendingZoomAnchorRef.current = null;
   }, [timeScale, viewMode]);
 
+  // Sync the time/day header's horizontal scroll position with the chart body.
   useEffect(() => {
     const header = viewMode === "week" ? weekHeaderRef.current : headerRowRef.current;
     const viewport = chartBodyRef.current;
@@ -198,6 +204,8 @@ export const useTimelineZoom = (viewMode: ViewMode) => {
     return () => viewport.removeEventListener("scroll", syncHeaderScroll);
   }, [viewMode]);
 
+  // Measure tick spacing before paint to avoid briefly showing overlapping labels after zooming.
+  // ResizeObserver keeps the spacing up to date when the viewport width changes.
   useLayoutEffect(() => {
     setTimeLabelStep(1);
     const header = headerRowRef.current;
@@ -224,6 +232,23 @@ export const useTimelineZoom = (viewMode: ViewMode) => {
     return () => observer.disconnect();
   }, [chartWidth, timeMarkers.length, timeScale, viewMode]);
 
+  // Zoom in/out with Ctrl/Meta + Up/Down while focus is within the timeline, using finer zoom steps.
+  useHotkeys(
+    ["ctrl+up", "meta+up", "ctrl+down", "meta+down"],
+    (event) => {
+      zoomAtPoint(
+        getNextScale(timeScaleRef.current, event.key === "ArrowUp" ? "in" : "out", FINE_ZOOM_STEPS),
+      );
+    },
+    {
+      enabled: (event) =>
+        event.target instanceof Node && Boolean(chartRootRef.current?.contains(event.target)),
+      preventDefault: true,
+    },
+    [viewMode],
+  );
+
+  // Zoom around the pointer on Ctrl/Meta-wheel and preserve the Day view's vertical scroll position.
   useEffect(() => {
     const chartRoot = chartRootRef.current;
     const chartBody = chartBodyRef.current;
@@ -234,7 +259,7 @@ export const useTimelineZoom = (viewMode: ViewMode) => {
 
     const isZoomTarget = (target: EventTarget | null) =>
       target instanceof HTMLElement && chartRoot.contains(target);
-    const isMacPlatform = /Mac|iPhone|iPad|iPod/iu.test(navigator.userAgent);
+    const isMacPlatform = getMetaKey() === "⌘";
 
     const handleWheel = (event: WheelEvent) => {
       if (!isZoomTarget(event.target) || !(event.ctrlKey || event.metaKey)) {
@@ -271,40 +296,10 @@ export const useTimelineZoom = (viewMode: ViewMode) => {
       });
     };
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        !isZoomTarget(event.target) ||
-        !(event.ctrlKey || event.metaKey) ||
-        !["ArrowDown", "ArrowUp"].includes(event.key)
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      zoomTimeline({
-        chartBodyRef,
-        clientX: lastPointerRef.current?.x,
-        clientY: lastPointerRef.current?.y,
-        lastPointerRef,
-        nextScale: getNextScale(
-          timeScaleRef.current,
-          event.key === "ArrowUp" ? "in" : "out",
-          FINE_ZOOM_STEPS,
-        ),
-        pendingZoomAnchorRef,
-        setTimeScale,
-        timeScaleRef,
-        viewMode,
-      });
-    };
-
     globalThis.addEventListener("wheel", handleWheel, { capture: true, passive: false });
-    globalThis.addEventListener("keydown", handleKeyDown, { capture: true });
 
     return () => {
       globalThis.removeEventListener("wheel", handleWheel, { capture: true });
-      globalThis.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
   }, [viewMode]);
 

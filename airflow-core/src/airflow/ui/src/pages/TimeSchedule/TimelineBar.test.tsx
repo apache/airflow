@@ -24,13 +24,15 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
+import type { TimeScheduleItem } from "openapi/requests/types.gen";
+
 import { TimelineBar } from "./TimelineBar";
-import type { TimelineItem } from "./types";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
-    t: (key: string) => key.replace("states.", ""),
+    t: (key: string) => (key === "dagRun" ? "Dag Run" : key.replace("states.", "")),
   }),
 }));
 
@@ -50,42 +52,36 @@ vi.mock("src/system-components", () => ({
   Tooltip: ({ children }: { readonly children: ReactNode }) => children,
 }));
 
-const item: TimelineItem = {
-  dagId: "example_dag",
-  dagRunId: "run-1",
-  durationMs: 60_000,
-  endDate: "2024-01-01T00:01:00Z",
-  isPlaceholder: false,
-  isPlanned: false,
-  isTimeScheduled: true,
-  label: "example_dag",
-  runCount: 1,
-  startDate: "2024-01-01T00:00:00Z",
+const item: TimeScheduleItem = {
+  dag_display_name: "example_dag",
+  dag_id: "example_dag",
+  dag_run_id: "run-1",
+  duration_ms: 60_000,
+  end_date: "2024-01-01T00:01:00Z",
+  is_placeholder: false,
+  is_planned: false,
+  is_time_scheduled: true,
+  run_count: 1,
+  start_date: "2024-01-01T00:00:00Z",
   state: "success",
 };
 
-const stateIconCases: Array<readonly [TimelineItem["state"], string]> = [
+const stateIconCases: Array<readonly [TimeScheduleItem["state"], string]> = [
   ["success", "success"],
   ["failed", "failed"],
   ["planned", "scheduled"],
   ["placeholder", "none"],
 ];
 
-const renderTimelineBar = (
-  overrides: Partial<TimelineItem> = {},
-  showDagLabel = false,
-  labelLineClamp?: number,
-) =>
+const renderTimelineBar = (overrides: Partial<TimeScheduleItem> = {}) =>
   render(
     <ChakraProvider value={defaultSystem}>
       <MemoryRouter>
         <TimelineBar
           height="12px"
           item={{ ...item, ...overrides }}
-          labelLineClamp={labelLineClamp}
           left="0"
           renderTooltip={() => null}
-          showDagLabel={showDagLabel}
           testId="timeline-bar"
           width="64px"
         />
@@ -94,10 +90,27 @@ const renderTimelineBar = (
   );
 
 describe("TimelineBar", () => {
+  it.each([
+    [54_000, "54s"],
+    [60_000, "1m"],
+    [6 * 60_000 + 54_000, "6m"],
+    [3_600_000 + 54_000, "1h"],
+    [3_600_000 + 2 * 60_000 + 10_000, "1h 2m"],
+  ])("formats %s ms without seconds at or above one minute", (durationMs, label) => {
+    renderTimelineBar({ duration_ms: durationMs });
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it("paints the full time-proportional width for a planned bar without external padding", () => {
+    renderTimelineBar({ duration_ms: 3_600_000, is_planned: true, state: "planned" });
+
+    expect(screen.getByTestId("timeline-bar")).toHaveStyle({ paddingInline: "0", width: "64px" });
+  });
   it.each(stateIconCases)("renders the %s state icon", (state, expectedIconState) => {
     renderTimelineBar({
-      isPlaceholder: state === "placeholder",
-      isPlanned: state === "planned",
+      is_placeholder: state === "placeholder",
+      is_planned: state === "planned",
       state,
     });
 
@@ -108,7 +121,7 @@ describe("TimelineBar", () => {
     renderTimelineBar();
 
     expect(screen.getByTestId("state-icon")).toHaveAttribute("data-color", "currentColor");
-    expect(screen.getByRole("link", { name: "View Dag run run-1: success" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "example_dag: success, 1 Dag Run" })).toHaveAttribute(
       "href",
       "/dags/example_dag/runs/run-1",
     );

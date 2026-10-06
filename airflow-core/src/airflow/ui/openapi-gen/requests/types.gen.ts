@@ -3235,7 +3235,7 @@ export type TimeScheduleItem = {
     is_placeholder: boolean;
     is_planned: boolean;
     is_time_scheduled: boolean;
-    label: string;
+    dag_display_name: string;
     run_count: number;
     start_date: string | null;
     state: DagRunState | 'placeholder' | 'planned';
@@ -5344,6 +5344,7 @@ export type GetTimeScheduleStreamData = {
     durationLt?: number | null;
     durationLte?: number | null;
     limit?: number;
+    paused?: boolean | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;

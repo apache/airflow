@@ -19,38 +19,34 @@
 import { HStack, Separator, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import type { TimeScheduleItem } from "openapi/requests/types.gen";
+
 import { StateIcon } from "src/components/StateIcon";
 
-import { dayjs } from "./dateUtils";
+import { useDurationFormat } from "src/utils";
+import { formatDate } from "src/utils/datetimeUtils";
+
 import { getTimelineItemIconState } from "./timelineUtils";
-import type { TimelineItem } from "./types";
 
 type TimelineTooltipProps = {
-  readonly item: TimelineItem;
+  readonly item: TimeScheduleItem;
   readonly selectedTimezone: string;
 };
 
 const formatTime = (datetime: string | null, selectedTimezone: string) =>
-  datetime === null ? "—" : dayjs(datetime).tz(selectedTimezone).format("HH:mm");
+  datetime === null ? "—" : formatDate(datetime, selectedTimezone, "HH:mm");
 
 export const TimelineTooltip = ({ item, selectedTimezone }: TimelineTooltipProps) => {
   const { t: translate } = useTranslation();
-  const startTime = formatTime(item.startDate, selectedTimezone);
+  const { renderDuration } = useDurationFormat();
+  const startTime = formatTime(item.start_date, selectedTimezone);
   const iconState = getTimelineItemIconState(item);
   const state = iconState ?? item.state;
 
   return (
-    <VStack
-      align="start"
-      color="fg"
-      data-testid="time-schedule-tooltip"
-      gap={1}
-      lineHeight="short"
-      maxWidth="240px"
-      p={2}
-    >
+    <VStack align="start" data-testid="time-schedule-tooltip" gap={1} lineHeight="short" maxWidth="xs">
       <Text fontSize="sm" fontWeight="semibold">
-        {item.label}
+        {item.dag_display_name}
       </Text>
       <Separator
         borderColor="currentColor"
@@ -66,13 +62,16 @@ export const TimelineTooltip = ({ item, selectedTimezone }: TimelineTooltipProps
         </Text>
       </HStack>
       <Text fontSize="xs">
-        {item.isPlanned
-          ? translate("timeSchedule.nextRun", { time: startTime })
-          : `${startTime} – ${formatTime(item.endDate, selectedTimezone)}`}
+        {item.is_planned
+          ? `${translate("dagDetails.nextRun")}: ${startTime}`
+          : `${startTime} – ${formatTime(item.end_date, selectedTimezone)}`}
       </Text>
-      {!item.isPlanned && !item.isPlaceholder ? (
-        <Text fontSize="xs">{translate("timeSchedule.dagRuns", { count: item.runCount })}</Text>
+      {!item.is_planned && !item.is_placeholder ? (
+        <Text fontSize="xs">
+          {item.run_count} {translate("dagRun", { count: item.run_count })}
+        </Text>
       ) : undefined}
+      {item.duration_ms > 0 ? <Text fontSize="xs">{renderDuration(item.duration_ms / 1000)}</Text> : null}
     </VStack>
   );
 };

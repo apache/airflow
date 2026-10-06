@@ -19,15 +19,24 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
 
 import { Box, Button, Text } from "@chakra-ui/react";
+import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiArrowDown, FiArrowUp } from "react-icons/fi";
+
+import type { TimeScheduleItem } from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
 
 import { TimelineBar } from "./TimelineBar";
-import { dayjs } from "./dateUtils";
+import {
+  DAY_LABEL_WIDTH_PX,
+  DAY_HEADER_HEIGHT_PX,
+  TIMELINE_HORIZONTAL_PADDING,
+  TIMELINE_MIN_HEIGHT_PX,
+  DAY_LANE_HEIGHT_PX,
+} from "./constants";
 import { getPosition, getTimelineBarLeft, getVisualDurationWidth } from "./timelineUtils";
-import type { DayRowLayout, RowSortMode, TimeMarker, TimelineItem } from "./types";
+import type { DayRowLayout, RowSortMode, TimeMarker } from "./types";
 
 type DayTimelineProps = {
   readonly chartBodyRef: RefObject<HTMLDivElement | null>;
@@ -41,7 +50,7 @@ type DayTimelineProps = {
   readonly onCycleSort: () => void;
   readonly onMouseLeave: () => void;
   readonly onMouseMove: (event: ReactMouseEvent<HTMLDivElement>) => void;
-  readonly renderTooltip: (item: TimelineItem) => ReactNode;
+  readonly renderTooltip: (item: TimeScheduleItem) => ReactNode;
   readonly rowSortMode: RowSortMode;
   readonly scrollRegionRef: RefObject<HTMLDivElement | null>;
   readonly selectedTimezone: string;
@@ -70,7 +79,7 @@ export const DayTimeline = ({
   timelineMinWidth,
   timeMarkers,
 }: DayTimelineProps) => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
 
   return (
     <Box
@@ -79,11 +88,11 @@ export const DayTimeline = ({
       borderWidth="1px"
       data-testid="time-schedule-day-grid"
       height={chartViewportHeight}
-      minHeight="420px"
+      minHeight={`${TIMELINE_MIN_HEIGHT_PX}px`}
       overflow="hidden"
     >
       <Box position="sticky" top={0} zIndex={5}>
-        <Box display="grid" gridTemplateColumns="220px minmax(0, 1fr)">
+        <Box display="grid" gridTemplateColumns={`${DAY_LABEL_WIDTH_PX}px minmax(0, 1fr)`}>
           <Box bg="bg.subtle" borderBottomColor="border.subtle" borderBottomWidth="1px" p={3}>
             <Button
               aria-label={`Sort Dag ID: ${rowSortMode}`}
@@ -105,7 +114,7 @@ export const DayTimeline = ({
             borderBottomColor="border.subtle"
             borderBottomWidth="1px"
             data-testid="time-schedule-header-row"
-            minHeight="48px"
+            minHeight={`${DAY_HEADER_HEIGHT_PX}px`}
             onMouseDown={() => chartRootRef.current?.focus({ preventScroll: true })}
             onMouseLeave={onMouseLeave}
             onMouseMove={onMouseMove}
@@ -116,9 +125,9 @@ export const DayTimeline = ({
             <Box
               height="24px"
               minWidth={timelineMinWidth}
-              mx="20px"
+              mx={`${TIMELINE_HORIZONTAL_PADDING / 2}px`}
               position="relative"
-              width="calc(100% - 40px)"
+              width={`calc(100% - ${TIMELINE_HORIZONTAL_PADDING}px)`}
             >
               {timeMarkers.map(({ label, minute, position }, index) =>
                 index === 0 || index === timeMarkers.length - 1 || index % timeLabelStep === 0 ? (
@@ -143,13 +152,13 @@ export const DayTimeline = ({
       </Box>
       <Box
         data-testid="time-schedule-scroll-region"
-        height="calc(100% - 48px)"
+        height={`calc(100% - ${DAY_HEADER_HEIGHT_PX}px)`}
         minHeight={0}
         overflowX="hidden"
         overflowY="auto"
         ref={scrollRegionRef}
       >
-        <Box display="grid" gridTemplateColumns="220px minmax(0, 1fr)">
+        <Box display="grid" gridTemplateColumns={`${DAY_LABEL_WIDTH_PX}px minmax(0, 1fr)`}>
           <Box
             bg="bg.subtle"
             borderRightColor="border.subtle"
@@ -163,10 +172,10 @@ export const DayTimeline = ({
                 borderBottomWidth="1px"
                 display="flex"
                 height={`${height}px`}
-                key={row.dagId}
+                key={row.dag_id}
                 p={3}
               >
-                <RouterLink style={{ minWidth: 0, width: "100%" }} to={`/dags/${row.dagId}`}>
+                <RouterLink style={{ minWidth: 0, width: "100%" }} to={`/dags/${row.dag_id}`}>
                   <Text
                     display="block"
                     fontSize="sm"
@@ -175,7 +184,7 @@ export const DayTimeline = ({
                     textOverflow="ellipsis"
                     whiteSpace="nowrap"
                   >
-                    {row.label}
+                    {row.dag_display_name}
                   </Text>
                 </RouterLink>
               </Box>
@@ -192,7 +201,12 @@ export const DayTimeline = ({
             ref={chartBodyRef}
           >
             <Box minHeight={`${chartContentHeight}px`} minWidth={chartMinWidth} position="relative">
-              <Box height={`${chartContentHeight}px`} mx="20px" position="relative" pt={2}>
+              <Box
+                height={`${chartContentHeight}px`}
+                mx={`${TIMELINE_HORIZONTAL_PADDING / 2}px`}
+                position="relative"
+                pt={2}
+              >
                 {hourMarkers.map(({ minute, position }) => (
                   <Box data-testid={`time-schedule-grid-line-${minute}`} key={minute}>
                     <Box
@@ -208,27 +222,28 @@ export const DayTimeline = ({
                 ))}
                 {layouts.flatMap(({ items, top }) =>
                   items.map(({ item, lane }) => {
-                    const start = item.startDate === null ? null : dayjs(item.startDate).tz(selectedTimezone);
-                    const end = item.endDate === null ? start : dayjs(item.endDate).tz(selectedTimezone);
+                    const start =
+                      item.start_date === null ? null : dayjs(item.start_date).tz(selectedTimezone);
+                    const end = item.end_date === null ? start : dayjs(item.end_date).tz(selectedTimezone);
                     const dayStart = start?.startOf("day");
                     const startPosition = start && dayStart ? getPosition(start, dayStart) : 0;
                     const endPosition = end && dayStart ? getPosition(end, dayStart) : startPosition;
-                    const barWidth = getVisualDurationWidth(item.durationMs);
+                    const barWidth = getVisualDurationWidth(item.duration_ms, i18n.language);
 
                     return (
                       <Box
-                        key={`${item.dagId}-${item.dagRunId}`}
+                        key={`${item.dag_id}-${item.dag_run_id}`}
                         left={0}
                         position="absolute"
                         right={0}
-                        top={`${top + lane * 20 + 16}px`}
+                        top={`${top + lane * DAY_LANE_HEIGHT_PX + 16}px`}
                       >
                         <TimelineBar
                           height="12px"
                           item={item}
                           left={getTimelineBarLeft(Math.min(startPosition, endPosition), barWidth)}
                           renderTooltip={renderTooltip}
-                          testId={`time-schedule-run-bar-${item.dagRunId}`}
+                          testId={`time-schedule-run-bar-${item.dag_run_id}`}
                           width={barWidth}
                         />
                       </Box>
