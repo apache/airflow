@@ -125,6 +125,10 @@ interface Deps {
    * `transform(extract(), lit(0.9))`. It is passed to the task as a constant
    * and creates no dependency edge.
    *
+   * The Dag's call arguments travel to Airflow as JSON, so the value has to be
+   * a string, number, boolean, list, or map; anything else fails when the Dag
+   * is parsed.
+   *
    * @param value Constant to bind; may be null for a nullable parameter.
    */
   fun <T> lit(value: T?): Arg<T> = Arg.lit(value)

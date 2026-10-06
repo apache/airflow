@@ -362,11 +362,15 @@ class BuilderProcessor : AbstractProcessor() {
     if (decl.dataParams.isEmpty()) {
       method.addStatement($$"return $T.node($L, $L)", REFS_TYPE, group, def)
     } else {
+      // The parameter names ride along so the serialized Dag can name each
+      // argument, as the binding spec ADR-0007 defines requires.
       method.addStatement(
-        $$"return $T.call($L, $L, $L)",
+        $$"return $T.call($L, $L, $T.of($L), $L)",
         REFS_TYPE,
         group,
         def,
+        LIST_TYPE,
+        CodeBlock.join(decl.dataParams.map { CodeBlock.of($$"$S", it.name) }, ", "),
         decl.dataParams.joinToString { it.name },
       )
     }

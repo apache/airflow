@@ -675,7 +675,9 @@ generated view, with a no-argument ``depends()`` method:
 
 Every ``@Builder.Task`` method must be called in the wiring class; a task the wiring missed fails at
 Dag-parse time.  ``lit(...)`` wires an inline constant where no upstream feeds a parameter.  A bare
-``double`` cannot be an ``Arg``, so a constant is wrapped.  A view method that takes no arguments
+``double`` cannot be an ``Arg``, so a constant is wrapped.  Airflow records what each task is called
+with, and that record travels as JSON, so a constant has to be a string, number, boolean, list or
+map.  A view method that takes no arguments
 returns the same handle every time, so it names one node wherever it appears; one that takes
 arguments is called once, and the wiring fails if it is called again with arguments, so hold its
 handle in a local and reuse that.

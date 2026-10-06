@@ -92,14 +92,16 @@ object Refs {
   fun <T> node(
     groupId: String,
     def: TaskDef,
-  ): TaskRef<T> = call(groupId, def)
+  ): TaskRef<T> = call(groupId, def, emptyList())
 
   /**
-   * Records a task and the data edge for every [TaskRef] among [args]; a
-   * literal argument records a baked value and no edge.
+   * Records a task called with named arguments, as a generated wiring view
+   * does. [names] is the task parameter each argument feeds, in the same
+   * order, and is what the serialized Dag carries as the task's binding spec.
    *
    * @param groupId Full ID of the task group holding it, empty when it sits in
-   *    none.
+   *    none. The generated wiring view knows which it is.
+   *
    * @return The handle representing this task, memoized by [TaskDef.id] so a result
    *    held in a local and reused refers to one node.
    * @throws IllegalArgumentException if an argument is a raw Java `null`
@@ -110,8 +112,12 @@ object Refs {
   fun <T> call(
     groupId: String,
     def: TaskDef,
+    names: List<String>,
     vararg args: Arg<*>?,
   ): TaskRef<T> {
+    require(names.isEmpty() || names.size == args.size) {
+      "Task '${def.id}' was wired with ${args.size} argument(s) under ${names.size} name(s)"
+    }
     val inputs =
       args.mapIndexed { i, arg ->
         requireNotNull(arg) {
@@ -131,6 +137,7 @@ object Refs {
     }
     inputs.filterIsInstance<TaskRef<*>>().forEach { def.dependsOn(it.def) }
     def.inputs += inputs
+    def.inputNames += names
     if (groupId.isEmpty()) {
       active.dag.addTask(def)
     } else {

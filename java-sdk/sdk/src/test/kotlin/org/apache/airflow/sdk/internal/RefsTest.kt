@@ -54,7 +54,7 @@ internal class RefsTest {
     val dag = DagDef("d")
     Refs.record(dag, listOf("p", "c"), emptyList()) {
       val producer = Refs.node<Long>("", TaskDef("p", NoopRefTask::class.java))
-      Refs.call<Unit>("", TaskDef("c", NoopRefTask::class.java), producer, Arg.lit(5))
+      Refs.call<Unit>("", TaskDef("c", NoopRefTask::class.java), emptyList(), producer, Arg.lit(5))
     }
 
     val consumerDef = dag.tasks.getValue("c")
@@ -126,7 +126,7 @@ internal class RefsTest {
     val error =
       assertThrows(IllegalArgumentException::class.java) {
         Refs.record(DagDef("d"), listOf("t"), emptyList()) {
-          Refs.call<Unit>("", TaskDef("t", NoopRefTask::class.java), Arg.lit(1), null)
+          Refs.call<Unit>("", TaskDef("t", NoopRefTask::class.java), emptyList(), Arg.lit(1), null)
         }
       }
 
@@ -140,7 +140,7 @@ internal class RefsTest {
       assertThrows(IllegalArgumentException::class.java) {
         Refs.record(DagDef("d"), listOf("t"), emptyList()) {
           Refs.node<Unit>("", TaskDef("t", NoopRefTask::class.java))
-          Refs.call<Unit>("", TaskDef("t", NoopRefTask::class.java), Arg.lit(1))
+          Refs.call<Unit>("", TaskDef("t", NoopRefTask::class.java), emptyList(), Arg.lit(1))
         }
       }
 

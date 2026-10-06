@@ -19,6 +19,7 @@
 
 package org.apache.airflow.sdk.execution
 
+import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
@@ -238,15 +239,62 @@ internal class SerdeTest {
   @DisplayName("Should serialize wiring-registered dags with their data-flow edges")
   fun shouldSerializeWiredDag() {
     val dag = DagDef("d")
-    Refs.record(dag, listOf("extract", "transform")) {
-      val extracted = Refs.node<Long>(TaskDef("extract", SerdeNoopTask::class.java))
-      Refs.call<Unit>(TaskDef("transform", SerdeNoopTask::class.java), extracted)
+    Refs.record(dag, listOf("extract", "transform"), emptyList()) {
+      val extracted = Refs.node<Long>("", TaskDef("extract", SerdeNoopTask::class.java))
+      Refs.call<Unit>("", TaskDef("transform", SerdeNoopTask::class.java), listOf("rows"), extracted)
     }
 
     val serialized = serializeDag(dag, "", ".")
 
     assertEquals(listOf("transform"), taskData(serialized, 0)["downstream_task_ids"])
-    assertFalse("_arg_bindings" in taskData(serialized, 1))
+    assertEquals(
+      listOf(mapOf("name" to "rows", "kind" to "xcom", "task_id" to "extract")),
+      taskData(serialized, 1)["_arg_bindings"],
+    )
+    assertEquals(true, taskData(serialized, 1)["is_stub"])
+  }
+
+  @Test
+  @DisplayName("Should bind a wired literal as a literal argument binding")
+  fun shouldSerializeLiteralArgBinding() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("transform"), emptyList()) {
+      Refs.call<Unit>("", TaskDef("transform", SerdeNoopTask::class.java), listOf("region"), Arg.lit("uk"))
+    }
+
+    val serialized = serializeDag(dag, "", ".")
+
+    assertEquals(
+      listOf(mapOf("name" to "region", "kind" to "literal", "value" to "uk")),
+      taskData(serialized, 0)["_arg_bindings"],
+    )
+  }
+
+  @Test
+  @DisplayName("Should leave out the binding spec of a task called with no arguments")
+  fun shouldOmitArgBindingsWithoutArguments() {
+    val serialized =
+      serializeDag(DagDef("d").addTask(TaskDef("t", SerdeNoopTask::class.java)), "", ".")
+
+    assertFalse("_arg_bindings" in taskData(serialized, 0))
+    assertEquals(true, taskData(serialized, 0)["is_stub"])
+  }
+
+  @Test
+  @DisplayName("Should reject a wired literal that has no JSON form")
+  fun shouldRejectNonJsonLiteral() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("t"), emptyList()) {
+      Refs.call<Unit>("", TaskDef("t", SerdeNoopTask::class.java), listOf("at"), Arg.lit(Duration.ofSeconds(5)))
+    }
+
+    val error = assertThrows(IllegalArgumentException::class.java) { serializeDag(dag, "", ".") }
+
+    assertEquals(
+      "Argument 'at' of task 't' is a java.time.Duration, which has no JSON form; the Dag's call " +
+        "arguments travel as JSON, so pass a string, number, boolean, list, or map",
+      error.message,
+    )
   }
 
   @Test

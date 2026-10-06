@@ -22,8 +22,12 @@ package org.apache.airflow.sdk.execution
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.GroupEdges
+import org.apache.airflow.sdk.GroupExpansion
+import org.apache.airflow.sdk.LiteralArg
 import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.TaskGroupRef
+import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.execution.comm.DagFileParseRequest
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.SchemaFields
@@ -81,11 +85,13 @@ internal fun serializeDag(
   fileloc: String,
   relativeFileloc: String,
 ): Map<String, Any?> {
-  dag.expandGroupEdges()
+  // Group edges mean tasks only once the Dag is complete, so they are worked
+  // out here rather than carried on the groups themselves.
+  val expansion = dag.expandGroupEdges()
   val downstream = linkedMapOf<String, MutableList<String>>()
   dag.tasks.forEach { (taskId, def) ->
-    def.upstreams.forEach { upstream ->
-      downstream.getOrPut(upstream.id) { mutableListOf() } += taskId
+    expansion.upstreamsOf(def).forEach { upstream ->
+      downstream.getOrPut(upstream) { mutableListOf() } += taskId
     }
   }
 
@@ -98,7 +104,7 @@ internal fun serializeDag(
       "timetable" to serializeTimetable(dag.id, dag.dagConfig),
       "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId]) },
       "dag_dependencies" to emptyList<Any?>(),
-      "task_group" to serializeTaskGroups(dag),
+      "task_group" to serializeTaskGroups(dag, expansion),
       "edge_info" to emptyMap<String, Any?>(),
       "params" to emptyList<Any?>(),
       "deadline" to null,
@@ -111,11 +117,6 @@ internal fun serializeDag(
 /**
  * Converts one task to the Airflow serialization format. `downstream` is the
  * inverted view of the Dag's upstream edges, sorted for stable JSON.
- *
- * Native Java tasks deliberately emit no `_arg_bindings`: the execution API
- * delivers bindings only for Python `_StubOperator` tasks, and a Java task
- * always executes inside the JVM bundle that already holds its wired inputs,
- * so the runtime resolves them locally.
  */
 private fun serializeTask(
   taskId: String,
@@ -132,7 +133,12 @@ private fun serializeTask(
       // value never matches the tuple default it is compared against), so it
       // is unconditional here too. Java tasks have no template fields.
       "template_fields" to emptyList<Any?>(),
+      // What marks a task whose arguments Airflow resolves per instance for a
+      // runtime outside Python, as `@task.stub` does on the Python side.
+      // `get_arg_bindings` reads nothing without it.
+      "is_stub" to true,
     )
+  argBindings(taskId, def)?.let { data["_arg_bindings"] = it }
   // Emit only config entries that differ from their schema default, mirroring
   // Python BaseSerialization's "omit hard-coded default" behavior. Operator
   // fields are stored unwrapped, so the __type encoding is stripped.
@@ -149,6 +155,74 @@ private fun serializeTask(
     "__var" to data,
   )
 }
+
+/**
+ * The task's arguments as the binding spec Airflow records, one entry per
+ * argument in the order the Dag's call passed them, as
+ * [ADR-0007](../../adr/lang-sdk/0007-taskflow-across-language-boundary.md)
+ * defines it.
+ *
+ * An upstream's handle becomes an `xcom` binding naming that task, and
+ * anything else a `literal` carrying the value. `value_schema` is left out: it
+ * constrains the decode side, and a Java task decodes into the type its own
+ * parameter declares.
+ *
+ * A Java task reads its arguments from the Dag in its own bundle rather than
+ * from this spec, so what it carries is what Airflow shows and what a change
+ * to an argument is seen in.
+ *
+ * Null for a task the Dag called with no arguments, which needs no spec.
+ */
+private fun argBindings(
+  taskId: String,
+  def: TaskDef,
+): List<Map<String, Any?>>? {
+  // A Dag wired by hand through Refs names no argument, and a spec without
+  // names binds nothing, so it is left out rather than written half-filled.
+  if (def.inputNames.size != def.inputs.size || def.inputs.isEmpty()) return null
+  return def.inputNames.zip(def.inputs) { name, input ->
+    when (input) {
+      is TaskRef<*> -> mapOf("name" to name, "kind" to "xcom", "task_id" to input.def.id)
+      is LiteralArg<*> ->
+        mapOf("name" to name, "kind" to "literal", "value" to plainJson(input.value, name, taskId))
+    }
+  }
+}
+
+/**
+ * [value] as the JSON the binding spec travels as, rejecting anything that has
+ * no JSON form.
+ *
+ * The spec is part of the serialized Dag, so a literal Airflow cannot store is
+ * refused where the Dag is written rather than where the task reads it.
+ */
+private fun plainJson(
+  value: Any?,
+  name: String,
+  taskId: String,
+): Any? =
+  when (value) {
+    null, is String, is Boolean -> value
+    is Double ->
+      value.takeIf { it.isFinite() }
+        ?: throw IllegalArgumentException(
+          "Argument '$name' of task '$taskId' is $value, which JSON has no form for; pass it as a string",
+        )
+    is Float -> plainJson(value.toDouble(), name, taskId)
+    is Int, is Long, is Short, is Byte -> value
+    is Collection<*> -> value.map { plainJson(it, name, taskId) }
+    is Array<*> -> value.map { plainJson(it, name, taskId) }
+    is Map<*, *> ->
+      value.entries.associate { (key, entry) ->
+        require(key is String) { "Argument '$name' of task '$taskId' has a map key that is not a string" }
+        key to plainJson(entry, name, taskId)
+      }
+    else ->
+      throw IllegalArgumentException(
+        "Argument '$name' of task '$taskId' is a ${value.javaClass.name}, which has no JSON form; the " +
+          "Dag's call arguments travel as JSON, so pass a string, number, boolean, list, or map",
+      )
+  }
 
 /**
  * Writes Dag-level config onto [data], leaving out every field the Dag did
@@ -267,12 +341,16 @@ private fun isCronExpression(expression: String): Boolean {
  * a root group holding the tasks in no group and the top-level groups, each
  * group nesting its own tasks and groups.
  */
-private fun serializeTaskGroups(dag: DagDef): Map<String, Any?> {
+private fun serializeTaskGroups(
+  dag: DagDef,
+  expansion: GroupExpansion,
+): Map<String, Any?> {
   val grouped = dag.groups.values.flatMapTo(mutableSetOf()) { it.taskIds }
   return taskGroupObject(
     null,
     dag.tasks.keys.filterNot { it in grouped },
     dag.groups.values.filterNot { '.' in it.id },
+    expansion,
   )
 }
 
@@ -281,6 +359,7 @@ private fun taskGroupObject(
   group: TaskGroupRef?,
   taskIds: List<String>,
   children: List<TaskGroupRef>,
+  expansion: GroupExpansion,
 ): Map<String, Any?> =
   mapOf(
     // The local segment: Python's TaskGroup stores the ID it was given, and
@@ -293,12 +372,17 @@ private fun taskGroupObject(
     "ui_fgcolor" to "#000",
     "children" to
       taskIds.associateWith { listOf("operator", it) } +
-      children.associate { it.id to listOf("taskgroup", taskGroupObject(it, it.taskIds, it.children)) },
-    "upstream_group_ids" to group?.upstreamGroupIds.orEmpty().sorted(),
-    "downstream_group_ids" to group?.downstreamGroupIds.orEmpty().sorted(),
-    "upstream_task_ids" to group?.upstreamTaskIds.orEmpty().sorted(),
-    "downstream_task_ids" to group?.downstreamTaskIds.orEmpty().sorted(),
+      children.associate {
+        it.id to listOf("taskgroup", taskGroupObject(it, it.taskIds, it.children, expansion))
+      },
+    "upstream_group_ids" to group.edges(expansion).upstreamGroupIds.sorted(),
+    "downstream_group_ids" to group.edges(expansion).downstreamGroupIds.sorted(),
+    "upstream_task_ids" to group.edges(expansion).upstreamTaskIds.sorted(),
+    "downstream_task_ids" to group.edges(expansion).downstreamTaskIds.sorted(),
   )
+
+/** The edges this group records for itself; the root group records none. */
+private fun TaskGroupRef?.edges(expansion: GroupExpansion): GroupEdges = this?.let { expansion.edgesOf(it.id) } ?: GroupEdges()
 
 /**
  * Recursively serializes a value with Airflow's type/var encoding, matching
