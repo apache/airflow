@@ -1678,6 +1678,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_at_max_active_runs": False,
             "is_backfillable": False,
             "is_favorite": False,
             "is_paused": False,
@@ -1833,6 +1834,85 @@ class TestDagDetails(TestDagEndpoint):
         assert "active_runs_count" in body
         assert isinstance(body["active_runs_count"], int)
         assert body["active_runs_count"] == 0
+
+    def test_dag_details_includes_is_at_max_active_runs(self, session, test_client):
+        """is_at_max_active_runs is computed fresh from real DagRuns, not a stale cached column."""
+        dag_model = session.get(DagModel, DAG2_ID)
+        dag_model.max_active_runs = 1
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="is_at_max_active_runs_running",
+                logical_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["is_at_max_active_runs"] is True
+
+        # Test with a DAG that has not hit its max_active_runs
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["is_at_max_active_runs"] is False
+
+    def test_dag_details_is_at_max_active_runs_counts_queued_runs_too(self, session, test_client):
+        """A queued (non-backfill) run counts toward is_at_max_active_runs even with 0 running."""
+        dag_model = session.get(DagModel, DAG2_ID)
+        dag_model.max_active_runs = 1
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="is_at_max_active_runs_queued",
+                logical_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.QUEUED,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["active_runs_count"] == 0
+        assert body["is_at_max_active_runs"] is True
+
+    def test_dag_details_is_at_max_active_runs_excludes_backfill_runs(self, session, test_client):
+        """A running backfill run doesn't count toward the Dag's own is_at_max_active_runs."""
+        dag_model = session.get(DagModel, DAG2_ID)
+        dag_model.max_active_runs = 1
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="is_at_max_active_runs_backfill_running",
+                logical_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.BACKFILL_JOB,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        # active_runs_count includes the backfill run; is_at_max_active_runs excludes it.
+        assert body["active_runs_count"] == 1
+        assert body["is_at_max_active_runs"] is False
 
     def test_dag_details_team_name_none_without_multi_team(self, test_client):
         """Without multi-team enabled, ``team_name`` stays ``None`` and no lookup happens."""
