@@ -461,30 +461,10 @@ class BoatSandboxBackend(SandboxBackend):
         with _translate_boat_errors("delete a sandbox"):
             from boat_sdk.exceptions import ApiException
 
-            param = api.api_client.param_serialize(
-                method="DELETE",
-                resource_path="/sandboxes/{sandboxId}",
-                path_params={"sandboxId": sandbox},
-                header_params={
-                    "Accept": "application/json",
-                    # The confirmation header kept its pre-rename name in the API.
-                    "X-Ascii-Confirm-Delete": sandbox,
-                },
-                auth_settings=["BoatBearerAuth"],
-            )
             try:
-                response_data = api.api_client.call_api(
-                    *param, _request_timeout=self._http_timeout(_FILE_OP_TIMEOUT)
-                )
-                response_data.read()
-                if response_data.status == 404:
-                    self._sandbox_env.pop(sandbox, None)
-                    return
-                if not 200 <= response_data.status <= 299:
-                    raise ApiException.from_response(http_resp=response_data, body=None, data=None)
+                # The API wants the sandbox id repeated as the delete confirmation.
+                api.delete_sandbox(sandbox, sandbox, _request_timeout=self._http_timeout(_FILE_OP_TIMEOUT))
             except ApiException as e:
-                if e.status == 404:
-                    self._sandbox_env.pop(sandbox, None)
-                    return
-                raise
+                if e.status != 404:
+                    raise
         self._sandbox_env.pop(sandbox, None)

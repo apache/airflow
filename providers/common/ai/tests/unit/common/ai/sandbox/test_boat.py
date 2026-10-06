@@ -73,8 +73,9 @@ def _created(sandbox_id: str):
 
 def _backend_with_api(**kwargs) -> tuple[BoatSandboxBackend, mock.MagicMock]:
     backend = BoatSandboxBackend(**kwargs)
-    api = mock.MagicMock(spec=["create", "update", "get", "command", "read_file", "write_file", "api_client"])
-    api.api_client = mock.MagicMock(spec=["param_serialize", "call_api"])
+    api = mock.MagicMock(
+        spec=["create", "update", "get", "command", "read_file", "write_file", "delete_sandbox"]
+    )
     backend._boat_api = api
     backend._request_timeout = 30.0
     backend._no_env = True
@@ -216,15 +217,13 @@ class TestCreate:
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_stuck01")
         wait_ready.side_effect = TimeoutError("never became ready")
-        api.api_client.param_serialize.return_value = ("DELETE", "https://example/sandboxes", {}, None, None)
-        api.api_client.call_api.return_value = mock.MagicMock(status=202, read=mock.MagicMock())
 
         with pytest.raises(SandboxTerminalError):
             backend.create(spec=SandboxSpec(block_network=False))
 
         # The id never reached the caller, so create is the only place that can
         # still tear this sandbox down.
-        assert api.api_client.param_serialize.call_args.kwargs["path_params"] == {"sandboxId": "bx_stuck01"}
+        api.delete_sandbox.assert_called_once_with("bx_stuck01", "bx_stuck01", _request_timeout=mock.ANY)
 
     @mock.patch("boat_sdk.wait_until_ready", autospec=True)
     def test_an_unnameable_sandbox_is_still_created(self, _wait_ready):
@@ -373,23 +372,12 @@ class TestRunCommand:
     def test_timeout_destroys_sandbox(self):
         backend, api = _backend_with_api()
         api.command.return_value = _command_response(exit_code=-1, timed_out=True, stdout="partial")
-        response = mock.MagicMock()
-        response.status = 202
-        response.read = mock.MagicMock()
-        api.api_client.param_serialize.return_value = (
-            "DELETE",
-            "https://example/sandboxes/bx_1",
-            {},
-            None,
-            None,
-        )
-        api.api_client.call_api.return_value = response
 
         result = backend.run_command("bx_1", "sleep 99", timeout=1, max_output_bytes=1024)
 
         assert result.timed_out
         assert result.sandbox_terminated
-        assert api.api_client.call_api.called
+        api.delete_sandbox.assert_called_once_with("bx_1", "bx_1", _request_timeout=mock.ANY)
 
 
 class TestFiles:
@@ -439,53 +427,26 @@ class TestFiles:
 
 
 class TestDestroy:
-    @pytest.mark.parametrize("status", [202, 404])
-    def test_delete_clears_retained_environment(self, status):
+    @pytest.mark.parametrize("error", [None, _api_error(404)], ids=["accepted", "already_gone"])
+    def test_delete_clears_retained_environment(self, error):
         backend, api = _backend_with_api()
         backend._sandbox_env["bx_1"] = {"SPEC_MARKER": "kept"}
-        api.api_client.param_serialize.return_value = ()
-        api.api_client.call_api.return_value = SimpleNamespace(status=status, read=lambda: None)
+        api.delete_sandbox.side_effect = error
 
         backend.destroy("bx_1")
 
         assert "bx_1" not in backend._sandbox_env
 
-    def test_delete_is_idempotent_for_missing_sandboxes(self):
+    def test_delete_sends_the_sandbox_id_as_its_own_confirmation(self):
         backend, api = _backend_with_api()
-        backend._sandbox_env["bx_1"] = {"SPEC_MARKER": "kept"}
-        api.api_client.param_serialize.return_value = (
-            "DELETE",
-            "https://example/sandboxes/bx_1",
-            {},
-            None,
-            None,
-        )
-        api.api_client.call_api.side_effect = _api_error(404)
-
-        backend.destroy("bx_1")
-
-        assert api.api_client.call_api.called
-        assert "bx_1" not in backend._sandbox_env
-
-    def test_delete_targets_the_sandbox_route_with_the_confirm_header(self):
-        backend, api = _backend_with_api()
-        response = mock.MagicMock()
-        response.status = 202
-        response.read = mock.MagicMock()
-        api.api_client.param_serialize.return_value = (
-            "DELETE",
-            "https://example/sandboxes/bx_1",
-            {},
-            None,
-            None,
-        )
-        api.api_client.call_api.return_value = response
 
         backend.destroy("bx_gone01")
 
-        kwargs = api.api_client.param_serialize.call_args.kwargs
-        assert kwargs["method"] == "DELETE"
-        assert kwargs["resource_path"] == "/sandboxes/{sandboxId}"
-        assert kwargs["path_params"] == {"sandboxId": "bx_gone01"}
-        assert kwargs["header_params"]["X-Ascii-Confirm-Delete"] == "bx_gone01"
-        assert kwargs["auth_settings"] == ["BoatBearerAuth"]
+        api.delete_sandbox.assert_called_once_with("bx_gone01", "bx_gone01", _request_timeout=mock.ANY)
+
+    def test_a_failed_delete_is_terminal(self):
+        backend, api = _backend_with_api()
+        api.delete_sandbox.side_effect = _api_error(500)
+
+        with pytest.raises(SandboxTerminalError, match="delete a sandbox"):
+            backend.destroy("bx_1")
