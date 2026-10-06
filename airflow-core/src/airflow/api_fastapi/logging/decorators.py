@@ -152,6 +152,18 @@ def _mask_variable_entity(extra_fields):
     return result
 
 
+def _mask_xcom_fields(extra_fields):
+    """
+    Mask the XCom value.
+
+    The XCom create and update requests carry the value under ``value``. As with Variables, the
+    audit log records that an XCom was written, not what it holds, so the value is masked
+    regardless of its key: a task can write any payload to XCom, and the audit log is readable
+    under a different permission than the XCom itself.
+    """
+    return {k: "***" if k == "value" else v for k, v in extra_fields.items()}
+
+
 def _resolve_team_name(params: dict, *, session: Session) -> str | None:
     """
     Return the team the audited action belongs to, for the resources that own no Dag.
@@ -246,6 +258,10 @@ def action_logging(event: str | None = None):
             extra_fields = _mask_variable_fields(request_body or extra_fields)
         elif "connection" in event_name:
             extra_fields = _mask_connection_fields(request_body or extra_fields)
+        elif "xcom" in event_name:
+            # Unlike Variables and Connections, an XCom update names its target only in the path
+            # (``xcom_key``) and query, so the body is merged into that context, not swapped for it.
+            extra_fields = _mask_xcom_fields({**extra_fields, **masked_body_json})
         elif has_json_body:
             extra_fields = {**extra_fields, **masked_body_json}
 
