@@ -714,6 +714,10 @@ export class BackfillService {
      * @param data.maxActiveRunsGt
      * @param data.maxActiveRunsLte
      * @param data.maxActiveRunsLt
+     * @param data.durationGte
+     * @param data.durationGt
+     * @param data.durationLte
+     * @param data.durationLt
      * @param data.reprocessBehavior
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      * @param data.dagId
@@ -748,6 +752,10 @@ export class BackfillService {
                 max_active_runs_gt: data.maxActiveRunsGt,
                 max_active_runs_lte: data.maxActiveRunsLte,
                 max_active_runs_lt: data.maxActiveRunsLt,
+                duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
+                duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 reprocess_behavior: data.reprocessBehavior,
                 order_by: data.orderBy,
                 dag_id: data.dagId,
