@@ -217,6 +217,18 @@ func (m *dagMap) add(dag *DagRef) {
 	m.order = append(m.order, dag)
 }
 
+// ListDagSourceFiles returns the file that declared each registered Dag, by dag_id.
+func (m *dagMap) ListDagSourceFiles() map[string]string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	files := make(map[string]string, len(m.dags))
+	for id, dag := range m.dags {
+		files[id] = dag.file
+	}
+	return files
+}
+
 func (m *dagMap) has(dagID string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -254,18 +266,23 @@ func serializeRecovering(dag *DagRef, fileloc, relativeFileloc string) (s bundle
 	return s
 }
 
-// coordinatorSource is what Serve hands to execution.Serve: the task handlers and the Dags of one
-// bundle.
+// coordinatorSource is what Serve hands to execution.Serve and execution.DumpAirflowMetadata: the
+// task handlers and the Dags of one bundle.
 type coordinatorSource struct {
 	*taskHandlerMap
 	dags *dagMap
 }
 
 var (
-	_ bundle.Bundle        = coordinatorSource{}
-	_ bundle.DagSerializer = coordinatorSource{}
+	_ bundle.Bundle          = coordinatorSource{}
+	_ bundle.DagSerializer   = coordinatorSource{}
+	_ bundle.DagSourceLister = coordinatorSource{}
 )
 
 func (s coordinatorSource) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
 	return s.dags.serialize(fileloc, relativeFileloc)
+}
+
+func (s coordinatorSource) ListDagSourceFiles() map[string]string {
+	return s.dags.ListDagSourceFiles()
 }
