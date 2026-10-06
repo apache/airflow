@@ -28,6 +28,7 @@ services:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
     image: mysql:${MYSQL_VERSION}
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
@@ -55,3 +56,4 @@ volumes:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"

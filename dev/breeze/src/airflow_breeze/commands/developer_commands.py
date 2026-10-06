@@ -125,6 +125,7 @@ from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
     enter_shell,
     execute_command_in_shell,
+    find_other_worktree_projects,
     fix_ownership_using_docker,
     perform_environment_checks,
 )
@@ -136,7 +137,7 @@ from airflow_breeze.utils.path_utils import (
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     PYCACHE_VOLUME_NAME,
     cleanup_python_generated_files,
-    get_main_git_dir_for_worktree,
+    get_isolated_worktree_path,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
@@ -1157,11 +1158,13 @@ def down(
     if all_worktrees and project_name:
         raise click.UsageError("--all-worktrees and --project-name cannot be used together.")
     perform_environment_checks(cleanup_stale_worktrees=False)
+    worktree = get_isolated_worktree_path()
+    current_worktree = str(worktree) if worktree else ""
     brought_down = bring_compose_projects_down(
         preserve_volumes=preserve_volumes,
         all_worktrees=all_worktrees,
         only_project=project_name,
-        current_worktree=str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else "",
+        current_worktree=current_worktree,
     )
     if brought_down:
         action = "Would remove" if get_dry_run() else "Removed"
@@ -1170,6 +1173,16 @@ def down(
         )
     else:
         console_print("[info]No matching Docker resources to remove.[/]")
+    if not all_worktrees and not project_name:
+        other_worktrees = find_other_worktree_projects(current_worktree)
+        if other_worktrees:
+            console_print("[warning]Other worktrees still have Breeze containers or volumes:[/]")
+            for other_worktree, projects in other_worktrees.items():
+                console_print(f"[warning]  {other_worktree}: {', '.join(projects)}[/]")
+            console_print(
+                "[warning]Run `breeze down` in those worktrees, or `breeze down --all-worktrees` "
+                "to remove them all.[/]"
+            )
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute)

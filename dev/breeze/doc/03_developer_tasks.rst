@@ -773,14 +773,28 @@ After returning to the host shell, stop the remaining Docker Compose services:
 
    breeze down
 
-In a linked Git worktree, Breeze defaults to the project name ``breeze-<worktree directory name>``.
-The directory name is lowercased, and characters other than letters, digits, underscores, and
-hyphens are replaced with hyphens. The main checkout defaults to ``breeze``. Use ``--project-name``
-to override this default; worktrees with the same normalized directory name share a default project name.
+In a linked Git worktree, Breeze defaults to the project name
+``breeze-<worktree directory name>-<path hash>``. The directory name is lowercased, and characters
+other than letters, digits, underscores, and hyphens are replaced with hyphens. The six-character hash
+of the worktree's absolute path keeps same-named worktrees in different locations or clones apart.
+The main checkout defaults to ``breeze``. Use ``--project-name`` to override this default.
 
-Before Docker-backed commands run, Breeze removes labelled resources belonging to deleted worktrees.
-This includes running containers and leftover named volumes, even when no containers remain.
-Help and commands that do not use Docker do not trigger cleanup.
+Worktree isolation is enabled by default. ``breeze setup config --no-worktree-isolation`` turns it off
+for every worktree of the checkout: worktrees then share the ``breeze`` project with the main checkout,
+and their resources are not removed when a worktree is deleted. The setting is stored in the main
+checkout's ``.build`` directory. The ``BREEZE_WORKTREE_ISOLATION`` environment variable (``true`` or
+``false``) overrides it.
+
+Breeze removes the Docker resources of a deleted worktree in two ways:
+
+* The first Docker-backed Breeze command in an isolated worktree starts a small detached watcher
+  process. It checks the worktree directory every 30 seconds and, once the directory is gone, removes
+  the worktree's containers, volumes, and networks. The watcher exits after an hour without any of
+  the worktree's containers running; the next Docker-backed Breeze command in the worktree starts it
+  again. It is not started in CI or with ``--dry-run``.
+* Before Docker-backed commands run, Breeze removes labelled resources belonging to deleted worktrees.
+  This includes running containers and leftover named volumes, even when no containers remain.
+  Help and commands that do not use Docker do not trigger cleanup.
 
 Please note that automatic cleanup is best-effort: disappearing or busy resources produce a warning without
 aborting the command. Remaining resources are retried on the next Docker-backed command.
@@ -789,8 +803,10 @@ Explicit ``breeze down`` reports Docker failures as errors.
 ``breeze down`` removes containers, networks, and volumes for Breeze projects with no worktree path
 and for projects belonging to the current checkout.
 It also removes Breeze-owned resources whose absolute worktree path no longer exists,
-including running containers. Paths are checked on the machine running Breeze, so this
-stale-worktree detection assumes a local Docker daemon.
+including running containers. Resources record the host name of the machine that created them,
+and a worktree path is only checked for resources created on the machine running Breeze, so a
+Docker daemon shared between machines does not lose another machine's resources. Afterwards it lists
+other worktrees that still have Breeze containers or volumes.
 
 Pass ``--all-worktrees`` to include other checkouts and every project with the ``org.apache.airflow.breeze=true``
 ownership label. Projects predating the Breeze labels are included when their name is ``breeze``
