@@ -39,6 +39,12 @@ const COST_TOOLTIP =
   "Estimated in USD from a per-token price lookup (genai-prices), not provider-reported " +
   "billing -- best-effort, and may be stale or unavailable for some models/providers.";
 
+// The XCom keeps full precision (see utils/logging.py's format_usage_for_xcom) so a very
+// cheap run doesn't look free in the logs; round to cents here for a readable display.
+function formatCost(cost: string | null): string {
+  return cost === null ? "—" : `$${Number(cost).toFixed(2)}`;
+}
+
 const StatBox: FC<{ label: string; tooltip?: ReactNode; value: number | string }> = ({
   label,
   tooltip,
@@ -123,11 +129,7 @@ export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex
           <StatBox label="Input tokens" value={usage.input_tokens} />
           <StatBox label="Output tokens" value={usage.output_tokens} />
           <StatBox label="Total tokens" value={usage.total_tokens} />
-          <StatBox
-            label="Cost"
-            tooltip={COST_TOOLTIP}
-            value={usage.cost === null ? "—" : `$${usage.cost}`}
-          />
+          <StatBox label="Cost" tooltip={COST_TOOLTIP} value={formatCost(usage.cost)} />
         </SimpleGrid>
       )}
     </Box>
