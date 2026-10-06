@@ -392,7 +392,7 @@ For example, this code will *not* work:
 
 When code in ``my_task_group`` is executed, ``value`` would still only be a reference, not the real value, so the ``if not value`` branch will not work as you likely want. However, if you pass that reference into a task, it will become resolved when the task is executed, and the three ``my_task`` instances will therefore receive 1, 2, and 3, respectively.
 
-It is, therefore, important to remember that, if you intend to perform any logic on a value passed into a task group function, you must always use a task to run the logic, such as ``@task.branch`` (or ``BranchPythonOperator``) for conditions, and task mapping methods for loops.
+It is, therefore, important to remember that, if you intend to perform any logic on a value passed into a task group function, you must always use a task to run the logic, such as ``@task.branch`` (or ``BranchPythonOperator``) for conditions, and ``expand()`` to iterate over values. To repeat a group of tasks, see :ref:`loops-and-mapped-tasks`.
 
 .. note:: Task-mapping in a mapped task group is not permitted
 

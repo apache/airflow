@@ -17,6 +17,7 @@
 
 .. _loops:
 
+=====
 Loops
 =====
 
@@ -31,13 +32,13 @@ so it corresponds to ``do { body } while not until(result)``. The body runs at
 least once. ``max_iterations`` sets an upper limit; the runtime condition
 determines how many iterations are needed within that limit.
 
-Task instances within an iteration can run in parallel.
+Iterations run one after another; task instances within an iteration can run in parallel.
 
 If you are not sure whether you need a loop or mapped tasks, see
 :ref:`loops-and-mapped-tasks`.
 
 Create a loop
--------------
+=============
 
 Define the body with ``@task_group`` and call ``.loop()`` on the decorated
 function. Supply a positive integer ``max_iterations`` to limit the number of
@@ -57,39 +58,9 @@ count is reached.
 This example improves an estimate of the square root of two until the error
 is small enough:
 
-.. code-block:: python
-
-   from airflow.sdk import dag, task, task_group
-
-
-   @dag
-   def refine_estimate():
-       @task_group
-       def refine():
-           @task
-           def improve(*, loop):
-               previous = loop.previous
-               estimate = 1.0 if previous is None else previous["estimate"]
-               return (estimate + 2.0 / estimate) / 2.0
-
-           @task
-           def evaluate(estimate):
-               return {"estimate": estimate, "error": abs(estimate * estimate - 2.0)}
-
-           evaluate(improve())
-
-       def accurate_enough(*, loop):
-           return loop.result["error"] < 0.000001
-
-       @task
-       def finished():
-           print("Refinement finished.")
-
-       refinement = refine.loop(max_iterations=10, until=accurate_enough)
-       refinement >> finished()
-
-
-   refine_estimate()
+.. exampleinclude:: /authoring-and-scheduling/examples/example_task_loops.py
+   :start-after: [START refine_estimate]
+   :end-before: [END refine_estimate]
 
 ``evaluate`` returns the result for the iteration. The gate reads it through
 ``loop.result``. If another iteration runs, ``improve`` reads that same result
@@ -110,30 +81,20 @@ For a fixed-count loop, omit ``until``. The definition ``refine.loop(max_iterati
 three iterations, carrying results between them. Reaching the cap completes
 a fixed-count loop successfully. Its gate is named ``__loop_gate`` within the group.
 
-.. code-block:: python
-
-   @dag
-   def fixed_task_loop():
-       @task_group
-       def accumulate():
-           @task
-           def increment(*, loop):
-               previous = loop.previous
-               return (0 if previous is None else previous) + 1
-
-           increment()
-
-       accumulate.loop(max_iterations=3)
-
-
-   fixed_task_loop()
+.. exampleinclude:: /authoring-and-scheduling/examples/example_task_loops.py
+   :start-after: [START fixed_loop]
+   :end-before: [END fixed_loop]
 
 For a task-group function with arguments, supply them with ``.partial()`` before
 calling ``.loop()``. Use ``.override()`` to configure the group, for example to
-give another loop a different ``group_id``.
+give another loop a different ``group_id``:
+
+.. exampleinclude:: /authoring-and-scheduling/examples/example_task_loops.py
+   :start-after: [START partial_override_loop]
+   :end-before: [END partial_override_loop]
 
 Read the loop context
----------------------
+=====================
 
 Declare ``loop`` as a keyword-only parameter on a task function. Airflow
 supplies it at execution time; leave it out when calling the task in the Dag
@@ -158,14 +119,15 @@ Use ``loop.index`` for the loop iteration and ``ti.map_index`` for a mapped
 task instance's position. Each task instance can have several tries, each with its own ``ti.try_number``.
 
 Pass data between iterations
-----------------------------
+============================
 
-Between iterations, use ``loop.previous``. Check explicitly for ``None`` to
-handle the first iteration; a previous result of ``0``, ``False``, or an empty
-collection can be valid data.
+Between iterations, use ``loop.previous``. Check ``loop.index == 0`` to handle
+the first iteration. Do not test ``loop.previous is None``: it is also ``None``
+when the previous terminal task returned nothing, and a previous result of
+``0``, ``False``, or an empty collection can be valid data.
 
 The loop body must have exactly one terminal task definition before the gate.
-Its return value (the XCom pushed under the `return_value` key) becomes ``loop.result`` for the gate and ``loop.previous``
+Its return value (the XCom pushed under the ``return_value`` key) becomes ``loop.result`` for the gate and ``loop.previous``
 for the next iteration. A mapped terminal task supplies its collection of
 results as a sequence (``LazyXComSequence``), the same as other downstream consumers of mapped tasks.
 
@@ -185,27 +147,29 @@ outputs. For example, if two branches end in ``refine_left`` and
 ``combine`` is now the single terminal task. The gate can read each result
 through ``loop.result["left"]`` and ``loop.result["right"]``; tasks in the
 next iteration use the corresponding keys in ``loop.previous``.
+
 Limitations:
 
 * ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull.
-* The experimental DagRun wait API also requires an outside-loop result task. It rejects results selected directly from a loop member.
+* The experimental DagRun wait API also requires an outside-loop result task. It rejects results selected directly from a loop member. See :ref:`dag-result`.
+
 Connect a loop to other tasks
-------------------------------
+=============================
 
 Use the object returned by ``.loop()`` in dependencies:
 
 .. code-block:: python
 
-   start() >> refinement >> finish()
+   refinement >> finished()
 
-With the default ``all_success`` trigger rule, ``finish`` waits for successful
+With the default ``all_success`` trigger rule, ``finished`` waits for successful
 loop completion. Other trigger rules behave normally; ``always`` does not wait
-for the loop. 
+for the loop.
 
 .. _loops-mapped-tasks:
 
 Mapped tasks inside a loop
---------------------------
+==========================
 
 A loop iteration can contain mapped tasks. Use mapping to process several
 items within the iteration. The next iteration can operate on a different
@@ -220,32 +184,16 @@ A mapped task can be the body's single terminal task:
 The gate reads the collection of mapped results through ``loop.result``. Add
 a combining task before the gate if you want to reduce those results to a
 single value or structure. A zero-length expansion skips the mapped task and,
-under the gate's default trigger rule, skips the gate; no next iteration is
+under the gate's ``all_success`` rule, skips the gate; no next iteration is
 created.
 
-.. code-block:: python
+.. exampleinclude:: /authoring-and-scheduling/examples/example_task_loops.py
+   :start-after: [START mapped_loop]
+   :end-before: [END mapped_loop]
 
-   @dag(schedule=None, catchup=False, tags=["example"])
-   def mapped_task_loop():
-       @task_group
-       def process_batch():
-           @task
-           def process(value, *, loop, ti):
-               print(f"Iteration {loop.index}, mapped position {ti.map_index}")
-               return value + loop.index
-
-           process.expand(value=[1, 2])
-
-       def batch_ready(*, loop):
-           return min(loop.result) >= 2
-
-       process_batch.loop(max_iterations=3, until=batch_ready)
-
-
-   mapped_task_loop()
-
-The loop iteration and mapped position are separate "coordinates". Mapped
-instance 2 in iteration 0 is distinct from mapped instance 2 in iteration 1.
+The loop iteration and mapped position are separate "coordinates". In this
+example, each iteration has mapped instances 0 and 1, so mapped instance 1 in
+iteration 0 is distinct from mapped instance 1 in iteration 1.
 Mapped instances appear within their loop iteration, so you can inspect their
 states, tries, and logs separately.
 
@@ -253,45 +201,50 @@ Mapping a whole loop, nesting loops, and placing a loop inside a mapped task
 group are not supported.
 
 Failures, skips, and retries
-----------------------------
+============================
 
 A retry stays in the same iteration and does not consume another iteration.
 Tasks in the body follow normal trigger rules. For example, a final combining
 task with ``all_done`` can handle a branch failure and return a result. If that
 task succeeds, the gate evaluates its result normally. If the terminal task
-fails, the gate's default ``all_success`` rule prevents it from running, and
-no next iteration is created.
+fails, the gate's ``all_success`` rule prevents it from running, and
+no next iteration is created. You cannot change the gate task's trigger rule.
+The gate has exactly one upstream, the body's terminal task, so set
+``trigger_rule`` on that task to change when the gate runs.
 
 An exception in ``until`` fails the gate task and appears in its logs. If the
 loop reaches its iteration limit without meeting ``until``, the final gate
-fails. Downstream tasks with
-the default ``all_success`` trigger rule will not run.
+fails; downstream tasks with the default ``all_success`` trigger rule will not
+run, as described under non-convergence above.
 
-Skipping the body's terminal task also skips the gate under its default
+Skipping the body's terminal task also skips the gate under its
 ``all_success`` trigger rule, so no next iteration is created. Downstream
-tasks follow their own trigger rules.
+tasks with the default ``all_success`` rule are skipped too; give a downstream
+task ``trigger_rule="none_failed"`` if it should still run when the loop ends
+without running.
 If some branches may be skipped but the loop should continue, give the final
 combining task a trigger rule that permits those skips and have it return the
 iteration's result.
-
-The gate does not independently wait for every task in the body. If the
-terminal task uses ``one_success``, for example, it can finish while another
-branch is still running. The gate then follows its normal trigger rule and
-can start the next iteration while that branch continues in the earlier one.
 
 Manually marking a gate successful completes it without evaluating ``until``
 or creating another iteration. This is an explicit override of normal gate
 execution. Any later iterations retained after a selective clear remain unchanged.
 
 Iterations and execution history
---------------------------------
+================================
 
-The loop view groups tasks and mapped instances by iteration. The gate's state
-and logs explain why the loop continued, stopped, or failed. Each task's tries
-and logs remain accessible within its iteration.
+In the Grid, select the loop's task group in a Dag run to open its Task Instances
+tab. The **Iteration** filter narrows the table to one iteration, or shows
+**All iterations**, and the **Iteration** column shows which iteration each task
+instance belongs to. The gate's state and logs explain why the loop continued,
+stopped, or failed. Each task's tries and logs remain accessible within its
+iteration.
+
+Iterations cleared by a rerun are kept as history but are not shown in the UI
+in 3.4.0.
 
 Clear tasks inside a loop
---------------------------
+==========================
 
 Use these controls to select how far a clear extends through the loop:
 
@@ -308,7 +261,7 @@ iterations again. The gate can stop earlier or continue further, within the
 configured limit.
 
 Rerun part of an iteration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 Suppose each iteration contains this sequence:
 
@@ -329,7 +282,7 @@ If the gate now stops at iteration 2, replacement iterations 3 and 4 are not
 created.
 
 Keep later iterations
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 Deselect **Clear later loop iterations** to keep the later iterations.
 Rerunning an earlier gate then does not change the loop progression that

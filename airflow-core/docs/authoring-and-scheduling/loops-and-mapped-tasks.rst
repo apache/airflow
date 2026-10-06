@@ -55,7 +55,7 @@ Choose a mechanism
 Use them together
 =================
 
-A pass of a loop can contain mapped tasks, so each pass can fan out over a different collection of
+An iteration of a loop can contain mapped tasks, so each iteration can fan out over a different collection of
 items. See :ref:`Mapped tasks inside a loop <loops-mapped-tasks>`.
 
 Mapping a whole loop, nesting loops, and placing a loop inside a mapped task group are not supported.
