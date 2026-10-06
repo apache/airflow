@@ -82,4 +82,20 @@ describe("locale counter placeholders", () => {
 
     expect(instance.t("dag:logs.search.matchCount", { current: 1234, total: 56_789 })).toBe(expected);
   });
+
+  it("renders a formatted counter passed as undefined as blank, like an unformatted one", async () => {
+    const instance = createInstance();
+
+    await instance.init({ ...i18nBaseOptions, lng: "en", resources });
+
+    expect(instance.t("dag:logs.search.matchCount", { current: undefined, total: 5 })).toBe(" of 5");
+  });
+
+  it("keeps the placeholder of a counter that is not passed at all", async () => {
+    const instance = createInstance();
+
+    await instance.init({ ...i18nBaseOptions, lng: "en", resources });
+
+    expect(instance.t("dag:logs.search.matchCount", { total: 5 })).toBe("{{current, number}} of 5");
+  });
 });
