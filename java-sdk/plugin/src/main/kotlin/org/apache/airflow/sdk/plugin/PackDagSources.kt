@@ -38,14 +38,21 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.jvm.toolchain.JavaLauncher
-import org.gradle.process.ExecOperations
-import java.io.ByteArrayOutputStream
 import java.io.File
-import javax.inject.Inject
+import java.util.concurrent.TimeUnit
 
 internal const val SOURCES_MANIFEST_ATTRIBUTE = "Airflow-Java-SDK-Sources"
 internal const val SOURCES_JSON_PATH = "META-INF/airflow/sources.json"
 internal const val SOURCES_DIR_PATH = "META-INF/airflow/sources"
+
+/**
+ * How long the describe run gets before the build gives up on it and packs
+ * the entrypoint's source alone. A `main` that does not reach
+ * `Server.create(args)` never answers `--describe-sources`, and one that
+ * starts serving instead would otherwise hold the build open.
+ */
+private const val DESCRIBE_TIMEOUT_SECONDS = 120L
+private const val DRAIN_TIMEOUT_MILLIS = 2_000L
 
 /**
  * Finds the source file of a class by its `SourceFile` attribute: the class
@@ -70,6 +77,14 @@ internal class SourceLocator(
   fun file(relativePath: String): File = sourceDirs.map { File(it, relativePath) }.first { it.isFile }
 }
 
+/**
+ * The `META-INF/airflow/sources.json` body: `entrypoint_path` and each Dag ID
+ * in `dag_source_paths`.
+ *
+ * Every path is relative to the source directory the file was found in, which
+ * is also where it sits under `META-INF/airflow/sources/` in the JAR, so a
+ * reader resolves one by prefixing that directory.
+ */
 internal fun sourcesJson(
   entrypointPath: String?,
   dagSourcePaths: Map<String, String>,
@@ -90,9 +105,6 @@ internal fun sourcesJson(
  */
 @CacheableTask
 abstract class PackDagSources : DefaultTask() {
-  @get:Inject
-  abstract val execOperations: ExecOperations
-
   @get:Input
   @get:Optional
   abstract val mainClass: Property<String>
@@ -161,20 +173,32 @@ abstract class PackDagSources : DefaultTask() {
     main: String,
     describe: File,
   ): Map<String, String> {
-    val output = ByteArrayOutputStream()
+    var output = ""
     val failure =
       try {
-        val result =
-          execOperations.javaexec { spec ->
-            launcher.orNull?.let { spec.executable(it.executablePath.asFile.absolutePath) }
-            spec.classpath(classesDirs, runtimeClasspath)
-            spec.mainClass.set(main)
-            spec.args("--describe-sources", describe.absolutePath)
-            spec.isIgnoreExitValue = true
-            spec.standardOutput = output
-            spec.errorOutput = output
-          }
-        if (result.exitValue != 0) "exit code ${result.exitValue}" else null
+        val java =
+          launcher.orNull
+            ?.executablePath
+            ?.asFile
+            ?.absolutePath ?: "java"
+        val classpath = (classesDirs + runtimeClasspath).joinToString(File.pathSeparator) { it.absolutePath }
+        val process =
+          ProcessBuilder(java, "-cp", classpath, main, "--describe-sources", describe.absolutePath)
+            .redirectErrorStream(true)
+            .start()
+        // Drained on its own thread: a main that writes more than the pipe
+        // holds would otherwise block before the timeout could fire.
+        val drain = Thread { output = process.inputStream.bufferedReader().readText() }
+        drain.isDaemon = true
+        drain.start()
+        val finished = process.waitFor(DESCRIBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        if (!finished) process.destroyForcibly()
+        drain.join(DRAIN_TIMEOUT_MILLIS)
+        when {
+          !finished -> "it did not finish within $DESCRIBE_TIMEOUT_SECONDS seconds"
+          process.exitValue() != 0 -> "exit code ${process.exitValue()}"
+          else -> null
+        }
       } catch (e: Exception) {
         e.message ?: e.javaClass.simpleName
       }
@@ -186,7 +210,7 @@ abstract class PackDagSources : DefaultTask() {
     }
     describeFailed = true
     val why = failure ?: "it wrote no valid --describe-sources file; does main call Server.serve?"
-    val log = output.toString().trim()
+    val log = output.trim()
     logger.warn(
       "Could not read each Dag's source from '{}' ({}); only its entrypoint source is packed.{}",
       main,

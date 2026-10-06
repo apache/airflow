@@ -65,6 +65,9 @@ abstract class AirflowBundleExtension {
   abstract val fatJar: Property<Boolean>
 }
 
+/** The JAR tasks a deployable bundle is assembled from, fat or thin. */
+private val BUNDLE_JAR_TASKS = setOf("jar", "shadowJar")
+
 /**
  * Gradle plugin for building Apache Airflow Java SDK bundles.
  *
@@ -108,6 +111,7 @@ abstract class AirflowBundleExtension {
  * the `airflow-sdk` JAR instead. The bundle JAR still contains `Main-Class`.
  *
  */
+
 class AirflowSdkPlugin : Plugin<Project> {
   override fun apply(project: Project) {
     project.plugins.apply("java")
@@ -143,7 +147,11 @@ class AirflowSdkPlugin : Plugin<Project> {
             task.manifest.attributes(mapOf("Main-Class" to className))
           }
         }
-        if (ext.mainClass.isPresent) {
+        // Only the JARs a bundle is assembled from carry the Dag sources. A
+        // sources or javadoc JAR would claim the attribute without being a
+        // bundle, and the Python side picks the bundle JAR out of a directory
+        // by that attribute.
+        if (ext.mainClass.isPresent && task.name in BUNDLE_JAR_TASKS) {
           task.dependsOn(packTask)
           task.from(packTask.flatMap { it.sourcesDir })
           task.manifest.attributes(mapOf(SOURCES_MANIFEST_ATTRIBUTE to SOURCES_JSON_PATH))

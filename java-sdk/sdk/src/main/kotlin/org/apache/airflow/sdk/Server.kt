@@ -139,6 +139,9 @@ class Server private constructor(
    * The call returns when the coordinator closes the connection (normally after
    * one task-instance execution).
    *
+   * A [Server] built from `--describe-sources` writes that file and returns
+   * without connecting anywhere.
+   *
    * @param bundle Bundle containing all Dags this process can execute.
    *
    * @see [serveAsync]
@@ -155,6 +158,9 @@ class Server private constructor(
    * channel (`--logs`) concurrently, then processes incoming requests until the
    * coordinator closes the connection (normally after one task-instance
    * execution). The coroutine returns once both channels have been closed.
+   *
+   * A [Server] built from `--describe-sources` writes that file and returns
+   * without connecting anywhere.
    *
    * Use this variant when calling from an existing coroutine scope; use the
    * blocking [serve] from a plain `main` method.
