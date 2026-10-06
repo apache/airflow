@@ -43,7 +43,6 @@ const renderTextWithLinks = (text: string) => {
   return (
     <>
       {parts.map((part) => {
-
         if (urls?.includes(part)) {
           return (
             <Link
