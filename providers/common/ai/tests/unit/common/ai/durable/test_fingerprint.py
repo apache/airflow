@@ -23,6 +23,7 @@ from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
     SystemPromptPart,
+    TextPart,
     ToolCallPart,
     UserPromptPart,
 )
@@ -115,6 +116,42 @@ class TestModelRequestFingerprint:
         fp2 = fingerprint_model_request(
             "m", make_messages(), None, ModelRequestParameters(function_tools=[lax])
         )
+
+        assert fp1 != fp2
+
+    def test_stable_across_capability_ids(self):
+        """A capability without an ``id`` gets a random one per run; it never reaches the model."""
+
+        def params(capability_id):
+            tool = ToolDefinition(
+                name="t", parameters_json_schema={"type": "object"}, capability_id=capability_id
+            )
+            return ModelRequestParameters(
+                function_tools=[tool], output_tools=[tool], deferred_capability_ids={capability_id}
+            )
+
+        fp1 = fingerprint_model_request("m", make_messages(), None, params("<toolset:d0d75e>"))
+        fp2 = fingerprint_model_request("m", make_messages(), None, params("<toolset:78ba70>"))
+
+        assert fp1 == fp2
+
+    def test_changes_with_message_metadata(self):
+        """
+        Message ``metadata`` is not sent to the model, but pydantic-ai keeps routing state in it
+        (``FallbackModel``'s continuation pin under ``__pydantic_ai__``), so it stays in the hash.
+        """
+
+        def messages(pinned_model):
+            return [
+                ModelRequest(parts=[UserPromptPart(content="q")]),
+                ModelResponse(
+                    parts=[TextPart(content="partial")],
+                    metadata={"__pydantic_ai__": {"fallback_model": pinned_model}},
+                ),
+            ]
+
+        fp1 = fingerprint_model_request("m", messages("a"), None, ModelRequestParameters())
+        fp2 = fingerprint_model_request("m", messages("b"), None, ModelRequestParameters())
 
         assert fp1 != fp2
 
