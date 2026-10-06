@@ -504,9 +504,8 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * Container for the annotation-based Dag-authoring API.
             | *
             | * Annotating a class with [Dag] generates a `<Class>Builder` whose static
-            | * `build()` returns the [DagDef] to add to a [Bundle]. When the class
-            | * declares a [Deps] class, it also generates a `<Class>Deps` wiring view
-            | * for that class to implement.
+            | * `build()` returns the [DagDef] to add to a [Bundle], and a `<Class>Deps`
+            | * wiring view for the class's [Deps] class to implement.
             | *
             | * Example:
             | *
@@ -519,6 +518,11 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | *
             | *     @Builder.Task(id = "transform")
             | *     public long transform(Client client, long extracted) { ... }
+            | *
+            | *     @Builder.Deps
+            | *     static class Wiring implements MyPipelineDeps {
+            | *       void depends() { transform(extract()); }
+            | *     }
             | * }
             | * ```
             | *
