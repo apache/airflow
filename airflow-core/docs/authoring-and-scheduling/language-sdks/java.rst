@@ -645,8 +645,10 @@ A JAR in a bundle that has no entry, or an entry that names no ``JavaCoordinator
     [sdk]
     dag_bundle_to_coordinator = {"dags-folder": "java-native"}
 
-A Dag bundle that holds only the JARs that Python Dags' tasks run should list ``*`` in its ``.airflowignore``.
-Otherwise, with several Java coordinators, its JARs fail to parse.
+A Dag bundle that holds only the JARs that Python Dags' tasks run should list ``*`` in its ``.airflowignore``
+either way: with one ``JavaCoordinator`` its JARs are still parsed on every loop, and a JAR built with a Java
+SDK older than schema ``2026-10-30``, every released one today, fails to parse as an import error. With
+several Java coordinators, an unmapped bundle's JARs fail to parse too.
 
 * Every JAR in the bundle whose manifest sets ``Main-Class`` is parsed. Each Dag its main class
   declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Builder.Dag`` class, is stored with
