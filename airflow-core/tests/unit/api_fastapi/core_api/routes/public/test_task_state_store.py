@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.datamodels.task_state_store import (
     TaskStateStoreBody,
     TaskStateStorePatchBody,
 )
+from airflow.exceptions import DagRunNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -427,14 +428,13 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         assert row.value == expected_db
 
     def test_patch_task_state_store_domain_error_returns_404(self, test_client):
-        """Domain-level ValueError raised during PATCH translates to HTTP 404."""
         _create_task_state_store_row(self._session, "job_id", "initial", self.dag_run)
         self._session.commit()
 
         with patch(
             "airflow.state.metastore.MetastoreBackend.set",
             autospec=True,
-            side_effect=ValueError(f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"),
+            side_effect=DagRunNotFound(f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"),
         ):
             response = test_client.patch(f"{BASE_URL}/job_id", json={"value": "v2"})
             assert response.status_code == 404
