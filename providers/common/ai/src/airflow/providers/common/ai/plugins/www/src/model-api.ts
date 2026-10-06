@@ -57,7 +57,6 @@ async function fetchXComValue<T>(
 
 export function createModelApi(dagId: string, runId: string, taskId: string, mapIndex: number) {
   return {
-    fetchModelName: () => fetchXComValue<string>(dagId, runId, taskId, mapIndex, "model_name"),
     fetchUsage: () => fetchXComValue<UsageInfo>(dagId, runId, taskId, mapIndex, "usage"),
   };
 }

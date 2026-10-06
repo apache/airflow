@@ -23,7 +23,6 @@ import { createModelApi } from "src/model-api";
 import type { UsageInfo } from "src/types/model";
 
 interface UseModelInfoReturn {
-  modelName: string | null;
   usage: UsageInfo | null;
   loading: boolean;
   error: string | null;
@@ -36,7 +35,6 @@ export function useModelInfo(
   taskId: string,
   mapIndex: number,
 ): UseModelInfoReturn {
-  const [modelName, setModelName] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,12 +43,7 @@ export function useModelInfo(
   const fetchInfo = useCallback(async () => {
     setLoading(true);
     try {
-      const [name, usageData] = await Promise.all([
-        apiRef.current.fetchModelName(),
-        apiRef.current.fetchUsage(),
-      ]);
-      setModelName(name);
-      setUsage(usageData);
+      setUsage(await apiRef.current.fetchUsage());
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -63,5 +56,5 @@ export function useModelInfo(
     void fetchInfo();
   }, [fetchInfo]);
 
-  return { modelName, usage, loading, error, refetch: fetchInfo };
+  return { usage, loading, error, refetch: fetchInfo };
 }
