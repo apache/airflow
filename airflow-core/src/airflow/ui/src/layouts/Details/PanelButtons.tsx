@@ -81,7 +81,7 @@ const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) =>
         { limit: 10, min: 384, options: ["1", "5", "10"] }, // md: medium screens
         { limit: 5, min: 0, options: ["1", "5"] }, // sm: small screens and below
       ]
-    : [{ limit: 365, min: 0, options: ["1", "5", "10", "25", "50", "100", "365"] }];
+    : [{ limit: 5, min: 0, options: ["1", "5", "10", "25", "50", "100", "365"] }];
 
   const config = breakpoints.find(({ min }) => width >= min) ?? breakpoints[breakpoints.length - 1];
 
