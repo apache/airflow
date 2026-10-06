@@ -20,6 +20,9 @@
 Approve an agent's tool calls
 =============================
 
+.. meta::
+    :description: Pause an agent before it runs a tool you marked for approval, such as one that refunds an order or writes to a table, and let a person approve or reject that call from the Required Actions page.
+
 .. note::
 
     Experimental: this can change or be removed in a minor release of this provider.
