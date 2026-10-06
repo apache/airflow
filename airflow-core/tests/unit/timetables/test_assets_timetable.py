@@ -559,6 +559,18 @@ def test_compound_asset_condition_requires_batching(batch_asset_events, nested, 
         timetable.validate()
 
 
+@pytest.mark.parametrize("configured", [False, True])
+@pytest.mark.parametrize(
+    "timetable_type", [AssetTriggeredTimetable, PartitionedAssetTimetable, CoreAssetOrTimeSchedule]
+)
+def test_compound_asset_condition_defaults_to_batching(configured, timetable_type):
+    kwargs = {"timetable": NullTimetable()} if timetable_type is CoreAssetOrTimeSchedule else {}
+    with conf_vars({("scheduler", "batch_asset_events"): str(configured)}):
+        timetable = timetable_type(assets=Asset("a") & Asset("b"), **kwargs)
+    assert timetable.batch_asset_events is True
+    timetable.validate()
+
+
 def test_or_condition_can_disable_batching():
     AssetTriggeredTimetable(assets=Asset("a") | Asset("b"), batch_asset_events=False).validate()
 
@@ -652,7 +664,7 @@ class TestAssetConditionWithTimetable:
 
         serialized_timetable_dict = DagSerialization.to_dict(dag)["dag"]["timetable"]["__var"]
         assert serialized_timetable_dict == {
-            "batch_asset_events": False,
+            "batch_asset_events": True,
             "asset_condition": {
                 "__type": "asset_any",
                 "objects": [

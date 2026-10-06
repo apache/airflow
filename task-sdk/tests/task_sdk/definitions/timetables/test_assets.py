@@ -106,6 +106,39 @@ def test_rollup_requires_batching(batch_asset_events, use_default_mapper):
         timetable.validate()
 
 
+@pytest.mark.parametrize("configured", [False, True])
+@pytest.mark.parametrize(
+    "timetable_type", [AssetTriggeredTimetable, PartitionedAssetTimetable, AssetOrTimeSchedule]
+)
+def test_compound_asset_condition_defaults_to_batching(configured, timetable_type):
+    kwargs = {"timetable": NullTimetable()} if timetable_type is AssetOrTimeSchedule else {}
+    with conf_vars({("scheduler", "batch_asset_events"): str(configured)}):
+        timetable = timetable_type(assets=Asset("a") & Asset("b"), **kwargs)
+    assert timetable.batch_asset_events is True
+    timetable.validate()
+
+
+def test_asset_list_schedule_defaults_to_batching():
+    dag = DAG("asset-list-schedule", schedule=[Asset("a"), Asset("b")])
+    assert dag.timetable.batch_asset_events is True
+    dag.validate()
+
+
+@pytest.mark.parametrize("use_default_mapper", [False, True])
+def test_rollup_defaults_to_batching(use_default_mapper):
+    asset = Asset("test")
+    mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+    kwargs = (
+        {"default_partition_mapper": mapper}
+        if use_default_mapper
+        else {"partition_mapper_config": {asset: mapper}}
+    )
+    with conf_vars({("scheduler", "batch_asset_events"): "False"}):
+        timetable = PartitionedAssetTimetable(assets=asset, **kwargs)
+    assert timetable.batch_asset_events is True
+    timetable.validate()
+
+
 def test_or_condition_can_disable_batching():
     timetable = AssetTriggeredTimetable(assets=Asset("a") | Asset("b"), batch_asset_events=False)
     timetable.validate()

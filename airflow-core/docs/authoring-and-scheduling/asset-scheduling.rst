@@ -75,7 +75,7 @@ You can find a listing of the relationships between assets and Dags in the :ref:
 Multiple assets
 -----------------
 
-Dags can require multiple assets by combining them with ``&`` and enabling batching.
+Dags can require multiple assets by combining them with ``&``; such Dags batch events by default.
 Airflow schedules a Dag after **all** assets the Dag consumes have been updated at least
 once since the last time the Dag ran:
 
@@ -469,10 +469,14 @@ this option retain batching until they are reparsed.
 
 The option is also available on ``AssetOrTimeSchedule`` and
 ``PartitionedAssetTimetable``. Asset conditions using ``&`` and partition rollups
-require ``batch_asset_events=True``; otherwise timetable validation raises an
-error. These schedules need several events to satisfy their condition and cannot
-consume each event independently. Single-asset schedules and ``|`` expressions
-support either mode.
+need several events to satisfy their condition and cannot consume each event
+independently, so they default to batching when ``batch_asset_events`` is not set.
+Passing ``batch_asset_events=False`` explicitly for them makes timetable validation
+raise an error. Single-asset schedules and ``|`` expressions support either mode.
+
+Enabling batching on a partitioned Dag also combines its pending runs for each
+partition key, preserving their asset events. Large backlogs are combined across
+multiple scheduler passes before the combined run is created.
 
 For non-partitioned Dags, per-event run creation respects ``max_active_runs`` and the scheduler's
 :ref:`config:scheduler__max_dagruns_to_create_per_loop` budget. Events left over
