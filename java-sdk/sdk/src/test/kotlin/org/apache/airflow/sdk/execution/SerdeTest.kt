@@ -30,6 +30,7 @@ import org.apache.airflow.sdk.internal.Refs
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -91,7 +92,7 @@ internal class SerdeTest {
         "__type" to "airflow.timetables.trigger.CronTriggerTimetable",
         "__var" to
           mapOf(
-            "expression" to "@daily",
+            "expression" to "0 0 * * *",
             "timezone" to "UTC",
             "interval" to 0.0,
             "run_immediately" to false,
@@ -246,6 +247,35 @@ internal class SerdeTest {
 
     assertEquals(listOf("transform"), taskData(serialized, 0)["downstream_task_ids"])
     assertFalse("_arg_bindings" in taskData(serialized, 1))
+  }
+
+  @Test
+  @DisplayName("Should take the dag timezone from the start date, as Python does")
+  fun shouldTakeTimezoneFromStartDate() {
+    val dag =
+      DagDef("d")
+        .config("schedule", "0 3 * * *")
+        .config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00+05:30"))
+
+    val serialized = serializeDag(dag, "", ".")
+
+    assertEquals(19800, serialized["timezone"])
+    assertEquals(19800, (serialized["timetable"] as Map<*, *>)["__var"].let { (it as Map<*, *>)["timezone"] })
+  }
+
+  @Test
+  @DisplayName("Should reject a schedule the scheduler cannot build a timetable from")
+  fun shouldRejectNonCronSchedule() {
+    val dag = DagDef("d").config("schedule", "every monday")
+
+    val error = assertThrows(IllegalArgumentException::class.java) { serializeDag(dag, "", ".") }
+
+    assertEquals(
+      "Schedule 'every monday' of Dag 'd' is not a cron expression or a preset " +
+        "(@hourly, @daily, @weekly, @monthly, @quarterly, @yearly, @once, @continuous); a schedule the " +
+        "scheduler cannot parse would leave the Dag unschedulable",
+      error.message,
+    )
   }
 
   @Test

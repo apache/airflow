@@ -33,8 +33,8 @@ import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 
-// Serializes Dags to Airflow DagSerialization v3 JSON, mirroring the Go SDK's
-// serde (go-sdk/pkg/execution/serde.go), which in turn matches Python's
+// Serializes Dags to Airflow DagSerialization v3 JSON, mirroring the TypeScript
+// SDK's serde (ts-sdk/src/coordinator/serde.ts), which in turn matches Python's
 // DagSerialization output.
 
 private val defaultsMapper = ObjectMapper()
@@ -94,8 +94,8 @@ internal fun serializeDag(
       "dag_id" to dag.id,
       "fileloc" to fileloc,
       "relative_fileloc" to relativeFileloc,
-      "timezone" to "UTC",
-      "timetable" to serializeTimetable(dag.dagConfig["schedule"] as String?),
+      "timezone" to dagTimezone(dag.dagConfig),
+      "timetable" to serializeTimetable(dag.id, dag.dagConfig),
       "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId]) },
       "dag_dependencies" to emptyList<Any?>(),
       "task_group" to serializeTaskGroups(dag),
@@ -186,26 +186,81 @@ private fun applyDagConfig(
 // TODO: respect [scheduler] create_cron_data_intervals like Python's
 // _create_timetable; the JVM bundle cannot read airflow.cfg, so the
 // supervisor must send those flags over the coordinator protocol first.
-// Mirrors the Go SDK's default-only behavior; tracked at
+// The TypeScript SDK waits on the same flag; tracked at
 // https://github.com/apache/airflow/issues/67938
-private fun serializeTimetable(schedule: String?): Map<String, Any?> =
-  when (schedule) {
+private fun serializeTimetable(
+  dagId: String,
+  config: Map<String, Any>,
+): Map<String, Any?> =
+  when (val schedule = config["schedule"] as String?) {
     null -> mapOf("__type" to "airflow.timetables.simple.NullTimetable", "__var" to emptyMap<String, Any?>())
     "@once" -> mapOf("__type" to "airflow.timetables.simple.OnceTimetable", "__var" to emptyMap<String, Any?>())
     "@continuous" ->
       mapOf("__type" to "airflow.timetables.simple.ContinuousTimetable", "__var" to emptyMap<String, Any?>())
-    else ->
+    else -> {
+      val expression = CRON_PRESETS[schedule] ?: schedule
+      require(isCronExpression(expression)) {
+        "Schedule '$schedule' of Dag '$dagId' is not a cron expression or a preset " +
+          "(${CRON_PRESETS.keys.joinToString()}, @once, @continuous); a schedule the scheduler cannot " +
+          "parse would leave the Dag unschedulable"
+      }
       mapOf(
         "__type" to "airflow.timetables.trigger.CronTriggerTimetable",
         "__var" to
           mapOf(
-            "expression" to schedule,
-            "timezone" to "UTC",
+            "expression" to expression,
+            "timezone" to dagTimezone(config),
             "interval" to 0.0,
             "run_immediately" to false,
           ),
       )
+    }
   }
+
+/**
+ * The Dag's timezone, as Python's `encode_timezone` writes it: `"UTC"` for a
+ * zero offset, otherwise the offset in seconds.
+ *
+ * Python takes it from `start_date`, so a cron schedule runs in the zone the
+ * Dag's start date was written in. A Dag with no start date runs in UTC.
+ */
+private fun dagTimezone(config: Map<String, Any>): Any =
+  (config["start_date"] as? OffsetDateTime)
+    ?.offset
+    ?.totalSeconds
+    ?.takeIf { it != 0 }
+    ?: "UTC"
+
+/**
+ * Presets expanded the way `CronMixin.__init__` expands them, so the
+ * serialized expression is the one Python records, which the Dag's summary and
+ * its hash are both taken from. Mirrors `airflow.utils.dates.cron_presets`.
+ */
+private val CRON_PRESETS =
+  mapOf(
+    "@hourly" to "0 * * * *",
+    "@daily" to "0 0 * * *",
+    "@weekly" to "0 0 * * 0",
+    "@monthly" to "0 0 1 * *",
+    "@quarterly" to "0 0 1 */3 *",
+    "@yearly" to "0 0 1 1 *",
+  )
+
+private val CRON_FIELD = Regex("[\\d*,\\-/?LW#]+|[A-Z]{3}(-[A-Z]{3})?", RegexOption.IGNORE_CASE)
+
+/**
+ * Whether [expression] has the shape croniter accepts: five or six
+ * space-separated fields of cron characters.
+ *
+ * A shape check, not a parse: croniter validates the ranges, and repeating
+ * that here would be a second implementation to keep in step. What it catches
+ * is prose, such as `"every tuesday"`, which would otherwise be written into a
+ * Dag the scheduler then fails to build a timetable for.
+ */
+private fun isCronExpression(expression: String): Boolean {
+  val fields = expression.trim().split(Regex("\\s+"))
+  return fields.size in 5..6 && fields.all { CRON_FIELD.matches(it) }
+}
 
 /**
  * Serializes the Dag's task groups as Python's `TaskGroupSerialization` does:
