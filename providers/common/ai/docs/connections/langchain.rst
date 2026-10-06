@@ -20,6 +20,11 @@
 LangChain connection
 ====================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 The ``langchain`` connection type configures access to LLM providers via
 `LangChain <https://python.langchain.com/>`__'s universal
 ``init_chat_model`` / ``init_embeddings`` entry points. It backs

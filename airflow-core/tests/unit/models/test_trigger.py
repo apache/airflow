@@ -513,9 +513,12 @@ def test_submit_event_task_end_failed_respects_retries(
         assert len(tih) == 1
         assert ti.id != old_ti_id
         assert tih[0].task_instance_id == old_ti_id
+        assert tih[0].try_number == 1
+        assert ti.try_number == 2
     else:
         assert tih == []
         assert ti.id == old_ti_id
+        assert ti.try_number == 1
 
 
 @pytest.fixture
@@ -662,6 +665,51 @@ def test_assign_unassigned(session, create_triggerer, create_trigger, use_queues
             ).triggerer_id
             == new_triggerer.id
         )
+
+
+@pytest.mark.parametrize("queue", [None, "callbacks"])
+def test_assign_unassigned_callbacks_preserves_healthy_owners(session, create_triggerer, time_machine, queue):
+    now = timezone.datetime(2026, 1, 1)
+    time_machine.move_to(now, tick=False)
+    queues = {queue} if queue else None
+    healthy_owner = create_triggerer(session, State.RUNNING, latest_heartbeat=now)
+    claiming_triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=now)
+    stale_owner = create_triggerer(
+        session, State.RUNNING, latest_heartbeat=now - datetime.timedelta(seconds=31)
+    )
+    finished_owner = create_triggerer(session, State.SUCCESS, latest_heartbeat=now, end_date=now)
+    session.flush()
+
+    expected_owners = {}
+    for owner, priority in (
+        (healthy_owner, 10),
+        (claiming_triggerer, 10),
+        (stale_owner, 1),
+        (finished_owner, 1),
+        (None, 1),
+    ):
+        callback = TriggererCallback(
+            callback_def=AsyncCallback("asyncio.sleep", kwargs={"delay": 60}, queue=queue),
+            priority_weight=priority,
+        )
+        callback.queue(session=session)
+        callback.trigger.triggerer_id = owner.id if owner else None
+        session.add(callback)
+        session.flush()
+        expected_owners[callback.trigger.id] = (
+            healthy_owner.id if owner is healthy_owner else claiming_triggerer.id
+        )
+    session.commit()
+
+    for triggerer in (claiming_triggerer, healthy_owner):
+        Trigger.assign_unassigned(
+            triggerer.id,
+            capacity=4,
+            health_check_threshold=30,
+            queues=queues,
+        )
+        session.expire_all()
+        assert dict(session.execute(select(Trigger.id, Trigger.triggerer_id)).all()) == expected_owners
 
 
 @pytest.mark.need_serialized_dag

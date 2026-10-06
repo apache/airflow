@@ -59,6 +59,8 @@ Environment variables (optional):
   JOB_MIN_ABS_INCREASE_MINUTES - Absolute floor for per-job alerts (default: 3)
   IMAGE_BUILD_PERSISTENCE_DAYS - Only report a slow image build once it has stayed
                               elevated for at least this many days (default: 2)
+  MAX_LATEST_RUN_AGE_DAYS   - Skip the analysis when the newest usable run is older than
+                              this many days (default: 3)
   ANALYZE_JOBS              - Whether to fetch per-job durations ("true"/"false", default: true)
   ONLY_SUCCESSFUL           - Only consider runs that concluded "success" (default: true)
   SLACK_CHANNEL             - Slack channel for the message payload (default: internal-airflow-ci-cd)
@@ -73,7 +75,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypedDict
 
@@ -165,6 +167,14 @@ def parse_iso(timestamp: str | None) -> datetime | None:
         return datetime.fromisoformat(timestamp)
     except ValueError:
         return None
+
+
+def compute_run_age_days(run: dict, now: datetime) -> float | None:
+    """Return how many days before *now* the run was created, or None if unparsable."""
+    created = parse_iso(run.get("created_at"))
+    if created is None:
+        return None
+    return (now - created).total_seconds() / 86400
 
 
 def duration_seconds(start: str | None, end: str | None) -> float | None:
@@ -702,6 +712,7 @@ def main() -> None:
     min_abs_increase_seconds = env_float("MIN_ABS_INCREASE_MINUTES", 5.0) * 60
     job_min_abs_increase_seconds = env_float("JOB_MIN_ABS_INCREASE_MINUTES", 3.0) * 60
     image_build_persistence_days = env_float("IMAGE_BUILD_PERSISTENCE_DAYS", 2.0)
+    max_latest_run_age_days = env_float("MAX_LATEST_RUN_AGE_DAYS", 3.0)
     do_analyze_jobs = env_bool("ANALYZE_JOBS", True)
     only_successful = env_bool("ONLY_SUCCESSFUL", True)
     channel = os.environ.get("SLACK_CHANNEL", "internal-airflow-ci-cd")
@@ -712,6 +723,17 @@ def main() -> None:
     print(f"Window: up to {max_runs} completed runs; latest {latest_runs_count} vs baseline.")
 
     runs = get_recent_runs(repo, workflow, branch, max_runs, only_successful, event)
+    # A degraded Actions API can return an old page of runs, and without this check its
+    # weeks-old durations were reported as "latest" and raised a false alert.
+    newest_age_days = compute_run_age_days(runs[0], datetime.now(timezone.utc)) if runs else None
+    if newest_age_days is not None and newest_age_days > max_latest_run_age_days:
+        print(
+            f"::warning::The newest usable run (#{runs[0]['run_number']}) is "
+            f"{newest_age_days:.1f} days old, over MAX_LATEST_RUN_AGE_DAYS={max_latest_run_age_days:g}: "
+            f"the run listing is stale or {branch} has had no usable run since. Skipping."
+        )
+        _write_outputs(False, False, 0, False)
+        sys.exit(0)
     if len(runs) < latest_runs_count + min_baseline_runs:
         print(
             f"Not enough runs to establish a trend "

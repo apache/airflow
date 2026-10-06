@@ -39,6 +39,25 @@ log = logging.getLogger(__name__)
 _DEFAULT_GITHUB_API_URL = "https://api.github.com"
 
 
+@contextlib.contextmanager
+def _executable_script(content: str) -> Generator[str]:
+    """
+    Write ``content`` to a private temporary file and yield its path.
+
+    git and ssh execute the askpass helpers, so the file must be closed before
+    they run: Linux refuses to exec a file that is still open for writing
+    (``ETXTBSY``, "Text file busy").
+    """
+    fd, path = tempfile.mkstemp(suffix=".sh")
+    try:
+        with os.fdopen(fd, "w") as script:
+            script.write(content)
+        os.chmod(path, stat.S_IRWXU)
+        yield path
+    finally:
+        os.unlink(path)
+
+
 class GitHook(BaseHook):
     """
     Hook for git repositories.
@@ -239,6 +258,11 @@ class GitHook(BaseHook):
 
         return " ".join(parts)
 
+    @property
+    def uses_github_app_auth(self) -> bool:
+        """Whether the connection authenticates as a GitHub App and mints its own installation tokens."""
+        return self.github_app_id is not None and self.github_installation_id is not None
+
     def _get_github_app_token(self):
         try:
             from github import Auth, GithubIntegration
@@ -368,20 +392,18 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
             yield
             return
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
-            askpass_script.write(f"#!/bin/sh\necho {shlex.quote(self.private_key_passphrase)}\n")
-            askpass_script.flush()
-            os.chmod(askpass_script.name, stat.S_IRWXU)
-
+        with _executable_script(
+            f"#!/bin/sh\necho {shlex.quote(self.private_key_passphrase)}\n"
+        ) as askpass_path:
             old_askpass = os.environ.get("SSH_ASKPASS")
             old_display = os.environ.get("DISPLAY")
             old_askpass_require = os.environ.get("SSH_ASKPASS_REQUIRE")
             try:
-                os.environ["SSH_ASKPASS"] = askpass_script.name
+                os.environ["SSH_ASKPASS"] = askpass_path
                 os.environ["SSH_ASKPASS_REQUIRE"] = "force"
                 # DISPLAY must be set for SSH_ASKPASS to be used
                 os.environ.setdefault("DISPLAY", ":")
-                self.env["SSH_ASKPASS"] = askpass_script.name
+                self.env["SSH_ASKPASS"] = askpass_path
                 self.env["SSH_ASKPASS_REQUIRE"] = "force"
                 self.env.setdefault("DISPLAY", os.environ["DISPLAY"])
                 yield
@@ -398,7 +420,7 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
 
     @contextlib.contextmanager
     def configure_hook_env(self):
-        if self.github_app_id is not None and self.github_installation_id is not None:
+        if self.uses_github_app_auth:
             self._ensure_github_app_token()
             with self._token_credential_env():
                 yield

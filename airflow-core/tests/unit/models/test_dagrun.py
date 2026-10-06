@@ -58,6 +58,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
@@ -94,6 +95,7 @@ from tests_common.test_utils.mapping import expand_mapped_task, push_mapped_leng
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
+from unit.plugins.priority_weight_strategy import DecreasingPriorityStrategy, TestPriorityWeightStrategyPlugin
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -615,7 +617,8 @@ class TestDagRun:
             "test_state_succeeded2": TaskInstanceState.SUCCESS,
         }
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+        dag_maker.dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_maker.dag), bundle_name="dag_maker")
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -662,7 +665,8 @@ class TestDagRun:
             "test_state_failed2": TaskInstanceState.FAILED,
         }
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+        dag_maker.dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_maker.dag), bundle_name="dag_maker")
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -989,12 +993,9 @@ class TestDagRun:
             run_type=DagRunType.SCHEDULED,
         )
 
-        prev_ti = TI(task, run_id=dag_run_1.run_id, dag_version_id=dag_run_1.created_dag_version_id)
-        prev_ti.refresh_from_db(session=session)
+        prev_ti = dag_run_1.get_task_instance(task.task_id, session=session)
         prev_ti.set_state(prev_ti_state, session=session)
         session.flush()
-        ti = TI(task, run_id=dag_run_2.run_id, dag_version_id=dag_run_1.created_dag_version_id)
-        ti.refresh_from_db(session=session)
 
         decision = dag_run_2.task_instance_scheduling_decisions(session=session)
         schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]
@@ -2121,6 +2122,72 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     ]
 
 
+@pytest.mark.parametrize("try_number", [0, 2])
+@pytest.mark.parametrize("mapped", [False, True])
+def test_restoring_removed_task_allocates_attempt_once(dag_maker, session, try_number, mapped):
+    with dag_maker(session=session):
+        if mapped:
+            BashOperator.partial(task_id="task").expand(bash_command=["true"])
+        else:
+            BashOperator(task_id="task", bash_command="true")
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("task", map_index=0 if mapped else -1, session=session)
+    ti.state = TaskInstanceState.REMOVED
+    ti.try_number = try_number
+    old_id = ti.id
+    session.flush()
+
+    for _ in range(2):
+        dr.verify_integrity(dag_version_id=ti.dag_version_id, session=session)
+        session.flush()
+
+    history = session.scalar(
+        select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+    )
+    assert ti.state is None
+    if try_number:
+        assert ti.id != old_id
+        assert ti.try_number == try_number + 1
+        assert history.try_number == try_number
+        assert history.state == TaskInstanceState.REMOVED
+    else:
+        assert ti.id == old_id
+        assert ti.try_number == 0
+        assert history is None
+
+    ti.task = dag_maker.serialized_dag.get_task("task")
+    assert dr.schedule_tis([ti], session=session) == 1
+    session.refresh(ti)
+    assert ti.try_number == try_number + 1
+
+
+def test_verifying_removed_map_index_does_not_allocate_attempt(dag_maker, session):
+    with dag_maker(session=session):
+        BashOperator.partial(task_id="task").expand(bash_command=["true", "true"])
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("task", map_index=1, session=session)
+    ti.try_number = 2
+    ti.state = TaskInstanceState.SUCCESS
+    old_id = ti.id
+    session.flush()
+
+    with dag_maker(session=session):
+        BashOperator.partial(task_id="task").expand(bash_command=["true"])
+    dr.dag = dag_maker.serialized_dag
+    dag_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+    for _ in range(3):
+        dr.verify_integrity(dag_version_id=dag_version_id, session=session)
+        session.flush()
+
+    assert ti.state == TaskInstanceState.REMOVED
+    assert ti.id == old_id
+    assert ti.try_number == 2
+    assert (
+        session.scalar(select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id))
+        is None
+    )
+
+
 def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     """Test that when the length of mapped literal reduces, removed state is added"""
 
@@ -2715,6 +2782,26 @@ def test_schedule_tis_empty_operator_does_not_short_circuit_if_ti_already_queued
     assert refreshed_ti.try_number == 1
 
 
+@pytest.mark.parametrize("state", [None, TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.UP_FOR_RESCHEDULE])
+@pytest.mark.parametrize("try_number", [1, 3])
+def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try_number):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    ti.state = state
+    ti.try_number = try_number
+    session.commit()
+    ti_id = ti.id
+
+    assert dr.schedule_tis((ti,), session=session) == 1
+    session.flush()
+    session.expire_all()
+
+    assert session.get(TI, ti_id).try_number == try_number
+
+
 def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker, session):
     with dag_maker(session=session) as dag:
         BashOperator(task_id="task", bash_command="echo 1")
@@ -2743,6 +2830,73 @@ def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker,
     )
     assert refreshed_ti.state == TaskInstanceState.SCHEDULED
     assert refreshed_ti.try_number == 3
+
+
+@pytest.mark.mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin])
+def test_schedule_tis_refreshes_task_instance_only_on_retry(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        for task_id in ("first_attempt", "retry", "reschedule"):
+            BashOperator(task_id=task_id, bash_command="echo 1", weight_rule=DecreasingPriorityStrategy())
+
+    dr = dag_maker.create_dagrun(session=session)
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    for task_id, state, try_number in (
+        ("first_attempt", None, 0),
+        ("retry", TaskInstanceState.UP_FOR_RETRY, 2),
+        ("reschedule", TaskInstanceState.UP_FOR_RESCHEDULE, 3),
+    ):
+        tis[task_id].refresh_from_task(dag.get_task(task_id))
+        tis[task_id].state = state
+        tis[task_id].try_number = try_number
+    session.commit()
+
+    hook_calls = []
+
+    def route_to_retry_queue(task_instance, dag_run=None):
+        hook_calls.append((task_instance.task_id, task_instance.try_number, dag_run))
+        task_instance.queue = "retry_queue"
+
+    with _registered_mutation_hook(route_to_retry_queue):
+        assert dr.schedule_tis(tis.values(), session=session) == 3
+    session.commit()
+
+    assert hook_calls == [("retry", 2, dr)]
+    session.expire_all()
+    retry_ti = dr.get_task_instance("retry", session=session)
+    assert retry_ti.state == TaskInstanceState.SCHEDULED
+    assert retry_ti.try_number == 2
+    assert retry_ti.queue == "retry_queue"
+    assert retry_ti.priority_weight == 2
+
+
+def test_schedule_tis_refreshes_a_retry_that_defers_from_trigger(dag_maker, session):
+    with dag_maker(session=session):
+        task = MockOperator(task_id="task")
+        task.start_from_trigger = True
+        task.start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            next_method="execute_complete",
+        )
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dag_maker.create_ti("task", dag_run=dr)
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.try_number = 2
+    session.commit()
+
+    hook_calls = []
+
+    def route_to_retry_queue(task_instance, dag_run=None):
+        hook_calls.append((task_instance.task_id, task_instance.try_number))
+        task_instance.queue = "retry_queue"
+
+    with _registered_mutation_hook(route_to_retry_queue):
+        dr.schedule_tis((ti,), session=session)
+    session.commit()
+
+    assert hook_calls == [("task", 2)]
+    session.expire_all()
+    assert (ti.state, ti.queue) == (TaskInstanceState.DEFERRED, "retry_queue")
 
 
 def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
@@ -3266,7 +3420,7 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     @task
     def generate_mapping_args():
         context = get_current_context()
-        if context["ti"].try_number == 0:
+        if context["ti"].try_number == 1:
             args = [i for i in range(2)]
         else:
             args = [i for i in range(rerun_length)]
@@ -3291,9 +3445,6 @@ def test_mapped_task_rerun_with_different_length_of_args(session, dag_maker, rer
     clear_task_instances(dr.get_task_instances(), session=session)
 
     # Second Run
-    ti = dr.get_task_instance(task_id="generate_mapping_args", session=session)
-    ti.try_number += 1
-    session.merge(ti)
     dag_maker.run_ti("generate_mapping_args", dr)
 
     # Check if the new mapped task instances are correctly scheduled
@@ -3318,7 +3469,7 @@ def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, d
     @task
     def producer():
         context = get_current_context()
-        if context["ti"].try_number == 0:
+        if context["ti"].try_number == 1:
             return [i for i in range(3)]
         return [i for i in range(2)]
 
@@ -3354,9 +3505,6 @@ def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, d
 
     # Clear and rerun with one fewer mapped task instance.
     clear_task_instances(dr.get_task_instances(session=session), session=session)
-    ti = dr.get_task_instance(task_id="producer", session=session)
-    ti.try_number += 1
-    session.merge(ti)
 
     dag_maker.run_ti("producer", dr)
     decision = dr.task_instance_scheduling_decisions(session=session)

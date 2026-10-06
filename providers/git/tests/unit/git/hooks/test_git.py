@@ -780,6 +780,25 @@ class TestGitHook:
             assert "GIT_CONFIG_COUNT" not in hook.env
             assert "AIRFLOW_GIT_TOKEN" not in hook.env
 
+    def test_passphrase_askpass_script_is_executable(self, create_connection_without_db):
+        """ssh must be able to exec the helper: it has to be closed before it runs (ETXTBSY on Linux)."""
+        create_connection_without_db(
+            Connection(
+                conn_id="git_passphrase_exec",
+                host=AIRFLOW_GIT,
+                conn_type="git",
+                extra={
+                    "key_file": "/files/pkey.pem",
+                    "private_key_passphrase": "my_secret",
+                },
+            )
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
+            hook = GitHook(git_conn_id="git_passphrase_exec")
+        with hook.configure_hook_env():
+            result = subprocess.run([hook.env["SSH_ASKPASS"]], capture_output=True, text=True, check=True)
+        assert result.stdout.strip() == "my_secret"
+
     # --- GitHub App auth tests ---
 
     def test_only_app_id_without_installation_id_raises(self):
@@ -801,6 +820,16 @@ class TestGitHook:
         assert hook.github_app_id == "12345"
         assert hook.github_installation_id == "67890"
         assert hook.private_key is None
+
+    @pytest.mark.parametrize(
+        ("conn_id", "expected"),
+        [
+            pytest.param(CONN_APP_NO_KEY, True, id="github-app"),
+            pytest.param(CONN_HTTPS, False, id="token"),
+        ],
+    )
+    def test_uses_github_app_auth(self, conn_id, expected):
+        assert GitHook(git_conn_id=conn_id).uses_github_app_auth is expected
 
     def test_app_auth_with_key_file_reads_file(self, create_connection_without_db, tmp_path, monkeypatch):
         key_file = tmp_path / "app_key.pem"

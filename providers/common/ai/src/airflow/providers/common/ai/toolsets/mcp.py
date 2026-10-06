@@ -20,16 +20,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from typing_extensions import Self
+
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from pydantic_ai._run_context import RunContext
+    from pydantic_ai.toolsets.abstract import ToolsetTool
+
+    from airflow.providers.common.ai.tools import AirflowTool
 
 
-class MCPToolset(AbstractToolset[Any]):
+class MCPToolset(AirflowToolset):
     """
     Toolset that connects to an MCP server configured via an Airflow connection.
 
@@ -109,8 +113,12 @@ class MCPToolset(AbstractToolset[Any]):
             self._server = hook.get_conn()
         return self._server
 
+    async def _resolve_server(self) -> Any:
+        # Resolving the connection talks to the supervisor, so it takes the blocking-call lock.
+        return self._server if self._server is not None else await self.run_blocking(self._get_server)
+
     async def __aenter__(self) -> Self:
-        await self._get_server().__aenter__()
+        await (await self._resolve_server()).__aenter__()
         return self
 
     async def __aexit__(self, *args: Any) -> bool | None:
@@ -119,13 +127,28 @@ class MCPToolset(AbstractToolset[Any]):
         return None
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
-        return await self._get_server().get_tools(ctx)
+        return await (await self._resolve_server()).get_tools(ctx)
 
-    async def call_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        return await self._get_server().call_tool(name, tool_args, ctx, tool)
+        return await (await self._resolve_server()).call_tool(name, tool_args, ctx, tool)
+
+    def airflow_tools(self) -> list[AirflowTool]:
+        """
+        Not supported: use the agent framework's own MCP client instead.
+
+        An MCP session belongs to the event loop that opened it, and the framework-neutral
+        tools run outside the Pydantic AI run that manages it, so every call would reconnect
+        to the server, and a stdio server would restart each time.
+        """
+        raise NotImplementedError(
+            "MCPToolset works in Pydantic AI agents and through the LangChain bridge, not through "
+            "the framework-neutral tools. Connect your framework's own MCP client to the server "
+            "instead, such as Strands' MCPClient or ADK's McpToolset."
+        )

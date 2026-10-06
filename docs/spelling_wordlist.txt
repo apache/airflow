@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractCapability
 AbstractFileSystem
 AbstractToolset
 accessor
@@ -632,6 +633,7 @@ ExaConnection
 Exasol
 exasol
 exc
+execd
 executables
 exitcode
 expanduser
@@ -838,6 +840,7 @@ ideation
 idempotence
 idempotency
 IdP
+idp
 ie
 iframe
 iframes
@@ -874,7 +877,9 @@ instafail
 installable
 InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceGroupManager
 InstanceSelection
+InstanceTemplate
 instanceTemplates
 InstanceType
 instanceType
@@ -958,6 +963,7 @@ jwt
 Kafka
 kafka
 Kamil
+Kata
 KEDA
 keepalive
 keepalives
@@ -966,6 +972,7 @@ kerberized
 Kerberos
 kerberos
 KerberosClient
+Kev
 keycloak
 Keyfile
 keyfile
@@ -1100,6 +1107,7 @@ midnights
 milli
 millis
 milton
+minification
 minikube
 misconfiguration
 misconfigured
@@ -1213,6 +1221,7 @@ openfaas
 OpenID
 openjdk
 openlineage
+opensandbox
 OpenSearch
 opensearch
 OpenTelemetry
@@ -1386,6 +1395,7 @@ pyproject
 pypsrp
 pyspark
 pytest
+PythonAgentTool
 pythonic
 PythonOperator
 pythonpath
@@ -1448,6 +1458,7 @@ renderers
 renewer
 reparse
 reparsed
+reparsing
 replicaSet
 repo
 repos
@@ -1493,6 +1504,7 @@ rtype
 ru
 ruleset
 runAsUser
+RunContext
 runnable
 RunQueryOperator
 RunQuerySensor

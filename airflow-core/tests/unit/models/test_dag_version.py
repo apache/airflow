@@ -167,6 +167,30 @@ class TestDagVersion:
         assert version.version == f"{dag1_id}-1"
 
     @pytest.mark.need_serialized_dag
+    def test_get_version_eager_loads_dag_code(self, dag_maker, session):
+        """``load_dag_code`` fetches DagCode in the same query, so accessing it costs no round trip."""
+        dag_id = "test_eager_dag_code"
+        with dag_maker(dag_id):
+            EmptyOperator(task_id="task1")
+
+        session.expunge_all()
+        version = DagVersion.get_version(dag_id, load_dag_code=True, session=session)
+        with assert_queries_count(0):
+            assert version.dag_code.source_code is not None
+
+    @pytest.mark.need_serialized_dag
+    def test_get_version_lazy_loads_dag_code_by_default(self, dag_maker, session):
+        """Without ``load_dag_code`` the relationship stays lazy and is fetched on first access."""
+        dag_id = "test_lazy_dag_code"
+        with dag_maker(dag_id):
+            EmptyOperator(task_id="task1")
+
+        session.expunge_all()
+        version = DagVersion.get_version(dag_id, session=session)
+        with assert_queries_count(1):
+            assert version.dag_code.source_code is not None
+
+    @pytest.mark.need_serialized_dag
     def test_version_property(self, dag_maker):
         with dag_maker("test1") as dag:
             pass

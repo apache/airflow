@@ -146,7 +146,7 @@ Install them when installing from PyPI. For example:
 Extra           Dependencies
 ==============  ===================================
 ``google``      ``apache-airflow-providers-google``
-``sqlalchemy``  ``sqlalchemy>=1.4.54``
+``sqlalchemy``  ``sqlalchemy>=1.4.54,!=2.1.0``
 ==============  ===================================
 
 Downloading official packages

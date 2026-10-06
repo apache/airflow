@@ -25,7 +25,6 @@
         "title": "Backfill létrehozva"
       }
     },
-    "unpause": "{{dag_display_name}} folytatása indításkor",
     "validation": {
       "datesRequired": "A kezdő és a befejező dátumot is meg kell adni.",
       "startBeforeEnd": "A kezdő dátumnak kisebbnek vagy egyenlőnek kell lennie a befejező dátumnál."
@@ -150,8 +149,7 @@
         "title": "Dag futás elindítva"
       }
     },
-    "triggerAgainWithConfig": "Újraindítás ezzel a konfigurációval",
-    "unpause": "{{dagDisplayName}} folytatása indításkor"
+    "triggerAgainWithConfig": "Újraindítás ezzel a konfigurációval"
   },
   "trimText": {
     "details": "Részletek",

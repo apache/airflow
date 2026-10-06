@@ -509,6 +509,16 @@ def materialize_asset(
             )
 
         params = body.validate_context(context_dag)
+        if body.drain_dag:
+            if not get_auth_manager().is_authorized_dag(
+                method="PUT",
+                details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
+                user=user,
+            ):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN, f"Draining requires permission to edit Dag: {dag_id}"
+                )
+            DagModel.start_drain(dag_id, session=session)
         return dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],

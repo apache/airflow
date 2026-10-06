@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
+import copy
 import datetime
 import enum
 import itertools
@@ -39,11 +40,14 @@ import attrs
 import lazy_object_proxy
 import pydantic
 from dateutil import relativedelta
+from jsonschema import ValidationError
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
+from airflow._shared.dagnode.cycle import detect_cycle
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
 from airflow.models.connection import Connection
 from airflow.models.expandinput import SchedulerMappedArgument, create_expand_input
@@ -294,6 +298,16 @@ def _decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
         next_kwargs=var["next_kwargs"],
         timeout=datetime.timedelta(seconds=var["timeout"]) if var["timeout"] else None,
     )
+
+
+def _build_json_path(error: ValidationError) -> str:
+    """
+    Return where *error* is in the document, such as ``$.dag.tasks[2].__type``.
+
+    Unlike ``ValidationError.json_path``, whose quoting of a key such as ``__type`` depends on the
+    jsonschema version, this is the same under every version.
+    """
+    return "$" + "".join(f"[{part}]" if isinstance(part, int) else f".{part}" for part in error.absolute_path)
 
 
 class _XComRef(NamedTuple):
@@ -2130,6 +2144,88 @@ class DagSerialization(BaseSerialization):
 
         # Pass client_defaults directly to deserialize_dag
         return cls.deserialize_dag(serialized_obj["dag"], client_defaults)
+
+    @classmethod
+    def fill_config_defaults(cls, serialized_obj: dict[str, Any]) -> None:
+        """
+        Fill in the Dag settings a serialized Dag leaves unset from the Airflow config, as a Python Dag does.
+
+        A Lang-SDK runtime cannot read the Airflow config, so it leaves ``max_active_tasks``,
+        ``max_active_runs``, ``max_consecutive_failed_dag_runs``, ``catchup`` and
+        ``disable_bundle_versioning`` out unless the Dag sets them. A value the Dag sets is kept.
+        *serialized_obj* is changed in place.
+        """
+        dag = serialized_obj.get("dag")
+        if not isinstance(dag, dict):
+            # validate_serialized_dag rejects it.
+            return
+        for key, get, section, option in (
+            ("max_active_tasks", conf.getint, "core", "max_active_tasks_per_dag"),
+            ("max_active_runs", conf.getint, "core", "max_active_runs_per_dag"),
+            (
+                "max_consecutive_failed_dag_runs",
+                conf.getint,
+                "core",
+                "max_consecutive_failed_dag_runs_per_dag",
+            ),
+            ("catchup", conf.getboolean, "scheduler", "catchup_by_default"),
+            ("disable_bundle_versioning", conf.getboolean, "dag_processor", "disable_bundle_versioning"),
+        ):
+            if key not in dag:
+                dag[key] = get(section, option)
+
+    @classmethod
+    def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> SerializedDAG:
+        """
+        Check that a serialized Dag, such as one a Lang-SDK runtime produced, can be stored and loaded.
+
+        It must match the JSON schema, have unique task ids and deserialize. Like a Dag built with the SDK,
+        it must not set a ``max_active_runs`` its timetable forbids, nor ``catchup`` without a
+        ``start_date``, and its task graph must have no cycle. *serialized_obj* is not changed.
+
+        :return: The deserialized Dag.
+        :raises DeserializationError: if it does not.
+        """
+        dag = serialized_obj.get("dag")
+        dag_id = dag.get("dag_id") if isinstance(dag, dict) else None
+        try:
+            cls.validate_schema(serialized_obj)
+        except ValidationError as e:
+            raise DeserializationError(
+                dag_id, f"Dag {dag_id!r} does not match the schema at {_build_json_path(e)}: {e.message}"
+            ) from e
+        task_ids = collections.Counter(
+            task[Encoding.VAR]["task_id"] for task in serialized_obj["dag"]["tasks"]
+        )
+        if duplicates := sorted(task_id for task_id, count in task_ids.items() if count > 1):
+            raise DeserializationError(
+                dag_id, f"Dag {dag_id!r} has more than one task with id {', '.join(map(repr, duplicates))}"
+            )
+        try:
+            deserialized = cls.from_dict(copy.deepcopy(serialized_obj))
+        except Exception as e:
+            cause = e.__cause__ if isinstance(e, DeserializationError) and e.__cause__ else e
+            raise DeserializationError(
+                dag_id, f"Dag {dag_id!r} cannot be deserialized: {type(cause).__name__}: {cause}"
+            ) from e
+        if (
+            limit := deserialized.timetable.active_runs_limit
+        ) is not None and deserialized.max_active_runs > limit:
+            raise DeserializationError(
+                dag_id,
+                f"Dag {dag_id!r} sets max_active_runs {deserialized.max_active_runs}, "
+                f"but {type(deserialized.timetable).__name__} allows at most {limit}",
+            )
+        if (
+            deserialized.catchup
+            and deserialized.timetable.can_be_scheduled
+            and not (deserialized.start_date or "start_date" in deserialized.default_args)
+        ):
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} sets catchup but no start_date")
+        downstream = {task_id: task.downstream_task_ids for task_id, task in deserialized.task_dict.items()}
+        if (task_id := detect_cycle(downstream, downstream.__getitem__)) is not None:
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} has a cycle through task {task_id!r}")
+        return deserialized
 
 
 class TaskGroupSerialization(BaseSerialization):

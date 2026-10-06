@@ -61,6 +61,11 @@ class LLMBatchOperator(BaseOperator):
     """
     Submit prompts as a provider batch job and land results on object storage.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Routes to the OpenAI or Anthropic batch API based on ``model_id``'s
     ``"<provider>:<model>"`` prefix (see
     :mod:`~airflow.providers.common.ai.batch.dispatch`). Unlike

@@ -20,6 +20,11 @@
 Natural language to SQL: ``LLMSQLQueryOperator``
 ================================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 Use :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator` to generate
 SQL queries from natural language using an LLM.
 
@@ -60,7 +65,7 @@ With Object Storage
 -------------------
 
 Use ``datasource_config`` to generate queries for data stored in object storage
-(e.g., S3, GCS, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
+(e.g., S3, GCS, Azure Blob Storage, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
 The operator uses :class:`~airflow.providers.common.sql.config.DataSourceConfig`
 to register the object storage source as a table so the LLM can include it in
 the schema context.

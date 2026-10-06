@@ -137,7 +137,7 @@ func TestCoordinatorClientErrorTranslation(t *testing.T) {
 	}
 }
 
-// TestCoordinatorClientErrorPassThrough verifies that unrelated *ApiError
+// TestCoordinatorClientErrorPassThrough verifies that unrelated *APIError
 // values (e.g. a generic API_SERVER_ERROR) are returned unchanged.
 func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
@@ -156,7 +156,7 @@ func TestCoordinatorClientErrorPassThrough(t *testing.T) {
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, sdk.VariableNotFound),
 		"generic supervisor errors must not be translated to VariableNotFound")
-	var apiErr *ApiError
+	var apiErr *APIError
 	require.True(t, errors.As(err, &apiErr))
 	assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
 }
@@ -267,7 +267,7 @@ func TestCoordinatorClientVariableWriteErrors(t *testing.T) {
 			comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
 			client := NewCoordinatorClient(comm)
 
-			var apiErr *ApiError
+			var apiErr *APIError
 			require.ErrorAs(t, tc.call(client), &apiErr)
 			assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
 		})
@@ -468,4 +468,110 @@ func (f assertNoWriteWriter) Write(p []byte) (int, error) {
 	f.t.Helper()
 	f.t.Fatalf("unexpected Write on comm socket: env override should have short-circuited")
 	return 0, nil
+}
+
+// TestCoordinatorClientSkipDownstreamTasks verifies the SkipDownstreamTasks frame sent to the
+// supervisor, and that skipDownstreamTasks returns a supervisor ErrorResponse as an error.
+func TestCoordinatorClientSkipDownstreamTasks(t *testing.T) {
+	tests := []struct {
+		name    string
+		errBody map[string]any
+		wantErr bool
+	}{
+		{name: "skipped"},
+		{
+			name: "supervisor error",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 404},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, encodeResponseFrame(t, 0, nil, tc.errBody)))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(NewCoordinatorComm(&responseBuf, &requestBuf, logger))
+
+			err := client.skipDownstreamTasks(context.Background(), []string{"load", "report"})
+			if tc.wantErr {
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{
+				"type":  "SkipDownstreamTasks",
+				"tasks": []any{"load", "report"},
+			}, rawToMap(t, sent.Body))
+		})
+	}
+}
+
+// TestCoordinatorClientDeleteXCom verifies the DeleteXCom frame sent to the supervisor, and that
+// deleteXCom returns a supervisor ErrorResponse as an error. Like PushXCom, it leaves map_index out
+// for an unmapped task instance and sends index 0.
+func TestCoordinatorClientDeleteXCom(t *testing.T) {
+	tests := []struct {
+		name         string
+		mapIndex     *int
+		errBody      map[string]any
+		wantMapIndex any
+	}{
+		{name: "nil map_index is omitted"},
+		{name: "-1 map_index is omitted", mapIndex: ptr(-1)},
+		{name: "map_index 0 is sent", mapIndex: ptr(0), wantMapIndex: int8(0)},
+		{name: "map_index 3 is sent", mapIndex: ptr(3), wantMapIndex: int8(3)},
+		{
+			name: "supervisor error",
+			errBody: map[string]any{
+				"type":   "ErrorResponse",
+				"error":  "API_SERVER_ERROR",
+				"detail": map[string]any{"status_code": 500},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, encodeResponseFrame(t, 0, nil, tc.errBody)))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(NewCoordinatorComm(&responseBuf, &requestBuf, logger))
+
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t", MapIndex: tc.mapIndex}
+			err := client.deleteXCom(context.Background(), ti, "skipmixin_key")
+			if tc.errBody != nil {
+				var apiErr *APIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			want := map[string]any{
+				"type":    "DeleteXCom",
+				"dag_id":  "d",
+				"run_id":  "r",
+				"task_id": "t",
+				"key":     "skipmixin_key",
+			}
+			if tc.wantMapIndex != nil {
+				want["map_index"] = tc.wantMapIndex
+			}
+			assert.Equal(t, want, rawToMap(t, sent.Body))
+		})
+	}
 }

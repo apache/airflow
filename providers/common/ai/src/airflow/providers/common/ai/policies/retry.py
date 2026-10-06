@@ -23,8 +23,7 @@ Model-backed retry policies, one per layer of a ladder from hardcoded to reasoni
 * **Classifier.** :class:`ClassifierRetryPolicy`: the model names one of the author's
   ``categories`` and the :class:`ErrorCategory` table decides whether that category is
   retried, after how long, and how sure the model has to be. Tuned through descriptions and
-  a confidence bar, not through reasoning. A classifier model such as TypeSafe's Jev runs
-  here; a text model can too.
+  a confidence bar, not through reasoning. A decision model runs here; a text model can too.
 * **LLM.** :class:`LLMRetryPolicy`: a text model classifies the failure, decides whether to
   retry and how long to wait from ``instructions``, and explains itself.
 
@@ -42,7 +41,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel
 
@@ -56,7 +55,7 @@ from airflow.providers.common.ai.utils.decision import (
     review_reason,
     threshold_for,
 )
-from airflow.providers.common.compat.sdk import redact
+from airflow.providers.common.ai.utils.masking import mask_secrets
 
 try:
     from airflow.sdk.definitions.retry_policy import (
@@ -128,6 +127,11 @@ class ErrorClassification(BaseModel):
 class ErrorCategory:
     """
     One kind of failure a :class:`ClassifierRetryPolicy` may name, and what it does when it does.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     The value of the policy's ``categories`` mapping, keyed by the category name the model
     answers with.
@@ -215,8 +219,7 @@ categories: those travel in the output schema with their descriptions, so a prom
 
 def redact_registered_secrets(message: str) -> str:
     """Mask values registered via ``mask_secret()``; the default ``redactor`` for the policies here."""
-    # redact() is typed for arbitrary containers; a str in always yields a str out.
-    return cast("str", redact(message))
+    return mask_secrets(message)
 
 
 _REDACTION_PARAMS_DOC = """
@@ -343,9 +346,8 @@ class LLMRetryPolicy(_ModelRetryPolicy):
     Ollama, etc.) for error classification with structured output. The model
     returns an :class:`ErrorClassification`: which category the error is, whether
     to retry, how long to wait, and why, all steered by ``instructions``. This is
-    the reasoning layer; for a cheap typed decision from a classifier model such as
-    TypeSafe's Jev, use :class:`ClassifierRetryPolicy`, which can name this policy as
-    its ``fallback_policy``.
+    the reasoning layer; for a cheap typed decision from a decision model, use
+    :class:`ClassifierRetryPolicy`, which can name this policy as its ``fallback_policy``.
 
     When the LLM call itself fails, the policy falls back to ``fallback_rules``
     (if provided) or returns DEFAULT to use the task's standard retry logic.
@@ -394,11 +396,11 @@ class LLMRetryPolicy(_ModelRetryPolicy):
             result = self._run(agent, exception, try_number, max_tries)
         except Exception as exc:
             if "not supported by this model" in str(exc):
-                # A classifier model refuses ErrorClassification's free-text fields client-side. A text
+                # A decision model refuses ErrorClassification's free-text fields client-side. A text
                 # model whose profile lacks structured output raises the same words, so this is a hint.
                 log.error(
-                    "This model cannot answer ErrorClassification. If it is a classifier model such as "
-                    "TypeSafe's Jev, use ClassifierRetryPolicy, which asks it a typed question."
+                    "This model cannot answer ErrorClassification. If it is a decision model, "
+                    "use ClassifierRetryPolicy, which asks it a typed question."
                 )
             raise
         classification = result.output
@@ -429,11 +431,15 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
     """
     Retry policy where the model names the kind of failure and the author's table decides.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The model's only job is to pick one of ``categories``; it reads each one's description
     from the output schema. Whether that category is retried, after how long, and how sure
     the model has to be all come from the :class:`ErrorCategory` in the worker process.
-    That is the shape a classifier model such as TypeSafe's Jev answers, in a few hundred
-    milliseconds and with a confidence; a text model answers it too.
+    That is the shape a decision model answers, with a confidence; a text model answers it too.
 
     When the model call fails, or the answer is under its confidence bar, the policy
     consults ``fallback_policy`` if set, then ``fallback_rules``, then returns DEFAULT to use
@@ -458,7 +464,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         outside them is rejected before the policy acts on it.
     :param min_confidence: The confidence, from 0 to 1, the model's answer needs for the
         policy to act on it. ``None`` (default) is no bar: the answer is acted on whatever
-        the confidence. Confidence comes from models that report one, such as a classifier
+        the confidence. Confidence comes from models that report one, such as a decision
         model, in ``provider_details``. Under the bar, or when a bar is set and the model
         reported no confidence, the answer is discarded and ``fallback_policy``, then
         ``fallback_rules``, then the task's own retry behaviour apply, so swapping the

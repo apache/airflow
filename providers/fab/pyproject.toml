@@ -21,13 +21,13 @@
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
 requires = [
-    "hatchling==1.32.0",
+    "hatchling==1.32.4",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
-    "trove-classifiers==2026.6.1.19",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
@@ -80,7 +80,7 @@ dependencies = [
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.2.2",  # Whenever updating the version, run test_fab_alignment.py to verify.
     # Transitive via flask-appbuilder -> flask-jwt-extended; pinned here so the FAB
-    # provider keeps installing cleanly when paired with older airflow-core releases
+    # provider keeps installing cleanly when paired with older ``apache-airflow-core`` releases
     # (the compat-3.0.6 matrix job) whose own pyjwt floor predates `jwt.types.Options`
     # (added in PyJWT 2.11.0). Without this, `from jwt.types import Options` in
     # `flask_jwt_extended.tokens` raises ImportError at module import time.
