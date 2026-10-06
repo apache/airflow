@@ -4679,7 +4679,7 @@
                     ]
                 },
                 "strategy": {
-                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment. Ignored when ``config.dag_processor.execution_api_token_file`` is set; those pods share one session token and are replaced with the Recreate strategy.",
                     "type": [
                         "null",
                         "object"

@@ -445,6 +445,19 @@ class TestDagProcessor:
         assert "airflow dag-processor --check-ready" in readiness[-1]
         assert "airflow jobs check" not in command
 
+    def test_api_mode_replaces_pods_with_recreate(self):
+        docs = render_chart(
+            values={
+                "config": {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}},
+                "dagProcessor": {
+                    "strategy": {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.strategy", docs[0]) == {"type": "Recreate"}
+
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),
         [

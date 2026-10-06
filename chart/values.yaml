@@ -2197,7 +2197,9 @@ dagProcessor:
   # Args to use when running Airflow dag processor (templated).
   args: ["bash", "-c", "exec airflow dag-processor"]
 
-  # Update Strategy for dag processors
+  # Update Strategy for dag processors. Ignored when
+  # config.dag_processor.execution_api_token_file is set: those pods share one session
+  # token, so they are always replaced with the Recreate strategy.
   strategy:
     rollingUpdate:
       maxSurge: "100%"

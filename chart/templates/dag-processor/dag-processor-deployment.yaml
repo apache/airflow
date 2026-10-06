@@ -58,7 +58,11 @@ spec:
       tier: airflow
       component: dag-processor
       release: {{ .Release.Name }}
-  {{- if .Values.dagProcessor.strategy }}
+  {{- if (get (.Values.config.dag_processor | default dict) "execution_api_token_file") }}
+  {{- /* Pods share one session token, and a new pod can register its Job only after the old one stops. */}}
+  strategy:
+    type: Recreate
+  {{- else if .Values.dagProcessor.strategy }}
   strategy: {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
   {{- end }}
   template:
