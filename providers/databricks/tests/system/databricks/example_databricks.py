@@ -119,7 +119,7 @@ with DAG(
     run_now = DatabricksRunNowOperator(
         task_id="run_now",
         job_id=jobs_create_named.output,
-        outlets=[Asset("databricks://my-workspace.cloud.databricks.com/default/my_airflow_table")],
+        outlets=[Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")],
     )
 
     jobs_create_named >> run_now
@@ -152,7 +152,7 @@ with DAG(
         new_cluster=new_cluster,
         spark_jar_task={"main_class_name": "com.example.ProcessData"},
         libraries=[{"jar": "dbfs:/lib/etl-0.1.jar"}],
-        outlets=[Asset("databricks://my-workspace.cloud.databricks.com/default/my_airflow_table")],
+        outlets=[Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")],
     )
     # [END howto_operator_databricks_named]
     notebook_task >> spark_jar_task
@@ -163,8 +163,8 @@ with DAG(
         databricks_conn_id="databricks_default",
         statement="insert into default.my_airflow_table values (3, 'test 3')",
         warehouse_id=WAREHOUSE_ID,
-        outlets=[Asset("databricks://my-workspace.cloud.databricks.com/default/my_airflow_table")],
-    # deferrable=True, # For using the operator in deferrable mode
+        outlets=[Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")],
+        # deferrable=True, # For using the operator in deferrable mode
     )
     # [END howto_operator_sql_statements]
 

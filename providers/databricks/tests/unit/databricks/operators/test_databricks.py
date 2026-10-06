@@ -1405,7 +1405,6 @@ class TestDatabricksSubmitRunOperator:
             "Databricks run was submitted, not that the table was refreshed."
         ) in caplog.text
 
-
     def test_empty_outlets_do_not_warn(self, caplog):
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID,
@@ -1416,7 +1415,6 @@ class TestDatabricksSubmitRunOperator:
 
         assert op.outlets == []
         assert "outlets are set with wait_for_termination=False" not in caplog.text
-
 
     def test_outlets_do_not_warn_when_waiting(self, caplog):
         DatabricksSubmitRunOperator(
@@ -2885,7 +2883,6 @@ class TestDatabricksRunNowOperator:
             "Databricks run was submitted, not that the table was refreshed."
         ) in caplog.text
 
-
     def test_empty_outlets_do_not_warn(self, caplog):
         op = DatabricksRunNowOperator(
             task_id=TASK_ID,
@@ -2896,7 +2893,6 @@ class TestDatabricksRunNowOperator:
 
         assert op.outlets == []
         assert "outlets are set with wait_for_termination=False" not in caplog.text
-
 
     def test_outlets_do_not_warn_when_waiting(self, caplog):
         DatabricksRunNowOperator(

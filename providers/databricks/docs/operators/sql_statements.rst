@@ -109,6 +109,7 @@ An example usage of the ``DatabricksSQLStatementsSensor`` is as follows:
     :language: python
     :start-after: [START howto_sensor_databricks_sql_statement]
     :end-before: [END howto_sensor_databricks_sql_statement]
+
 Explicit assets
 ---------------
 
@@ -122,7 +123,7 @@ statement writes to. Declare output assets explicitly using ``outlets``::
         statement="insert into default.my_airflow_table values (3, 'test 3')",
         warehouse_id=WAREHOUSE_ID,
         outlets=[
-            Asset("databricks://my-workspace.cloud.databricks.com/default/my_airflow_table")
+            Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")
         ],
     )
 

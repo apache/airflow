@@ -261,7 +261,7 @@ by a submitted job. Declare known outputs explicitly using ``outlets``::
         spark_jar_task={"main_class_name": "com.example.ProcessData"},
         libraries=[{"jar": "dbfs:/lib/etl-0.1.jar"}],
         outlets=[
-            Asset("databricks://my-workspace.cloud.databricks.com/default/my_airflow_table")
+            Asset("databricks://my-workspace.cloud.databricks.com/main/default/my_airflow_table")
         ],
     )
 
