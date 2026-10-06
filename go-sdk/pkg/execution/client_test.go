@@ -457,8 +457,8 @@ func TestCoordinatorClientGetXComMapIndex(t *testing.T) {
 	}
 }
 
-// Only an absent value may fall back; a malformed one must fail as Python's
-// TaskStateStoreAccessor.set does rather than silently use the shipped default.
+// The supervisor always passes the setting, so an absent or malformed value must
+// fail as Python's TaskStateStoreAccessor.set does rather than be guessed at.
 func TestResolveDefaultExpiry(t *testing.T) {
 	now := time.Date(2026, 6, 9, 12, 0, 0, 0, time.UTC)
 
@@ -469,21 +469,31 @@ func TestResolveDefaultExpiry(t *testing.T) {
 		want    any
 		wantErr string
 	}{
-		{name: "unset falls back", unset: true, want: now.UTC().AddDate(0, 0, 30)},
+		{name: "unset is an error", unset: true, wantErr: "is not set"},
 		{name: "honours supervisor value", env: "7", want: now.UTC().AddDate(0, 0, 7)},
 		{name: "zero days never expires", env: "0", want: nil},
 		// Python's config parser accepts a whole-number float spelling.
 		{name: "whole float accepted", env: "7.0", want: now.UTC().AddDate(0, 0, 7)},
 		{name: "unparsable is an error", env: "abc", wantErr: "failed to convert value to int"},
-		// conf.get returns "" for an empty setting, so the fallback never sees it.
+		// conf.get returns "" for an empty setting, which must not read as unset.
 		{name: "empty is an error", env: "", wantErr: "failed to convert value to int"},
 		{name: "fractional is an error", env: "7.5", wantErr: "failed to convert value to int"},
 		{name: "negative is an error", env: "-1", wantErr: "must be >= 0, got -1"},
+		{
+			name:    "out of int64 range is an error",
+			env:     "1e30",
+			wantErr: "failed to convert value to int",
+		},
+		{
+			name:    "day count that wraps the timestamp is an error",
+			env:     "9223372036854775807",
+			wantErr: "overflows the expiry timestamp",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Setenv registers the restore; only a truly unset variable falls back.
+			// Setenv registers the restore, so unsetting it here is undone after.
 			t.Setenv(defaultRetentionDaysEnv, tc.env)
 			if tc.unset {
 				require.NoError(t, os.Unsetenv(defaultRetentionDaysEnv))
@@ -505,7 +515,7 @@ func TestResolveDefaultExpiry(t *testing.T) {
 	}
 }
 
-func TestCoordinatorClientSetTaskStateRejectsMisconfiguredRetention(t *testing.T) {
+func TestTaskStateStoreSetRejectsMisconfiguredRetention(t *testing.T) {
 	t.Setenv(defaultRetentionDaysEnv, "-1")
 
 	var requestBuf bytes.Buffer
@@ -515,14 +525,14 @@ func TestCoordinatorClientSetTaskStateRejectsMisconfiguredRetention(t *testing.T
 		testTIID,
 	)
 
-	err := client.SetTaskState(context.Background(), "job_id", "app_001")
+	err := client.TaskStateStore().Set(context.Background(), "job_id", "app_001")
 
 	require.ErrorContains(t, err, "must be >= 0, got -1")
 	assert.Zero(t, requestBuf.Len(), "a rejected write must not reach the supervisor")
 }
 
 // Mirrors Python's test_set_datetime_raises_validation_error.
-func TestCoordinatorClientSetTaskStateRejectsNonJSONValues(t *testing.T) {
+func TestTaskStateStoreSetRejectsNonJSONValues(t *testing.T) {
 	tests := []struct {
 		name    string
 		value   any
@@ -557,7 +567,7 @@ func TestCoordinatorClientSetTaskStateRejectsNonJSONValues(t *testing.T) {
 				NewCoordinatorComm(&bytes.Buffer{}, &requestBuf, logger), testTIID,
 			)
 
-			err := client.SetTaskState(context.Background(), "job_id", tc.value)
+			err := client.TaskStateStore().Set(context.Background(), "job_id", tc.value)
 
 			require.ErrorContains(t, err, tc.wantErr)
 			assert.Zero(t, requestBuf.Len(), "a rejected write must not reach the supervisor")
@@ -565,7 +575,10 @@ func TestCoordinatorClientSetTaskStateRejectsNonJSONValues(t *testing.T) {
 	}
 }
 
-func TestCoordinatorClientSetTaskStateAcceptsJSONShapes(t *testing.T) {
+func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
+	// A default-retention write needs the setting the supervisor passes.
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
 	type checkpoint struct {
 		Processed int      `msgpack:"processed"`
 		Cursors   []string `msgpack:"cursors"`
@@ -594,13 +607,13 @@ func TestCoordinatorClientSetTaskStateAcceptsJSONShapes(t *testing.T) {
 				testTIID,
 			)
 
-			require.NoError(t, client.SetTaskState(context.Background(), "job_id", value))
+			require.NoError(t, client.TaskStateStore().Set(context.Background(), "job_id", value))
 			assert.NotZero(t, requestBuf.Len())
 		})
 	}
 }
 
-func TestCoordinatorClientGetTaskState(t *testing.T) {
+func TestTaskStateStoreGet(t *testing.T) {
 	tests := []struct {
 		name  string
 		value any
@@ -623,7 +636,7 @@ func TestCoordinatorClientGetTaskState(t *testing.T) {
 			comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 			client := NewCoordinatorClient(comm, testTIID)
 
-			got, err := client.GetTaskState(context.Background(), "job_id")
+			got, err := client.TaskStateStore().Get(context.Background(), "job_id")
 			require.NoError(t, err)
 			assert.Equal(t, tc.value, got)
 
@@ -638,7 +651,7 @@ func TestCoordinatorClientGetTaskState(t *testing.T) {
 	}
 }
 
-func TestCoordinatorClientGetTaskStateNotFound(t *testing.T) {
+func TestTaskStateStoreGetNotFound(t *testing.T) {
 	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
 		"type":   "ErrorResponse",
 		"error":  "TASK_STORE_NOT_FOUND",
@@ -651,13 +664,13 @@ func TestCoordinatorClientGetTaskStateNotFound(t *testing.T) {
 	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
 	client := NewCoordinatorClient(comm, testTIID)
 
-	_, err := client.GetTaskState(context.Background(), "missing")
+	_, err := client.TaskStateStore().Get(context.Background(), "missing")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sdk.TaskStateNotFound)
 	assert.Contains(t, err.Error(), "missing")
 }
 
-func TestCoordinatorClientGetTaskStateErrorPassThrough(t *testing.T) {
+func TestTaskStateStoreGetErrorPassThrough(t *testing.T) {
 	responsePayload := encodeResponseFrame(t, 0, nil, map[string]any{
 		"type":   "ErrorResponse",
 		"error":  "API_SERVER_ERROR",
@@ -670,7 +683,7 @@ func TestCoordinatorClientGetTaskStateErrorPassThrough(t *testing.T) {
 	comm := NewCoordinatorComm(&responseBuf, io.Discard, logger)
 	client := NewCoordinatorClient(comm, testTIID)
 
-	_, err := client.GetTaskState(context.Background(), "job_id")
+	_, err := client.TaskStateStore().Get(context.Background(), "job_id")
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, sdk.TaskStateNotFound),
 		"generic supervisor errors must not be translated to TaskStateNotFound")
@@ -679,7 +692,7 @@ func TestCoordinatorClientGetTaskStateErrorPassThrough(t *testing.T) {
 	assert.Equal(t, "API_SERVER_ERROR", apiErr.Err)
 }
 
-func TestCoordinatorClientUnmarshalJSONTaskState(t *testing.T) {
+func TestTaskStateStoreUnmarshalJSONValue(t *testing.T) {
 	type checkpoint struct {
 		Cursor string `json:"cursor"`
 		Done   bool   `json:"done"`
@@ -698,7 +711,10 @@ func TestCoordinatorClientUnmarshalJSONTaskState(t *testing.T) {
 		client := NewCoordinatorClient(comm, testTIID)
 
 		var got checkpoint
-		require.NoError(t, client.UnmarshalJSONTaskState(context.Background(), "job_id", &got))
+		require.NoError(
+			t,
+			client.TaskStateStore().UnmarshalJSONValue(context.Background(), "job_id", &got),
+		)
 		assert.Equal(t, checkpoint{Cursor: "abc", Done: true}, got)
 	})
 
@@ -716,13 +732,13 @@ func TestCoordinatorClientUnmarshalJSONTaskState(t *testing.T) {
 		client := NewCoordinatorClient(comm, testTIID)
 
 		var got checkpoint
-		err := client.UnmarshalJSONTaskState(context.Background(), "missing", &got)
+		err := client.TaskStateStore().UnmarshalJSONValue(context.Background(), "missing", &got)
 		assert.ErrorIs(t, err, sdk.TaskStateNotFound)
 	})
 }
 
 // expires_at is sent even when null: the supervisor requires the field.
-func TestCoordinatorClientSetTaskState(t *testing.T) {
+func TestTaskStateStoreSet(t *testing.T) {
 	tests := []struct {
 		name           string
 		retentionDays  string
@@ -751,7 +767,10 @@ func TestCoordinatorClientSetTaskState(t *testing.T) {
 			client := NewCoordinatorClient(comm, testTIID)
 
 			before := time.Now()
-			require.NoError(t, client.SetTaskState(context.Background(), "job_id", "abc123"))
+			require.NoError(
+				t,
+				client.TaskStateStore().Set(context.Background(), "job_id", "abc123"),
+			)
 			after := time.Now()
 
 			sent, err := readFrame(&requestBuf)
@@ -774,7 +793,7 @@ func TestCoordinatorClientSetTaskState(t *testing.T) {
 	}
 }
 
-func TestCoordinatorClientSetTaskStateWithRetention(t *testing.T) {
+func TestTaskStateStoreSetWithRetention(t *testing.T) {
 	tests := []struct {
 		name           string
 		retention      time.Duration
@@ -799,8 +818,8 @@ func TestCoordinatorClientSetTaskStateWithRetention(t *testing.T) {
 			client := NewCoordinatorClient(comm, testTIID)
 
 			before := time.Now()
-			err := client.SetTaskStateWithRetention(
-				context.Background(), "job_id", "abc123", tc.retention,
+			err := client.TaskStateStore().Set(
+				context.Background(), "job_id", "abc123", sdk.WithRetention(tc.retention),
 			)
 			after := time.Now()
 			if tc.wantErr {
@@ -827,36 +846,36 @@ func TestCoordinatorClientSetTaskStateWithRetention(t *testing.T) {
 	}
 }
 
-func TestCoordinatorClientSetTaskStateRejectsNilValue(t *testing.T) {
+func TestTaskStateStoreSetRejectsNilValue(t *testing.T) {
 	tests := []struct {
 		name string
 		call func(client *CoordinatorClient) error
 	}{
 		{
-			name: "SetTaskState",
+			name: "Set",
 			call: func(client *CoordinatorClient) error {
-				return client.SetTaskState(context.Background(), "job_id", nil)
+				return client.TaskStateStore().Set(context.Background(), "job_id", nil)
 			},
 		},
 		{
-			name: "SetTaskStateWithRetention",
+			name: "Set with retention",
 			call: func(client *CoordinatorClient) error {
-				return client.SetTaskStateWithRetention(
-					context.Background(), "job_id", nil, time.Hour,
+				return client.TaskStateStore().Set(
+					context.Background(), "job_id", nil, sdk.WithRetention(time.Hour),
 				)
 			},
 		},
 		{
-			name: "SetTaskState typed nil",
+			name: "Set typed nil",
 			call: func(client *CoordinatorClient) error {
-				return client.SetTaskState(context.Background(), "job_id", (*string)(nil))
+				return client.TaskStateStore().Set(context.Background(), "job_id", (*string)(nil))
 			},
 		},
 		{
-			name: "SetTaskStateWithRetention typed nil",
+			name: "Set with retention, typed nil",
 			call: func(client *CoordinatorClient) error {
-				return client.SetTaskStateWithRetention(
-					context.Background(), "job_id", (*string)(nil), time.Hour,
+				return client.TaskStateStore().Set(
+					context.Background(), "job_id", (*string)(nil), sdk.WithRetention(time.Hour),
 				)
 			},
 		},
@@ -875,7 +894,7 @@ func TestCoordinatorClientSetTaskStateRejectsNilValue(t *testing.T) {
 	}
 }
 
-func TestCoordinatorClientDeleteTaskState(t *testing.T) {
+func TestTaskStateStoreDelete(t *testing.T) {
 	responsePayload := encodeResponseFrame(
 		t,
 		0,
@@ -890,7 +909,7 @@ func TestCoordinatorClientDeleteTaskState(t *testing.T) {
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 	client := NewCoordinatorClient(comm, testTIID)
 
-	require.NoError(t, client.DeleteTaskState(context.Background(), "job_id"))
+	require.NoError(t, client.TaskStateStore().Delete(context.Background(), "job_id"))
 
 	sent, err := readFrame(&requestBuf)
 	require.NoError(t, err)
@@ -901,7 +920,7 @@ func TestCoordinatorClientDeleteTaskState(t *testing.T) {
 	}, rawToMap(t, sent.Body))
 }
 
-func TestCoordinatorClientClearTaskState(t *testing.T) {
+func TestTaskStateStoreClear(t *testing.T) {
 	responsePayload := encodeResponseFrame(
 		t,
 		0,
@@ -916,7 +935,7 @@ func TestCoordinatorClientClearTaskState(t *testing.T) {
 	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
 	client := NewCoordinatorClient(comm, testTIID)
 
-	require.NoError(t, client.ClearTaskState(context.Background()))
+	require.NoError(t, client.TaskStateStore().Clear(context.Background()))
 
 	sent, err := readFrame(&requestBuf)
 	require.NoError(t, err)
@@ -928,35 +947,38 @@ func TestCoordinatorClientClearTaskState(t *testing.T) {
 	assert.NotContains(t, sentMap, "key")
 }
 
-func TestCoordinatorClientTaskStateWriteErrors(t *testing.T) {
+func TestTaskStateStoreWriteErrors(t *testing.T) {
+	// A default-retention write needs the setting the supervisor passes.
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
 	tests := []struct {
 		name string
 		call func(client *CoordinatorClient) error
 	}{
 		{
-			name: "SetTaskState",
+			name: "Set",
 			call: func(client *CoordinatorClient) error {
-				return client.SetTaskState(context.Background(), "job_id", "v")
+				return client.TaskStateStore().Set(context.Background(), "job_id", "v")
 			},
 		},
 		{
-			name: "SetTaskStateWithRetention",
+			name: "Set with retention",
 			call: func(client *CoordinatorClient) error {
-				return client.SetTaskStateWithRetention(
-					context.Background(), "job_id", "v", time.Hour,
+				return client.TaskStateStore().Set(
+					context.Background(), "job_id", "v", sdk.WithRetention(time.Hour),
 				)
 			},
 		},
 		{
-			name: "DeleteTaskState",
+			name: "Delete",
 			call: func(client *CoordinatorClient) error {
-				return client.DeleteTaskState(context.Background(), "job_id")
+				return client.TaskStateStore().Delete(context.Background(), "job_id")
 			},
 		},
 		{
-			name: "ClearTaskState",
+			name: "Clear",
 			call: func(client *CoordinatorClient) error {
-				return client.ClearTaskState(context.Background())
+				return client.TaskStateStore().Clear(context.Background())
 			},
 		},
 	}

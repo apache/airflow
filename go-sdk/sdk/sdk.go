@@ -39,9 +39,9 @@ const (
 	XComReturnValueKey = "return_value"
 )
 
-// NeverExpire, passed as the retention to SetTaskStateWithRetention, exempts a
-// task state key from expiry: it is kept until deleted or until its Dag run is
-// removed. It is the Go equivalent of the Python SDK's “NEVER_EXPIRE“.
+// NeverExpire, passed to [WithRetention], exempts a task state key from expiry:
+// it is kept until deleted or until its Dag run is removed. It is the Go
+// equivalent of the Python SDK's “NEVER_EXPIRE“.
 const NeverExpire = time.Duration(math.MaxInt64)
 
 // VariableClient reads, writes, and deletes Airflow Variables.
@@ -129,52 +129,74 @@ type XComClient interface {
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error
 }
 
-// TaskStateStoreClient reads and writes a key/value store private to the
-// running task instance. The store is keyed by dag_id, run_id, task_id, and
-// map_index but not try_number, so a value written by one attempt is readable
-// by the next — a task can record progress and resume after a retry.
+// TaskStateStoreClient exposes the task state store of the running task
+// instance.
 type TaskStateStoreClient interface {
-	// GetTaskState returns the value stored under key for this task instance.
+	// TaskStateStore returns the store scoped to this task instance.
+	TaskStateStore() TaskStateStore
+}
+
+// TaskStateStore reads and writes a key/value store private to the running task
+// instance. The store is keyed by dag_id, run_id, task_id, and map_index but
+// not try_number, so a value written by one attempt is readable by the next — a
+// task can record progress and resume after a retry.
+type TaskStateStore interface {
+	// Get returns the value stored under key for this task instance.
 	//
 	// If the key is not found error will be a wrapped ``TaskStateNotFound``:
 	//
-	//		val, err := client.GetTaskState(ctx, "checkpoint")
+	//		store := client.TaskStateStore()
+	//		val, err := store.Get(ctx, "checkpoint")
 	//		if errors.Is(err, TaskStateNotFound) {
 	//				// Handle not found, set default, return custom error etc
 	//		} else {
 	//				// Other errors here, such as transport timeouts etc.
 	//		}
-	GetTaskState(ctx context.Context, key string) (any, error)
+	Get(ctx context.Context, key string) (any, error)
 
-	// UnmarshalJSONTaskState fetches a task state value and unmarshals it into
+	// UnmarshalJSONValue fetches a task state value and unmarshals it into
 	// pointer via json.Unmarshal. Use it for values stored as JSON objects or
 	// arrays; pointer must be a non-nil pointer.
-	UnmarshalJSONTaskState(ctx context.Context, key string, pointer any) error
+	//
+	// The name keeps the UnmarshalJSON prefix of [VariableClient] without
+	// colliding with encoding/json's UnmarshalJSON, whose signature go vet
+	// enforces on any method of that name.
+	UnmarshalJSONValue(ctx context.Context, key string, pointer any) error
 
-	// SetTaskState stores value under key, creating or replacing the entry. The
-	// key expires per the deployment's “[state_store] default_retention_days“;
-	// if that setting is invalid the write fails.
+	// Set stores value under key, creating or replacing the entry. Without
+	// [WithRetention] the key expires per the deployment's
+	// “[state_store] default_retention_days“; if that setting is invalid or
+	// absent the write fails.
 	//
 	// value must be non-nil and built from strings, numbers, bools, slices,
 	// string-keyed maps, and structs. A time.Time, a byte slice or array, or a
 	// non-finite float is rejected before it is sent.
-	SetTaskState(ctx context.Context, key string, value any) error
+	Set(ctx context.Context, key string, value any, opts ...SetOption) error
 
-	// SetTaskStateWithRetention is SetTaskState with an explicit retention,
-	// which must be positive or [NeverExpire]; zero or negative is rejected.
-	SetTaskStateWithRetention(
-		ctx context.Context,
-		key string,
-		value any,
-		retention time.Duration,
-	) error
+	// Delete removes the value stored under key. Deleting a key that does not
+	// exist is not an error.
+	Delete(ctx context.Context, key string) error
 
-	// DeleteTaskState removes the value stored under key. Deleting a key that
-	// does not exist is not an error.
-	DeleteTaskState(ctx context.Context, key string) error
+	// Clear removes every key stored for this task instance.
+	Clear(ctx context.Context) error
+}
 
-	// ClearTaskState removes every key stored for this task instance.
-	ClearTaskState(ctx context.Context) error
+// SetOptions carries the options a [TaskStateStore.Set] call was given.
+type SetOptions struct {
+	// Retention is nil unless the caller passed [WithRetention], which is what
+	// tells Set to follow the deployment default instead.
+	Retention *time.Duration
+}
+
+// SetOption overrides a default of [TaskStateStore.Set].
+type SetOption func(*SetOptions)
+
+// WithRetention sets how long a key is kept, counted from the write. It must be
+// positive or [NeverExpire]; zero or negative is rejected.
+func WithRetention(retention time.Duration) SetOption {
+	return func(opts *SetOptions) {
+		opts.Retention = &retention
+	}
 }
 
 // Client is the full task-facing API: read/write Variables, read Connections,

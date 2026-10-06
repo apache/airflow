@@ -22,7 +22,6 @@ import (
 	"log/slog"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -89,36 +88,7 @@ func (m *mockXComClient) GetConnection(ctx context.Context, connID string) (sdk.
 	panic("unimplemented")
 }
 
-func (m *mockXComClient) GetTaskState(ctx context.Context, key string) (any, error) {
-	panic("unimplemented")
-}
-
-func (m *mockXComClient) UnmarshalJSONTaskState(
-	ctx context.Context,
-	key string,
-	pointer any,
-) error {
-	panic("unimplemented")
-}
-
-func (m *mockXComClient) SetTaskState(ctx context.Context, key string, value any) error {
-	panic("unimplemented")
-}
-
-func (m *mockXComClient) SetTaskStateWithRetention(
-	ctx context.Context,
-	key string,
-	value any,
-	retention time.Duration,
-) error {
-	panic("unimplemented")
-}
-
-func (m *mockXComClient) DeleteTaskState(ctx context.Context, key string) error {
-	panic("unimplemented")
-}
-
-func (m *mockXComClient) ClearTaskState(ctx context.Context) error {
+func (m *mockXComClient) TaskStateStore() sdk.TaskStateStore {
 	panic("unimplemented")
 }
 

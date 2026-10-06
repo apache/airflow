@@ -109,6 +109,6 @@ def test_default_retention_applied(completed_run: _CompletedRun):
     expected = timedelta(days=GO_SDK_STATE_STORE_RETENTION_DAYS)
     assert abs(gap - expected) <= timedelta(minutes=5), (
         f"expected ~{GO_SDK_STATE_STORE_RETENTION_DAYS} days, got {gap / timedelta(days=1):.1f} days; "
-        "if ~30, the Go runtime used its fallback, so the supervisor did not propagate "
+        "if ~30, the supervisor fell back to its own config default, so it did not see "
         f"[state_store] default_retention_days. entry: {entry!r}"
     )

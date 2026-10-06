@@ -49,9 +49,6 @@ const (
 // this setting at launch (task-sdk/src/airflow/sdk/coordinators/_subprocess.py).
 const defaultRetentionDaysEnv = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS"
 
-// Matches config.yml's [state_store] default_retention_days default.
-const fallbackRetentionDays = 30
-
 // translateAPIError converts a supervisor *APIError whose Err field matches
 // code into a sentinel-wrapped error. Any other error - including a
 // *APIError with a different code - is returned unchanged so callers can keep
@@ -86,23 +83,40 @@ func NewCoordinatorClient(comm *CoordinatorComm, tiID string) *CoordinatorClient
 	}
 }
 
-// resolveDefaultExpiry returns nil ("never expires") for a retention of 0.
-// Only an absent env value falls back (the runtime was not launched by the
-// coordinator); a malformed one fails as it does in Python rather than silently
-// retaining keys for a different period.
+// resolveDefaultExpiry returns nil ("never expires") for a retention of 0. The
+// supervisor always passes the setting, so an absent or malformed value is a
+// misconfiguration and fails the write rather than silently retaining the key
+// for a period nobody configured.
 func resolveDefaultExpiry(now time.Time) (any, error) {
-	days := fallbackRetentionDays
-	if raw, ok := os.LookupEnv(defaultRetentionDaysEnv); ok {
-		parsed, err := parseRetentionDays(raw)
-		if err != nil {
-			return nil, err
-		}
-		days = parsed
+	raw, ok := os.LookupEnv(defaultRetentionDaysEnv)
+	if !ok {
+		return nil, fmt.Errorf(
+			"%s is not set; it carries the deployment's %q key in %q section to the runtime",
+			defaultRetentionDaysEnv,
+			"default_retention_days",
+			"state_store",
+		)
+	}
+	days, err := parseRetentionDays(raw)
+	if err != nil {
+		return nil, err
 	}
 	if days == 0 {
 		return nil, nil
 	}
-	return now.UTC().AddDate(0, 0, days), nil
+	expiry := now.UTC().AddDate(0, 0, days)
+	// A day count big enough to wrap the timestamp would store a key that is
+	// already expired, losing it on the next cleanup; Python raises
+	// OverflowError on the same setting.
+	if !expiry.After(now.UTC()) {
+		return nil, fmt.Errorf(
+			"a retention of %d days overflows the expiry timestamp. Please check %q key in %q section",
+			days,
+			"default_retention_days",
+			"state_store",
+		)
+	}
+	return expiry, nil
 }
 
 // parseRetentionDays accepts "7.0" because Python's getint does.
@@ -110,7 +124,10 @@ func parseRetentionDays(raw string) (int, error) {
 	days, err := strconv.Atoi(raw)
 	if err != nil {
 		f, floatErr := strconv.ParseFloat(raw, 64)
-		if floatErr != nil || f != math.Trunc(f) || math.IsInf(f, 0) {
+		// A float outside int64 range (an infinity included) converts with an
+		// implementation-defined result, so it is rejected rather than turned
+		// into whatever day count this platform happens to produce.
+		if floatErr != nil || f != math.Trunc(f) || f >= math.MaxInt64 || f <= math.MinInt64 {
 			return 0, fmt.Errorf(
 				"failed to convert value to int. Please check %q key in %q section. Current value: %q",
 				"default_retention_days",
@@ -344,11 +361,21 @@ func (c *CoordinatorClient) skipDownstreamTasks(ctx context.Context, taskIDs []s
 	return err
 }
 
-// GetTaskState requests a task state value from the supervisor.
-func (c *CoordinatorClient) GetTaskState(ctx context.Context, key string) (any, error) {
-	resp, err := c.comm.Communicate(
+// TaskStateStore returns the task state store scoped to this task instance.
+func (c *CoordinatorClient) TaskStateStore() sdk.TaskStateStore {
+	return taskStateStore{client: c}
+}
+
+// taskStateStore serves sdk.TaskStateStore over the coordinator comm.
+type taskStateStore struct {
+	client *CoordinatorClient
+}
+
+// Get asks the supervisor for a task state value.
+func (s taskStateStore) Get(ctx context.Context, key string) (any, error) {
+	resp, err := s.client.comm.Communicate(
 		ctx,
-		genmodels.GetTaskStateStore{TIID: c.tiID, Key: key},
+		genmodels.GetTaskStateStore{TIID: s.client.tiID, Key: key},
 	)
 	if err != nil {
 		return nil, translateAPIError(err, errCodeTaskStoreNotFound, sdk.TaskStateNotFound, key)
@@ -362,13 +389,13 @@ func (c *CoordinatorClient) GetTaskState(ctx context.Context, key string) (any, 
 	return result.Value, nil
 }
 
-// UnmarshalJSONTaskState gets a task state value and unmarshals it into pointer.
-func (c *CoordinatorClient) UnmarshalJSONTaskState(
+// UnmarshalJSONValue gets a task state value and unmarshals it into pointer.
+func (s taskStateStore) UnmarshalJSONValue(
 	ctx context.Context,
 	key string,
 	pointer any,
 ) error {
-	val, err := c.GetTaskState(ctx, key)
+	val, err := s.Get(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -381,47 +408,26 @@ func (c *CoordinatorClient) UnmarshalJSONTaskState(
 	return json.Unmarshal(b, pointer)
 }
 
-// SetTaskState asks the supervisor to store a task state value, expiring it
-// according to the deployment's default retention.
-func (c *CoordinatorClient) SetTaskState(ctx context.Context, key string, value any) error {
-	expiry, err := resolveDefaultExpiry(time.Now())
-	if err != nil {
-		return err
-	}
-	return c.sendSetTaskState(ctx, key, value, expiry)
-}
-
-// SetTaskStateWithRetention stores a task state value with a caller-chosen lifetime.
-func (c *CoordinatorClient) SetTaskStateWithRetention(
+// Set asks the supervisor to store a task state value.
+func (s taskStateStore) Set(
 	ctx context.Context,
 	key string,
 	value any,
-	retention time.Duration,
+	opts ...sdk.SetOption,
 ) error {
-	var expiry any
-	switch {
-	// Checked before any arithmetic: adding NeverExpire overflows.
-	case retention == sdk.NeverExpire:
-		expiry = nil
-	case retention <= 0:
-		return fmt.Errorf(
-			"task state retention must be positive or sdk.NeverExpire, got %s: "+
-				"use SetTaskState to follow the deployment default, or DeleteTaskState to drop key %q",
-			retention, key,
-		)
-	default:
-		expiry = time.Now().UTC().Add(retention)
+	var options sdk.SetOptions
+	for _, opt := range opts {
+		opt(&options)
 	}
-	return c.sendSetTaskState(ctx, key, value, expiry)
-}
 
-func (c *CoordinatorClient) sendSetTaskState(
-	ctx context.Context,
-	key string,
-	value any,
-	expiry any,
-) error {
+	// The caller's value is checked first so a misconfigured deployment cannot
+	// mask a programming error in the task.
 	if err := validateJSONRepresentable(value); err != nil {
+		return fmt.Errorf("cannot set task state key %q: %w", key, err)
+	}
+
+	expiry, err := resolveExpiry(options.Retention, time.Now())
+	if err != nil {
 		return fmt.Errorf("cannot set task state key %q: %w", key, err)
 	}
 
@@ -429,8 +435,8 @@ func (c *CoordinatorClient) sendSetTaskState(
 	// [state_store] max_value_storage_bytes, matching Python's
 	// airflow.sdk.execution_time.context task store setter.
 
-	_, err := c.comm.Communicate(ctx, genmodels.SetTaskStateStore{
-		TIID:      c.tiID,
+	_, err = s.client.comm.Communicate(ctx, genmodels.SetTaskStateStore{
+		TIID:      s.client.tiID,
 		Key:       key,
 		Value:     value,
 		ExpiresAt: expiry,
@@ -438,17 +444,44 @@ func (c *CoordinatorClient) sendSetTaskState(
 	return err
 }
 
-// DeleteTaskState asks the supervisor to delete a task state value.
-func (c *CoordinatorClient) DeleteTaskState(ctx context.Context, key string) error {
-	_, err := c.comm.Communicate(ctx, genmodels.DeleteTaskStateStore{TIID: c.tiID, Key: key})
+// Delete asks the supervisor to delete a task state value.
+func (s taskStateStore) Delete(ctx context.Context, key string) error {
+	_, err := s.client.comm.Communicate(
+		ctx,
+		genmodels.DeleteTaskStateStore{TIID: s.client.tiID, Key: key},
+	)
 	return err
 }
 
-// ClearTaskState asks the supervisor to delete every task state value for this
-// task instance.
-func (c *CoordinatorClient) ClearTaskState(ctx context.Context) error {
-	_, err := c.comm.Communicate(ctx, genmodels.ClearTaskStateStore{TIID: c.tiID})
+// Clear asks the supervisor to delete every task state value for this task
+// instance.
+func (s taskStateStore) Clear(ctx context.Context) error {
+	_, err := s.client.comm.Communicate(
+		ctx,
+		genmodels.ClearTaskStateStore{TIID: s.client.tiID},
+	)
 	return err
+}
+
+// resolveExpiry turns a retention into the wire expires_at. A nil retention -
+// no sdk.WithRetention - follows the deployment default.
+func resolveExpiry(retention *time.Duration, now time.Time) (any, error) {
+	if retention == nil {
+		return resolveDefaultExpiry(now)
+	}
+	switch r := *retention; {
+	// Checked before any arithmetic: adding NeverExpire overflows.
+	case r == sdk.NeverExpire:
+		return nil, nil
+	case r <= 0:
+		return nil, fmt.Errorf(
+			"retention must be positive or sdk.NeverExpire, got %s: omit "+
+				"sdk.WithRetention to follow the deployment default, or call Delete to drop the key",
+			r,
+		)
+	default:
+		return now.UTC().Add(r), nil
+	}
 }
 
 // validateJSONRepresentable checks what the frame encoder actually emits, not

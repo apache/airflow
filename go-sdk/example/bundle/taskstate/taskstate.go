@@ -43,31 +43,30 @@ type counter struct {
 	Cursor    string `json:"cursor"`
 }
 
-// RoundtripTaskState exercises every task state store operation except
-// ClearTaskState.
+// RoundtripTaskState exercises every task state store operation except Clear.
 func RoundtripTaskState(actx airflow.Context) (any, error) {
-	client := actx.Client()
+	store := actx.Client().TaskStateStore()
 	runID := actx.DagRun().RunID
 
-	if err := client.SetTaskStateWithRetention(actx, RunIDKey, runID, sdk.NeverExpire); err != nil {
+	if err := store.Set(actx, RunIDKey, runID, sdk.WithRetention(sdk.NeverExpire)); err != nil {
 		return nil, fmt.Errorf("setting %s: %w", RunIDKey, err)
 	}
 	want := counter{Processed: 3, Cursor: "abc-123"}
 	stored := map[string]any{"processed": want.Processed, "cursor": want.Cursor}
-	if err := client.SetTaskState(actx, CounterKey, stored); err != nil {
+	if err := store.Set(actx, CounterKey, stored); err != nil {
 		return nil, fmt.Errorf("setting %s: %w", CounterKey, err)
 	}
-	if err := client.SetTaskState(actx, RetainedKey, "retained"); err != nil {
+	if err := store.Set(actx, RetainedKey, "retained"); err != nil {
 		return nil, fmt.Errorf("setting %s: %w", RetainedKey, err)
 	}
-	if err := client.SetTaskState(actx, ScratchKey, "scratch"); err != nil {
+	if err := store.Set(actx, ScratchKey, "scratch"); err != nil {
 		return nil, fmt.Errorf("setting %s: %w", ScratchKey, err)
 	}
-	if err := client.DeleteTaskState(actx, ScratchKey); err != nil {
+	if err := store.Delete(actx, ScratchKey); err != nil {
 		return nil, fmt.Errorf("deleting %s: %w", ScratchKey, err)
 	}
 
-	readBack, err := client.GetTaskState(actx, RunIDKey)
+	readBack, err := store.Get(actx, RunIDKey)
 	if err != nil {
 		return nil, fmt.Errorf("getting %s: %w", RunIDKey, err)
 	}
@@ -76,21 +75,21 @@ func RoundtripTaskState(actx airflow.Context) (any, error) {
 	}
 
 	var got counter
-	if err := client.UnmarshalJSONTaskState(actx, CounterKey, &got); err != nil {
+	if err := store.UnmarshalJSONValue(actx, CounterKey, &got); err != nil {
 		return nil, fmt.Errorf("decoding %s: %w", CounterKey, err)
 	}
 	if got != want {
 		return nil, fmt.Errorf("decoding %s: got %+v, want %+v", CounterKey, got, want)
 	}
 
-	if _, err := client.GetTaskState(actx, ScratchKey); !errors.Is(err, sdk.TaskStateNotFound) {
+	if _, err := store.Get(actx, ScratchKey); !errors.Is(err, sdk.TaskStateNotFound) {
 		if err == nil {
 			return nil, fmt.Errorf("getting %s: key survived its delete", ScratchKey)
 		}
 		return nil, fmt.Errorf("getting %s: want TaskStateNotFound, got: %w", ScratchKey, err)
 	}
 
-	// No ClearTaskState: the e2e test reads these keys after the task finishes.
+	// No Clear: the e2e test reads these keys after the task finishes.
 	return map[string]any{
 		"run_id":          runID,
 		"processed":       got.Processed,

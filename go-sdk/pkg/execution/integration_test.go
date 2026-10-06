@@ -558,12 +558,15 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 func TestRunTaskBindsTaskStateStoreClient(t *testing.T) {
 	const tiID = "0199e0e5-1b2c-7c3d-8e4f-5a6b7c8d9e0f"
 
+	// A default-retention write needs the setting the supervisor passes.
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
 	var got sdk.TaskStateStoreClient
 	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("statestore",
 			func(actx contexttest.Context) error {
 				got = actx.Client()
-				return actx.Client().SetTaskState(actx, "job_id", "abc123")
+				return actx.Client().TaskStateStore().Set(actx, "job_id", "abc123")
 			})
 	})
 
