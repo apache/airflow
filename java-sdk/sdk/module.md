@@ -56,13 +56,13 @@ meaning of each dimension is defined in the
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
 | **Native-Dag authoring** |  |  |  |  |
-| capability: `native-dag-authoring` | SHOULD | ✓ | 3.3 |  |
-| capability: `task-args` | MUST † | ✓ | 3.3 |  |
+| capability: `native-dag-authoring` | SHOULD | ✓ | 3.4 |  |
+| capability: `task-args` | MUST † | ✓ | 3.4 |  |
 | capability: `dag-params` | MUST † | ✗ | – |  |
-| capability: `taskflow-dependencies` | MUST † | ✓ | 3.3 |  |
+| capability: `taskflow-dependencies` | MUST † | ✓ | 3.4 |  |
 | capability: `branching` | SHOULD † | ✗ | – |  |
 | capability: `dag-test` | SHOULD † | ✗ | – |  |
-| capability: `task-group` | MAY † | ✓ | 3.3 |  |
+| capability: `task-group` | MAY † | ✓ | 3.4 |  |
 | capability: `dynamic-task-mapping` | MAY † | ✗ | – |  |
 | capability: `asset-inlets-outlets` | MAY † | ✗ | – |  |
 | capability: `asset-scheduling` | MAY † | ✗ | – |  |

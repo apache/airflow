@@ -97,22 +97,22 @@ capabilities:
     note: "no task-facing asset-event API yet"
   native-dag-authoring:
     supported: true
-    since: "3.3"
+    since: "3.4"
   task-args:
     supported: true
-    since: "3.3"
+    since: "3.4"
   dag-params:
     supported: false
   taskflow-dependencies:
     supported: true
-    since: "3.3"
+    since: "3.4"
   branching:
     supported: false
   dag-test:
     supported: false
   task-group:
     supported: true
-    since: "3.3"
+    since: "3.4"
   dynamic-task-mapping:
     supported: false
   asset-inlets-outlets:
