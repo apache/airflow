@@ -284,6 +284,41 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         response = test_client.get(collection_url, params={"map_index": -1})
         assert response.json()["total_entries"] == 2
 
+    def test_mapped_path_selects_the_instance_in_the_requested_region(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            MockOperator(task_id="member")
+
+        with dag_maker("regional-ti-path", serialized=True) as dag:
+            loop = create_loop(body, max_iterations=4)
+        dr = dag_maker.create_dagrun()
+        instances = []
+        for _ in range(2):
+            region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id)
+            session.add(region)
+            session.flush()
+            ti = TaskInstance(
+                task=dag.get_task("body.member"),
+                run_id=dr.run_id,
+                dag_version_id=dr.created_dag_version_id,
+                region_id=region.id,
+                region_index=2,
+            )
+            session.add(ti)
+            session.flush()
+            instances.append(ti)
+        session.commit()
+        sibling, selected = instances
+
+        response = test_client.get(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.member/2",
+            params={"region_id": str(selected.region_id), "region_index": 2},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["id"] == str(selected.id)
+        assert response.json()["id"] != str(sibling.id)
+
     def test_removed_mapped_regional_instances_are_still_listed(self, test_client, dag_maker, session):
         with dag_maker("removed-mapped", serialized=True):
             MockOperator(task_id="kept")

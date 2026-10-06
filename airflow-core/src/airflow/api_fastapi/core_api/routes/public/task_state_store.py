@@ -26,7 +26,6 @@ from sqlalchemy import select
 
 from airflow._shared.state import TaskScope
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -38,7 +37,11 @@ from airflow.api_fastapi.core_api.datamodels.task_state_store import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.api_fastapi.core_api.services.public.task_coordinates import TaskScopeDep, resolve_task_scope
+from airflow.api_fastapi.core_api.services.public.task_coordinates import (
+    CoordinateResolverDep,
+    TaskScopeDep,
+    resolve_task_scope,
+)
 from airflow.configuration import conf
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.task_state_store import TaskStateStoreModel
@@ -97,8 +100,7 @@ def _resolve_clear_scope(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    session: SessionDep,
-    dag_bag: DagBagDep,
+    resolver: CoordinateResolverDep,
     map_index: Annotated[int, Query(ge=-1)] = -1,
     region_id: Annotated[UUID | None, Query()] = None,
     region_index: Annotated[int | None, Query(ge=-1)] = None,
@@ -108,8 +110,7 @@ def _resolve_clear_scope(
         dag_id=dag_id,
         run_id=dag_run_id,
         task_id=task_id,
-        session=session,
-        dag_bag=dag_bag,
+        resolver=resolver,
         map_index=map_index,
         region_id=region_id,
         region_index=region_index,

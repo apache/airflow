@@ -142,8 +142,12 @@ describe("transformGanttData", () => {
       allTries: [
         {
           end_date: null,
+          id: "try-1",
           is_mapped: false,
+          map_index: -1,
           queued_dttm: null,
+          region_id: "00000000-0000-0000-0000-000000000000",
+          region_index: -1,
           scheduled_dttm: null,
           start_date: null,
           state: null,
@@ -165,8 +169,12 @@ describe("transformGanttData", () => {
       allTries: [
         {
           end_date: null,
+          id: "try-2",
           is_mapped: false,
+          map_index: -1,
           queued_dttm: null,
+          region_id: "00000000-0000-0000-0000-000000000000",
+          region_index: -1,
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "running",
@@ -210,8 +218,12 @@ describe("transformGanttData", () => {
       allTries: [
         {
           end_date: "2024-03-14T10:05:00+00:00",
+          id: "try-3",
           is_mapped: false,
+          map_index: -1,
           queued_dttm: null,
+          region_id: "00000000-0000-0000-0000-000000000000",
+          region_index: -1,
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -235,8 +247,12 @@ describe("transformGanttData", () => {
       allTries: [
         {
           end_date: "2024-03-14T10:05:00+00:00",
+          id: "try-4",
           is_mapped: false,
+          map_index: -1,
           queued_dttm: "2024-03-14T09:59:00+00:00",
+          region_id: "00000000-0000-0000-0000-000000000000",
+          region_index: -1,
           scheduled_dttm: "2024-03-14T09:58:00+00:00",
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -260,8 +276,12 @@ describe("transformGanttData", () => {
       allTries: [
         {
           end_date: "2024-03-14T10:05:00+00:00",
+          id: "try-5",
           is_mapped: false,
+          map_index: -1,
           queued_dttm: "2024-03-14T09:59:00+00:00",
+          region_id: "00000000-0000-0000-0000-000000000000",
+          region_index: -1,
           scheduled_dttm: "2024-03-14T09:58:00+00:00",
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -295,8 +315,12 @@ describe("transformGanttData", () => {
         allTries: [
           {
             end_date: null,
+            id: "running-try",
             is_mapped: false,
+            map_index: -1,
             queued_dttm: "2024-03-14T09:59:00+00:00",
+            region_id: "00000000-0000-0000-0000-000000000000",
+            region_index: -1,
             scheduled_dttm: null,
             start_date: "2024-03-14T10:00:00+00:00",
             state: "running",
@@ -324,8 +348,12 @@ describe("transformGanttData", () => {
       allTries: [
         {
           end_date: "2024-03-14T10:05:00+00:00",
+          id: "try-6",
           is_mapped: false,
+          map_index: -1,
           queued_dttm: "2024-03-14T09:59:00+00:00",
+          region_id: "00000000-0000-0000-0000-000000000000",
+          region_index: -1,
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -348,8 +376,12 @@ describe("transformGanttData", () => {
       allTries: [
         {
           end_date: "2024-03-14T10:05:00+00:00",
+          id: "try-7",
           is_mapped: false,
+          map_index: -1,
           queued_dttm: null,
+          region_id: "00000000-0000-0000-0000-000000000000",
+          region_index: -1,
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "success",
@@ -371,8 +403,12 @@ describe("transformGanttData", () => {
       allTries: [
         {
           end_date: "2024-03-14T10:05:00+00:00",
+          id: "try-8",
           is_mapped: false,
+          map_index: -1,
           queued_dttm: null,
+          region_id: "00000000-0000-0000-0000-000000000000",
+          region_index: -1,
           scheduled_dttm: null,
           start_date: "2024-03-14T10:00:00+00:00",
           state: "failed",
@@ -382,8 +418,12 @@ describe("transformGanttData", () => {
         },
         {
           end_date: "2024-03-14T09:55:00+00:00",
+          id: "try-9",
           is_mapped: false,
+          map_index: -1,
           queued_dttm: null,
+          region_id: "00000000-0000-0000-0000-000000000000",
+          region_index: -1,
           scheduled_dttm: null,
           start_date: "2024-03-14T09:50:00+00:00",
           state: "failed",

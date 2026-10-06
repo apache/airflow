@@ -204,15 +204,15 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.json()["xcom_entries"][0]["map_index"] == expected_index
 
     @pytest.mark.parametrize(
-        ("params", "expected_indexes", "total"),
+        ("params", "expected_indexes", "expected_region_indexes", "total"),
         [
-            ({"map_index": -1}, [-1], 1),
-            ({"map_index_filter": 0}, [0], 1),
-            ({"order_by": "map_index", "limit": 1, "offset": 1}, [0], 3),
+            ({"map_index": -1}, [-1], [5], 1),
+            ({"map_index_filter": 0}, [0], [0], 1),
+            ({"order_by": "map_index", "limit": 1, "offset": 1}, [0], [0], 3),
         ],
     )
     def test_collection_projects_loop_and_mapped_group_before_pagination(
-        self, test_client, dag_maker, session, params, expected_indexes, total
+        self, test_client, dag_maker, session, params, expected_indexes, expected_region_indexes, total
     ):
         @task_group
         def body():
@@ -238,7 +238,7 @@ class TestGetXComEntry(TestXComEndpoint):
                 regions[node_id] = region.id
             ti.region_id = regions[node_id]
             if ti.task_id == "body.member":
-                ti.map_index = 5
+                ti.region_index = 5
             session.flush()
             XComModel.set(
                 dag_id=dr.dag_id,
@@ -258,8 +258,7 @@ class TestGetXComEntry(TestXComEndpoint):
         data = response.json()
         assert data["total_entries"] == total
         assert [row["map_index"] for row in data["xcom_entries"]] == expected_indexes
-        if expected_indexes == [-1]:
-            assert data["xcom_entries"][0]["region_index"] == 5
+        assert [row["region_index"] for row in data["xcom_entries"]] == expected_region_indexes
 
     def test_exact_region_read_update_and_delete_preserve_sibling(self, test_client, dag_maker, session):
         selected, sibling = uuid4(), uuid4()

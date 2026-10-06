@@ -139,24 +139,37 @@ def test_serialized_links_read_xcom_from_selected_region(test_client, dag_maker,
         else:
             CustomOperator(task_id="work", bash_command="echo test")
 
-    with dag_maker(serialized=True):
-        create_loop(body, max_iterations=4)
+    with dag_maker(serialized=True) as dag:
+        loop = create_loop(body, max_iterations=4)
     run = dag_maker.create_dagrun()
-    ti = next(ti for ti in run.task_instances if ti.task_id == "body.work" and ti.region_index == 0)
-    XCom.set(
-        key="_link_CustomOpLink",
-        value="https://example.com/selected-execution",
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        run_id=ti.run_id,
-        map_index=ti.region_index,
-        region_id=ti.region_id,
-        session=session,
+    sibling = next(ti for ti in run.task_instances if ti.task_id == "body.work" and ti.region_index == 0)
+    selected_region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id)
+    session.add(selected_region)
+    session.flush()
+    selected = TaskInstance(
+        task=dag.get_task("body.work"),
+        run_id=run.run_id,
+        dag_version_id=run.created_dag_version_id,
+        region_id=selected_region.id,
+        region_index=sibling.region_index,
     )
+    session.add(selected)
+    session.flush()
+    for ti, value in ((sibling, "sibling"), (selected, "selected")):
+        XCom.set(
+            key="_link_CustomOpLink",
+            value=f"https://example.com/{value}-execution",
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.region_index,
+            region_id=ti.region_id,
+            session=session,
+        )
     session.commit()
     response = test_client.get(
         f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/links",
-        params={"region_id": str(ti.region_id), "region_index": ti.region_index},
+        params={"region_id": str(selected.region_id), "region_index": selected.region_index},
     )
     assert response.status_code == 200, response.text
     assert response.json()["extra_links"]["Google Custom"] == "https://example.com/selected-execution"

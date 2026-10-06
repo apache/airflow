@@ -30,9 +30,6 @@ from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerE
 from airflow.models.task_coordinates import TaskCoordinateResolver
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-    from airflow.models.dagbag import DBDagBag
     from airflow.models.task_coordinates import TaskCoordinate
 
 
@@ -63,8 +60,7 @@ def resolve_task_scope(
     dag_id: str,
     run_id: str,
     task_id: str,
-    session: Session,
-    dag_bag: DBDagBag,
+    resolver: TaskCoordinateResolver,
     map_index: int = -1,
     region_id: UUID | None = None,
     region_index: int | None = None,
@@ -83,7 +79,6 @@ def resolve_task_scope(
             map_index=region_index,
             region_id=region_id,
         )
-    resolver = TaskCoordinateResolver(dag_bag, session)
     if region_id == SENTINEL_REGION_ID or not resolver.has_regions(dag_id, run_id, task_id):
         return TaskScope(
             dag_id=dag_id,
@@ -137,8 +132,7 @@ def _task_scope(
         dag_id=dag_id,
         run_id=dag_run_id,
         task_id=task_id,
-        session=resolver.session,
-        dag_bag=resolver.dag_bag,
+        resolver=resolver,
         map_index=map_index,
         region_id=region_id,
         region_index=region_index,

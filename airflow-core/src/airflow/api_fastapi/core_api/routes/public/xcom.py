@@ -62,7 +62,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun as DR
 from airflow.models.dag import DagModel
-from airflow.models.task_coordinates import public_map_index_expression
+from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel, build_xcom_read_query, select_producers, xcom_entity
 
@@ -344,8 +344,7 @@ def create_xcom_entry(
         dag_id=dag_id,
         run_id=dag_run_id,
         task_id=task_id,
-        session=session,
-        dag_bag=dag_bag,
+        resolver=TaskCoordinateResolver(dag_bag, session),
         map_index=request_body.map_index,
         region_id=request_body.region_id,
         region_index=request_body.region_index,
@@ -430,8 +429,7 @@ def update_xcom_entry(
         dag_id=dag_id,
         run_id=dag_run_id,
         task_id=task_id,
-        session=session,
-        dag_bag=dag_bag,
+        resolver=TaskCoordinateResolver(dag_bag, session),
         map_index=patch_body.map_index,
         region_id=patch_body.region_id,
         region_index=patch_body.region_index,

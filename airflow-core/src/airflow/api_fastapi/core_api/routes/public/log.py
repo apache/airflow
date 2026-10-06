@@ -211,6 +211,7 @@ def get_external_log_url(
             TaskInstance.try_number == try_number,
         )
         .options(joinedload(TaskInstance.dag_model))
+        .execution_options(include_all_attempts=True)
     )
     ti = session.scalar(query)
 

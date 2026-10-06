@@ -55,7 +55,17 @@ class TestTaskInstancesLog:
 
     default_time = "2020-06-10T20:00:00+00:00"
 
-    def test_external_link_uses_the_selected_archived_try(self, session):
+    def _place_tries_in_sibling_regions(self, session):
+        history = session.scalar(
+            select(TaskInstance)
+            .where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.run_id == self.RUN_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.try_number == 1,
+            )
+            .execution_options(include_all_attempts=True)
+        )
         current = session.scalar(
             select(TaskInstance).where(
                 TaskInstance.dag_id == self.DAG_ID,
@@ -64,20 +74,16 @@ class TestTaskInstancesLog:
                 TaskInstance.working_set.is_(True),
             )
         )
-        history = session.scalar(
-            select(TaskInstance).where(
-                TaskInstance.dag_id == self.DAG_ID,
-                TaskInstance.run_id == self.RUN_ID,
-                TaskInstance.task_id == self.TASK_ID,
-                TaskInstance.try_number == 1,
-            )
-        )
         previous_region, current_region = uuid4(), uuid4()
         for region_id in (previous_region, current_region):
             session.add(DynamicRegion(id=region_id, dag_id=self.DAG_ID, run_id=self.RUN_ID, node_id="loop"))
         history.region_id, history.region_index = previous_region, 2
         current.region_id, current.region_index, current.try_number = current_region, 2, 2
         session.commit()
+        return history, current, previous_region, current_region
+
+    def test_external_link_uses_the_selected_archived_try(self, session):
+        history, current, previous_region, _ = self._place_tries_in_sibling_regions(session)
         with mock.patch(
             "airflow.api_fastapi.core_api.routes.public.log.TaskLogReader", autospec=True
         ) as reader:
@@ -93,6 +99,28 @@ class TestTaskInstancesLog:
             assert selected.id == history.id
             assert selected.id != current.id
             assert try_number == 1
+
+    @pytest.mark.parametrize("selected_try", ["history", "current"])
+    def test_log_reads_the_execution_in_the_selected_region(self, session, selected_try):
+        history, current, previous_region, current_region = self._place_tries_in_sibling_regions(session)
+        current.try_number = 1
+        session.commit()
+        expected, region = (
+            (history, previous_region) if selected_try == "history" else (current, current_region)
+        )
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.log.TaskLogReader", autospec=True
+        ) as reader:
+            reader.return_value.supports_read = True
+            reader.return_value.read_log_chunks.return_value = ([], {"end_of_log": True})
+            response = self.client.get(
+                f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+                params={"region_id": str(region), "region_index": 2},
+                headers={"Accept": "application/json"},
+            )
+            assert response.status_code == 200, response.text
+            selected = reader.return_value.read_log_chunks.call_args.args[0]
+            assert selected.id == expected.id
 
     @pytest.fixture(autouse=True)
     def setup_attrs(self, test_client, configure_loggers, dag_maker, session) -> None:
