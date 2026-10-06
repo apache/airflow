@@ -37,7 +37,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
@@ -277,7 +277,7 @@ def _is_version_within_cooldown(releases: dict, version: str, cooldown_hours: fl
         return False
     upload_time = datetime.fromisoformat(files[0]["upload_time_iso_8601"].replace("Z", "+00:00"))
     effective_hours = COOLDOWN_DAYS * 24 if cooldown_hours is None else cooldown_hours
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=effective_hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=effective_hours)
     return upload_time > cutoff
 
 
