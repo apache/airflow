@@ -202,31 +202,6 @@ def _declares_agent_template_fields(toolset: Any) -> bool:
     )
 
 
-def _build_code_mode() -> Any:
-    """
-    Return a pydantic-ai-harness ``CodeMode`` capability, or raise if not installed.
-
-    Kept here (not a module-level import) because ``pydantic-ai-harness`` is an
-    optional dependency behind the ``code-mode`` extra; importing it eagerly
-    would break installs that don't enable the extra.
-    """
-    try:
-        from pydantic_ai_harness import CodeMode
-    except ImportError as e:
-        # Only report "extra not installed" when pydantic-ai-harness itself is
-        # missing. A failure deeper in its import chain (a broken or missing
-        # transitive dependency) is a different problem -- re-raise it as-is so
-        # the real error isn't masked by a misleading "install the extra" message.
-        missing = e.name or ""
-        if missing == "pydantic_ai_harness" or missing.startswith("pydantic_ai_harness."):
-            raise AirflowOptionalProviderFeatureException(
-                "code_mode=True requires the 'code-mode' extra. Install it with "
-                '`pip install "apache-airflow-providers-common-ai[code-mode]"`.'
-            ) from e
-        raise
-    return CodeMode()
-
-
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
@@ -355,20 +330,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         Cannot be combined with a ``SandboxToolset`` (raises), attached or
         not: a replayed tool result describes a workspace state the replay did
         not reproduce, and the first call that misses the cache runs against
-        whatever the sandbox holds now.
-    :param code_mode: Experimental. When ``True``, wraps the agent's tools in a single
-        ``run_code`` tool powered by the Monty sandbox (pydantic-ai-harness
-        ``CodeMode``). Instead of one model round-trip per tool call, the model
-        writes Python that calls the tools as functions, with loops and
-        ``asyncio.gather``, in one turn. The generated code runs in Monty's
-        deny-by-default sandbox; the tools it calls still run in the worker, so
-        ``code_mode`` does not widen what the tools can reach -- it only changes
-        how the model invokes them. Requires the ``code-mode`` extra
-        (``pip install "apache-airflow-providers-common-ai[code-mode]"``).
-        Cannot be combined with ``durable=True`` (durable replay assumes a
-        stable per-step call order that code mode does not guarantee), whether
-        code mode comes from this flag or from a ``CodeMode`` capability.
-        Default ``False``.
+        whatever the sandbox holds now. Cannot be combined with a pydantic-ai-harness
+        ``CodeMode`` capability (raises).
     :param cache_prompt: When ``True`` (default), asks the provider to cache the
         tool definitions, system prompt and conversation so far, so the next
         request in the run -- and a mapped task's other instances within the
@@ -435,10 +398,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
     (with the reviewer's reason, when given) and carries on without it. A task
     instance asks at most once per Dag run, across retries and clears; a second
     request fails the task. ``usage_limits`` applies to both sides of the pause.
-    Not available together with ``durable``, ``enable_hitl_review``, code mode
-    (``code_mode=True`` or a ``CodeMode`` capability), or a ``SandboxToolset``
+    Not available together with ``durable``, ``enable_hitl_review``, a ``CodeMode``
+    capability, or a ``SandboxToolset``
     that provisions its own sandbox; there, a tool that requires approval fails
-    the task as before. A ``SandboxToolset`` attached to a
+    the task as before, except one called from inside ``CodeMode``'s ``run_code``,
+    which does not run and is reported back to the model. A ``SandboxToolset`` attached to a
     sandbox another task owns is fine: the sandbox outlives the pause.
 
     :param tool_approval_timeout: Experimental. How long the pause waits for a decision.
@@ -493,7 +457,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         durable: bool = False,
-        code_mode: bool = False,
         cache_prompt: bool = True,
         message_history: list[ModelMessage] | str | bytes | None = None,
         # Agent feedback parameters
@@ -528,7 +491,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         self.message_history = message_history
 
         self.durable = durable
-        self.code_mode = code_mode
         self.cache_prompt = cache_prompt
 
         # Populated per run in ``execute`` when durable=True. Declared here so
@@ -556,22 +518,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
         if durable and enable_hitl_review:
             raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
 
-        if durable and code_mode:
+        if durable and _contains_code_mode(self._declared_capabilities):
             # Durable replay caches individual model/tool steps via CachingModel /
             # CachingToolset and a shared step counter that assumes a stable call
             # order across runs. Code mode collapses tools into one ``run_code``
             # tool and lets the model emit arbitrary Python, so step counts and
             # ordering can differ between the original run and a retry, breaking
             # replay. Reject the combination rather than silently mis-replaying.
-            raise ValueError("durable=True and code_mode=True cannot be used together.")
-
-        if (durable or code_mode) and _contains_code_mode(self._declared_capabilities):
-            if durable:
-                # The same conflict as code_mode=True, reached through the capability itself.
-                raise ValueError("durable=True cannot be used with a CodeMode capability.")
-            # code_mode=True adds a second CodeMode, and pydantic-ai then fails the run on a
-            # duplicate ``run_code`` tool without saying where the second one came from.
-            raise ValueError("code_mode=True adds a CodeMode capability; pass one or the other, not both.")
+            raise ValueError("durable=True cannot be used with a CodeMode capability.")
 
         if message_history is not None and enable_hitl_review:
             # The post-review transcript is not recoverable today (run_hitl_review
@@ -768,8 +722,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             # ``toolsets=`` wrapping above, so their results would re-execute on
             # every retry instead of replaying; wrap their inner toolset too.
             capabilities = self._build_durable_capabilities(capabilities, storage, counter)
-        if self.code_mode:
-            capabilities.append(_build_code_mode())
         if self.cache_prompt:
             capabilities.append(PromptCaching())
         if capabilities:
@@ -794,7 +746,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             not AIRFLOW_V_3_3_PLUS
             or self.durable
             or self.enable_hitl_review
-            or self.code_mode
             or _contains_code_mode(self._declared_capabilities)
         ):
             return False
@@ -1229,7 +1180,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             raise UnsupportedToolDeferralError(
                 f"The agent called tools that need approval ({pending_names}), but tool approval "
                 "needs Airflow 3.3+ and is not available with durable, enable_hitl_review, "
-                "code mode (code_mode=True or a CodeMode capability) or a SandboxToolset."
+                "a CodeMode capability or a SandboxToolset."
             )
         store = context["task_state_store"]
         if store.get(_TOOL_APPROVAL_REQUESTED_KEY):

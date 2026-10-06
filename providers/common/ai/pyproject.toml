@@ -112,9 +112,10 @@ dependencies = [
 "opensandbox" = ["opensandbox>=1.1.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
-# Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an
-# opt-in extra so its churn never breaks the base provider install.
-"code-mode" = ["pydantic-ai-harness[codemode]>=0.3.0"]
+# Provides the CodeMode capability for AgentOperator(capabilities=[CodeMode()]).
+# pydantic-ai-harness is pre-1.0; an opt-in extra so its churn never breaks the
+# base provider install.
+"code-mode" = ["pydantic-ai-harness[codemode]>=0.24.0"]
 # Shield capabilities such as InputGuard, OutputGuard, ToolGuard, and CostTracking.
 "shields" = ["pydantic-ai-shields>=0.3.4"]
 # Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset;

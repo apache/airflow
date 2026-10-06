@@ -4763,7 +4763,7 @@ requires-dist = [
     { name = "opensandbox", marker = "extra == 'opensandbox'", specifier = ">=1.1.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
-    { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.3.0" },
+    { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.24.0" },
     { name = "pydantic-ai-shields", marker = "extra == 'shields'", specifier = ">=0.3.4" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", specifier = ">=2.33.0" },
