@@ -28,14 +28,29 @@
   "group": "Grup",
   "health": {
     "dagProcessor": "Processador de Dags",
+    "degraded": "Degradat",
+    "degradedHint": {
+      "dagProcessor": "Algunes col·leccions de Dags configurades no tenen cap Dag Processor que les analitzi.",
+      "triggerer": "Alguns equips no tenen cap Triggerer que executi les seves tasques diferides."
+    },
+    "down": "Inactiu",
     "health": "Estat de salut",
     "healthy": "Saludable",
+    "instances": {
+      "bundles": "Col·leccions",
+      "hostname": "Host",
+      "team": "Equip",
+      "title_one": "{{title}} — {{status}} ({{count}} instància)",
+      "title_other": "{{title}} — {{status}} ({{count}} instàncies)",
+      "unknownHostname": "Host desconegut"
+    },
     "lastHeartbeat": "Últim batec",
     "metaDatabase": "Base de dades meta",
     "scheduler": "Programador",
     "status": "Estat",
     "triggerer": "Triggerer",
-    "unhealthy": "No saludable"
+    "unhealthy": "No saludable",
+    "unknownStatus": "Desconegut"
   },
   "history": "Historial",
   "importErrors": {

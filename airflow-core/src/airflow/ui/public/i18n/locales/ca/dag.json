@@ -6,6 +6,7 @@
     "title": "Dependències que bloquegen la programació de la tasca"
   },
   "calendar": {
+    "backfill": "Reompliment",
     "daily": "Diari",
     "hourly": "Horari",
     "legend": {
@@ -100,7 +101,11 @@
       "placeholder": "Cercar registres..."
     },
     "settings": "Configuració dels registres",
+    "tryNotStarted": "Aquest intent encara no ha començat.",
+    "viewFailedTry": "Veure els registres de l'intent fallit {{tryNumber}}",
     "viewInExternal": "Veure els registres a {{name}} (intent {{attempt}})",
+    "viewPreviousTry": "Veure els registres de l'intent anterior {{tryNumber}}",
+    "waitingToRetry": "L'intent {{tryNumber}} està pendent de reintentar-se.",
     "warning": "ADVERTIMENT"
   },
   "notFound": {
@@ -220,6 +225,7 @@
     "taskInstances": "Instàncies de tasca",
     "taskStateStore": "Magatzem de tasca",
     "tasks": "Tasques",
+    "versions": "Versions",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -247,5 +253,67 @@
       "never": "Mai"
     },
     "title": "Magatzem de tasca"
+  },
+  "versions": {
+    "aboutThisComparison": "Sobre aquesta comparació",
+    "base": "Comparar des de",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Autorització",
+      "callback": "Callback",
+      "deadline": "Termini",
+      "dependency": "Dependència",
+      "metadata": "Metadades",
+      "param": "Paràmetre",
+      "provenance": "Procedència",
+      "schedule": "Programació",
+      "task": "Tasca",
+      "unknown": "Desconeguda"
+    },
+    "codeAccess": "Cal tenir accés al codi del Dag per veure els valors",
+    "columns": {
+      "after": "Després",
+      "before": "Abans",
+      "category": "Categoria",
+      "impact": "Impacte",
+      "occurrences": "Ocurrències",
+      "operation": "Operació",
+      "path": "Camí"
+    },
+    "heading": "Versió {{base}} → Versió {{target}}",
+    "impacts": {
+      "authorization": "Autorització",
+      "execution": "Execució",
+      "metadata": "Metadades",
+      "provenance": "Procedència",
+      "unknown": "Desconegut"
+    },
+    "maxChanges": "Màxim de canvis",
+    "maxChangesDefault": "Per defecte",
+    "noChanges": "Aquestes versions contenen el mateix estat.",
+    "observedState": "Estat observat",
+    "observedStateBoundary": "Compara l'estat emmagatzemat actualment, no les dades del moment de creació. La comparació del codi font no està disponible per a versions històriques; utilitzeu la pestanya Codi per comparar el codi font.",
+    "operations": {
+      "added": "Afegit",
+      "changed": "Modificat",
+      "removed": "Eliminat"
+    },
+    "record_one": "Registre",
+    "record_other": "Registres",
+    "selectPrompt": "Seleccioneu dues versions per veure què ha canviat entre elles.",
+    "summary_one": "{{count}} canvi · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count}} canvis · esquema serialitzat {{baseSchema}} → {{targetSchema}}",
+    "target": "Comparar amb",
+    "truncated": {
+      "description": "S'han omès els canvis dels camins no mostrats per respectar el límit, de manera que el recompte és un mínim.",
+      "title": "No s'han retornat tots els canvis"
+    },
+    "unavailable": {
+      "description": "No s'han pogut comparar aquestes versions. Motiu:",
+      "title": "Comparació no disponible",
+      "withoutReason": "No s'han pogut comparar aquestes versions."
+    },
+    "valuesHidden": "Valors ocults",
+    "valuesShown": "Valors visibles"
   }
 }

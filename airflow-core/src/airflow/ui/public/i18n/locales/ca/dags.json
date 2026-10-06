@@ -27,7 +27,16 @@
     "pausedState": "Estat de pausa",
     "requiresHitlAction": "Requereix una acció HITL",
     "runIdPatternFilter": "Cerca execucions de Dag",
+    "runState": "Estat de l'execució",
+    "runStatePlaceholder": "Seleccionar l'estat de l'execució…",
     "timetableType": "Tipus de calendari"
+  },
+  "folders": {
+    "all": "Tots els Dags",
+    "empty": "No hi ha carpetes",
+    "hide": "Amagar carpetes",
+    "show": "Mostrar carpetes",
+    "title": "Carpetes"
   },
   "ownerLink": "Enllaç del propietari {{owner}}",
   "runAndTaskActions": {
@@ -75,6 +84,7 @@
       "downstream": "Aigües avall",
       "existingTasks": "Rellançar tasques existents",
       "future": "Futur",
+      "keepTaskState": "Conservar l'estat de la tasca i reprendre",
       "onlyFailed": "Rellançar només tasques fallides",
       "past": "Passat",
       "preventRunningTasks": "Evitar rellançar tasques en execució",
@@ -88,6 +98,25 @@
     "label": "Estats de les execucions",
     "loading": "Carregant el recompte d'estats de les execucions",
     "tooltip": "{{state}}: {{formattedCount}} — feu clic per a filtrar les execucions"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Cancel·lar la pausa pendent",
+    "drain": "Finalitzar execucions i pausar",
+    "drainPrompt": "Aquest Dag té execucions en curs. Podeu deixar que finalitzin abans de pausar el Dag; si el pauseu ara, la programació s'atura immediatament sense esperar que finalitzin.",
+    "pauseNow": "Pausar ara",
+    "pauseSelected": "Pausar / Finalitzar execucions"
+  },
+  "schedulingBanner": {
+    "message": "Aquest Dag està finalitzant les execucions en curs. Es pausarà quan hagin finalitzat."
+  },
+  "schedulingState": {
+    "active": "Actiu",
+    "draining": "Finalitzant execucions",
+    "drainingBadgeTooltip": "Aquest Dag es pausarà quan les execucions en curs hagin finalitzat.",
+    "drainingTooltip": "{{dagDisplayName}} està finalitzant les execucions en curs i es pausarà quan acabin. Feu clic per reprendre la programació.",
+    "label": "Estat de programació",
+    "paused": "Pausat",
+    "placeholder": "Seleccionar l'estat de programació…"
   },
   "search": {
     "advanced": "Cerca avançada",
