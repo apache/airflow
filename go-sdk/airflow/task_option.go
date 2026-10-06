@@ -30,7 +30,7 @@ type TaskOption interface{ applyTask(*taskConfig) error }
 
 type taskConfig struct {
 	spec   TaskSpec
-	inputs []*TaskRef
+	inputs []Input
 	// hasSpec is true once addTask has applied a TaskSpec, and hasInputs is true once it has
 	// applied an Inputs. The spec and inputs fields cannot show that an option was applied,
 	// because TaskSpec{} leaves spec at its zero value and Inputs() leaves inputs nil.

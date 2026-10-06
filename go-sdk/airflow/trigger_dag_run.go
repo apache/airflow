@@ -22,7 +22,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -40,8 +43,8 @@ type TriggerDagRunSpec struct {
 	DagID string
 	// RunID is the run_id of the new Dag run. When RunID is empty, Airflow generates one.
 	RunID string
-	// Conf is the conf of the new Dag run. Airflow receives it as JSON, so each value must
-	// marshal to JSON.
+	// Conf is the conf of the new Dag run. Each value must marshal to JSON, and each integer in
+	// Conf must fit in 64 bits.
 	Conf map[string]any
 	// LogicalDate is the logical date of the new Dag run, as an ISO 8601 string such as
 	// "2026-09-30T00:00:00+00:00" or a template such as "{{ ds }}". When LogicalDate is empty and
@@ -95,7 +98,9 @@ type TriggerDagRunTask struct {
 //	)
 //
 // The task runs no Go code. Once [BundleRef.Serve] serves the Dags from [Dag], Airflow will run
-// the task as TriggerDagRunOperator on a Python worker.
+// the task as TriggerDagRunOperator on a Python worker. So the task does not take the Queue of the
+// [DagSpec], which routes the tasks that run Go code. A [TaskSpec] can set a Queue for the task,
+// to pick the Python workers that run it.
 //
 // Because the task has no Go function to take a task_id from, DagRef.Task needs a [TaskSpec]
 // that sets TaskID. For the same reason, the task takes no [Inputs], and it returns no result
@@ -133,6 +138,9 @@ func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 			}
 		}
 	}
+	if err := checkTime("airflow.TriggerDagRunSpec.RunAfter", spec.RunAfter); err != nil {
+		return TriggerDagRunSpec{}, err
+	}
 	conf, err := copyConf(spec.Conf)
 	if err != nil {
 		return TriggerDagRunSpec{}, fmt.Errorf("airflow.TriggerDagRunSpec.Conf: %w", err)
@@ -147,9 +155,12 @@ func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 
 // copyConf copies conf by way of JSON, so it also rejects a conf that JSON cannot hold.
 //
-// UseNumber stores each number as a json.Number, which keeps an integer that a float64 cannot
-// hold exactly, such as 2^53 + 1. encoding/json writes a json.Number back as a number, but an
-// encoder that does not know the type, such as msgpack, writes it as a string.
+// Each number in the copy is an int64, a uint64 or a float64, which encoding/json and msgpack both
+// write as a number. A bundle sends a serialized Dag to Airflow as msgpack, and msgpack would write
+// a json.Number as a string. The decoder reads each number as a json.Number first, so that an
+// integer that a float64 cannot hold exactly, such as 2^53 + 1, keeps its value in an int64 or a
+// uint64. copyConf rejects an integer that fits in neither, and a number past the range of a
+// float64, because msgpack cannot carry them.
 func copyConf(conf map[string]any) (map[string]any, error) {
 	data, err := json.Marshal(conf)
 	if err != nil {
@@ -161,5 +172,63 @@ func copyConf(conf map[string]any) (map[string]any, error) {
 	if err := dec.Decode(&copied); err != nil {
 		return nil, err
 	}
+	if _, err := resolveNumbers(copied, ""); err != nil {
+		return nil, err
+	}
 	return copied, nil
+}
+
+// resolveNumbers replaces each json.Number in value with an int64, a uint64 or a float64, and
+// returns value. It changes a map or a slice in value in place. path names value in an error, as
+// in ["rows"][2].
+func resolveNumbers(value any, path string) (any, error) {
+	switch v := value.(type) {
+	case json.Number:
+		return resolveNumber(v, path)
+	case map[string]any:
+		// The keys are sorted, so that a conf with more than one bad number always gets the same
+		// error.
+		for _, key := range slices.Sorted(maps.Keys(v)) {
+			resolved, err := resolveNumbers(v[key], path+"["+strconv.Quote(key)+"]")
+			if err != nil {
+				return nil, err
+			}
+			v[key] = resolved
+		}
+	case []any:
+		for i, item := range v {
+			resolved, err := resolveNumbers(item, fmt.Sprintf("%s[%d]", path, i))
+			if err != nil {
+				return nil, err
+			}
+			v[i] = resolved
+		}
+	}
+	return value, nil
+}
+
+func resolveNumber(n json.Number, path string) (any, error) {
+	if i, err := n.Int64(); err == nil {
+		return i, nil
+	}
+	if u, err := strconv.ParseUint(n.String(), 10, 64); err == nil {
+		return u, nil
+	}
+	f, err := n.Float64()
+	// encoding/json writes a float64 such as 1e20 with neither a point nor an exponent, so a number
+	// written like an integer can come from a float64. Such a number is read as a float64 only when
+	// the float64 formats back to the same digits. Otherwise the number is an integer that does not
+	// fit in 64 bits.
+	if !strings.ContainsAny(n.String(), ".eE") &&
+		(err != nil || strconv.FormatFloat(f, 'f', -1, 64) != n.String()) {
+		return nil, fmt.Errorf("the integer at %s is %s, which does not fit in 64 bits", path, n)
+	}
+	if err != nil {
+		return nil, fmt.Errorf(
+			"the number at %s is %s, which is past the range of a float64",
+			path,
+			n,
+		)
+	}
+	return f, nil
 }

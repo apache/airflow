@@ -61,14 +61,27 @@ type DagSpec struct {
 	// "max_consecutive_failed_dag_runs".
 	MaxConsecutiveFailedDagRuns *int
 
+	// Queue is the queue that each task of the Dag runs on, unless the TaskSpec of
+	// the task sets a Queue. The queue_to_coordinator option in the [sdk] section of
+	// the Airflow configuration maps the queue to the coordinator that runs Go code.
+	// A task from TriggerDagRun runs on a Python worker, so it does not take this
+	// queue.
+	Queue string
+
 	// RenderTemplateAsNativeObj corresponds to the JSON schema field
 	// "render_template_as_native_obj".
 	RenderTemplateAsNativeObj bool
 
-	// Schedule is the cron expression or preset the Dag runs on, such as "@daily".
+	// Schedule is when the Dag runs: a cron expression such as "0 3 * * *", or one of
+	// the presets "@hourly", "@daily", "@weekly", "@monthly", "@quarterly",
+	// "@yearly", "@once" and "@continuous". A cron expression has five fields. A
+	// sixth field adds the seconds, and a seventh field after it adds the year.
+	// Airflow reads a cron expression in UTC. A Dag with an empty Schedule runs only
+	// when something triggers it.
 	Schedule string
 
-	// StartDate corresponds to the JSON schema field "start_date".
+	// StartDate is the start_date of the Dag. The timezone of the Dag is UTC even
+	// when StartDate has another location, so Airflow reads Schedule in UTC.
 	StartDate time.Time
 
 	// Tags corresponds to the JSON schema field "tags".
@@ -114,10 +127,12 @@ type TaskSpec struct {
 	// DocMD corresponds to the JSON schema field "doc_md".
 	DocMD string
 
-	// EmailOnFailure corresponds to the JSON schema field "email_on_failure".
+	// EmailOnFailure has no effect yet. Python writes email_on_failure only for a
+	// task that has an email recipient, and a TaskSpec cannot set one.
 	EmailOnFailure *bool
 
-	// EmailOnRetry corresponds to the JSON schema field "email_on_retry".
+	// EmailOnRetry has no effect yet. Python writes email_on_retry only for a task
+	// that has an email recipient, and a TaskSpec cannot set one.
 	EmailOnRetry *bool
 
 	// EndDate corresponds to the JSON schema field "end_date".

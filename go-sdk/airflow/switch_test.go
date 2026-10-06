@@ -177,7 +177,7 @@ func TestSwitchPanicsUnderItsOwnName(t *testing.T) {
 		{
 			name: "missing input",
 			add:  func(dag *DagRef) { dag.Switch(pickPathFromRows) },
-			want: "but airflow.Inputs passes no task",
+			want: "but airflow.Inputs passes no input",
 		},
 		{
 			name: "input of the wrong type",

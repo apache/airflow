@@ -63,7 +63,7 @@ func TestTaskGroupPrefixesTheTaskIDs(t *testing.T) {
 	assert.Equal(t, "transform.readRows", read.taskID)
 	assert.Equal(t, "transform.count", counted.taskID)
 	assert.Same(t, group, read.group)
-	assertTasks(t, counted.inputs, read)
+	assertTasks(t, inputRefs(counted), read)
 	assertChildren(t, group, read, counted)
 	assertTasks(t, dag.tasks, read, counted)
 	assert.Same(t, read, dag.tasksByID["transform.readRows"])
@@ -685,9 +685,9 @@ func TestAGroupEdgeInsideAGroupDeclaredFirstShapesTheGroupsEnds(t *testing.T) {
 	assertTasks(t, loaded.upstreams, checked)
 }
 
-// TestAGroupEdgeLeavesTheLabelOfATaskEdgeAlone pins that a group edge labels none of the edges it
-// stands for, and so keeps the label of one that was declared on its own. Python puts the group
-// edge's label on extract >> transform.validate as well, over "rows".
+// TestAGroupEdgeLeavesTheLabelOfATaskEdgeAlone pins that a group edge keeps the label of a task edge
+// that was declared on its own. Python puts the group edge's label over "rows" when the group edge
+// is declared last.
 func TestAGroupEdgeLeavesTheLabelOfATaskEdgeAlone(t *testing.T) {
 	dag := Dag("etl")
 	extracted := orderedTask(t, dag, "extract")
@@ -700,20 +700,20 @@ func TestAGroupEdgeLeavesTheLabelOfATaskEdgeAlone(t *testing.T) {
 	Bundle().Register(dag)
 
 	assertGroupEdgeLabel(t, dag, "extract", "transform", "to transform")
-	assertEdgeLabel(t, dag, "extract", "transform.clean", "")
+	assertEdgeLabel(t, dag, "extract", "transform.clean", "to transform")
 	assertEdgeLabel(t, dag, "extract", "transform.validate", "rows")
 	assertTasks(t, extracted.downstreams, validated, cleaned)
 }
 
-// TestALabelOnAGroupEdgeStaysOnTheGroupEdge pins that a label on an edge to or from a group labels
-// that edge and none of the edges between tasks that it stands for, whichever end the label wraps.
-// Python also labels those when the receiver is a task that no group holds, as
-// extract >> Label("x") >> transform does.
-func TestALabelOnAGroupEdgeStaysOnTheGroupEdge(t *testing.T) {
+// TestALabelOnAGroupEdge pins that a label on an edge to or from a group labels that edge,
+// whichever end the label wraps, and labels the edges between tasks that it stands for only on an
+// edge from a task to a group, as Python's extract >> Label("x") >> transform does.
+func TestALabelOnAGroupEdge(t *testing.T) {
 	for _, tc := range []struct {
 		name                 string
 		declare              func(extracted *TaskRef, transform, publish *TaskGroupRef)
 		upstream, downstream string
+		taskEdgeLabel        string
 	}{
 		{
 			name: "a task before a labelled group",
@@ -721,6 +721,7 @@ func TestALabelOnAGroupEdgeStaysOnTheGroupEdge(t *testing.T) {
 				extracted.Before(Label(transform, "x"))
 			},
 			upstream: "extract", downstream: "transform",
+			taskEdgeLabel: "x",
 		},
 		{
 			name: "a task after a labelled group",
@@ -742,6 +743,7 @@ func TestALabelOnAGroupEdgeStaysOnTheGroupEdge(t *testing.T) {
 				transform.After(Label(extracted, "x"))
 			},
 			upstream: "extract", downstream: "transform",
+			taskEdgeLabel: "x",
 		},
 		{
 			name: "a group before a labelled group",
@@ -766,7 +768,7 @@ func TestALabelOnAGroupEdgeStaysOnTheGroupEdge(t *testing.T) {
 			assertGroupEdgeLabel(t, dag, tc.upstream, tc.downstream, "x")
 			require.Len(t, dag.edgeLabels, 2)
 			for key, label := range dag.edgeLabels {
-				assert.Empty(t, label, "%s -> %s", key.upstream, key.downstream)
+				assert.Equal(t, tc.taskEdgeLabel, label, "%s -> %s", key.upstream, key.downstream)
 			}
 		})
 	}
@@ -790,6 +792,22 @@ func TestALabelOnAnEdgeBetweenTasksOfDifferentGroupsKeepsTheTaskEdge(t *testing.
 	assertEdgeLabel(t, dag, "transform.clean", "load", "rows")
 	assertTasks(t, loaded.upstreams, cleaned)
 	assert.Empty(t, dag.groupEdges)
+}
+
+// TestALabelOnAGroupEdgeFromAGroupedTaskStaysOnTheGroupEdge pins that a group edge from a task in a
+// group labels none of the task edges it stands for. Python would replace the task with its group.
+func TestALabelOnAGroupEdgeFromAGroupedTaskStaysOnTheGroupEdge(t *testing.T) {
+	dag := Dag("etl")
+	extract := dag.TaskGroup("extract")
+	pulled := groupTask(t, extract, "pull")
+	transform := dag.TaskGroup("transform")
+	groupTask(t, transform, "clean")
+
+	pulled.Before(Label(transform, "rows"))
+	Bundle().Register(dag)
+
+	assertGroupEdgeLabel(t, dag, "extract.pull", "transform", "rows")
+	assertEdgeLabel(t, dag, "extract.pull", "transform.clean", "")
 }
 
 func TestRedeclaringAGroupEdgeIsIdempotent(t *testing.T) {
@@ -961,6 +979,37 @@ func TestAnEdgeStepsOverAGroupWithNoTask(t *testing.T) {
 
 	assertTasks(t, extracted.downstreams, loaded)
 	assertTasks(t, loaded.upstreams, extracted)
+}
+
+// TestAnEdgeOutOfAnEmptyNestedGroupLeavesFromTheGroupHoldingIt pins Python's find_leaves, which
+// stands an empty group in for its parent. An edge into an empty group has no such step.
+func TestAnEdgeOutOfAnEmptyNestedGroupLeavesFromTheGroupHoldingIt(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	loaded := orderedTask(t, dag, "load")
+	outer := dag.TaskGroup("outer")
+	held := groupTask(t, outer, "t")
+	spare := outer.TaskGroup("spare")
+
+	spare.Before(loaded)
+	extracted.Before(outer)
+	Bundle().Register(dag)
+
+	assertTasks(t, held.downstreams, loaded)
+	assertTasks(t, loaded.upstreams, held)
+}
+
+func TestAnEdgeIntoAnEmptyNestedGroupDoesNotStepToTheGroupHoldingIt(t *testing.T) {
+	dag := Dag("etl")
+	extracted := orderedTask(t, dag, "extract")
+	outer := dag.TaskGroup("outer")
+	groupTask(t, outer, "t")
+	spare := outer.TaskGroup("spare")
+
+	extracted.Before(spare)
+	Bundle().Register(dag)
+
+	assert.Empty(t, extracted.downstreams)
 }
 
 func TestAnEdgeStepsOverGroupsWithNoTaskInARow(t *testing.T) {
@@ -1193,7 +1242,7 @@ func snapshot(dag *DagRef) dagSnapshot {
 	}
 	for _, task := range dag.tasks {
 		s.tasks = append(s.tasks, task.taskID)
-		s.inputs[task.taskID] = taskIDs(task.inputs)
+		s.inputs[task.taskID] = taskIDs(inputRefs(task))
 		s.upstreams[task.taskID] = taskIDs(task.upstreams)
 		s.downstreams[task.taskID] = taskIDs(task.downstreams)
 		switch decider := task.decider.(type) {
