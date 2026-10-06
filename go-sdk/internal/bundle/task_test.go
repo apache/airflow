@@ -316,6 +316,22 @@ func (s *TaskSuite) TestBranchFunctionPushesTheValueAndSkipsTheTasksThatDecideRe
 	}, client.calls)
 }
 
+func (s *TaskSuite) TestBranchFunctionPushesNoNilPointer() {
+	task, err := NewPositionalBranchFunction(
+		func(contexttest.Context) (bool, error) { return true, nil },
+		func(any) (any, []string, error) { return (*int)(nil), []string{"load"}, nil },
+	)
+	s.Require().NoError(err)
+
+	client := &branchClient{}
+	s.Require().NoError(runBranch(task, client, true, true))
+
+	s.Equal([]string{
+		"PushXCom decide skipmixin_key map[skipped:[load]]",
+		"SkipDownstreamTasks [load]",
+	}, client.calls)
+}
+
 func (s *TaskSuite) TestBranchFunctionWithNothingToSkip() {
 	for name, skipped := range map[string][]string{"nil": nil, "empty": {}} {
 		s.Run(name, func() {

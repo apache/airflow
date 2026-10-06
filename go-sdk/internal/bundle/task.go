@@ -78,7 +78,8 @@ func NewPositionalTaskFunction(fn any) (Task, error) {
 
 // DecideFunc takes the result of the function of a task from NewPositionalBranchFunction. It
 // returns value, which the task pushes as its return_value XCom, and the task_ids of the tasks to
-// skip. A non-nil error fails the task.
+// skip. When value is a nil pointer, the task does not push the return_value XCom. A non-nil error
+// fails the task.
 type DecideFunc func(result any) (value any, skipped []string, err error)
 
 // NewPositionalBranchFunction is like NewPositionalTaskFunction, but the Task also skips tasks
@@ -173,7 +174,10 @@ func (f *taskFunction) call(
 		if err != nil {
 			return err
 		}
-		f.sendXcom(ctx, value, sdkClient, logger)
+		rv := reflect.ValueOf(value)
+		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
+			f.sendXcom(ctx, value, sdkClient, logger)
+		}
 		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
 	}
 	// If there are two results, convert the first only if it's not a nil pointer
