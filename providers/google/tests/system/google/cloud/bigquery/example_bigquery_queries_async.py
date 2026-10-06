@@ -100,6 +100,26 @@ CONFIGURATION = {
     }
 }
 
+SLOW_VIEW_NAME = f"view_{DAG_ID}_{ENV_ID}_slow".replace("-", "_")
+
+# The JavaScript UDF spins for a fixed number of iterations per row, which keeps a query over the view
+# RUNNING for tens of seconds, i.e. across several poll intervals of the deferrable check operators
+# (#73981). `CURRENT_TIMESTAMP()` makes the view non-deterministic, so BigQuery never serves a repeated
+# check from the query cache. Nothing here scans more than the two-row table, so the jobs are billed at
+# the 10 MB minimum.
+CREATE_SLOW_VIEW_QUERY = f"""
+CREATE OR REPLACE FUNCTION `{DATASET_NAME}.slow_ds`(ds STRING) RETURNS STRING LANGUAGE js AS r'''
+  let acc = 0;
+  for (let i = 0; i < 500000000; i++) {{
+    acc = (acc * 31 + i) % 1000003;
+  }}
+  return acc >= 0 ? ds : null;
+''';
+CREATE OR REPLACE VIEW `{DATASET_NAME}.{SLOW_VIEW_NAME}` AS
+  SELECT value, name, `{DATASET_NAME}.slow_ds`(ds) AS ds
+  FROM `{DATASET_NAME}.{TABLE_NAME_1}`
+  WHERE CURRENT_TIMESTAMP() IS NOT NULL;
+"""
 
 default_args = {
     "execution_timeout": timedelta(hours=6),
@@ -262,6 +282,31 @@ with DAG(
         deferrable=True,
     )
 
+    create_slow_view = BigQueryInsertJobOperator(
+        task_id="create_slow_view",
+        configuration={"query": {"query": CREATE_SLOW_VIEW_QUERY, "useLegacySql": False}},
+        location=LOCATION,
+    )
+
+    check_value_long_running = BigQueryValueCheckOperator(
+        task_id="check_value_long_running",
+        sql=f"SELECT COUNT(*) FROM {DATASET_NAME}.{SLOW_VIEW_NAME} WHERE ds IS NOT NULL",
+        pass_value=2,
+        use_legacy_sql=False,
+        location=LOCATION,
+        deferrable=True,
+    )
+
+    check_interval_long_running = BigQueryIntervalCheckOperator(
+        task_id="check_interval_long_running",
+        table=f"{DATASET_NAME}.{SLOW_VIEW_NAME}",
+        days_back=1,
+        metrics_thresholds={"COUNT(*)": 1.5},
+        use_legacy_sql=False,
+        location=LOCATION,
+        deferrable=True,
+    )
+
     check_openlineage_events = OpenLineageTestOperator(
         task_id="check_openlineage_events",
         file_path=str(Path(__file__).parent / "resources" / "openlineage" / "bigquery_queries_async.json"),
@@ -272,7 +317,14 @@ with DAG(
     insert_query_job >> get_data >> get_data_result
     insert_query_job >> execute_query_save >> bigquery_execute_multi_query
     insert_query_job >> execute_long_running_query >> check_value >> check_interval
-    [check_count, check_interval, bigquery_execute_multi_query, get_data_result] >> delete_dataset
+    insert_query_job >> create_slow_view >> check_value_long_running >> check_interval_long_running
+    [
+        check_count,
+        check_interval,
+        check_interval_long_running,
+        bigquery_execute_multi_query,
+        get_data_result,
+    ] >> delete_dataset
     delete_dataset >> check_openlineage_events
 
     from tests_common.test_utils.watcher import watcher
