@@ -96,7 +96,6 @@ def _log_cache_and_cost(logger: Logger | logging.Logger, usage: RunUsage) -> Non
 
 # XCom key the LLM and agent operators publish the run's resolved model name under, so downstream
 # tasks and the UI can read which model actually answered without parsing the decision record.
-# Namespaced (per review from @kaxil) so it doesn't collide with a user's own "model_name" XCom.
 MODEL_NAME_XCOM_KEY = "__AIRFLOW__COMMON_AI_MODEL_NAME__"
 
 
