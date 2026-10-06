@@ -67,8 +67,9 @@ type DagRef struct {
 //
 //	bundle.Register(dag)
 //
-// Add every task before Register. [DagRef.Task], [DagRef.If], [DagRef.TaskGroup], [IfRef.Then],
-// [IfRef.Else] and the methods of [TaskGroupRef] panic once the Dag is registered.
+// Add every task before Register. [DagRef.Task], [DagRef.If], [DagRef.Switch], [DagRef.TaskGroup],
+// [IfRef.Then], [IfRef.Else], [SwitchRef.Case] and the methods of [TaskGroupRef] panic once the Dag
+// is registered.
 //
 // [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
 // --airflow-metadata manifest and cannot run their tasks.
@@ -91,12 +92,12 @@ func (*DagRef) registerable() {}
 
 // TaskRef is a task that [DagRef.Task] or [TaskGroupRef.Task] added to a Dag. Pass it to [Inputs]
 // to give its result to a task added later. Pass it to [IfRef.Then] or [IfRef.Else] to run it on
-// one side of a condition. A TaskRef is a [Node], so [TaskRef.Before] and [TaskRef.After] order it
-// against another task or a task group.
+// one side of a condition. Pass it to [SwitchRef.Case] to make it a case of a switch. A TaskRef is
+// a [Node], so [TaskRef.Before] and [TaskRef.After] order it against another task or a task group.
 type TaskRef struct {
 	dag *DagRef
 	// group is the task group that the task was added through. It is nil for a task that
-	// DagRef.Task or DagRef.If added.
+	// DagRef.Task, DagRef.If or DagRef.Switch added.
 	group  *TaskGroupRef
 	taskID string
 	spec   TaskSpec
@@ -116,9 +117,9 @@ type TaskRef struct {
 	// It is nil for a task that runs a Go function. A task from TriggerDagRun runs no Go
 	// function, so its resultType, inputs and task are nil.
 	triggerDagRun *TriggerDagRunSpec
-	// ifRef is the IfRef that DagRef.If or TaskGroupRef.If returned for the task. It is nil for a
-	// task from DagRef.Task or TaskGroupRef.Task.
-	ifRef *IfRef
+	// decider is the IfRef or the SwitchRef that an If or a Switch method returned for the task. It
+	// is nil for a task from DagRef.Task or TaskGroupRef.Task.
+	decider decider
 }
 
 // Task adds a task that runs fn to the Dag and returns the new task.
@@ -165,11 +166,22 @@ func (d *DagRef) Task(fn any, opts ...TaskOption) *TaskRef {
 	return d.addTask("airflow.DagRef.Task", nil, fn, opts, nil)
 }
 
-// addTask adds a task for Task and If, of the Dag or of a task group. method names the caller in
-// panic messages. group is the task group that the task is added through, and nil for a task of
-// the Dag itself. ifRef is the IfRef that If returns, and nil when Task calls addTask.
+// decider is the IfRef that If returns or the SwitchRef that Switch returns. addTask uses it to
+// add the task that decides which tasks after it to skip.
+type decider interface {
+	// wrap checks the result types of fn and wraps fn as a bundle.Task that skips the tasks that fn
+	// does not choose.
+	wrap(fn any) (bundle.Task, error)
+	// bind records task as the task that runs the function of the decider.
+	bind(task *TaskRef)
+}
+
+// addTask adds a task for Task, If and Switch, of the Dag or of a task group. method names the
+// caller in panic messages. group is the task group that the task is added through, and nil for a
+// task of the Dag itself. decider is the IfRef or the SwitchRef of the task, and nil when Task
+// calls addTask.
 func (d *DagRef) addTask(
-	method string, group *TaskGroupRef, fn any, opts []TaskOption, ifRef *IfRef,
+	method string, group *TaskGroupRef, fn any, opts []TaskOption, decider decider,
 ) *TaskRef {
 	trigger, isTrigger := fn.(TriggerDagRunTask)
 	var triggerSpec *TriggerDagRunSpec
@@ -195,8 +207,8 @@ func (d *DagRef) addTask(
 	var wrapped bundle.Task
 	if !isTrigger {
 		wrap := bundle.NewPositionalTaskFunction
-		if ifRef != nil {
-			wrap = ifRef.wrapCondition
+		if decider != nil {
+			wrap = decider.wrap
 		}
 		var err error
 		if wrapped, err = newTaskFunction(fn, wrap); err != nil {
@@ -307,10 +319,10 @@ func (d *DagRef) addTask(
 		inputs:        upstreams,
 		task:          wrapped,
 		triggerDagRun: triggerSpec,
-		ifRef:         ifRef,
+		decider:       decider,
 	}
-	if ifRef != nil {
-		ifRef.task = task
+	if decider != nil {
+		decider.bind(task)
 	}
 	if d.tasksByID == nil {
 		d.tasksByID = make(map[string]*TaskRef)
@@ -329,13 +341,13 @@ func (d *DagRef) addTask(
 }
 
 // markRegistered marks d as registered, which stops any further change to d. It panics instead
-// when a condition from If has no task from Then, or when the edges of d close a cycle. The Dag is
-// whole by then, so markRegistered can expand the group edges in the order they were first
-// declared, and a walk of the whole graph answers for every edge. It walks the graph before the
-// expansion too, so that a cycle between the edges the author declared is reported as declared.
-// A Dag that fails a check stays unregistered and holds only the edges its author declared. The
-// author can still give a condition its task from Then, but cannot undo a cycle, since a Dag only
-// ever gains edges.
+// when a condition from If has no task from Then, when a switch from Switch has no case, or when
+// the edges of d close a cycle. The Dag is whole by then, so markRegistered can expand the group
+// edges in the order they were first declared, and a walk of the whole graph answers for every
+// edge. It walks the graph before the expansion too, so that a cycle between the edges the author
+// declared is reported as declared. A Dag that fails a check stays unregistered and holds only the
+// edges its author declared. The author can still complete the Dag with IfRef.Then or
+// SwitchRef.Case, but cannot undo a cycle, since a Dag only ever gains edges.
 func (d *DagRef) markRegistered() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -345,12 +357,23 @@ func (d *DagRef) markRegistered() {
 		return
 	}
 	for _, task := range d.tasks {
-		if task.ifRef != nil && task.ifRef.thenTask == nil {
-			panic(fmt.Sprintf(
-				"airflow.BundleRef.Register: condition %q of Dag %q has no task from Then; "+
-					"name the task that runs when the condition is true with IfRef.Then",
-				task.taskID, d.dagID,
-			))
+		switch decider := task.decider.(type) {
+		case *IfRef:
+			if decider.thenTask == nil {
+				panic(fmt.Sprintf(
+					"airflow.BundleRef.Register: condition %q of Dag %q has no task from Then; "+
+						"name the task that runs when the condition is true with IfRef.Then",
+					task.taskID, d.dagID,
+				))
+			}
+		case *SwitchRef:
+			if len(decider.cases) == 0 {
+				panic(fmt.Sprintf(
+					"airflow.BundleRef.Register: switch %q of Dag %q has no case; "+
+						"name each task that the switch can choose with SwitchRef.Case",
+					task.taskID, d.dagID,
+				))
+			}
 		}
 	}
 	if cycle := d.cycleLocked(); cycle != nil {
