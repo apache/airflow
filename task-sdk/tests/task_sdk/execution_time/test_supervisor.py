@@ -4664,8 +4664,8 @@ class TestHandleRequest:
         proc._terminal_state = SERVER_TERMINATED
         proc.client.task_instances.finish.side_effect = ServerResponseError(
             message="Acknowledgement rejected",
-            request=httpx.Request("PATCH", "http://test/task-instances/state"),
-            response=httpx.Response(status_code),
+            request=httpx2.Request("PATCH", "http://test/task-instances/state"),
+            response=httpx2.Response(status_code),
         )
 
         proc.update_task_state_if_needed()
