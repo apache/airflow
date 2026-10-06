@@ -62,6 +62,9 @@ _XCOM_PATH_PARTS = 5  # /xcoms/{dag_id}/{run_id}/{task_id}/{key}
 def _resolve_sdk_httpx() -> ModuleType:
     """Return the httpx package the *installed* Task SDK ``Client`` subclasses.
 
+    Needed as these test_utils run against multiple versions of Airflow/sdk. This can be
+    removed when the oldest version we test against is Airflow 3.4.
+
     Compat jobs pair this helper with a released SDK still on ``httpx``. A transport from the
     wrong package trips httpx's own stream-type assertion.
     """
