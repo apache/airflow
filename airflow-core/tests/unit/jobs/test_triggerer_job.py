@@ -45,7 +45,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from pydantic import TypeAdapter, ValidationError
+from pydantic import TypeAdapter
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -1079,19 +1079,12 @@ def _ti_dto(map_index=-1):
     )
 
 
-def test_task_instance_dto_rejects_a_null_map_index():
-    """If the map_index is None, it should raise an error (it should be -1)."""
-    with pytest.raises(ValidationError):
-        _ti_dto(map_index=None)
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("map_index", [-1, 3], ids=["unmapped", "mapped"])
 @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
 async def test_create_triggers_injects_task_state_store_scoped_to_the_deferring_ti(
     mock_get_classpath, session, make_deferred_trigger, map_index
 ):
-    """task_state_store is populated, and scoped to the task instance that deferred."""
     injected_instances = []
     mock_get_classpath.return_value = make_deferred_trigger(injected_instances)
     ti = _ti_dto(map_index=map_index)

@@ -1426,7 +1426,6 @@ class TriggerRunner:
                     else:
                         trigger_instance.task_instance = ti
 
-                    # Pass the task_state_store through to the Trigger so it can be used in the Trigger
                     trigger_instance.task_state_store = TaskStateStoreAccessor(
                         ti_id=ti.id,
                         scope=TaskScope(

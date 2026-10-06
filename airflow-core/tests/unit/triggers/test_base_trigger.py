@@ -279,14 +279,12 @@ def test_base_event_trigger_asset_state_store_independent_across_instances():
 
 
 def test_base_trigger_task_state_store_initialized_to_none():
-    """task_state_store is None before the triggerer injects one."""
     trigger = DummyTrigger(name="Dummy Trigger")
 
     assert trigger.task_state_store is None
 
 
 def test_base_trigger_task_state_store_can_be_set():
-    """task_state_store can be set once the Trigger is initialized."""
     trigger = DummyTrigger(name="Dummy Trigger")
 
     mock_store = create_autospec(TaskStateStoreAccessor, instance=True)
@@ -296,7 +294,6 @@ def test_base_trigger_task_state_store_can_be_set():
 
 
 def test_base_trigger_task_state_store_independent_across_instances():
-    """a.task_state_store does not impact b.task_state_store."""
     a = DummyTrigger(name="Dummy Trigger")
     b = DummyTrigger(name="Dummy Trigger")
 
