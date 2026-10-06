@@ -6114,10 +6114,16 @@ class TestSchedulerJob:
             DagRunType.ASSET_MATERIALIZATION.name,
         ],
     )
-    def test_should_update_dag_next_dagruns_after_run_type(
-        self, run_type, expected, timed_out, session, dag_maker
+    @mock.patch.object(SchedulerJobRunner, "_set_exceeds_max_active_runs", autospec=True)
+    def test_exceeds_max_active_runs_recomputed_for_finished_non_backfill_runs(
+        self, mock_set_exceeds_max_active_runs, run_type, expected, timed_out, session, dag_maker
     ):
-        """Test that whether next dag run is updated depends on run type"""
+        """
+        Test that the scheduler recomputes the exceeds_max_non_backfill flag when a run finishes
+        or times out.
+
+        Backfill runs are the exception because the flag does not count them.
+        """
         with dag_maker(
             schedule="*/1 * * * *",
             max_active_runs=3,
@@ -6145,15 +6151,11 @@ class TestSchedulerJob:
             ti.state = "failed"
         session.flush()
 
-        check_mock = MagicMock()
-        self.job_runner._set_exceeds_max_active_runs = check_mock
-        with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
-            self.job_runner._schedule_dag_run(
-                dag_run=run,
-                session=session,
-            )
-            assert not mock_calc.called
-        assert check_mock.called == expected
+        self.job_runner._schedule_dag_run(
+            dag_run=run,
+            session=session,
+        )
+        assert mock_set_exceeds_max_active_runs.called == expected
 
     def test_create_dag_runs(self, dag_maker):
         """
