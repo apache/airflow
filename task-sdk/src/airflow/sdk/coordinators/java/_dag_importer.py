@@ -63,7 +63,7 @@ class JavaDagImporter(CoordinatorDagImporter):
         try:
             with definition.as_file() as path, zipfile.ZipFile(path) as zf:
                 attributes = read_main_attributes(zf) or {}
-        except (OSError, zipfile.BadZipFile):
+        except Exception:
             return True
         if not (main_class := attributes.get(MAIN_CLASS)):
             return False

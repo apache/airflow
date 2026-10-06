@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import zipfile
+import zlib
 from unittest.mock import patch
 
 import pytest
@@ -111,6 +112,16 @@ class TestJavaDagImporter:
     def test_keeps_a_jar_it_cannot_read(self, tmp_path):
         jar = tmp_path / "partial.jar"
         jar.write_bytes(b"PK\x03\x04 truncated")
+
+        assert _importer().might_contain_dag(_definition(jar), safe_mode=True) is True
+
+    @pytest.mark.parametrize(
+        "error", [zlib.error("incomplete or truncated stream"), NotImplementedError("compression type")]
+    )
+    @patch("airflow.sdk.coordinators.java._dag_importer.read_main_attributes")
+    def test_keeps_a_jar_whose_manifest_cannot_be_read(self, mock_read, tmp_path, error):
+        mock_read.side_effect = error
+        jar = make_jar(tmp_path / "app.jar", attributes={"Main-Class": MAIN_CLASS})
 
         assert _importer().might_contain_dag(_definition(jar), safe_mode=True) is True
 

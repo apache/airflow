@@ -23,6 +23,7 @@ import os
 import pathlib
 import stat
 import zipfile
+import zlib
 from typing import TYPE_CHECKING, Final
 
 import attrs
@@ -110,7 +111,7 @@ class _JarMetadata:
         try:
             with zipfile.ZipFile(path) as zf:
                 attributes = read_main_attributes(zf)
-        except (FileNotFoundError, IsADirectoryError, zipfile.BadZipFile):
+        except (FileNotFoundError, IsADirectoryError, zipfile.BadZipFile, zlib.error, NotImplementedError):
             log.exception("Cannot read JAR; ignored", path=path)
             return None
         if attributes is None:

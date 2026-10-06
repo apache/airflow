@@ -24,6 +24,7 @@ import pathlib
 import re
 import socket
 import subprocess
+import zlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -114,6 +115,14 @@ class TestJarMetadata:
             pytest.raises(PermissionError, match="locked.jar"),
         ):
             _JarMetadata.from_jar(jar)
+
+    @pytest.mark.parametrize(
+        "error", [zlib.error("incomplete or truncated stream"), NotImplementedError("compression type")]
+    )
+    def test_a_corrupt_manifest_entry_gives_none(self, tmp_path, error):
+        jar = make_jar(tmp_path / "corrupt.jar", attributes={"Main-Class": "com.example.Main"})
+        with patch("airflow.sdk.coordinators.java.coordinator.read_main_attributes", side_effect=error):
+            assert _JarMetadata.from_jar(jar) is None
 
 
 class TestCalculateClasspath:
