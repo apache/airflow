@@ -31,7 +31,16 @@ def test_main_runs_compare_with_the_go_serializer_and_returns_its_exit_code(mock
     assert checker.main() == 1
 
     command = mock_run.call_args.args[0]
-    assert command == [sys.executable, str(checker.COMPARE), "--sdk", "go", "--", *checker.SERIALIZER]
+    assert command == [
+        sys.executable,
+        str(checker.COMPARE),
+        "--sdk",
+        "go",
+        "--supports",
+        "all",
+        "--",
+        *checker.SERIALIZER,
+    ]
     assert mock_run.call_args.kwargs["cwd"] == checker.REPO_ROOT
 
 

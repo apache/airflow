@@ -502,6 +502,11 @@ repository root:
 prek run check-go-sdk-serialization-conformance --all-files
 ```
 
+The hook runs every Dag of the file, including the ones that `requires` a feature that only some SDKs
+have. [`go_native.json`](../airflow-core/tests/unit/dag_processing/lang_sdk_fixtures/go_native.json)
+holds the Go output for the same Dags, so that the Airflow core tests check that Airflow loads it.
+`TestSerializeConformanceDags` says how to rewrite it.
+
 ## Architectural decisions
 
 The [`adr/`](./adr) directory records the design decisions behind the SDK:

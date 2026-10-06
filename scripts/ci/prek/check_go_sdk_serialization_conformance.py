@@ -39,8 +39,8 @@ import sys
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 COMPARE = REPO_ROOT / "scripts" / "ci" / "lang_sdk_serialization" / "compare.py"
 
-# compare.py runs this command from the repo root and appends the paths of test_dags.yaml and of
-# the file to write. The paths come after -args, so they reach the test.
+# compare.py runs this command from the repo root and appends the paths of a copy of test_dags.yaml
+# and of the file to write. The paths come after -args, so they reach the test.
 SERIALIZER = [
     "go",
     "-C",
@@ -55,7 +55,7 @@ SERIALIZER = [
 
 
 def main() -> int:
-    command = [sys.executable, str(COMPARE), "--sdk", "go", "--", *SERIALIZER]
+    command = [sys.executable, str(COMPARE), "--sdk", "go", "--supports", "all", "--", *SERIALIZER]
     return subprocess.run(command, cwd=REPO_ROOT, check=False).returncode
 
 
