@@ -163,6 +163,13 @@ class AirflowClient:
         """Get an Airflow Variable via API."""
         return self._make_request(method="GET", endpoint=f"variables/{key}")
 
+    def get_task_state_store(self, dag_id: str, run_id: str, task_id: str, key: str):
+        """Get a single task state store entry via API."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/state-store/{key}",
+        )
+
     def trigger_dag_and_wait(self, dag_id: str, json=None):
         """Trigger a DAG and wait for it to complete."""
         self.un_pause_dag(dag_id)

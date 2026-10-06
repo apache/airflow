@@ -319,7 +319,7 @@ export const HITLTaskInstances = ({
           ),
         );
 
-        return hasPendingWithoutResponse ? baseRefetchInterval : false;
+        return hasPendingWithoutResponse && baseRefetchInterval;
       },
     },
   );

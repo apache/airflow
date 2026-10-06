@@ -619,7 +619,7 @@ def update_dag_parsing_results_in_db(
     :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
-    :param dag_source_codes: Source code read by the Dag importers, keyed by Dag fileloc. Dags
+    :param dag_source_codes: Source code read by the Dag importers, keyed by dag_id. Dags
         without an entry have their source read from ``fileloc``.
     """
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
@@ -670,7 +670,7 @@ def update_dag_parsing_results_in_db(
                             version_data=version_data,
                             session=session,
                             _prefetched=prefetched_metadata.get(dag.dag_id),
-                            dag_source_code=dag_source_codes.get(dag.fileloc),
+                            dag_source_code=dag_source_codes.get(dag.dag_id),
                         )
                     )
             except OperationalError:

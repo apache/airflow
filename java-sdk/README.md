@@ -630,7 +630,7 @@ prek hook regenerate it.
 | capability: `variable-read-write` | MUST | ✓ | 3.3 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the jar artifact |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.3 | Client.getTaskStateStore() get/set/delete/clear |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
@@ -745,9 +745,9 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 - The annotation processor (`BuilderProcessor.kt`) uses `kapt`. The `Builder`
   class holding the `@Builder.Dag` / `@Builder.Task` annotations is generated
   from the Dag serialization schema by `:sdk:generateDagDsl` (vendored at
-  `sdk/schema/dag-schema.json`). The `Arg`/`TaskRef` and `Deps`/`Flow` graph
-  types are hand-written next to the rest of the public surface in
-  `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
+  `sdk/schema/dag-schema.json`), `@Builder.Deps` included. The `Arg`/`TaskRef`
+  and `Deps`/`Flow` graph types are hand-written next to the rest of the public
+  surface in `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
   behaviour, handle it in `BuilderProcessor.kt` and add a golden-output test in
   `processor/src/test/kotlin/`.
 - The Python coordinator subclasses `SubprocessCoordinator`. Do not reach into

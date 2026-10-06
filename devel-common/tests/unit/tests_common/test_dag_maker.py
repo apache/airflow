@@ -21,11 +21,9 @@ import contextlib
 import datetime
 
 import pytest
-from sqlalchemy import select
 
 from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import clear_task_instances
-from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.state import State
 
@@ -52,22 +50,21 @@ def test_dag_maker_run_ti_allocates_first_try(dag_maker, session, fails):
     first_id = ti.id
     with contextlib.suppress(AirflowException):
         dag_maker.run_ti("task", dr)
-    ti.refresh_from_db(session=session)
+    ti = dr.get_task_instance("task", session=session)
     if fails:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 2
         assert ti.id != first_id
-        history = session.scalar(
-            select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == first_id)
-        )
+        history = session.get(TaskInstance, first_id)
         assert history.try_number == 1
+        assert history.working_set is None
     else:
         assert ti.state == State.SUCCESS
         assert ti.try_number == 1
         assert ti.id == first_id
 
     if not fails:
-        clear_task_instances([ti], session=session)
+        ti = clear_task_instances([ti], session=session)[0]
         session.commit()
     pending_id = ti.id
     assert pending_id != first_id
