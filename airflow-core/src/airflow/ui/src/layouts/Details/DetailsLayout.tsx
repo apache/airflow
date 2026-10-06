@@ -51,7 +51,7 @@ import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptio
 import { GroupsProvider } from "src/context/groups";
 import { useDagRunsLimit } from "src/hooks/useDagRunsLimit";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
-import { formatNumber, useAutoRefresh } from "src/utils";
+import { formatNumber, useAutoRefresh, useContainerWidth } from "src/utils";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -60,6 +60,7 @@ import { Grid } from "./Grid";
 import { useGridCrosshairHover } from "./Grid/useGridCrosshairHover";
 import { NavTabs, type NavTab } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
+import { getEffectiveLimit } from "./runLimitConfig";
 
 // Shared scroll container for the grid + gantt in the combined view.
 const SharedScrollBox = ({
@@ -105,8 +106,11 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
     undefined,
     { enabled: dag?.scheduling_state === "active" },
   );
-  const { limit, setLimit } = useDagRunsLimit(dagId);
+  const { limit: storedLimit, setLimit } = useDagRunsLimit(dagId);
   const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
+  const panelButtonsRef = useRef<HTMLDivElement>(null);
+  const panelButtonsWidth = useContainerWidth(panelButtonsRef);
+  const limit = getEffectiveLimit(storedLimit, panelButtonsWidth, dagView === "gantt");
   const panelGroupRef = useGroupRef();
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
   // grid and the gantt so their shared row highlight stays in sync, with no
@@ -312,8 +316,16 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                 overflow="hidden"
                 position="relative"
               >
-                <Box left={0} p={2} position={dagView === "graph" ? "absolute" : undefined} right={0} top={0}>
+                <Box
+                  left={0}
+                  p={2}
+                  position={dagView === "graph" ? "absolute" : undefined}
+                  ref={panelButtonsRef}
+                  right={0}
+                  top={0}
+                >
                   <PanelButtons
+                    containerWidth={panelButtonsWidth}
                     dagView={dagView}
                     limit={limit}
                     panelGroupRef={panelGroupRef}
