@@ -1126,23 +1126,23 @@ class TestExecuteTaskNativeDagFile:
         (tmp_path / "sub").mkdir()
         (tmp_path / "sub" / "dag.native").write_text("")
         (tmp_path / "dir.native").mkdir()
-        resolved = MagicMock(path=tmp_path, version="v9")
-        resolved.name = "dags"
-        return resolved
+        return _make_bundle(tmp_path, version="v9")
 
     @pytest.fixture
     def mock_initialize(self, bundle):
-        with patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", return_value=bundle) as m:
+        with patch(
+            "airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True, return_value=bundle
+        ) as m:
             yield m
 
     @pytest.fixture
     def mock_lock(self):
-        with patch("airflow.sdk.coordinators._subprocess.BundleVersionLock") as mock_lock:
+        with patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True) as mock_lock:
             yield mock_lock
 
     @pytest.fixture
     def mock_start(self):
-        with patch.object(_PopenActivitySubprocess, "start") as mock_start:
+        with patch.object(_PopenActivitySubprocess, "start", autospec=True) as mock_start:
             mock_start.return_value.wait.return_value = 0
             yield mock_start
 
@@ -1192,10 +1192,9 @@ class TestExecuteTaskNativeDagFile:
         pinned_tree = tmp_path / "versions" / "sha-abc"
         (pinned_tree / "sub").mkdir(parents=True)
         (pinned_tree / "sub" / "dag.native").write_text("")
-        unpinned = MagicMock(path=tmp_path, version=None)
+        unpinned = _make_bundle(tmp_path, version=None)
         unpinned.get_current_version.return_value = BundleVersion(version="sha-abc", data=None)
-        pinned = MagicMock(path=pinned_tree, version="sha-abc")
-        pinned.name = "dags"
+        pinned = _make_bundle(pinned_tree, version="sha-abc")
         mock_initialize.side_effect = [unpinned, pinned]
         coordinator = _NativeStubCoordinator(command=["/runtime"])
 
