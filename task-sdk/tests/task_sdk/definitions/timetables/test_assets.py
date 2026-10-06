@@ -16,10 +16,25 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import nullcontext
+
 import pytest
 
-from airflow.sdk import Asset, IdentityMapper
-from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetOrTimeSchedule,
+    AssetTriggeredTimetable,
+    DayWindow,
+    IdentityMapper,
+    PartitionedAssetTimetable,
+    RollupMapper,
+    StartOfDayMapper,
+)
+from airflow.sdk.definitions.timetables.simple import NullTimetable
+from airflow.sdk.exceptions import AirflowTimetableInvalid
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.mark.parametrize("batch_asset_events", [True, False])
@@ -33,3 +48,64 @@ def test_partitioned_timetable_preserves_positional_mapper_arguments(batch_asset
     assert timetable.partition_mapper_config == mapping
     assert timetable.default_partition_mapper is mapper
     assert timetable.batch_asset_events is batch_asset_events
+
+
+@pytest.mark.parametrize("configured", [False, True])
+@pytest.mark.parametrize("explicit", [None, False, True])
+@pytest.mark.parametrize(
+    "timetable_type", [AssetTriggeredTimetable, PartitionedAssetTimetable, AssetOrTimeSchedule]
+)
+def test_batching_configuration(configured, explicit, timetable_type):
+    kwargs = {"timetable": NullTimetable()} if timetable_type is AssetOrTimeSchedule else {}
+    if explicit is not None:
+        kwargs["batch_asset_events"] = explicit
+    with conf_vars({("scheduler", "batch_asset_events"): str(configured)}):
+        timetable = timetable_type(assets=Asset("test"), **kwargs)
+    assert timetable.batch_asset_events is (configured if explicit is None else explicit)
+
+
+def test_asset_schedules_do_not_batch_by_default():
+    dag = DAG("default-asset-batching", schedule=Asset("test"))
+    assert dag.timetable.batch_asset_events is False
+
+
+@pytest.mark.parametrize("batch_asset_events", [False, True])
+@pytest.mark.parametrize(
+    "timetable_type", [AssetTriggeredTimetable, PartitionedAssetTimetable, AssetOrTimeSchedule]
+)
+@pytest.mark.parametrize("nested", [False, True])
+def test_compound_asset_condition_requires_batching(batch_asset_events, timetable_type, nested):
+    condition = Asset("a") & Asset("b")
+    if nested:
+        condition = Asset("c") | condition
+    kwargs = {"timetable": NullTimetable()} if timetable_type is AssetOrTimeSchedule else {}
+    dag = DAG(
+        "compound-assets",
+        schedule=timetable_type(assets=condition, batch_asset_events=batch_asset_events, **kwargs),
+    )
+    expected = nullcontext() if batch_asset_events else pytest.raises(AirflowTimetableInvalid, match="AND")
+    with expected:
+        dag.validate()
+
+
+@pytest.mark.parametrize("batch_asset_events", [False, True])
+@pytest.mark.parametrize("use_default_mapper", [False, True])
+def test_rollup_requires_batching(batch_asset_events, use_default_mapper):
+    asset = Asset("test")
+    mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+    kwargs = (
+        {"default_partition_mapper": mapper}
+        if use_default_mapper
+        else {"partition_mapper_config": {asset: mapper}}
+    )
+    timetable = PartitionedAssetTimetable(assets=asset, batch_asset_events=batch_asset_events, **kwargs)
+    expected = (
+        nullcontext() if batch_asset_events else pytest.raises(AirflowTimetableInvalid, match="rollups")
+    )
+    with expected:
+        timetable.validate()
+
+
+def test_or_condition_can_disable_batching():
+    timetable = AssetTriggeredTimetable(assets=Asset("a") | Asset("b"), batch_asset_events=False)
+    timetable.validate()

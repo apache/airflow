@@ -37,7 +37,7 @@ from airflow.providers.standard.triggers.file import (
     DirectoryFileDeleteTrigger,
     FileDeleteTrigger,
 )
-from airflow.sdk import DAG, Asset, AssetWatcher, chain, task
+from airflow.sdk import DAG, Asset, AssetTriggeredTimetable, AssetWatcher, chain, task
 
 # Independent single-file watcher — has its own poll loop in the triggerer.
 single_file_trigger = FileDeleteTrigger(filepath="/tmp/test")
@@ -63,7 +63,7 @@ eu_asset = Asset(
 
 with DAG(
     dag_id="example_asset_with_watchers",
-    schedule=[single_file_asset, us_asset, eu_asset],
+    schedule=AssetTriggeredTimetable(assets=single_file_asset & us_asset & eu_asset, batch_asset_events=True),
     catchup=False,
     tags=["example"],
 ):

@@ -1,0 +1,7 @@
+Asset-triggered Dags now create one Dag run per asset event by default.
+
+Set ``batch_asset_events=True`` on the timetable, or set
+``[scheduler] batch_asset_events=True`` and reparse Dags, to restore batching.
+Asset AND conditions and partition rollups require batching and fail timetable
+validation when it is disabled. Previously serialized timetables retain their
+batching behavior until they are reparsed.

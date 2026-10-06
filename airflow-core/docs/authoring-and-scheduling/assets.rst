@@ -598,6 +598,7 @@ For downstream partition-aware scheduling, use ``PartitionedAssetTimetable``:
         dag_id="clean_and_combine_player_stats",
         schedule=PartitionedAssetTimetable(
             assets=team_a_player_stats & team_b_player_stats & team_c_player_stats,
+            batch_asset_events=True,
             default_partition_mapper=StartOfHourMapper(),
         ),
         catchup=False,
@@ -676,6 +677,7 @@ You can also override mappers for specific upstream assets with
         dag_id="join_sales_and_targets",
         schedule=PartitionedAssetTimetable(
             assets=hourly_sales & daily_targets,
+            batch_asset_events=True,
             # Default behavior: map timestamp-like keys to daily keys.
             default_partition_mapper=StartOfDayMapper(),
             # Override for assets that already emit daily partition keys.
@@ -792,6 +794,7 @@ upstream hourly partitions for a calendar day have arrived:
                 upstream_mapper=StartOfHourMapper(),
                 window=DayWindow(),
             ),
+            batch_asset_events=True,
         ),
         catchup=False,
     ):
@@ -859,6 +862,7 @@ upstream keys that have actually arrived.
         dag_id="segment_region_stats_early_rollup",
         schedule=PartitionedAssetTimetable(
             assets=Asset.ref(name="multi_region_player_stats"),
+            batch_asset_events=True,
             default_partition_mapper=RollupMapper(
                 upstream_mapper=FixedKeyMapper("all_regions"),
                 window=SegmentWindow(["us", "eu", "apac"]),
@@ -925,6 +929,7 @@ semantics (the default).
         dag_id="segment_region_stats_rollup",
         schedule=PartitionedAssetTimetable(
             assets=Asset.ref(name="multi_region_player_stats"),
+            batch_asset_events=True,
             default_partition_mapper=RollupMapper(
                 upstream_mapper=FixedKeyMapper("all_regions"),
                 window=SegmentWindow(["us", "eu", "apac"]),

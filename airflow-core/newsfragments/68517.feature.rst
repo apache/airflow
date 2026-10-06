@@ -1,1 +1,0 @@
-Add ``batch_asset_events`` to asset-triggered timetables to allow a separate Dag run for each asset event.

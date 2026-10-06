@@ -47,7 +47,7 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         *,
         timetable: Timetable,
         assets: Collection[SerializedAsset] | SerializedAssetBase,
-        batch_asset_events: bool = True,
+        batch_asset_events: bool | None = None,
     ) -> None:
         super().__init__(assets, batch_asset_events=batch_asset_events)
         self.timetable = timetable
@@ -67,6 +67,7 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         )
 
     def validate(self) -> None:
+        super().validate()
         _validate_asset_time_schedule(
             timetable=self.timetable,
             asset_condition=self.asset_condition,
