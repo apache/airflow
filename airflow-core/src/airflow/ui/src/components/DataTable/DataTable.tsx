@@ -162,10 +162,13 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
-  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
+  const [storedColumnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
     `dataTable:${modelName}:columnVisibility`,
     initialState?.columnVisibility ?? {},
   );
+  // Stored visibility only covers columns that existed when it was saved, so columns added
+  // later still need their default visibility.
+  const columnVisibility = { ...initialState?.columnVisibility, ...storedColumnVisibility };
 
   // An absent total means the endpoint gives no count (e.g. cursor pagination), which the heading
   // reflects by naming the model without a number. Everything else still needs a real number.
