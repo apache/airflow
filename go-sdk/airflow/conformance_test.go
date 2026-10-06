@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package airflow
+package airflow_test
 
 import (
 	"encoding/json"
@@ -30,6 +30,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+
+	"github.com/apache/airflow/go-sdk/airflow"
 )
 
 // TestSerializeConformanceDags builds the Dags of scripts/ci/lang_sdk_serialization/test_dags.yaml
@@ -57,17 +59,14 @@ func TestSerializeConformanceDags(t *testing.T) {
 	}
 	require.NoError(t, doc.Decode(&file))
 
-	bundle := Bundle()
-	dags := make([]*DagRef, len(file.Dags))
-	for i, dagCase := range file.Dags {
-		dags[i] = buildConformanceDag(t, dagCase)
-		bundle.Register(dags[i])
-	}
-	serialized := make(map[string]any, len(dags))
-	for _, dag := range dags {
+	bundle := airflow.Bundle()
+	serialized := make(map[string]any, len(file.Dags))
+	for _, dagCase := range file.Dags {
+		dag := buildConformanceDag(t, dagCase)
+		bundle.Register(dag)
 		// compare.py does not compare fileloc, which names the file that declares a Dag, so any path
 		// works here. Airflow still needs a fileloc to load the Dag.
-		serialized[dag.dagID] = dag.serialize("/bundles/app/etl", "etl")
+		serialized[dagCase.DagID] = airflow.SerializeDag(dag, "/bundles/app/etl", "etl")
 	}
 	out, err := json.MarshalIndent(serialized, "", "  ")
 	require.NoError(t, err)
@@ -92,15 +91,15 @@ type conformanceTask struct {
 	Spec     yaml.Node `yaml:"spec"`
 }
 
-func buildConformanceDag(t *testing.T, dagCase conformanceDag) *DagRef {
+func buildConformanceDag(t *testing.T, dagCase conformanceDag) *airflow.DagRef {
 	t.Helper()
-	var spec DagSpec
-	setConformanceSpec(t, &spec, dagSpecRules, dagCase.Spec, dagCase.DagID)
-	dag := Dag(dagCase.DagID, spec)
+	var spec airflow.DagSpec
+	setConformanceSpec(t, &spec, dagCase.Spec, dagCase.DagID)
+	dag := airflow.Dag(dagCase.DagID, spec)
 
 	// test_dags.yaml gives the full group_id, so the parent of a group is what comes before the last
 	// dot. A parent comes before the groups it holds.
-	groups := make(map[string]*TaskGroupRef)
+	groups := make(map[string]*airflow.TaskGroupRef)
 	for _, groupID := range dagCase.Groups {
 		cut := strings.LastIndex(groupID, ".")
 		if cut < 0 {
@@ -112,34 +111,36 @@ func buildConformanceDag(t *testing.T, dagCase conformanceDag) *DagRef {
 		groups[groupID] = parent.TaskGroup(groupID[cut+1:])
 	}
 
-	tasks := make(map[string]*TaskRef)
+	tasks := make(map[string]*airflow.TaskRef)
 	for _, task := range dagCase.Tasks {
-		var taskSpec TaskSpec
+		var taskSpec airflow.TaskSpec
 		label := dagCase.DagID + "." + task.TaskID
-		setConformanceSpec(t, &taskSpec, taskSpecRules, task.Spec, label)
+		setConformanceSpec(t, &taskSpec, task.Spec, label)
 		taskSpec.TaskID = task.TaskID
 		// Each upstream task passes its result to a parameter of the task, which gives the task the edge
 		// that test_dags.yaml asks for.
-		upstreams := make([]Input, len(task.Upstream))
+		upstreams := make([]airflow.Input, len(task.Upstream))
 		for i, upstreamID := range task.Upstream {
 			upstream, ok := tasks[upstreamID]
 			require.True(t, ok, "%s: upstream %q comes after the task", label, upstreamID)
 			upstreams[i] = upstream
 		}
 		fn := conformanceTaskFunction(len(upstreams))
-		opts := []TaskOption{taskSpec, Inputs(upstreams...)}
-		var added *TaskRef
+		opts := []airflow.TaskOption{taskSpec, airflow.Inputs(upstreams...)}
+		fullID := task.TaskID
+		var added *airflow.TaskRef
 		if task.Group == "" {
 			added = dag.Task(fn, opts...)
 		} else {
 			group, ok := groups[task.Group]
 			require.True(t, ok, "%s: no group %q", label, task.Group)
 			added = group.Task(fn, opts...)
+			fullID = task.Group + "." + task.TaskID
 		}
-		tasks[added.taskID] = added
+		tasks[fullID] = added
 	}
 
-	node := func(id string) Node {
+	node := func(id string) airflow.Node {
 		if group, ok := groups[id]; ok {
 			return group
 		}
@@ -156,7 +157,7 @@ func buildConformanceDag(t *testing.T, dagCase conformanceDag) *DagRef {
 // conformanceTaskFunction returns a task function that takes the given number of results after the
 // Context and returns a result of its own. So any task can pass its result to any other.
 func conformanceTaskFunction(params int) any {
-	in := []reflect.Type{reflect.TypeFor[Context]()}
+	in := []reflect.Type{reflect.TypeFor[airflow.Context]()}
 	for range params {
 		in = append(in, reflect.TypeFor[any]())
 	}
@@ -168,19 +169,14 @@ func conformanceTaskFunction(params int) any {
 }
 
 // setConformanceSpec sets fields of the struct that target points to, from a spec in
-// test_dags.yaml. It finds the field for each key of the spec in rules.
-func setConformanceSpec(
-	t *testing.T, target any, rules specRules, spec yaml.Node, label string,
-) {
+// test_dags.yaml. It finds the field for each key of the spec in the generated field table.
+func setConformanceSpec(t *testing.T, target any, spec yaml.Node, label string) {
 	t.Helper()
 	if spec.Kind == 0 {
 		return
 	}
 	require.Equal(t, yaml.MappingNode, spec.Kind, "%s: spec is not a mapping", label)
-	byKey := map[string]string{}
-	for name, field := range rules.fields {
-		byKey[field.key] = name
-	}
+	byKey := airflow.SpecFieldNames(reflect.ValueOf(target).Elem().Interface())
 	value := reflect.ValueOf(target).Elem()
 	for i := 0; i < len(spec.Content); i += 2 {
 		key, node := spec.Content[i].Value, spec.Content[i+1]
