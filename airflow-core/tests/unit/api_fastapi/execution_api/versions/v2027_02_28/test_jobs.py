@@ -24,7 +24,7 @@ MISSING_JOB_HEARTBEAT_URL = "/execution/jobs/0/heartbeat"
 
 
 class TestDagProcessorJobEndpointsVersioning:
-    """The jobs endpoints didn't exist before the 2026-10-30 API version."""
+    """The jobs endpoints didn't exist before the 2027-02-28 API version."""
 
     @pytest.mark.parametrize(
         "path",
@@ -38,7 +38,7 @@ class TestDagProcessorJobEndpointsVersioning:
         ],
     )
     def test_old_version_returns_404(self, client, path):
-        client.headers["Airflow-API-Version"] = "2026-06-30"
+        client.headers["Airflow-API-Version"] = "2026-10-30"
 
         response = client.post(path)
 
@@ -52,7 +52,7 @@ class TestDagProcessorJobEndpointsVersioning:
         assert response.json()["detail"]["reason"] == "not_found"
 
     def test_old_version_has_no_bundle_catalog(self, client):
-        client.headers["Airflow-API-Version"] = "2026-06-30"
+        client.headers["Airflow-API-Version"] = "2026-10-30"
         assert client.get("/execution/jobs/0/bundles").status_code == 404
 
     def test_head_version_routes_to_parse_token_exchange(self, client):
