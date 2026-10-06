@@ -1639,6 +1639,63 @@ class TestAgentOperatorDurable:
 
         assert calls["n"] == 1
 
+    @pytest.mark.parametrize(
+        "capability",
+        [
+            pytest.param(lambda tool: Toolset(FunctionToolset([tool])), id="anonymous"),
+            pytest.param(lambda tool: Toolset(FunctionToolset([tool]), id="lookup"), id="with-id"),
+        ],
+    )
+    def test_retry_replays_steps_of_a_toolset_capability(self, capability):
+        """
+        pydantic-ai gives a capability without an ``id`` a random one per run and stamps it
+        on its tools. A retry is a new run, so the model request differs only in that id;
+        it must still replay; ``with-id`` is the control. The model issues fresh tool call ids,
+        as a real provider does.
+        """
+        storage = _InMemoryDurableStorage()
+        live = {"model": 0, "tool": 0}
+        fail_after_tool = [True]
+
+        def my_tool() -> str:
+            live["tool"] += 1
+            return "tool-result"
+
+        def model_fn(messages, info):
+            live["model"] += 1
+            if any(isinstance(p, ToolReturnPart) for m in messages for p in m.parts):
+                if fail_after_tool[0]:
+                    fail_after_tool[0] = False
+                    raise RuntimeError("transient model failure")
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(parts=[ToolCallPart(tool_name="my_tool", args={})])
+
+        for try_number in (1, 2):
+            live.update(model=0, tool=0)
+            op = AgentOperator(
+                task_id="t",
+                prompt="hi",
+                llm_conn_id="c",
+                durable=True,
+                enable_tool_logging=False,
+                capabilities=[capability(my_tool)],
+            )
+            op.llm_hook = MagicMock(spec=["create_agent"])
+            op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model_fn), **kw)
+            context = _make_context(ti=_make_ti(id=f"ti-{try_number}", try_number=try_number))
+            with (
+                patch.object(AgentOperator, "_build_durable_storage", autospec=True, return_value=storage),
+                pytest.raises(RuntimeError, match="transient") if try_number == 1 else nullcontext(),
+            ):
+                op.execute(context=context)
+            if try_number == 1:
+                # Verified replay, not positional replay of unfingerprintable (None) steps.
+                assert storage.models
+                assert all(fingerprint is not None for _, fingerprint in storage.models.values())
+
+        # Attempt 2 replays model step 0 and the tool call; only the step that failed runs live.
+        assert live == {"model": 1, "tool": 0}
+
     def test_tool_result_refused_by_storage_is_counted_skipped_and_reruns(self):
         """A tool result the backend refuses to store is not counted as cached, and a
         retry runs the tool again instead of replaying it."""
