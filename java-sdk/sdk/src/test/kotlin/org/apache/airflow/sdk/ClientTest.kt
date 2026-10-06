@@ -208,15 +208,14 @@ class ClientTest {
   }
 
   @Test
-  @DisplayName("taskStateStore.set without retention falls back to 30 days when the variable is absent")
-  fun taskStateStoreSetWithoutRetentionFallsBackTo30Days() {
+  @DisplayName("taskStateStore.set without retention fails when the coordinator did not pass the default")
+  fun taskStateStoreSetWithoutRetentionFailsWhenVariableAbsent() {
     val (client, transport) = stateStoreClient()
 
-    val before = OffsetDateTime.now(ZoneOffset.UTC)
-    client.taskStateStore.set("job_id", 42)
-    val after = OffsetDateTime.now(ZoneOffset.UTC)
+    val error = Assertions.assertThrows(IllegalStateException::class.java) { client.taskStateStore.set("job_id", 42) }
 
-    assertExpiresAbout(Duration.ofDays(30), before, after, transport.calls.single().expiresAt)
+    Assertions.assertTrue(error.message!!.startsWith(TaskStateStore.DEFAULT_RETENTION_DAYS_ENV), error.message)
+    Assertions.assertTrue(transport.calls.isEmpty(), "no call expected: ${transport.calls}")
   }
 
   @Test

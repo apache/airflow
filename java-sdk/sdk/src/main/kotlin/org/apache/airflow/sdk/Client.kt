@@ -235,8 +235,9 @@ class Client internal constructor(
  *
  * Values must be JSON-serializable. Every key has an expiry: by default the
  * deployment's `[state_store] default_retention_days`, which the coordinator
- * passes to the JVM; [set] also takes an explicit retention, or [NEVER_EXPIRE]
- * for a key that garbage collection skips.
+ * passes to the JVM as `AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS`; [set]
+ * also takes an explicit retention, or [NEVER_EXPIRE] for a key that garbage
+ * collection skips.
  *
  * Values are stored in the metadata database as-is; the `[workers]
  * state_store_backend` used by Python tasks is not applied here.
@@ -254,9 +255,6 @@ class TaskStateStore internal constructor(
     @JvmField val NEVER_EXPIRE: Duration = ChronoUnit.FOREVER.duration
 
     internal const val DEFAULT_RETENTION_DAYS_ENV = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS"
-
-    // Matches the [state_store] default_retention_days default in config.yml.
-    private const val FALLBACK_RETENTION_DAYS = 30
   }
 
   /**
@@ -276,6 +274,8 @@ class TaskStateStore internal constructor(
    *   [NEVER_EXPIRE]; `null` uses `[state_store] default_retention_days`.
    * @throws IllegalArgumentException if [retention] is zero or negative, or the
    *   default retention from the environment is not a non-negative integer.
+   * @throws IllegalStateException if [retention] is `null` and the coordinator
+   *   did not pass `[state_store] default_retention_days` to the JVM.
    * @throws ApiError if the API call fails.
    */
   @JvmOverloads fun set(
@@ -294,6 +294,8 @@ class TaskStateStore internal constructor(
           )
         else -> now.plus(retention)
       }
+    // TODO: warn when the serialized value exceeds [state_store] max_value_storage_bytes once the
+    //   coordinator passes it to the JVM, as the Python accessor does.
     impl.setTaskStateStore(tiId = details.ti.id, key = key, value = value, expiresAt = expiresAt)
   }
 
@@ -312,7 +314,14 @@ class TaskStateStore internal constructor(
   fun clear() = impl.clearTaskStateStore(details.ti.id)
 
   private fun resolveDefaultExpiry(now: OffsetDateTime): OffsetDateTime? {
-    val days = env(DEFAULT_RETENTION_DAYS_ENV)?.let(::parseRetentionDays) ?: FALLBACK_RETENTION_DAYS
+    val raw =
+      env(DEFAULT_RETENTION_DAYS_ENV)
+        ?: throw IllegalStateException(
+          "$DEFAULT_RETENTION_DAYS_ENV is not set, so the default retention is unknown. The coordinator passes " +
+            "[state_store] default_retention_days to the JVM; pass a retention or TaskStateStore.NEVER_EXPIRE " +
+            "to set the expiry explicitly.",
+        )
+    val days = parseRetentionDays(raw)
     return if (days == 0) null else now.plusDays(days.toLong())
   }
 

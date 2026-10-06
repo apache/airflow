@@ -709,7 +709,7 @@ remember things like an external job ID so a retried task can resume instead of 
 ``get`` returns ``null`` when the key is not set. ``set`` stores any JSON-serializable value. Pass a positive
 ``java.time.Duration`` to expire the key after that long, ``TaskStateStore.NEVER_EXPIRE`` for a key that
 garbage collection skips, or omit the retention to use the deployment's ``[state_store] default_retention_days``
-(30 days when unset, 0 means never expire). The coordinator passes that setting to the JVM as
+(0 means never expire). The coordinator passes that setting to the JVM as
 ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``. A zero or negative retention is rejected. ``delete`` removes
 one key and ``clear`` removes every key for the task instance. The Java SDK does not use a
 ``[workers] state_store_backend``: values always go to the metadata database as-is, so keys written by Python
