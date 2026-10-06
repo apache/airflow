@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
 COORDINATOR_DAG_IMPORTERS: Final[tuple[str, ...]] = (
     "airflow.sdk.coordinators.java._dag_importer.JavaDagImporter",
+    "airflow.sdk.coordinators.node._dag_importer.NodeDagImporter",
 )
 """
 The classpaths of the :class:`CoordinatorDagImporter` subclasses a Dag bundle's registry may hold.
