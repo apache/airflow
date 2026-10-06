@@ -43,7 +43,11 @@ from airflow.providers.common.ai.utils.decision import (
     timed_out_record,
     validate_decision_policy,
 )
-from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY, log_run_summary
+from airflow.providers.common.ai.utils.logging import (
+    MODEL_NAME_XCOM_KEY,
+    format_usage_for_xcom,
+    log_run_summary,
+)
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.notifier import BaseNotifier
@@ -306,6 +310,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         log_run_summary(self.log, result)
         output = result.output
 
+        self._push_xcom(context, "usage", format_usage_for_xcom(result.usage))
         model_confidence = ModelConfidence.from_result(result)
         if model_confidence.model is not None:
             self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)

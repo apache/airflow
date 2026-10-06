@@ -422,6 +422,29 @@ class TestLLMOperatorConfidenceGate:
         }
         assert pushes[MODEL_NAME_XCOM_KEY] == "jev-1.13.0"
 
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_usage_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
+        """Token usage/cost is exposed on the usage XCom key, the same shape AgentOperator uses."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = self._result(make_mock_run_result, Summary(text="t"), None)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
+        context = MagicMock(spec=dict)
+
+        op.execute(context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes["usage"] == {
+            "requests": 1,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "tool_calls": 0,
+            "cost": None,
+        }
+
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="a reviewing decision_policy needs the HITL flow, Airflow >= 3.1"
     )
