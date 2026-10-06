@@ -46,14 +46,14 @@ const CALLBACK_TYPE_LABELS: Record<string, string> = {
   triggerer: "callbacks.types.triggerer",
 };
 
-export const translateCallbackType = (translate: TFunction, type: string) => {
+const translateCallbackType = (translate: TFunction, type: string) => {
   const key = CALLBACK_TYPE_LABELS[type];
 
   return key === undefined ? type : translate(`dag:${key}`);
 };
 
 // How late the run finished relative to the deadline, like the run header's deadline badge.
-export const getMissedBy = ({
+const getMissedBy = ({
   deadline,
   renderDuration,
   runEndDate,
@@ -75,7 +75,7 @@ export const getMissedBy = ({
   return diff < 0 ? "-" : (renderDuration(diff / 1000) ?? "-");
 };
 
-export const CallbackStateBadge = ({ state }: { readonly state?: DeadlineResponse["callback_state"] }) => {
+const CallbackStateBadge = ({ state }: { readonly state?: DeadlineResponse["callback_state"] }) => {
   const { t: translate } = useTranslation("common");
 
   return (
@@ -86,7 +86,8 @@ export const CallbackStateBadge = ({ state }: { readonly state?: DeadlineRespons
   );
 };
 
-const createColumns = (
+// Shared with the callback logs page, which shows the callback's row without the logs column.
+export const getCallbackColumns = (
   translate: TFunction,
   runEndDate: string | null | undefined,
   renderDuration: DurationFormat["renderDuration"],
@@ -179,7 +180,7 @@ export const Callbacks = () => {
   return (
     <Box>
       <DataTable
-        columns={createColumns(translate, dagRun?.end_date, renderDuration)}
+        columns={getCallbackColumns(translate, dagRun?.end_date, renderDuration)}
         data={data?.deadlines ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
