@@ -21,18 +21,14 @@ from sqlalchemy import Select
 from sqlalchemy.orm import contains_eager, joinedload
 
 from airflow.api_fastapi.common.db.dags import eager_load_teams
-from airflow.models import Base
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 
 
-def eager_load_TI_and_TIH_for_validation(
-    query: Select,
-    orm_model: Base | None = None,
-) -> Select:
+def eager_load_task_instance_for_validation(query: Select) -> Select:
     """
-    Add JOINs and eager-loading options for TaskInstanceResponse and TaskInstanceHistoryResponse.
+    Add JOINs and eager-loading options for TaskInstanceResponse.
 
     Adds ``join(dag_run)`` and ``outerjoin(dag_version)`` to the query and
     configures ``contains_eager`` so SQLAlchemy reuses those joins for
@@ -42,21 +38,16 @@ def eager_load_TI_and_TIH_for_validation(
     ensures ORDER BY / WHERE clauses on DagRun columns resolve correctly.
 
     :param query: The SELECT statement to augment.
-    :param orm_model: The ORM model to load options for (defaults to TaskInstance).
     """
-    if orm_model is None:
-        orm_model = TaskInstance
-
-    query = query.join(orm_model.dag_run).outerjoin(orm_model.dag_version)
-    query = query.options(
-        contains_eager(orm_model.dag_run).options(
-            joinedload(DagRun.dag_model).options(*eager_load_teams()),
-        ),
-        contains_eager(orm_model.dag_version).options(joinedload(DagVersion.bundle)),
-    )
-    if orm_model is TaskInstance:
-        query = query.options(
-            joinedload(orm_model.task_instance_note),
-            joinedload(orm_model.rendered_task_instance_fields),
+    return (
+        query.join(TaskInstance.dag_run)
+        .outerjoin(TaskInstance.dag_version)
+        .options(
+            contains_eager(TaskInstance.dag_run).options(
+                joinedload(DagRun.dag_model).options(*eager_load_teams()),
+            ),
+            contains_eager(TaskInstance.dag_version).options(joinedload(DagVersion.bundle)),
+            joinedload(TaskInstance.task_instance_note),
+            joinedload(TaskInstance.rendered_task_instance_fields),
         )
-    return query
+    )
