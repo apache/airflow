@@ -40,7 +40,12 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager, rese
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
-from unit.dag_processing.fake_task_handler_runtime import LOCAL_BUNDLE, parse_dag_file, task_handler_config
+from unit.dag_processing.fake_task_handler_runtime import (
+    LOCAL_BUNDLE,
+    parse_dag_file,
+    require_toolchain,
+    task_handler_config,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -118,10 +123,10 @@ def _declare_named(task_id: str, *params: tuple[str, dict, bool]) -> TaskHandler
 @pytest.fixture(scope="module")
 def example_bundle(tmp_path_factory) -> Path:
     """Build ``java-sdk/example`` from a copy of the SDK sources, so the checkout gets no build output."""
-    if not JAVA_SDK_PATH.is_dir():
-        pytest.skip("the Java SDK sources are absent")
-    if shutil.which("java") is None or shutil.which("javac") is None:
-        pytest.skip("needs a JDK")
+    require_toolchain(None if JAVA_SDK_PATH.is_dir() else "the Java SDK sources are absent")
+    require_toolchain(
+        "needs a JDK" if shutil.which("java") is None or shutil.which("javac") is None else None
+    )
     root = tmp_path_factory.mktemp("java-sdk")
     sdk = root / "java-sdk"
     shutil.copytree(JAVA_SDK_PATH, sdk, ignore=shutil.ignore_patterns("build", ".gradle", ".kotlin"))

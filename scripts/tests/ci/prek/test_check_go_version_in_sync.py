@@ -27,6 +27,7 @@ from check_go_version_in_sync import build_sites, check_sync, major_minor
 DEFAULT_VERSIONS = {
     "go_sdk_mod": "1.25.0",
     "go_example_mod": "1.25.0",
+    "e2e_go_test_bundle_mod": "1.25.0",
     "ci_amd": "1.25",
     "ci_arm": "1.25",
     "constants": "1.25",
@@ -37,7 +38,7 @@ DEFAULT_VERSIONS = {
 
 
 def _write_tree(root: Path, versions: dict[str, str]) -> None:
-    """Materialise a minimal repo tree with a Go version pin at each of the eight sites."""
+    """Materialise a minimal repo tree with a Go version pin at each of the nine sites."""
 
     def write(rel: str, content: str) -> None:
         path = root / rel
@@ -49,6 +50,11 @@ def _write_tree(root: Path, versions: dict[str, str]) -> None:
         "kubernetes-tests/lang_sdk/go_example/go.mod",
         f"module github.com/apache/airflow/kubernetes-tests/lang_sdk/go_example\n\n"
         f"go {versions['go_example_mod']}\n",
+    )
+    write(
+        "airflow-e2e-tests/go-test-bundle/go.mod",
+        f"module github.com/apache/airflow/airflow-e2e-tests/go-test-bundle\n\n"
+        f"go {versions['e2e_go_test_bundle_mod']}\n",
     )
     for site, rel in (("ci_amd", "ci-amd.yml"), ("ci_arm", "ci-arm.yml")):
         write(
@@ -98,7 +104,16 @@ def test_go_mod_patch_suffix_matches_major_minor_pins(tmp_path: Path):
 
 @pytest.mark.parametrize(
     "drifted_site",
-    ["go_example_mod", "ci_amd", "ci_arm", "constants", "kubernetes_commands", "go_sdk_prek", "root_prek"],
+    [
+        "go_example_mod",
+        "e2e_go_test_bundle_mod",
+        "ci_amd",
+        "ci_arm",
+        "constants",
+        "kubernetes_commands",
+        "go_sdk_prek",
+        "root_prek",
+    ],
 )
 def test_drift_in_any_derived_site_is_flagged(tmp_path: Path, drifted_site: str):
     """A single derived site left on the old minor version must fail the check."""
@@ -116,8 +131,8 @@ def test_source_of_truth_bump_flags_all_stale_sites(tmp_path: Path):
     _write_tree(tmp_path, {**DEFAULT_VERSIONS, "go_sdk_mod": "1.26.0"})
     exit_code, report = check_sync(build_sites(tmp_path), tmp_path)
     assert exit_code == 1
-    # All seven non-source sites are still on the old version -> all flagged.
-    assert report.count("<- DRIFT") == 7
+    # All eight non-source sites are still on the old version -> all flagged.
+    assert report.count("<- DRIFT") == 8
     assert "<- source of truth" in report
 
 

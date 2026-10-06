@@ -170,7 +170,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: e2e-go-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go-sdk/go.mod', 'go-sdk/go.sum') }}  # yamllint disable-line rule:line-length
+          key: e2e-go-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go-sdk/go.mod', 'go-sdk/go.sum', 'airflow-e2e-tests/go-test-bundle/go.sum') }}  # yamllint disable-line rule:line-length
           restore-keys: |
             e2e-go-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-
       - name: "Setup pnpm for the TypeScript SDK build"
@@ -192,6 +192,20 @@ jobs:
           DOCKER_IMAGE: "${{ inputs.docker-image-tag }}"
           E2E_TEST_MODE: "${{ inputs.e2e_test_mode }}"
           LANG_SDK_NATIVE_TOOLCHAIN: "${{ (inputs.e2e_test_mode == 'java_sdk' || inputs.e2e_test_mode == 'go_sdk' || inputs.e2e_test_mode == 'ts_sdk') && 'true' || 'false' }}"  # yamllint disable-line rule:line-length
+      # The Dag processor's probe of a real artifact has unit tests of its own that pack and probe the example
+      # of one Lang SDK. They need that SDK's toolchain, which is set up above for its mode, so they run here
+      # instead of in the core test jobs, and a mode that lost its toolchain fails them rather than skipping.
+      - name: "Probe the real ${{ inputs.e2e_test_mode }} task handler artifacts"
+        if: >-
+          (success() || failure())
+          && contains(fromJSON('["go_sdk", "ts_sdk", "java_sdk"]'), inputs.e2e_test_mode)
+        run: >
+          uv run --frozen --project airflow-core --with-editable shared/secrets_masker
+          pytest "airflow-core/tests/unit/dag_processing/test_task_handler_processor_${LANG_SDK}.py"
+          --color=yes -v -rs
+        env:
+          AIRFLOW_LANG_SDK_REAL_PROBE_TESTS: "1"
+          LANG_SDK: "${{ inputs.e2e_test_mode == 'go_sdk' && 'go' || inputs.e2e_test_mode == 'ts_sdk' && 'ts' || 'java' }}"  # yamllint disable-line rule:line-length
       - name: "Save Java SDK Gradle dependency cache"
         # Saved even when the e2e tests fail: the Gradle warm-up is independent of
         # test outcome, and actions/cache's post step would drop it on every red run.

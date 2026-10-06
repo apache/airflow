@@ -17,21 +17,24 @@
 
 # Docker Compose override for go_sdk E2E test mode.
 #
-# The Go bundle compiled by airflow-go-pack (conftest._setup_go_sdk_integration)
-# is a self-contained, statically linked executable, so the stock Airflow worker
-# image can exec it directly -- no extra runtime needs to be installed. We only
-# bind-mount the bundle into the directory the ExecutableCoordinator scans and
-# point the worker at the "golang" queue where @task.stub tasks are routed.
+# The Go bundles compiled by airflow-go-pack (conftest._setup_go_sdk_integration)
+# are self-contained, statically linked executables, so the stock Airflow image
+# can exec them directly -- no extra runtime needs to be installed. We bind-mount
+# them into the Dag bundle directories the ExecutableCoordinators read (the
+# example under /opt/airflow/go-bundles, the test bundle of the stub task
+# checks under /opt/airflow/go-test-bundles), on the worker and the Dag
+# processor, and point the worker at the queues where @task.stub tasks are
+# routed. The Dag processor runs the bundles to check the stub tasks of the Dag
+# files against the task handlers they register.
 ---
 services:
-  airflow-worker:
-    # The bundle is built with CGO_ENABLED=0, so the SDK's user.Current() call at
-    # init falls back to Go's pure-Go resolver, which reads $USER / $HOME and
-    # panics if either is empty. The supervisor launches the bundle with the
-    # worker's environment, so set both here.
-    environment:
-      USER: airflow
-      HOME: /home/airflow
+  airflow-dag-processor:
     volumes:
       - ./go-bundles:/opt/airflow/go-bundles:ro
-    command: celery worker -q golang,default
+      - ./go-test-bundles:/opt/airflow/go-test-bundles:ro
+
+  airflow-worker:
+    volumes:
+      - ./go-bundles:/opt/airflow/go-bundles:ro
+      - ./go-test-bundles:/opt/airflow/go-test-bundles:ro
+    command: celery worker -q golang,golang-test,default

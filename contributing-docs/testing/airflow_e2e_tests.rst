@@ -56,6 +56,49 @@ This will trigger Dag execution and validate that the Dag runs successfully.
 2. To add new test cases, create a new test file or add it to any existing files in ``./airflow-e2e-tests/tests/*``.
 
 
+Language SDK modes
+-------------------
+
+The ``go_sdk``, ``ts_sdk`` and ``java_sdk`` modes run Dags whose stub tasks run task handlers written in a Language
+SDK. Run one with ``breeze testing airflow-e2e-tests --e2e-test-mode go_sdk``. Each builds its bundles in a
+toolchain container, or with the host toolchain when ``LANG_SDK_NATIVE_TOOLCHAIN=true`` is set, as CI does. The Dag
+processor needs the same artifacts and runtimes as the worker to check the Dag files' stub tasks, which the compose
+overrides (``docker/go.yml``, ``java.yml``, ``ts.yml``) give it alongside the worker's own copies.
+
+Before the first test, the tests wait until every Language SDK Dag file of the mode has been parsed, each has
+probed a task handler artifact, and the files that fail to import are exactly the ones that are meant to. Import
+errors in other files of the Dags folder, such as a stock example Dag, are left alone. If that does not happen in
+time, the run fails with the files still missing a probe record and the text of any import error nobody expected.
+
+A Dag file that must fail goes in a test bundle, not in a user-facing example, which the tests pin. The Go test
+bundle takes it in ``./airflow-e2e-tests/go-test-bundle/dags``, and the ``go_sdk`` mode copies every Dag file there
+wholesale. The Java test bundle takes it in ``./airflow-e2e-tests/java-test-bundle/src/resources/dags``, and
+``_setup_java_sdk_integration`` in ``conftest.py`` must also copy it by name, next to ``java_test_dags.py``. An
+import error takes its whole Dag file, so keep one Dag file for each import error you expect, and list the file in
+both the mode's ``expected_import_errors`` and its ``lang_sdk_dag_files`` in ``conftest.py``.
+
+Let the failing Dag file fail through its stub tasks, such as a task that no artifact registers. Do not make it
+fail through an artifact the Dag processor cannot probe: a probe that fails is only a warning, so a file whose
+artifact cannot be probed gets no import error at all, and the wait times out instead.
+
+A new Language SDK mode joins ``LANG_SDK_E2E_MODES`` in ``constants.py``, records its ``lang_sdk_dag_files`` and
+``expected_import_errors`` in its setup in ``conftest.py``, and puts ``*LANG_SDK_E2E_SHARED_FILES`` in its file
+group in ``dev/breeze/src/airflow_breeze/utils/selective_checks.py``. Its setup also writes an
+``.airflowignore`` holding ``*`` into each artifact directory it deploys (``_ignore_dag_files_in``), so the
+Dag processor does not also try to import the artifacts as Dag files; the stub-task check is unaffected,
+because the coordinator scans the filesystem directly.
+
+The same CI job also runs the unit tests that pack and probe the real example of its language, after the e2e tests.
+To run one yourself, install the toolchain (Go, Node.js 22 with pnpm, or a JDK) and run:
+
+.. code-block:: bash
+
+    AIRFLOW_LANG_SDK_REAL_PROBE_TESTS=1 uv run --project airflow-core --with-editable shared/secrets_masker \
+        pytest airflow-core/tests/unit/dag_processing/test_task_handler_processor_go.py
+
+Without the toolchain, the test is skipped. In CI, where the ``CI`` variable is set, it fails instead.
+
+
 Airflow E2E tests in CI
 -----------------------
 
