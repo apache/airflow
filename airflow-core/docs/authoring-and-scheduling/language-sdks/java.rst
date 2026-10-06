@@ -286,6 +286,32 @@ the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever 
 it is rejected if the name is missing there. The Dag processor still receives ``sales_pipeline.py`` through
 the separate Dag delivery process.
 
+A Dag processor with this ``[sdk]`` configuration also parses the executable JARs of every Dag bundle,
+and needs a JRE to do so (see :ref:`java-sdk/native-dag-parsing`). Keep it from parsing a bundle's JARs
+with that bundle's ``.airflowignore``, whose pattern syntax follows ``[core] dag_ignore_file_syntax``.
+
+With ``task_handler_bundle_name`` set to its own bundle, as above, ``java-task-handlers`` holds only the
+JARs the Python Dag's tasks run, so ignoring everything in it is safe:
+
+.. code-block:: bash
+
+    # [core] dag_ignore_file_syntax = glob (the default)
+    echo '*' > /opt/airflow/jars/sales-pipeline/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp; a bare * is not a valid pattern and is dropped
+    echo '.' > /opt/airflow/jars/sales-pipeline/.airflowignore
+
+With ``task_handler_bundle_name`` unset, the JAR sits in the same Dag bundle as ``sales_pipeline.py``, so
+ignore only the JAR, not the whole bundle:
+
+.. code-block:: bash
+
+    # [core] dag_ignore_file_syntax = glob (the default)
+    echo '*.jar' >> /opt/airflow/dags/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp
+    echo '\.jar$' >> /opt/airflow/dags/.airflowignore
+
 After Airflow has parsed the Dag, trigger it from the UI or command line:
 
 .. code-block:: bash
@@ -715,6 +741,69 @@ one key and ``clear`` removes every key for the task instance. The Java SDK does
 ``[workers] state_store_backend``: values always go to the metadata database as-is, so keys written by Python
 tasks through a custom backend are returned to Java as the raw reference marker rather than the stored value.
 
+.. _java-sdk/native-dag-parsing:
+
+Parsing native Java Dags
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+To have Airflow parse the Dags a bundle JAR declares,
+put the JAR in a Dag bundle and configure a :class:`~airflow.sdk.coordinators.java.JavaCoordinator`.
+The Dag processor runs the JAR's main class to list its Dags, so it needs a Java executable, as the workers do:
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java-native": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java"}
+      }
+    }
+    queue_to_coordinator = {"java-native": "java-native"}
+
+Once a ``JavaCoordinator`` is configured, the Dag processor parses the executable JARs of every Dag bundle,
+so it needs this ``[sdk]`` configuration and a JRE. With one ``JavaCoordinator``, it parses them all.
+With several, map each Dag bundle that holds native Java Dags to one of them in ``[sdk] dag_bundle_to_coordinator``.
+A JAR in a bundle that has no entry, or an entry that names no ``JavaCoordinator``, fails to parse with an import error:
+
+.. code-block:: ini
+
+    [sdk]
+    dag_bundle_to_coordinator = {"dags-folder": "java-native"}
+
+A Dag bundle that holds only the JARs that Python Dags' tasks run should list ``*`` in its ``.airflowignore``
+either way: with one ``JavaCoordinator`` its JARs are still parsed on every loop, and a JAR built with a Java
+SDK older than schema ``2026-10-30``, every released one today, fails to parse as an import error. With
+several Java coordinators, an unmapped bundle's JARs fail to parse too.
+
+* Every JAR in the bundle whose manifest sets ``Main-Class`` is parsed. Each Dag its main class
+  declares, through ``Bundle.register`` of a ``DagDef`` or an ``@Builder.Dag`` class, is stored with
+  that JAR as its file. Task handlers for a Python Dag are not Dags. A JAR without ``Main-Class`` is
+  skipped, but many dependency JARs set one (the PostgreSQL JDBC driver and H2 do, for example), so a
+  thin bundle should set ``main_class`` or list its dependency JARs in ``.airflowignore``.
+* Parsing needs a JAR built with a Java SDK whose supervisor schema version (the
+  ``Airflow-Supervisor-Schema-Version`` manifest attribute) is ``2026-10-30`` or later. An older JAR
+  fails to parse, so list it in ``.airflowignore``; its tasks still find it, because tasks do not read
+  ``.airflowignore``.
+* Do not declare a Dag in Java that a Python file in the same bundle also defines.
+* Keep one executable JAR per bundle, or set ``main_class``, so that only JARs with that
+  ``Main-Class`` are parsed. List JARs that should not be parsed in ``.airflowignore``.
+* Two JARs in the bundle that set the same ``Main-Class`` fail to parse, because the JVM would load
+  the classes of only one of them. Keep one in the bundle.
+* Set ``queue`` on every task, with ``@Builder.Task(queue = "java-native")`` or
+  ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
+  Dag-level queue yet.
+* A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to,
+  which need not be the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK.
+  A task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is missing,
+  or that the coordinator cannot run (for example, because ``main_class`` does not match the JAR's ``Main-Class``),
+  fails and retries while it has retries left.
+* The Code view shows the source of the JAR's main class, which the Gradle plugin packs into the JAR.
+* Cluster policies (``dag_policy``, ``task_policy``) are not applied to a native Java Dag.
+* ``airflow dags reserialize`` does not store the Dags of a JAR, which only the Dag processor stores.
+  ``airflow dags test``, ``tasks test`` and ``tasks render`` refuse a native Java Dag.
+  ``airflow tasks list`` lists its tasks by running the JAR's main class, so it needs a JRE.
+
 .. _java-sdk/logging:
 
 Logging
@@ -982,6 +1071,11 @@ The ``build/bundle/`` directory contains all required JAR(s). Copy or mount it i
 :class:`~airflow.sdk.coordinators.java.JavaCoordinator` scans that Dag bundle recursively and builds the
 classpath automatically.
 
+The plugin also packs the source file of ``mainClass``, and of each class that declares a Dag in Java,
+into the bundle JAR, so the Airflow UI can show the source of a native Java Dag (see
+:ref:`java-sdk/native-dag-parsing`). To find those classes, the plugin runs ``mainClass`` once at build
+time. If that run fails, the build logs a warning and packs only the ``mainClass`` source.
+
 .. note::
 
   You only need the ``annotationProcessor`` entry if you use the annotation-based API. It is not needed for
@@ -1155,6 +1249,32 @@ directory into the Dag bundle named by ``task_handler_bundle_name``.
   Unlike the Gradle plugin, Maven has no equivalent of the ``verifyBundleMainClass`` validation step.
   A wrong ``<mainClass>`` value will not be caught until runtime.
 
+To show the source of a native Java Dag in the Airflow UI, pack the main class's source file under
+``META-INF/airflow/sources/`` with an index that names it, ``src/main/resources/META-INF/airflow/sources.json``:
+
+.. code-block:: json
+
+    {"entrypoint_path": "com/example/Main.java"}
+
+.. code-block:: xml
+
+    <build>
+        <resources>
+            <!-- Declaring resources replaces the default, so keep it. -->
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>src/main/java/com/example</directory>
+                <includes><include>Main.java</include></includes>
+                <targetPath>META-INF/airflow/sources/com/example</targetPath>
+            </resource>
+        </resources>
+    </build>
+
+Then add ``<Airflow-Java-SDK-Sources>META-INF/airflow/sources.json</Airflow-Java-SDK-Sources>`` to the
+``manifestEntries`` of ``maven-shade-plugin`` or ``maven-jar-plugin`` shown above.
+
 .. _java-sdk/coordinator-config:
 
 :class:`~airflow.sdk.coordinators.java.JavaCoordinator` configuration
@@ -1186,8 +1306,10 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - ``main_class``
      - *(auto-detect)*
      - Explicit entry-point class. If omitted, the coordinator scans the Dag bundle for a JAR
-       whose manifest sets ``Main-Class``. If more than one JAR in that Dag bundle sets it, which
-       one runs is non-deterministic, so set ``main_class`` explicitly in that case.
+       whose manifest sets ``Main-Class``. If more than one JAR in that Dag bundle sets it, the first
+       by path is used, so set ``main_class`` explicitly in that case.
+       A task of a native Java Dag runs the JAR the Dag was parsed from.
+       When the coordinator parses native Java Dags, only JARs with this ``Main-Class`` are parsed.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
@@ -1206,6 +1328,10 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
   * Every JAR in the Dag bundle goes on one classpath, so all handlers in it share one set of
     dependencies. To isolate conflicting dependency versions, put the handlers in a second Dag bundle
     served by a second coordinator on its own queue.
+
+  A task of a native Java Dag ignores ``task_handler_bundle_name``:
+  it runs the JAR of its Dag from the Dag's own bundle, at the version the run was created with.
+  See :ref:`java-sdk/native-dag-parsing`.
 
 .. note::
 

@@ -33,6 +33,7 @@ Proposed.
 3. **At most one `airflow.TaskSpec` per task.** A second one is a registration error rather than something to merge, so a task's attributes are only ever written in one place.
 4. **task_id is the Go function name by default**, spelled exactly as the function is, and `airflow.TaskSpec{TaskID: ...}` sets it to anything else.
 5. **`airflow.Inputs(refs...)` declares the data and the edge in one call** for defining graph with TaskFlow syntax.
+   `airflow.Literal(value)` passes a JSON-serializable value in the same call without adding an edge, e.g. `airflow.Inputs(extracted, airflow.Literal("uk"))`.
 6. **`Before` and `After` are order-only edges on `airflow.Node`**, which both `*airflow.TaskRef` and `*airflow.TaskGroupRef` satisfy. They are the Go pair for `>>` and `<<`, and both return their argument set as one `Node`, so `a.Before(b, c).Before(d)` is Python's `a >> [b, c] >> d`.
 7. **An edge label wraps the endpoint**: `loaded.Before(airflow.Label(notify, "when empty"))` is Python's `loaded >> Label("when empty") >> notify`. Labelling the endpoint rather than the call lets one fan-out give each edge its own label.
 8. **Trigger rules belong to the task**, as `airflow.TaskSpec{TriggerRule: ...}`, never to an edge.
@@ -137,7 +138,11 @@ type TaskSpec struct {
 // nothing else. TaskSpec and the value Inputs returns both implement it.
 type TaskOption interface{ applyTask(*taskConfig) error }
 
-func Inputs(refs ...*TaskRef) TaskOption
+// Input is a value Inputs takes: a *TaskRef, or the value Literal returns.
+type Input interface{ input() }
+
+func Inputs(in ...Input) TaskOption
+func Literal(value any) Input
 
 // Node is what an edge connects. *TaskRef and *TaskGroupRef implement it, sealed the same way.
 // It is the Go counterpart of Python's DAGNode / DependencyMixin.
@@ -173,7 +178,7 @@ const (
   Generating in place is what keeps both `airflow.TaskSpec` and the seal.
 - **The generated names need a mapping.** The core schema carries no `title` fields, unlike the supervisor schema `models.gen.go` reads, so its `dag`, `operator` and `task_group` definitions would generate as `Dag`, a name the constructor already takes, `Operator`, which is not the SDK's vocabulary, and `TaskGroup`, the name of the method that adds a group.
   Either the schema gains titles or the generate step keeps the map.
-- **The schema is the serialized shape, not the authoring shape.** It requires `fileloc` and `tasks` on a Dag, and `task_type`, `_task_module`, `ui_color`, `ui_fgcolor`, and `template_fields` on an operator, all of which the SDK fills in, and it carries a serialized `timetable` object where an author writes a schedule.
+- **The schema is the serialized shape, not the authoring shape.** It requires `fileloc` and `tasks` on a Dag, and `task_type`, `_task_module`, `ui_color`, `ui_fgcolor`, and `template_fields` on an operator. The SDK writes each of those or leaves it at its default instead of taking it from an author, and the schema carries a serialized `timetable` object where an author writes a schedule.
   Generation needs an exclusion list and a hand-written field or two, the same kind of rule [ADR-0009](../../airflow-core/adr/lang-sdk/0009-provider-operators-as-generated-dsl.md) states for provider operators.
 - **A state enum generated into `genmodels` is re-exported from `airflow` once a field that an author can reach holds its values.** Today the only re-exported enum is `DagRunState`, the type of the values in `TriggerDagRunSpec.AllowedStates` and `TriggerDagRunSpec.FailedStates`. `DagRunType` is re-exported once a field such as `allowed_run_types` on `DagSpec` holds its values. `TaskInstanceState` is re-exported once `airflow.TaskInstance` gets a state field.
   `airflow/enums.go` lists every user-facing enum with the Python enum that it mirrors.

@@ -100,6 +100,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     Plugins are only loaded if they have not been previously loaded.
     """
     from airflow._shared.observability.metrics import stats
+    from airflow.providers_manager import provider_incompatibility_reason
 
     if not settings.PLUGINS_FOLDER:
         raise ValueError("Plugins folder is not set")
@@ -140,7 +141,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
                 ignore_file_syntax=ignore_file_syntax,
             )
         )
-        __register_plugins(*_load_entrypoint_plugins())
+        __register_plugins(*_load_entrypoint_plugins(provider_incompatibility_reason))
 
         if not settings.LAZY_LOAD_PROVIDERS:
             __register_plugins(*_load_providers_plugins())

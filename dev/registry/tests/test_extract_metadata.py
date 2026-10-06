@@ -833,29 +833,61 @@ class TestVersionsListFiltering:
 
 
 # ---------------------------------------------------------------------------
-# main() -- connection-types `external-services` propagation
+# main() -- provider.yaml fields reaching providers.json
 # ---------------------------------------------------------------------------
+@patch("extract_metadata.fetch_provider_inventory", autospec=True, return_value=None)
+@patch("extract_metadata.fetch_pypi_data_parallel", autospec=True, return_value={})
+@patch("extract_metadata.load_release_tags", autospec=True, return_value=set())
+def _run_main_for_provider(
+    _load_release_tags,
+    _fetch_pypi_data_parallel,
+    _fetch_provider_inventory,
+    tmp_path,
+    provider_yaml,
+    src_files,
+):
+    """Run main() on one provider under tmp_path and return its providers.json entry.
+
+    Network and filesystem dependencies are mocked or redirected, so the
+    written entry has also passed main()'s ProviderContract (extra="forbid")
+    validation, catching key-name drift between provider.yaml, main() and
+    registry_contract_models.py.
+    """
+    providers_dir = tmp_path / "providers"
+    provider_dir = providers_dir / "testprov"
+    provider_dir.mkdir(parents=True)
+    (provider_dir / "provider.yaml").write_text(provider_yaml)
+    for rel_path, content in src_files.items():
+        src_file = provider_dir / "src" / rel_path
+        src_file.parent.mkdir(parents=True, exist_ok=True)
+        src_file.write_text(content)
+    output_dir = tmp_path / "output"
+    script_dir = tmp_path / "script"
+    output_dir.mkdir()
+    script_dir.mkdir()
+
+    with (
+        patch("extract_metadata.PROVIDERS_DIR", providers_dir),
+        patch("extract_metadata.OUTPUT_DIR", output_dir),
+        patch("extract_metadata.SCRIPT_DIR", script_dir),
+        patch.object(sys, "argv", ["extract_metadata.py"]),
+    ):
+        main()
+
+    written = json.loads((output_dir / "providers.json").read_text())
+    return next(p for p in written["providers"] if p["id"] == "testprov")
+
+
 class TestMainConnectionTypesExternalServices:
     """The connection-types extraction loop lives inline in main() rather than
-    a standalone function, so this drives main() end-to-end (with network and
-    filesystem dependencies mocked/redirected) to prove `external-services`
-    from provider.yaml reaches the written providers.json, and round-trips
-    through the `ConnectionTypeContract` (extra="forbid") validation main()
-    already runs -- catching a key-name drift between provider.yaml, this
-    script, and registry_contract_models.py.
+    a standalone function, so this drives main() end-to-end to prove
+    `external-services` from provider.yaml reaches the written providers.json.
     """
 
-    @patch("extract_metadata.fetch_provider_inventory", autospec=True, return_value=None)
-    @patch("extract_metadata.fetch_pypi_data_parallel", autospec=True, return_value={})
-    @patch("extract_metadata.load_release_tags", autospec=True, return_value=set())
-    def test_external_services_propagates_to_providers_json(
-        self, _load_release_tags, _fetch_pypi_data_parallel, _fetch_provider_inventory, tmp_path
-    ):
-        providers_dir = tmp_path / "providers"
-        provider_dir = providers_dir / "testprov"
-        provider_dir.mkdir(parents=True)
-        (provider_dir / "provider.yaml").write_text(
-            textwrap.dedent("""\
+    def test_external_services_propagates_to_providers_json(self, tmp_path):
+        provider = _run_main_for_provider(
+            tmp_path=tmp_path,
+            provider_yaml=textwrap.dedent("""\
                 name: Test Provider
                 description: A test provider.
                 versions:
@@ -866,21 +898,39 @@ class TestMainConnectionTypesExternalServices:
                     external-services:
                       - openai
                       - anthropic
-                """)
+                """),
+            src_files={},
         )
-        output_dir = tmp_path / "output"
-        script_dir = tmp_path / "script"
-        output_dir.mkdir()
-        script_dir.mkdir()
 
-        with (
-            patch("extract_metadata.PROVIDERS_DIR", providers_dir),
-            patch("extract_metadata.OUTPUT_DIR", output_dir),
-            patch("extract_metadata.SCRIPT_DIR", script_dir),
-            patch.object(sys, "argv", ["extract_metadata.py"]),
-        ):
-            main()
-
-        written = json.loads((output_dir / "providers.json").read_text())
-        provider = next(p for p in written["providers"] if p["id"] == "testprov")
         assert provider["connection_types"][0]["external_services"] == ["openai", "anthropic"]
+
+
+class TestMainUriSchemes:
+    """main() must read filesystem schemes from the provider's src/ tree, skip a
+    listed module whose file is missing, and write the entries to providers.json."""
+
+    def test_uri_schemes_propagate_to_providers_json(self, tmp_path):
+        provider = _run_main_for_provider(
+            tmp_path=tmp_path,
+            provider_yaml=textwrap.dedent("""\
+                name: Test Provider
+                description: A test provider.
+                versions:
+                  - 1.0.0
+                filesystems:
+                  - airflow.providers.testprov.fs.testfs
+                  - airflow.providers.testprov.fs.missing
+                asset-uris:
+                  - schemes: [testfs]
+                    handler: null
+                """),
+            src_files={"airflow/providers/testprov/fs/testfs.py": 'schemes = ["testfs"]\n'},
+        )
+
+        assert provider["uri_schemes"] == [
+            {
+                "scheme": "testfs",
+                "filesystem": "airflow.providers.testprov.fs.testfs",
+                "asset": {"handler": None, "factory": None, "to_openlineage_converter": None},
+            }
+        ]

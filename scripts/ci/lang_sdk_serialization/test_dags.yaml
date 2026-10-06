@@ -25,6 +25,23 @@
 # `order_edges` are `[upstream, downstream]` pairs of task or group ids.
 #
 # `!datetime` takes an ISO 8601 timestamp, and `!timedelta` a number of seconds.
+#
+# A Dag needs a feature of the SDK when its `requires` lists one, as `requires: [branch]` on a
+# single line. compare.py hands an SDK only the Dags whose features the SDK says it `--supports`, so
+# a Dag without `requires` is checked for every SDK. The features are named in compare.py. The keys
+# below belong to the feature that gates the Dag that uses them:
+#
+# - branch, switch: a task's `branch` makes it a decider. `then` and optional `else` name the tasks
+#   of a condition, and `cases` lists the tasks of a switch. The decider also takes its `upstream`.
+#   Each named task runs after the decider, so the case needs no `order_edges` entry for them.
+# - edge_labels: an `order_edges` entry may have a third item, the label of the edge.
+# - group_options: an entry of `groups` may be `{id: <group id>, spec: {...}}`, where `spec` sets
+#   the options of the group by their serialized names.
+# - trigger_dag_run: a task's `trigger_dag_run` makes it a task that triggers another Dag, and its
+#   keys are the template fields of Airflow's TriggerDagRunOperator.
+# - literal_inputs: a task's `literals` are values that follow the results of its `upstream` tasks
+#   as the arguments of the task. They add no edge. compare.py does not compare how a task takes its
+#   arguments, so the Dag shows only that no edge comes of a literal and that Airflow loads it.
 dags:
   # No schedule and no options: NullTimetable plus the fields Python always emits.
   - dag_id: conformance_minimal
@@ -189,3 +206,124 @@ dags:
       - [outer.inner, outer.t]
       - [extract, outer]
       - [outer.spare, load]
+
+  # A 6-field cron expression, where the sixth field gives the seconds.
+  - dag_id: conformance_cron_seconds
+    spec:
+      schedule: "30 3 * * MON-FRI 15"
+    tasks:
+      - task_id: tick
+
+  # A condition. The decider runs after read, and skips whichever of load and report_empty it does
+  # not choose, so Python writes _can_skip_downstream for it. join needs a trigger rule that runs it
+  # after one skipped side.
+  - dag_id: conformance_branch
+    requires: [branch]
+    spec:
+      schedule: "@once"
+    tasks:
+      - task_id: read
+      - task_id: gate
+        upstream: [read]
+        branch: {then: load, else: report_empty}
+      - task_id: load
+      - task_id: report_empty
+      - task_id: lonely_gate
+        branch: {then: lonely_load}
+      - task_id: lonely_load
+      - task_id: join
+        spec:
+          trigger_rule: none_failed_min_one_success
+    order_edges:
+      - [load, join]
+      - [report_empty, join]
+
+  # A switch, which can choose any number of its cases.
+  - dag_id: conformance_switch
+    requires: [switch]
+    spec:
+      schedule: "@once"
+    tasks:
+      - task_id: read
+      - task_id: pick
+        upstream: [read]
+        branch: {cases: [short, long]}
+      - task_id: short
+      - task_id: long
+
+  # Labelled edges between two tasks, a task and a group, two groups, and a group and a task.
+  - dag_id: conformance_edge_labels
+    requires: [edge_labels]
+    spec:
+      schedule: "@once"
+    groups: [transform, publish]
+    tasks:
+      - task_id: extract
+      - task_id: clean
+        group: transform
+      - task_id: push
+        group: publish
+      - task_id: load
+      - task_id: notify
+    order_edges:
+      - [extract, load, rows]
+      - [extract, transform, to transform]
+      - [transform, publish, to publish]
+      - [publish, notify, to notify]
+
+  # Every option of a task group. checks leaves its tasks unprefixed, so the id of nulls is just
+  # nulls, but a task is still named by its group and its own id everywhere in this file.
+  - dag_id: conformance_group_options
+    requires: [group_options]
+    spec:
+      schedule: "@once"
+    groups:
+      - id: transform
+        spec:
+          doc_md: "# transform"
+          group_display_name: Transform
+          tooltip: cleans the rows
+          ui_color: "#f0f0f0"
+          ui_fgcolor: "#101010"
+      - id: checks
+        spec:
+          prefix_group_id: false
+    tasks:
+      - task_id: clean
+        group: transform
+      - task_id: nulls
+        group: checks
+
+  # Tasks that trigger other Dags, one with every template field set and one with the defaults.
+  - dag_id: conformance_trigger_dag_run
+    requires: [trigger_dag_run]
+    spec:
+      schedule: "@once"
+    tasks:
+      - task_id: trigger_all
+        trigger_dag_run:
+          trigger_dag_id: conformance_minimal
+          trigger_run_id: "triggered_{{ run_id }}"
+          conf: {rows: 2, ratio: 0.5, nested: {tags: [a, b]}}
+          logical_date: "{{ ds }}"
+          wait_for_completion: true
+          skip_when_already_exists: true
+      - task_id: trigger_default
+        trigger_dag_run:
+          trigger_dag_id: conformance_once
+
+  # Literal arguments next to the result of a task. Only the result adds an edge.
+  - dag_id: conformance_literal_inputs
+    requires: [literal_inputs]
+    spec:
+      schedule: "@once"
+    tasks:
+      - task_id: extract
+      - task_id: only_literals
+        literals: ["s3://bucket/out", 3]
+      - task_id: load
+        upstream: [extract]
+        literals:
+          - s3://bucket/out
+          - {limit: 10, ratio: 0.5, tags: [a, null], nested: {enabled: true}}
+          - null
