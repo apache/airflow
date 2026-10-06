@@ -16,32 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { Wrapper } from "src/utils/Wrapper";
+import { renderMermaidDiagram } from "./renderMermaid";
 
-import { FileLocation } from "./FileLocation";
+const { initialize, render } = vi.hoisted(() => ({
+  initialize: vi.fn(),
+  render: vi.fn(),
+}));
 
-describe("FileLocation", () => {
-  it("falls back to relativeFileloc when fileloc is null", () => {
-    render(
-      <Wrapper>
-        <FileLocation fileloc={null} relativeFileloc="example_dag.py" />
-      </Wrapper>,
+vi.mock("mermaid", () => ({ default: { initialize, render } }));
+
+describe("renderMermaidDiagram", () => {
+  it("keeps the dagre layout and classic look that predate mermaid 12", async () => {
+    render.mockResolvedValue({ svg: "<svg></svg>" });
+
+    await renderMermaidDiagram({ chart: "graph TD; A-->B", diagramId: "diagram", theme: "dark" });
+
+    expect(initialize).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: "dagre", look: "classic", theme: "dark" }),
     );
-
-    expect(screen.getByText("example_dag.py")).toBeInTheDocument();
-  });
-
-  it("renders nothing when both fileloc and relativeFileloc are null", () => {
-    const { container } = render(
-      <Wrapper>
-        <FileLocation fileloc={null} relativeFileloc={null} />
-      </Wrapper>,
-    );
-
-    expect(container).toBeEmptyDOMElement();
   });
 });
