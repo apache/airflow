@@ -26,6 +26,8 @@ import org.apache.airflow.sdk.execution.decodeArgBindings
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
+import kotlin.math.floor
 
 /**
  * A connection registered in Airflow's connection store.
@@ -60,6 +62,7 @@ data class Connection(
 class Client internal constructor(
   internal val details: StartupDetails,
   internal val impl: Client,
+  env: (String) -> String? = System::getenv,
 ) {
   internal companion object {
     /**
@@ -74,7 +77,7 @@ class Client internal constructor(
    * Entries survive retries of the task instance within the same Dag run, so
    * they can carry things like an external job ID across attempts.
    */
-  val taskStateStore: TaskStateStore = TaskStateStore(details, impl)
+  val taskStateStore: TaskStateStore = TaskStateStore(details, impl, env)
 
   /**
    * Retrieves a connection from the Airflow connection store.
@@ -230,9 +233,10 @@ class Client internal constructor(
  * Key-value state scoped to one task instance, shared across its retries
  * within the same Dag run.
  *
- * Values must be JSON-serializable. Keys expire at the time given when they
- * were stored; a key stored without a retention never expires and is skipped
- * by Airflow's periodic garbage collection.
+ * Values must be JSON-serializable. Every key has an expiry: by default the
+ * deployment's `[state_store] default_retention_days`, which the coordinator
+ * passes to the JVM; [set] also takes an explicit retention, or [NEVER_EXPIRE]
+ * for a key that garbage collection skips.
  *
  * Values are stored in the metadata database as-is; the `[workers]
  * state_store_backend` used by Python tasks is not applied here.
@@ -240,7 +244,21 @@ class Client internal constructor(
 class TaskStateStore internal constructor(
   private val details: StartupDetails,
   private val impl: Client,
+  private val env: (String) -> String?,
 ) {
+  companion object {
+    /**
+     * Pass as the retention of [set] to store a key that never expires and is
+     * skipped by Airflow's periodic garbage collection.
+     */
+    @JvmField val NEVER_EXPIRE: Duration = ChronoUnit.FOREVER.duration
+
+    internal const val DEFAULT_RETENTION_DAYS_ENV = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS"
+
+    // Matches the [state_store] default_retention_days default in config.yml.
+    private const val FALLBACK_RETENTION_DAYS = 30
+  }
+
   /**
    * Reads the value stored under [key].
    *
@@ -254,19 +272,30 @@ class TaskStateStore internal constructor(
    *
    * @param key State key.
    * @param value Value to store. Must be JSON-serializable.
-   * @param retention How long to keep the key, or `null` to keep it until deleted.
+   * @param retention How long to keep the key. Must be positive, or
+   *   [NEVER_EXPIRE]; `null` uses `[state_store] default_retention_days`.
+   * @throws IllegalArgumentException if [retention] is zero or negative, or the
+   *   default retention from the environment is not a non-negative integer.
    * @throws ApiError if the API call fails.
    */
   @JvmOverloads fun set(
     key: String,
     value: Any,
     retention: Duration? = null,
-  ) = impl.setTaskStateStore(
-    tiId = details.ti.id,
-    key = key,
-    value = value,
-    expiresAt = retention?.let { OffsetDateTime.now(ZoneOffset.UTC).plus(it) },
-  )
+  ) {
+    val now = OffsetDateTime.now(ZoneOffset.UTC)
+    val expiresAt =
+      when {
+        retention == null -> resolveDefaultExpiry(now)
+        retention == NEVER_EXPIRE -> null
+        retention.isNegative || retention.isZero ->
+          throw IllegalArgumentException(
+            "Task state retention must be positive or TaskStateStore.NEVER_EXPIRE, got $retention for key '$key'",
+          )
+        else -> now.plus(retention)
+      }
+    impl.setTaskStateStore(tiId = details.ti.id, key = key, value = value, expiresAt = expiresAt)
+  }
 
   /**
    * Deletes the value stored under [key]. Does nothing if the key is not set.
@@ -281,6 +310,28 @@ class TaskStateStore internal constructor(
    * @throws ApiError if the API call fails.
    */
   fun clear() = impl.clearTaskStateStore(details.ti.id)
+
+  private fun resolveDefaultExpiry(now: OffsetDateTime): OffsetDateTime? {
+    val days = env(DEFAULT_RETENTION_DAYS_ENV)?.let(::parseRetentionDays) ?: FALLBACK_RETENTION_DAYS
+    return if (days == 0) null else now.plusDays(days.toLong())
+  }
+
+  // Accepts "7.0" because Python's conf.getint does.
+  private fun parseRetentionDays(raw: String): Int {
+    val days =
+      raw.trim().toIntOrNull()
+        ?: raw
+          .trim()
+          .toDoubleOrNull()
+          ?.takeIf { it.isFinite() && it == floor(it) }
+          ?.toInt()
+        ?: throw IllegalArgumentException(
+          "Failed to convert value to int. Please check 'default_retention_days' key in 'state_store' section. " +
+            "Current value: '$raw'",
+        )
+    require(days >= 0) { "[state_store] default_retention_days must be >= 0, got $days. Set to 0 to disable expiry." }
+    return days
+  }
 }
 
 /**

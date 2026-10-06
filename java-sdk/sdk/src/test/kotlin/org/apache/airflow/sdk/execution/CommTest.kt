@@ -26,6 +26,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
 import org.apache.airflow.sdk.ApiError
+import org.apache.airflow.sdk.TaskStateStore
 import org.apache.airflow.sdk.execution.comm.GetVariable
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TaskInstance
@@ -465,7 +466,8 @@ class CommsTest {
   @DisplayName("taskStateStore.set keeps a null expires_at on the wire so the supervisor accepts the request")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun taskStateStoreSetKeepsNullExpiresAtOnTheWire() {
-    val (body, failure) = roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.set("job_id", 42) }
+    val (body, failure) =
+      roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.set("job_id", 42, TaskStateStore.NEVER_EXPIRE) }
 
     Assertions.assertNull(failure, "set should return normally on OKResponse, got $failure")
     Assertions.assertEquals("SetTaskStateStore", body["type"])
