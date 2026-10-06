@@ -66,7 +66,7 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
                 delete(DagWarning).where(tuple_(DagWarning.dag_id, DagWarning.warning_type).in_(keys))
             )
     with create_session() as session:
-        cutoff = timezone.utcnow() - timedelta(seconds=conf.getint("dag_processor", "health_check_threshold"))
+        cutoff = timezone.utcnow() - timedelta(seconds=conf.getint("dag_processor", "job_heartbeat_timeout"))
         job_query = (
             select(Job)
             .where(

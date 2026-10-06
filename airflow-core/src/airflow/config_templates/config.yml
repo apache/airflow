@@ -3420,6 +3420,17 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    job_heartbeat_timeout:
+      description: |
+        Seconds a Dag processor using the Execution API may go without a recorded Job heartbeat.
+        After this, the scheduler ends the Job and releases the callbacks and parse requests it
+        claimed, and a processor that could not reach the API stops. Processors do not heartbeat
+        while initializing, refreshing, or listing a single bundle, so set this above the longest
+        of those operations.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "300"
     disable_bundle_versioning:
       description: |
         Always run tasks with the latest code.  If set to True, the bundle version will not

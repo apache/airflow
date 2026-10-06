@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 
 class DagProcessorHeartbeatTimeout(RuntimeError):
-    """The processor could not confirm its Job heartbeat within the health-check interval."""
+    """The processor could not confirm its Job heartbeat before the scheduler may end the Job."""
 
 
 class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
@@ -136,7 +136,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
                 raise
             stats.incr("dag_processor_heartbeat_failure", 1, 1)
             if monotonic() - self._last_api_heartbeat >= conf.getint(
-                "dag_processor", "health_check_threshold"
+                "dag_processor", "job_heartbeat_timeout"
             ):
                 raise DagProcessorHeartbeatTimeout("Dag processor API heartbeat timed out") from error
             self.log.warning("Unable to heartbeat the Dag processor Job; retrying on the next interval")

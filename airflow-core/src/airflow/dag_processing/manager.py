@@ -1003,6 +1003,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self._pending_work_acks.append(("callbacks", item, True))
                 self._deferred_api_callbacks.remove(request)
             return
+        self.heartbeat()
         bundle = self.prepare_callback_bundle(request)
         if bundle is None:
             return
@@ -1144,6 +1145,8 @@ class DagFileProcessorManager(LoggingMixin):
             if file.bundle_version is None
         }
         for bundle in self._dag_bundles:
+            # Bundle operations can block for minutes; an API-mode Job ends after job_heartbeat_timeout.
+            self.heartbeat()
             with self._use_bundle(bundle.name):
                 if bundle.name in self._pending_inventories:
                     self._publish_bundle_inventory(bundle.name, known_files)

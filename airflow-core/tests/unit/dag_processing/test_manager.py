@@ -3367,6 +3367,26 @@ class TestDagFileProcessorManager:
         assert manager.prepare_callback_bundle(request) is bundle
         bundle.initialize.assert_called_once()
 
+    @mock.patch.object(DagFileProcessorManager, "prepare_callback_bundle", autospec=True)
+    def test_queuing_a_callback_heartbeats_before_preparing_its_bundle(self, mock_prepare_callback_bundle):
+        events = []
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.heartbeat = lambda: events.append("heartbeat")
+        mock_prepare_callback_bundle.side_effect = lambda manager, request: events.append("prepare")
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            msg=None,
+        )
+
+        manager._add_callback_to_queue(request)
+
+        assert events == ["heartbeat", "prepare"]
+
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_prepare_callback_bundle_forwards_version_data(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)
@@ -4662,6 +4682,34 @@ class TestDagFileProcessorManager:
             manager._refresh_dag_bundles({})
 
         healthy_bundle.refresh.assert_called_once()
+
+    def test_refresh_dag_bundles_heartbeats_before_each_bundle(self):
+        events = []
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.heartbeat = lambda: events.append("heartbeat")
+        manager._dag_bundles = []
+        for name in ("first", "second"):
+            bundle = self._make_refresh_bundle()
+            bundle.name = name
+            bundle.refresh.side_effect = lambda name=name: events.append(name)
+            manager._dag_bundles.append(bundle)
+        manager._force_refresh_bundles = set()
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=set()),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+
+        assert events == ["heartbeat", "first", "heartbeat", "second"]
 
     def test_refresh_dag_bundles_update_bundle_state_failure_still_scans_files(self):
         """A failure in update_bundle_state() logs but does not skip file scanning.

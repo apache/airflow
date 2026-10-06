@@ -575,13 +575,17 @@ no later than the management credential; ending or replacing the Job invalidates
 The supervisor caches it for the attempt and attempts renewal at 80% of its lifetime.
 Transient early-renewal failures leave the existing token usable until expiry.
 
-Heartbeats use ``[scheduler] job_heartbeat_sec``. Transient API failures are retried on
-the next heartbeat interval; failures lasting ``[dag_processor] health_check_threshold``
-stop the processor. A restart request, replaced Job, or retired registration also stops
-parsing and terminates its children. The deployment's process supervisor must restart
-the command, which creates a new registration. After a crash, registration retries
-``job_running`` with backoff for up to the health-check threshold plus one heartbeat
-interval, retaining the same registration ID while waiting for the old Job to expire.
+Heartbeats use ``[scheduler] job_heartbeat_sec`` and are also sent between bundle
+operations and before each callback's bundle is prepared. Transient API failures are
+retried on the next heartbeat interval. After ``[dag_processor] job_heartbeat_timeout``
+without a recorded heartbeat, the scheduler ends the Job and releases its claimed work, and
+a processor that could not reach the API stops. Set the timeout above the longest single
+bundle initialization, refresh, or listing. A restart request, replaced Job, or retired
+registration also stops parsing and terminates its children. The deployment's process
+supervisor must restart the command, which creates a new registration. After a crash,
+registration retries ``job_running`` with backoff for up to the health-check threshold
+plus one heartbeat interval, retaining the same registration ID while waiting for the old
+Job to expire.
 Failed runs attempt to record failure without masking the original error; completion
 failures after a successful run are reported to the caller.
 

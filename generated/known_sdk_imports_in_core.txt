@@ -6,7 +6,7 @@ airflow-core/src/airflow/configuration.py::1
 airflow-core/src/airflow/dag_processing/dagbag.py::3
 airflow-core/src/airflow/dag_processing/importer_routing.py::1
 airflow-core/src/airflow/dag_processing/lang_sdk_processor.py::6
-airflow-core/src/airflow/dag_processing/manager.py::5
+airflow-core/src/airflow/dag_processing/manager.py::7
 airflow-core/src/airflow/dag_processing/processor.py::14
 airflow-core/src/airflow/exceptions.py::1
 airflow-core/src/airflow/executors/base_executor.py::3

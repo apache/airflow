@@ -212,7 +212,7 @@ def test_restart_stops_parsing_and_releases_children(runner, client, clock, rest
 
 
 @pytest.mark.parametrize("failure", ["transport", 503, 403])
-@conf_vars({("dag_processor", "health_check_threshold"): "10"})
+@conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
 def test_heartbeat_failure_is_bounded(runner, client, clock, failure):
     error = (
         httpx.ConnectError("unavailable")
@@ -237,8 +237,8 @@ def test_heartbeat_failure_is_bounded(runner, client, clock, failure):
     assert client.heartbeat.call_count == (1 if failure == 403 else 2)
 
 
-@conf_vars({("dag_processor", "health_check_threshold"): "10"})
-def test_recovered_heartbeat_resets_the_health_window(runner, client, clock):
+@conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
+def test_recovered_heartbeat_resets_the_lease(runner, client, clock):
     client.heartbeat.side_effect = [
         httpx.ConnectError("offline"),
         JobState.RUNNING,
@@ -252,4 +252,24 @@ def test_recovered_heartbeat_resets_the_health_window(runner, client, clock):
 
     runner.processor.run.side_effect = run
     runner.run_with_api(client)
+    client.complete_job.assert_called_once_with(TerminalJobState.SUCCESS)
+
+
+@conf_vars(
+    {
+        ("dag_processor", "health_check_threshold"): "30",
+        ("dag_processor", "job_heartbeat_timeout"): "300",
+    }
+)
+def test_a_stall_past_the_health_threshold_keeps_the_lease(runner, client, clock):
+    client.heartbeat.side_effect = [httpx.ConnectError("offline"), JobState.RUNNING]
+
+    def run():
+        for tick in (120, 125):
+            clock.return_value = tick
+            runner.processor.heartbeat()
+
+    runner.processor.run.side_effect = run
+    runner.run_with_api(client)
+    assert client.heartbeat.call_count == 2
     client.complete_job.assert_called_once_with(TerminalJobState.SUCCESS)

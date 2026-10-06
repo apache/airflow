@@ -39,6 +39,24 @@ metrics:
     legacy_name: "-"
     name_variables: ["job_name"]
 
+  - name: "job_start"
+    description: "Number of started jobs."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "job_end"
+    description: "Number of ended jobs."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processor_heartbeat_failure"
+    description: "Number of failed Dag processor heartbeats through the Execution API."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "operator_failures"
     description: "Operator ``{operator_name}`` failures."
     type: "counter"

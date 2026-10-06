@@ -30,6 +30,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_jobs
 
 pytestmark = pytest.mark.db_test
@@ -66,21 +67,27 @@ def test_cleanup_is_bounded_and_retains_live_bundles(session, time_machine):
     assert not session.get(DagModel, "current").is_stale
 
 
+@conf_vars(
+    {
+        ("dag_processor", "health_check_threshold"): "30",
+        ("dag_processor", "job_heartbeat_timeout"): "120",
+    }
+)
 def test_cleanup_retires_only_expired_api_processor_jobs(session, time_machine):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
-    jobs = [Job(job_type="DagProcessorJob", state=JobState.RUNNING) for _ in range(3)]
-    jobs[0].session_id = uuid7()
-    jobs[1].session_id = uuid7()
-    jobs[0].latest_heartbeat = jobs[2].latest_heartbeat = timezone.utcnow() - timedelta(seconds=60)
+    jobs = [Job(job_type="DagProcessorJob", state=JobState.RUNNING) for _ in range(4)]
+    for job in jobs[:3]:
+        job.session_id = uuid7()
+    jobs[0].latest_heartbeat = jobs[3].latest_heartbeat = timezone.utcnow() - timedelta(seconds=180)
+    jobs[1].latest_heartbeat = timezone.utcnow() - timedelta(seconds=60)
     session.add_all(jobs)
     session.commit()
     job_ids = [job.id for job in jobs]
-    cleanup_processor_metadata(batch_size=1)
+    cleanup_processor_metadata()
     jobs = [session.get(Job, job_id) for job_id in job_ids]
     assert jobs[0].end_date is not None
     assert jobs[0].state == JobState.FAILED
-    assert jobs[1].end_date is None
-    assert jobs[2].end_date is None
+    assert [job.end_date for job in jobs[1:]] == [None, None, None]
 
 
 def test_cleanup_warnings_is_bounded_and_preserves_active_dags(session):
