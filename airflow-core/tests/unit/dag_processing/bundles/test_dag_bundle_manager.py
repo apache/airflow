@@ -1822,7 +1822,7 @@ class TestSkippedRowLifecycle:
 
     A legacy 2.x row with an unconfigured bundle and a fileloc outside every
     configured bundle is intentionally left untouched by the repair. The
-    inactive-bundle branch of ``deactivate_stale_dags`` then marks it stale,
+    scheduler's ``cleanup_processor_metadata`` then marks it stale,
     and a later successful parse from a now-configured bundle must restore it
     end-to-end. Each unit-level test exercises one stage of this lifecycle;
     this test pins the whole sequence so a future refactor can't silently
@@ -1833,7 +1833,7 @@ class TestSkippedRowLifecycle:
         self, clear_dags_and_bundles, session, tmp_path
     ) -> None:
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-        from airflow.dag_processing.manager import DagFileProcessorManager
+        from airflow.dag_processing.maintenance import cleanup_processor_metadata
         from airflow.sdk import DAG
         from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
@@ -1888,10 +1888,8 @@ class TestSkippedRowLifecycle:
             assert refreshed.relative_fileloc is None
             assert refreshed.is_stale is False
 
-            # Stale-Dag scan deactivates the row via the inactive-bundle
-            # branch, which runs before the NULL relative_fileloc guard.
-            dfp_manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
-            dfp_manager.deactivate_stale_dags(last_parsed={})
+            # Scheduler maintenance deactivates the row because its bundle is inactive.
+            cleanup_processor_metadata()
             session.expire_all()
             stale_row = session.get(DagModel, "legacy_dag")
             assert stale_row.is_stale is True

@@ -238,13 +238,19 @@ class TestRegisterJob:
         assert running.session_id == SESSION_ID
 
     @pytest.mark.parametrize(
-        "previous_job",
+        ("previous_job", "outcome"),
         [
-            pytest.param({"latest_heartbeat": NOW - timedelta(days=1)}, id="heartbeat-expired"),
-            pytest.param({"state": JobState.SUCCESS, "end_date": NOW}, id="completed"),
+            pytest.param(
+                {"latest_heartbeat": NOW - timedelta(days=1)}, (JobState.FAILED, NOW), id="heartbeat-expired"
+            ),
+            pytest.param(
+                {"state": JobState.SUCCESS, "end_date": NOW - timedelta(minutes=5)},
+                (JobState.SUCCESS, NOW - timedelta(minutes=5)),
+                id="completed",
+            ),
         ],
     )
-    def test_replaces_a_stopped_job(self, client, session, previous_job):
+    def test_replaces_a_stopped_job(self, client, session, previous_job, outcome):
         previous = _create_job(session, **previous_job)
 
         response = _register(client, registration_id=OTHER_REGISTRATION_ID)
@@ -253,6 +259,7 @@ class TestRegisterJob:
         assert response.json()["job_id"] != previous.id
         session.refresh(previous)
         assert previous.session_id is None
+        assert (previous.state, previous.end_date) == outcome
 
 
 class TestHeartbeatJob:

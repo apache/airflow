@@ -137,8 +137,8 @@ def register_job(
 
     A registration creates one Job. Repeating it while that Job is open returns the Job with a fresh token;
     once the Job completes or is replaced, the registration is refused for good. A new registration is
-    refused while the session's Job is alive, and otherwise replaces it, which ends every token issued for
-    the replaced Job.
+    refused while the session's Job is alive, and otherwise ends and replaces it, which ends every token
+    issued for the replaced Job and releases its claims.
     """
     requested = token.claims.dag_bundles if body.bundle_names is None else set(body.bundle_names)
     if ungranted := requested - token.claims.dag_bundles:
@@ -151,6 +151,7 @@ def register_job(
     if registered := _get_registered_job(body.registration_id, session=session):
         return _resume_registration(registered, body, bundle_names, token, services)
 
+    now = timezone.utcnow()
     previous = session.scalar(select(Job).where(Job.session_id == token.id).with_for_update())
     if previous is not None:
         if previous.end_date is None and previous.is_alive():
@@ -158,10 +159,13 @@ def register_job(
                 status.HTTP_409_CONFLICT,
                 detail={"reason": "job_running", "message": f"Session already has running Job {previous.id}"},
             )
+        if previous.end_date is None:
+            # Its claims are released only once it ends, and maintenance skips Jobs without a session.
+            previous.state = JobState.FAILED
+            previous.end_date = now
         previous.session_id = None
         session.flush()
 
-    now = timezone.utcnow()
     try:
         with session.begin_nested():
             # A core insert: Job.__init__ would stamp the API server's host and user and fire listeners.
