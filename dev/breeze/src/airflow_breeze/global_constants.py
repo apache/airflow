@@ -519,9 +519,15 @@ SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYCACHE_PREFIX_IN_CONTAINER = "/root/.cache/airflow-pycache"
 
 PRODUCTION_IMAGE = False
-# All python versions include all past python versions available in previous branches
-# Even if we remove them from the main version. This is needed to make sure we can cherry-pick
-# changes from main to the previous branch.
+# Python versions that CI on main builds images for and tests with.
+#
+# When main drops a Python version, the version goes through two phases here:
+# 1. While we still cherry-pick changes from main to a release branch that supports that version
+#    (e.g. v3-3-test), keep it in this list even though main no longer supports it. Changes made
+#    on main are then still tested on that version before they are cherry-picked.
+# 2. Once we stop cherry-picking to the last release branch that supports it (that branch then only
+#    gets fixes applied directly), remove it from this list. Release branches keep their own copy
+#    of this list, so their CI and image builds are not affected.
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
