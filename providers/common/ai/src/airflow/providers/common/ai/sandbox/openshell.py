@@ -48,6 +48,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+_CLIENT_BUILD_LOCK = threading.Lock()
+
 # Wall-clock allowance past the per-command budget before the exec stream is
 # treated as hung. The guest wrapper enforces the budget itself; this covers a
 # gateway or supervisor that stops delivering events at all.
@@ -270,9 +272,11 @@ class _BoundedTail:
     def get_text(self) -> str:
         data = bytes(self._data)
         if self.truncated:
-            # Drop the leading partial line so no fragment reads as a whole record.
+            # Drop the leading partial line so no fragment reads as a whole record, unless that
+            # would throw away most of the window: one line longer than the cap has its newline
+            # at the very end, which would leave "(no output)" for a command that wrote megabytes.
             newline = data.find(b"\n")
-            if newline != -1:
+            if newline != -1 and len(data) - (newline + 1) >= self._max_bytes // 2:
                 data = data[newline + 1 :]
         return data.decode("utf-8", errors="replace")
 
@@ -469,13 +473,12 @@ class OpenShellSandboxBackend(SandboxBackend):
         self._ready_timeout = ready_timeout
         self._request_timeout = request_timeout
         self._client: SandboxClient | None = None
-        self._client_lock = threading.Lock()
         # The egress each sandbox was created with, compared against the effective
         # policy before and after every command.
         self._egress: dict[str, _EgressPolicy] = {}
 
     def _get_client(self) -> SandboxClient:
-        with self._client_lock:
+        with _CLIENT_BUILD_LOCK:
             if self._client is None:
                 with _translate_openshell_errors("load the gateway registration"):
                     from openshell import SandboxClient
@@ -785,12 +788,13 @@ class OpenShellSandboxBackend(SandboxBackend):
         knowable, so that is reported to the model rather than retried or guessed.
         """
         try:
-            return self._exec(sandbox, argv, stdin=stdin, deadline=deadline, stdout=stdout, stderr=stderr)
-        except SandboxTerminalError as e:
-            if _status_name(e.__cause__ or e) != "FAILED_PRECONDITION":
-                raise
-            self._wait_until_ready(sandbox, deadline=time.monotonic() + self._ready_timeout)
-            return self._exec(sandbox, argv, stdin=stdin, deadline=deadline, stdout=stdout, stderr=stderr)
+            try:
+                return self._exec(sandbox, argv, stdin=stdin, deadline=deadline, stdout=stdout, stderr=stderr)
+            except SandboxTerminalError as e:
+                if _status_name(e.__cause__ or e) != "FAILED_PRECONDITION":
+                    raise
+                self._wait_until_ready(sandbox, deadline=time.monotonic() + self._ready_timeout)
+                return self._exec(sandbox, argv, stdin=stdin, deadline=deadline, stdout=stdout, stderr=stderr)
         except _GatewayDropped as e:
             self._wait_until_ready(sandbox, deadline=time.monotonic() + _GATEWAY_RECOVERY)
             raise SandboxError(
@@ -826,7 +830,7 @@ class OpenShellSandboxBackend(SandboxBackend):
                 stderr=stderr,
             )
         except _ExecHung:
-            return self._abandon_command(sandbox, stdout, stderr)
+            return self._abandon_command(sandbox, stdout, stderr, seconds=seconds)
         self._check_egress(sandbox)
         return SandboxExecResult(
             exit_code=outcome.exit_code,
@@ -835,9 +839,12 @@ class OpenShellSandboxBackend(SandboxBackend):
             timed_out=outcome.exit_code == _TIMEOUT_STATUS and outcome.elapsed >= seconds,
             stdout_truncated=stdout.truncated,
             stderr_truncated=stderr.truncated,
+            applied_timeout=float(seconds),
         )
 
-    def _abandon_command(self, sandbox: str, stdout: _BoundedTail, stderr: _BoundedTail) -> SandboxExecResult:
+    def _abandon_command(
+        self, sandbox: str, stdout: _BoundedTail, stderr: _BoundedTail, *, seconds: int
+    ) -> SandboxExecResult:
         # The wrapper reports within its budget unless the command disabled it or the
         # gateway stopped relaying; either way the command may still be running, and
         # OpenShell does not stop an exec whose caller went away, so only destroying
@@ -859,6 +866,7 @@ class OpenShellSandboxBackend(SandboxBackend):
             stdout_truncated=stdout.truncated,
             stderr_truncated=stderr.truncated,
             sandbox_terminated=True,
+            applied_timeout=float(seconds),
         )
 
     def _run_file_op(
@@ -907,9 +915,9 @@ class OpenShellSandboxBackend(SandboxBackend):
         """
         Write ``content`` over stdin, creating parent directories.
 
-        The gateway caps one command argument at 32 KiB, which puts the base class's
-        in-command payload out of reach above about 24 KB, and one request at 1 MiB, so
-        content goes as stdin in chunks. A file larger than one chunk is not written
+        The base class's in-command payload is base64 inside the one request that
+        carries the command, so it stops at about 750 KB of content. Raw stdin in
+        chunks has no such ceiling. A file larger than one chunk is not written
         atomically: a failure part way leaves the chunks written so far.
         """
         chunks = [

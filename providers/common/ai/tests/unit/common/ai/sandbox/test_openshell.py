@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import builtins
+import copy
 import os
 import shutil
 import signal
@@ -202,6 +203,17 @@ def test_constructor_rejects_invalid_values(kwargs, message):
 
 
 class TestClient:
+    @mock.patch("openshell.SandboxClient.from_active_cluster", autospec=True)
+    def test_construction_reads_no_gateway_registration(self, from_active_cluster):
+        OpenShellSandboxBackend(gateway="prod")
+
+        from_active_cluster.assert_not_called()
+
+    def test_the_backend_can_be_deep_copied(self):
+        backend = OpenShellSandboxBackend(gateway="prod")
+
+        assert copy.deepcopy(backend)._gateway == "prod"
+
     @mock.patch("openshell.SandboxClient.from_active_cluster", autospec=True)
     def test_the_cli_gateway_registration_is_loaded_once(self, from_active_cluster):
         backend = OpenShellSandboxBackend(gateway="prod", request_timeout=12)
@@ -455,6 +467,43 @@ class TestRunCommand:
         assert result.stderr == "short\n"
         assert not result.stderr_truncated
 
+    def test_one_line_longer_than_the_budget_still_reaches_the_model(self):
+        """Dropping the leading partial line must not empty the window: the toolset prints "(no output)" for it."""
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _Stream([_stdout(b"x" * 60000 + b"\n"), _exit(0)])
+
+        result = backend.run_command("box", "cat big.json", timeout=5, max_output_bytes=51200)
+
+        assert result.stdout != ""
+        assert result.stdout_truncated
+        assert len(result.stdout.encode()) <= 51200
+
+    def test_a_long_line_followed_by_a_short_one_keeps_the_window(self):
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _Stream(
+            [_stdout(b"L" * 200_000 + b"\nshort tail\n"), _exit(0)]
+        )
+
+        result = backend.run_command("box", "spew", timeout=5, max_output_bytes=51200)
+
+        assert len(result.stdout.encode()) > 51200 // 2
+        assert result.stdout.endswith("short tail\n")
+
+    def test_the_whole_second_deadline_the_command_got_is_reported(self):
+        backend, client = _backend()
+
+        result = backend.run_command("box", "true", timeout=2.2, max_output_bytes=100)
+
+        assert result.applied_timeout == 3.0
+
+    def test_the_whole_second_deadline_is_reported_for_an_abandoned_command_too(self):
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _Stream([], _RpcError(grpc.StatusCode.DEADLINE_EXCEEDED))
+
+        result = backend.run_command("box", "sleep 300", timeout=2.2, max_output_bytes=100)
+
+        assert (result.sandbox_terminated, result.applied_timeout) == (True, 3.0)
+
     def test_output_injected_past_the_wrapper_stays_bounded_in_worker_memory(self):
         backend, client = _backend()
         chunk = b"y\n" * 32768
@@ -502,6 +551,19 @@ class TestRunCommand:
         assert result.stdout == "ok\n"
         assert client._stub.ExecSandbox.call_count == 2
         assert _exec_request(client, 0).request_id != _exec_request(client, 1).request_id
+
+    def test_a_gateway_drop_during_the_not_ready_retry_is_reported_not_leaked(self):
+        backend, client = _backend()
+        client._stub.ExecSandbox.side_effect = [
+            _RpcError(grpc.StatusCode.FAILED_PRECONDITION, "sandbox is not ready"),
+            _Stream([], _RpcError(grpc.StatusCode.UNAVAILABLE, "exec relay closed")),
+        ]
+
+        with pytest.raises(SandboxError, match="may or may not have run") as error:
+            backend.run_command("box", "make install", timeout=5, max_output_bytes=100)
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        assert client._stub.ExecSandbox.call_count == 2
 
     def test_an_exec_the_gateway_drops_is_reported_not_retried(self):
         backend, client = _backend()
