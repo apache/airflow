@@ -451,9 +451,10 @@ it into the authoring shape, each entry carrying the reason it exists:
   the Python side surfaces in review instead of vanishing.
 - **type overrides** — the schema types a moment in time and a duration as a number of seconds, and
   an integral count as a JSON number.
-- **injections** — `Schedule`, which stands in for the serialized `timetable`. Injecting into the
-  schema rather than hand-writing the field keeps every field in one struct declaration, which is
-  what lets `TaskSpec` implement the sealed `TaskOption`.
+- **injections** — `Schedule`, which stands in for the serialized `timetable`, and the `Queue` of
+  `DagSpec`, for which the schema has no Dag-level property. Injecting into the schema rather than
+  hand-writing the field keeps every field in one struct declaration, which is what lets
+  `TaskSpec` implement the sealed `TaskOption`.
 
 The schema types `trigger_rule` and `weight_rule` as plain strings and does not list their values.
 `TriggerRule`, `WeightRule` and their constants are therefore hand-written in
@@ -462,6 +463,25 @@ against the Python enums in airflow-core.
 
 The `check-go-sdk-generated-drift` prek hook regenerates the file and fails when the committed one
 differs, so a schema change that never reached Go cannot merge.
+
+## Serializing a native Dag
+
+[`airflow/serialize.go`](./airflow/serialize.go) writes a registered `airflow.Dag` as the Dag JSON
+that Airflow stores. Python's `DagSerialization` writes the same shape for a Python Dag. Each field
+of `DagSpec`, `TaskSpec` and `TaskGroupSpec` has an entry in a table in that file, which names the
+schema property that the field sets. `TestSpecRulesCoverEveryField` fails for a generated field
+that has no entry. `TestSpecRulesMatchTheSchema` checks each property and its default against
+`schema/dag-schema.json`.
+
+The `check-go-sdk-serialization-conformance` prek hook builds the Dags of
+[`scripts/ci/lang_sdk_serialization/test_dags.yaml`](../scripts/ci/lang_sdk_serialization/test_dags.yaml)
+twice: with this SDK, and with Python and Airflow's own serializer. It loads the Go output with
+Airflow's deserializer and compares the two serializations field by field. Run it from the
+repository root:
+
+```bash
+prek run check-go-sdk-serialization-conformance --all-files
+```
 
 ## Architectural decisions
 

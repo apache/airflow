@@ -309,6 +309,7 @@ func TestShapeForAuthoringShapesTheCoreSchema(t *testing.T) {
 	assert.Equal(t, []string{"dag", "operator", "task_group"}, sortedKeys(definitions))
 	dag := definitions["dag"].(map[string]any)["properties"].(map[string]any)
 	assert.Contains(t, dag, "schedule", "Schedule is injected over the serialized timetable")
+	assert.Contains(t, dag, "queue", "Queue is injected, because the schema has no Dag queue")
 	task := definitions["operator"].(map[string]any)["properties"].(map[string]any)
 	assert.Equal(
 		t,

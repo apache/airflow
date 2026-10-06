@@ -18,6 +18,7 @@
 package airflow
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -58,8 +59,7 @@ type DagRef struct {
 }
 
 // Dag returns an empty Dag with the given dag_id. An optional [DagSpec] holds the rest of the
-// Dag's attributes, and Dag panics if it gets more than one DagSpec. Add the tasks with
-// [DagRef.Task], then pass the Dag to [BundleRef.Register]:
+// Dag's attributes. Add the tasks with [DagRef.Task], then pass the Dag to [BundleRef.Register]:
 //
 //	dag := airflow.Dag("etl")
 //	dag.Task(extract)
@@ -73,6 +73,15 @@ type DagRef struct {
 //
 // [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
 // --airflow-metadata manifest and cannot run their tasks.
+//
+// Dag panics if it gets more than one DagSpec, or if the DagSpec has a value that Python rejects
+// when it builds or validates a Dag:
+//   - Schedule is something other than an empty string, a preset or a cron expression of five to
+//     seven fields
+//   - Schedule is "@continuous" and MaxActiveRuns is unset or more than 1
+//   - Catchup is true and StartDate is the zero Time, for a Dag that has a Schedule
+//   - a tag in Tags is longer than 100 characters
+//   - the year of StartDate or EndDate in UTC is not from 1 to 9999
 func Dag(dagID string, spec ...DagSpec) *DagRef {
 	if len(spec) > 1 {
 		panic(fmt.Sprintf(
@@ -83,9 +92,50 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 	}
 	d := &DagRef{dagID: dagID}
 	if len(spec) == 1 {
+		if err := checkDagSpec(spec[0]); err != nil {
+			panic(fmt.Sprintf("airflow.Dag: Dag %q: %v", dagID, err))
+		}
 		d.spec = copySpec(spec[0])
 	}
 	return d
+}
+
+// tagMaxLength is the longest tag that Python's DAG accepts, counted in characters. Airflow stores
+// a tag in a column of that length.
+const tagMaxLength = 100
+
+// checkDagSpec rejects a DagSpec with a value that Python rejects when it builds or validates a
+// Dag. Depending on the value, Airflow would otherwise fail to load the serialized Dag, fail to
+// store the Dag, or never schedule the Dag.
+func checkDagSpec(spec DagSpec) error {
+	if err := checkSchedule(spec.Schedule); err != nil {
+		return err
+	}
+	// An unset MaxActiveRuns takes [core] max_active_runs_per_dag, which is 16 by default.
+	if spec.Schedule == "@continuous" && (spec.MaxActiveRuns == 0 || spec.MaxActiveRuns > 1) {
+		return errors.New(
+			`airflow.DagSpec.Schedule is "@continuous", which allows one active Dag run at a ` +
+				"time; set MaxActiveRuns to 1",
+		)
+	}
+	if spec.Catchup != nil && *spec.Catchup && spec.Schedule != "" && spec.StartDate.IsZero() {
+		return errors.New(
+			"airflow.DagSpec.Catchup is true, which needs a StartDate to catch up from; " +
+				"set StartDate",
+		)
+	}
+	for _, tag := range spec.Tags {
+		if n := utf8.RuneCountInString(tag); n > tagMaxLength {
+			return fmt.Errorf(
+				"airflow.DagSpec.Tags has %q, which has %d characters; a tag has at most %d",
+				tag, n, tagMaxLength,
+			)
+		}
+	}
+	if err := checkTime("airflow.DagSpec.StartDate", spec.StartDate); err != nil {
+		return err
+	}
+	return checkTime("airflow.DagSpec.EndDate", spec.EndDate)
 }
 
 func (*DagRef) registerable() {}
@@ -155,6 +205,7 @@ type TaskRef struct {
 //   - opts holds more than one TaskSpec or more than one Inputs
 //   - the TaskSpec sets TriggerRule to a value that is not a TriggerRule constant
 //   - the TaskSpec sets WeightRule to a value that is not a WeightRule constant
+//   - the year of the StartDate or the EndDate of the TaskSpec in UTC is not from 1 to 9999
 //   - the tasks passed to Inputs do not match the parameters of fn after the Context
 //   - the task_id, with the group_ids that prefix it, is longer than 250 characters, or holds a
 //     character other than a letter, a digit, an underscore, a dash or a dot, as Python's

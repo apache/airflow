@@ -27,7 +27,8 @@ import "reflect"
 //
 // To change a field, change the schema on the Python side, or the exclusions, type
 // overrides and injected properties in internal/genspec/authoring.go, and run
-// `just generate-specs`.
+// `just generate-specs`. A new field also needs an entry in the table of its struct in
+// serialize.go, which says how a serialized Dag carries it.
 //
 // The structs carry no struct tags, because they are the authoring shape and not the
 // wire format: encoding/json would write a time.Duration as the nanoseconds Go counts it

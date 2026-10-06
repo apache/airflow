@@ -347,6 +347,10 @@ func (d *DagRef) describeIDLocked(id string) string {
 // the tasks of its ends, which [DagRef.expandGroupEdgesLocked] works out at registration.
 type groupEdge struct {
 	upstream, downstream nodeEndpoint
+	// upstreamTasks holds the tasks that the upstream end stood for when registration expanded
+	// the edge. When both ends are groups, a serialized Dag lists these tasks as upstream tasks of
+	// the downstream group, where Python lists the last tasks of the upstream group.
+	upstreamTasks []*TaskRef
 }
 
 // addGroupEdgeLocked records one edge of d that has a task group at one end or both. The caller
@@ -366,7 +370,9 @@ func (d *DagRef) addGroupEdgeLocked(upstream, downstream nodeEndpoint, label str
 }
 
 // expandGroupEdgesLocked records the edges between tasks that the group edges of d stand for, and
-// returns the keys of the edges it added. The caller holds d.mu.
+// returns the keys of the edges it added. It also sets upstreamTasks on every group edge. A
+// registration that fails leaves those values behind, and the next registration replaces all of
+// them. The caller holds d.mu.
 //
 // It expands the group edges in the order they were first declared, each from the Dag as it stands
 // by then: every task, every edge between two tasks, and the edges that the group edges before it
@@ -376,10 +382,11 @@ func (d *DagRef) addGroupEdgeLocked(upstream, downstream nodeEndpoint, label str
 func (d *DagRef) expandGroupEdgesLocked() []expandedEdge {
 	expansion := newGroupExpansion(d.groupEdges)
 	var added []expandedEdge
-	for _, edge := range d.groupEdges {
+	for i, edge := range d.groupEdges {
 		from := edgeKey{upstream: edge.upstream.id(), downstream: edge.downstream.id()}
 		upstreams := expansion.tasksAt(edge.upstream, false)
 		downstreams := expansion.tasksAt(edge.downstream, true)
+		d.groupEdges[i].upstreamTasks = upstreams
 		for _, upstream := range upstreams {
 			for _, downstream := range downstreams {
 				key := edgeKey{upstream: upstream.taskID, downstream: downstream.taskID}
