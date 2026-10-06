@@ -82,9 +82,10 @@ _NAME_SEPARATOR = r"(?:\s*[&,/]\s*|\s+and\s+)"
 _NAME_RUN = rf"{_INLINE_LITERAL_NAME}(?:{_NAME_SEPARATOR}{_INLINE_LITERAL_NAME})*"
 
 # Shape one (predates #73523, and still what older release tags' docs use):
-# the title opens with the name run. The run stops at the first thing that is
-# neither a name nor a separator, so it never reaches into prose.
-_LEADING_LITERAL_NAME_RUN = re.compile(rf"^{_NAME_RUN}")
+# the title is nothing but the name run. Anchoring to "$" keeps a title that
+# merely opens with a literal and continues in prose ("``SandboxToolset``
+# parameters") from claiming to document that class.
+_LEADING_LITERAL_NAME_RUN = re.compile(rf"^{_NAME_RUN}\s*$")
 # Shape two (since #73523): a prose lead-in, a colon, then the name run runs to
 # the very end of the title. Anchoring to "$" is what keeps a colon earlier in
 # the title, with prose after it, from being mistaken for this shape.
@@ -106,12 +107,10 @@ def _extract_names_from_title(title: str) -> list[str]:
     """Return the names a section title documents, or [] if it names prose.
 
     A guide marks a section as being *about* one or more names by titling it
-    with them as inline literals, either at the start (``HookToolset``, or
+    with them as inline literals, either as the whole title (``HookToolset``, or
     ``AgentOperator`` & ``@task.agent`` where one section covers the operator
     and its decorator) or after a colon at the very end ("Airflow hooks as
-    tools: ``HookToolset``"). The leading shape is tried first, since a title
-    that satisfies both (e.g. "``A``: ``B``") should still only name the class
-    it actually opens with. Requiring that markup is what keeps a single-word
+    tools: ``HookToolset``"). Requiring that markup is what keeps a single-word
     prose heading ("Guidelines") -- or a literal appearing elsewhere in a prose
     title -- from claiming to document a class of the same name, and it is a
     convention the guides already follow rather than one imposed on them.

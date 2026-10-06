@@ -108,6 +108,12 @@ def test_collect_guide_anchors_keeps_nested_page_paths():
     }
 
 
+def test_collect_guide_anchors_ignores_a_title_that_opens_with_a_name_then_continues_in_prose():
+    guide = "``SandboxToolset`` parameters\n-----------------------------\n\nA parameter table.\n"
+
+    assert collect_guide_anchors({"sandbox/configuration.rst": guide}) == {}
+
+
 def test_collect_guide_anchors_prefers_first_sorted_page_among_page_titles():
     # Both pages title themselves after SQLToolset, so neither title beats the
     # other on that basis alone; the tie is broken by sorted page order.
@@ -253,11 +259,11 @@ def test_collect_guide_anchors_prefers_the_page_title_over_its_own_subsection():
 
 def test_collect_guide_anchors_keeps_the_first_subsection_when_no_page_title_names_it():
     docs = {
-        "a.rst": "Prose page\n===========\n\n``X`` notes\n------------\n",
-        "b.rst": "Other page\n===========\n\n``X`` details\n--------------\n",
+        "a.rst": "Prose page\n===========\n\n``X``\n-----\n",
+        "b.rst": "Other page\n===========\n\n``X``\n-----\n",
     }
 
-    assert collect_guide_anchors(docs) == {"X": "a.html#x-notes"}
+    assert collect_guide_anchors(docs) == {"X": "a.html#x"}
 
 
 @pytest.mark.parametrize(
