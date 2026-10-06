@@ -109,6 +109,7 @@ class TaskHandlerParam:
 The request names no Dags. The runtime answers with every task handler the artifact registers, keyed by `dag_id`, and with `{}` when it registers none.
 The answer must depend only on the artifact, never on the request, so one answer serves every Dag whose stub tasks resolve to that artifact.
 Its keys need not match the parsed file's Dags and can include Dags of other files.
+Each stub task is checked only against the answer for its own coordinator and Dag ([ADR-0011](0011-mixed-language-dag-processing.md)).
 
 `value_schema` reuses the `ArgValueSchema` definition `arg_bindings` already carries ([ADR-0007](0007-taskflow-across-language-boundary.md)), so both sides of a comparison are the
 same type. Two properties matter to validation: the field is nullable on both sides, and each declaration names its binding mode. Appendix B says what that forces.
