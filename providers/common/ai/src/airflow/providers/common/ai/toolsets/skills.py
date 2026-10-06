@@ -33,6 +33,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.skills import SkillSource, _materialize_skills
+from airflow.providers.common.ai.utils.toolset_base import validate_max_retries
 
 try:
     from pydantic_ai.toolsets.abstract import AbstractToolset
@@ -72,6 +73,10 @@ class AgentSkillsToolset(AbstractToolset):
         discovery only -- it does not stop a skill's ``run_skill_script`` from
         reading them off disk, so pair it with ``exclude_tools={"run_skill_script"}``
         when the files are genuinely sensitive. Requires ``pydantic-ai-skills>=1.2.0``.
+    :param max_retries: How many times in a row the model may correct a failed call to a
+        skills tool, such as a resource name that does not exist, before the run fails.
+        ``None`` (the default) keeps ``pydantic-ai-skills``' own budget of one correction;
+        the agent's ``retries`` does not change it.
 
     Requires the ``skills`` extra: ``pip install "apache-airflow-providers-common-ai[skills]"``.
     """
@@ -82,10 +87,12 @@ class AgentSkillsToolset(AbstractToolset):
         *,
         exclude_tools: set[str] | None = None,
         exclude_resources: list[str] | None = None,
+        max_retries: int | None = None,
     ) -> None:
         self._sources = list(sources)
         self._exclude_tools = exclude_tools
         self._exclude_resources = exclude_resources
+        self._max_retries = validate_max_retries(max_retries)
         self._inner: Any = None
         self._cleanup: Callable[[], None] | None = None
 
@@ -101,6 +108,7 @@ class AgentSkillsToolset(AbstractToolset):
             self._sources,
             exclude_tools=self._exclude_tools,
             exclude_resources=self._exclude_resources,
+            max_retries=self._max_retries,
         )
 
     async def __aenter__(self) -> AgentSkillsToolset:
@@ -121,6 +129,8 @@ class AgentSkillsToolset(AbstractToolset):
                 kwargs["exclude_tools"] = self._exclude_tools
             if self._exclude_resources:
                 kwargs["exclude_resources"] = self._exclude_resources
+            if self._max_retries is not None:
+                kwargs["max_retries"] = self._max_retries
             self._inner = SkillsToolset(**kwargs)
             await self._inner.__aenter__()
         except BaseException:

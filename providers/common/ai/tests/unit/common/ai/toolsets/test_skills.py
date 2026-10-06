@@ -27,6 +27,10 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
+from pydantic_ai.models.function import FunctionModel
 
 from airflow.providers.common.ai.skills import GitSkills
 from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
@@ -145,17 +149,74 @@ class TestLifecycle:
 
         assert "exclude_tools" not in captured
         assert "exclude_resources" not in captured
+        assert "max_retries" not in captured
+
+    def test_max_retries_passed_to_inner(self):
+        captured: dict = {}
+
+        def fake_skillstoolset(**kwargs):
+            captured.update(kwargs)
+            return _FakeInner(**kwargs)
+
+        toolset = AgentSkillsToolset(sources=["/x"], max_retries=3)
+        with patch(
+            "airflow.providers.common.ai.toolsets.skills._materialize_skills",
+            autospec=True,
+            return_value=(["/x"], lambda: None),
+        ):
+            with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):  # noqa: spec
+                asyncio.run(_enter_exit(toolset))
+
+        assert captured["max_retries"] == 3
+
+    def test_negative_max_retries_is_rejected(self):
+        with pytest.raises(ValueError, match="max_retries must not be negative"):
+            AgentSkillsToolset(sources=["/x"], max_retries=-1)
 
     def test_for_run_propagates_optional_kwargs(self):
         # for_run hands each run its own instance; dropping a kwarg here would
         # silently expose excluded files in concurrent runs.
         toolset = AgentSkillsToolset(
-            sources=["/x"], exclude_tools={"run_skill_script"}, exclude_resources=["*.env"]
+            sources=["/x"], exclude_tools={"run_skill_script"}, exclude_resources=["*.env"], max_retries=3
         )
         per_run = asyncio.run(toolset.for_run(MagicMock()))  # noqa: spec  (for_run ignores ctx)
         assert per_run is not toolset
         assert per_run._exclude_tools == {"run_skill_script"}
         assert per_run._exclude_resources == ["*.env"]
+        assert per_run._max_retries == 3
+
+    @pytest.mark.parametrize(
+        ("max_retries", "fails"),
+        [
+            pytest.param(None, True, id="default_allows_one_correction"),
+            pytest.param(2, False, id="raised_budget"),
+        ],
+    )
+    def test_max_retries_bounds_corrections_in_a_real_run(self, tmp_path, max_retries, fails):
+        """Two unknown resource names in a row exhaust the default budget of one correction."""
+        _write_skill(tmp_path)
+        calls = iter(
+            [
+                {"skill_name": "demo-skill", "resource_name": "missing-1.md"},
+                {"skill_name": "demo-skill", "resource_name": "missing-2.md"},
+            ]
+        )
+
+        def model(messages, info):
+            if (args := next(calls, None)) is None:
+                return ModelResponse(parts=[TextPart("done")])
+            return ModelResponse(parts=[ToolCallPart("read_skill_resource", args)])
+
+        agent = Agent(
+            FunctionModel(model),
+            toolsets=[AgentSkillsToolset(sources=[str(tmp_path)], max_retries=max_retries)],
+        )
+
+        if fails:
+            with pytest.raises(UnexpectedModelBehavior, match="exceeded max retries count of 1"):
+                agent.run_sync("go")
+        else:
+            assert agent.run_sync("go").output == "done"
 
 
 class TestCleanup:
