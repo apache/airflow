@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -144,7 +145,13 @@ sdk:
   language: "go"
   version: "` + sdkVersion + `"
   supervisor_schema_version: "` + execution.SupervisorSchemaVersion + `"
-source: "main.go"
+entrypoint_path: "example/bundle/main.go"
+dag_source_paths: {}
+sources:
+  - path: "example/bundle/main.go"
+    offset: 0
+    length: ` + strconv.Itoa(len(srcBytes)) + `
+    sha256: "` + sha256Hex(srcBytes) + `"
 dags:
   concurrent_xcom_dag:
     tasks:

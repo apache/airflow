@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -32,6 +33,15 @@ import (
 	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
 	"github.com/apache/airflow/go-sdk/internal/bundlefooter"
 )
+
+var testLayout = sourceLayout{
+	entrypoint: "cmd/bundle/main.go",
+	dagPaths:   map[string]string{"zeta_dag": "cmd/bundle/main.go", "alpha_dag": "dags/alpha.go"},
+	files: []sourceFile{
+		{path: "cmd/bundle/main.go", offset: 0, length: 10, sha256: "aa"},
+		{path: "dags/alpha.go", offset: 10, length: 20, sha256: "bb"},
+	},
+}
 
 func TestRenderManifest_DeterministicDagOrdering(t *testing.T) {
 	meta := airflowmetadata.Manifest{
@@ -47,9 +57,9 @@ func TestRenderManifest_DeterministicDagOrdering(t *testing.T) {
 		},
 	}
 
-	got1, err := renderManifest(meta, "main.go")
+	got1, err := renderManifest(meta, testLayout)
 	require.NoError(t, err)
-	got2, err := renderManifest(meta, "main.go")
+	got2, err := renderManifest(meta, testLayout)
 	require.NoError(t, err)
 
 	assert.Equal(t, got1, got2, "manifest should be byte-identical for identical input")
@@ -59,7 +69,19 @@ sdk:
   language: "go"
   version: "0.1.0"
   supervisor_schema_version: "2026-06-16"
-source: "main.go"
+entrypoint_path: "cmd/bundle/main.go"
+dag_source_paths:
+  alpha_dag: "dags/alpha.go"
+  zeta_dag: "cmd/bundle/main.go"
+sources:
+  - path: "cmd/bundle/main.go"
+    offset: 0
+    length: 10
+    sha256: "aa"
+  - path: "dags/alpha.go"
+    offset: 10
+    length: 20
+    sha256: "bb"
 dags:
   alpha_dag:
     tasks:
@@ -72,7 +94,7 @@ dags:
 	assert.Equal(t, expected, string(got1))
 }
 
-// Values (task IDs, source, SDK fields) are quoted so a scalar-looking value
+// Values (task IDs, source paths, SDK fields) are quoted so a scalar-looking value
 // stays a string; Dag ID keys stay plain scalars.
 func TestRenderManifest_QuotesValuesNotKeys(t *testing.T) {
 	meta := airflowmetadata.Manifest{
@@ -87,7 +109,7 @@ func TestRenderManifest_QuotesValuesNotKeys(t *testing.T) {
 		},
 	}
 
-	got, err := renderManifest(meta, "main.go")
+	got, err := renderManifest(meta, testLayout)
 	require.NoError(t, err)
 
 	// Task values that look like scalars are quoted.
@@ -108,7 +130,7 @@ func TestRenderManifest_EmptyDags(t *testing.T) {
 		},
 		Dags: map[string]airflowmetadata.Dag{},
 	}
-	got, err := renderManifest(meta, "main.go")
+	got, err := renderManifest(meta, testLayout)
 	require.NoError(t, err)
 	assert.Contains(t, string(got), "dags: {}")
 }
@@ -375,6 +397,33 @@ func TestRunPack_UsesMetadataFile(t *testing.T) {
 	require.NoError(t, err)
 	binaryRegion := bundleBytes[:len(bundleBytes)-len(gotSource)-len(gotMeta)-bundlefooter.TrailerSize]
 	assert.Equal(t, exeBytes, binaryRegion, "the supplied --executable must be packed verbatim")
+}
+
+func TestRunPack_PacksABundleWithOnlyNativeDags(t *testing.T) {
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "native")
+	require.NoError(t, os.WriteFile(exe, []byte("native-binary-bytes"), 0o755))
+	source := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
+	meta := filepath.Join(dir, "airflow-metadata.json")
+	require.NoError(t, os.WriteFile(meta, []byte(
+		`{"airflow_bundle_metadata_version":"1.0",`+
+			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},`+
+			`"dags":{},"dag_source_files":{"native_dag":`+strconv.Quote(source)+`}}`,
+	), 0o644))
+	out := filepath.Join(dir, "bundle")
+
+	err := runPack(io.Discard, io.Discard, &packOptions{
+		executable:      exe,
+		source:          source,
+		airflowMetadata: meta,
+		output:          out,
+	})
+	require.NoError(t, err)
+
+	_, gotMeta, err := bundlefooter.Read(out)
+	require.NoError(t, err)
+	assert.Contains(t, string(gotMeta), `native_dag: "main.go"`)
 }
 
 // --airflow-metadata also accepts a YAML manifest, not only the JSON the
