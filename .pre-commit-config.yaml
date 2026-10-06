@@ -443,8 +443,10 @@ repos:
           ^airflow-core/src/airflow/serialization/schema\.json$|
           ^java-sdk/scripts/ci/prek/check_serialization_conformance\.py$|
           ^java-sdk/sdk/schema/dag-schema\.json$|
-          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(DagDef|Deps|Arg|TaskGroupRef)\.kt$|
+          ^java-sdk/sdk/build\.gradle\.kts$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Bundle|DagDef|Deps|Arg|TaskGroupRef)\.kt$|
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/execution/Serde\.kt$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/Refs\.kt$|
           ^java-sdk/sdk/src/test/kotlin/org/apache/airflow/sdk/conformance/.*$|
           ^scripts/ci/lang_sdk_serialization/.*$
       - id: check-go-version-in-sync

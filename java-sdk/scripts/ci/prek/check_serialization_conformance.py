@@ -35,16 +35,19 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 if __name__ == "__main__":
     java_sdk = AIRFLOW_ROOT_PATH / "java-sdk"
-    classpath = (
-        subprocess.run(
-            [str(java_sdk / "gradlew"), "-p", str(java_sdk), "-q", ":sdk:printConformanceClasspath"],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        .stdout.strip()
-        .splitlines()[-1]
+    # Gradle prints its own progress on stdout, so the classpath is the last line.
+    printed = subprocess.run(
+        [str(java_sdk / "gradlew"), "-p", str(java_sdk), "-q", ":sdk:printConformanceClasspath"],
+        check=False,
+        capture_output=True,
+        text=True,
     )
+    lines = printed.stdout.strip().splitlines()
+    if printed.returncode or not lines:
+        sys.stderr.write(printed.stdout)
+        sys.stderr.write(printed.stderr)
+        raise SystemExit("Could not build the Java SDK conformance classpath; see the Gradle output above")
+    classpath = lines[-1]
     compare = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "lang_sdk_serialization" / "compare.py"
     serializer = ["java", "-cp", classpath, "org.apache.airflow.sdk.conformance.SerializeJavaKt"]
     command = [sys.executable, str(compare), "--sdk", "java", "--", *serializer]
