@@ -28,19 +28,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from airflow.providers.common.compat.sdk import DAG, TriggerRule, task
 from airflow.providers.microsoft.azure.hooks.ai_search import AzureAISearchHook
-
-try:
-    from airflow.sdk import DAG, task
-except ImportError:
-    # Airflow 2 path
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
-
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "example_azure_ai_search"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID") or "default"
