@@ -125,11 +125,8 @@ export const TaskStateStoreModal = ({
     if (expiresAt === "never") {
       return null;
     }
-    if (expiresAt === "custom") {
-      return dayjs.tz(customExpiresAt, selectedTimezone).toISOString();
-    }
 
-    return "default";
+    return expiresAt === "custom" ? dayjs.tz(customExpiresAt, selectedTimezone).toISOString() : "default";
   };
 
   const onSave = () => {

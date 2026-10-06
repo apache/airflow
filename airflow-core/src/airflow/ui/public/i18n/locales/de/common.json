@@ -320,6 +320,13 @@
       },
       "title": "Markieren"
     },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Suchleisten-Auswahl und geteilte Links haben Priorität.",
+        "label": "Überall treffen (Standard)"
+      },
+      "title": "Suchen"
+    },
     "taskInstance": {
       "defaultTab": {
         "helper": "Tab, der zuerst angezeigt wird, wenn Sie eine Task Instanz öffnen. Links zu einem bestimmten Tab öffnen weiterhin diesen Tab.",

@@ -1084,6 +1084,7 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=TEST_DAGS_FOLDER,
             bundle_name="testing",
+            parse_lang_sdk_files=False,
         )
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
@@ -1105,6 +1106,7 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
             bundle_name="testing",
+            parse_lang_sdk_files=False,
         )
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
@@ -1136,6 +1138,7 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
             bundle_name="testing",
+            parse_lang_sdk_files=False,
         )
 
     @mock.patch("airflow.models.dagrun.get_or_create_dagrun")

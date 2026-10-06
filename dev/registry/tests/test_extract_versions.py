@@ -210,3 +210,59 @@ class TestExtractVersionDataConnectionTypes:
 
         assert result is not None
         assert result["connection_types"][0]["external_services"] == ["openai", "anthropic"]
+
+
+class TestExtractVersionDataUriSchemes:
+    """A superseded release's page reads URI schemes from its metadata.json, so the
+    filesystem module source must come from the release tag, not the working tree."""
+
+    PROVIDER_YAML = textwrap.dedent("""\
+        name: Test Provider
+        filesystems:
+          - airflow.providers.test.fs.testfs
+        remote-logging:
+          - classpath: airflow.providers.test.log.TestRemoteLogIO
+            scheme: testfs
+        """)
+
+    @pytest.mark.parametrize(
+        ("layout", "yaml_path", "fs_source_path"),
+        [
+            pytest.param(
+                "new",
+                "providers/test/provider.yaml",
+                "providers/test/src/airflow/providers/test/fs/testfs.py",
+                id="new-layout",
+            ),
+            pytest.param(
+                "old",
+                "providers/src/airflow/providers/test/provider.yaml",
+                "providers/src/airflow/providers/test/fs/testfs.py",
+                id="old-layout",
+            ),
+        ],
+    )
+    @patch("extract_versions.extract_modules_from_yaml", autospec=True, return_value=[])
+    @patch("extract_versions.fetch_provider_inventory", autospec=True, return_value=None)
+    @patch("extract_versions.git_show", autospec=True)
+    @patch("extract_versions.detect_layout", autospec=True)
+    @patch("extract_versions.git_tag_exists", autospec=True, return_value=True)
+    def test_filesystem_schemes_read_from_release_tag(
+        self, _tag_exists, mock_layout, mock_git_show, _inventory, _modules, layout, yaml_path, fs_source_path
+    ):
+        mock_layout.return_value = layout
+        sources = {yaml_path: self.PROVIDER_YAML, fs_source_path: 'schemes = ["testfs", "tfs"]\n'}
+        mock_git_show.side_effect = lambda tag, path: sources.get(path)
+
+        result = extract_version_data("test", "1.0.0", "test")
+
+        assert result is not None
+        assert result["uri_schemes"] == [
+            {
+                "scheme": "testfs",
+                "filesystem": "airflow.providers.test.fs.testfs",
+                "remote_logging": "airflow.providers.test.log.TestRemoteLogIO",
+            },
+            {"scheme": "tfs", "filesystem": "airflow.providers.test.fs.testfs"},
+        ]
+        mock_git_show.assert_any_call("providers-test/1.0.0", fs_source_path)

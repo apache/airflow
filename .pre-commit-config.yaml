@@ -391,6 +391,7 @@ repos:
           ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
           ^go-sdk/schema/.*\.json$|
           ^go-sdk/airflow/spec\.gen\.go$|
+          ^go-sdk/airflow/spec_fields\.gen\.go$|
           ^go-sdk/airflow/spec\.go$|
           ^go-sdk/internal/genspec/.*\.go$|
           ^go-sdk/internal/genlicense/.*\.go$|
@@ -413,6 +414,22 @@ repos:
           ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
           ^airflow-core/src/airflow/serialization/schema\.json$|
           ^scripts/ci/lang_sdk_serialization/.*$
+      - id: check-go-sdk-serialization-conformance
+        name: Check the Go SDK serializes Dags the way Airflow does
+        description: "Serialize the shared test Dags with the Go SDK and with Airflow, and compare the two"
+        entry: ./scripts/ci/prek/check_go_sdk_serialization_conformance.py
+        # golang so prek provisions the toolchain that builds the Go serializer.
+        language: golang
+        pass_filenames: false
+        require_serial: true
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^go-sdk/airflow/.*\.go$|
+          ^go-sdk/schema/dag-schema\.json$|
+          ^scripts/ci/lang_sdk_serialization/.*$|
+          ^scripts/ci/prek/check_go_sdk_serialization_conformance\.py$
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py
@@ -1470,6 +1487,13 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
+      - id: check-xcom-model-columns
+        name: Check XComModel columns are read through xcom_entity, not directly in SQLAlchemy queries
+        entry: ./scripts/ci/prek/check_xcom_model_columns.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|providers/.*)/src/airflow/.*\.py$
+        exclude: ^airflow-core/src/airflow/(models/xcom\.py|api_fastapi/common/parameters/xcom\.py)$
       - id: check-no-new-airflow-exceptions
         name: Check that no new raise AirflowException usages are added
         entry: ./scripts/ci/prek/check_new_airflow_exception_usage.py

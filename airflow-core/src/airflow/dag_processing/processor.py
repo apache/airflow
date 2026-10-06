@@ -17,13 +17,14 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import importlib
 import logging
 import os
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
+from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal, cast
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -37,7 +38,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
-from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time import supervisor
@@ -131,7 +132,7 @@ class DagFileParsingResult(BaseModel):
     parsed_definitions: list[str] = Field(default_factory=list)
     """Bundle-relative locations of the Dag definitions imported from ``fileloc``."""
     dag_source_codes: dict[str, DagSourceCode] = Field(default_factory=dict)
-    """Source code of the parsed Dags, keyed by Dag fileloc."""
+    """Source code of the parsed Dags, keyed by dag_id."""
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
@@ -313,6 +314,8 @@ def _get_dag_with_task(
         )
 
     dag = dagbag.dags[dag_id]
+    if isinstance(dag, LangSDKSerializedDAG):
+        raise ValueError(f"DAG '{dag_id}' is a native Lang-SDK Dag, whose callbacks do not run in Python.")
 
     if task_id is not None:
         try:
@@ -583,13 +586,20 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     parse request.
     """
 
-    logger_filehandle: BinaryIO
+    logger_filehandle: BinaryIO = attrs.field(  # type: ignore[assignment]  # mypy picks the text overload
+        factory=functools.partial(open, os.devnull, "wb")
+    )
+    """The file's parse log, which the process closes. Without one, the output is discarded."""
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
-    client: Client
-    """The HTTP client to use for communication with the API server."""
+    client: Client | None = None
+    """
+    The HTTP client that answers the child's requests to the API server.
+
+    Without one, as in a Dag bag, each such request gets an error.
+    """
 
     bundle_name: str
     dag_file_rel_path: str
@@ -623,27 +633,44 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         self.parsing_result = msg
         return None, {}
 
+    _client_request_types: ClassVar[tuple[type[BaseModel], ...]] = (
+        DeleteVariable,
+        GetConnection,
+        GetPrevSuccessfulDagRun,
+        GetPreviousDagRun,
+        GetPreviousTI,
+        GetTICount,
+        GetTaskStates,
+        GetVariable,
+        GetVariableKeys,
+        GetXCom,
+        GetXComCount,
+        GetXComSequenceItem,
+        GetXComSequenceSlice,
+        PutVariable,
+    )
+
     # Each subclass builds its own ``_request_handlers``, typed with itself, from these.
     _common_request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[BaseDagFileProcessorProcess]]] = {
-        **WatchedSubprocess._get_shared_request_handlers(
-            DeleteVariable,
-            GetConnection,
-            GetPrevSuccessfulDagRun,
-            GetPreviousDagRun,
-            GetPreviousTI,
-            GetTICount,
-            GetTaskStates,
-            GetVariable,
-            GetVariableKeys,
-            GetXCom,
-            GetXComCount,
-            GetXComSequenceItem,
-            GetXComSequenceSlice,
-            MaskSecret,
-            PutVariable,
+        # _handle_request answers the client requests itself when there is no client.
+        **cast(
+            "dict[type[BaseModel], RequestHandler[BaseDagFileProcessorProcess]]",
+            WatchedSubprocess._get_shared_request_handlers(*_client_request_types, MaskSecret),
         ),
         **dict([register_request_method(DagFileParsingResult, _handle_parsing_result)]),
     }
+
+    def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
+        if self.client is None and isinstance(msg, self._client_request_types):
+            self.send_msg(
+                None,
+                request_id=req_id,
+                error=ErrorResponse(
+                    detail={"message": f"{type(msg).__name__} is answered only in the Dag processor"}
+                ),
+            )
+            return
+        super()._handle_request(msg, log, req_id)
 
     def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         log.error("Unhandled request", msg=msg)
@@ -687,6 +714,8 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
     we can use the Task SDK definitions when serializing. This prevents potential conflicts with classes
     in core Airflow.
     """
+
+    client: Client
 
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
         **BaseDagFileProcessorProcess._common_request_handlers,

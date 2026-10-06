@@ -22,6 +22,8 @@ import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 
+import { formatNumber } from "src/utils";
+
 import type { CalendarCellData, CalendarColorMode } from "./types";
 
 const SQUARE_SIZE = "12px";
@@ -41,7 +43,7 @@ const stateColorMap = {
 };
 
 export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
-  const { t: translate } = useTranslation(["dag", "common"]);
+  const { i18n, t: translate } = useTranslation(["dag", "common"]);
 
   if (!cellData) {
     return undefined;
@@ -58,19 +60,10 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
 
   // In failed mode, only show failed runs; in total mode, show all non-zero states
   const states = Object.entries(counts)
-    .filter(([key, value]) => {
-      if (key === "total" || key === "backfill") {
-        return false;
-      }
-      if (value === 0) {
-        return false;
-      }
-      if (viewMode === "failed") {
-        return key === "failed";
-      }
-
-      return true;
-    })
+    .filter(
+      ([key, value]) =>
+        key !== "total" && key !== "backfill" && value !== 0 && (viewMode !== "failed" || key === "failed"),
+    )
     .map(([state, count]) => ({
       color: stateColorMap[state as keyof typeof stateColorMap] || "gray.500",
       count,
@@ -95,7 +88,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
                 width={SQUARE_SIZE}
               />
               <Text fontSize="xs">
-                {count} {state}
+                {formatNumber(count, i18n.language)} {state}
               </Text>
             </HStack>
           ))}
@@ -105,7 +98,7 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
                 <RunTypeIcon runType="backfill" />
               </Box>
               <Text fontSize="xs">
-                {counts.backfill} {translate("dag:calendar.backfill")}
+                {formatNumber(counts.backfill, i18n.language)} {translate("dag:calendar.backfill")}
               </Text>
             </HStack>
           )}

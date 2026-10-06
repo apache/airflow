@@ -152,6 +152,18 @@ DagModelOperation → PERSIST
 
 `DagImportResult.dags` is `list[DAG]`, so the importer wraps each serialized entry as a `LazyDeserializedDAG` and transforms it into an `airflow.sdk.DAG`.
 
+### Interim: the Dag processor manager routes claimed files
+
+Until importers own their parse process (#73457), the Dag processor manager routes a coordinator-claimed file itself, as of #74035. When a file's importer in the bundle's
+registry is a coordinator's, the manager starts `LangSDKDagFileProcessorProcess` for it instead of `DagFileProcessorProcess`. That process execs the runtime, which connects
+back to it. The importer's `import_definition` only reports that the Dag processor parses the file, which is what a Dag bag outside the Dag processor sees by default.
+
+A Dag bag built with `parse_lang_sdk_files=True`, as `airflow tasks list` builds one, does not go through the importer for a coordinator-claimed file. It runs
+`LangSDKDagFileProcessorProcess` itself, without an API client, and bags the Dags the runtime serialized as `SerializedDAG` objects. `DagImportResult.dags` stays `list[DAG]`.
+
+This is a bridge, not the end state. Running the runtime inside the Python parse child would need that child to relay every request and reply between the runtime and the
+manager over its fd 0. Starting the runtime from the manager lets it reach the manager's request handlers directly, with no relay.
+
 ## Consequences
 
 - The Java and TypeScript importers are never configured by hand. The runtime is declared once, in `[sdk] coordinators`, and the importer follows from it.

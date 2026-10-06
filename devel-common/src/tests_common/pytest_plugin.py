@@ -1106,6 +1106,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         AIRFLOW_V_3_1_PLUS,
         AIRFLOW_V_3_2_PLUS,
         AIRFLOW_V_3_3_PLUS,
+        AIRFLOW_V_3_4_PLUS,
         NOTSET,
     )
 
@@ -1628,7 +1629,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         )
                         self.session.execute(delete(DagRun).where(DagRun.dag_id.in_(dag_ids)))
                         self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
-                    self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
+                    if not AIRFLOW_V_3_4_PLUS:
+                        self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
                     self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
                     self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
                     if AIRFLOW_V_3_0_PLUS:
@@ -2142,6 +2144,18 @@ def clear_lru_cache():
         yield
     finally:
         _get_grouped_entry_points.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def discard_async_engine_pool():
+    """Pooled async connections stay bound to the loop that opened them, so drop them before a later test's loop can reuse one."""
+    yield
+    if importlib.util.find_spec("airflow") is None:
+        return
+    from airflow import settings
+
+    if (async_engine := getattr(settings, "async_engine", None)) is not None:
+        async_engine.sync_engine.dispose(close=False)
 
 
 @pytest.fixture(autouse=True)
