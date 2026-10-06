@@ -585,22 +585,26 @@ class TestCommands:
                 decision_strategy="AFFIRMATIVE",
                 _dry_run=False,
             )
-        mock_attach_resource_policy.assert_any_call(
-            client,
-            "test-id",
-            permission_name="User",
-            policy_name="Allow-User",
-            resource_names=["Dag", "Asset"],
-            _dry_run=False,
-        )
-        mock_attach_resource_policy.assert_any_call(
-            client,
-            "test-id",
-            permission_name="Op",
-            policy_name="Allow-Op",
-            resource_names=["Connection", "Pool", "Variable", "Backfill"],
-            _dry_run=False,
-        )
+        for role_name in ("User", "Op", "Admin"):
+            mock_attach_resource_policy.assert_any_call(
+                client,
+                "test-id",
+                permission_name="User",
+                policy_name=f"Allow-{role_name}",
+                resource_names=["Dag", "Asset"],
+                decision_strategy="AFFIRMATIVE",
+                _dry_run=False,
+            )
+        for role_name in ("Op", "Admin"):
+            mock_attach_resource_policy.assert_any_call(
+                client,
+                "test-id",
+                permission_name="Op",
+                policy_name=f"Allow-{role_name}",
+                resource_names=["Connection", "Pool", "Variable", "Backfill"],
+                decision_strategy="AFFIRMATIVE",
+                _dry_run=False,
+            )
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._update_admin_permission_resources")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._update_read_only_permission_resources")
