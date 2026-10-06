@@ -37,6 +37,7 @@ Requires Airflow 3.3+ (RetryPolicy was added in AIP-105).
 from __future__ import annotations
 
 import logging
+import traceback
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
@@ -223,8 +224,10 @@ def redact_registered_secrets(message: str) -> str:
 
 
 _REDACTION_PARAMS_DOC = """
-    :param redactor: Callable applied to the exception's string representation
-        before it is added to the classification prompt. Defaults to
+    :param redactor: Callable applied to the exception text (its string
+        representation, or the whole formatted traceback with
+        ``include_traceback=True``) before it is added to the classification
+        prompt. Defaults to
         :func:`~airflow.providers.common.ai.policies.retry.redact_registered_secrets`,
         which only masks values already registered via ``mask_secret()``.
         Pass a custom callable to replace the default masking entirely --
@@ -238,17 +241,31 @@ _REDACTION_PARAMS_DOC = """
         an explicit ``redactor`` raises ``ValueError`` at construction time,
         since the two settings would otherwise conflict silently.
     :param max_exception_length: Maximum number of characters of the
-        (already redacted) exception message included in the prompt. Longer
-        messages are truncated with a trailing ``"... (truncated)"`` marker.
-        Must be a positive integer. Defaults to 4096.
+        (already redacted) exception text included in the prompt. A longer
+        message is cut to its head with a trailing ``"... (truncated)"`` marker;
+        a longer traceback (``include_traceback=True``) is cut to its tail with a
+        leading ``"(truncated) ..."`` marker, so the innermost frames and the
+        final exception line survive. Must be a positive integer. Defaults to 4096.
+    :param include_traceback: Send the formatted traceback instead of
+        ``ExceptionType: message``. Defaults to ``False``. The traceback is what
+        :func:`traceback.format_exception` produces: the stack frames with their
+        file paths and source lines, every chained exception (``__cause__`` and
+        ``__context__``), and module-qualified class names such as
+        ``botocore.exceptions.ClientError``. Local variable values of the frames
+        are not included. The whole text goes through ``redactor`` before it is
+        truncated. A traceback is usually many times longer than the message, so
+        each classification costs more input tokens, up to
+        ``max_exception_length`` characters.
 
     .. warning::
         The exception's string representation is sent to the configured
         external LLM provider (OpenAI, Anthropic, Bedrock, Vertex, Ollama,
         etc.) as part of the classification prompt, so it may leak whatever
         the failing task put in the exception message — connection strings,
-        credential fragments, PII, or other secrets. By default the message
-        is run through
+        credential fragments, PII, or other secrets. With
+        ``include_traceback=True`` that also covers the messages of chained
+        exceptions, file paths on the worker, and the source line of each
+        frame. By default the text is run through
         :func:`~airflow.providers.common.ai.policies.retry.redact_registered_secrets`
         via ``redactor``, which masks values already registered via
         ``mask_secret()`` (for example, connection passwords Airflow
@@ -279,6 +296,7 @@ class _ModelRetryPolicy(RetryPolicy):
         redactor: Callable[[str], str] | None = None,
         redact_exception: bool = True,
         max_exception_length: int = 4096,
+        include_traceback: bool = False,
     ) -> None:
         if max_exception_length <= 0:
             raise ValueError(f"max_exception_length must be a positive integer, got {max_exception_length}")
@@ -299,6 +317,7 @@ class _ModelRetryPolicy(RetryPolicy):
         )
         self.redact_exception = redact_exception
         self.max_exception_length = max_exception_length
+        self.include_traceback = include_traceback
 
     def _hook(self) -> PydanticAIHook:
         from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
@@ -306,14 +325,23 @@ class _ModelRetryPolicy(RetryPolicy):
         return PydanticAIHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
 
     def _prompt(self, exception: BaseException, try_number: int, max_tries: int) -> str:
+        if self.include_traceback:
+            text = "".join(traceback.format_exception(exception)).rstrip("\n")
+        else:
+            text = str(exception)
         # Redact before truncating -- truncating first could cut a registered secret in half.
-        message = self.redactor(str(exception)) if self.redactor is not None else str(exception)
-        if len(message) > self.max_exception_length:
-            message = f"{message[: self.max_exception_length]}... (truncated)"
+        if self.redactor is not None:
+            text = self.redactor(text)
+        if len(text) > self.max_exception_length:
+            if self.include_traceback:
+                # Keep the tail: the innermost frames and the final exception line say the most.
+                text = f"(truncated) ...{text[-self.max_exception_length :]}"
+            else:
+                text = f"{text[: self.max_exception_length]}... (truncated)"
+        if not self.include_traceback:
+            text = f"{type(exception).__name__}: {text}"
         return (
-            f"Classify this error from a data pipeline task "
-            f"(attempt {try_number} of {max_tries}):\n\n"
-            f"{type(exception).__name__}: {message}"
+            f"Classify this error from a data pipeline task (attempt {try_number} of {max_tries}):\n\n{text}"
         )
 
     def _run(
@@ -498,6 +526,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         redactor: Callable[[str], str] | None = None,
         redact_exception: bool = True,
         max_exception_length: int = 4096,
+        include_traceback: bool = False,
     ) -> None:
         super().__init__(
             llm_conn_id,
@@ -508,6 +537,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
             redactor=redactor,
             redact_exception=redact_exception,
             max_exception_length=max_exception_length,
+            include_traceback=include_traceback,
         )
         self.min_confidence = None if min_confidence is None else check_bar(min_confidence, "min_confidence")
         self.categories: dict[str, ErrorCategory] = self._validate_categories(
