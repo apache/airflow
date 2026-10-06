@@ -287,13 +287,30 @@ it is rejected if the name is missing there. The Dag processor still receives ``
 the separate Dag delivery process.
 
 A Dag processor with this ``[sdk]`` configuration also parses the executable JARs of every Dag bundle,
-and needs a JRE to do so (see :ref:`java-sdk/native-dag-parsing`).
-The ``java-task-handlers`` bundle only holds the JARs that the Python Dag's tasks run,
-so keep the Dag processor from parsing it by listing ``*`` in its ``.airflowignore``:
+and needs a JRE to do so (see :ref:`java-sdk/native-dag-parsing`). Keep it from parsing a bundle's JARs
+with that bundle's ``.airflowignore``, whose pattern syntax follows ``[core] dag_ignore_file_syntax``.
+
+With ``task_handler_bundle_name`` set to its own bundle, as above, ``java-task-handlers`` holds only the
+JARs the Python Dag's tasks run, so ignoring everything in it is safe:
 
 .. code-block:: bash
 
+    # [core] dag_ignore_file_syntax = glob (the default)
     echo '*' > /opt/airflow/jars/sales-pipeline/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp; a bare * is not a valid pattern and is dropped
+    echo '.' > /opt/airflow/jars/sales-pipeline/.airflowignore
+
+With ``task_handler_bundle_name`` unset, the JAR sits in the same Dag bundle as ``sales_pipeline.py``, so
+ignore only the JAR, not the whole bundle:
+
+.. code-block:: bash
+
+    # [core] dag_ignore_file_syntax = glob (the default)
+    echo '*.jar' >> /opt/airflow/dags/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp
+    echo '\.jar$' >> /opt/airflow/dags/.airflowignore
 
 After Airflow has parsed the Dag, trigger it from the UI or command line:
 
