@@ -30,6 +30,7 @@ removed when the toolset context exits.
 
 from __future__ import annotations
 
+import dataclasses
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.skills import SkillSource, _materialize_skills
@@ -73,10 +74,10 @@ class AgentSkillsToolset(AbstractToolset):
         discovery only -- it does not stop a skill's ``run_skill_script`` from
         reading them off disk, so pair it with ``exclude_tools={"run_skill_script"}``
         when the files are genuinely sensitive. Requires ``pydantic-ai-skills>=1.2.0``.
-    :param max_retries: How many times in a row the model may correct a failed call to a
-        skills tool, such as a resource name that does not exist, before the run fails.
-        ``None`` (the default) keeps ``pydantic-ai-skills``' own budget of one correction;
-        the agent's ``retries`` does not change it.
+    :param max_retries: How many times the model may correct failed calls to one skills tool,
+        such as a resource name that does not exist, before the run fails; a successful call
+        to that tool resets the count. ``None`` (the default) uses the agent's tool retry
+        budget, its ``retries``, as the provider's other toolsets do.
 
     Requires the ``skills`` extra: ``pip install "apache-airflow-providers-common-ai[skills]"``.
     """
@@ -129,8 +130,6 @@ class AgentSkillsToolset(AbstractToolset):
                 kwargs["exclude_tools"] = self._exclude_tools
             if self._exclude_resources:
                 kwargs["exclude_resources"] = self._exclude_resources
-            if self._max_retries is not None:
-                kwargs["max_retries"] = self._max_retries
             self._inner = SkillsToolset(**kwargs)
             await self._inner.__aenter__()
         except BaseException:
@@ -160,7 +159,11 @@ class AgentSkillsToolset(AbstractToolset):
         return self._inner
 
     async def get_tools(self, ctx: RunContext) -> dict[str, ToolsetTool]:
-        return await self._require_inner().get_tools(ctx)
+        # pydantic-ai-skills fixes its tools' budget at one correction, whatever the agent's
+        # retries say; resolve it the way the provider's other toolsets do instead.
+        max_retries = ctx.max_retries if self._max_retries is None else self._max_retries
+        tools = await self._require_inner().get_tools(ctx)
+        return {name: dataclasses.replace(tool, max_retries=max_retries) for name, tool in tools.items()}
 
     async def call_tool(
         self, name: str, tool_args: dict[str, Any], ctx: RunContext, tool: ToolsetTool

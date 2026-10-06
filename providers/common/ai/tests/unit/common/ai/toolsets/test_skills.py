@@ -151,24 +151,6 @@ class TestLifecycle:
         assert "exclude_resources" not in captured
         assert "max_retries" not in captured
 
-    def test_max_retries_passed_to_inner(self):
-        captured: dict = {}
-
-        def fake_skillstoolset(**kwargs):
-            captured.update(kwargs)
-            return _FakeInner(**kwargs)
-
-        toolset = AgentSkillsToolset(sources=["/x"], max_retries=3)
-        with patch(
-            "airflow.providers.common.ai.toolsets.skills._materialize_skills",
-            autospec=True,
-            return_value=(["/x"], lambda: None),
-        ):
-            with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):  # noqa: spec
-                asyncio.run(_enter_exit(toolset))
-
-        assert captured["max_retries"] == 3
-
     def test_negative_max_retries_is_rejected(self):
         with pytest.raises(ValueError, match="max_retries must not be negative"):
             AgentSkillsToolset(sources=["/x"], max_retries=-1)
@@ -186,14 +168,15 @@ class TestLifecycle:
         assert per_run._max_retries == 3
 
     @pytest.mark.parametrize(
-        ("max_retries", "fails"),
+        ("max_retries", "agent_retries", "fails"),
         [
-            pytest.param(None, True, id="default_allows_one_correction"),
-            pytest.param(2, False, id="raised_budget"),
+            pytest.param(None, 1, True, id="agent_default_allows_one_correction"),
+            pytest.param(None, 3, False, id="follows_agent_retries"),
+            pytest.param(2, 1, False, id="own_budget_wins"),
         ],
     )
-    def test_max_retries_bounds_corrections_in_a_real_run(self, tmp_path, max_retries, fails):
-        """Two unknown resource names in a row exhaust the default budget of one correction."""
+    def test_max_retries_bounds_corrections_in_a_real_run(self, tmp_path, max_retries, agent_retries, fails):
+        """Two unknown resource names in a row need a budget of at least two corrections."""
         _write_skill(tmp_path)
         calls = iter(
             [
@@ -210,6 +193,7 @@ class TestLifecycle:
         agent = Agent(
             FunctionModel(model),
             toolsets=[AgentSkillsToolset(sources=[str(tmp_path)], max_retries=max_retries)],
+            retries={"tools": agent_retries},
         )
 
         if fails:
