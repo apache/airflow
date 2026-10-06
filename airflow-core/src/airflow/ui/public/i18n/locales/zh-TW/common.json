@@ -27,6 +27,7 @@
   "breadcrumb": "麵包屑導覽",
   "browse": {
     "auditLog": "稽核日誌",
+    "dagBundles": "Dag 套件包",
     "deadlines": "截止期限",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
@@ -39,6 +40,8 @@
   "createdAssetEvent_other": "已建立資源事件",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag 套件包",
+  "dagBundle_other": "Dag 套件包",
   "dagDetails": {
     "activeRuns": "活躍執行數",
     "catchup": "自動回填",
@@ -165,6 +168,11 @@
   "generateToken": "產生權杖",
   "includedIn": "包含於",
   "key": "鍵",
+  "logLevel": {
+    "hide": "隱藏日誌等級",
+    "hotkey": "l",
+    "show": "顯示日誌等級"
+  },
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
@@ -294,6 +302,10 @@
         "helper": "尚未個別設定的 Dag 與資源圖形版面配置方向。",
         "label": "預設圖形方向"
       },
+      "taskGroupsExpanded": {
+        "helper": "在尚未儲存群組選擇的 Dag 中展開任務群組。已儲存的選擇不受影響。",
+        "label": "預設展開任務群組"
+      },
       "title": "圖形"
     },
     "marking": {
@@ -345,6 +357,7 @@
       "toggleExpand": "展開或收合所有群組",
       "toggleFullscreen": "切換全螢幕",
       "toggleGraphGrid": "切換圖形／網格檢視",
+      "toggleLogLevel": "切換日誌等級",
       "toggleSource": "切換來源",
       "toggleTaskGroup": "展開或收合$t(taskGroup_one)",
       "toggleTimestamp": "切換時間戳記",
