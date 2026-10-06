@@ -170,13 +170,19 @@ class IsloSandboxBackend(SandboxBackend):
     """
     Sandbox backend that runs agent commands in an `islo.dev <https://islo.dev>`__ microVM.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     Islo is a hosted API with no local daemon or host-virtualization requirement,
     so this backend works from an Airflow worker running in a container.
 
-    **Credentials are ambient**, the same way Modal's are. The SDK reads
-    ``ISLO_API_KEY``, and optionally ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``,
-    from the worker environment on first use. A connection type belongs in a
-    future Islo provider, not here.
+    **Credentials are ambient.** The SDK reads ``ISLO_API_KEY``, and optionally
+    ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``, from the worker environment on first
+    use. Modal reads a ``modal`` connection first, but that connection type is owned by
+    the Modal provider; an ``islo`` connection type belongs in a future Islo provider,
+    not in this one.
 
     File reads and writes use Islo's native streaming APIs. Directory listings
     and command-output bounding need ``sh``, ``tail``, ``stat`` and GNU ``find``

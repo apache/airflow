@@ -209,9 +209,10 @@ Install the SDK extra:
 
     SandboxToolset(IsloSandboxBackend())
 
-Credentials are ambient, the same way Modal's are. On first use the SDK reads
-``ISLO_API_KEY``, and optionally ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``, from
-the worker environment. A connection type waits for an Islo provider.
+Credentials are ambient. On first use the SDK reads ``ISLO_API_KEY``, and optionally
+``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``, from the worker environment. Modal's
+``modal`` connection comes from the Modal provider; an ``islo`` connection type waits
+for an Islo provider.
 
 Constructor parameters:
 
