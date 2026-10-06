@@ -923,9 +923,6 @@ def test_read_guide_docs_skips_generated_and_release_note_pages(tmp_path):
 
     result = read_guide_docs(tmp_path)
 
-    # Mutation canary: if the `is_guide_page` filter in read_guide_docs is
-    # removed, this dict grows two more keys -- "_api/x/index.rst" and
-    # "changelog.rst" -- and this assertion goes red.
     assert set(result) == {"toolsets.rst"}
 
 

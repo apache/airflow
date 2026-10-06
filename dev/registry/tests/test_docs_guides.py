@@ -128,8 +128,8 @@ def test_collect_guide_anchors_handles_a_title_covering_more_than_the_class():
     # Verified against the published guide: this heading is served at
     # .../operators/agent.html#agentoperator-task-agent, so the anchor comes from
     # the whole title while both the operator and its decorator get linked to it.
-    # This is the leading shape from before #73523; older release tags' docs
-    # (read by extract_versions.py) still use it, so it must keep working.
+    # This is the older leading shape; older release tags' docs (read by
+    # extract_versions.py) still use it, so it must keep working.
     guide = "``AgentOperator`` & ``@task.agent``\n===================================\n\nProse.\n"
 
     assert collect_guide_anchors({"operators/agent.rst": guide}) == {
@@ -222,8 +222,8 @@ def test_collect_guide_anchors_accepts_every_separator_in_both_title_shapes(titl
 
 
 def test_collect_guide_anchors_prefers_a_page_title_over_an_earlier_pages_subsection():
-    # The reviewer-reported case: a subsection on an unrelated page happens to
-    # be titled after the class, but a later page is dedicated to it.
+    # A subsection on an unrelated page happens to be titled after the class,
+    # but a later page is dedicated to it.
     docs = {
         "agent_security.rst": (
             "Securing agent tools\n"
@@ -315,16 +315,12 @@ def test_attach_guide_urls_does_not_double_up_the_base_separator():
 @pytest.mark.parametrize(
     ("relative_path", "expected"),
     [
-        # A `_`-prefixed path segment marks autoapi/partial content, at any
-        # depth. Mutation canary: removing the `_` check turns these four
-        # from False back to True.
+        # A `_`-prefixed path segment marks autoapi/partial content, at any depth.
         ("_api/index.rst", False),
         ("_api/hook/index.rst", False),
         ("operators/_partials/foo.rst", False),
         ("_partials/foo.rst", False),
-        # Real, built release-note pages, not how-to guides. Mutation canary:
-        # removing the changelog/commits check turns these two from False
-        # back to True.
+        # Real, built release-note pages, not how-to guides.
         ("changelog.rst", False),
         ("commits.rst", False),
         ("toolsets.rst", True),
@@ -362,9 +358,6 @@ def test_readers_agree_on_which_pages_are_guides(tmp_path):
     ):
         from_tag = read_guide_docs_from_tag("providers-test/1.0.0", "new", "test")
 
-    # Mutation canary: reverting the `is_guide_page` call in only one of the
-    # two readers (e.g. extract_parameters.read_guide_docs but not
-    # extract_versions.read_guide_docs) fails this assertion even though each
-    # reader's own test (test_extract_parameters / test_extract_versions) may
-    # still pass on its own.
+    # Both readers must apply the same filter; each reader's own test can pass
+    # while the two drift apart.
     assert set(from_worktree) == set(from_tag) == {"toolsets.rst"}

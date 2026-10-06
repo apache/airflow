@@ -155,8 +155,8 @@ def git_cat_file_batch(tag: str, paths: list[str]) -> dict[str, str]:
     Decode failures are left unguarded on purpose: .rst files are Sphinx
     convention UTF-8, an explicit "utf-8" decode is more predictable than
     following the process locale, and a UnicodeDecodeError should surface loudly
-    rather than being swallowed -- the same posture git_show takes toward
-    CalledProcessError (fails loud, doesn't paper over bad data).
+    rather than being swallowed. A failing ``git cat-file`` call also raises
+    (``check=True``); only git_show turns CalledProcessError into ``None``.
     """
     if not paths:
         return {}

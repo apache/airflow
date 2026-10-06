@@ -350,21 +350,13 @@ class TestReadGuideDocs:
         ):
             result = read_guide_docs("providers-test/1.0.0", "new", "test")
 
-        # Mutation canary: if the `is_guide_page` filter in read_guide_docs is
-        # removed, this dict grows two more keys and this assertion goes red.
         assert set(result) == {"toolsets.rst"}
-        # Mutation canary: without the filter, the two skipped paths would also
-        # be included in the batch call's path list -- this assertion goes red
-        # too, proving the filtering runs before the batch call, not just
-        # before the dict write.
+        # Filtering must happen before the batch call, not just before the dict write.
         assert mock_git_cat_file_batch.call_args_list == [
             call("providers-test/1.0.0", [docs_prefix + "toolsets.rst"])
         ]
 
     def test_skips_a_page_whose_content_is_an_empty_string(self):
-        # Mutation canary: replacing `batch_result.get(full_path)` with
-        # `full_path in batch_result` in read_guide_docs's comprehension makes
-        # this page reappear as `{"empty.rst": ""}`, turning this assertion red.
         docs_prefix = "providers/test/docs/"
         paths = [docs_prefix + "empty.rst"]
 

@@ -81,12 +81,12 @@ _INLINE_LITERAL_NAME_RE = re.compile(_INLINE_LITERAL_NAME)
 _NAME_SEPARATOR = r"(?:\s*[&,/]\s*|\s+and\s+)"
 _NAME_RUN = rf"{_INLINE_LITERAL_NAME}(?:{_NAME_SEPARATOR}{_INLINE_LITERAL_NAME})*"
 
-# Shape one (predates #73523, and still what older release tags' docs use):
+# Shape one (what older release tags' docs use):
 # the title is nothing but the name run. Anchoring to "$" keeps a title that
 # merely opens with a literal and continues in prose ("``SandboxToolset``
 # parameters") from claiming to document that class.
 _LEADING_LITERAL_NAME_RUN = re.compile(rf"^{_NAME_RUN}\s*$")
-# Shape two (since #73523): a prose lead-in, a colon, then the name run runs to
+# Shape two (what current docs use): a prose lead-in, a colon, then the name run runs to
 # the very end of the title. Anchoring to "$" is what keeps a colon earlier in
 # the title, with prose after it, from being mistaken for this shape.
 _TRAILING_LITERAL_NAME_RUN = re.compile(rf":\s+{_NAME_RUN}\s*$")
