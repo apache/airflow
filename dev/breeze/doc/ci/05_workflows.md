@@ -382,12 +382,16 @@ ID from that run. It never substitutes the latest branch image or constraints. P
 remains summary-only. PyPI release metadata is fetched when the report executes, so the
 available upgrade targets can change between the summary and the explanations.
 
+The workflow has read-only repository permissions and runs only on `workflow_run`, which
+cannot write to the default branch's GitHub Actions cache. Reports use the saved image artifact.
+
 The report runs at most three jobs concurrently. Each job has a 90-minute limit and saves
 its output, including partial output on failure. A failed or timed-out report is incomplete;
 it does not invalidate the canary's test result. Find diagnostics in the **Dependency
 upgrade report** workflow, whose summary links to the source canary. To repeat diagnostics,
-dispatch that workflow with the source run ID before its two-day input/image retention
-expires. Missing or expired original images fail the report rather than using a newer image.
+use **Re-run jobs** on that report before its two-day input/image retention expires (or run
+`gh run rerun REPORT_RUN_ID`). Reruns keep the original source canary ID. Missing or expired
+original inputs fail the rerun rather than using a newer image or constraints.
 
 `breeze release-management constraints-version-check --constraints-file PATH` can also
 analyze a saved constraints file locally. Detailed explanations reuse one baseline resolution

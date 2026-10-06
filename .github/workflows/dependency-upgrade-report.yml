@@ -24,27 +24,20 @@ name: Dependency upgrade report
     workflows: ["Tests (AMD)"]
     types: [completed]
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      source-run-id:
-        description: "Main AMD canary run to analyze (inputs and images expire after two days)"
-        required: true
-        type: string
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: dependency-report-${{ github.event.workflow_run.id || inputs.source-run-id }}
+  group: dependency-report-${{ github.event.workflow_run.id }}
   cancel-in-progress: false
 jobs:
   plan:
     runs-on: ubuntu-slim
     timeout-minutes: 5
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.head_repository.full_name == github.repository &&
-       (github.event.workflow_run.event == 'schedule' ||
-        github.event.workflow_run.event == 'workflow_dispatch'))
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (github.event.workflow_run.event == 'schedule' ||
+       github.event.workflow_run.event == 'workflow_dispatch')
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       has-reports: ${{ steps.plan.outputs.has-reports }}
@@ -55,7 +48,7 @@ jobs:
         id: plan
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
         env:
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id || inputs.source-run-id }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
         with:
           script: |
             const rawId = process.env.SOURCE_RUN_ID;
@@ -90,7 +83,7 @@ jobs:
             core.setOutput('source-sha', run.head_sha);
             core.setOutput('source-run-id', rawId);
             if (!include.length) {
-              if (context.eventName === 'workflow_dispatch') {
+              if (Number(process.env.GITHUB_RUN_ATTEMPT) > 1) {
                 throw new Error('Saved report inputs are missing or expired');
               }
               core.notice('No saved report inputs: this run did not request independent diagnostics');
