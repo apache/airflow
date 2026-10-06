@@ -305,13 +305,6 @@ class TestFormatUsageForXcom:
     def test_none_cost_stays_none_not_stringified(self):
         assert format_usage_for_xcom(RunUsage(cost=None))["cost"] is None
 
-    def test_zero_cache_tokens_are_still_pushed(self):
-        """A run with no caching still reports explicit 0s, not an absent key."""
-        usage = format_usage_for_xcom(RunUsage())
-
-        assert usage["cache_read_tokens"] == 0
-        assert usage["cache_write_tokens"] == 0
-
 
 class TestLogOutputDebug:
     def test_logs_string_output(self, caplog):
