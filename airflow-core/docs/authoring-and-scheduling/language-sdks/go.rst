@@ -28,7 +28,8 @@ to a compiled Go *bundle* that is launched by
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` for each task instance.
 
 Because Go is a compiled language, every task must be compiled ahead of time and registered inside a single,
-self-contained native executable called a **bundle**. The bundle also embeds its Dag source and a metadata
+self-contained native executable called a **bundle**. The bundle also embeds the source file of each Dag built with ``airflow.Dag``
+plus the entrypoint file (the one with ``func main``), and a metadata
 manifest (the ``dag_id`` and ``task_id`` map) in a footer appended to the executable, so the executable *is*
 the bundle: one runnable file to ship, with no separate manifest or archive. The
 :ref:`airflow-go-pack <go-sdk/build>` tool builds and packs that bundle.
@@ -529,7 +530,7 @@ surface as Go values when read back via ``GetXCom``.
 Building and packaging
 ----------------------
 
-A plain ``go build`` produces a runnable binary, but a *deployable* bundle (binary + embedded source +
+A plain ``go build`` produces a runnable binary, but a *deployable* bundle (binary + embedded source files +
 manifest) must be produced with ``airflow-go-pack``. The packer compiles the bundle and appends the embedded
 metadata footer, so the coordinator can read its ``dag_id``\ s without executing the binary, producing a
 single runnable file. The on-disk format the packer emits (the ``AFBNDL01`` footer and the
