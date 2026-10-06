@@ -542,9 +542,10 @@ transactional and may repeat after a failed transaction.
 
 The publication envelope is limited to 16 MiB. A rejected publication does not fall back
 to direct database writes, and does not prevent other files from being processed. Empty
-imports still publish a receipt and clear the file's earlier import errors. Ordinary
-bundle refresh waits for active imports; a forced refresh invalidates and requeues any
-older in-flight result from that manager.
+imports still publish a receipt and clear the file's earlier import errors. A bundle
+refresh, including one forced by a parse request, waits for that bundle's active imports
+instead of discarding them; only reinitializing a bundle invalidates and requeues older
+in-flight results from that manager.
 
 Complete inventories update bundle metadata and deactivate definitions that disappeared.
 A file, archive, or archive member that cannot be read during discovery counts as present,

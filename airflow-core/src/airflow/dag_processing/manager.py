@@ -1259,7 +1259,8 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.debug("Not time to refresh bundle %s", bundle.name)
                     continue
 
-                if bundle.name in active_bundles and bundle.name not in self._force_refresh_bundles:
+                if bundle.name in active_bundles:
+                    # Forced refreshes wait too: refreshing under an import would discard its result.
                     self._bundles_waiting_for_refresh.add(bundle.name)
                     continue
 
