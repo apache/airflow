@@ -50,6 +50,7 @@ from airflow.utils.state import TaskInstanceState
 
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
+    from airflow.executors.workloads.types import state_class_for_key
 
     _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
 
@@ -309,10 +310,7 @@ class CeleryExecutor(BaseExecutor):
                 self.success(key, info)
             elif state in (celery_states.FAILURE, celery_states.REVOKED):
                 if isinstance(info, WorkerLostError) and AIRFLOW_V_3_4_PLUS:
-                    # The provider still imports on Airflow versions without the cause contract.
-                    from airflow.models.taskinstancekey import TaskInstanceKey
-
-                    if isinstance(key, TaskInstanceKey):
+                    if state_class_for_key(key) is TaskInstanceState:
                         self.fail(key=key, info=info, reason=WORKER_LOST_REASON)
                         return
                 self.fail(key, info)

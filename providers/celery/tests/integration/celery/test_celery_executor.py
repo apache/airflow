@@ -59,8 +59,6 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models import taskinstancekey
-
     from tests_common.pytest_plugin import DagMaker
 
 logger = logging.getLogger(__name__)
@@ -309,7 +307,7 @@ class TestCeleryExecutor:
                 ti.try_number = 1
                 ti.queued_by_job_id = 1
                 session.flush()
-                key: taskinstancekey.TaskInstanceKey = ti.key
+                key = executor.get_task_key(ti)
                 workload = workloads.ExecuteTask(
                     ti=TaskInstanceDTO.model_validate(ti, from_attributes=True),
                     dag_rel_path=PurePosixPath("test.py"),
@@ -350,6 +348,8 @@ class TestCeleryExecutor:
                         session=session,
                     )
                 ti.refresh_from_db(session=session)
+                if retries:
+                    ti = ti.dag_run.get_task_instance(task.task_id, session=session)
 
                 expected_state = TaskInstanceState.UP_FOR_RETRY if retries else TaskInstanceState.FAILED
                 assert (ti.state, ti.max_tries) == (expected_state, retries)

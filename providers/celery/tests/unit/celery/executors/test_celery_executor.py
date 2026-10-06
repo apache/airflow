@@ -1701,15 +1701,20 @@ class TestCreateCeleryAppTeamIsolation:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Executor failure reasons require Airflow 3.4+")
 @pytest.mark.parametrize("state", ["FAILURE", "REVOKED"])
+@pytest.mark.parametrize("use_uuid", [False, True], ids=["coordinates", "uuid"])
 @mock.patch.object(CeleryExecutor, "fail", autospec=True)
-def test_worker_lost_is_reason_only_for_task_instances(mock_fail: mock.MagicMock, state: str) -> None:
+def test_worker_lost_is_reason_only_for_task_instances(
+    mock_fail: mock.MagicMock,
+    use_uuid: bool,
+    state: str,
+) -> None:
     from billiard.exceptions import WorkerLostError
 
     from airflow.models.callback import CallbackKey
 
     executor = CeleryExecutor.__new__(CeleryExecutor)
 
-    lost = TaskInstanceKey("d", "t", "r", 1)
+    lost = TaskInstanceUuid(uuid4()) if use_uuid else TaskInstanceKey("d", "t", "r", 1)
     app_bug = TaskInstanceKey("d", "t2", "r", 1)
     callback = CallbackKey("12345678-1234-5678-1234-567812345678")
     lost_error = WorkerLostError("signal 9 (SIGKILL)")

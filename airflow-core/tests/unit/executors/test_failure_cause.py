@@ -100,6 +100,8 @@ def test_executor_cause_reaches_scheduler_and_consumers(
         session=session,
     )
     ti.refresh_from_db(session=session)
+    if retries:
+        ti = ti.dag_run.get_task_instance(task.task_id, session=session)
 
     expected_state = TaskInstanceState.UP_FOR_RETRY if retries else TaskInstanceState.FAILED
     assert (ti.state, ti.max_tries) == (expected_state, retries)

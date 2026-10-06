@@ -746,6 +746,7 @@ class BaseExecutor(LoggingMixin):
             if isinstance(key, TaskInstanceKey):
                 captured_id = task_ids.get(key)
                 if captured_id is None:
+                    self.get_task_failure_info(key)
                     self.log.warning(
                         "Discarding executor event without a unique captured task identity: %s", key
                     )

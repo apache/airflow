@@ -1469,10 +1469,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
         executors as well.
         """
-        failure_info_by_key: dict[WorkloadKey, tuple[TaskFailureKind | None, str | None] | None] = {
-            key: executor.get_task_failure_info(key) for key in executor.event_buffer
-        }
         event_buffer, event_coordinates = executor._drain_events_with_task_ids()
+        failure_info_by_key: dict[WorkloadKey, tuple[TaskFailureKind | None, str | None] | None] = {}
+        for key in event_buffer:
+            failure_info = executor.get_task_failure_info(key)
+            if (
+                failure_info is None
+                and isinstance(key, TaskInstanceUuid)
+                and (coordinates := event_coordinates.get(key)) is not None
+            ):
+                failure_info = executor.get_task_failure_info(coordinates)
+            failure_info_by_key[key] = failure_info
         num_events = len(event_buffer)
         tis_with_right_state: list[TaskInstanceUuid] = []
         callback_keys_with_events: list[CallbackKey] = []

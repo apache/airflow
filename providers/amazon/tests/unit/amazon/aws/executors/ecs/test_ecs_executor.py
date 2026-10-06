@@ -2422,6 +2422,8 @@ class TestEcsFailureClassification:
             session=session,
         )
         ti.refresh_from_db(session=session)
+        if retries:
+            ti = ti.dag_run.get_task_instance(task.task_id, session=session)
 
         expected_state = TaskInstanceState.UP_FOR_RETRY if retries else TaskInstanceState.FAILED
         # A retry-eligible failure allocates the next attempt at once, so try_number moves to 2.
