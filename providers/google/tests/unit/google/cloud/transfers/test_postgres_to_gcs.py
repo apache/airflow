@@ -28,7 +28,10 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacetFields,
 )
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToGCSOperator
+from airflow.providers.google.cloud.transfers.postgres_to_gcs import (
+    PostgresToGCSOperator,
+    _PostgresServerSideCursorDecorator,
+)
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 TABLES = {"postgres_to_gcs_operator", "postgres_to_gcs_operator_empty"}
@@ -51,6 +54,62 @@ SCHEMA_JSON = (
     b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}, '
     b'{"mode": "NULLABLE", "name": "some_json", "type": "STRING"}]'
 )
+
+
+class _FakeServerCursor:
+    """Server-side cursor recording the size of every FETCH; ``__iter__`` pages like psycopg < 3.3."""
+
+    description = [("some_num", 23, None, None, None, None, None)]
+
+    def __init__(self, rows):
+        self._rows = list(rows)
+        self.itersize = 100
+        self.fetch_sizes = []
+
+    def _fetch(self, size):
+        self.fetch_sizes.append(size)
+        batch, self._rows = self._rows[:size], self._rows[size:]
+        return batch
+
+    def fetchone(self):
+        batch = self._fetch(1)
+        return batch[0] if batch else None
+
+    def __iter__(self):
+        while True:
+            batch = self._fetch(self.itersize)
+            yield from batch
+            if len(batch) < self.itersize:
+                return
+
+
+class _FakeSelfIteratingServerCursor(_FakeServerCursor):
+    """Pages like psycopg >= 3.3 and psycopg2 named cursors, which are their own iterators."""
+
+    _page = None
+    _pos = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._page is None or self._pos >= len(self._page) >= self.itersize:
+            self._page, self._pos = self._fetch(self.itersize), 0
+        if self._pos >= len(self._page):
+            raise StopIteration
+        self._pos += 1
+        return self._page[self._pos - 1]
+
+
+@pytest.mark.parametrize("cursor_class", [_FakeServerCursor, _FakeSelfIteratingServerCursor])
+def test_server_side_cursor_decorator_fetches_in_itersize_batches(cursor_class):
+    rows = [(i,) for i in range(250)]
+    cursor = cursor_class(rows)
+    decorated = _PostgresServerSideCursorDecorator(cursor)
+
+    assert decorated.description == cursor.description
+    assert list(decorated) == rows
+    assert cursor.fetch_sizes == [1, 100, 100, 100]
 
 
 @pytest.mark.backend("postgres")

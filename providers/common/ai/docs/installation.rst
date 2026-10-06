@@ -40,8 +40,9 @@ The provider's extras split into a few groups:
 * **Model providers** (``openai``, ``anthropic``, ``google``, ``bedrock``, ``typesafe``):
   pick the one matching your ``llm_conn_id`` connection (:doc:`model_providers` maps
   vendors to extras, prefixes and connection types). ``typesafe`` differs from the rest
-  in kind: it installs a classifier model that answers typed questions and cannot write
-  text (see :doc:`classifier_models`). The first four mirror the identically named
+  in kind: it installs a decision model that answers typed questions and cannot write
+  text (see :doc:`decision_models`). Other decision models, behind the System One API,
+  need no extra. The first four mirror the identically named
   ``pydantic-ai-slim`` optional dependency groups, and ``typesafe`` adds the ``typesafe-sdk``
   the built-in adapter talks to; pydantic-ai supports more model providers
   than these, each under its own extra name, so check the
@@ -71,6 +72,9 @@ The provider runs on Airflow 2.11, but some features need a newer Airflow versio
    * - Feature
      - Needs
    * - The ``skills`` and ``git`` extras (``apache-airflow-providers-git`` needs Airflow 3)
+     - Airflow 3.0
+   * - The ``modal`` extra and the Modal sandbox backend (``apache-airflow-providers-modal``
+       needs Airflow 3)
      - Airflow 3.0
    * - :doc:`Approval gates <approval_gates>` and :doc:`HITL review <hitl_review>`
      - Airflow 3.1
@@ -103,7 +107,7 @@ On Airflow 2.11 the operators, decorators, hooks and toolsets run as they do on 
   ``apache-airflow-providers-common-sql`` to releases older than this provider needs.
   Installing Airflow 2.11.0 without its constraints can also pull in a ``universal-pathlib``
   0.3 release, which Airflow 2's ``ObjectStoragePath`` rejects; 2.11.1 and later cap it.
-  Leave out the ``skills`` and ``git`` extras: they need Airflow 3, and without
+  Leave out the ``skills``, ``git`` and ``modal`` extras: they need Airflow 3, and without
   constraints ``pip`` upgrades Airflow to satisfy them.
 * Python 3.10 to 3.12: the provider needs 3.10 or later, and Airflow 2.11 supports up to 3.12.
 

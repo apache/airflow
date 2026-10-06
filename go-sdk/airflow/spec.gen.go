@@ -99,8 +99,8 @@ type TaskGroupSpec struct {
 	UIFgColor string
 }
 
-// TaskSpec holds the attributes of a task. DagRef.Task, DagRef.If and the methods
-// of the same names on TaskGroupRef take at most one per task.
+// TaskSpec holds the attributes of a task. DagRef.Task, DagRef.If, DagRef.Switch
+// and the methods of the same names on TaskGroupRef take at most one per task.
 type TaskSpec struct {
 	// TaskDisplayName corresponds to the JSON schema field "_task_display_name".
 	TaskDisplayName string

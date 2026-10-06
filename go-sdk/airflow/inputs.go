@@ -38,9 +38,9 @@ func (in inputs) applyTask(c *taskConfig) error {
 	return nil
 }
 
-// Inputs passes the results of tasks to the task that [DagRef.Task], [DagRef.If], or one of the
-// methods of the same names on [TaskGroupRef] adds, and makes each of those tasks an upstream task
-// of the new one. It is the Go form of a Python TaskFlow call such as transform(extract()):
+// Inputs passes the results of tasks to a task that [DagRef.Task], [DagRef.If], [DagRef.Switch] or
+// a method of the same name on [TaskGroupRef] adds. Each of those tasks becomes an upstream task of
+// the new one. It is the Go form of a Python TaskFlow call such as transform(extract()):
 //
 //	extracted := dag.Task(extract)
 //	transformed := dag.Task(transform, airflow.Inputs(extracted))

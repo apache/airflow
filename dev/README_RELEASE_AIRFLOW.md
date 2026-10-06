@@ -23,6 +23,7 @@
 - [Collect ambiguities during the release (for a follow-up doc PR)](#collect-ambiguities-during-the-release-for-a-follow-up-doc-pr)
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
+  - [Beta releases: fast-forwarding `vX-Y-test` to `main`](#beta-releases-fast-forwarding-vx-y-test-to-main)
   - [i18n workflow](#i18n-workflow)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Making the cherry picking](#making-the-cherry-picking)
@@ -103,6 +104,40 @@ The first step of a release is to work out what is being included. This differs 
 - For a *major* or *minor* release, you want to include everything in `main` at the time of release; you'll turn this into a new release branch as part of the rest of the process.
 
 - For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
+
+## Beta releases: fast-forwarding `vX-Y-test` to `main`
+
+For a *major* or *minor* release, the `vX-Y-test` branch is created early (see
+[Build RC artifacts](#build-rc-artifacts)), but while the beta releases (`X.Y.0b1`, `X.Y.0b2`, ...)
+are being prepared nothing is cherry-picked to it yet. Instead, the release manager periodically
+moves `vX-Y-test` forward to the current `main` - only the branch-specific commits (such as
+`Update default branches for X.Y`) are kept on top of `main`. Each beta is cut from the branch
+in that state, so everything merged to `main` lands in the next beta.
+
+During this phase, all automation that would add commits directly to `vX-Y-test` must be paused -
+any such commit makes `vX-Y-test` diverge from `main` and breaks the next fast-forward. Upgrades and
+fixes land on `main` only and reach `vX-Y-test` with the next fast-forward. When you add the new
+branch to the `.github/` configuration on `main` (see below), pause the following on `main` for
+`vX-Y-test` at the same time (every paused place is marked with a comment pointing to this section):
+
+- `.github/workflows/scheduled-upgrade-check-vX-Y-test.yml` - comment out the `schedule` trigger
+  (keep `workflow_dispatch`), so no `[vX-Y-test] Upgrade important CI environment` PRs are opened.
+- `.github/dependabot.yml` - add `open-pull-requests-limit: 0` to every `target-branch: vX-Y-test`
+  entry, so Dependabot does not open version-update PRs against the branch.
+- `.github/boring-cyborg.yml` - comment out the `backport-to-vX-Y-test` auto-labelling rule.
+- `.github/workflows/automatic-backport.yml` - add `vX-Y-test` to `BACKPORT_PAUSED_BRANCHES`, so a
+  `backport-to-vX-Y-test` label added by hand does not open a backport PR either.
+
+Close any PR that was opened against `vX-Y-test` by this automation before it was paused - the
+change reaches the branch from `main` anyway.
+
+The fast-forward phase ends when the release manager stops taking everything from `main` - usually
+just before the first release candidate (`X.Y.0rc1`), when `main` starts accepting changes meant for
+the next minor release. From that point on `vX-Y-test` diverges from `main` and changes reach it
+only by cherry-picking, as for a patch release. Announce the switch on the dev@airflow.apache.org
+list (so contributors know they need to start adding `backport-to-vX-Y-test` labels and milestones
+to the PRs they want in `X.Y.0`) and revert all the pauses listed above in a PR to `main`
+(this step is also called out at the start of [Build RC artifacts](#build-rc-artifacts)).
 
 
 ## i18n workflow
@@ -359,6 +394,17 @@ Before cutting an RC, we should look at the milestone and merge anything ready, 
 
 The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification other than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
 
+> [!IMPORTANT]
+> When you start the release candidates of a major/minor release that went through beta releases
+> (`X.Y.0rc1`), `vX-Y-test` stops being fast-forwarded to `main` and changes reach it only by
+> cherry-picking from now on. Before cutting `X.Y.0rc1`, re-enable the `vX-Y-test` automation that
+> was paused for the betas in a PR to `main`: uncomment the `schedule` in
+> `.github/workflows/scheduled-upgrade-check-vX-Y-test.yml` and the `backport-to-vX-Y-test` rule in
+> `.github/boring-cyborg.yml`, remove `open-pull-requests-limit: 0` from the `vX-Y-test` entries in
+> `.github/dependabot.yml`, and remove `vX-Y-test` from `BACKPORT_PAUSED_BRANCHES` in
+> `.github/workflows/automatic-backport.yml`. See
+> [Beta releases: fast-forwarding `vX-Y-test` to `main`](#beta-releases-fast-forwarding-vx-y-test-to-main).
+
 - Set environment variables
 
 ```shell script
@@ -486,6 +532,10 @@ still works but is no longer recommended.
   - `.github/workflows/milestone-tag-assistant.yml` — add `vX-Y-test` to the push branches list.
   - `.github/workflows/basic-tests.yml` — update the release-management dry-run commands to test the new version.
   - `.github/workflows/ci-notification.yml` — switch the `workflow-status` matrix branch to the new branch.
+
+  If the new branch is going through beta releases first, pause the automation that adds commits to
+  `vX-Y-test` in the same PR, as described in
+  [Beta releases: fast-forwarding `vX-Y-test` to `main`](#beta-releases-fast-forwarding-vx-y-test-to-main).
 - Commit the above changes with the message `Update version to ${VERSION}`.
 - Build the release notes:
 

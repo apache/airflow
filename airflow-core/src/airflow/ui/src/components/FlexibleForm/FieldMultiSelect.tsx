@@ -25,13 +25,8 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 
-const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
-  if (valuesDisplay && typeof valuesDisplay === "object") {
-    return valuesDisplay[key] ?? key;
-  }
-
-  return key;
-};
+const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string =>
+  valuesDisplay && typeof valuesDisplay === "object" ? (valuesDisplay[key] ?? key) : key;
 
 export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");

@@ -116,8 +116,8 @@ var dagShape = authoringShape{
 }
 
 var taskShape = authoringShape{
-	doc: "TaskSpec holds the attributes of a task. DagRef.Task, DagRef.If and the methods of " +
-		"the same names on TaskGroupRef take at most one per task.",
+	doc: "TaskSpec holds the attributes of a task. DagRef.Task, DagRef.If, DagRef.Switch and " +
+		"the methods of the same names on TaskGroupRef take at most one per task.",
 	exclude: map[string]string{
 		"task_type":                     "the operator class name, which the SDK fills in",
 		"_task_module":                  "the operator's Python module, which the SDK fills in",
