@@ -461,6 +461,7 @@ task, a script the model writes, runs, and fixes from its own traceback.
 - **A failed teardown is logged, not raised**, so a teardown blip cannot fail a
   finished run; reclaiming the sandbox is then the backend's lifetime or an
   operator's sweep. :ref:`Cost and operations <sandbox-cost>`.
+
 **A real example.** ``example_sandbox_toolset.py`` in this provider's example Dags
 has the two agents in the quick start, a ``@task`` producing a file through a
 sandbox, an agent attaching to a task-owned sandbox, and an agent exporting a file,
