@@ -41,8 +41,6 @@ KEYS: dict[str, str] = {
     "postgres": "7FCC7D46ACCC4CF8",
     # Microsoft APT repository signing key (MSSQL ODBC)
     "microsoft": "EB3E94ADBE1229CF",
-    # Python 3.10 release manager (Pablo Galindo Salgado)
-    "python-3.10": "A035C8C19219BA821ECEA86B64E628F8D684696D",
 }
 
 

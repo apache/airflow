@@ -1067,7 +1067,7 @@ def resolve_hatchling_build_requires(with_gitpython: bool = False) -> list[str]:
         packages.append("gitpython")
 
     result = subprocess.run(
-        ["uv", "pip", "compile", "-", "--resolution", "highest", "--python-version", "3.10"],
+        ["uv", "pip", "compile", "-", "--resolution", "highest", "--python-version", "3.11"],
         input="\n".join(packages) + "\n",
         capture_output=True,
         text=True,
