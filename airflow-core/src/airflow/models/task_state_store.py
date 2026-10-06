@@ -19,13 +19,14 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, mapped_column, synonym
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, Base, StringID
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.models.dynamic_region import SENTINEL_REGION_ID
+from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime, compact_uuid_default
 
 
 class TaskStateStoreModel(Base):
@@ -46,7 +47,10 @@ class TaskStateStoreModel(Base):
     map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
     region_index = synonym("map_index")
     region_id: Mapped[UUID] = mapped_column(
-        Uuid(), nullable=False, default=UUID(int=0), server_default="00000000000000000000000000000000"
+        CompactUUID(),
+        nullable=False,
+        default=SENTINEL_REGION_ID,
+        server_default=compact_uuid_default(SENTINEL_REGION_ID),
     )
     key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False)
 

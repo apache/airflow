@@ -20,12 +20,12 @@ from datetime import datetime
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Index, Integer, UniqueConstraint, Uuid
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Index, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime
 
 SENTINEL_REGION_ID = UUID(int=0)
 
@@ -44,14 +44,14 @@ class DynamicRegion(Base):
 
     __tablename__ = "dynamic_region"
 
-    id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[UUID] = mapped_column(CompactUUID(), primary_key=True, default=uuid6.uuid7)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     # The id of the task group (a loop) or mapped task that this region executes.
     node_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    parent_region_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+    parent_region_id: Mapped[UUID | None] = mapped_column(CompactUUID(), nullable=True)
     parent_region_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    forked_from_region_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+    forked_from_region_id: Mapped[UUID | None] = mapped_column(CompactUUID(), nullable=True)
     resumes_from_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 

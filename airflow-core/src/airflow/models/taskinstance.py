@@ -121,7 +121,14 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import (
+    CompactUUID,
+    ExecutorConfigType,
+    ExtendedJSON,
+    UtcDateTime,
+    compact_uuid_default,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule
@@ -699,10 +706,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
     region_index = synonym("map_index")
     region_id: Mapped[UUID] = mapped_column(
-        Uuid(),
+        CompactUUID(),
         nullable=False,
         default=SENTINEL_REGION_ID,
-        server_default=SENTINEL_REGION_ID.hex,
+        server_default=compact_uuid_default(SENTINEL_REGION_ID),
     )
 
     start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
@@ -2410,6 +2417,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool] | None:
         """Return SQLAlchemy filter to query selected task instances."""
         by_region: dict[UUID, list[TaskInstance | TaskInstanceKey]] = defaultdict(list)
+        # ``tis`` may be a one-shot iterable (dict keys view, generator); this loop is its only consumer.
         for ti in tis:
             by_region[SENTINEL_REGION_ID if isinstance(ti, TaskInstanceKey) else ti.region_id].append(ti)
         if not by_region:
@@ -2423,8 +2431,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @staticmethod
     def _filter_for_tis(tis: list[TaskInstance | TaskInstanceKey]) -> ColumnElement[bool]:
-        # DictKeys type, (what we often pass here from the scheduler) is not directly indexable :(
-        # Or it might be a generator, but we need to be able to iterate over it more than once
         first = tis[0]
 
         dag_id = first.dag_id

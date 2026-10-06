@@ -26,13 +26,14 @@ Create Date: 2026-09-27 20:00:00.000000
 from __future__ import annotations
 
 from textwrap import dedent
+from uuid import UUID
 
 import sqlalchemy as sa
 from alembic import op
 
 from airflow.migrations.utils import raise_if_rows_exist
 from airflow.models.base import StringID
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime, compact_uuid_default
 
 revision = "54a27b6f9d01"
 down_revision = "e7c2a91bd540"
@@ -40,7 +41,7 @@ branch_labels = None
 depends_on = None
 airflow_version = "3.4.0"
 
-_SENTINEL = "00000000000000000000000000000000"
+_SENTINEL = UUID(int=0)
 _KEYS = (
     (
         "task_instance",
@@ -144,20 +145,23 @@ def _assert_downgrade_is_lossless():
 def _configure_index_builds():
     if op.get_bind().dialect.name == "postgresql":
         op.execute("SET LOCAL statement_timeout = 0")
-        op.execute("SET LOCAL maintenance_work_mem = '256MB'")
+        op.execute(
+            "SELECT set_config('maintenance_work_mem', '256MB', true) "
+            "WHERE (SELECT setting::bigint FROM pg_settings WHERE name = 'maintenance_work_mem') < 262144"
+        )
 
 
 def upgrade():
     _configure_index_builds()
     op.create_table(
         "dynamic_region",
-        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("id", CompactUUID(), nullable=False),
         sa.Column("dag_id", StringID(), nullable=False),
         sa.Column("run_id", StringID(), nullable=False),
         sa.Column("node_id", StringID(), nullable=False),
-        sa.Column("parent_region_id", sa.Uuid(), nullable=True),
+        sa.Column("parent_region_id", CompactUUID(), nullable=True),
         sa.Column("parent_region_index", sa.Integer(), nullable=True),
-        sa.Column("forked_from_region_id", sa.Uuid(), nullable=True),
+        sa.Column("forked_from_region_id", CompactUUID(), nullable=True),
         sa.Column("resumes_from_index", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("created_at", UtcDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id", name="dynamic_region_pkey"),
@@ -191,7 +195,9 @@ def upgrade():
     for table_name in ("task_instance", "task_state_store"):
         op.add_column(
             table_name,
-            sa.Column("region_id", sa.Uuid(), nullable=False, server_default=_SENTINEL),
+            sa.Column(
+                "region_id", CompactUUID(), nullable=False, server_default=compact_uuid_default(_SENTINEL)
+            ),
         )
     for table_name, constraint_name, columns, _ in _KEYS:
         new_columns = list(columns)
@@ -200,8 +206,8 @@ def upgrade():
 
 
 def downgrade():
-    _assert_downgrade_is_lossless()
     _configure_index_builds()
+    _assert_downgrade_is_lossless()
     for table_name, constraint_name, columns, _ in _KEYS:
         _replace_unique(table_name, constraint_name, list(columns))
     for table_name in ("task_instance", "task_state_store"):
