@@ -164,3 +164,28 @@ dags:
       - [staging, publish]
       - [publish, load]
       - [load, notify]
+
+  # Group edges whose ends sit inside another group, which is where the two ways of resolving a
+  # group's endpoints part company. Each edge has to be expanded against the task edges the ones
+  # before it left behind, as Python does at every `>>`:
+  #
+  # - outer.inner before outer.t makes outer.inner.i the only root of outer, so the edge from
+  #   extract into outer reaches it alone rather than both tasks.
+  # - outer.spare holds nothing, so an edge out of it stands for the group holding it, and leaves
+  #   from outer's leaf, which is outer.t by then. Python's find_leaves walks up to the parent;
+  #   stopping at the group's own edges would draw no edge at all.
+  - dag_id: conformance_nested_group_edges
+    spec:
+      schedule: "@once"
+    groups: [outer, outer.inner, outer.spare]
+    tasks:
+      - task_id: extract
+      - task_id: t
+        group: outer
+      - task_id: i
+        group: outer.inner
+      - task_id: load
+    order_edges:
+      - [outer.inner, outer.t]
+      - [extract, outer]
+      - [outer.spare, load]
