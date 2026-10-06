@@ -273,7 +273,7 @@ and lets a test pass a fake.
 The ``sdk.Client`` surface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``actx.Client()`` returns an ``sdk.Client``, which composes three smaller interfaces, so a helper can depend
+``actx.Client()`` returns an ``sdk.Client``, which composes four smaller interfaces, so a helper can depend
 on just one:
 
 * ``VariableClient`` - ``GetVariable`` (returns the Variable as a string), ``UnmarshalJSONVariable``
@@ -282,6 +282,9 @@ on just one:
   ``Host``, ``Port``, ``Login``, ``Password``, ``Path``, ``Extra`` (a ``map[string]any``), plus a
   ``GetURI()`` helper.
 * ``XComClient`` - ``GetXCom`` to read an upstream task's XCom and ``PushXCom`` to publish one.
+* ``TaskStateStoreClient`` - ``TaskStateStore``, returning the store for this task instance:
+  ``Get``, ``UnmarshalJSONValue`` (decodes a JSON value into a pointer you provide), ``Set``,
+  ``Delete``, and ``Clear``. See :ref:`go-sdk/task-state-store`.
 
 ``GetXCom`` returns the stored value as an ``any``; see :ref:`go-sdk/types` for how the stored JSON maps to
 Go types.
@@ -305,8 +308,98 @@ before storing it.
   precedence over the stored value when the Variable is read back. Calling ``SetVariable`` with an empty
   description clears any existing description.
 
-Not-found lookups return sentinel errors - ``VariableNotFound``, ``ConnectionNotFound``, ``XComNotFound`` -
-so you can branch on a missing value with ``errors.Is`` rather than parsing an error string.
+Not-found lookups return sentinel errors - ``VariableNotFound``, ``ConnectionNotFound``, ``XComNotFound``,
+``TaskStateNotFound`` - so you can branch on a missing value with ``errors.Is`` rather than parsing an error
+string.
+
+.. _go-sdk/task-state-store:
+
+The task state store
+~~~~~~~~~~~~~~~~~~~~~~
+
+``actx.Client().TaskStateStore()`` returns a persistent key/value store private to one task instance,
+and the Go SDK's entry point to durable execution. It is the same store the Python SDK exposes as
+``context["task_state_store"]``; see :doc:`/core-concepts/task-state-store` for the concept and its
+configuration.
+
+The store is scoped to ``dag_id``, ``run_id``, ``task_id``, and ``map_index``. It deliberately does *not*
+include ``try_number``, so a value written by one attempt is still readable by the next one: a task that
+records an external job ID or its own progress can resume after a worker crash or a retry instead of
+redoing the work. The Execution API confines every call to the task instance the caller is running as, so
+there is no way to address another task's store - pass results between tasks with XCom instead.
+
+The usual shape is to look for a checkpoint first and only do the expensive work when it is missing:
+
+.. code-block:: go
+
+    import (
+        "errors"
+
+        "github.com/apache/airflow/go-sdk/airflow"
+        "github.com/apache/airflow/go-sdk/sdk"
+    )
+
+    func runSparkJob(actx airflow.Context) error {
+        store := actx.Client().TaskStateStore()
+
+        var jobID string
+        stored, err := store.Get(actx, "job_id")
+        switch {
+        case errors.Is(err, sdk.TaskStateNotFound):
+            // First attempt: submit the job and remember its ID before doing anything else.
+            if jobID, err = sparkClient.SubmitJob(actx); err != nil {
+                return err
+            }
+            if err := store.Set(actx, "job_id", jobID, sdk.WithRetention(sdk.NeverExpire)); err != nil {
+                return err
+            }
+        case err != nil:
+            return err
+        default:
+            // Get returns an any; the value was stored by this task as a string.
+            jobID = stored.(string)
+            actx.Logger().InfoContext(actx, "reattaching to job submitted by an earlier attempt", "job_id", jobID)
+        }
+
+        return sparkClient.WaitForCompletion(actx, jobID)
+    }
+
+``value`` must not be nil and must be JSON-representable - a string, number, bool, slice, map, or a struct,
+which is stored as an object built from its exported fields and their ``json`` tags. A custom
+``MarshalJSON`` is not called, so a type that relies on one is stored as the shape of its fields, and a
+struct with no exported fields is stored as ``{}``. Read a scalar back with ``Get``, which returns it as an ``any`` (the
+numeric caveat in :ref:`go-sdk/types` applies here too); for an object or array,
+``UnmarshalJSONValue`` decodes it straight into a pointer you provide.
+
+A value the store cannot hold is rejected before it is sent, so you get an error naming the problem rather
+than a round trip that fails on the server. The one that catches people out is ``time.Time``, which JSON has
+no spelling for - store ``value.Format(time.RFC3339)`` and parse it back with ``time.Parse``. Non-finite
+floats and ``[]byte`` are refused for the same reason. This mirrors the Python SDK, where the same values
+fail Pydantic validation before the write leaves the worker.
+
+Keys expire, so retention is part of writing a value:
+
+* ``Set`` without options uses the deployment's ``[state_store] default_retention_days`` (30 days by
+  default). The Go runtime cannot read Airflow's config, so the supervisor resolves that value and passes
+  it in the environment when it launches the bundle. A deployment that sets it to something unusable - a
+  negative number, or a value that is not a whole number of days - fails the write, exactly as it does for
+  a Python task, rather than quietly substituting a different lifetime.
+* ``sdk.WithRetention`` takes an explicit, positive ``time.Duration``, or ``sdk.NeverExpire`` for a key
+  that is skipped by garbage collection entirely. A zero or negative retention is rejected rather than
+  given a meaning of its own: to follow the deployment default omit the option, and to drop a key call
+  ``Delete``.
+
+``Delete`` removes one key (deleting a key that does not exist is not an error) and ``Clear`` removes
+every key stored for this task instance.
+
+.. note::
+
+  The Go SDK does not implement the worker-side state backend (``[workers] state_store_backend``), which
+  offloads large values to external storage and records only a reference marker in the database. If a
+  deployment configures one, a Go task reading a key that was written through that backend receives the raw
+  reference marker rather than the original value, and a Go task writing a key stores the whole value in the
+  database instead of offloading it. This is the same behaviour as a Python worker that does not have the
+  backend configured.
 
 .. _go-sdk/runtime-context:
 
