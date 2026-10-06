@@ -15436,3 +15436,26 @@ class TestSchedulerObservabilityMetrics:
             self.job_runner._find_and_purge_task_instances_without_heartbeats()
 
         mock_stats.incr.assert_not_called()
+
+
+def test_schedule_all_dag_runs_error_handler_survives_detached_dag_run():
+    from sqlalchemy.orm.exc import DetachedInstanceError
+
+    run = MagicMock(spec=DagRun)
+    detached = {"value": False}
+
+    def _run_id():
+        if detached["value"]:
+            raise DetachedInstanceError("detached")
+        return "run_1"
+
+    def _schedule_then_detach(*args, **kwargs):
+        detached["value"] = True
+        raise ValueError("scheduling failed")
+
+    type(run).run_id = mock.PropertyMock(side_effect=_run_id)
+    type(run).dag_id = mock.PropertyMock(return_value="dag_1")
+
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+    with patch.object(runner, "_schedule_dag_run", side_effect=_schedule_then_detach):
+        assert runner._schedule_all_dag_runs(MagicMock(), [run], session=MagicMock()) == []
