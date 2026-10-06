@@ -77,7 +77,7 @@ def _backend_with_api(**kwargs) -> tuple[BoatSandboxBackend, mock.MagicMock]:
     api.api_client = mock.MagicMock(spec=["param_serialize", "call_api"])
     backend._boat_api = api
     backend._request_timeout = 30.0
-    backend._resolved_no_env = True
+    backend._no_env = True
     return backend, api
 
 
@@ -115,6 +115,13 @@ def test_constructor_rejects_invalid_values(kwargs, message):
 
 
 class TestCredentials:
+    @mock.patch("boat_sdk.ApiClient", autospec=True)
+    def test_construction_reads_no_credentials_and_opens_no_client(self, api_client):
+        with mock.patch.dict("os.environ", {}, clear=True):
+            BoatSandboxBackend()
+
+        api_client.assert_not_called()
+
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)
     @mock.patch("boat_sdk.Configuration", autospec=True)
@@ -129,7 +136,7 @@ class TestCredentials:
 
         configuration.assert_called_once_with(host="https://custom.example/api/v1", access_token="env-key")
         boat_api.assert_called_once()
-        assert backend._resolved_no_env is False
+        assert backend._no_env is False
         assert backend._request_timeout == 12.5
 
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
@@ -344,11 +351,24 @@ class TestRunCommand:
         with pytest.raises(SandboxTerminalError, match="no result for the command"):
             backend.run_command("bx_1", "echo hi", timeout=5, max_output_bytes=8)
 
-    def test_rejects_timeout_above_api_cap(self):
-        backend, _ = _backend_with_api()
+    def test_a_timeout_above_the_api_cap_is_the_models_to_fix(self):
+        backend, api = _backend_with_api()
 
-        with pytest.raises(SandboxTerminalError, match="capped at 600"):
+        with pytest.raises(SandboxError, match="Ask for a shorter timeout") as error:
             backend.run_command("bx_1", "sleep 1", timeout=601, max_output_bytes=1024)
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        api.command.assert_not_called()
+
+    @pytest.mark.parametrize("timed_out", [False, True], ids=["finished", "timed_out"])
+    def test_the_whole_second_deadline_the_command_got_is_reported(self, timed_out):
+        backend, api = _backend_with_api()
+        api.command.return_value = _command_response(exit_code=-1 if timed_out else 0, timed_out=timed_out)
+
+        with mock.patch.object(backend, "destroy", autospec=True):
+            result = backend.run_command("bx_1", "true", timeout=2.2, max_output_bytes=1024)
+
+        assert result.applied_timeout == 3.0
 
     def test_timeout_destroys_sandbox(self):
         backend, api = _backend_with_api()

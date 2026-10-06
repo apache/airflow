@@ -39,7 +39,6 @@ from airflow.providers.common.ai.sandbox.base import (
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from boat_sdk import ApiClient
     from boat_sdk.api.boat_api import BoatApi
 
     from airflow.providers.common.ai.sandbox.base import SandboxSpec
@@ -192,8 +191,7 @@ class BoatSandboxBackend(SandboxBackend):
         self._ttl_seconds = int(ttl_seconds)
         self._ready_timeout = ready_timeout
         self._request_timeout = request_timeout
-        self._resolved_no_env = no_env
-        self._api_client: ApiClient | None = None
+        self._no_env = no_env
         self._boat_api: BoatApi | None = None
         self._sandbox_env: dict[str, dict[str, str]] = {}
 
@@ -208,8 +206,7 @@ class BoatSandboxBackend(SandboxBackend):
             if not api_key:
                 raise SandboxTerminalError("BOAT_API_KEY is not set.")
             base_url = (os.environ.get("BOAT_BASE_URL") or _DEFAULT_BASE_URL).rstrip("/")
-            self._api_client = ApiClient(Configuration(host=base_url, access_token=api_key))
-            self._boat_api = BoatApi(self._api_client)
+            self._boat_api = BoatApi(ApiClient(Configuration(host=base_url, access_token=api_key)))
             return self._boat_api
 
     def _http_timeout(self, seconds: float) -> float:
@@ -226,8 +223,12 @@ class BoatSandboxBackend(SandboxBackend):
                 poll_interval_seconds=2.0,
             )
 
-    def create(self, *, spec: SandboxSpec | None = None) -> str:
-        if spec is not None and spec.owner is not None:
+    @staticmethod
+    def _check_spec(spec: SandboxSpec | None) -> None:
+        """Refuse a spec this backend cannot carry faithfully, before anything is provisioned."""
+        if spec is None:
+            return
+        if spec.owner is not None:
             # An owner exists so that a later task can attach to the sandbox, and the
             # ownership rules live in per-sandbox metadata this backend does not read
             # back, so recording one would promise an attach that cannot be checked.
@@ -237,23 +238,26 @@ class BoatSandboxBackend(SandboxBackend):
                 "to from another task. Drop owner, or provision the sandbox on a backend that supports "
                 "attaching, such as ModalSandboxBackend."
             )
-        if spec is not None and spec.allow_egress_to:
+        if spec.allow_egress_to:
             raise SandboxTerminalError(
                 "The Boat backend cannot apply a per-domain egress allowlist. "
                 "Drop allow_egress_to, or use a backend with per-domain network rules."
             )
-        if spec is not None and spec.allow_egress_to_cidrs:
+        if spec.allow_egress_to_cidrs:
             raise SandboxTerminalError(
                 "The Boat backend cannot apply a CIDR egress allowlist. "
                 "Drop allow_egress_to_cidrs, or use a backend with network rules."
             )
-        if spec is not None and spec.block_network:
+        if spec.block_network:
             raise SandboxTerminalError(
                 "The Boat backend cannot deny outbound network access. Pass "
                 "SandboxSpec(block_network=False) when open egress is acceptable, or "
                 "use a backend that can enforce a deny-all policy."
             )
 
+    def create(self, *, spec: SandboxSpec | None = None) -> str:
+        self._check_spec(spec)
+        env = dict(spec.env) if spec is not None and spec.env else {}
         api = self._get_api()
         with _translate_boat_errors("create a sandbox"):
             from boat_sdk.models.create_sandbox_request import CreateSandboxRequest
@@ -263,8 +267,8 @@ class BoatSandboxBackend(SandboxBackend):
                 create_sandbox_request=CreateSandboxRequest(
                     type=self._machine_type,
                     ttlSeconds=self._ttl_seconds,
-                    noEnv=self._resolved_no_env,
-                    env=dict(spec.env) if spec is not None and spec.env else None,
+                    noEnv=self._no_env,
+                    env=env or None,
                 ),
                 _request_timeout=self._http_timeout(self._ready_timeout),
             )
@@ -272,14 +276,13 @@ class BoatSandboxBackend(SandboxBackend):
         try:
             self._name_sandbox(sandbox_id)
             self._wait_until_ready(sandbox_id)
-            self._sandbox_env[sandbox_id] = dict(spec.env) if spec is not None and spec.env else {}
+            self._sandbox_env[sandbox_id] = env
         except BaseException:
             # The id has not reached the toolset yet, so nothing else can tear
             # this sandbox down. The server-side TTL would archive it eventually,
             # but that leaves a billed machine idling for an hour by default.
             with suppress(Exception):
                 self.destroy(sandbox_id)
-            self._sandbox_env.pop(sandbox_id, None)
             raise
         return sandbox_id
 
@@ -321,8 +324,9 @@ class BoatSandboxBackend(SandboxBackend):
         _validate_positive_finite(timeout, "timeout")
         _validate_positive_finite(max_output_bytes, "max_output_bytes")
         if timeout > _MAX_COMMAND_TIMEOUT:
-            raise SandboxTerminalError(
-                f"Boat commands are capped at {_MAX_COMMAND_TIMEOUT} seconds; got timeout={timeout}."
+            raise SandboxError(
+                f"Boat commands are capped at {_MAX_COMMAND_TIMEOUT} seconds; got timeout={timeout}. "
+                "Ask for a shorter timeout."
             )
         timeout_seconds = max(1, math.ceil(timeout))
         api = self._get_api()
@@ -373,6 +377,7 @@ class BoatSandboxBackend(SandboxBackend):
                 stdout_truncated=out_truncated,
                 stderr_truncated=err_truncated,
                 sandbox_terminated=True,
+                applied_timeout=float(timeout_seconds),
             )
         return SandboxExecResult(
             exit_code=result.exit_code if result.exit_code is not None else -1,
@@ -380,6 +385,7 @@ class BoatSandboxBackend(SandboxBackend):
             stderr=stderr,
             stdout_truncated=out_truncated,
             stderr_truncated=err_truncated,
+            applied_timeout=float(timeout_seconds),
         )
 
     def _run_helper(self, sandbox: str, script: str, *, operation: str) -> str:
