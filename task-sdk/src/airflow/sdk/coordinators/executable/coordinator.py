@@ -384,7 +384,11 @@ class _Bundle(ResolvedBundle):
 @attrs.define(kw_only=True)
 class ExecutableCoordinator(SubprocessCoordinator):
     """
-    Coordinator that launches a native executable subprocess for task execution.
+    Coordinator that launches a native executable subprocess for task execution and Dag parsing.
+
+    It runs the bundle that holds a Python Dag's task handlers, and it parses the native Dags of
+    every bundle in a Dag bundle: the Dag processor runs each bundle binary to collect its Dags.
+    A task of a native Dag runs the bundle its Dag was parsed from.
 
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
@@ -409,3 +413,23 @@ class ExecutableCoordinator(SubprocessCoordinator):
         roots = self._get_scan_roots()
         bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version
+
+    def _build_bundle_command(self, path: pathlib.Path) -> tuple[list[str], str | None]:
+        """Return the command that runs the verified bundle at *path*, and its supervisor schema version."""
+        if (metadata := _read_bundle_metadata(path)) is None:
+            raise ValueError(f"{path} is not a valid executable bundle")
+        try:
+            bundle = _Bundle(path=path.resolve(), schema_version=extract_supervisor_schema_version(metadata))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Bundle {path} has no usable supervisor schema version: {exc}") from exc
+        if (reason := _ensure_executable(path)) is not None:
+            raise ValueError(f"Cannot run bundle {path}: {reason}")
+        return [str(bundle.path)], bundle.schema_version
+
+    def _build_dag_file_command(
+        self, *, what: TaskInstance, path: pathlib.Path
+    ) -> tuple[list[str], str | None]:
+        return self._build_bundle_command(path)
+
+    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        return self._build_bundle_command(path)

@@ -447,6 +447,102 @@ class TestExecutableCoordinatorAttributes:
         assert schema_version == "2026-06-16"
 
 
+class TestBuildParseDagCommand:
+    def test_returns_the_bundle_and_its_schema_version(self, tmp_path):
+        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["native_dag"])
+
+        command, schema_version = ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+        assert command == [str(binary.resolve())]
+        assert schema_version == "2026-06-16"
+
+    def test_marks_the_bundle_executable(self, tmp_path):
+        binary = _build_bundle(tmp_path / "my_bundle")
+        binary.chmod(0o644)
+
+        ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+        assert os.access(binary, os.X_OK)
+
+    def test_parses_a_bundle_that_registers_no_dag(self, tmp_path):
+        binary = _build_bundle(tmp_path / "handlers_only", dag_ids=[])
+
+        command, _ = ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+        assert command == [str(binary.resolve())]
+
+    def test_raises_for_a_file_that_is_not_a_bundle(self, tmp_path):
+        plain = tmp_path / "plain"
+        plain.write_bytes(b"not a bundle")
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+            ExecutableCoordinator()._build_parse_dag_command(path=plain)
+
+    def test_raises_for_a_tampered_bundle(self, tmp_path):
+        binary = _build_bundle(tmp_path / "tampered")
+        data = bytearray(binary.read_bytes())
+        data[0] ^= 0xFF
+        binary.write_bytes(bytes(data))
+        _digest_cache.clear()
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+    def test_raises_when_the_bundle_omits_the_schema_version(self, tmp_path):
+        metadata = _make_metadata(["native_dag"])
+        del metadata["sdk"]["supervisor_schema_version"]
+        binary = _build_bundle(tmp_path / "no_schema", metadata=metadata)
+
+        with pytest.raises(ValueError, match="no usable supervisor schema version"):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+    def test_raises_for_an_unknown_schema_version(self, tmp_path):
+        metadata = _make_metadata(["native_dag"])
+        metadata["sdk"]["supervisor_schema_version"] = "1999-01-01"
+        binary = _build_bundle(tmp_path / "unknown_schema", metadata=metadata)
+
+        with pytest.raises(ValueError, match="no usable supervisor schema version"):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+    def test_raises_when_the_bundle_cannot_be_made_executable(self, tmp_path):
+        binary = _build_bundle(tmp_path / "locked")
+
+        with (
+            patch(
+                "airflow.sdk.coordinators.executable.coordinator._ensure_executable", return_value="denied"
+            ),
+            pytest.raises(ValueError, match="Cannot run bundle .*: denied"),
+        ):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+
+class TestBuildDagFileCommand:
+    def test_runs_the_bundle_the_dag_was_parsed_from(self, tmp_path):
+        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["native_dag"])
+
+        command, schema_version = ExecutableCoordinator()._build_dag_file_command(
+            what=_make_ti(dag_id="native_dag"), path=binary
+        )
+
+        assert command == [str(binary.resolve())]
+        assert schema_version == "2026-06-16"
+
+    def test_marks_the_bundle_executable(self, tmp_path):
+        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["native_dag"])
+        binary.chmod(0o644)
+
+        ExecutableCoordinator()._build_dag_file_command(what=_make_ti(dag_id="native_dag"), path=binary)
+
+        assert os.access(binary, os.X_OK)
+
+    def test_raises_for_a_file_that_is_not_a_bundle(self, tmp_path):
+        plain = tmp_path / "plain"
+        plain.write_bytes(b"not a bundle")
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+            ExecutableCoordinator()._build_dag_file_command(what=_make_ti(dag_id="native_dag"), path=plain)
+
+
 class TestBuildExecuteTaskCommand:
     def test_returns_resolved_executable_and_schema_version(self, tmp_path):
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
