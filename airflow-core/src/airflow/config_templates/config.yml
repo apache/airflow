@@ -3231,6 +3231,32 @@ dag_processor:
          - how often to refresh DAGs from those sources
          - how many files to parse concurrently
   options:
+    execution_api_token_file:
+      description: |
+        Path to a session token written by ``airflow dag-processor-token``. When set,
+        ``airflow dag-processor`` uses the authenticated Execution API for its Job lifecycle,
+        bundle metadata and secrets, parse-time requests, result publication, and callback
+        and priority-request delivery. The API URL comes from
+        ``[core] execution_api_server_url``. Each processor needs its own session token.
+
+        Provision the bundle catalog on a trusted host before starting the processor.
+        The processor does not need metadata database credentials, the Fernet key, or
+        API signing keys. Remove those credentials from its deployment and block database
+        network access to enforce isolation; setting this option does not remove them.
+        Leave unset to use the in-process API and database-backed Job lifecycle.
+      version_added: 3.5.0
+      type: string
+      default: ~
+      example: "/run/airflow/dag-processor.jwt"
+    health_check_file:
+      description: |
+        Local heartbeat file written by a Dag processor using the Execution API.
+        Use a separate writable file for each processor. ``airflow dag-processor --check-health``
+        checks its loop heartbeat; ``--check-ready`` also checks the last successful API heartbeat.
+      version_added: 3.5.0
+      type: string
+      default: "{AIRFLOW_HOME}/dag_processor_health.json"
+      example: ~
     dag_bundle_storage_path:
       description: |
         String path to folder where Airflow bundles can store files locally. Not templated.

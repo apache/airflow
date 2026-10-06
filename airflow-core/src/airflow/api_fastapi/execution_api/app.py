@@ -149,10 +149,11 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
                     validator: JWTValidator = await services.aget(JWTValidator)
                     claims = await validator.avalidated_claims(token, {})
 
-                    # Workload and callback tokens are long-lived and meant to survive
-                    # queue wait times so avoid refreshing them. If avalidated_claims
-                    # raises for such a token, the outer except handles it.
-                    if claims.get("scope") in ("workload", "callback"):
+                    # Only short-lived execution tokens are renewed here. Any other type has a
+                    # lifetime set by its issuer (workload and callback tokens outlive queue waits,
+                    # dag_processor tokens are rotated by provisioning), so a new type must not
+                    # become renewable by default. Tokens without a scope are legacy execution tokens.
+                    if claims.get("scope", "execution") != "execution":
                         return response
 
                     now = int(time.time())

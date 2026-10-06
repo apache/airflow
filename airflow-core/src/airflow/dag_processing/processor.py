@@ -25,6 +25,7 @@ import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal, cast
+from uuid import UUID
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -38,6 +39,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
+from airflow.dag_processing.bundles.manager import _get_configured_bundle_team_names
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
 from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
@@ -88,6 +90,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+    from airflow.dag_processing.api_client import DagParseContext
     from airflow.sdk.api.client import Client
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.context import Context
@@ -421,7 +424,11 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
                     {
                         "dag_id": request.dag_id,
                         "team_name": (
-                            DagModel.get_team_name(request.dag_id)
+                            (
+                                _get_configured_bundle_team_names().get(request.bundle_name)
+                                if conf.get("dag_processor", "execution_api_token_file", fallback=None)
+                                else DagModel.get_team_name(request.dag_id)
+                            )
                             if conf.getboolean("core", "multi_team")
                             else None
                         ),
@@ -575,6 +582,16 @@ def in_process_api_server() -> InProcessExecutionAPI:
     return api
 
 
+@attrs.frozen
+class DagParseSource:
+    """Bundle metadata captured for one import of the local source tree."""
+
+    bundle_version: str | None = None
+    version_data: dict | None = None
+    refresh_generation: int = 0
+    bundle_revision: UUID | None = None
+
+
 @attrs.define(kw_only=True)
 class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     """
@@ -591,6 +608,8 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     )
     """The file's parse log, which the process closes. Without one, the output is discarded."""
     parsing_result: DagFileParsingResult | None = None
+    parse_source: DagParseSource = attrs.field(factory=DagParseSource)
+    dispatch_sequence: int = 0
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
@@ -603,6 +622,7 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
 
     bundle_name: str
     dag_file_rel_path: str
+    _api_parse_context: DagParseContext | None = attrs.field(init=False, default=None)
 
     def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
         base = super()._get_target_loggers()
@@ -633,10 +653,15 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         self.parsing_result = msg
         return None, {}
 
+    def _handle_previous_successful_dag_run(
+        self, msg: GetPrevSuccessfulDagRun, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        # The run is looked up by task instance, and a parse process is not one, so the answer is always empty.
+        return PrevSuccessfulDagRunResult(), {"exclude_unset": True}
+
     _client_request_types: ClassVar[tuple[type[BaseModel], ...]] = (
         DeleteVariable,
         GetConnection,
-        GetPrevSuccessfulDagRun,
         GetPreviousDagRun,
         GetPreviousTI,
         GetTICount,
@@ -657,7 +682,12 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             "dict[type[BaseModel], RequestHandler[BaseDagFileProcessorProcess]]",
             WatchedSubprocess._get_shared_request_handlers(*_client_request_types, MaskSecret),
         ),
-        **dict([register_request_method(DagFileParsingResult, _handle_parsing_result)]),
+        **dict(
+            [
+                register_request_method(DagFileParsingResult, _handle_parsing_result),
+                register_request_method(GetPrevSuccessfulDagRun, _handle_previous_successful_dag_run),
+            ]
+        ),
     }
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
@@ -670,7 +700,23 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
                 ),
             )
             return
-        super()._handle_request(msg, log, req_id)
+        # Lazy: the HTTP client pulls in the Execution API versions, which parse processes never need.
+        from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody
+        from airflow.dag_processing.api_client import DagParseContext, DagProcessorAPIClient
+
+        if not isinstance(self.client, DagProcessorAPIClient):
+            super()._handle_request(msg, log, req_id)
+            return
+        if self._api_parse_context is None:
+            self._api_parse_context = DagParseContext(
+                request=DagParseTokenBody(
+                    attempt_id=self.id,
+                    bundle_name=self.bundle_name,
+                    relative_fileloc=self.dag_file_rel_path,
+                )
+            )
+        with self.client.use_parse(self._api_parse_context):
+            super()._handle_request(msg, log, req_id)
 
     def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         log.error("Unhandled request", msg=msg)

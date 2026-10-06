@@ -97,7 +97,7 @@ class SecretCache:
 
     @classmethod
     def reset(cls):
-        """Use for test purposes only."""
+        """Detach this process from the shared cache, including entries inherited across a fork."""
         cls._cache = None
 
     @classmethod

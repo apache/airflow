@@ -143,6 +143,13 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "dag_processing.results_discarded_on_refresh"
+    description: "Parse results discarded because bundle initialization or refresh overlapped the import.
+    Metric with bundle_name tagging. Repeated discards can indicate that refreshes are delaying parsing."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dag_processing.callback_only_count"
     description: "Number of DAG file processing runs that processed callbacks only, without full DAG parsing"
     type: "counter"

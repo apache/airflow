@@ -16,23 +16,53 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
+import jwt
 import pytest
 import svcs
 from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
+from sqlalchemy import update
 from structlog.testing import capture_logs
 
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
+from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.security import (
+    DAG_BUNDLE_HEADER,
+    DagInGrantedBundle,
     ExecutionAPIRoute,
+    ExecutionOrProcessorSecretsToken,
+    SelectedDagBundle,
     _jwt_bearer,
     get_team_name_dep,
     require_auth,
 )
+from airflow.jobs.job import Job, JobState
+from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
+from airflow.models.variable import Variable
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_jobs,
+    clear_db_teams,
+    clear_db_variables,
+)
+
+DAG_PROCESSOR_CLAIMS = TIClaims(scope="dag_processor", dag_bundles=frozenset({"granted"}), job_id=1)
+SESSION_SUB = "00000000-0000-0000-0000-000000000001"
+JOB_ID = 4242
+REGISTRATION_ID = UUID("00000000-0000-0000-0000-00000000000a")
+OTHER_REGISTRATION_ID = UUID("00000000-0000-0000-0000-00000000000b")
+LONG_AGO = datetime(2020, 1, 1, tzinfo=timezone.utc)
 
 
 class TestTIClaims:
@@ -46,6 +76,23 @@ class TestTIClaims:
         claims = TIClaims(sub="not-a-uuid")
 
         assert claims.sub == "not-a-uuid"
+
+    @pytest.mark.parametrize("scope", ["dag_processor_session", "dag_processor"])
+    @pytest.mark.parametrize("dag_bundles", [None, [], [""]])
+    def test_dag_processor_scopes_require_a_bundle_grant(self, scope, dag_bundles):
+        with pytest.raises(ValidationError):
+            TIClaims.model_validate({"scope": scope, "dag_bundles": dag_bundles, "job_id": 1})
+
+    def test_dag_processor_scope_requires_a_job(self):
+        with pytest.raises(ValidationError, match="must name the Job"):
+            TIClaims.model_validate({"scope": "dag_processor", "dag_bundles": ["a"]})
+
+    def test_dag_processor_scopes_keep_their_claims(self):
+        claims = TIClaims.model_validate(
+            {"scope": "dag_processor", "dag_bundles": ["a", "b", "a"], "job_id": 7}
+        )
+
+        assert (claims.dag_bundles, claims.job_id) == (frozenset({"a", "b"}), 7)
 
 
 class TestExecutionAPIRoute:
@@ -283,3 +330,448 @@ class TestGetTeamNameDep:
 
         assert result is None
         mock_create_session.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("async_db_engine")
+    @pytest.mark.parametrize("scope", ["dag_processor", "dag_parse"])
+    async def test_dag_processor_token_resolves_the_team_of_its_bundle(self, session, scope):
+        clear_db_dag_bundles()
+        clear_db_teams()
+        bundle = DagBundleModel(name="granted")
+        bundle.teams.append(Team(name="team_a"))
+        session.add(bundle)
+        session.commit()
+        claims = TIClaims(
+            scope=scope,
+            dag_bundles=frozenset({"granted"}),
+            job_id=1,
+            session_id=UUID(SESSION_SUB),
+            relative_fileloc="dag.py",
+        )
+        token = TIToken(id=UUID(int=2), claims=claims)
+
+        try:
+            with conf_vars({("core", "multi_team"): "True"}):
+                result = await get_team_name_dep(token=token, dag_bundle="granted")
+        finally:
+            clear_db_dag_bundles()
+            clear_db_teams()
+
+        assert result == "team_a"
+
+
+def _build_client(app: FastAPI, claims: TIClaims) -> TestClient:
+    async def mock_jwt(request: Request):
+        return TIToken(id=UUID(int=1), claims=claims)
+
+    app.dependency_overrides[_jwt_bearer] = mock_jwt
+    return TestClient(app, headers={"Authorization": "Bearer fake"})
+
+
+@patch("airflow.api_fastapi.execution_api.security._require_open_dag_processor_job", autospec=True)
+class TestGetSelectedDagBundle:
+    @pytest.fixture
+    def app(self):
+        app = FastAPI()
+        router = APIRouter(route_class=ExecutionAPIRoute, dependencies=[Security(require_auth)])
+
+        @router.get("/selected", dependencies=[ExecutionOrProcessorSecretsToken])
+        def endpoint(dag_bundle=SelectedDagBundle):
+            return {"dag_bundle": dag_bundle}
+
+        app.include_router(router)
+        return app
+
+    @pytest.mark.parametrize(
+        ("claims", "headers", "expected_status", "expected_body"),
+        [
+            pytest.param(
+                TIClaims(scope="execution"),
+                {DAG_BUNDLE_HEADER: "granted"},
+                200,
+                {"dag_bundle": None},
+                id="execution-token-ignores-header",
+            ),
+            pytest.param(
+                DAG_PROCESSOR_CLAIMS,
+                {DAG_BUNDLE_HEADER: "granted"},
+                200,
+                {"dag_bundle": "granted"},
+                id="granted-bundle",
+            ),
+            pytest.param(DAG_PROCESSOR_CLAIMS, {}, 400, None, id="missing-header"),
+            pytest.param(
+                DAG_PROCESSOR_CLAIMS, {DAG_BUNDLE_HEADER: "other"}, 403, None, id="ungranted-bundle"
+            ),
+        ],
+    )
+    def test_selected_bundle(self, _, app, claims, headers, expected_status, expected_body):
+        response = _build_client(app, claims).get("/selected", headers=headers)
+
+        assert response.status_code == expected_status
+        if expected_body is not None:
+            assert response.json() == expected_body
+
+
+@pytest.fixture
+def granted_and_other_dags(session):
+    clear_db_dags()
+    clear_db_dag_bundles()
+    session.add_all([DagBundleModel(name="granted"), DagBundleModel(name="other")])
+    session.flush()
+    session.add_all(
+        [
+            DagModel(dag_id="granted_dag", bundle_name="granted"),
+            DagModel(dag_id="other_dag", bundle_name="other"),
+        ]
+    )
+    session.commit()
+    yield
+    clear_db_dags()
+    clear_db_dag_bundles()
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("granted_and_other_dags", "async_db_engine")
+@patch("airflow.api_fastapi.execution_api.security._require_open_dag_processor_job", autospec=True)
+class TestRequireDagInGrantedBundle:
+    @pytest.fixture
+    def app(self):
+        app = FastAPI()
+        router = APIRouter(route_class=ExecutionAPIRoute, dependencies=[Security(require_auth)])
+
+        @router.get("/dags/{dag_id}", dependencies=[ExecutionOrProcessorSecretsToken, DagInGrantedBundle])
+        def by_path(dag_id: str):
+            return {"ok": True}
+
+        @router.get("/dags", dependencies=[ExecutionOrProcessorSecretsToken, DagInGrantedBundle])
+        def by_query(dag_id: str | None = None):
+            return {"ok": True}
+
+        app.include_router(router)
+        return app
+
+    @pytest.mark.parametrize(
+        ("url", "expected_status"),
+        [
+            pytest.param("/dags/granted_dag", 200, id="path-dag-in-granted-bundle"),
+            pytest.param("/dags?dag_id=granted_dag", 200, id="query-dag-in-granted-bundle"),
+            pytest.param("/dags/other_dag", 403, id="dag-in-other-bundle"),
+            pytest.param("/dags/missing_dag", 403, id="unknown-dag"),
+            pytest.param("/dags", 403, id="no-dag"),
+        ],
+    )
+    def test_dag_processor_token(self, _, app, url, expected_status):
+        response = _build_client(app, DAG_PROCESSOR_CLAIMS).get(url)
+
+        assert response.status_code == expected_status
+
+    def test_execution_token_is_not_limited_to_bundles(self, _, app):
+        response = _build_client(app, TIClaims(scope="execution")).get("/dags/other_dag")
+
+        assert response.status_code == 200
+
+
+@pytest.mark.db_test
+@pytest.mark.usefixtures("granted_and_other_dags")
+class TestDagProcessorTokenOverHTTP:
+    """Signed Dag processor tokens against the real Execution API routes."""
+
+    SECRET = "dag-processor-test-secret"
+    AUDIENCE = "urn:airflow.apache.org:task"
+
+    @pytest.fixture(autouse=True)
+    def real_jwt_signing(self, exec_app):
+        exec_app.dependency_overrides.pop(require_auth, None)
+        lifespan.registry.register_value(
+            JWTValidator, JWTValidator(secret_key=self.SECRET, audience=self.AUDIENCE)
+        )
+        lifespan.registry.register_value(
+            JWTGenerator, JWTGenerator(secret_key=self.SECRET, audience=self.AUDIENCE, valid_for=300)
+        )
+
+    @pytest.fixture(autouse=True)
+    def variable(self):
+        clear_db_variables()
+        Variable.set(key="key1", value="value1")
+        yield
+        clear_db_variables()
+
+    @pytest.fixture(autouse=True)
+    def clean_jobs(self):
+        clear_db_jobs()
+        yield
+        clear_db_jobs()
+
+    @pytest.fixture
+    def open_job(self, session):
+        job = Job(job_type="DagProcessorJob", state=JobState.RUNNING)
+        job.id = JOB_ID
+        job.session_id = UUID(SESSION_SUB)
+        session.add(job)
+        session.commit()
+
+    def _generate_token(self, *, secret: str = SECRET, valid_for: float = 300, **claims) -> str:
+        generator = JWTGenerator(secret_key=secret, audience=self.AUDIENCE, valid_for=valid_for)
+        return generator.generate({"sub": SESSION_SUB, **claims})
+
+    def _generate_job_token(self, **kwargs) -> str:
+        return self._generate_token(scope="dag_processor", dag_bundles=["granted"], job_id=JOB_ID, **kwargs)
+
+    def _exchange_parse_token(self, client, **body):
+        return client.post(
+            f"/execution/jobs/{JOB_ID}/parse-token",
+            headers={"Authorization": f"Bearer {self._generate_job_token(valid_for=30)}"},
+            json={
+                "attempt_id": str(REGISTRATION_ID),
+                "bundle_name": "granted",
+                "relative_fileloc": "folder/dag.py",
+                **body,
+            },
+        )
+
+    @pytest.mark.usefixtures("open_job")
+    def test_exchange_binds_identity_and_expiry_to_the_file_and_job(self, client):
+        response = self._exchange_parse_token(client)
+
+        assert response.status_code == 200, response.text
+        claims = jwt.decode(
+            response.json()["token"], self.SECRET, algorithms=["HS512"], audience=self.AUDIENCE
+        )
+        assert claims["sub"] == str(REGISTRATION_ID)
+        assert claims["session_id"] == SESSION_SUB
+        assert claims["job_id"] == JOB_ID
+        assert claims["scope"] == "dag_parse"
+        assert claims["dag_bundles"] == ["granted"]
+        assert claims["relative_fileloc"] == "folder/dag.py"
+        assert 0 < claims["exp"] - claims["iat"] <= 30
+
+    @pytest.mark.parametrize(
+        ("body", "status"),
+        [
+            ({"bundle_name": "other"}, 403),
+            ({"relative_fileloc": ""}, 422),
+            ({"relative_fileloc": "/absolute.py"}, 422),
+            ({"relative_fileloc": "../outside.py"}, 422),
+            ({"relative_fileloc": "nested/../outside.py"}, 422),
+            ({"relative_fileloc": "nested//dag.py"}, 422),
+            ({"relative_fileloc": "nested\\dag.py"}, 422),
+            ({"relative_fileloc": "dag\x00.py"}, 422),
+            ({"attempt_id": "not-a-uuid"}, 422),
+        ],
+    )
+    @pytest.mark.usefixtures("open_job")
+    def test_exchange_rejects_invalid_grants_and_file_identity(self, client, body, status):
+        assert self._exchange_parse_token(client, **body).status_code == status
+
+    @pytest.mark.parametrize(
+        ("method", "path", "headers", "expected"),
+        [
+            ("GET", "/variables/key1", {}, 200),
+            ("GET", "/variables/key1", {DAG_BUNDLE_HEADER: "granted"}, 200),
+            ("GET", "/variables/key1", {DAG_BUNDLE_HEADER: "other"}, 403),
+            ("GET", "/variables/keys", {}, 200),
+            ("PUT", "/variables/key1", {}, 201),
+            ("GET", "/task-instances/count?dag_id=granted_dag", {}, 200),
+            ("GET", "/task-instances/count?dag_id=other_dag", {}, 403),
+            ("POST", f"/jobs/{JOB_ID}/heartbeat", {}, 403),
+            ("POST", f"/jobs/{JOB_ID}/complete", {}, 403),
+            ("POST", f"/jobs/{JOB_ID}/parse-token", {}, 403),
+            ("POST", "/jobs", {}, 403),
+            ("POST", "/xcoms/granted_dag/run/task/key", {}, 403),
+            ("GET", f"/task-instances/{SESSION_SUB}/previous-successful-dagrun", {}, 403),
+        ],
+    )
+    @pytest.mark.usefixtures("open_job")
+    def test_parsing_token_route_boundaries(self, client, method, path, headers, expected):
+        exchanged = self._exchange_parse_token(client)
+        assert exchanged.status_code == 200, exchanged.text
+
+        response = client.request(
+            method,
+            f"/execution{path}",
+            headers={"Authorization": f"Bearer {exchanged.json()['token']}", **headers},
+            json={"value": "updated"},
+        )
+
+        assert response.status_code == expected, response.text
+        assert "Refreshed-API-Token" not in response.headers
+
+    @pytest.mark.parametrize("retirement", ["completed", "replaced"])
+    @pytest.mark.usefixtures("open_job")
+    def test_retiring_the_job_ends_parsing_credentials(self, client, session, retirement):
+        token = self._exchange_parse_token(client).json()["token"]
+        values = {"end_date": LONG_AGO} if retirement == "completed" else {"session_id": None}
+        session.execute(update(Job).where(Job.id == JOB_ID).values(**values))
+        session.commit()
+
+        response = client.get("/execution/variables/key1", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == 403
+        assert response.json()["detail"]["reason"] == "job_closed"
+        assert self._exchange_parse_token(client).status_code == 403
+
+    @pytest.mark.parametrize(
+        "claims",
+        [
+            {"dag_bundles": ["granted", "other"]},
+            {"dag_bundles": []},
+            {"relative_fileloc": None},
+            {"session_id": None},
+            {"job_id": None},
+            {"sub": "not-a-uuid"},
+            {"valid_for": -60},
+            {"secret": "wrong-signing-key"},
+        ],
+    )
+    @pytest.mark.usefixtures("open_job")
+    def test_malformed_or_expired_parsing_credentials_are_rejected(self, client, claims):
+        token = self._generate_token(
+            **{
+                "sub": str(REGISTRATION_ID),
+                "scope": "dag_parse",
+                "dag_bundles": ["granted"],
+                "relative_fileloc": "dag.py",
+                "session_id": SESSION_SUB,
+                "job_id": JOB_ID,
+                **claims,
+            }
+        )
+
+        response = client.get("/execution/variables/key1", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == 403, response.text
+
+    def _register(self, client, registration_id: UUID):
+        session_token = self._generate_token(scope="dag_processor_session", dag_bundles=["granted"])
+        return client.post(
+            "/execution/jobs",
+            headers={"Authorization": f"Bearer {session_token}"},
+            json={"registration_id": str(registration_id), "hostname": "processor-1"},
+        )
+
+    @staticmethod
+    def _get_variable_status(client, token: str) -> int:
+        headers = {"Authorization": f"Bearer {token}", DAG_BUNDLE_HEADER: "granted"}
+        return client.get("/execution/variables/key1", headers=headers).status_code
+
+    @pytest.mark.parametrize(
+        ("method", "url", "headers", "expected_status"),
+        [
+            pytest.param("GET", "/variables/key1", {DAG_BUNDLE_HEADER: "granted"}, 200, id="granted-bundle"),
+            pytest.param("GET", "/variables/key1", {DAG_BUNDLE_HEADER: "other"}, 403, id="forged-bundle"),
+            pytest.param("GET", "/variables/key1", {}, 400, id="no-bundle"),
+            pytest.param("GET", "/variables/keys", {DAG_BUNDLE_HEADER: "granted"}, 403, id="no-list"),
+            pytest.param("PUT", "/variables/key1", {DAG_BUNDLE_HEADER: "granted"}, 403, id="no-write"),
+            pytest.param("DELETE", "/variables/key1", {DAG_BUNDLE_HEADER: "granted"}, 403, id="no-delete"),
+            pytest.param(
+                "GET", "/task-instances/count?dag_id=granted_dag", {}, 403, id="requires-parsing-token"
+            ),
+            pytest.param("GET", "/task-instances/count?dag_id=other_dag", {}, 403, id="dag-in-other-bundle"),
+            pytest.param("POST", "/xcoms/granted_dag/run/task/key", {}, 403, id="unsupported-write"),
+            pytest.param(
+                "GET",
+                "/task-instances/00000000-0000-0000-0000-000000000001/previous-successful-dagrun",
+                {},
+                403,
+                id="task-instance-route",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("open_job")
+    def test_route_matrix(self, client, method, url, headers, expected_status):
+        token = self._generate_job_token()
+
+        response = client.request(
+            method, f"/execution{url}", headers={"Authorization": f"Bearer {token}", **headers}, json="value"
+        )
+
+        assert response.status_code == expected_status, response.text
+
+    @pytest.mark.parametrize(
+        "token_kwargs",
+        [
+            pytest.param({"scope": "dag_processor", "job_id": JOB_ID}, id="no-bundle-grant"),
+            pytest.param({"scope": "dag_processor", "dag_bundles": ["granted"]}, id="no-job"),
+            pytest.param(
+                {"scope": "dag_processor", "dag_bundles": ["granted"], "job_id": JOB_ID, "secret": "other"},
+                id="forged",
+            ),
+            pytest.param(
+                {"scope": "dag_processor", "dag_bundles": ["granted"], "job_id": JOB_ID, "valid_for": -60},
+                id="expired",
+            ),
+            pytest.param({"scope": "dag_processor_session", "dag_bundles": ["granted"]}, id="session-token"),
+            pytest.param({"scope": "workload"}, id="wrong-token-type"),
+        ],
+    )
+    @pytest.mark.usefixtures("open_job")
+    def test_invalid_token_is_rejected(self, client, token_kwargs):
+        token = self._generate_token(**token_kwargs)
+
+        response = client.get(
+            "/execution/variables/key1",
+            headers={"Authorization": f"Bearer {token}", DAG_BUNDLE_HEADER: "granted"},
+        )
+
+        assert response.status_code == 403, response.text
+
+    @pytest.mark.usefixtures("open_job")
+    def test_expiring_token_is_not_reissued(self, client):
+        token = self._generate_job_token(valid_for=30)
+
+        response = client.get(
+            "/execution/variables/key1",
+            headers={"Authorization": f"Bearer {token}", DAG_BUNDLE_HEADER: "granted"},
+        )
+
+        assert response.status_code == 200, response.text
+        assert "Refreshed-API-Token" not in response.headers
+
+    def test_job_token_lasts_until_its_job_completes(self, client):
+        registered = self._register(client, REGISTRATION_ID)
+        assert registered.status_code == 201, registered.text
+        job_token = registered.json()["token"]
+        job_url = f"/execution/jobs/{registered.json()['job_id']}"
+        auth = {"Authorization": f"Bearer {job_token}"}
+        assert self._get_variable_status(client, job_token) == 200
+        assert client.post(f"{job_url}/heartbeat", headers=auth).json() == {"state": "running"}
+
+        completed = client.post(f"{job_url}/complete", headers=auth, json={"state": "success"})
+        assert completed.status_code == 204, completed.text
+        assert self._get_variable_status(client, job_token) == 403
+        assert client.post(f"{job_url}/heartbeat", headers=auth).status_code == 403
+        replayed = client.post(f"{job_url}/complete", headers=auth, json={"state": "success"})
+        assert replayed.status_code == 204, replayed.text
+
+        assert self._register(client, REGISTRATION_ID).status_code == 409
+        restarted = self._register(client, OTHER_REGISTRATION_ID)
+        assert restarted.status_code == 201, restarted.text
+        assert self._get_variable_status(client, job_token) == 403
+        assert self._get_variable_status(client, restarted.json()["token"]) == 200
+
+    def test_replacing_a_stopped_job_ends_its_tokens(self, client, session):
+        first = self._register(client, REGISTRATION_ID)
+        assert first.status_code == 201, first.text
+        self._mark_heartbeat_expired(session, first.json()["job_id"])
+
+        second = self._register(client, OTHER_REGISTRATION_ID)
+
+        assert second.status_code == 201, second.text
+        closed = client.get(
+            "/execution/variables/key1",
+            headers={"Authorization": f"Bearer {first.json()['token']}", DAG_BUNDLE_HEADER: "granted"},
+        )
+        assert closed.status_code == 403
+        assert closed.json()["detail"]["reason"] == "job_closed"
+        assert self._get_variable_status(client, second.json()["token"]) == 200
+        self._mark_heartbeat_expired(session, second.json()["job_id"])
+        replaced_again = self._register(client, REGISTRATION_ID)
+        assert replaced_again.status_code == 409
+        assert replaced_again.json()["detail"]["reason"] == "registration_retired"
+
+    @staticmethod
+    def _mark_heartbeat_expired(session, job_id: int) -> None:
+        session.execute(update(Job).where(Job.id == job_id).values(latest_heartbeat=LONG_AGO))
+        session.commit()

@@ -22,6 +22,7 @@ import logging
 import os
 import warnings
 from collections import defaultdict
+from contextlib import nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
@@ -40,7 +41,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Collection, Iterable
+    from contextlib import AbstractContextManager
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
@@ -307,8 +309,16 @@ def _sign_bundle_url(url: str, bundle_name: str) -> str:
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        bundle_names: Collection[str] | None = None,
+        bundle_context: Callable[[str], AbstractContextManager] | None = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
+        self._bundle_names = bundle_names
+        self._bundle_context = bundle_context or (lambda _: nullcontext())
         self._bundle_config: dict[str, _InternalBundleConfig] = {}
         self.parse_config()
 
@@ -328,6 +338,8 @@ class DagBundlesManager(LoggingMixin):
             return
 
         for bundle_config in bundle_config_list:
+            if self._bundle_names is not None and bundle_config.name not in self._bundle_names:
+                continue
             if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
                 raise AirflowConfigException(
                     "Section `dag_processor` key `dag_bundle_config_list` "
@@ -344,7 +356,13 @@ class DagBundlesManager(LoggingMixin):
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
 
     @provide_session
-    def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
+    def sync_bundles_to_db(
+        self,
+        *,
+        deactivate_missing: bool = True,
+        include_bundle_urls: bool = True,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """
         Persist the configured DAG bundles into ``DagBundleModel`` rows.
 
@@ -354,6 +372,8 @@ class DagBundlesManager(LoggingMixin):
         ``DagBag`` plus ``sync_bag_to_db`` (or, in production, the DAG
         processor); calling this method does not trigger that work.
 
+        :param include_bundle_urls: Sync ownership without constructing bundles when ``False``, so
+            API authorization can be established before bundle code requests secrets.
         :param deactivate_missing: When ``True`` (the default), any bundle stored in
             the database that is not present in this manager's config is marked
             inactive. This is only correct when the calling process sees the
@@ -395,24 +415,27 @@ class DagBundlesManager(LoggingMixin):
                 if not team:
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
-            try:
-                new_template, new_params = _extract_and_sign_template(name)
-            except Exception as e:
-                self.log.exception("Error creating bundle '%s': %s", name, e)
-                continue
+            if include_bundle_urls:
+                try:
+                    with self._bundle_context(name):
+                        new_template, new_params = _extract_and_sign_template(name)
+                except Exception as e:
+                    self.log.exception("Error creating bundle '%s': %s", name, e)
+                    continue
 
             if bundle := stored.pop(name, None):
                 bundle.active = True
-                if new_template != bundle.signed_url_template:
+                if include_bundle_urls and new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
-                if new_params != bundle.template_params:
+                if include_bundle_urls and new_params != bundle.template_params:
                     bundle.template_params = new_params
                     self.log.debug("Updated template parameters for bundle %s", name)
             else:
                 bundle = DagBundleModel(name=name)
-                bundle.signed_url_template = new_template
-                bundle.template_params = new_params
+                if include_bundle_urls:
+                    bundle.signed_url_template = new_template
+                    bundle.template_params = new_params
 
                 session.add(bundle)
                 self.log.info("Added new DAG bundle %s to the database", name)
@@ -689,9 +712,10 @@ class DagBundlesManager(LoggingMixin):
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
-        return cfg_bundle.bundle_class(
-            name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
-        )
+        with self._bundle_context(name):
+            return cfg_bundle.bundle_class(
+                name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
+            )
 
     @classmethod
     def is_bundle_configured(cls, name: str) -> bool:
@@ -711,7 +735,9 @@ class DagBundlesManager(LoggingMixin):
         """
         for name, cfg in self._bundle_config.items():
             try:
-                yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+                with self._bundle_context(name):
+                    bundle = cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+                yield bundle
             except Exception as e:
                 self.log.exception("Error creating bundle '%s': %s", name, e)
                 # Skip this bundle and continue with others

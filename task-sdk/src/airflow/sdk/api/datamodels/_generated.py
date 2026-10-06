@@ -109,6 +109,93 @@ class ConnectionTestState(str, Enum):
     FAILED = "failed"
 
 
+class Version(RootModel[str]):
+    root: Annotated[str, Field(max_length=200, title="Version")]
+
+
+class DagBundleInventoryBody(BaseModel):
+    """
+    A complete discovery snapshot, conditional on the previously observed revision.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    dispatch_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Dispatch Sequence")]
+    expected_revision: Annotated[UUID | None, Field(title="Expected Revision")]
+    version: Annotated[Version | None, Field(title="Version")] = None
+    files: Annotated[list[str], Field(max_length=100000, title="Files")]
+
+
+class DagBundleInventoryResponse(BaseModel):
+    """
+    The source revision to attach to imports dispatched from this inventory.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    accepted_at: Annotated[AwareDatetime, Field(title="Accepted At")]
+    revision: Annotated[UUID, Field(title="Revision")]
+
+
+class DagBundleStateResponse(BaseModel):
+    """
+    Server-owned metadata for an authorized bundle.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(title="Name")]
+    version: Annotated[str | None, Field(title="Version")]
+    last_refreshed: Annotated[AwareDatetime | None, Field(title="Last Refreshed")]
+    revision: Annotated[UUID | None, Field(title="Revision")]
+    team_name: Annotated[str | None, Field(title="Team Name")]
+
+
+class BundleVersion(RootModel[str]):
+    root: Annotated[str, Field(max_length=200, title="Bundle Version")]
+
+
+class DagParseResultResponse(BaseModel):
+    """
+    Receipt returned unchanged when the latest accepted publication is replayed.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    accepted_at: Annotated[AwareDatetime, Field(title="Accepted At")]
+
+
+class DagParseTokenBody(BaseModel):
+    """
+    Exchange a Job credential for access on behalf of one file-parsing attempt.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    bundle_name: Annotated[str, Field(max_length=250, min_length=1, title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(max_length=2000, min_length=1, title="Relative Fileloc")]
+
+
+class DagParseTokenResponse(BaseModel):
+    """
+    Short-lived parsing credential; cannot register, heartbeat, or complete Jobs.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    token: Annotated[str, Field(title="Token")]
+
+
 class DagResponse(BaseModel):
     """
     Schema for DAG response.
@@ -194,6 +281,20 @@ class DagRunType(str, Enum):
     ASSET_MATERIALIZATION = "asset_materialization"
 
 
+class DagWarningType(str, Enum):
+    """
+    Enum for DAG warning types.
+
+    This is the set of allowable values for the ``warning_type`` field
+    in the DagWarning model.
+    """
+
+    ASSET_CONFLICT = "asset conflict"
+    DUPLICATE_DAG_ID = "duplicate dag id"
+    NON_EXISTENT_POOL = "non-existent pool"
+    RUNTIME_VARYING_VALUE = "runtime varying value"
+
+
 class HITLUser(BaseModel):
     """
     Schema for a Human-in-the-loop users.
@@ -233,6 +334,103 @@ class IntermediateTIState(str, Enum):
     AWAITING_INPUT = "awaiting_input"
 
 
+class Unixname(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Unixname")]
+
+
+class BundleNames(RootModel[list[str]]):
+    root: Annotated[
+        list[str],
+        Field(
+            description="Bundles the processor parses; defaults to every bundle its token grants.",
+            min_length=1,
+            title="Bundle Names",
+        ),
+    ]
+
+
+class JobRegisterBody(BaseModel):
+    """
+    Request body a Dag processor sends to register the Job of its session.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    registration_id: Annotated[
+        UUID,
+        Field(
+            description="Chosen by the processor once per process start. Registering again with the same id while its Job is open returns that Job with a fresh token, which recovers a lost response and renews the token. Once the Job completes or is replaced the id is refused, so a restart chooses a new one.",
+            title="Registration Id",
+        ),
+    ]
+    hostname: Annotated[str, Field(max_length=500, min_length=1, title="Hostname")]
+    unixname: Annotated[Unixname | None, Field(title="Unixname")] = None
+    bundle_names: Annotated[
+        BundleNames | None,
+        Field(
+            description="Bundles the processor parses; defaults to every bundle its token grants.",
+            title="Bundle Names",
+        ),
+    ] = None
+
+
+class JobRegisterResponse(BaseModel):
+    """
+    The registered Job and its management credential.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    job_id: Annotated[int, Field(title="Job Id")]
+    token: Annotated[
+        str, Field(description="A ``dag_processor`` token valid while the Job is open.", title="Token")
+    ]
+
+
+class JobState(str, Enum):
+    """
+    All possible states that a Job can be in.
+    """
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+
+
+class ParseSourceCode(BaseModel):
+    """
+    Source captured by the importer; null explicitly means unavailable.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    source_code: Annotated[str | None, Field(title="Source Code")]
+    language: Annotated[str, Field(max_length=64, min_length=1, title="Language")]
+
+
+class WarningType(RootModel[str]):
+    root: Annotated[
+        str, Field(max_length=50, pattern="^[a-z][a-z0-9_]*:[a-z0-9_.\\-]+$", title="Warning Type")
+    ]
+
+
+class ParseWarning(BaseModel):
+    """
+    A warning attached to a Dag returned by this import.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(max_length=250, min_length=1, title="Dag Id")]
+    warning_type: Annotated[DagWarningType | WarningType, Field(title="Warning Type")]
+    message: Annotated[str, Field(title="Message")]
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -259,6 +457,51 @@ class PreviousTIResponse(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
     duration: Annotated[float | None, Field(title="Duration")] = None
+
+
+class State(str, Enum):
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class ProcessorWorkAckBody(BaseModel):
+    """
+    Acknowledge delivery, retaining the claim identity across retries.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    state: Annotated[State, Field(title="State")]
+
+
+class ProcessorWorkClaimBody(BaseModel):
+    """
+    A retryable bounded claim for requested work in ready bundles.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    bundle_names: Annotated[list[str], Field(max_length=1000, min_length=1, title="Bundle Names")]
+    limit: Annotated[int | None, Field(ge=1, le=100, title="Limit")] = 20
+
+
+class ProcessorWorkItem(BaseModel):
+    """
+    A claimed callback or priority parse request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[str, Field(title="Id")]
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(title="Relative Fileloc")]
+    callback: Annotated[str | None, Field(title="Callback")] = None
 
 
 class TIAwaitingInputStatePayload(BaseModel):
@@ -445,6 +688,15 @@ class TaskStatesResponse(BaseModel):
     """
 
     task_states: Annotated[dict[str, Any], Field(title="Task States")]
+
+
+class TerminalJobState(str, Enum):
+    """
+    States a Job can finish in.
+    """
+
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class TerminalStateNonSuccess(str, Enum):
@@ -686,6 +938,29 @@ class ConnectionTestResultBody(BaseModel):
     result_message: Annotated[ResultMessage | None, Field(title="Result Message")] = None
 
 
+class DagParseResultBody(BaseModel):
+    """
+    One completed file or container import, including an empty result.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    bundle_name: Annotated[str, Field(max_length=250, min_length=1, title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(max_length=2000, min_length=1, title="Relative Fileloc")]
+    dispatch_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Dispatch Sequence")]
+    bundle_revision: Annotated[UUID | None, Field(title="Bundle Revision")] = None
+    bundle_version: Annotated[BundleVersion | None, Field(title="Bundle Version")] = None
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
+    parse_duration: Annotated[float, Field(ge=0.0, title="Parse Duration")]
+    serialized_dags: Annotated[list[dict[str, Any]], Field(title="Serialized Dags")]
+    import_errors: Annotated[dict[str, str] | None, Field(title="Import Errors")] = None
+    warnings: Annotated[list[ParseWarning] | None, Field(title="Warnings")] = None
+    parsed_definitions: Annotated[list[str] | None, Field(title="Parsed Definitions")] = None
+    source_codes: Annotated[dict[str, ParseSourceCode], Field(title="Source Codes")]
+
+
 class HITLDetailRequest(BaseModel):
     """
     Schema for the request part of a Human-in-the-loop detail for a specific task instance.
@@ -715,6 +990,28 @@ class HITLDetailResponse(BaseModel):
 
 class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
+
+
+class JobCompleteBody(BaseModel):
+    """
+    Final state of the Job.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: TerminalJobState
+
+
+class JobHeartbeatResponse(BaseModel):
+    """
+    Current state of the Job; ``restarting`` asks the processor to stop.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: JobState
 
 
 class LiteralArgBinding(BaseModel):

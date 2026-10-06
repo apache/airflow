@@ -813,6 +813,23 @@ ARG_SSL_CIPHERS = Arg(
 )
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
+# dag-processor-token
+ARG_DAG_PROCESSOR_TOKEN_FILE = Arg(
+    ("--token-file",),
+    help="File to write the token to; it is replaced in one step and readable only by the current user",
+    required=True,
+)
+ARG_DAG_PROCESSOR_TOKEN_VALID_FOR = Arg(
+    ("--valid-for",),
+    type=positive_int(allow_zero=False),
+    help="Token lifetime in seconds (default: [execution_api] jwt_expiration_time)",
+)
+ARG_DAG_PROCESSOR_TOKEN_ROTATE = Arg(
+    ("--rotate",),
+    action="store_true",
+    help="Keep running and replace the token at half its lifetime; the session stays the same",
+)
+
 # scheduler
 ARG_NUM_RUNS = Arg(
     ("-n", "--num-runs"),
@@ -2287,6 +2304,21 @@ core_commands: list[CLICommand] = [
         help="Start a dag processor instance",
         func=lazy_load_command("airflow.cli.commands.dag_processor_command.dag_processor"),
         args=(
+            Arg(
+                ("--check-health",),
+                action="store_true",
+                help="Check the API-mode processor's local loop heartbeat and exit",
+            ),
+            Arg(
+                ("--check-ready",),
+                action="store_true",
+                help="Check the API-mode processor's loop and API heartbeat and exit",
+            ),
+            Arg(
+                ("--sync-bundles-only",),
+                action="store_true",
+                help="Provision the configured bundle catalog using trusted database and signing credentials, then exit",
+            ),
             ARG_PID,
             ARG_DAEMON,
             ARG_BUNDLE_NAME,
@@ -2296,6 +2328,22 @@ core_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_VERBOSE,
             ARG_DEV,
+        ),
+    ),
+    ActionCommand(
+        name="dag-processor-token",
+        help="Write a Dag processor session token to a file",
+        description=(
+            "Issue a session token that lets a Dag processor reach the Execution API for the given "
+            "bundles, without the processor holding the signing key. Run it where the signing key is "
+            "available, and give the processor read access to the token file."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_processor_token_command.dag_processor_token"),
+        args=(
+            ARG_DAG_PROCESSOR_TOKEN_FILE,
+            ARG_BUNDLE_NAME,
+            ARG_DAG_PROCESSOR_TOKEN_VALID_FOR,
+            ARG_DAG_PROCESSOR_TOKEN_ROTATE,
         ),
     ),
     ActionCommand(
