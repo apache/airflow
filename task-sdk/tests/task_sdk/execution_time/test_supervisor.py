@@ -57,6 +57,7 @@ from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk import DAG, BaseOperator, timezone
+from airflow.sdk._shared.secrets_masker import mask_secret
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -423,8 +424,6 @@ class TestSuperviseTaskLaunchError:
     def test_redacts_a_masked_secret_in_the_reason_before_cutting_it(
         self, client, ti, tmp_path, upload_to_remote, message, expected
     ):
-        from airflow.sdk._shared.secrets_masker import mask_secret
-
         def fail_with_a_secret(**kwargs):
             mask_secret("hunter2-hunter2")
             raise TaskLaunchError(message)
