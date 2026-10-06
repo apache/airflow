@@ -88,7 +88,8 @@ EXPECTED_CLASS_LEVEL_DESC_SUFFIXES = {
 }
 
 
-def _extract_class_level_modules(provider_yaml: dict) -> list[dict]:
+@patch("extract_versions.read_guide_docs", autospec=True, return_value={})
+def _extract_class_level_modules(provider_yaml: dict, _mock_read_guide_docs) -> list[dict]:
     return extract_modules_from_yaml(
         provider_yaml,
         tag="providers-test/1.0.0",
@@ -334,6 +335,8 @@ class TestReadGuideDocs:
         paths = [
             docs_prefix + "_api/x/index.rst",
             docs_prefix + "changelog.rst",
+            docs_prefix + "diagram.png",
+            docs_prefix + "conf.py",
             docs_prefix + "toolsets.rst",
         ]
 
