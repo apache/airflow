@@ -67,3 +67,22 @@ def test_expiring_token_is_reissued(
         assert "Refreshed-API-Token" in response.headers
     else:
         assert "Refreshed-API-Token" not in response.headers
+
+
+@pytest.mark.db_test
+def test_expiring_dag_processor_token_is_not_reissued(client, time_machine):
+    moment = 1743451846
+    auth = AsyncMock(spec=JWTValidator)
+    auth.avalidated_claims.return_value = {
+        "sub": "edb09971-4e0e-4221-ad3f-800852d38085",
+        "scope": "dag_processor",
+        "dag_bundles": ["dags-folder"],
+        "iat": moment,
+        "exp": moment + 60,
+    }
+    time_machine.move_to(moment + 55, tick=False)
+    lifespan.registry.register_value(JWTValidator, auth)
+
+    response = client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
+
+    assert "Refreshed-API-Token" not in response.headers

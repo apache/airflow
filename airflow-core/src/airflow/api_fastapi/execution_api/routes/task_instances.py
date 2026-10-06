@@ -78,7 +78,9 @@ from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
     CurrentTIToken,
+    DagInGrantedBundle,
     ExecutionAPIRoute,
+    ExecutionOrDagParseToken,
     get_team_name_for_ti,
     issue_execution_token,
     require_auth,
@@ -107,7 +109,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
-router = VersionedAPIRouter()
+router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
 
 ti_id_router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -1260,6 +1262,7 @@ async def get_previous_successful_dagrun(
 @router.get(
     "/count",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc([(status.HTTP_404_NOT_FOUND, "Task group not found")]),
 )
 def get_task_instance_count(
@@ -1318,7 +1321,11 @@ def get_task_instance_count(
     return count or 0
 
 
-@router.get("/previous/{dag_id}/{task_id}", status_code=status.HTTP_200_OK)
+@router.get(
+    "/previous/{dag_id}/{task_id}",
+    status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
+)
 async def get_previous_task_instance(
     dag_id: str,
     task_id: str,
@@ -1373,6 +1380,7 @@ async def get_previous_task_instance(
 @router.get(
     "/states",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc([(status.HTTP_404_NOT_FOUND, "Task group not found")]),
 )
 def get_task_instance_states(

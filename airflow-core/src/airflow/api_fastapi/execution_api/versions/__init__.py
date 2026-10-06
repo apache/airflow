@@ -61,9 +61,11 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddTerminalStateRetryReasonField,
     IdentifyArchivedTaskStateUpdates,
 )
+from airflow.api_fastapi.execution_api.versions.v2027_02_28 import AddDagProcessorJobEndpoints
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2027-02-28", AddDagProcessorJobEndpoints),
     Version(
         "2026-10-30",
         AddArgBindingsToTIRunContext,

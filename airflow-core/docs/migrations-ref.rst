@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``e7c2a91bd540`` (head) | ``90e4d18ccadf`` | ``3.4.0``         | Unify task attempt ownership without rewriting legacy XCom   |
+| ``c71065a1b14f`` (head) | ``e7c2a91bd540`` | ``3.5.0``         | Add session_id and registration_id to Job.                   |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``e7c2a91bd540``        | ``90e4d18ccadf`` | ``3.4.0``         | Unify task attempt ownership without rewriting legacy XCom   |
 |                         |                  |                   | data.                                                        |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``90e4d18ccadf``        | ``e5a91c7f42b3`` | ``3.4.0``         | Add timetable_asset_gated to DagModel.                       |

@@ -34,7 +34,13 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.api_fastapi.execution_api.security import CurrentTIToken
+from airflow.api_fastapi.execution_api.security import (
+    CurrentExecutionToken,
+    CurrentTIToken,
+    DagInGrantedBundle,
+    ExecutionAPIRoute,
+    ExecutionOrDagParseToken,
+)
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
@@ -48,7 +54,7 @@ def has_xcom_access(
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     session: SessionDep,
-    token=CurrentTIToken,
+    token=CurrentExecutionToken,
 ) -> bool:
     """
     Check whether the requesting task may access the XCom for ``dag_id``.
@@ -82,6 +88,9 @@ def has_xcom_access(
 
     if not conf.getboolean("core", "multi_team"):
         return True
+    if token.claims.scope == "dag_parse":
+        # Its bundle grants, enforced by DagInGrantedBundle on the routes that admit it, replace team checks.
+        return True
 
     from airflow.api_fastapi.execution_api.security import (
         _team_name_for_dag_stmt,
@@ -108,6 +117,7 @@ def has_xcom_access(
 
 
 router = APIRouter(
+    route_class=ExecutionAPIRoute,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
@@ -138,6 +148,7 @@ async def xcom_query(
 
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     description="Get a single XCom value from a mapped task by sequence index",
 )
 def get_mapped_xcom_by_index(
@@ -191,6 +202,7 @@ def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
 
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     description="Get XCom values from a mapped task by sequence slice",
 )
 def get_mapped_xcom_by_slice(
@@ -275,6 +287,7 @@ def get_mapped_xcom_by_slice(
 
 @router.head(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses={
         **create_openapi_http_exception_doc(
             [(status.HTTP_400_BAD_REQUEST, "map_index cannot be specified in a HEAD request")]
@@ -320,6 +333,7 @@ class GetXcomFilterParams(BaseModel):
 
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     description="Get a single XCom Value",
 )
 def get_xcom(

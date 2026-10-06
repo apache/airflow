@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-10-30"
+API_VERSION: Final[str] = "2027-02-28"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -107,6 +107,30 @@ class ConnectionTestState(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+
+
+class DagParseTokenBody(BaseModel):
+    """
+    Exchange a Job credential for access on behalf of one file-parsing attempt.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    bundle_name: Annotated[str, Field(max_length=250, min_length=1, title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(max_length=2000, min_length=1, title="Relative Fileloc")]
+
+
+class DagParseTokenResponse(BaseModel):
+    """
+    Short-lived parsing credential; cannot register, heartbeat, or complete Jobs.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    token: Annotated[str, Field(title="Token")]
 
 
 class DagResponse(BaseModel):
@@ -231,6 +255,72 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
     AWAITING_INPUT = "awaiting_input"
+
+
+class Unixname(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Unixname")]
+
+
+class BundleNames(RootModel[list[str]]):
+    root: Annotated[
+        list[str],
+        Field(
+            description="Bundles the processor parses; defaults to every bundle its token grants.",
+            min_length=1,
+            title="Bundle Names",
+        ),
+    ]
+
+
+class JobRegisterBody(BaseModel):
+    """
+    Request body a Dag processor sends to register the Job of its session.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    registration_id: Annotated[
+        UUID,
+        Field(
+            description="Chosen by the processor once per process start. Registering again with the same id while its Job is open returns that Job with a fresh token, which recovers a lost response and renews the token. Once the Job completes or is replaced the id is refused, so a restart chooses a new one.",
+            title="Registration Id",
+        ),
+    ]
+    hostname: Annotated[str, Field(max_length=500, min_length=1, title="Hostname")]
+    unixname: Annotated[Unixname | None, Field(title="Unixname")] = None
+    bundle_names: Annotated[
+        BundleNames | None,
+        Field(
+            description="Bundles the processor parses; defaults to every bundle its token grants.",
+            title="Bundle Names",
+        ),
+    ] = None
+
+
+class JobRegisterResponse(BaseModel):
+    """
+    The registered Job and its management credential.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    job_id: Annotated[int, Field(title="Job Id")]
+    token: Annotated[
+        str, Field(description="A ``dag_processor`` token valid while the Job is open.", title="Token")
+    ]
+
+
+class JobState(str, Enum):
+    """
+    All possible states that a Job can be in.
+    """
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -445,6 +535,15 @@ class TaskStatesResponse(BaseModel):
     """
 
     task_states: Annotated[dict[str, Any], Field(title="Task States")]
+
+
+class TerminalJobState(str, Enum):
+    """
+    States a Job can finish in.
+    """
+
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class TerminalStateNonSuccess(str, Enum):
@@ -715,6 +814,28 @@ class HITLDetailResponse(BaseModel):
 
 class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
+
+
+class JobCompleteBody(BaseModel):
+    """
+    Final state of the Job.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: TerminalJobState
+
+
+class JobHeartbeatResponse(BaseModel):
+    """
+    Current state of the Job; ``restarting`` asks the processor to stop.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: JobState
 
 
 class LiteralArgBinding(BaseModel):
