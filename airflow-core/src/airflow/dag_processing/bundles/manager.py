@@ -365,7 +365,7 @@ class DagBundlesManager(LoggingMixin):
         self.log.debug("Syncing DAG bundles to the database")
 
         def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
-            bundle_instance = self.get_bundle(name)
+            bundle_instance = self.get_bundle(bundle_name)
             new_template_ = bundle_instance.view_url_template()
             new_params_ = self._extract_template_params(bundle_instance)
             if new_template_:
@@ -399,6 +399,8 @@ class DagBundlesManager(LoggingMixin):
                 new_template, new_params = _extract_and_sign_template(name)
             except Exception as e:
                 self.log.exception("Error creating bundle '%s': %s", name, e)
+                # The bundle is still configured; leave its stored row untouched rather than deactivating it.
+                stored.pop(name, None)
                 continue
 
             if bundle := stored.pop(name, None):
