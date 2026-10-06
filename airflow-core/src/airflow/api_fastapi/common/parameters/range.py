@@ -39,7 +39,7 @@ from airflow.typing_compat import Self
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
-    from sqlalchemy.sql import Select
+    from sqlalchemy.sql import ColumnElement, Select
 
 
 def _safe_parse_datetime(date_to_check: str) -> datetime:
@@ -91,9 +91,9 @@ class Range(BaseModel, Generic[T]):
 class RangeFilter(BaseParam[Range]):
     """Filter on range in between the lower and upper bound."""
 
-    def __init__(self, value: Range | None, attribute: InstrumentedAttribute) -> None:
+    def __init__(self, value: Range | None, attribute: ColumnElement | InstrumentedAttribute) -> None:
         super().__init__(value)
-        self.attribute: InstrumentedAttribute = attribute
+        self.attribute: ColumnElement | InstrumentedAttribute = attribute
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
