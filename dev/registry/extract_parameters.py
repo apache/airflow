@@ -55,6 +55,7 @@ from pathlib import Path
 
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
+from extract_versions import detect_layout, git_tag_exists, read_guide_docs as read_guide_docs_at_tag
 from registry_contract_models import validate_modules_catalog, validate_provider_parameters
 from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors, is_guide_page
 from registry_tools.types import (
@@ -753,6 +754,26 @@ def read_guide_docs(docs_dir: Path) -> dict[str, str]:
     return docs
 
 
+def read_released_guide_docs(
+    provider_id: str, version: str, provider_rel_path: Path
+) -> dict[str, str] | None:
+    """Read a provider's guide docs at its release tag, or None when there is no tag to read.
+
+    The guide links point at ``/stable``, which serves the released docs, so the
+    anchors must come from the same content; the working tree may be ahead of it.
+    """
+    if not version:
+        return None
+    tag = f"providers-{provider_id}/{version}"
+    if not git_tag_exists(tag):
+        return None
+    dir_path = provider_rel_path.as_posix()
+    layout = detect_layout(tag, dir_path)
+    if layout is None:
+        return None
+    return read_guide_docs_at_tag(tag, layout, dir_path)
+
+
 def discover_classes_from_provider(
     provider_yaml_path: Path,
     base_classes: dict[str, type],
@@ -1001,7 +1022,9 @@ def discover_classes_from_provider(
             }
         )
 
-    guide_docs = read_guide_docs(provider_yaml_path.parent / "docs")
+    guide_docs = read_released_guide_docs(provider_id, version, provider_rel_path)
+    if guide_docs is None:
+        guide_docs = read_guide_docs(provider_yaml_path.parent / "docs")
     attach_guide_urls(discovered, collect_guide_anchors(guide_docs), base_docs_url)
 
     return discovered

@@ -1034,6 +1034,37 @@ class TestDiscoverClassesFromProvider:
         )
         assert "guide_url" not in by_name["FakeSensor"]
 
+    @pytest.mark.parametrize(
+        ("tag_exists", "expected_anchor"),
+        [
+            pytest.param(True, "fakeoperator-released-title", id="tag-exists-reads-released-docs"),
+            pytest.param(False, "fakeoperator", id="no-tag-reads-working-tree"),
+        ],
+    )
+    def test_guide_docs_come_from_release_tag_when_it_exists(
+        self, provider_yaml_path, base_classes, tag_exists, expected_anchor
+    ):
+        docs_dir = provider_yaml_path.parent / "docs" / "operators"
+        docs_dir.mkdir(parents=True)
+        (docs_dir / "s3.rst").write_text("``FakeOperator``\n----------------\n\nUnreleased title.\n")
+        released = {
+            "operators/s3.rst": "``FakeOperator``: Released title\n--------------------------------\n"
+        }
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.git_tag_exists", return_value=tag_exists) as tag_check,
+            patch("extract_parameters.detect_layout", return_value="new"),
+            patch("extract_parameters.read_guide_docs_at_tag", return_value=released) as read_at_tag,
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes, version="1.2.3")
+
+        tag_check.assert_called_once_with("providers-amazon/1.2.3")
+        assert read_at_tag.called is tag_exists
+        guide_url = {r["name"]: r for r in result}["FakeOperator"]["guide_url"]
+        assert guide_url.endswith(f"/operators/s3.html#{expected_anchor}")
+
     def test_discovers_sensor(self, provider_yaml_path, base_classes):
         with (
             patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
