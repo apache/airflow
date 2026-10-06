@@ -51,6 +51,11 @@ private val OMITTED_TASK_KEYS = setOf("email_on_failure", "email_on_retry")
  * Processes a [DagFileParseRequest] by serialising every Dag registered on
  * [bundle] to DagSerialization v3 and returning the result as a
  * DagFileParsingResult body.
+ *
+ * A Dag that cannot be serialized becomes an import error rather than taking
+ * the rest of the bundle with it. Airflow keys an import error by the
+ * bundle-relative path and holds one row per file, so every failure here is
+ * reported under that one key with its Dag named in the message.
  */
 internal fun parseDags(
   bundle: Bundle,
@@ -58,21 +63,20 @@ internal fun parseDags(
 ): Map<String, Any?> {
   val fileloc = request.file ?: ""
   val relativeFileloc = computeRelativeFileloc(fileloc, request.bundlePath)
-  val serializedDags =
-    bundle.dags.values.map { dag ->
-      mapOf(
-        "data" to
-          mapOf(
-            "__version" to 3,
-            "dag" to serializeDag(dag, fileloc, relativeFileloc),
-          ),
-      )
-    }
-  return linkedMapOf(
+  val serializedDags = mutableListOf<Map<String, Any?>>()
+  val failures = mutableListOf<String>()
+  bundle.dags.values.forEach { dag ->
+    runCatching { serializeDag(dag, fileloc, relativeFileloc) }
+      .onSuccess { serializedDags += mapOf("data" to mapOf("__version" to 3, "dag" to it)) }
+      .onFailure { failures += "Dag \"${dag.id}\": ${it.message ?: it.javaClass.name}" }
+  }
+  return linkedMapOf<String, Any?>(
     "type" to "DagFileParsingResult",
     "fileloc" to fileloc,
     "serialized_dags" to serializedDags,
-  )
+  ).apply {
+    if (failures.isNotEmpty()) this["import_errors"] = mapOf(relativeFileloc to failures.joinToString("\n"))
+  }
 }
 
 /**

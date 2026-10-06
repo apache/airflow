@@ -327,6 +327,31 @@ internal class SerdeTest {
   }
 
   @Test
+  @DisplayName("Should report a dag that cannot be serialized as an import error")
+  fun shouldReportUnserializableDagAsImportError() {
+    val broken = DagDef("broken").config("schedule", "every monday")
+    val healthy = DagDef("healthy").addTask(TaskDef("t", SerdeNoopTask::class.java))
+    val request =
+      DagFileParseRequest().also {
+        it.file = "/bundles/app/dags.jar"
+        it.bundlePath = "/bundles"
+      }
+
+    val result = parseDags(Bundle(listOf(broken, healthy)), request)
+
+    assertEquals(1, (result["serialized_dags"] as List<*>).size)
+    assertEquals(
+      mapOf(
+        "app/dags.jar" to
+          "Dag \"broken\": Schedule 'every monday' of Dag 'broken' is not a cron expression or a preset " +
+          "(@hourly, @daily, @weekly, @monthly, @quarterly, @yearly, @once, @continuous); a schedule the " +
+          "scheduler cannot parse would leave the Dag unschedulable",
+      ),
+      result["import_errors"],
+    )
+  }
+
+  @Test
   @DisplayName("Should wrap parsed dags in a DagFileParsingResult body")
   fun shouldBuildParsingResult() {
     val bundle = Bundle(listOf(DagDef("d").addTask(TaskDef("t", SerdeNoopTask::class.java))))
