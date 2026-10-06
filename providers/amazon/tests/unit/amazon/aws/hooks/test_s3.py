@@ -2071,6 +2071,31 @@ class TestAwsS3Hook:
         assert "local file last modified" in logs_string
         assert "Downloaded dag_04.py to" in logs_string
 
+    @pytest.mark.parametrize(
+        ("prefix", "key"),
+        [
+            pytest.param("dags/", "dags/.", id="prefix-dot"),
+            pytest.param("dags/", "dags/./.", id="repeated-dot"),
+            pytest.param("", ".", id="bucket-root-dot"),
+        ],
+    )
+    def test_sync_to_local_dir_skips_keys_mapping_to_root(self, s3_bucket, s3_client, tmp_path, prefix, key):
+        s3_client.put_object(Bucket=s3_bucket, Key=key, Body=b"directory key")
+        s3_client.put_object(Bucket=s3_bucket, Key=f"{prefix}nested/dag.py", Body=b"dag content")
+        s3_client.put_object(Bucket=s3_bucket, Key=f"{prefix}.airflowignore", Body=b"ignore content")
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        sync_local_dir.mkdir()
+        stale_file = sync_local_dir / "stale.py"
+        stale_file.write_bytes(b"stale")
+
+        S3Hook().sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix=prefix)
+
+        assert sync_local_dir.is_dir()
+        assert (sync_local_dir / "nested/dag.py").read_bytes() == b"dag content"
+        assert (sync_local_dir / ".airflowignore").read_bytes() == b"ignore content"
+        assert not stale_file.exists()
+        assert s3_client.get_object(Bucket=s3_bucket, Key=key)["Body"].read() == b"directory key"
+
     def test_sync_to_local_dir_rejects_key_path_traversal(self, s3_bucket, s3_client, tmp_path):
         s3_client.put_object(Bucket=s3_bucket, Key="dags/../../outside.py", Body=b"test data")
 

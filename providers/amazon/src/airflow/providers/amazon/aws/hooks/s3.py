@@ -1823,7 +1823,10 @@ class S3Hook(AwsBaseHook):
             if obj.key.endswith("/"):
                 continue
             obj_path = Path(obj.key)
-            local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
+            relative_path = obj_path.relative_to(s3_prefix)
+            if relative_path == Path("."):
+                continue
+            local_target_path = local_dir.joinpath(relative_path)
             try:
                 local_target_path.resolve().relative_to(local_dir_resolved)
             except ValueError:
