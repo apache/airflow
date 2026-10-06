@@ -354,7 +354,8 @@ When the provider reports cache activity, the task log shows it under the run su
     LLM prompt cache: cache_read_tokens=..., cache_write_tokens=...
 
 ``input_tokens`` includes both counts. With :doc:`../observability` turned on, each
-request's GenAI span carries them too.
+request's GenAI span carries them too. The ``usage`` XCom carries them as
+``cache_read_tokens`` and ``cache_write_tokens``.
 
 Parameters
 ----------

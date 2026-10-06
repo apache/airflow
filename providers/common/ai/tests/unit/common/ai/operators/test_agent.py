@@ -2278,6 +2278,8 @@ class TestAgentOperatorRunIdentity:
             "output_tokens": 0,
             "total_tokens": 0,
             "tool_calls": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
             "cost": None,
         }
 
@@ -2385,6 +2387,8 @@ class TestAgentOperatorUsageBudget:
             "output_tokens": 0,
             "total_tokens": 10,
             "tool_calls": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
             "cost": "0.1",
         }
 

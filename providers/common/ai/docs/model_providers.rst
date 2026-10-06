@@ -92,11 +92,17 @@ type shown, and set the model name with that prefix.
      - ``pydanticai``
      - ``SNOWFLAKE_ACCOUNT`` and ``SNOWFLAKE_TOKEN`` in the worker environment; leave
        **Password** empty
-   * - TypeSafe Jev (classifier, does not write text)
+   * - TypeSafe Jev (decision model, does not write text)
      - ``typesafe:``
      - ``[typesafe]``
-     - ``pydanticai`` (:doc:`classifier_models`)
+     - ``pydanticai`` (:doc:`decision_models`)
      - API key in **Password**
+   * - Decision models behind the System One API: Ollama, Strands Decider, Kev and others
+       (do not write text)
+     - ``system-one:``
+     - None (``pydantic-ai-slim`` 2.53.0+)
+     - ``pydanticai`` with the server URL in **Host** (:doc:`decision_models`)
+     - API key in **Password**, if the server takes one
 
 ``[name]`` in the Install column is an extra of this provider, installed as
 ``pip install "apache-airflow-providers-common-ai[name]"``. The Groq, Mistral and Snowflake entries
@@ -141,7 +147,7 @@ Pages in this section
     AWS Bedrock <connections/pydantic_ai_bedrock>
     Google Vertex AI <connections/pydantic_ai_vertex>
     Self-hosted models <self_hosted_models>
-    Classifier models <classifier_models>
+    Decision models <decision_models>
     Provider fallback <provider_fallback>
     Connection reference <connections/pydantic_ai>
     Using the hook directly <hooks/pydantic_ai>

@@ -27,6 +27,11 @@ S3DagBundle
 Use the :class:`~airflow.providers.amazon.aws.bundles.s3.S3DagBundle` to configure an S3 bundle in your Airflow's
 ``[dag_processor] dag_bundle_config_list``.
 
+The ``prefix`` selects a subdirectory, with or without a trailing slash. For example,
+``dags`` and ``dags/`` both download objects under ``dags/``. An empty prefix downloads
+the whole bucket. IAM policies that restrict listing with the ``s3:prefix`` condition
+must allow the directory prefix including its trailing slash.
+
 Example of using the S3DagBundle:
 
 **JSON format example**:

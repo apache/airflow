@@ -26,6 +26,12 @@
 Changelog
 ---------
 
+.. warning::
+  ``S3DagBundle`` now appends ``/`` to non-empty directory prefixes when downloading Dags.
+  For a configured prefix of ``dags``, listing requests now use ``dags/``. IAM policies
+  that restrict ``s3:prefix`` by exact value must permit the directory prefix with its
+  trailing slash. Empty prefixes and prefixes that already end in ``/`` are unchanged.
+
 9.37.0
 ......
 
