@@ -1061,9 +1061,40 @@ class TestDiscoverClassesFromProvider:
             result = discover_classes_from_provider(provider_yaml_path, base_classes, version="1.2.3")
 
         tag_check.assert_called_once_with("providers-amazon/1.2.3")
-        assert read_at_tag.called is tag_exists
+        if tag_exists:
+            read_at_tag.assert_called_once_with("providers-amazon/1.2.3", "new", "amazon")
+        else:
+            read_at_tag.assert_not_called()
         guide_url = {r["name"]: r for r in result}["FakeOperator"]["guide_url"]
         assert guide_url.endswith(f"/operators/s3.html#{expected_anchor}")
+
+    @pytest.mark.parametrize(
+        ("version", "layout", "expect_tag_lookup"),
+        [
+            pytest.param("", "new", False, id="no-version-skips-tag-lookup"),
+            pytest.param("1.2.3", None, True, id="undetectable-layout-falls-back"),
+        ],
+    )
+    def test_guide_docs_fall_back_to_working_tree(
+        self, provider_yaml_path, base_classes, version, layout, expect_tag_lookup
+    ):
+        docs_dir = provider_yaml_path.parent / "docs" / "operators"
+        docs_dir.mkdir(parents=True)
+        (docs_dir / "s3.rst").write_text("``FakeOperator``\n----------------\n\nProse.\n")
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", provider_yaml_path.parent.parent),
+            patch("extract_parameters.git_tag_exists", return_value=True) as tag_check,
+            patch("extract_parameters.detect_layout", return_value=layout),
+            patch("extract_parameters.read_guide_docs_at_tag") as read_at_tag,
+            patch("extract_parameters.importlib.import_module", side_effect=self._mock_import),
+        ):
+            result = discover_classes_from_provider(provider_yaml_path, base_classes, version=version)
+
+        assert tag_check.called is expect_tag_lookup
+        read_at_tag.assert_not_called()
+        guide_url = {r["name"]: r for r in result}["FakeOperator"]["guide_url"]
+        assert guide_url.endswith("/operators/s3.html#fakeoperator")
 
     def test_discovers_sensor(self, provider_yaml_path, base_classes):
         with (

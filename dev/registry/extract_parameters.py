@@ -761,6 +761,8 @@ def read_released_guide_docs(
 
     The guide links point at ``/stable``, which serves the released docs, so the
     anchors must come from the same content; the working tree may be ahead of it.
+    A tag from the old flat layout yields an empty dict, meaning no guide links
+    rather than a fallback to the working tree.
     """
     if not version:
         return None
