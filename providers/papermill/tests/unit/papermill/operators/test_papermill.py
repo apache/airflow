@@ -185,6 +185,65 @@ class TestPapermillOperator:
             kernel_ip="127.0.0.1",
         )
 
+    @patch("airflow.providers.papermill.hooks.kernel.register_remote_gateway_kernel_engine")
+    @patch("airflow.providers.papermill.hooks.kernel.KernelHook.get_connection")
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_gateway_kernel(self, mock_papermill, kernel_hook, mock_gateway_register):
+        in_nb = "/tmp/does_not_exist"
+        out_nb = "/tmp/will_not_exist"
+        kernel_name = "python3"
+        language_name = "python"
+        parameters = {"msg": "hello_world", "train": 1}
+        from airflow.models import Connection
+
+        conn = MagicMock(spec=Connection)
+        conn.host = "https://gateway.example.com"
+        conn.port = None
+        conn.password = "s3cret"
+        conn.extra_dejson = {"verify_ssl": False}
+        kernel_hook.return_value = conn
+
+        from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+        op = PapermillOperator(
+            input_nb=in_nb,
+            output_nb=out_nb,
+            parameters=parameters,
+            task_id="papermill_operator_gateway_test",
+            kernel_name=kernel_name,
+            language_name=language_name,
+            kernel_conn_id="jupyter_kernel_default",
+            dag=None,
+        )
+
+        op.execute(context={})
+
+        from airflow.providers.papermill.hooks.kernel import REMOTE_GATEWAY_KERNEL_ENGINE
+
+        mock_papermill.execute_notebook.assert_called_once_with(
+            in_nb,
+            out_nb,
+            parameters=parameters,
+            kernel_name=kernel_name,
+            language=language_name,
+            progress_bar=False,
+            report_mode=True,
+            log_output=False,
+            engine_name=REMOTE_GATEWAY_KERNEL_ENGINE,
+            gateway_url="https://gateway.example.com",
+            gateway_token="s3cret",
+            gateway_auth_scheme="token",
+            gateway_auth_header_key="Authorization",
+            gateway_verify_ssl=False,
+            gateway_ca_certs=None,
+            gateway_client_cert=None,
+            gateway_client_key=None,
+            gateway_request_timeout=None,
+            gateway_connect_timeout=None,
+            gateway_kernel_id=None,
+            gateway_headers=None,
+        )
+
     @patch("airflow.providers.papermill.operators.papermill.pm")
     def test_execute_with_log_output(self, mock_papermill):
         from airflow.providers.papermill.operators.papermill import PapermillOperator

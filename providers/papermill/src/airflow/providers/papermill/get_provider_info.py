@@ -42,7 +42,13 @@ def get_provider_info():
             }
         ],
         "hooks": [
-            {"integration-name": "Papermill", "python-modules": ["airflow.providers.papermill.hooks.kernel"]}
+            {
+                "integration-name": "Papermill",
+                "python-modules": [
+                    "airflow.providers.papermill.hooks.kernel",
+                    "airflow.providers.papermill.hooks.gateway_kernel",
+                ],
+            }
         ],
         "connection-types": [
             {
