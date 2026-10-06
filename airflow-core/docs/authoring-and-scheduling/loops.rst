@@ -58,7 +58,7 @@ count is reached.
 This example improves an estimate of the square root of two until the error
 is small enough:
 
-.. exampleinclude:: /authoring-and-scheduling/examples/example_task_loops.py
+.. exampleinclude:: /../src/airflow/example_dags/example_task_loops.py
    :start-after: [START refine_estimate]
    :end-before: [END refine_estimate]
 
@@ -81,7 +81,7 @@ For a fixed-count loop, omit ``until``. The definition ``refine.loop(max_iterati
 three iterations, carrying results between them. Reaching the cap completes
 a fixed-count loop successfully. Its gate is named ``__loop_gate`` within the group.
 
-.. exampleinclude:: /authoring-and-scheduling/examples/example_task_loops.py
+.. exampleinclude:: /../src/airflow/example_dags/example_task_loops.py
    :start-after: [START fixed_loop]
    :end-before: [END fixed_loop]
 
@@ -89,7 +89,7 @@ For a task-group function with arguments, supply them with ``.partial()`` before
 calling ``.loop()``. Use ``.override()`` to configure the group, for example to
 give another loop a different ``group_id``:
 
-.. exampleinclude:: /authoring-and-scheduling/examples/example_task_loops.py
+.. exampleinclude:: /../src/airflow/example_dags/example_task_loops.py
    :start-after: [START partial_override_loop]
    :end-before: [END partial_override_loop]
 
@@ -187,7 +187,7 @@ single value or structure. A zero-length expansion skips the mapped task and,
 under the gate's ``all_success`` rule, skips the gate; no next iteration is
 created.
 
-.. exampleinclude:: /authoring-and-scheduling/examples/example_task_loops.py
+.. exampleinclude:: /../src/airflow/example_dags/example_task_loops.py
    :start-after: [START mapped_loop]
    :end-before: [END mapped_loop]
 

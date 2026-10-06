@@ -28,8 +28,7 @@ def refine_estimate():
     def refine():
         @task
         def improve(*, loop):
-            previous = loop.previous
-            estimate = 1.0 if previous is None else previous["estimate"]
+            estimate = 1.0 if loop.index == 0 else loop.previous["estimate"]
             return (estimate + 2.0 / estimate) / 2.0
 
         @task
@@ -60,8 +59,7 @@ def fixed_task_loop():
     def accumulate():
         @task
         def increment(*, loop):
-            previous = loop.previous
-            return (0 if previous is None else previous) + 1
+            return (0 if loop.index == 0 else loop.previous) + 1
 
         increment()
 
@@ -92,3 +90,21 @@ def mapped_task_loop():
 
 mapped_task_loop()
 # [END mapped_loop]
+
+
+# [START partial_override_loop]
+@dag(schedule=None, catchup=False, tags=["example"])
+def partial_override_loop():
+    @task_group
+    def accumulate(increment_by):
+        @task
+        def increment(increment_by, *, loop):
+            return (0 if loop.index == 0 else loop.previous) + increment_by
+
+        increment(increment_by)
+
+    accumulate.override(group_id="accumulate_more").partial(increment_by=5).loop(max_iterations=3)
+
+
+partial_override_loop()
+# [END partial_override_loop]

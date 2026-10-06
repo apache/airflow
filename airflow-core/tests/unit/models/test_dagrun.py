@@ -22,7 +22,6 @@ from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import contextmanager
 from functools import partial, reduce
-from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, call
@@ -99,9 +98,10 @@ from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags, clear_db_xcom
 from tests_common.test_utils.mapping import expand_mapped_task, push_mapped_length
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import DecreasingPriorityStrategy, TestPriorityWeightStrategyPlugin
@@ -206,7 +206,7 @@ def test_loop_new_member_joins_live_pass_after_reserialization(dag_maker, sessio
     session.flush()
 
     with dag_maker(serialized=True, session=session):
-        create_loop(body, max_iterations=3, add_member=True)
+        body.partial(add_member=True).loop(max_iterations=3)
     dr.dag = dag_maker.serialized_dag
     version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
 
@@ -303,16 +303,23 @@ def clear_loop_example_runs():
     yield
     clear_db_runs()
     clear_db_xcom()
+    clear_db_dags()
+    clear_db_serialized_dags()
 
 
 @pytest.mark.usefixtures("clear_loop_example_runs")
 @pytest.mark.parametrize(
     ("dag_id", "expected_iterations"),
-    [("refine_estimate", 4), ("fixed_task_loop", 3), ("mapped_task_loop", 2)],
+    [
+        ("refine_estimate", 4),
+        ("fixed_task_loop", 3),
+        ("mapped_task_loop", 2),
+        ("partial_override_loop", 3),
+    ],
 )
 def test_documented_task_loop_examples_complete(session, dag_id, expected_iterations):
     bag = DagBag(
-        dag_folder=str(Path(__file__).parents[3] / "src/airflow/example_dags/example_task_loops.py"),
+        dag_folder=str(AIRFLOW_CORE_SOURCES_PATH / "airflow" / "example_dags" / "example_task_loops.py"),
     )
     assert bag.import_errors == {}
     dag = bag.get_dag(dag_id)
@@ -320,11 +327,7 @@ def test_documented_task_loop_examples_complete(session, dag_id, expected_iterat
     dr = dag.test()
 
     assert dr.state == DagRunState.SUCCESS
-    gates = [
-        ti
-        for ti in dr.get_task_instances(session=session)
-        if ti.operator == "LoopGateOperator" and ti.working_set
-    ]
+    gates = [ti for ti in dr.get_task_instances(session=session) if ti.operator == "LoopGateOperator"]
     assert sorted((ti.region_index, ti.state) for ti in gates) == [
         (index, State.SUCCESS) for index in range(expected_iterations)
     ]
