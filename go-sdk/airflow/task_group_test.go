@@ -233,6 +233,32 @@ func TestTaskGroupIfRejectsATriggerDagRun(t *testing.T) {
 	)
 }
 
+func TestTaskGroupAddsASwitchInsideTheGroup(t *testing.T) {
+	dag := Dag("etl")
+	group := dag.TaskGroup("route")
+	long := group.Task(handleLong)
+	short := dag.Task(handleShort)
+
+	pick := group.Switch(pickPath).Case(long).Case(short)
+
+	assert.Equal(t, "route.pickPath", pick.task.taskID)
+	assert.Same(t, group, pick.task.group)
+	assertChildren(t, group, long, pick.task)
+	assertTasks(t, long.upstreams, pick.task)
+	assertTasks(t, short.upstreams, pick.task)
+}
+
+func TestTaskGroupSwitchRejectsATriggerDagRun(t *testing.T) {
+	dag := Dag("etl")
+	group := dag.TaskGroup("route")
+
+	assert.PanicsWithValue(t,
+		`airflow.TaskGroupRef.Switch: Dag "etl": fn comes from airflow.TriggerDagRun, `+
+			`but a decider function is a Go function that returns (*airflow.TaskRef, error)`,
+		func() { group.Switch(TriggerDagRun(TriggerDagRunSpec{DagID: "other"})) },
+	)
+}
+
 func TestTaskGroupTakesAtMostOneTaskGroupSpec(t *testing.T) {
 	dag := Dag("etl")
 
@@ -425,6 +451,18 @@ func TestTaskGroupMethodsRejectAGroupTheDagDidNotReturn(t *testing.T) {
 				`that DagRef.TaskGroup or TaskGroupRef.TaskGroup did not return`,
 		},
 		{
+			name: "Switch on a copy",
+			call: func() { copied.Switch(pickPath) },
+			want: `airflow.TaskGroupRef.Switch: Dag "etl" got a *airflow.TaskGroupRef ` +
+				`that DagRef.TaskGroup or TaskGroupRef.TaskGroup did not return`,
+		},
+		{
+			name: "Switch on a nil group",
+			call: func() { (*TaskGroupRef)(nil).Switch(pickPath) },
+			want: "airflow.TaskGroupRef.Switch: DagRef.TaskGroup or TaskGroupRef.TaskGroup " +
+				"did not return the *airflow.TaskGroupRef",
+		},
+		{
 			name: "Task on a zero group",
 			call: func() { (&TaskGroupRef{}).Task(cleanRows) },
 			want: "airflow.TaskGroupRef.Task: DagRef.TaskGroup or TaskGroupRef.TaskGroup " +
@@ -472,6 +510,11 @@ func TestTaskGroupMethodsAfterRegisterPanic(t *testing.T) {
 		`airflow.TaskGroupRef.If: Dag "etl" has already been registered; `+
 			`add every task before Register`,
 		func() { group.If(isReady) },
+	)
+	assert.PanicsWithValue(t,
+		`airflow.TaskGroupRef.Switch: Dag "etl" has already been registered; `+
+			`add every task before Register`,
+		func() { group.Switch(pickPath) },
 	)
 	assert.Equal(t, registered, snapshot(dag))
 }
@@ -1116,7 +1159,7 @@ func TestTasksOfAGroupTakeInputsAndConditionsFromOutsideIt(t *testing.T) {
 }
 
 // dagSnapshot is what a Dag records, by ID, so that two snapshots are equal when the Dag records
-// the same tasks, groups, inputs, conditions and edges in the same order.
+// the same tasks, groups, inputs, conditions, switches and edges in the same order.
 type dagSnapshot struct {
 	registered             bool
 	tasks, groups          []string
@@ -1124,6 +1167,7 @@ type dagSnapshot struct {
 	children               map[string][]string
 	inputs                 map[string][]string
 	sides                  map[string][2]string
+	cases                  map[string][]string
 	upstreams, downstreams map[string][]string
 	edgeLabels             map[edgeKey]string
 	groupEdges             []edgeKey
@@ -1141,6 +1185,7 @@ func snapshot(dag *DagRef) dagSnapshot {
 		children:        make(map[string][]string),
 		inputs:          make(map[string][]string),
 		sides:           make(map[string][2]string),
+		cases:           make(map[string][]string),
 		upstreams:       make(map[string][]string),
 		downstreams:     make(map[string][]string),
 		edgeLabels:      maps.Clone(dag.edgeLabels),
@@ -1151,15 +1196,18 @@ func snapshot(dag *DagRef) dagSnapshot {
 		s.inputs[task.taskID] = taskIDs(task.inputs)
 		s.upstreams[task.taskID] = taskIDs(task.upstreams)
 		s.downstreams[task.taskID] = taskIDs(task.downstreams)
-		if task.ifRef != nil {
+		switch decider := task.decider.(type) {
+		case *IfRef:
 			var sides [2]string
-			if task.ifRef.thenTask != nil {
-				sides[0] = task.ifRef.thenTask.taskID
+			if decider.thenTask != nil {
+				sides[0] = decider.thenTask.taskID
 			}
-			if task.ifRef.elseTask != nil {
-				sides[1] = task.ifRef.elseTask.taskID
+			if decider.elseTask != nil {
+				sides[1] = decider.elseTask.taskID
 			}
 			s.sides[task.taskID] = sides
+		case *SwitchRef:
+			s.cases[task.taskID] = taskIDs(decider.cases)
 		}
 	}
 	for _, group := range dag.groups {
@@ -1252,6 +1300,12 @@ func TestAPanicLeavesTheDagAsItWas(t *testing.T) {
 			prepare: func(p dagParts) { p.transform.If(isReady) },
 			call:    func(p dagParts) { Bundle().Register(p.dag) },
 			want:    "has no task from Then",
+		},
+		{
+			name:    "a switch without a case at Register",
+			prepare: func(p dagParts) { p.transform.Switch(pickPath) },
+			call:    func(p dagParts) { Bundle().Register(p.dag) },
+			want:    "has no case",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
