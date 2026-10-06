@@ -1117,6 +1117,7 @@ class TestDBCleanup:
             # leave alone - per-asset key/value state, upserted in place (PK is asset_id+key),
             # so it is bounded and current, not accumulating history; removed with its asset
             "asset_state_store",
+            "lang_sdk_task_handler_artifact",  # parse-time cache of task handler artifacts, not run data
             # Purged indirectly: each of these hangs off a cleaned table by an
             # ON DELETE CASCADE foreign key, so the rows go when the parent does.
             # cascade from dag_run once the partition run has fired; while it is still
@@ -1128,6 +1129,7 @@ class TestDBCleanup:
             "hitl_detail",  # cascade from task_instance
             "hitl_detail_history",  # cascade from task_instance_history
             "job_team",  # cascade from job
+            "lang_sdk_task_handler",  # cascade from dag
             "task_inlet_asset_reference",  # cascade from dag
         }
 
