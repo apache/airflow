@@ -814,6 +814,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         log.error("Triggers have no coroutine in the runner; re-creating", trigger_ids=sorted(unhandled))
         self.running_triggers -= unhandled
         self.cancelling_triggers -= unhandled
+        self.releasing_triggers -= unhandled
         stats.incr("triggers.state_mismatch", len(unhandled), tags=prune_dict({"team_name": self.team_name}))
 
     def handle_failed_triggers(self):

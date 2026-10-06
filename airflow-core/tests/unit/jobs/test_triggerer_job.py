@@ -3690,12 +3690,15 @@ class TestCheckForUnhandledTriggers:
         build = mocker.patch.object(
             TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[]
         )
-        jobless_supervisor.running_triggers = {1, 2}
+        jobless_supervisor.running_triggers = {1, 2, 3}
+        # A trigger released to another triggerer stays in running_triggers, so it can turn up
+        # unhandled too, and releasing_triggers also gates re-creation via known_trigger_ids.
+        jobless_supervisor.releasing_triggers = {3}
 
         jobless_supervisor.check_for_unhandled_triggers({1})
-        jobless_supervisor.update_triggers({1, 2})
+        jobless_supervisor.update_triggers({1, 2, 3})
 
-        assert build.call_args.args[1] == {2}
+        assert build.call_args.args[1] == {2, 3}
 
     def test_message_without_running_ids_is_ignored(self, jobless_supervisor):
         """``None`` means the message carried no information, which must not read as "nothing running"."""
