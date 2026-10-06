@@ -24,6 +24,7 @@ import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TIRunContext
 import org.apache.airflow.sdk.execution.comm.VariableResult
 import org.apache.airflow.sdk.execution.comm.XComResult
+import org.apache.airflow.sdk.internal.Refs
 import org.apache.airflow.sdk.execution.comm.TaskInstance as CommTaskInstance
 
 /** Records getXCom calls and serves canned values keyed by task id. */
@@ -94,3 +95,18 @@ internal fun taskContext(): Context =
     dagRun = DagRun("d", "r", null, null, null, null, null, emptyMap()),
     ti = TaskInstance("d", "r", "t", null, 1),
   )
+
+internal class NoopTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+/** A context whose task was wired by its Dag with the given inputs. */
+internal fun contextWiredWith(inputs: List<Arg<*>>): Context {
+  val dag = DagDef("d")
+  val def = TaskDef("t", NoopTask::class.java)
+  Refs.record(dag, listOf("t")) { Refs.call<Unit>(def, *inputs.toTypedArray()) }
+  return taskContext().also { it.taskDef = def }
+}

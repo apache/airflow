@@ -337,6 +337,21 @@ def registry():
         yield reg
 
 
+class TestPydanticAIHookGetHook:
+    def test_builds_the_connection_hook_with_hook_params(self, registry):
+        """Airflow 2's ``BaseHook.get_hook`` takes no ``hook_params``; the hook's own override does."""
+        registry.add("llm")
+
+        hook = PydanticAIHook.get_hook(
+            "llm", hook_params={"model_id": "openai:gpt-5", "fallback_conn_ids": []}
+        )
+
+        assert isinstance(hook, PydanticAIHook)
+        assert hook.llm_conn_id == "llm"
+        assert hook.model_id == "openai:gpt-5"
+        assert hook.fallback_conn_ids == []
+
+
 class _InferModelStub:
     """Resolve every model string to its own recognisable model, and record how it was built."""
 

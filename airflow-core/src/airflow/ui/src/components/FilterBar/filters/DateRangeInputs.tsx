@@ -66,11 +66,8 @@ export const DateRangeInputs = ({
     if (getFieldError("range") && (fieldName === "start" || fieldName === "end")) {
       return "danger.solid";
     }
-    if (editingState.selectionTarget === fieldName) {
-      return "brand.focusRing";
-    }
 
-    return "border";
+    return editingState.selectionTarget === fieldName ? "brand.focusRing" : "border";
   };
 
   const clearField = (field: "end" | "start") => {

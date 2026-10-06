@@ -1497,7 +1497,7 @@ class TestTIUpdateState:
         )
         ti.hostname, ti.pid = "worker", 123
         ti.try_number, ti.max_tries = 3, 0
-        old_id, old_key = ti.id, ti.key
+        old_id = ti.id
         session.commit()
         if definition == "missing_dag":
             mocker.patch.object(DBDagBag, "get_dag_for_run", autospec=True, return_value=None)
@@ -1508,6 +1508,7 @@ class TestTIUpdateState:
                 side_effect=lookup_error,
             )
         executor = MockExecutor(do_update=False)
+        executor_key = executor.get_task_key(ti)
         reports = ["api", "executor"] if first_report == "api" else ["executor", "api"]
         replacement_id = None
 
@@ -1525,7 +1526,7 @@ class TestTIUpdateState:
                     )
                     assert response.status_code == 204
                 else:
-                    executor.event_buffer[old_key] = executor_state, None
+                    executor.event_buffer[executor_key] = executor_state, None
                     SchedulerJobRunner.process_executor_events(executor, None, DBDagBag(), session)
                     session.commit()
             session.expunge_all()
@@ -3156,6 +3157,43 @@ class TestTISkipDownstream:
 
         assert response.status_code == 204
         assert ti1.state == State.SKIPPED
+
+    @pytest.mark.parametrize(
+        ("tasks", "expected_skipped"),
+        [
+            pytest.param(["mapped"], {0, 1, 2}, id="task-id-skips-all-map-indexes"),
+            pytest.param([("mapped", 1)], {1}, id="ti-key-skips-one-map-index"),
+        ],
+    )
+    def test_ti_skip_downstream_expanded_mapped_task(
+        self, client, session, dag_maker, tasks, expected_skipped
+    ):
+        """A bare task_id skips an already expanded mapped task, not only map_index -1."""
+        with dag_maker("skip_downstream_mapped_dag", session=session):
+
+            @task
+            def mapped(x):
+                return x
+
+            EmptyOperator(task_id="t0") >> mapped.expand(x=[1, 2, 3])
+        dr = dag_maker.create_dagrun(run_id="run")
+        ti0 = dr.get_task_instance("t0")
+        ti0.set_state(State.SUCCESS)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti0.id}/skip-downstream",
+            json={"tasks": tasks},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        states = {
+            ti.map_index: ti.state
+            for ti in session.scalars(select(TaskInstance).where(TaskInstance.task_id == "mapped"))
+        }
+        assert {i for i, state in states.items() if state == State.SKIPPED} == expected_skipped
+        assert set(states) == {0, 1, 2}
 
 
 class TestTISkipDownstreamRaceCondition:
@@ -4967,6 +5005,131 @@ class TestTIPatchRenderedMapIndex:
         response = client.patch(
             f"/execution/task-instances/{ti.id}/rendered-map-index",
             json="",
+        )
+
+        assert response.status_code == 422
+
+
+class TestTIDagRunNoteUpdate:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_create_dag_run_note(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_create_dag_run_note",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti_id = ti.id
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_id}/dag-run-note",
+            json={"note": "Created from task runtime"},
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+        dag_run = session.get(TaskInstance, ti_id).dag_run
+        assert dag_run.note == "Created from task runtime"
+        assert dag_run.dag_run_note.user_id is None
+
+    def test_runtime_update_of_user_note_becomes_unattributed(self, client, session, create_task_instance):
+        """Runtime rewrites the content, so the previous author is not carried over."""
+        ti = create_task_instance(
+            task_id="test_update_dag_run_note",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.dag_run.note = ("Created from UI", "user_id")
+        ti_id = ti.id
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_id}/dag-run-note",
+            json={"note": "Updated from task runtime"},
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+        dag_run = session.get(TaskInstance, ti_id).dag_run
+        assert dag_run.note == "Updated from task runtime"
+        assert dag_run.dag_run_note.user_id is None
+
+    def test_clear_dag_run_note(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_clear_dag_run_note",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.dag_run.note = ("Will be cleared", "user_id")
+        ti_id = ti.id
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_id}/dag-run-note",
+            json={"note": ""},
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+        dag_run = session.get(TaskInstance, ti_id).dag_run
+        # Clearing removes the note row entirely, same as the UI/public API path.
+        assert dag_run.note is None
+        assert dag_run.dag_run_note is None
+
+    def test_null_note_leaves_existing_dag_run_note_unchanged(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_null_note_leaves_existing_dag_run_note_unchanged",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.dag_run.note = ("Keep existing note", "user_id")
+        ti_id = ti.id
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_id}/dag-run-note",
+            json={"note": None},
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+        dag_run = session.get(TaskInstance, ti_id).dag_run
+        assert dag_run.note == "Keep existing note"
+        assert dag_run.dag_run_note.user_id == "user_id"
+
+    def test_update_dag_run_note_task_instance_not_found(self, client, session):
+        response = client.patch(
+            f"/execution/task-instances/{uuid4()}/dag-run-note",
+            json={"note": "Does not matter"},
+        )
+
+        assert response.status_code == 404
+
+    def test_update_dag_run_note_rejects_too_long_note(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_update_dag_run_note_rejects_too_long_note",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti_id = ti.id
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_id}/dag-run-note",
+            json={"note": "x" * 1001},
         )
 
         assert response.status_code == 422

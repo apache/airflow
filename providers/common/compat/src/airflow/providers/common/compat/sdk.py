@@ -83,6 +83,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
     from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
     from airflow.sdk.configuration import conf as conf
+    from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION as SET_DURING_EXECUTION
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
@@ -264,12 +265,23 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "Context": ("airflow.sdk", "airflow.utils.context"),
     "context_merge": ("airflow.sdk.definitions.context", "airflow.utils.context"),
+    # Default for a decorated operator's argument that the callable's return value fills in
+    "SET_DURING_EXECUTION": (
+        "airflow.sdk.definitions._internal.types",
+        "airflow.providers.common.compat._set_during_execution",
+    ),
     "context_to_airflow_vars": ("airflow.sdk.execution_time.context", "airflow.utils.operator_helpers"),
     "AIRFLOW_VAR_NAME_FORMAT_MAPPING": (
         "airflow.sdk.execution_time.context",
         "airflow.utils.operator_helpers",
     ),
-    "get_current_context": ("airflow.sdk", "airflow.operators.python"),
+    # On Airflow 2 the standard provider's version comes before core's: it raises RuntimeError
+    # outside a task, as Airflow 3 does, where core's raises AirflowException.
+    "get_current_context": (
+        "airflow.sdk",
+        "airflow.providers.standard.operators.python",
+        "airflow.operators.python",
+    ),
     "get_parsing_context": ("airflow.sdk", "airflow.utils.dag_parsing_context"),
     # ============================================================================
     # Timeout Utilities

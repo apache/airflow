@@ -35,6 +35,17 @@ can check whether your problem is fixed.
    * Execute ``breeze down``
    * Cleanup build cache and execute ``breeze cleanup``. Breeze will ask you to confirm each step.
 
+     Cleanup can remove containers, including running ones, belonging to deleted Git worktrees,
+     then prune unused Breeze volumes across all Compose projects. Breeze's Compose containers,
+     volumes, and networks carry ``org.apache.airflow.breeze=true``. Linked worktrees also record their
+     absolute path in ``org.apache.airflow.breeze.worktree``; the primary checkout uses an empty value.
+     Shared cache volumes and shared networks have no worktree owner. Worktree paths are checked
+     on the machine running Breeze, so use this cleanup step with a local Docker daemon.
+
+     Existing volumes keep their original labels. Cleanup retains support for the old
+     ``com.docker.compose.project=breeze`` label, but older volumes from custom projects without
+     the Breeze label require manual removal.
+
 2. Git fetch the origin and git rebase the current branch with main branch.
 3. Restart your Docker Engine and try again.
 4. Restart your machine and try again.

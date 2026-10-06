@@ -76,6 +76,9 @@ const ConnectionForm = ({
   const selectedConnType = watch("conn_type"); // Get the selected connection type
   const standardFields = connectionTypeMeta[selectedConnType]?.standard_fields ?? {};
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? {} };
+  const connectionTypeFieldsSection = translate("connections.form.connectionTypeFields", {
+    connectionType: hookNameMap[selectedConnType] ?? selectedConnType,
+  });
 
   const [formErrors, setFormErrors] = useState(false);
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
@@ -169,8 +172,7 @@ const ConnectionForm = ({
           )}
           rules={{
             required: translate("connections.form.connectionIdRequired"),
-            validate: (value) =>
-              value.trim() === "" ? translate("connections.form.connectionIdRequirement") : true,
+            validate: (value) => value.trim() !== "" || translate("connections.form.connectionIdRequirement"),
           }}
         />
 
@@ -207,10 +209,11 @@ const ConnectionForm = ({
           }}
         />
 
-        {selectedConnType ? (
+        {selectedConnType && !isMetaPending ? (
           <Accordion.Root
             collapsible
-            defaultValue={["standardFields"]}
+            defaultValue={["standardFields", connectionTypeFieldsSection]}
+            key={selectedConnType}
             mb={4}
             mt={4}
             size="lg"
@@ -223,9 +226,8 @@ const ConnectionForm = ({
               </Accordion.ItemContent>
             </Accordion.Item>
             <FlexibleForm
-              flexibleFormDefaultSection={translate("connections.form.extraFields")}
+              flexibleFormDefaultSection={connectionTypeFieldsSection}
               initialParamsDict={paramsDic}
-              key={selectedConnType}
               setError={setFormErrors}
               subHeader={isEditMode ? translate("connections.form.helperTextForRedactedFields") : undefined}
             />

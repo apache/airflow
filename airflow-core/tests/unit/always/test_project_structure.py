@@ -73,7 +73,6 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/sensors/test_sagemaker.py",
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
             "providers/celery/tests/unit/celery/executors/test_default_celery.py",
-            "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_exceptions.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_kube_config.py",
@@ -99,7 +98,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_tasks.py",
             "providers/google/tests/unit/google/cloud/links/test_compute.py",
             "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
             "providers/google/tests/unit/google/cloud/links/test_dataflow.py",
@@ -126,11 +124,8 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/transfers/test_presto_to_gcs.py",
             "providers/google/tests/unit/google/cloud/utils/test_bigquery.py",
             "providers/google/tests/unit/google/cloud/utils/test_bigquery_get_data.py",
-            "providers/google/tests/unit/google/test_go_module_utils.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
             "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
-            "providers/standard/tests/unit/standard/operators/test_empty.py",
-            "providers/standard/tests/unit/standard/sensors/test_external_task.py",
         ]
         modules_files: list[pathlib.Path] = list(
             AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/src/airflow/providers/**/*.py")

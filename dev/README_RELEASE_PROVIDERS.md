@@ -31,6 +31,7 @@
   - [Move provider into remove state](#move-provider-into-remove-state)
 - [Prepare Regular Provider distributions (RC)](#prepare-regular-provider-distributions-rc)
   - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
+  - [Check PyPI history of new providers](#check-pypi-history-of-new-providers)
   - [Convert commits to changelog entries and bump provider versions](#convert-commits-to-changelog-entries-and-bump-provider-versions)
   - [Update versions of dependent providers to the next version](#update-versions-of-dependent-providers-to-the-next-version)
   - [Create a PR with the changes](#create-a-pr-with-the-changes)
@@ -55,10 +56,10 @@
   - [Publish documentation](#publish-documentation)
   - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Close the testing status issue](#close-the-testing-status-issue)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
-  - [Close the testing status issue](#close-the-testing-status-issue)
   - [Remove Provider distributions scheduled for removal](#remove-provider-distributions-scheduled-for-removal)
 - [Misc / Post release Helpers](#misc--post-release-helpers)
   - [Fixing released documentation](#fixing-released-documentation)
@@ -117,8 +118,9 @@ PMC. Split of duties:
 | [Add the final release tag in git](#add-the-final-release-tag-in-git) | Either | Not privileged; whoever is running that phase of the process does it. |
 | [Publish documentation](#publish-documentation) (live) | Delegate | |
 | [Update providers metadata](#update-providers-metadata) | Delegate | |
-| [Notify developers of release](#notify-developers-of-release), security announcements, social media, committee report | PMC | Official project communications made under the PMC's authority. |
+| [Notify developers of release](#notify-developers-of-release) | PMC | Official project communications made under the PMC's authority. |
 | [Close the testing status issue](#close-the-testing-status-issue) | Delegate | |
+| Security announcements, social media, committee report | PMC | Official project communications made under the PMC's authority. |
 
 The PMC continues to oversee the overall process regardless of how many steps are delegated, and
 remains the party accountable for the release under ASF policy.
@@ -253,6 +255,67 @@ the issue does not seem to be addressed.
 Additionally, the [dependabot alerts](https://github.com/apache/airflow/security/dependabot) and
 code [scanning alerts](https://github.com/apache/airflow/security/code-scanning) should be reviewed
 and security team should be pinged to review and resolve them.
+
+## Check PyPI history of new providers
+
+Do this before starting the wave, for every provider in it that has never been released to PyPI.
+
+PyPI never allows a filename to be reused, even after the file, its release or its whole project was
+deleted. If an earlier, deleted incarnation of `apache-airflow-providers-<PROVIDER>` uploaded a version,
+the upload of that version fails at the final release step, after the vote has passed:
+
+```
+400 This filename was previously used by a file that has since been deleted. Use a different version.
+```
+
+The provider then has to be excluded from the wave and go through another RC. The PyPI project page, its
+JSON API and the project's "Security history" do not show files of a deleted incarnation. The public
+PyPI dataset in BigQuery does:
+
+```shell script
+bq query --use_legacy_sql=false \
+  "SELECT version, filename, upload_time
+   FROM \`bigquery-public-data.pypi.distribution_metadata\`
+   WHERE name = 'apache-airflow-providers-<PROVIDER>'
+   ORDER BY upload_time"
+```
+
+Compare the result with the versions PyPI currently lists:
+
+```shell script
+curl -s https://pypi.org/pypi/apache-airflow-providers-<PROVIDER>/json \
+  | python3 -c "import json, sys; print(*json.load(sys.stdin)['releases'], sep='\\n')"
+```
+
+A version that the query returns but PyPI does not list was deleted, and its filenames can never be
+used again. Release candidates of this community, such as `0.1.0rc1`, are listed by both and are not a
+problem.
+
+A single query like this processes about 2 GB, which is well within the free tier of 1 TiB of queries
+per month, so it costs nothing. You can check the size first by adding `--dry_run`. The query needs a
+Google Cloud account; the free [BigQuery sandbox](https://cloud.google.com/bigquery/docs/sandbox) is
+enough. If you do not have a Google Cloud account or do not know how to use BigQuery, ask another
+release manager who does to run the query for you.
+
+If deleted versions exist, choose the first version of the provider from the highest deleted version,
+ignoring any pre-release suffix such as `rc1` or `a1`:
+
+* If the highest deleted version is `0.X.Y`, release the next minor version, `0.(X+1).0`. For example,
+  if `0.1.0` and `0.1.1` were deleted, the first version is `0.2.0`.
+* If the highest deleted version is `1.X.Y` or higher, release the next major version. For example,
+  if `1.0.1` was deleted, the first version is `2.0.0`.
+
+Set that version in the provider's `provider.yaml`, and add a warning at the top of its changelog so
+that users do not mistake the deleted versions for releases of this community:
+
+```rst
+.. warning::
+
+  Versions ``<DELETED VERSIONS>`` of ``apache-airflow-providers-<PROVIDER>`` were uploaded to PyPI by
+  an earlier project with the same name and were later deleted. They were not released by
+  the Apache Airflow community. Rely only on the versions listed in this changelog, starting with
+  ``<FIRST VERSION>``.
+```
 
 ## Convert commits to changelog entries and bump provider versions
 
@@ -435,7 +498,10 @@ doing it immediately in the code they can add a comment ``# use next version``
 to the line of ``pyproject.toml`` file of the provider that refers to the provider, which next version
 should be used. This comment will be picked up by the``update-providers-next-version`` command and the
 version of the dependent provider will be updated to the next version and comment will be
-removed.
+removed. Pins of a provider whose current version already has a final release tag are left untouched,
+because the "next version" of that provider is then a future release. When only release candidate
+tags exist the pin is still updated with a warning: revert that update if the provider is in vote
+rather than re-cut in this release.
 
 ```shell script
 breeze release-management update-providers-next-version
@@ -1650,9 +1716,20 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 > binding `+1` votes from PMC members are already present in the vote thread — the email reports a
 > decision the PMC has already made, it does not make that decision.
 
-In both subject and message update DATE OF RELEASE, FIRST/LAST NAMES and numbers). In case
-some providers were  excluded, explain why they were excluded and what is the plan for them
-(otherwise remove the optional part of the message). There are two options for releasing
+In both subject and message update DATE OF RELEASE, FIRST/LAST NAMES and numbers. List the
+voters as follows:
+
+* Binding `+1` votes are listed by name only. The heading already says they are binding, so do not
+  add `(binding)` after each name.
+* Non-binding `+1` votes for specific providers go in a separate list, with the providers in
+  brackets after the voter's name. A vote counts for specific providers only when its vote line
+  names them, for example `+1 (non-binding) for amazon and google`. A plain `+1` goes in the main
+  non-binding list, even when the voter adds that they only tested their own changes.
+* For every excluded provider, tally its `-1` votes, both binding and non-binding, with the voters'
+  names. Leave out a part whose count is zero.
+
+Remove each optional part of the message that does not apply. In case some providers were excluded,
+explain why they were excluded and what is the plan for them. There are two options for releasing
 the next RC candidates:
 
 * They will be released as an ad-hoc release with accelerated vote
@@ -1680,13 +1757,20 @@ Hello,
 Apache Airflow Providers prepared on ${RELEASE_DATE} have been accepted.
 
 3 "+1" binding votes received:
-- FIRST LAST NAME (binding)
-- FIRST LAST NAME (binding)
-- FIRST LAST NAME (binding)
+- FIRST LAST NAME
+- FIRST LAST NAME
+- FIRST LAST NAME
 
 2 "+1" non-binding votes received:
 - FIRST LAST NAME
 - FIRST LAST NAME
+
+[optional] 1 "+1" non-binding vote received for specific providers:
+- FIRST LAST NAME (PROVIDER, PROVIDER)
+
+[optional] "-1" votes received for specific providers:
+- PROVIDER: 1 binding (FIRST LAST NAME), 1 non-binding (FIRST LAST NAME)
+- PROVIDER: 1 binding (FIRST LAST NAME)
 
 [optional] The providers PROVIDER, PROVIDER have been excluded from the release.
 This is due to REASON HERE.
@@ -2059,6 +2143,16 @@ It is more reliable to send it via the web ui at https://lists.apache.org/list.h
 Note If you choose sending it with your email client make sure the email is set to plain text mode.
 Trying to send HTML content will result in failure.
 
+## Close the testing status issue
+
+Don't forget to thank the folks who tested and close the issue tracking the testing status.
+
+```
+Thank you everyone. Providers are released.
+
+I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
+```
+
 ## Send announcements about security issues fixed in the release
 
 The release manager should review and mark as READY all the security issues fixed in the release.
@@ -2106,16 +2200,6 @@ If you don't have access to the account ask a PMC member to post.
 You should get email about it to your account that should urge you to add it, but in
 case you don't, you can add it manually:
 add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
-
-## Close the testing status issue
-
-Don't forget to thank the folks who tested and close the issue tracking the testing status.
-
-```
-Thank you everyone. Providers are released.
-
-I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
-```
 
 ## Remove Provider distributions scheduled for removal
 

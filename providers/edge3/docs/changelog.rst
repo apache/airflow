@@ -41,9 +41,15 @@ Breaking changes
 
 * ``Make EdgeExecutor respect [core] parallelism (#72048)``
 
+Features
+~~~~~~~~
+
+* ``Add OIDC worker token verification to Edge3 (#72262)``
+
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix scheduler crash on restart with queued or running Edge tasks (#73832)``
 * ``Fix airflow edge list-workers always showing null concurrency (#72959)``
 
 Misc
@@ -62,6 +68,8 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Prepare providers release 2026-09-22 (#73506)``
    * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
    * ``[main] Upgrade important CI environment (#73308)``
    * ``Add missing test modules for the edge3 provider (#73111)``

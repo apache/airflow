@@ -16,17 +16,46 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { advancedSearchKey } from "src/constants/localStorage";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { useDefaultMatchAnywhere } from "src/hooks/useUserSettings";
 
-// Toggle is intentionally NOT mirrored in the URL: shared links default to the
-// fast prefix-search behavior, and recipients can opt back into substring search
-// per searchbar if they want it.
+// The "match anywhere" (substring) toggle is mirrored in the URL so a filtered search can be shared
+// and reproduced in both directions. ``advanced_search`` is a repeated param carrying each searchbar's
+// explicit choice by key: ``key`` for on, ``-key`` for off
+// (`?advanced_search=dag_id&advanced_search=-run_id`), keeping each searchbar independent. Resolution
+// order: an explicit URL entry wins, so a shared link reproduces the sender's on/off choices whatever
+// the recipient's own preferences; otherwise the user's per-searchbar localStorage choice; otherwise
+// the global "match anywhere by default" setting. Toggling writes the explicit on/off entry and
+// localStorage.
 export const useAdvancedSearch = (key: string) => {
-  const [enabled, setEnabled] = useLocalStorage<boolean>(advancedSearchKey(key), false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [defaultEnabled] = useDefaultMatchAnywhere();
+  const [storedEnabled, setStoredEnabled] = useLocalStorage<boolean>(advancedSearchKey(key), defaultEnabled);
 
-  return { enabled, onToggle: setEnabled };
+  const urlValues = searchParams.getAll(SearchParamsKeys.ADVANCED_SEARCH);
+  const enabled = urlValues.includes(key) || (!urlValues.includes(`-${key}`) && storedEnabled);
+
+  const onToggle = (nextEnabled: boolean) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      const retained = next
+        .getAll(SearchParamsKeys.ADVANCED_SEARCH)
+        .filter((value) => value !== key && value !== `-${key}`);
+
+      next.delete(SearchParamsKeys.ADVANCED_SEARCH);
+      retained.forEach((value) => next.append(SearchParamsKeys.ADVANCED_SEARCH, value));
+      next.append(SearchParamsKeys.ADVANCED_SEARCH, nextEnabled ? key : `-${key}`);
+
+      return next;
+    });
+    setStoredEnabled(nextEnabled);
+  };
+
+  return { enabled, onToggle };
 };
 
 type AdvancedSearchArgOptions<TPrefix extends string, TPattern extends string> = {

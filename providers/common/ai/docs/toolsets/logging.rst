@@ -18,6 +18,11 @@
 Tool call logging: ``LoggingToolset``
 =====================================
 
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` is a
 ``WrapperToolset`` that intercepts ``call_tool()`` to log each tool invocation
 in real time. ``AgentOperator`` applies it automatically (see

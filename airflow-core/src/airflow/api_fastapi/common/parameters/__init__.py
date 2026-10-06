@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.parameters.asset import (
     QueryAssetNamePrefixPatternSearch as QueryAssetNamePrefixPatternSearch,
     QueryConsumingAssetPatternSearch as QueryConsumingAssetPatternSearch,
     QueryHasAssetScheduleFilter as QueryHasAssetScheduleFilter,
+    QueryHasEventsFilter as QueryHasEventsFilter,
     QueryPartitionedDagRunDagIdFilter as QueryPartitionedDagRunDagIdFilter,
     QueryPartitionedDagRunHasCreatedDagRunIdFilter as QueryPartitionedDagRunHasCreatedDagRunIdFilter,
     QueryUriExactMatch as QueryUriExactMatch,
@@ -63,10 +64,13 @@ from airflow.api_fastapi.common.parameters.dag import (
     QueryHasImportErrorsFilter as QueryHasImportErrorsFilter,
     QueryOwnersFilter as QueryOwnersFilter,
     QueryPausedFilter as QueryPausedFilter,
+    QueryRelativeFilelocPrefixFilter as QueryRelativeFilelocPrefixFilter,
     QueryTagsFilter as QueryTagsFilter,
     QueryTeamsFilter as QueryTeamsFilter,
     QueryTimetableTypePrefixPatternSearch as QueryTimetableTypePrefixPatternSearch,
+    _DagIdTagsFilter as _DagIdTagsFilter,
     _DagIdTeamsFilter as _DagIdTeamsFilter,
+    tags_filter_factory as tags_filter_factory,
     teams_filter_factory as teams_filter_factory,
 )
 from airflow.api_fastapi.common.parameters.dag_run import (
@@ -86,6 +90,9 @@ from airflow.api_fastapi.common.parameters.filter import (
     FilterParam as FilterParam,
     filter_param_factory as filter_param_factory,
 )
+from airflow.api_fastapi.common.parameters.job import (
+    QueryJobTeamsFilter as QueryJobTeamsFilter,
+)
 from airflow.api_fastapi.common.parameters.misc import (
     QueryConnectionIdPatternSearch as QueryConnectionIdPatternSearch,
     QueryConnectionIdPrefixPatternSearch as QueryConnectionIdPrefixPatternSearch,
@@ -102,6 +109,7 @@ from airflow.api_fastapi.common.parameters.misc import (
     QueryHITLDetailTaskIdPrefixPatternSearch as QueryHITLDetailTaskIdPrefixPatternSearch,
     QueryIncludeDownstream as QueryIncludeDownstream,
     QueryIncludeUpstream as QueryIncludeUpstream,
+    QueryJobIsAliveFilter as QueryJobIsAliveFilter,
     QueryParseImportErrorBundleNameFilter as QueryParseImportErrorBundleNameFilter,
     QueryParseImportErrorFilenameFilter as QueryParseImportErrorFilenameFilter,
     QueryParseImportErrorFilenamePatternSearch as QueryParseImportErrorFilenamePatternSearch,

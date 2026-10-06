@@ -21,15 +21,17 @@ from __future__ import annotations
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.managed_agent import (
     BaseManagedAgentToolset,
-    FailoverManagedAgentToolset,
+    ManagedAgentToolset,
 )
+from airflow.providers.common.ai.toolsets.object_storage import ObjectStorageToolset
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 
 __all__ = [
     "BaseManagedAgentToolset",
-    "FailoverManagedAgentToolset",
     "HookToolset",
     "MCPToolset",
+    "ManagedAgentToolset",
+    "ObjectStorageToolset",
     "SQLToolset",
     "SandboxToolset",
     "airflow_toolset_to_langchain_tools",

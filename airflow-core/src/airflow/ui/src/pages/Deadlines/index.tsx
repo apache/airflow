@@ -137,7 +137,8 @@ export const Deadlines = () => {
   const deadlineTimeLte = searchParams.get(SearchParamsKeys.DEADLINE_TIME_LTE);
   const teams = searchParams.getAll(SearchParamsKeys.TEAMS);
 
-  const missedFilter = filteredMissed === "true" ? true : filteredMissed === "false" ? false : undefined;
+  const missedFilter =
+    filteredMissed === "true" || filteredMissed === "false" ? filteredMissed === "true" : undefined;
 
   const { data, error, isFetching, isLoading } = useDeadlinesServiceGetDeadlines({
     dagId: filteredDagId !== null && filteredDagId !== "" ? filteredDagId : "~",

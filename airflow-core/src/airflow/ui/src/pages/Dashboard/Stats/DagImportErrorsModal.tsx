@@ -102,8 +102,7 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
       // Reparse is a queued request the dag processor picks up on its next
       // cycle, so once a reparse has been issued the modal polls until it is
       // closed. autoRefreshInterval mirrors what the dashboard cards use.
-      refetchInterval:
-        pollAfterReparse && autoRefreshInterval !== undefined ? autoRefreshInterval * 1000 : false,
+      refetchInterval: pollAfterReparse && autoRefreshInterval !== undefined && autoRefreshInterval * 1000,
     },
   );
 

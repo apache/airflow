@@ -1476,9 +1476,8 @@ class TestTaskInstance:
         )
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(
-            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
-        )
+        ti.task = serialized_dag.get_task(ti.task_id)
+        ti_from_deserialized_task = ti
 
         assert ti_from_deserialized_task.try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution()
@@ -1498,9 +1497,8 @@ class TestTaskInstance:
         assert ti.external_executor_id == "apple"
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(
-            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
-        )
+        ti.task = serialized_dag.get_task(ti.task_id)
+        ti_from_deserialized_task = ti
 
         assert ti_from_deserialized_task.try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution(
@@ -1517,9 +1515,8 @@ class TestTaskInstance:
         assert ti.external_executor_id is None
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(
-            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
-        )
+        ti.task = serialized_dag.get_task(ti.task_id)
+        ti_from_deserialized_task = ti
 
         assert ti_from_deserialized_task.try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution(
@@ -1565,9 +1562,8 @@ class TestTaskInstance:
             ti.state = State.RUNNING
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(
-            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
-        )
+        ti.task = serialized_dag.get_task(ti.task_id)
+        ti_from_deserialized_task = ti
 
         assert not ti_from_deserialized_task.check_and_change_state_before_execution()
         assert ti_from_deserialized_task.state == State.RUNNING
@@ -1582,9 +1578,8 @@ class TestTaskInstance:
             ti.state = State.FAILED
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
-        ti_from_deserialized_task = TI(
-            task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id, dag_version_id=ti.dag_version_id
-        )
+        ti.task = serialized_dag.get_task(ti.task_id)
+        ti_from_deserialized_task = ti
 
         assert not ti_from_deserialized_task.check_and_change_state_before_execution()
         assert ti_from_deserialized_task.state == State.FAILED
@@ -4557,6 +4552,7 @@ def test_failure_listener_receives_failed_try_before_rotation(
     ti.task = dag.get_task("task")
     ti.try_number = 1
     ti.state = State.RUNNING
+    ti.external_executor_id = "previous-worker"
     session.commit()
     original_id = ti.id
     received = []
@@ -4586,6 +4582,17 @@ def test_failure_listener_receives_failed_try_before_rotation(
         )
         assert history.try_number == 1
         assert history.state == State.FAILED
+        assert history.external_executor_id == "previous-worker"
+        assert ti.external_executor_id is None
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(TaskInstanceHistory)
+                .where(TaskInstanceHistory.task_instance_id == original_id)
+            )
+            == 1
+        )
     else:
         assert ti.id == original_id
         assert ti.try_number == 1
+        assert ti.external_executor_id == "previous-worker"

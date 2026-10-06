@@ -28,8 +28,10 @@ export type { ArgNameMap } from "./sdk/arg-names.js";
 export type { Registerable } from "./sdk/bundle.js";
 export type {
   DagSpec,
-  PositionalInputs,
+  Node,
   TaskFactory,
+  TaskGroupOptions,
+  TaskGroupRef,
   TaskInput,
   TaskInputs,
   TaskOptions,
