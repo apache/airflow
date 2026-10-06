@@ -47,8 +47,8 @@ class AssetTriggeredTimetable(BaseTimetable):
     :param assets: The asset expression that triggers the Dag.
     :param batch_asset_events: Consume queued events together in one Dag run. Defaults
         to ``[scheduler] batch_asset_events``, which is false, except that conditions
-        combining multiple assets with ``&`` and partition rollups always default to
-        batching. Passing ``False`` explicitly for those is rejected.
+        combining multiple assets with ``&`` and ``RollupMapper`` partition mappers always
+        default to batching. Passing ``False`` explicitly for those is rejected.
     """
 
     asset_triggered = True

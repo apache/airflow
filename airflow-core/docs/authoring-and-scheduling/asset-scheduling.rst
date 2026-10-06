@@ -468,8 +468,8 @@ Reparse Dags after changing the setting. Previously serialized timetables withou
 this option retain batching until they are reparsed.
 
 The option is also available on ``AssetOrTimeSchedule`` and
-``PartitionedAssetTimetable``. Asset conditions using ``&`` and partition rollups
-need several events to satisfy their condition and cannot consume each event
+``PartitionedAssetTimetable``. Asset conditions using ``&`` and partition mappers based on
+``RollupMapper`` need several events to satisfy their condition and cannot consume each event
 independently, so they default to batching when ``batch_asset_events`` is not set.
 Passing ``batch_asset_events=False`` explicitly for them makes timetable validation
 raise an error. Single-asset schedules and ``|`` expressions support either mode.
