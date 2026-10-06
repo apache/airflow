@@ -180,6 +180,25 @@ class TestLangSDKDagFileProcessorProcess:
         assert proc._subprocess_schema_version == OLDEST_SCHEMA_VERSION
         assert "Parsing the bundle" in cap_structlog
 
+    @patch.object(FakeCoordinatorDagImporter, "get_source_code", autospec=True)
+    @patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    def test_each_dag_gets_its_own_source_keyed_by_dag_id(self, mock_parse_dag, mock_get_source_code, parse):
+        """Two Dags from one file get their own ``get_source_code`` call and their own entry."""
+        mock_parse_dag.side_effect = play_runtime(
+            _reply_with(_serialize_dag("north"), _serialize_dag("south"))
+        )
+        mock_get_source_code.side_effect = lambda self, definition, dag_id=None: DagSourceCode(
+            f"source for {dag_id}", "fake"
+        )
+
+        proc = parse()
+
+        assert proc.parsing_result.dag_source_codes == {
+            "north": DagSourceCode("source for north", "fake"),
+            "south": DagSourceCode("source for south", "fake"),
+        }
+        assert mock_get_source_code.call_args_list == [call(ANY, ANY, "north"), call(ANY, ANY, "south")]
+
     @patch("airflow.dag_processing.lang_sdk_processor._is_connection_from_pid", autospec=True)
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)
     def test_a_connection_is_used_once_it_is_verified(self, mock_parse_dag, mock_owned, tmp_path):
@@ -666,7 +685,7 @@ def test_a_dag_source_that_cannot_be_read_is_a_placeholder():
 
     proc._handle_request(DagFileParsingResult(fileloc="/b/dag.native", serialized_dags=[dag]), MagicMock(), 1)
 
-    source = proc.parsing_result.dag_source_codes[dag.data["dag"]["fileloc"]]
+    source = proc.parsing_result.dag_source_codes[dag.dag_id]
     assert source.language == "text"
     assert source.source_code.startswith("Cannot read the source of dag.native: [Errno 2] No such file")
 

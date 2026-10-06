@@ -37,6 +37,7 @@ import (
 	"github.com/apache/airflow/go-sdk/internal/contexttest"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // assertSucceedTask asserts RunTask produced a terminal SucceedTask body.
@@ -553,6 +554,54 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
 }
 
+// Guards against the runtime binding the task state store to an empty task instance id.
+func TestRunTaskBindsTaskStateStoreClient(t *testing.T) {
+	const tiID = "0199e0e5-1b2c-7c3d-8e4f-5a6b7c8d9e0f"
+
+	// A default-retention write needs the setting the supervisor passes.
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
+	var got sdk.TaskStateStoreClient
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("statestore",
+			func(actx contexttest.Context) error {
+				got = actx.Client()
+				return actx.Client().TaskStateStore().Set(actx, "job_id", "abc123")
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       tiID,
+			DagID:    "test_dag",
+			TaskID:   "statestore",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+	}
+
+	responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+
+	require.NotNil(t, got, "the task must reach a coordinator-backed task state store")
+
+	sent, err := readFrame(&requestBuf)
+	require.NoError(t, err)
+	sentMap := rawToMap(t, sent.Body)
+	assert.Equal(t, "SetTaskStateStore", sentMap["type"])
+	assert.Equal(t, tiID, sentMap["ti_id"],
+		"the runtime must bind the store to the started task instance")
+}
+
 // Serve traps SIGINT/SIGTERM into the context it hands RunTask, so a
 // supervisor shutdown reaches the handler on actx.Done().
 func TestRunTaskAirflowContextHonorsShutdown(t *testing.T) {
@@ -902,11 +951,11 @@ func TestServeSkipsDownstreamTasksEndToEnd(t *testing.T) {
 
 			decide, err := bundle.NewPositionalBranchFunction(
 				func(contexttest.Context) (bool, error) { return tt.result, nil },
-				func(result any) []string {
+				func(result any) (any, []string, error) {
 					if result.(bool) {
-						return nil
+						return result, nil, nil
 					}
-					return []string{"load"}
+					return result, []string{"load"}, nil
 				},
 			)
 			require.NoError(t, err)
@@ -1233,6 +1282,7 @@ func TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd(t *testing.T) {
 		name         string
 		fn           func(contexttest.Context) (bool, error)
 		wantTerminal string
+		wantXComs    map[string]any
 	}{
 		{
 			name: "fails",
@@ -1240,21 +1290,26 @@ func TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd(t *testing.T) {
 				return false, errors.New("cannot reach the table")
 			},
 			wantTerminal: "TaskState",
+			wantXComs:    map[string]any{},
 		},
 		{
 			name:         "skips nothing",
 			fn:           func(contexttest.Context) (bool, error) { return true, nil },
 			wantTerminal: "SucceedTask",
+			wantXComs:    map[string]any{"return_value": true},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			decide, err := bundle.NewPositionalBranchFunction(tt.fn, func(result any) []string {
-				if result.(bool) {
-					return nil
-				}
-				return []string{"load"}
-			})
+			decide, err := bundle.NewPositionalBranchFunction(
+				tt.fn,
+				func(result any) (any, []string, error) {
+					if result.(bool) {
+						return result, nil, nil
+					}
+					return result, []string{"load"}, nil
+				},
+			)
 			require.NoError(t, err)
 
 			xcoms := map[string]any{
@@ -1279,7 +1334,7 @@ func TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd(t *testing.T) {
 			for _, request := range requests {
 				assert.NotEqual(t, "SkipDownstreamTasks", request["type"])
 			}
-			assert.NotContains(t, xcoms, "skipmixin_key")
+			assert.Equal(t, tt.wantXComs, xcoms)
 			assert.Equal(t, tt.wantTerminal, terminal["type"])
 		})
 	}

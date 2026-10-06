@@ -2267,6 +2267,7 @@ class TestClearDagRun:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
+        assert len(body["task_instances"]) == 2
 
         for ti in body["task_instances"]:
             # Fields that require dag_run → dag_model join (previously missing)

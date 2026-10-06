@@ -392,7 +392,7 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
-            from airflow.api_fastapi.execution_api.security import _jwt_bearer
+            from airflow.api_fastapi.execution_api.security import _IN_PROCESS_NON_TI_CALLER, _jwt_bearer
 
             # Give this app its own lifespan + services registry so that stubbing services
             # (e.g. JWTValidator) doesn't affect the module-level ``lifespan.registry``.
@@ -411,7 +411,14 @@ class InProcessExecutionAPI:
                 from uuid import UUID
 
                 ti_id = UUID(
-                    request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000")
+                    request.path_params.get("task_instance_id")
+                    or request.headers.get("X-Airflow-In-Process-Attempt-Id")
+                    or "00000000-0000-0000-0000-000000000000"
+                )
+                # Watchers and other trusted in-process callers may have no task identity.
+                request.scope[_IN_PROCESS_NON_TI_CALLER] = (
+                    "task_instance_id" not in request.path_params
+                    and "X-Airflow-In-Process-Attempt-Id" not in request.headers
                 )
                 claims = TIClaims(scope="execution")
                 return TIToken(id=ti_id, claims=claims)
