@@ -18,7 +18,7 @@
  */
 import type { ColumnDef } from "@tanstack/react-table";
 import "@testing-library/jest-dom";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
@@ -50,6 +50,7 @@ describe("DataTable column visibility", () => {
       { wrapper: ChakraWrapper },
     );
 
-    expect(within(screen.getByTestId("table-list")).queryByText("Added")).toBeNull();
+    expect(screen.getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Added" })).toBeNull();
   });
 });
