@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from functools import lru_cache
+from typing import TYPE_CHECKING
+
 from airflow.ti_deps.dependencies_states import (
     QUEUEABLE_STATES,
     RUNNABLE_STATES,
@@ -24,11 +27,15 @@ from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableD
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
 from airflow.ti_deps.deps.exec_date_after_start_date_dep import ExecDateAfterStartDateDep
+from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
 from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
+
+if TYPE_CHECKING:
+    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
 # Dependencies that if met, task instance should be re-queued.
 REQUEUEABLE_DEPS = {
@@ -72,3 +79,20 @@ SCHEDULER_QUEUED_DEPS = {
     ExecDateAfterStartDateDep(),
     TaskNotRunningDep(),
 }
+
+
+@lru_cache(maxsize=1)
+def get_upstream_state_deps() -> tuple[type[BaseTIDep], ...]:
+    """
+    Deps that make a task instance wait on the state of *other* task instances.
+
+    A force run (``TaskInstance.ignore_upstream_deps``) skips exactly these; timing deps such
+    as ``NotInRetryPeriodDep`` and ``ReadyToRescheduleDep`` are never skipped.
+    ``NotPreviouslySkippedDep``, ``PrevDagrunDep`` and ``TriggerRuleDep`` are imported lazily
+    because they import back from ``airflow.models.taskinstance``.
+    """
+    from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
+    from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
+    from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
+
+    return (MappedTaskUpstreamDep, NotPreviouslySkippedDep, PrevDagrunDep, TriggerRuleDep)
