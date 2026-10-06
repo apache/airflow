@@ -21,7 +21,7 @@ from cadwyn import VersionChange, endpoint
 
 
 class AddDagProcessorJobEndpoints(VersionChange):
-    """Add Dag processor lifecycle and parse-token endpoints."""
+    """Add Dag processor lifecycle, discovery inventory, publication, and requested-work endpoints."""
 
     description = __doc__
 
@@ -30,4 +30,9 @@ class AddDagProcessorJobEndpoints(VersionChange):
         endpoint("/jobs/{job_id}/heartbeat", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/complete", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/parse-token", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/parse-results", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/bundles", ["GET"]).didnt_exist,
+        endpoint("/jobs/{job_id}/bundles/{bundle_name:path}/inventory", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/requested-work/{kind}/claim", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/requested-work/{kind}/{work_id}/ack", ["POST"]).didnt_exist,
     )

@@ -24,6 +24,9 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_command
+from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
+from airflow.jobs.job import Job
 
 from tests_common.test_utils.config import conf_vars
 
@@ -166,3 +169,90 @@ class TestDagProcessorCommand:
 
             mock_daemon_option.call_args.kwargs["callback"]()
             memray.Tracker.assert_called_once()
+
+    @conf_vars({("dag_processor", "execution_api_token_file"): "/run/processor.jwt"})
+    @mock.patch("airflow.cli.commands.dag_processor_command.run_command_with_daemon_option", autospec=True)
+    @mock.patch("airflow.dag_processing.api_client.DagProcessorAPIClient", autospec=True)
+    @mock.patch.object(DagProcessorJobRunner, "run_with_api", autospec=True)
+    @mock.patch("airflow.cli.commands.dag_processor_command.run_job", autospec=True)
+    def test_api_client_is_created_in_the_daemon_callback(
+        self, run_job, run_with_api, client_class, daemon, configure_testing_dag_bundle
+    ):
+        with configure_testing_dag_bundle(os.devnull):
+            args = self.parser.parse_args(["dag-processor", "--bundle-name", "testing"])
+            dag_processor_command.dag_processor(args)
+            client_class.assert_not_called()
+            daemon.call_args.kwargs["callback"]()
+        assert client_class.call_args.kwargs["token_file"] == "/run/processor.jwt"
+        assert client_class.call_args.kwargs["bundle_names"] == ["testing"]
+        run_with_api.assert_called_once()
+        assert run_with_api.call_args.args[1] is client_class.return_value.__enter__.return_value
+        client_class.return_value.__exit__.assert_called_once()
+        run_job.assert_not_called()
+
+    @conf_vars({("dag_processor", "execution_api_token_file"): "/run/processor.jwt"})
+    @mock.patch("airflow.utils.cli.validate_dag_bundle_arg", autospec=True)
+    def test_api_bundle_validation_does_not_construct_bundles(self, validate, configure_testing_dag_bundle):
+        with configure_testing_dag_bundle(os.devnull):
+            runner = dag_processor_command._create_dag_processor_job_runner(
+                self.parser.parse_args(["dag-processor", "--bundle-name", "testing"])
+            )
+            assert runner.processor.bundle_names_to_parse == ["testing"]
+            with pytest.raises(SystemExit, match="Bundles not found: missing"):
+                dag_processor_command._create_dag_processor_job_runner(
+                    self.parser.parse_args(["dag-processor", "--bundle-name", "missing"])
+                )
+        validate.assert_not_called()
+
+    @conf_vars(
+        {
+            ("dag_processor", "execution_api_token_file"): "/run/processor.jwt",
+            ("core", "load_examples"): "False",
+        }
+    )
+    @mock.patch("airflow.dag_processing.api_client.DagProcessorAPIClient", autospec=True)
+    def test_api_client_closes_on_failure(self, client_class, configure_testing_dag_bundle):
+        runner = mock.create_autospec(DagProcessorJobRunner, instance=True)
+        runner.job = Job()
+        runner.processor = mock.create_autospec(DagFileProcessorManager, instance=True)
+        runner.processor.bundle_names_to_parse = None
+        runner.run_with_api.side_effect = RuntimeError("failed")
+        with configure_testing_dag_bundle(os.devnull), pytest.raises(RuntimeError, match="failed"):
+            dag_processor_command._run_dag_processor_job(runner)
+        assert client_class.call_args.kwargs["bundle_names"] == ["testing"]
+        client_class.return_value.__exit__.assert_called_once()
+
+
+@mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
+@mock.patch.object(DagProcessorJobRunner, "_execute", autospec=True)
+def test_catalog_provisioning_does_not_start_a_processor(execute, sync):
+    args = cli_parser.get_parser().parse_args(["dag-processor", "--sync-bundles-only"])
+    dag_processor_command.dag_processor(args)
+    sync.assert_called_once()
+    execute.assert_not_called()
+
+
+@pytest.mark.parametrize("command", [["dag-processor"], ["dag-processor", "--sync-bundles-only"]])
+@mock.patch("airflow.utils.cli.cli_action_loggers.on_pre_execution", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
+@mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
+def test_action_log_keeps_the_command_name(mock_runner, sync, on_pre_execution, command):
+    mock_runner.return_value.job_type = "DagProcessorJob"
+    dag_processor_command.dag_processor(cli_parser.get_parser().parse_args(command))
+    assert on_pre_execution.call_args.kwargs["sub_command"] == "dag_processor"
+
+
+@mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
+def test_catalog_provisioning_for_named_bundles_keeps_other_bundles(sync, configure_testing_dag_bundle):
+    parser = cli_parser.get_parser()
+    with configure_testing_dag_bundle(os.devnull):
+        dag_processor_command.dag_processor(
+            parser.parse_args(["dag-processor", "--sync-bundles-only", "--bundle-name", "testing"])
+        )
+        with pytest.raises(SystemExit, match="Bundles not found: unknown"):
+            dag_processor_command.dag_processor(
+                parser.parse_args(["dag-processor", "--sync-bundles-only", "--bundle-name", "unknown"])
+            )
+    manager = sync.call_args.args[0]
+    assert manager.bundle_names_to_parse == ["testing"]
+    sync.assert_called_once()

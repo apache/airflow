@@ -25,13 +25,24 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import monotonic
-from typing import Any
+from typing import Any, Literal
+from urllib.parse import quote
 from uuid import UUID
 
 import httpx
 import structlog
 from uuid6 import uuid7
 
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    DagBundleInventoryBody,
+    DagBundleInventoryResponse,
+    DagBundleStateResponse,
+    DagParseResultBody,
+    DagParseResultResponse,
+    ProcessorWorkAckBody,
+    ProcessorWorkClaimBody,
+    ProcessorWorkItem,
+)
 from airflow.api_fastapi.execution_api.datamodels.job import (
     DagParseTokenBody,
     DagParseTokenResponse,
@@ -134,6 +145,7 @@ class DagProcessorAPIClient(Client):
         self._job_id: int | None = None
         self._completion_state: TerminalJobState | None = None
         self._completed = False
+        self._pending_claims: dict[str, ProcessorWorkClaimBody] = {}
         super().__init__(base_url=base_url, token="", **kwargs)
 
     @property
@@ -186,7 +198,9 @@ class DagProcessorAPIClient(Client):
                 )
             if monotonic() < context.expires_at:
                 return context.token
-        return self._exchange_parse_token(context, retry=retry)
+        return self._exchange_parse_token(
+            context, retry=retry, timeout=None if retry else self._get_bounded_timeout()
+        )
 
     def _exchange_parse_token(
         self, context: DagParseContext, *, retry: bool, timeout: httpx.Timeout | None = None
@@ -332,6 +346,10 @@ class DagProcessorAPIClient(Client):
         try:
             headers = httpx.Headers(kwargs.get("headers"))
             if context := self._parse_context.get():
+                # Subprocess requests are answered on the manager's loop, which must keep heartbeating
+                # and supervising other parses, so each one gets a single short attempt.
+                retry = False
+                kwargs["timeout"] = self._get_bounded_timeout()
                 kwargs["auth"] = BearerAuth(self._get_parse_token(context, retry=retry))
                 headers["Airflow-Dag-Bundle"] = context.request.bundle_name
             else:
@@ -355,6 +373,77 @@ class DagProcessorAPIClient(Client):
         job_id = self._require_job_id()
         response = self.request("POST", f"jobs/{job_id}/heartbeat", retry=False, headers=_JOB_API_HEADERS)
         return JobHeartbeatResponse.model_validate_json(response.content).state
+
+    def publish_parse_result(self, body: DagParseResultBody) -> DagParseResultResponse:
+        """Publish once; the manager retains the request and schedules acknowledgment recovery."""
+        response = self.request(
+            "POST",
+            f"jobs/{self._require_job_id()}/parse-results",
+            content=body.model_dump_json(),
+            headers=_JOB_API_HEADERS,
+            retry=False,
+            timeout=self._get_bounded_timeout(),
+        )
+        return DagParseResultResponse.model_validate_json(response.content)
+
+    def get_bundles(self) -> list[DagBundleStateResponse]:
+        response = self.request(
+            "GET",
+            f"jobs/{self._require_job_id()}/bundles",
+            headers=_JOB_API_HEADERS,
+            retry=False,
+            timeout=self._get_bounded_timeout(),
+        )
+        return [DagBundleStateResponse.model_validate(item) for item in response.json()]
+
+    def claim_work(
+        self, kind: Literal["callbacks", "priority"], bundle_names: list[str], limit: int
+    ) -> list[ProcessorWorkItem]:
+        if not bundle_names:
+            return []
+        body = self._pending_claims.setdefault(
+            kind,
+            ProcessorWorkClaimBody(
+                claim_id=uuid7(),
+                bundle_names=bundle_names,
+                limit=min(limit, 100),
+            ),
+        )
+        response = self.request(
+            "POST",
+            f"jobs/{self._require_job_id()}/requested-work/{kind}/claim",
+            content=body.model_dump_json(),
+            headers=_JOB_API_HEADERS,
+            retry=False,
+            timeout=self._get_bounded_timeout(),
+        )
+        work = [ProcessorWorkItem.model_validate(item) for item in response.json()]
+        del self._pending_claims[kind]
+        return work
+
+    def acknowledge_work(
+        self, kind: Literal["callbacks", "priority"], work: ProcessorWorkItem, *, failed: bool = False
+    ) -> None:
+        body = ProcessorWorkAckBody(claim_id=work.claim_id, state="failed" if failed else "success")
+        self.request(
+            "POST",
+            f"jobs/{self._require_job_id()}/requested-work/{kind}/{work.id}/ack",
+            content=body.model_dump_json(),
+            headers=_JOB_API_HEADERS,
+            retry=False,
+            timeout=self._get_bounded_timeout(),
+        )
+
+    def publish_inventory(self, bundle_name: str, body: DagBundleInventoryBody) -> DagBundleInventoryResponse:
+        response = self.request(
+            "POST",
+            f"jobs/{self._require_job_id()}/bundles/{quote(bundle_name, safe='')}/inventory",
+            content=body.model_dump_json(),
+            headers=_JOB_API_HEADERS,
+            retry=False,
+            timeout=self._get_bounded_timeout(),
+        )
+        return DagBundleInventoryResponse.model_validate_json(response.content)
 
     def complete_job(self, state: TerminalJobState) -> None:
         """Complete this Job, retaining its identity and outcome across lost acknowledgments."""

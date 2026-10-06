@@ -30,13 +30,16 @@ import textwrap
 import time
 import zipfile
 from collections import Counter, OrderedDict, defaultdict, namedtuple
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
 from unittest import mock
 from unittest.mock import MagicMock
+from uuid import UUID
 
+import httpx
+import jwt
 import msgspec
 import pytest
 import structlog
@@ -46,10 +49,23 @@ from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    DagBundleInventoryBody,
+    DagBundleInventoryResponse,
+    DagBundleStateResponse,
+    DagParseResultBody,
+    ParseSourceCode,
+    ProcessorWorkItem,
+)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
+from airflow.dag_processing.api_client import (
+    DagProcessorAPIClient,
+    DagProcessorRegistrationRetired,
+    DagProcessorSecretsComms,
+)
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
-from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.manager import DagBundlesManager, _load_bundle_config_snapshot
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -58,11 +74,14 @@ from airflow.dag_processing.manager import (
     DagFileInfo,
     DagFileProcessorManager,
     DagFileStat,
+    PendingDagPublication,
+    PriorityParseClaim,
 )
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    DagParseSource,
     _parse_file,
 )
 from airflow.models import DagModel, DbCallbackRequest
@@ -73,7 +92,8 @@ from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG as SdkDAG, BaseOperator
+from airflow.sdk import DAG as SdkDAG, BaseOperator, Connection, SecretCache
+from airflow.sdk.execution_time import task_runner
 from airflow.sdk.importers import DagDefinition, DagImporterRegistry, DagImportError, DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.net import get_hostname
@@ -457,10 +477,11 @@ class TestDagFileProcessorManager:
             "test_zip.zip/broken_dag.py",
         }
 
+    @pytest.mark.parametrize("api_mode", [False, True], ids=["direct", "api"])
     @pytest.mark.parametrize("absolute", [False, True], ids=["relative", "absolute"])
     @mock.patch("airflow.dag_processing.manager.get_importer_registry", autospec=True)
     def test_find_files_in_bundle_makes_discovery_errors_bundle_relative(
-        self, mock_get_registry, tmp_path, absolute
+        self, mock_get_registry, tmp_path, absolute, api_mode
     ):
         (tmp_path / "broken.dag").write_text("")
         source_reference = os.fspath(tmp_path / "broken.dag") if absolute else "broken.dag"
@@ -468,8 +489,9 @@ class TestDagFileProcessorManager:
             (mock.sentinel.importer, DagImportError(source_reference=source_reference, message="boom"))
         ]
         bundle = _make_bundle(tmp_path)
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True) if api_mode else None
 
-        found_files = DagFileProcessorManager(max_runs=1)._find_files_in_bundle(bundle)
+        found_files = DagFileProcessorManager(max_runs=1, api_client=client)._find_files_in_bundle(bundle)
 
         assert [file.definition_locs for file in found_files] == [frozenset({"broken.dag"})]
         assert found_files == {
@@ -555,14 +577,18 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             manager.sync_bundles()
-        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(
+            deactivate_missing=True, include_bundle_urls=True
+        )
 
     def test_sync_bundles_does_not_deactivate_missing_when_filtered(self):
         """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
         manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             manager.sync_bundles()
-        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(
+            deactivate_missing=False, include_bundle_urls=True
+        )
 
     @pytest.mark.parametrize(
         "safe_mode",
@@ -694,6 +720,7 @@ class TestDagFileProcessorManager:
         )
         file_3 = DagFileInfo(bundle_name="testing", rel_path=Path("file_3.py"), bundle_path=TEST_DAGS_FOLDER)
         manager._file_queue = OrderedDict.fromkeys([file_1, file_2, file_3])
+        manager._bundle_parse_sources["testing"] = DagParseSource()
 
         # Mock that only one processor exists. This processor runs with 'file_1'
         manager._processors[file_1] = MagicMock()
@@ -1416,7 +1443,7 @@ class TestDagFileProcessorManager:
         assert serialized_dag_count == 1
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_stale_dags_marks_dags_in_inactive_bundles(self, session):
+    def test_deactivate_stale_dags_leaves_inactive_bundles_to_scheduler(self, session):
         """Dags whose bundle is no longer active should be marked stale even without a parse signal."""
         session.add(DagBundleModel(name="gone-bundle"))
         session.flush()
@@ -1453,7 +1480,7 @@ class TestDagFileProcessorManager:
                 )
             ).all()
         )
-        assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+        assert is_stale_by_dag == {"dag_in_inactive_bundle": False, "dag_in_active_bundle": False}
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_matches_dags_nested_in_a_container(self, session):
@@ -1479,7 +1506,7 @@ class TestDagFileProcessorManager:
         assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "nested_dag"))
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self, session):
+    def test_deactivate_stale_dags_leaves_null_bundle_to_scheduler(self, session):
         """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
 
         Their files were removed during the upgrade, so nothing will ever parse them and fill the
@@ -1516,7 +1543,7 @@ class TestDagFileProcessorManager:
         with mock.patch.object(session, "execute", side_effect=execute_with_null_bundle_name):
             manager.deactivate_stale_dags(last_parsed={}, session=session)
 
-        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
+        assert not session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_tolerates_null_relative_fileloc(self, session):
@@ -1588,9 +1615,6 @@ class TestDagFileProcessorManager:
 
         session.add(DagBundleModel(name="gone-bundle"))
         session.flush()
-        session.execute(
-            DagBundleModel.__table__.update().where(DagBundleModel.name == "gone-bundle").values(active=False)
-        )
         session.add(
             DagModel(
                 dag_id="dag_in_inactive_bundle",
@@ -1615,7 +1639,12 @@ class TestDagFileProcessorManager:
         mock_is_lock_not_available.return_value = True
 
         with mock.patch.object(session, "execute", side_effect=mock_execute):
-            manager.deactivate_stale_dags(last_parsed={})
+            manager.deactivate_stale_dags(
+                last_parsed={
+                    DagFileInfo(rel_path=Path("some_file.py"), bundle_name="gone-bundle"): timezone.utcnow()
+                    + timedelta(hours=1)
+                }
+            )
 
         assert "Lock not available when deactivating stale DAGs" in caplog.text
 
@@ -2066,6 +2095,368 @@ class TestDagFileProcessorManager:
         )
         processor.kill.assert_called_once_with(signal.SIGTERM, escalation_delay=5.0)
 
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_publication_uses_a_copy_of_the_source_metadata_at_dispatch(self, create, persist, session):
+        manager = DagFileProcessorManager(max_runs=1)
+        data = {"files": {"dag.py": "original"}}
+        manager._bundle_parse_sources["testing"] = DagParseSource(bundle_version="v1", version_data=data)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("dag.py"), bundle_path=TEST_DAGS_FOLDER)
+        manager._file_queue[file] = None
+        processor, _ = self.mock_processor()
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(fileloc="dag.py", serialized_dags=[])
+        create.return_value = processor
+
+        manager._start_new_processes()
+        dispatched = next(iter(manager._processors))
+        data["files"]["dag.py"] = "changed"
+        manager._bundle_versions["testing"] = "v2"
+        manager.handle_parsing_result(dispatched, processor, session=session)
+
+        assert dispatched == file
+        persist.assert_called_once_with(
+            manager,
+            bundle_name="testing",
+            bundle_version="v1",
+            version_data={"files": {"dag.py": "original"}},
+            parsing_result=processor.parsing_result,
+            run_duration=mock.ANY,
+            relative_fileloc="dag.py",
+            session=session,
+        )
+
+    @pytest.mark.parametrize("publication_fails", [False, True])
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_api_publication_uses_dispatch_identity_without_local_persistence(
+        self, create, persist, session, publication_fails
+    ):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+        manager._bundle_parse_sources["testing"] = DagParseSource(bundle_version="v1")
+        file = _get_file_infos(["dag.py"])[0]
+        manager._file_queue[file] = None
+        proc, read_end = self.mock_processor()
+        proc.had_callbacks = False
+        proc.parsing_result = DagFileParsingResult(fileloc="dag.py", serialized_dags=[])
+        create.return_value = proc
+        if publication_fails:
+            client.publish_parse_result.side_effect = RuntimeError("publication failed")
+        try:
+            manager._start_new_processes()
+            manager.handle_parsing_result(file, proc, session=session)
+            client.publish_parse_result.assert_not_called()
+            manager._publish_pending_results()
+            body = client.publish_parse_result.call_args.args[0]
+            assert body.attempt_id == proc.id
+            assert body.dispatch_sequence == proc.dispatch_sequence == 1
+            assert body.bundle_version == "v1"
+            assert body.relative_fileloc == "dag.py"
+            assert body.serialized_dags == []
+            assert manager._file_stats[file].run_count == 1
+            persist.assert_not_called()
+        finally:
+            read_end.close()
+            proc.close()
+
+    @pytest.mark.parametrize("source_available", [True, False])
+    def test_api_publication_carries_diagnostics_and_explicit_source_availability(self, source_available):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+        file = _get_file_infos(["dag.py"])[0]
+        dag = SdkDAG("published", schedule=None)
+        dag.fileloc = "/worker/dag.py"
+        dag.relative_fileloc = "dag.py"
+        proc, read_end = self.mock_processor()
+        proc.dispatch_sequence = 1
+        warning = {"dag_id": dag.dag_id, "warning_type": "python:deprecated", "message": "warning"}
+        unserialized_warning = {"dag_id": "failed", "warning_type": "python:deprecated", "message": "warning"}
+        proc.parsing_result = DagFileParsingResult(
+            fileloc=dag.fileloc,
+            serialized_dags=[LazyDeserializedDAG.from_dag(dag)],
+            warnings=[warning, unserialized_warning],
+            parsed_definitions=["dag.py"],
+            import_errors={"dag.py": "import error"},
+            dag_source_codes={dag.dag_id: DagSourceCode(source_code="captured", language="python")}
+            if source_available
+            else {},
+        )
+        try:
+            body = manager._build_parse_result(file, proc, 0.5)
+            assert [published.model_dump() for published in body.warnings] == [warning]
+            assert body.import_errors == {"dag.py": "import error"}
+            assert body.parsed_definitions == ["dag.py"]
+            assert body.source_codes[dag.dag_id].source_code == ("captured" if source_available else None)
+        finally:
+            read_end.close()
+            proc.close()
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @conf_vars({("workers", "execution_api_retries"): "1"})
+    @pytest.mark.parametrize("failure", [413, 422, 403, 500, "timeout"])
+    def test_rejected_publication_preserves_stale_detection(self, session, time_machine, failure):
+        time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        request = httpx.Request("POST", "http://api/jobs/1/parse-results")
+        client.publish_parse_result.side_effect = (
+            httpx.ReadTimeout("Lost response", request=request)
+            if failure == "timeout"
+            else httpx.HTTPStatusError("Rejected", request=request, response=httpx.Response(failure))
+        )
+        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+        file = _get_file_infos(["dag.py"])[0]
+        previous = timezone.utcnow() - timedelta(seconds=manager.stale_dag_threshold + 1)
+        manager._file_stats[file] = DagFileStat(num_dags=1, last_finish_time=previous)
+        dag = SdkDAG("published", schedule=None)
+        dag.fileloc = "/worker/dag.py"
+        dag.relative_fileloc = "dag.py"
+        session.add(
+            DagModel(
+                dag_id=dag.dag_id,
+                bundle_name="testing",
+                relative_fileloc="dag.py",
+                fileloc=dag.fileloc,
+                last_parsed_time=previous,
+                is_stale=False,
+            )
+        )
+        session.commit()
+        proc, read_end = self.mock_processor()
+        proc.dispatch_sequence = 1
+        proc.parsing_result = DagFileParsingResult(
+            fileloc=dag.fileloc, serialized_dags=[LazyDeserializedDAG.from_dag(dag)]
+        )
+        try:
+            manager.handle_parsing_result(file, proc)
+            manager._publish_pending_results()
+            manager._scan_stale_dags()
+            session.expire_all()
+            assert not session.get(DagModel, dag.dag_id).is_stale
+            assert manager._file_stats[file].last_finish_time == previous
+            assert manager._file_stats[file].num_dags == 1
+            assert manager.processed_recently(timezone.utcnow(), file)
+            assert not manager._pending_publications
+        finally:
+            read_end.close()
+            proc.close()
+
+    def test_publication_retries_leave_the_loop_responsive(self, mocker):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        client.publish_parse_result.side_effect = [httpx.ReadTimeout("Lost acknowledgment"), None, None]
+        heartbeat_observations = []
+        with selectors.DefaultSelector() as selector:
+            manager = DagFileProcessorManager(
+                max_runs=1,
+                api_client=client,
+                selector=selector,
+                heartbeat=lambda: heartbeat_observations.append(client.publish_parse_result.call_count),
+            )
+            for method in (
+                "_refresh_dag_bundles",
+                "_queue_requested_files_for_parsing",
+                "_scan_stale_dags",
+                "_cleanup_stale_bundle_versions",
+                "print_stats",
+            ):
+                mocker.patch.object(DagFileProcessorManager, method, autospec=True)
+            mocker.patch.object(DagFileProcessorManager, "fetch_callbacks", autospec=True, return_value=[])
+            for file in _get_file_infos(["a.py", "b.py"]):
+                proc, read_end = self.mock_processor()
+                proc.dispatch_sequence = 1
+                proc.parsing_result = DagFileParsingResult(fileloc=str(file.rel_path), serialized_dags=[])
+                try:
+                    manager.handle_parsing_result(file, proc)
+                finally:
+                    read_end.close()
+                    proc.close()
+            assert not manager.max_runs_reached()
+            manager._run_parsing_loop()
+        calls = client.publish_parse_result.call_args_list
+        assert [call.args[0].relative_fileloc for call in calls] == ["a.py", "b.py", "a.py"]
+        assert calls[0].args[0] is calls[2].args[0]
+        assert {0, 1}.issubset(heartbeat_observations)
+        assert not manager._pending_publications
+        assert all(stat.run_count == 1 for stat in manager._file_stats.values())
+
+    @pytest.mark.parametrize("change", ["refresh", "delete"])
+    def test_pending_publication_is_discarded_when_source_changes(self, change):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+        file = _get_file_infos(["dag.py"])[0]
+        proc, read_end = self.mock_processor()
+        proc.dispatch_sequence = 1
+        proc.parsing_result = DagFileParsingResult(fileloc="dag.py", serialized_dags=[])
+        try:
+            manager.handle_parsing_result(file, proc)
+            if change == "refresh":
+                manager._invalidate_bundle_parse_source("testing")
+            else:
+                manager.remove_orphaned_file_stats(present=set())
+            manager._publish_pending_results()
+            client.publish_parse_result.assert_not_called()
+            assert not manager._pending_publications
+            assert list(manager._file_queue) == ([file] if change == "refresh" else [])
+        finally:
+            read_end.close()
+            proc.close()
+
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_pending_publications_bound_admission_and_prevent_reimports(self, create):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client, parallelism=1)
+        manager._file_parsing_sort_mode = "alphabetical"
+        file, other = _get_file_infos(["dag.py", "other.py"])
+        proc, read_end = self.mock_processor()
+        proc.dispatch_sequence = 1
+        proc.parsing_result = DagFileParsingResult(fileloc="dag.py", serialized_dags=[])
+        manager._bundle_parse_sources["testing"] = DagParseSource()
+        try:
+            manager.handle_parsing_result(file, proc)
+            manager.prepare_file_queue(known_files={"testing": {file, other}})
+            assert list(manager._file_queue) == [other]
+            manager._start_new_processes()
+            create.assert_not_called()
+            assert list(manager._file_queue) == [other]
+            manager._parallelism = 2
+            manager._file_queue = OrderedDict.fromkeys([file])
+            manager._start_new_processes()
+            create.assert_not_called()
+        finally:
+            read_end.close()
+            proc.close()
+
+    @pytest.mark.parametrize("current_version", [None, "v1", "v2"])
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_forced_refresh_waits_for_in_flight_imports(self, create, persist, current_version):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = self._make_refresh_bundle(
+            supports_versioning=current_version is not None, current_version=current_version
+        )
+        manager._bundle_versions[bundle.name] = "v1"
+        file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("dag.py"), bundle_path=bundle.path)
+        manager._file_stats[file] = DagFileStat()
+        manager._file_queue = OrderedDict.fromkeys([file])
+        manager._bundle_parse_sources = {bundle.name: DagParseSource()}
+        processor = self.mock_processor()[0]
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(fileloc="dag.py", serialized_dags=[])
+        create.return_value = processor
+        manager._start_new_processes()
+
+        self._refresh_with_mocked_state(
+            manager, bundle, BundleState(last_refreshed=None, version="v1"), force=True
+        )
+        bundle.refresh.assert_not_called()
+        assert manager._bundles_waiting_for_refresh == {bundle.name}
+
+        manager._collect_results()
+        persist.assert_called_once()
+        assert not manager._file_queue
+
+        self._refresh_with_mocked_state(
+            manager, bundle, BundleState(last_refreshed=None, version="v1"), force=True
+        )
+        bundle.refresh.assert_called_once_with()
+
+    @pytest.mark.parametrize("current_version", [None, "v1", "v2"])
+    @mock.patch("airflow.dag_processing.manager.stats.incr", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_reinitialized_bundle_discards_only_affected_results_without_advancing_freshness(
+        self, create, persist, incr, current_version
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._num_run = 1
+        manager._parallelism = 2
+        bundle = self._make_refresh_bundle(
+            supports_versioning=current_version is not None, current_version=current_version
+        )
+        manager._bundle_versions[bundle.name] = "v1"
+        file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("dag.py"), bundle_path=bundle.path)
+        other = DagFileInfo(bundle_name="other", rel_path=Path("other.py"), bundle_path=bundle.path)
+        original_stat = DagFileStat(num_dags=1, run_count=1, last_finish_time=DEFAULT_DATE)
+        manager._file_stats[file] = original_stat
+        manager._file_queue = OrderedDict.fromkeys([file, other])
+        manager._bundle_parse_sources = {name: DagParseSource() for name in (bundle.name, "other")}
+        processors = [self.mock_processor()[0] for _ in range(2)]
+        for processor in processors:
+            processor.had_callbacks = False
+            processor.parsing_result = DagFileParsingResult(fileloc="dag.py", serialized_dags=[])
+        create.side_effect = processors
+        manager._start_new_processes()
+        bundle.initialize.side_effect = OSError("Source may have changed")
+        bundle.is_initialized = False
+
+        self._refresh_with_mocked_state(
+            manager, bundle, BundleState(last_refreshed=None, version="v1"), force=True
+        )
+        manager._collect_results()
+
+        assert manager._file_stats[file] is original_stat
+        assert list(manager._file_queue) == [file]
+        assert manager._processors == {}
+        assert not manager.max_runs_reached()
+        persist.assert_called_once()
+        assert persist.call_args.kwargs["bundle_name"] == "other"
+        incr.assert_any_call("dag_processing.results_discarded_on_refresh", tags={"bundle_name": bundle.name})
+        assert bundle.name not in manager._bundle_parse_sources
+
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_unavailable_bundle_does_not_block_ready_bundles_or_pinned_callbacks(self, create):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._parallelism = 2
+        blocked = DagFileInfo(bundle_name="blocked", rel_path=Path("dag.py"))
+        healthy = DagFileInfo(bundle_name="healthy", rel_path=Path("dag.py"))
+        pinned = DagFileInfo(bundle_name="blocked", rel_path=Path("dag.py"), bundle_version="v1")
+        manager._file_queue = OrderedDict.fromkeys([blocked, healthy, pinned])
+        manager._bundle_parse_sources["healthy"] = DagParseSource()
+        manager._callback_to_execute[pinned] = [mock.create_autospec(DagCallbackRequest, instance=True)]
+        create.side_effect = [self.mock_processor()[0] for _ in range(2)]
+
+        manager._start_new_processes()
+
+        assert list(manager._processors) == [healthy, pinned]
+        assert not manager._file_queue
+        assert list(manager._files_awaiting_source) == [blocked]
+        assert manager._processors[pinned].parse_source.bundle_version == "v1"
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    def test_files_awaiting_a_bundle_source_do_not_stop_other_bundles_refilling(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        blocked = DagFileInfo(bundle_name="blocked", rel_path=Path("dag.py"))
+        removed = DagFileInfo(bundle_name="blocked", rel_path=Path("removed.py"))
+        healthy = DagFileInfo(bundle_name="healthy", rel_path=Path("dag.py"))
+        manager._files_awaiting_source = dict.fromkeys([blocked, removed])
+        manager._num_run = 1
+
+        assert not manager.max_runs_reached()
+
+        manager.prepare_file_queue(known_files={"blocked": {blocked}, "healthy": {healthy}})
+        assert list(manager._file_queue) == [healthy]
+
+        manager._add_new_files_to_queue({"blocked": {blocked}})
+        assert list(manager._file_queue) == [healthy]
+
+        manager.purge_removed_files_from_queue(present={blocked, healthy})
+        assert list(manager._files_awaiting_source) == [blocked]
+
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    def test_refresh_does_not_requeue_completed_callbacks(self, persist):
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("dag.py"))
+        processor, _ = self.mock_processor()
+        processor.had_callbacks = True
+        processor.parsing_result = None
+        manager._bundle_refresh_generations["testing"] = 1
+
+        manager.handle_parsing_result(file, processor)
+
+        persist.assert_not_called()
+        assert not manager._file_queue
+        assert manager._file_stats[file].last_finish_time is None
+
     def test_handle_parsing_result_provides_its_own_session_when_caller_omits(self):
         """``handle_parsing_result`` is wrapped in ``@provide_session`` so subclasses overriding it can run without a caller-supplied session."""
         manager = DagFileProcessorManager(max_runs=1)
@@ -2103,13 +2494,18 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].num_dags == 0
         assert manager._file_stats[file].import_errors == 0
         assert manager._file_stats[file].run_count == 1
-        assert manager._file_stats[file].last_finish_time is not None
+        assert manager._file_stats[file].last_finish_time is None
+        assert manager._file_stats[file].last_attempt_time is not None
         assert manager._file_stats[file].last_duration is not None
         assert manager.processed_recently(timezone.utcnow(), file) is True
 
     def test_handle_parsing_result_updates_stats_after_successful_persist(self, session):
         manager = DagFileProcessorManager(max_runs=1)
-        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        file = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("abc.txt"),
+            bundle_path=TEST_DAGS_FOLDER,
+        )
         original_stat = DagFileStat(
             num_dags=1,
             import_errors=0,
@@ -2130,7 +2526,7 @@ class TestDagFileProcessorManager:
 
         mock_persist.assert_called_once_with(
             bundle_name="testing",
-            bundle_version="v1",
+            bundle_version=None,
             version_data=None,
             parsing_result=processor.parsing_result,
             run_duration=mock.ANY,
@@ -2181,7 +2577,8 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file_a].num_dags == stat_a_before.num_dags
         assert manager._file_stats[file_a].import_errors == stat_a_before.import_errors
         assert manager._file_stats[file_a].run_count == stat_a_before.run_count + 1
-        assert manager._file_stats[file_a].last_finish_time is not None
+        assert manager._file_stats[file_a].last_finish_time == stat_a_before.last_finish_time
+        assert manager._file_stats[file_a].last_attempt_time is not None
         assert manager._file_stats[file_b] is not stat_b_before
         assert manager._file_stats[file_b].run_count == 2
         assert len(manager._processors) == 0
@@ -2977,8 +3374,9 @@ class TestDagFileProcessorManager:
             ]
 
             with mock.patch.object(
-                DagFileProcessorProcess, "start", side_effect=lambda *args, **kwargs: self.mock_processor()
+                DagFileProcessorProcess, "start", side_effect=lambda *args, **kwargs: self.mock_processor()[0]
             ) as start:
+                manager._bundle_parse_sources["testing"] = DagParseSource()
                 manager._start_new_processes()
             # Callbacks passed to processor
             assert start.call_args_list == [
@@ -3032,6 +3430,26 @@ class TestDagFileProcessorManager:
 
         assert manager.prepare_callback_bundle(request) is bundle
         bundle.initialize.assert_called_once()
+
+    @mock.patch.object(DagFileProcessorManager, "prepare_callback_bundle", autospec=True)
+    def test_queuing_a_callback_heartbeats_before_preparing_its_bundle(self, mock_prepare_callback_bundle):
+        events = []
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.heartbeat = lambda: events.append("heartbeat")
+        mock_prepare_callback_bundle.side_effect = lambda manager, request: events.append("prepare")
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            msg=None,
+        )
+
+        manager._add_callback_to_queue(request)
+
+        assert events == ["heartbeat", "prepare"]
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_prepare_callback_bundle_forwards_version_data(self, mock_bundle_manager):
@@ -3886,27 +4304,15 @@ class TestDagFileProcessorManager:
             sync_mock.assert_not_called()
             assert [b.name for b in manager._dag_bundles] == ["testing"]
 
-    def test_purge_inactive_dag_warnings_delegates_to_dagwarning(self):
-        """Default `purge_inactive_dag_warnings` calls `DagWarning.purge_inactive_dag_warnings`."""
-        manager = DagFileProcessorManager(max_runs=1)
-        with mock.patch(
-            "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
-        ) as purge_mock:
-            manager.purge_inactive_dag_warnings()
-        purge_mock.assert_called_once_with()
-
-    def test_run_parsing_loop_uses_overridable_purge(self, tmp_path, configure_testing_dag_bundle):
-        """`_run_parsing_loop` calls the overridable `purge_inactive_dag_warnings` seam."""
+    def test_run_parsing_loop_leaves_warning_cleanup_to_scheduler(
+        self, tmp_path, configure_testing_dag_bundle
+    ):
         with configure_testing_dag_bundle(tmp_path):
             manager = DagFileProcessorManager(max_runs=1)
-            with (
-                mock.patch.object(manager, "purge_inactive_dag_warnings") as purge_mock,
-                mock.patch(
-                    "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
-                ) as direct_mock,
-            ):
+            with mock.patch(
+                "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
+            ) as direct_mock:
                 manager.run()
-            purge_mock.assert_called()
             direct_mock.assert_not_called()
 
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
@@ -4047,7 +4453,7 @@ class TestDagFileProcessorManager:
         bundle.get_current_version.return_value = current_version
         return bundle
 
-    def _refresh_with_mocked_state(self, manager, bundle, initial_state):
+    def _refresh_with_mocked_state(self, manager, bundle, initial_state, *, force=False):
         """Run _refresh_dag_bundles with get/update_bundle_state mocked out.
 
         Returns the two MagicMock objects for post-call assertions. MagicMock retains its
@@ -4056,10 +4462,28 @@ class TestDagFileProcessorManager:
         them normally after this method returns.
         """
         manager._dag_bundles = [bundle]
-        manager._force_refresh_bundles = set()
+        manager._force_refresh_bundles = {bundle.name} if force else set()
         mock_get = mock.patch.object(manager, "get_bundle_state", return_value=initial_state)
         mock_update = mock.patch.object(manager, "update_bundle_state")
+        mock_catalog = (
+            mock.patch.object(
+                manager.api_client,
+                "get_bundles",
+                return_value=[
+                    DagBundleStateResponse(
+                        name=bundle.name,
+                        last_refreshed=initial_state.last_refreshed,
+                        version=initial_state.version,
+                        revision=initial_state.revision,
+                        team_name=None,
+                    )
+                ],
+            )
+            if manager.api_client is not None
+            else nullcontext()
+        )
         with (
+            mock_catalog,
             mock_get as patched_get,
             mock_update as patched_update,
             mock.patch.object(manager, "_find_files_in_bundle", return_value=set()),
@@ -4071,6 +4495,128 @@ class TestDagFileProcessorManager:
         ):
             manager._refresh_dag_bundles({})
         return patched_get, patched_update
+
+    @pytest.mark.parametrize("failure", ["state", "discovery"])
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "clear_orphaned_import_errors", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "deactivate_deleted_dags", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "update_bundle_state", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "get_bundle_state", autospec=True)
+    def test_dispatch_uses_refreshed_source_even_when_metadata_update_fails(
+        self, get_state, update_state, find_files, deactivate, clear, removed, create, failure, tmp_path
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = self._make_refresh_bundle(
+            supports_versioning=True,
+            current_version=BundleVersion(version="v2", data={"files": {"dag.py": "new"}}),
+        )
+        bundle.path = tmp_path
+        (tmp_path / "dag.py").touch()
+        manager._dag_bundles = [bundle]
+        manager._bundle_versions[bundle.name] = "v1"
+        file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("dag.py"), bundle_path=bundle.path)
+        manager._file_queue[file] = None
+        get_state.return_value = BundleState(last_refreshed=None, version="v1")
+        find_files.return_value = {file}
+        if failure == "state":
+            update_state.side_effect = OSError("Database unavailable")
+        else:
+            find_files.side_effect = OSError("Listing failed")
+
+        manager._refresh_dag_bundles({bundle.name: {file}})
+        manager._start_new_processes()
+
+        assert manager._bundle_versions[bundle.name] == "v1"
+        assert create.return_value.parse_source == DagParseSource(
+            bundle_version="v2", version_data={"files": {"dag.py": "new"}}, refresh_generation=1
+        )
+
+    @mock.patch.object(DagFileProcessorManager, "_get_observed_filelocs", return_value={"bad\\dag.py"})
+    def test_listing_the_api_cannot_accept_is_handled_like_a_failed_listing(self, observed):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_refresh_check_interval=0)
+        bundle = self._make_refresh_bundle()
+
+        self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version=None))
+
+        bundle.refresh.assert_called_once()
+        client.publish_inventory.assert_not_called()
+        assert bundle.name not in manager._bundle_parse_sources
+        assert bundle.name not in manager._pending_inventories
+
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_failed_refresh_blocks_dispatch_until_the_source_recovers(self, create):
+        manager = DagFileProcessorManager(max_runs=1, bundle_refresh_check_interval=0)
+        bundle = self._make_refresh_bundle()
+        bundle.refresh_interval = 300
+        manager._bundle_versions[bundle.name] = None
+        file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("dag.py"))
+        manager._file_queue[file] = None
+        bundle.refresh.side_effect = [OSError("Partial refresh"), None]
+        state = BundleState(last_refreshed=timezone.utcnow(), version=None)
+
+        self._refresh_with_mocked_state(manager, bundle, state)
+        manager._start_new_processes()
+        create.assert_not_called()
+        assert not manager._file_queue
+        assert list(manager._files_awaiting_source) == [file]
+
+        self._refresh_with_mocked_state(manager, bundle, state)
+        manager._start_new_processes()
+        create.assert_called_once()
+        assert create.return_value.parse_source.refresh_generation == 2
+        assert not manager._file_queue
+        assert not manager._files_awaiting_source
+
+    @pytest.mark.parametrize("api_mode", [False, True])
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
+    def test_periodic_refresh_drains_imports_before_admitting_more(self, persist, create, api_mode):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True) if api_mode else None
+        if client is not None:
+            client.publish_inventory.return_value.revision = uuid7()
+        manager = DagFileProcessorManager(max_runs=1, bundle_refresh_check_interval=300, api_client=client)
+        bundle = self._make_refresh_bundle(supports_versioning=True, current_version="v2")
+        bundle.refresh_interval = 300
+        manager._bundle_versions[bundle.name] = "v1"
+        manager._bundle_parse_sources[bundle.name] = DagParseSource(bundle_version="v1")
+        active = DagFileInfo(bundle_name=bundle.name, rel_path=Path("active.py"))
+        queued = DagFileInfo(bundle_name=bundle.name, rel_path=Path("queued.py"))
+        processor, _ = self.mock_processor()
+        processor.had_callbacks = False
+        processor.dispatch_sequence = 1
+        processor.parse_source = DagParseSource(bundle_version="v1")
+        processor.parsing_result = DagFileParsingResult(fileloc="active.py", serialized_dags=[])
+        manager._processors[active] = processor
+        manager._file_queue[queued] = None
+
+        self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version="v1"))
+        manager._start_new_processes()
+        bundle.refresh.assert_not_called()
+        create.assert_not_called()
+        assert manager._bundles_waiting_for_refresh == {bundle.name}
+
+        manager._collect_results()
+        if api_mode:
+            persist.assert_not_called()
+            self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version="v1"))
+            bundle.refresh.assert_not_called()
+            manager._publish_pending_results()
+            assert client.publish_parse_result.call_args.args[0].bundle_version == "v1"
+        else:
+            persist.assert_called_once()
+            assert persist.call_args.kwargs["bundle_version"] == "v1"
+        self._refresh_with_mocked_state(
+            manager, bundle, BundleState(last_refreshed=timezone.utcnow(), version="v1")
+        )
+        manager._start_new_processes()
+
+        bundle.refresh.assert_called_once_with()
+        create.assert_called_once_with(manager, queued)
+        assert create.return_value.parse_source.bundle_version == "v2"
+        assert not manager._bundles_waiting_for_refresh
 
     def test_refresh_dag_bundles_non_versioned_calls_update_bundle_state(self):
         """Non-versioned bundle: update_bundle_state called with version=None."""
@@ -4220,6 +4766,34 @@ class TestDagFileProcessorManager:
             manager._refresh_dag_bundles({})
 
         healthy_bundle.refresh.assert_called_once()
+
+    def test_refresh_dag_bundles_heartbeats_before_each_bundle(self):
+        events = []
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.heartbeat = lambda: events.append("heartbeat")
+        manager._dag_bundles = []
+        for name in ("first", "second"):
+            bundle = self._make_refresh_bundle()
+            bundle.name = name
+            bundle.refresh.side_effect = lambda name=name: events.append(name)
+            manager._dag_bundles.append(bundle)
+        manager._force_refresh_bundles = set()
+
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
+            ),
+            mock.patch.object(manager, "update_bundle_state"),
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=set()),
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles({})
+
+        assert events == ["heartbeat", "first", "heartbeat", "second"]
 
     def test_refresh_dag_bundles_update_bundle_state_failure_still_scans_files(self):
         """A failure in update_bundle_state() logs but does not skip file scanning.
@@ -4392,7 +4966,7 @@ class TestDagFileProcessorManager:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_bundle_version_data_stored_after_refresh(self, session):
-        """Test that version_data from BundleVersion is stored in _bundle_version_data."""
+        """Keep the local source metadata independently of its persisted bundle state."""
         from airflow.dag_processing.bundles.base import BundleVersion
 
         manager = DagFileProcessorManager(max_runs=1)
@@ -4408,7 +4982,7 @@ class TestDagFileProcessorManager:
         self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version="oldhash"))
 
         assert manager._bundle_versions["mock_bundle"] == "newhash"
-        assert manager._bundle_version_data["mock_bundle"] == test_data
+        assert manager._bundle_parse_sources["mock_bundle"].version_data == test_data
 
     # --- statement budget ---
     #
@@ -4438,14 +5012,14 @@ class TestDagFileProcessorManager:
         errors: dict = {}
 
         update_dag_parsing_results_in_db(
-            "testing", None, dags, errors, 0.1, set(), session, files_parsed=files_parsed
+            "testing", None, dags, errors, 0.1, set(), session=session, files_parsed=files_parsed
         )
         session.commit()
         assert not errors, f"fixture Dags must serialize cleanly: {errors}"
 
         with _count_statements(session) as counts:
             update_dag_parsing_results_in_db(
-                "testing", None, counted, errors, 0.1, set(), session, files_parsed=files_parsed
+                "testing", None, counted, errors, 0.1, set(), session=session, files_parsed=files_parsed
             )
             session.flush()
         return counts
@@ -4478,14 +5052,14 @@ class TestDagFileProcessorManager:
         files_parsed = {("testing", rel_path)}
         recorded = {("testing", rel_path): "boom"}
         update_dag_parsing_results_in_db(
-            "testing", None, [], recorded, 0.1, set(), session, files_parsed=files_parsed
+            "testing", None, [], recorded, 0.1, set(), session=session, files_parsed=files_parsed
         )
         session.commit()
 
         again = {("testing", rel_path): "boom again"}
         with _count_statements(session) as counts:
             update_dag_parsing_results_in_db(
-                "testing", None, [], again, 0.1, set(), session, files_parsed=files_parsed
+                "testing", None, [], again, 0.1, set(), session=session, files_parsed=files_parsed
             )
             session.flush()
         return counts
@@ -4648,6 +5222,7 @@ class TestMultiTeamMetrics:
     @mock.patch("airflow.dag_processing.manager.stats.incr")
     def test_start_new_processes_includes_team_name(self, mock_incr, mock_get_team_name):
         manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_parse_sources["testing"] = DagParseSource()
         dag_file = DagFileInfo(
             bundle_name="testing",
             rel_path=Path("dag_file.py"),
@@ -4933,3 +5508,1067 @@ def test_normalized_file_path_for_stats_does_not_warn(caplog):
 
     assert result == "dags_test_test_dag.py"
     assert caplog.entries == []
+
+
+API_CLIENT_BUNDLES = [
+    {
+        "name": name,
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {"path": "/"},
+    }
+    for name in ("bundle_a", "bundle_b")
+]
+
+
+def _read_bundle_connection() -> None:
+    Connection.get("bundle_conn")
+
+
+class TestDagFileProcessorManagerWithAPIClient:
+    """With an API client, bundle code resolves its connections through it, for the bundle it belongs to."""
+
+    @pytest.fixture
+    def api_requests(self) -> list[httpx.Request]:
+        return []
+
+    @pytest.fixture
+    def api_client(self, tmp_path, api_requests):
+        token_file = tmp_path / "processor.jwt"
+        token_file.write_text("session-token")
+        job_token = jwt.encode({"iat": 0, "exp": 300, "scope": "dag_processor", "job_id": 1}, "secret")
+
+        def handle(request: httpx.Request) -> httpx.Response:
+            api_requests.append(request)
+            if request.url.path.endswith("/jobs"):
+                return httpx.Response(201, json={"job_id": 1, "token": job_token, "expires_in": 300})
+            if request.url.path.endswith("/bundles"):
+                return httpx.Response(
+                    200,
+                    json=[
+                        {
+                            "name": bundle["name"],
+                            "version": None,
+                            "last_refreshed": None,
+                            "revision": None,
+                            "team_name": None,
+                        }
+                        for bundle in API_CLIENT_BUNDLES
+                    ],
+                )
+            return httpx.Response(
+                200,
+                json={
+                    "conn_id": "bundle_conn",
+                    "conn_type": "http",
+                    "host": None,
+                    "schema": None,
+                    "login": None,
+                    "password": None,
+                    "port": None,
+                    "extra": None,
+                },
+            )
+
+        with DagProcessorAPIClient(
+            base_url="http://api/execution/",
+            token_file=token_file,
+            hostname="processor-1",
+            transport=httpx.MockTransport(handle),
+        ) as client:
+            client.register_job()
+            yield client
+
+    @pytest.fixture
+    def make_manager(self, api_client):
+        managers = []
+
+        def make(**kwargs) -> DagFileProcessorManager:
+            manager = DagFileProcessorManager(max_runs=1, api_client=api_client, **kwargs)
+            manager.prepare_api_secrets_context(api_client)
+            managers.append(manager)
+            return manager
+
+        yield make
+        for manager in managers:
+            manager.after_run()
+
+    @pytest.fixture(autouse=True)
+    def configured_bundles(self):
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(API_CLIENT_BUNDLES),
+                ("core", "load_examples"): "False",
+            }
+        ):
+            _load_bundle_config_snapshot.cache_clear()
+            yield
+        _load_bundle_config_snapshot.cache_clear()
+
+    @staticmethod
+    def _get_connection_bundles(api_requests: list[httpx.Request]) -> list[str]:
+        return [
+            request.headers["Airflow-Dag-Bundle"]
+            for request in api_requests
+            if request.url.path.startswith("/execution/connections/")
+        ]
+
+    def test_uses_the_api_client_instead_of_the_in_process_api(self, make_manager, api_client):
+        manager = make_manager()
+
+        assert manager.client is api_client
+        assert manager._api_server is None
+
+    @conf_vars({("secrets", "use_cache"): "True"})
+    def test_api_mode_does_not_share_sdk_secret_cache_between_bundles(self, make_manager, monkeypatch):
+        monkeypatch.setattr(SecretCache, "_cache", {"inherited": "secret"})
+        manager = make_manager()
+        manager.heartbeat = mock.Mock(spec=lambda: None, side_effect=SystemExit)
+        with pytest.raises(SystemExit):
+            manager._run_parsing_loop()
+        assert SecretCache._cache is None
+
+    @mock.patch("airflow.dag_processing.manager.get_importer_registry", autospec=True)
+    def test_importer_warmup_selects_its_bundle(self, registry, make_manager, api_requests):
+        manager = make_manager(bundle_names_to_parse=["bundle_b"])
+        manager._dag_bundles = manager.get_all_bundles()
+        registry.return_value.warm_importers.side_effect = _read_bundle_connection
+        manager.warm_importers()
+        assert self._get_connection_bundles(api_requests) == ["bundle_b"]
+
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "prepare_process_context",
+        autospec=True,
+        side_effect=ValueError("startup failed"),
+    )
+    def test_startup_failure_clears_the_api_secrets_context(self, prepare, api_client):
+        manager = DagFileProcessorManager(max_runs=1, api_client=api_client)
+        with pytest.raises(ValueError, match="startup failed"):
+            manager.run()
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+
+    @mock.patch("airflow.dag_processing.manager.gc", autospec=True)
+    def test_run_resolves_secrets_through_the_api_client_instead_of_the_database(self, _, api_client):
+        manager = DagFileProcessorManager(max_runs=1, api_client=api_client)
+        with (
+            mock.patch.object(manager, "prepare_server_process_context") as server_context,
+            mock.patch.object(manager, "prepare_process_context"),
+            mock.patch.object(manager, "register_exit_signals"),
+            mock.patch.object(manager, "prepare_bundles"),
+            mock.patch.object(manager, "_symlink_latest_log_directory"),
+            mock.patch.object(manager, "warm_importers"),
+        ):
+            manager.before_run()
+        server_context.assert_not_called()
+        assert isinstance(task_runner.SUPERVISOR_COMMS, DagProcessorSecretsComms)
+
+        manager.after_run()
+
+        assert not hasattr(task_runner, "SUPERVISOR_COMMS")
+
+    @pytest.mark.parametrize(
+        ("bundle_names_to_parse", "expected"),
+        [(None, ["bundle_a", "bundle_b"]), (["bundle_b"], ["bundle_b"])],
+    )
+    @mock.patch("airflow.dag_processing.bundles.local.LocalDagBundle.__init__", autospec=True)
+    def test_creates_each_bundle_for_its_bundle(
+        self, mock_bundle, make_manager, api_requests, bundle_names_to_parse, expected
+    ):
+        def create(bundle, *, name, **kwargs):
+            _read_bundle_connection()
+            bundle.name = name
+
+        mock_bundle.side_effect = create
+
+        bundles = make_manager(bundle_names_to_parse=bundle_names_to_parse).get_all_bundles()
+
+        assert [bundle.name for bundle in bundles] == expected
+        assert self._get_connection_bundles(api_requests) == expected
+
+    def test_refreshes_each_bundle_for_its_bundle(self, make_manager, api_requests):
+        manager = make_manager()
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.name = "bundle_b"
+        bundle.is_initialized = False
+
+        def initialize():
+            _read_bundle_connection()
+            raise OSError("clone failed")
+
+        bundle.initialize.side_effect = initialize
+        manager._dag_bundles = [bundle]
+
+        manager._refresh_dag_bundles(known_files={})
+
+        assert self._get_connection_bundles(api_requests) == ["bundle_b"]
+
+    @mock.patch.object(DagBundlesManager, "get_bundle", autospec=True)
+    def test_prepares_a_callback_bundle_for_its_bundle(self, mock_get_bundle, make_manager, api_requests):
+        def create(_, name, version=None, version_data=None):
+            _read_bundle_connection()
+            bundle = MagicMock(spec=BaseDagBundle)
+            bundle.supports_versioning = False
+            return bundle
+
+        mock_get_bundle.side_effect = create
+        request = DagCallbackRequest(
+            filepath="dag.py",
+            dag_id="dag_id",
+            run_id="run_id",
+            bundle_name="bundle_b",
+            bundle_version="v1",
+            context_from_server=None,
+            is_failure_callback=False,
+        )
+
+        assert make_manager().prepare_callback_bundle(request) is not None
+        assert self._get_connection_bundles(api_requests) == ["bundle_b"]
+
+    @mock.patch("airflow.sdk.api.client.ConnectionOperations.get", autospec=True)
+    @mock.patch.object(DagBundlesManager, "get_bundle", autospec=True)
+    def test_git_callback_connection_outage_is_deferred(self, get_bundle, get_connection, make_manager):
+        git_bundle = pytest.importorskip("airflow.providers.git.bundles.git").GitDagBundle
+        get_bundle.side_effect = lambda _, **kwargs: git_bundle(tracking_ref="main", **kwargs)
+        get_connection.side_effect = httpx.ConnectError("API unavailable")
+        manager = make_manager()
+        request = DagCallbackRequest(
+            filepath="a.py", bundle_name="bundle_b", bundle_version="v1", dag_id="dag", run_id="run"
+        )
+        work = ProcessorWorkItem(
+            id=str(uuid7()), claim_id=uuid7(), bundle_name="bundle_b", relative_fileloc="a.py"
+        )
+        manager._callback_claims[id(request)] = work
+        manager._deferred_api_callbacks.append(request)
+
+        manager._add_callback_to_queue(request)
+
+        get_connection.assert_called_once()
+        assert id(request) in manager._deferred_callback_retries
+        assert not manager._pending_work_acks
+
+
+@pytest.mark.parametrize(
+    ("failure", "stage"),
+    [
+        ("transport", "construct"),
+        ("server", "construct"),
+        ("retired", "construct"),
+        ("wrapped_retired", "construct"),
+        ("retired", "initialize"),
+    ],
+)
+@mock.patch.object(DagFileProcessorManager, "_create_bundle_manager", autospec=True)
+def test_callback_construction_failure_uses_bounded_retry(create, failure, stage):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.restart_required = failure == "wrapped_retired"
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    request = DagCallbackRequest(
+        filepath="a.py", bundle_name="testing", bundle_version="v1", dag_id="dag", run_id="run"
+    )
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
+    )
+    manager._callback_claims[id(request)] = work
+    manager._deferred_api_callbacks.append(request)
+    response = httpx.Response(503, request=httpx.Request("GET", "http://api/connections/git"))
+    errors = {
+        "transport": httpx.ConnectError("API unavailable"),
+        "server": httpx.HTTPStatusError("API unavailable", request=response.request, response=response),
+        "retired": DagProcessorRegistrationRetired("retired"),
+        "wrapped_retired": RuntimeError("provider wrapped a retired registration"),
+    }
+    if stage == "construct":
+        create.return_value.get_bundle.side_effect = errors[failure]
+    else:
+        create.return_value.get_bundle.return_value.supports_versioning = True
+        create.return_value.get_bundle.return_value.initialize.side_effect = errors[failure]
+    if "retired" in failure:
+        with pytest.raises(DagProcessorRegistrationRetired):
+            manager._add_callback_to_queue(request)
+        assert not manager._deferred_callback_retries
+        return
+
+    manager._add_callback_to_queue(request)
+    assert id(request) in manager._deferred_callback_retries
+    assert not manager._pending_work_acks
+    manager._deferred_callback_retries[id(request)].next_attempt_time = 0
+    create.return_value.get_bundle.side_effect = None
+    create.return_value.get_bundle.return_value = _make_bundle(TEST_DAGS_FOLDER)
+    manager._add_callback_to_queue(request)
+    assert not manager._deferred_callback_retries
+    assert not manager._deferred_api_callbacks
+    assert list(manager._callback_to_execute.values()) == [[request]]
+
+
+@conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
+@mock.patch("airflow.dag_processing.manager.time", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "_create_bundle_manager", autospec=True)
+def test_callback_constructor_outage_allows_other_work_until_retry_expires(
+    create_bundle_manager, create_process, mock_time, tmp_path
+):
+    mock_time.monotonic.return_value = 0
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.restart_required = False
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, parallelism=2)
+    bundle = _make_bundle(tmp_path)
+    bundle.is_initialized = True
+    manager._dag_bundles = [bundle]
+    manager._bundle_parse_sources[bundle.name] = DagParseSource()
+
+    def get_bundle(*, name, version, version_data):
+        if version == "unavailable":
+            raise httpx.ConnectError("Bundle connection lookup unavailable")
+        return bundle
+
+    create_bundle_manager.return_value.get_bundle.side_effect = get_bundle
+    work = []
+    for version in ("unavailable", "available"):
+        request = DagCallbackRequest(
+            filepath=f"{version}.py",
+            bundle_name=bundle.name,
+            bundle_version=version,
+            dag_id=version,
+            run_id="run",
+        )
+        work.append(
+            ProcessorWorkItem(
+                id=str(uuid7()),
+                claim_id=uuid7(),
+                bundle_name=bundle.name,
+                relative_fileloc=request.filepath,
+                callback=request.model_dump_json(),
+            )
+        )
+    client.claim_work.return_value = work
+    for request in manager.fetch_callbacks():
+        manager._add_callback_to_queue(request)
+    assert len(manager._deferred_api_callbacks) == 1
+    normal = DagFileInfo(bundle_name=bundle.name, rel_path=Path("normal.py"), bundle_path=tmp_path)
+    manager._add_files_to_queue([normal], mode="back")
+
+    def create(manager, file):
+        proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
+        proc.id = uuid7()
+        proc.had_callbacks = file.bundle_version is not None
+        return proc
+
+    create_process.side_effect = create
+    manager._start_new_processes()
+    assert {file.rel_path for file in manager._processors} == {Path("available.py"), Path("normal.py")}
+    assert not manager._pending_work_acks
+
+    mock_time.monotonic.return_value = 10
+    for request in list(manager._deferred_api_callbacks):
+        manager._add_callback_to_queue(request)
+    assert not manager._deferred_api_callbacks
+    assert not manager._deferred_callback_retries
+    assert manager._pending_work_acks == [("callbacks", work[0], True)]
+    manager._acknowledge_requested_work()
+    manager._acknowledge_requested_work()
+    client.acknowledge_work.assert_called_once_with("callbacks", work[0], failed=True)
+
+
+@mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True, return_value=set())
+@conf_vars({("core", "multi_team"): "True"})
+def test_refresh_reads_one_fresh_catalog_per_pass(find_files, tmp_path):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_refresh_check_interval=0)
+    states = []
+    known_files = {}
+    for name in ("a", "b", "c"):
+        bundle = _make_bundle(tmp_path)
+        bundle.name = name
+        bundle.is_initialized = True
+        bundle.supports_versioning = False
+        bundle.refresh_interval = 300
+        manager._dag_bundles.append(bundle)
+        manager._bundle_versions[name] = None
+        manager._bundle_parse_sources[name] = DagParseSource()
+        known_files[name] = set()
+        states.append(
+            DagBundleStateResponse(
+                name=name, version=None, last_refreshed=timezone.utcnow(), revision=uuid7(), team_name=None
+            )
+        )
+    client.get_bundles.return_value = states
+    client.publish_inventory.return_value.revision = uuid7()
+    manager._refresh_dag_bundles(known_files)
+    client.get_bundles.assert_called_once_with()
+    find_files.assert_not_called()
+
+    states[0] = states[0].model_copy(
+        update={"last_refreshed": None, "team_name": "new_team", "revision": uuid7()}
+    )
+    states.pop()
+    manager._refresh_dag_bundles(known_files)
+    assert client.get_bundles.call_count == 2
+    find_files.assert_called_once_with(manager, manager._dag_bundles[0])
+    assert client.publish_inventory.call_args.args[1].expected_revision == states[0].revision
+    assert manager._bundle_name_to_team_name == {"a": "new_team", "b": None}
+    manager._dag_bundles[2].refresh.assert_not_called()
+
+    file = DagFileInfo(bundle_name="b", rel_path=Path("a.py"))
+    known_files["b"] = {file}
+    pending_body = DagBundleInventoryBody(
+        attempt_id=uuid7(), dispatch_sequence=3, expected_revision=states[0].revision, files=[]
+    )
+    manager._pending_inventories["a"] = (pending_body, set(), DagParseSource())
+    client.get_bundles.side_effect = httpx.ConnectError("API unavailable")
+    manager._refresh_dag_bundles(known_files)
+    assert client.get_bundles.call_count == 3
+    assert known_files["b"] == {file}
+    assert client.publish_inventory.call_args.args[1] is pending_body
+    assert find_files.call_count == 1
+
+
+@pytest.mark.parametrize("status_code", [409, 503])
+def test_api_inventory_failure_preserves_known_files(status_code):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    body = DagBundleInventoryBody(attempt_id=uuid7(), dispatch_sequence=1, expected_revision=None, files=[])
+    manager._pending_inventories["testing"] = (body, set(), DagParseSource())
+    known_files = {"testing": set(_get_file_infos(["previous.py"]))}
+    previous = known_files.copy()
+    response = httpx.Response(status_code, request=httpx.Request("POST", "http://api/inventory"))
+    client.publish_inventory.side_effect = httpx.HTTPStatusError(
+        "Unavailable", request=response.request, response=response
+    )
+    manager._publish_bundle_inventory("testing", known_files)
+    assert known_files == previous
+    assert not manager._bundle_parse_sources
+    if status_code == 409:
+        assert not manager._pending_inventories
+        assert "testing" in manager._force_refresh_bundles
+    else:
+        assert manager._pending_inventories["testing"][0] is body
+        revision = uuid7()
+        client.publish_inventory.side_effect = None
+        client.publish_inventory.return_value = DagBundleInventoryResponse(
+            attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=revision
+        )
+        manager._publish_bundle_inventory("testing", known_files)
+        assert client.publish_inventory.call_args.args[1] is body
+        assert known_files == {"testing": set()}
+        assert manager._bundle_parse_sources["testing"].bundle_revision == revision
+
+
+@pytest.mark.parametrize("status_code", [409, 503])
+def test_requested_work_ack_retains_only_retryable_failures(status_code):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
+    )
+    manager._pending_work_acks.append(("callbacks", work, False))
+    response = httpx.Response(status_code, request=httpx.Request("POST", "http://api/ack"))
+    client.acknowledge_work.side_effect = httpx.HTTPStatusError(
+        "Unavailable", request=response.request, response=response
+    )
+    manager._acknowledge_requested_work()
+    assert bool(manager._pending_work_acks) == (status_code == 503)
+    if status_code == 503:
+        client.acknowledge_work.side_effect = None
+        manager._acknowledge_requested_work()
+        assert not manager._pending_work_acks
+        assert client.acknowledge_work.call_args.args == ("callbacks", work)
+
+
+def test_api_inventory_cleanup_preserves_claimed_callbacks():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["removed.py"])[0]
+    request = DagCallbackRequest(
+        filepath="removed.py", bundle_name="testing", bundle_version="older", dag_id="dag", run_id="run"
+    )
+    manager._callback_to_execute[file].append(request)
+    manager._file_queue[file] = None
+    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    processor.id = uuid7()
+    manager._processors[file] = processor
+    manager._callback_attempts[processor.id] = [
+        ProcessorWorkItem(
+            id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="removed.py"
+        )
+    ]
+    manager.purge_removed_files_from_queue(set())
+    manager.terminate_orphan_processes(set())
+    assert list(manager._file_queue) == [file]
+    processor.kill.assert_not_called()
+    processor.close.assert_not_called()
+
+
+@pytest.mark.parametrize("generation", [0, 1])
+@pytest.mark.parametrize("discovery_failed", [False, True])
+def test_inventory_only_fails_priority_requests_after_authoritative_refresh(generation, discovery_failed):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.publish_inventory.return_value.revision = uuid7()
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="archive.zip/a.py"
+    )
+    manager._priority_claims[work.id] = PriorityParseClaim(work=work, refresh_generation=1)
+    body = DagBundleInventoryBody(
+        attempt_id=uuid7(),
+        dispatch_sequence=1,
+        expected_revision=None,
+        files=["archive.zip"],
+        failed_sources=["archive.zip"] if discovery_failed else [],
+    )
+    manager._pending_inventories["testing"] = (body, set(), DagParseSource(refresh_generation=generation))
+
+    manager._publish_bundle_inventory("testing", {})
+
+    failed = generation == 1 and not discovery_failed
+    assert manager._pending_work_acks == ([("priority", work, True)] if failed else [])
+    assert (work.id in manager._priority_claims) is not failed
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_pending_requested_work_does_not_block_other_available_capacity(kind):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.claim_work.return_value = []
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, parallelism=2, max_callbacks_per_loop=2)
+    bundle = mock.create_autospec(BaseDagBundle, instance=True)
+    bundle.name = "testing"
+    bundle.supports_versioning = False
+    manager._dag_bundles = [bundle]
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="missing.py"
+    )
+    if kind == "priority":
+        manager._priority_claims[work.id] = PriorityParseClaim(work=work, refresh_generation=1)
+        manager.claim_priority_files()
+    else:
+        manager._callback_claims[1] = work
+        manager.fetch_callbacks()
+    client.claim_work.assert_called_once_with(kind, ["testing"], 1)
+
+
+def _claim_priority_parse(manager: DagFileProcessorManager, file: DagFileInfo) -> ProcessorWorkItem:
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name=file.bundle_name, relative_fileloc=str(file.rel_path)
+    )
+    manager._priority_claims[work.id] = PriorityParseClaim(
+        work=work, refresh_generation=0, attempt_id=uuid7()
+    )
+    manager._file_stats[file] = DagFileStat()
+    return work
+
+
+@pytest.mark.parametrize("parallelism", [1, 2])
+@pytest.mark.parametrize("older_outcome", ["published", "completed", "timeout"])
+@mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+def test_priority_request_waits_for_its_own_refreshed_import(create, tmp_path, parallelism, older_outcome):
+    (tmp_path / "a.py").write_text("from airflow.sdk import DAG\ndag = DAG('test')\n")
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(
+        max_runs=1,
+        api_client=client,
+        parallelism=parallelism,
+        processor_timeout=1,
+        bundle_refresh_check_interval=0,
+    )
+    bundle = _make_bundle(tmp_path)
+    bundle.is_initialized = True
+    bundle.supports_versioning = False
+    bundle.refresh_interval = 300
+    manager._dag_bundles = [bundle]
+    file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("a.py"), bundle_path=tmp_path)
+    manager._bundle_parse_sources[bundle.name] = DagParseSource()
+    old = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    old.id = uuid7()
+    old.start_time = time.monotonic() - 5
+    old.had_callbacks = False
+    old.parse_source = DagParseSource()
+    old.dispatch_sequence = 1
+    old.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
+    client.get_bundles.return_value = [
+        DagBundleStateResponse(
+            name=bundle.name, version=None, last_refreshed=None, revision=None, team_name=None
+        )
+    ]
+    client.publish_inventory.side_effect = lambda name, body: DagBundleInventoryResponse(
+        attempt_id=body.attempt_id, revision=uuid7(), accepted_at=timezone.utcnow()
+    )
+    known_files = {bundle.name: {file}}
+    if older_outcome == "published":
+        body = mock.create_autospec(DagParseResultBody, instance=True)
+        body.attempt_id = old.id
+        manager._pending_publications[file] = PendingDagPublication(
+            body=body, stat=DagFileStat(), refresh_generation=0
+        )
+    else:
+        manager._processors[file] = old
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name=bundle.name, relative_fileloc="a.py"
+    )
+    client.claim_work.return_value = [work]
+    manager._queue_requested_files_for_parsing()
+    manager._refresh_dag_bundles(known_files)
+    bundle.refresh.assert_not_called()
+    manager._start_new_processes()
+    if older_outcome == "published":
+        manager._publish_pending_results()
+    elif older_outcome == "completed":
+        manager._processors.pop(file)
+        manager.handle_parsing_result(file, old)
+        manager._publish_pending_results()
+    else:
+        manager._kill_timed_out_processors()
+    assert not manager._pending_work_acks
+    assert work.id in manager._priority_claims
+    assert file in manager._file_queue
+    create.assert_not_called()
+
+    manager._start_new_processes()
+    create.assert_not_called()
+    manager._refresh_dag_bundles(known_files)
+    bundle.refresh.assert_called_once_with()
+    assert manager._bundle_parse_sources[bundle.name].refresh_generation == 1
+    new = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    new.id = uuid7()
+    new.start_time = time.monotonic()
+    new.had_callbacks = False
+    new.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
+    create.return_value = new
+    manager._start_new_processes()
+    create.assert_called_once_with(manager, file)
+
+    later = work.model_copy(update={"id": str(uuid7()), "claim_id": uuid7()})
+    manager._parallelism = 2
+    client.claim_work.return_value = [later]
+    manager._queue_requested_files_for_parsing()
+    manager.handle_parsing_result(file, new)
+    manager._publish_pending_results()
+    assert manager._pending_work_acks == [("priority", work, False)]
+    assert later.id in manager._priority_claims
+    assert file in manager._file_queue
+
+
+@pytest.mark.parametrize("failure", ["response_lost", "server_error", "source_changed"])
+@mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+def test_priority_request_during_publication_retry_completes_after_refresh(create, tmp_path, failure):
+    (tmp_path / "a.py").write_text("from airflow.sdk import DAG\ndag = DAG('test')\n")
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_refresh_check_interval=0)
+    bundle = _make_bundle(tmp_path)
+    bundle.is_initialized = True
+    bundle.supports_versioning = False
+    bundle.refresh_interval = 300
+    manager._dag_bundles = [bundle]
+    file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("a.py"), bundle_path=tmp_path)
+    client.get_bundles.return_value = [
+        DagBundleStateResponse(
+            name=bundle.name, version=None, last_refreshed=None, revision=None, team_name=None
+        )
+    ]
+    client.publish_inventory.side_effect = lambda name, body: DagBundleInventoryResponse(
+        attempt_id=body.attempt_id, revision=uuid7(), accepted_at=timezone.utcnow()
+    )
+    known_files = {bundle.name: {file}}
+    first = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name=bundle.name, relative_fileloc="a.py"
+    )
+    client.claim_work.return_value = [first]
+    manager._queue_requested_files_for_parsing()
+    manager._refresh_dag_bundles(known_files)
+    proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    proc.id = uuid7()
+    proc.start_time = time.monotonic()
+    proc.had_callbacks = False
+    proc.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
+    create.return_value = proc
+    manager._start_new_processes()
+    manager._processors.pop(file)
+    manager.handle_parsing_result(file, proc)
+    if failure == "response_lost":
+        error = httpx.ReadError("Lost publication acknowledgment")
+    else:
+        response = httpx.Response(
+            409 if failure == "source_changed" else 503,
+            json={"detail": {"reason": failure}},
+            request=httpx.Request("POST", "http://api/parse-results"),
+        )
+        error = httpx.HTTPStatusError("Publication failed", request=response.request, response=response)
+    client.publish_parse_result.side_effect = error
+    manager._publish_pending_results()
+    assert not manager._pending_work_acks
+
+    later = first.model_copy(update={"id": str(uuid7()), "claim_id": uuid7()})
+    client.claim_work.return_value = [later]
+    manager._queue_requested_files_for_parsing()
+    client.publish_parse_result.side_effect = None
+    if failure != "source_changed":
+        manager._refresh_dag_bundles(known_files)
+        assert bundle.refresh.call_count == 1
+        manager._start_new_processes()
+        assert create.call_count == 1
+        manager._pending_publications[file].next_attempt_time = 0
+        manager._publish_pending_results()
+        assert manager._pending_work_acks == [("priority", first, False)]
+        assert later.id in manager._priority_claims
+    manager._refresh_dag_bundles(known_files)
+    assert bundle.refresh.call_count == 2
+    replacement = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    replacement.id = uuid7()
+    replacement.start_time = time.monotonic()
+    replacement.had_callbacks = False
+    replacement.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
+    create.return_value = replacement
+    manager._start_new_processes()
+    assert manager._processors[file] is replacement
+    manager._processors.pop(file)
+    manager.handle_parsing_result(file, replacement)
+    manager._publish_pending_results()
+    assert manager._pending_work_acks == [("priority", first, False), ("priority", later, False)]
+    assert not manager._priority_claims
+    assert not manager._pending_publications
+    manager._acknowledge_requested_work()
+    manager._acknowledge_requested_work()
+    assert client.acknowledge_work.call_args_list == [
+        mock.call("priority", first, failed=False),
+        mock.call("priority", later, failed=False),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("status_code", "failed"), [(None, False), (409, True)], ids=["published", "rejected"]
+)
+def test_publication_outcome_acknowledges_priority_claims(status_code, failed):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    work = _claim_priority_parse(manager, file)
+    manager._pending_publications[file] = PendingDagPublication(
+        body=mock.create_autospec(DagParseResultBody, instance=True), stat=DagFileStat(), refresh_generation=0
+    )
+    manager._pending_publications[file].body.attempt_id = manager._priority_claims[work.id].attempt_id
+    if status_code:
+        response = httpx.Response(status_code, request=httpx.Request("POST", "http://api/parse-results"))
+        client.publish_parse_result.side_effect = httpx.HTTPStatusError(
+            "Rejected", request=response.request, response=response
+        )
+
+    manager._publish_pending_results()
+
+    assert manager._pending_work_acks == [("priority", work, failed)]
+    assert not manager._priority_claims
+
+
+def test_publication_for_a_changed_source_refreshes_and_reparses():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    work = _claim_priority_parse(manager, file)
+    manager._pending_publications[file] = PendingDagPublication(
+        body=mock.create_autospec(DagParseResultBody, instance=True), stat=DagFileStat(), refresh_generation=0
+    )
+    manager._pending_publications[file].body.attempt_id = manager._priority_claims[work.id].attempt_id
+    response = httpx.Response(
+        409,
+        json={"detail": {"reason": "source_changed"}},
+        request=httpx.Request("POST", "http://api/parse-results"),
+    )
+    client.publish_parse_result.side_effect = httpx.HTTPStatusError(
+        "Rejected", request=response.request, response=response
+    )
+
+    manager._publish_pending_results()
+
+    assert not manager._pending_publications
+    assert manager._force_refresh_bundles == {"testing"}
+    assert list(manager._file_queue) == [file]
+    assert manager._priority_claims[work.id].work == work
+    assert not manager._pending_work_acks
+
+
+@conf_vars({("core", "multi_team"): "True"})
+def test_api_team_lookup_failure_is_retried_without_stopping_the_processor():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.get_bundles.side_effect = [
+        httpx.ConnectError("unavailable"),
+        [
+            DagBundleStateResponse(
+                name="testing", version=None, last_refreshed=None, revision=None, team_name="team_a"
+            )
+        ],
+    ]
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+
+    assert manager._get_team_names({"testing"}) == {"testing": None}
+    assert manager._get_team_names({"testing"}) == {"testing": "team_a"}
+
+
+@pytest.mark.parametrize(
+    ("outcome", "acknowledged"),
+    [("no_result", True), ("build_failed", True), ("callback_only", False)],
+)
+def test_parse_without_publication_acknowledges_priority_claims(outcome, acknowledged):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    work = _claim_priority_parse(manager, file)
+    proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    proc.id = manager._priority_claims[work.id].attempt_id
+    proc.start_time = time.monotonic()
+    proc.had_callbacks = outcome == "callback_only"
+    proc.parse_source = DagParseSource()
+    proc.parsing_result = (
+        DagFileParsingResult(fileloc="a.py", serialized_dags=[]) if outcome == "build_failed" else None
+    )
+
+    with mock.patch.object(manager, "_build_parse_result", side_effect=ValueError("invalid result")):
+        manager.handle_parsing_result(file, proc)
+
+    assert manager._pending_work_acks == ([("priority", work, True)] if acknowledged else [])
+    assert bool(manager._priority_claims) is not acknowledged
+
+
+@pytest.mark.parametrize("had_callbacks", [False, True])
+def test_timed_out_parse_acknowledges_priority_claims(had_callbacks):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=1)
+    file = _get_file_infos(["a.py"])[0]
+    work = _claim_priority_parse(manager, file)
+    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    processor.id = manager._priority_claims[work.id].attempt_id
+    processor.start_time = time.monotonic() - 5
+    processor.had_callbacks = had_callbacks
+    manager._processors[file] = processor
+
+    manager._kill_timed_out_processors()
+
+    processor.kill.assert_called_once_with(signal.SIGKILL)
+    assert manager._pending_work_acks == ([] if had_callbacks else [("priority", work, True)])
+
+
+@pytest.mark.parametrize("recovers", [False, True], ids=["dropped", "recovered"])
+@conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
+@mock.patch("airflow.dag_processing.manager.time", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "prepare_callback_bundle", autospec=True, return_value=None)
+def test_unpreparable_callback_is_retried_with_backoff_until_the_job_heartbeat_timeout(
+    prepare, mock_time, recovers
+):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    request = DagCallbackRequest(
+        filepath="a.py", bundle_name="testing", bundle_version="v1", dag_id="dag", run_id="run"
+    )
+    work = ProcessorWorkItem(
+        id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
+    )
+    manager._callback_claims[id(request)] = work
+    manager._deferred_api_callbacks.append(request)
+
+    for now in (0, 0.5, 1, 2):
+        mock_time.monotonic.return_value = now
+        manager._add_callback_to_queue(request)
+    assert prepare.call_count == 2
+
+    if recovers:
+        bundle = mock.create_autospec(BaseDagBundle, instance=True)
+        bundle.path = TEST_DAGS_FOLDER
+        prepare.return_value = bundle
+    mock_time.monotonic.return_value = 10
+    manager._add_callback_to_queue(request)
+
+    assert prepare.call_count == 3
+    assert not manager._deferred_callback_retries
+    assert not manager._deferred_api_callbacks
+    if recovers:
+        assert manager._callback_claims == {id(request): work}
+        assert list(manager._callback_to_execute.values()) == [[request]]
+        assert not manager._pending_work_acks
+    else:
+        assert not manager._callback_claims
+        assert manager._pending_work_acks == [("callbacks", work, True)]
+
+
+def _make_pending_publication(
+    file: DagFileInfo, *, attempt_id: UUID | None = None, import_errors: dict[str, str] | None = None
+) -> PendingDagPublication:
+    dag = SdkDAG(f"dag_in_{file.rel_path.stem}", schedule=None)
+    dag.fileloc = f"/worker/{file.rel_path}"
+    dag.relative_fileloc = str(file.rel_path)
+    return PendingDagPublication(
+        body=DagParseResultBody(
+            attempt_id=attempt_id or uuid7(),
+            dispatch_sequence=1,
+            bundle_name=file.bundle_name,
+            relative_fileloc=str(file.rel_path),
+            parse_duration=0.1,
+            serialized_dags=[LazyDeserializedDAG.from_dag(dag).data],
+            source_codes={dag.dag_id: ParseSourceCode(source_code="# source", language="python")},
+            import_errors=import_errors or {},
+        ),
+        stat=DagFileStat(num_dags=1, run_count=1, last_finish_time=timezone.utcnow()),
+        refresh_generation=0,
+    )
+
+
+def _make_status_error(status_code: int, reason: str | None = None) -> httpx.HTTPStatusError:
+    response = httpx.Response(
+        status_code,
+        json={"detail": {"reason": reason}} if reason else None,
+        request=httpx.Request("POST", "http://api/parse-results"),
+    )
+    return httpx.HTTPStatusError("Rejected", request=response.request, response=response)
+
+
+def test_publication_sends_every_ready_result_within_the_loop_budget():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    files = _get_file_infos(["a.py", "b.py"])
+    for file in files:
+        manager._pending_publications[file] = _make_pending_publication(file)
+
+    manager._publish_pending_results(deadline=time.monotonic())
+    client.publish_parse_result.assert_not_called()
+
+    manager._publish_pending_results()
+    sent = [call.args[0].relative_fileloc for call in client.publish_parse_result.call_args_list]
+    assert sent == ["a.py", "b.py"]
+    assert not manager._pending_publications
+    assert all(manager._file_stats[file].num_dags == 1 for file in files)
+
+
+@conf_vars({("workers", "execution_api_retries"): "1"})
+@pytest.mark.parametrize(
+    ("error", "message"),
+    [
+        (_make_status_error(409, "dag_owned_by_another_bundle"), "HTTP 409: dag_owned_by_another_bundle"),
+        (_make_status_error(403, "plugin_not_granted"), "HTTP 403: plugin_not_granted"),
+        (_make_status_error(413), "HTTP 413"),
+        (_make_status_error(422), "HTTP 422"),
+        (_make_status_error(500), "HTTP 500"),
+    ],
+)
+def test_result_the_api_refuses_is_replaced_by_an_import_error(error, message):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.publish_parse_result.side_effect = [error, None]
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    manager._dispatch_sequence = 7
+    file = _get_file_infos(["a.py"])[0]
+    work = _claim_priority_parse(manager, file)
+    original = _make_pending_publication(
+        file,
+        attempt_id=manager._priority_claims[work.id].attempt_id,
+        import_errors={"a.py/member.py": "member failed"},
+    )
+    manager._pending_publications[file] = original
+
+    manager._publish_pending_results()
+
+    report = client.publish_parse_result.call_args_list[1].args[0]
+    assert report.attempt_id != original.body.attempt_id
+    assert report.dispatch_sequence == 8
+    assert report.serialized_dags == []
+    assert report.source_codes == {}
+    assert report.import_errors == {
+        "a.py/member.py": "member failed",
+        "a.py": f"The parsing result was not published: the API server rejected it ({message}).",
+    }
+    assert not manager._pending_publications
+    assert manager._file_stats[file].num_dags == 0
+    assert manager._file_stats[file].import_errors == 2
+    assert manager._pending_work_acks == [("priority", work, True)]
+
+
+@pytest.mark.parametrize("reason", ["bundle_inactive", "publication_superseded", None])
+def test_refusal_unrelated_to_content_is_not_reported_as_an_import_error(reason):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.publish_parse_result.side_effect = _make_status_error(409, reason)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    manager._pending_publications[file] = _make_pending_publication(file)
+
+    manager._publish_pending_results()
+
+    client.publish_parse_result.assert_called_once()
+    assert not manager._pending_publications
+
+
+def test_refused_import_error_report_is_not_replaced_again():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.publish_parse_result.side_effect = _make_status_error(413)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    manager._pending_publications[file] = _make_pending_publication(file)
+
+    manager._publish_pending_results()
+
+    assert client.publish_parse_result.call_count == 2
+    assert not manager._pending_publications
+    assert manager._file_stats[file].num_dags == 0
+
+
+@mock.patch("airflow.dag_processing.manager.MAX_PUBLICATION_BYTES", 1024 * 1024)
+def test_result_over_the_publication_limit_is_reported_without_sending_it():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    file = _get_file_infos(["a.py"])[0]
+    work = _claim_priority_parse(manager, file)
+    dag = SdkDAG("large", schedule=None, doc_md="x" * 1024 * 1024)
+    dag.fileloc = "/worker/a.py"
+    dag.relative_fileloc = "a.py"
+    proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    proc.id = manager._priority_claims[work.id].attempt_id
+    proc.start_time = time.monotonic()
+    proc.had_callbacks = False
+    proc.dispatch_sequence = 1
+    proc.parse_source = DagParseSource()
+    proc.parsing_result = DagFileParsingResult(
+        fileloc="a.py", serialized_dags=[LazyDeserializedDAG.from_dag(dag)]
+    )
+
+    manager.handle_parsing_result(file, proc)
+
+    pending = manager._pending_publications[file]
+    assert pending.is_rejection_report
+    assert pending.body.serialized_dags == []
+    assert pending.body.import_errors == {
+        "a.py": "The parsing result was not published: it exceeds the 1 MiB publication limit."
+    }
+    assert manager._pending_work_acks == [("priority", work, True)]
+    client.publish_parse_result.assert_not_called()
+
+
+def test_acknowledgments_are_sent_within_the_loop_budget():
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    work = [
+        ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py")
+        for _ in range(3)
+    ]
+    manager._pending_work_acks = [("priority", item, False) for item in work]
+
+    manager._acknowledge_requested_work(deadline=time.monotonic())
+    client.acknowledge_work.assert_not_called()
+
+    manager._acknowledge_requested_work()
+    assert client.acknowledge_work.call_args_list == [
+        mock.call("priority", item, failed=False) for item in work
+    ]
+    assert not manager._pending_work_acks
+
+
+@pytest.mark.parametrize("failure", [None, httpx.ConnectError("unavailable"), RuntimeError("closed")])
+def test_shutdown_acknowledges_finished_work(failure):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.acknowledge_work.side_effect = failure
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    work = [
+        ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py")
+        for _ in range(2)
+    ]
+    manager._pending_work_acks = [("callbacks", item, False) for item in work]
+
+    manager.end()
+
+    if failure is None:
+        assert client.acknowledge_work.call_count == 2
+        assert not manager._pending_work_acks
+    else:
+        client.acknowledge_work.assert_called_once()
+        assert len(manager._pending_work_acks) == 2
