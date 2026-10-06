@@ -25,12 +25,12 @@ import time
 from importlib import import_module
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Protocol
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, Protocol
 from uuid import UUID
 
 import attrs
 import structlog
-from pydantic import Field, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
 from airflow.sdk.exceptions import ErrorType
@@ -53,10 +53,10 @@ from airflow.sdk.execution_time.supervisor import (
     WatchedSubprocess,
     _ensure_client,
     _make_process_nondumpable,
+    _task_process_uses_exec,
 )
 
 if TYPE_CHECKING:
-    from pydantic import BaseModel
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
@@ -82,6 +82,16 @@ CallbackToSupervisor = Annotated[
     GetConnection | GetVariable | GetVariableKeys | MaskSecret,
     Field(discriminator="type"),
 ]
+
+
+class CallbackStartupDetails(BaseModel):
+    """Inputs sent by the callback supervisor after starting the child process."""
+
+    callback_path: str
+    callback_kwargs: dict
+    dag_rel_path: str
+    bundle_info: dict[str, Any] | None = None
+    type: Literal["CallbackStartupDetails"] = "CallbackStartupDetails"
 
 
 def execute_callback(
@@ -175,6 +185,57 @@ def execute_callback(
         return False, error_msg
 
 
+def _callback_subprocess_main() -> None:
+    """Receive callback inputs from the supervisor and execute the callback."""
+    from airflow.sdk.execution_time import task_runner
+    from airflow.sdk.execution_time.comms import CommsDecoder, ToSupervisor, ToTask
+
+    callback_log = structlog.get_logger(logger_name="callback_runner")
+    startup_comms = CommsDecoder[CallbackStartupDetails, CallbackToSupervisor](
+        log=callback_log,
+        body_decoder=TypeAdapter(CallbackStartupDetails),
+    )
+    startup_details = startup_comms._get_response()
+    if not isinstance(startup_details, CallbackStartupDetails):
+        raise RuntimeError(f"Unhandled callback startup message {type(startup_details)}")
+
+    task_runner.SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](
+        log=callback_log,
+        socket=startup_comms.socket,
+    )
+    bundle_path = None
+
+    if bundle_info := startup_details.bundle_info:
+        try:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle = DagBundlesManager().get_bundle(**bundle_info)
+            bundle.initialize()
+            bundle_path = Path(bundle.path)
+            if str(bundle_path) not in sys.path:
+                sys.path.append(str(bundle_path))
+                callback_log.debug(
+                    "Added bundle path to sys.path", bundle_name=bundle_info["name"], path=str(bundle_path)
+                )
+        except Exception:
+            callback_log.warning(
+                "Failed to initialize DAG bundle for callback",
+                bundle_name=bundle_info["name"],
+                exc_info=True,
+            )
+
+    success, error_msg = execute_callback(
+        callback_path=startup_details.callback_path,
+        callback_kwargs=startup_details.callback_kwargs,
+        dag_rel_path=Path(startup_details.dag_rel_path),
+        bundle_path=bundle_path,
+        log=callback_log,
+    )
+    if not success:
+        callback_log.error("Callback failed", error=error_msg)
+        sys.exit(1)
+
+
 @attrs.define(kw_only=True)
 class CallbackSubprocess(WatchedSubprocess):
     """
@@ -206,61 +267,32 @@ class CallbackSubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given callback."""
-
-        # Use a closure to pass callback data to the child process.  Note that this
-        # ONLY works because WatchedSubprocess.start() uses os.fork(), so the child
-        # inherits the parent's memory space and the variables are available directly.
-        def _target():
-            from airflow.sdk.execution_time import task_runner
-            from airflow.sdk.execution_time.comms import CommsDecoder, ToTask
-
-            _log = structlog.get_logger(logger_name="callback_runner")
-            task_runner.SUPERVISOR_COMMS = CommsDecoder[ToTask, CallbackToSupervisor](log=_log)
-            bundle_path = None
-
-            # If bundle info is provided, initialize the bundle and ensure its path is importable.
-            # This is needed for user-defined callbacks that live inside a DAG bundle rather than
-            # in an installed package or the plugins directory.
-            if bundle_info and bundle_info.name:
-                try:
-                    from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-                    bundle = DagBundlesManager().get_bundle(
-                        name=bundle_info.name,
-                        version=bundle_info.version,
-                        version_data=bundle_info.version_data,
-                    )
-                    bundle.initialize()
-                    if (bundle_path := str(bundle.path)) not in sys.path:
-                        sys.path.append(bundle_path)
-                        _log.debug(
-                            "Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path
-                        )
-                except Exception:
-                    _log.warning(
-                        "Failed to initialize DAG bundle for callback",
-                        bundle_name=bundle_info.name,
-                        exc_info=True,
-                    )
-
-            success, error_msg = execute_callback(
-                callback_path=callback_path,
-                callback_kwargs=callback_kwargs,
-                dag_rel_path=dag_rel_path,
-                bundle_path=bundle_path,
-                log=_log,
-            )
-            if not success:
-                _log.error("Callback failed", error=error_msg)
-                sys.exit(1)
-
-        return super().start(
+        proc = super().start(
             id=UUID(id) if not isinstance(id, UUID) else id,
             client=client,
-            target=_target,
+            target=_callback_subprocess_main,
             logger=logger,
+            use_exec=_task_process_uses_exec(),
             **kwargs,
         )
+        proc.send_msg(
+            CallbackStartupDetails(
+                callback_path=callback_path,
+                callback_kwargs=callback_kwargs,
+                dag_rel_path=os.fspath(dag_rel_path),
+                bundle_info=(
+                    {
+                        "name": bundle_info.name,
+                        "version": bundle_info.version,
+                        "version_data": bundle_info.version_data,
+                    }
+                    if bundle_info and bundle_info.name
+                    else None
+                ),
+            ),
+            request_id=0,
+        )
+        return proc
 
     def wait(self) -> int:
         """
