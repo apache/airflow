@@ -22,9 +22,12 @@ package org.apache.airflow.sdk
 import org.apache.airflow.sdk.execution.comm.ConnectionResult
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TIRunContext
+import org.apache.airflow.sdk.execution.comm.TaskStateStoreResult
 import org.apache.airflow.sdk.execution.comm.VariableResult
 import org.apache.airflow.sdk.execution.comm.XComResult
 import org.apache.airflow.sdk.internal.Refs
+import java.time.OffsetDateTime
+import java.util.UUID
 import org.apache.airflow.sdk.execution.comm.TaskInstance as CommTaskInstance
 
 /** Records getXCom calls and serves canned values keyed by task id. */
@@ -68,6 +71,25 @@ internal class FakeXComTransport(
     runId: String,
     mapIndex: Int,
   ) = throw NotImplementedError()
+
+  override fun getTaskStateStore(
+    tiId: UUID,
+    key: String,
+  ): TaskStateStoreResult? = throw NotImplementedError()
+
+  override fun setTaskStateStore(
+    tiId: UUID,
+    key: String,
+    value: Any,
+    expiresAt: OffsetDateTime?,
+  ) = throw NotImplementedError()
+
+  override fun deleteTaskStateStore(
+    tiId: UUID,
+    key: String,
+  ) = throw NotImplementedError()
+
+  override fun clearTaskStateStore(tiId: UUID) = throw NotImplementedError()
 }
 
 internal fun startupDetails(argBindings: List<Map<String, Any?>>?): StartupDetails =
