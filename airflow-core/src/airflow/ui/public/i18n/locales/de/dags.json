@@ -31,6 +31,13 @@
     "runStatePlaceholder": "Lauf status wählen…",
     "timetableType": "Zeitplantyp"
   },
+  "folders": {
+    "all": "Alle Dags",
+    "empty": "Keine Ordner",
+    "hide": "Ordner ausblenden",
+    "show": "Ordner anzeigen",
+    "title": "Ordner"
+  },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
     "affectedTasks": {

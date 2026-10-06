@@ -52,6 +52,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
     TASK_INSTANCE_ID_ANNOTATION,
+    TASK_INSTANCE_ID_LABEL,
     FailureDetails,
     KubernetesJob,
     KubernetesResults,
@@ -1042,6 +1043,8 @@ class KubernetesExecutor(BaseExecutor):
                 run_id=ti.run_id,
                 airflow_worker=ti.queued_by_job_id,
             )
+            if self.supports_task_instance_uuid:
+                selector += f",{TASK_INSTANCE_ID_LABEL}={ti.id}"
             namespace = self._get_pod_namespace(ti)
             pod_list = client.list_namespaced_pod(
                 namespace=namespace,

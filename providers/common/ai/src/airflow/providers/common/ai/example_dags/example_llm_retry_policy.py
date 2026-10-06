@@ -19,16 +19,16 @@ Example DAG demonstrating LLM-powered retry policies.
 
 ``llm_policy`` is the plain form: a text model classifies the failure and decides whether to
 retry and how long to wait, guided by its instructions. ``patient_policy`` and the
-classifier-model policies are ``ClassifierRetryPolicy``: the model only names the kind of failure
+decision-model policies are ``ClassifierRetryPolicy``: the model only names the kind of failure
 and the policy's table decides the action, the delay and how sure the model has to be.
 
 Prerequisites:
   - Connection ``pydanticai_default`` with ``conn_type='pydanticai'``,
     ``password=<API key>``, ``extra='{"model": "anthropic:claude-haiku-4-5-20251001"}'``
   - ``pip install apache-airflow-providers-common-ai[anthropic]``
-  - For the classifier-model Dag: connection ``jev_default`` with
-    ``extra='{"model": "typesafe:jev-1.13.0"}'`` and
-    ``pip install 'apache-airflow-providers-common-ai[typesafe]'``
+  - For the decision-model Dag: a connection ``decision_default`` whose model is a decision
+    model, as set up in the "Decision models" guide. Its confidence bars were calibrated on
+    ``typesafe:jev-1.13.0``; measure them again for another model.
 """
 
 from __future__ import annotations
@@ -96,15 +96,15 @@ try:
     example_llm_retry_policy()
 
     # [START howto_retry_policy_classifier]
-    # A classifier model answers the same question in a few hundred milliseconds and reports
-    # how sure it is. The categories are this pipeline's own; their descriptions are what the
+    # A decision model answers the same question with how sure it is, and jev-1.13.0 does it
+    # in a few hundred milliseconds. The categories are this pipeline's own; their descriptions are what the
     # model reads. ``permanent`` ends the task and costs it every retry it had left, so it
     # demands more certainty than the rest. Under a bar the answer is discarded and the
     # fallback rules, then the task's own retry settings, decide instead. The bars come from
     # a calibration run on jev-1.13.0: correct picks landed at 0.89 and above, wrong ones
     # at 0.47 to 0.69, with one wrong ``permanent`` at 0.90 that no sensible bar catches.
     snowflake_policy = ClassifierRetryPolicy(
-        llm_conn_id="jev_default",
+        llm_conn_id="decision_default",
         min_confidence=0.8,
         categories={
             "queued": ErrorCategory(
@@ -134,11 +134,11 @@ try:
     # [END howto_retry_policy_classifier]
 
     # [START howto_retry_policy_escalation]
-    # The three layers chained. The classifier answers the clear cases in a few hundred
-    # milliseconds. When it is unsure or unreachable, a text model reasons about the failure
-    # and decides retry and delay itself. When that model is unreachable too, the rules decide.
+    # The three layers chained. The decision model answers the clear cases cheaply. When it is
+    # unsure or unreachable, a text model reasons about the failure and decides retry and delay
+    # itself. When that model is unreachable too, the rules decide.
     escalating_policy = ClassifierRetryPolicy(
-        llm_conn_id="jev_default",
+        llm_conn_id="decision_default",
         min_confidence=0.8,
         categories=snowflake_policy.categories,
         fallback_policy=LLMRetryPolicy(llm_conn_id="pydanticai_default", timeout=30.0),

@@ -33,7 +33,6 @@
       "connectionIdRequired": "कनेक्शन ID आवश्यक है",
       "connectionIdRequirement": "कनेक्शन ID में केवल अंतरिक्ष कुंजियाँ नहीं हो सकते",
       "connectionTypeRequired": "कनेक्शन प्रकार आवश्यक है",
-      "extraFields": "अतिरिक्त फ़ील्ड",
       "extraFieldsJson": "अतिरिक्त फ़ील्ड JSON",
       "helperText": "कनेक्शन प्रकार गायब है? सुनिश्चित करें कि आपने संबंधित Airflow Providers Package इंस्टॉल किया है।",
       "helperTextForRedactedFields": "संपादित फ़ील्ड ('***') अपरिवर्तित रहेंगे यदि संशोधित नहीं किए गए।",
