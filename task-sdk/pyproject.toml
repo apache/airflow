@@ -195,6 +195,9 @@ namespace-packages = ["src/airflow"]
 # Generated file, be less strict
 "src/airflow/sdk/*/_generated.py" = ["D"]
 
+[tool.ruff.lint.flake8-tidy-imports.extend-banned-api]
+"httpx".msg = "Use httpx2; httpx objects do not interoperate with the httpx2-based Task SDK client. See https://github.com/apache/airflow/issues/70522"
+
 [tool.coverage.run]
 branch = true
 relative_files = true
