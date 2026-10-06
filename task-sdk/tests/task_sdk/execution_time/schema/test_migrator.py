@@ -49,7 +49,7 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
 )
 
 from airflow.sdk import TaskInstanceState
-from airflow.sdk.execution_time.comms import TaskState
+from airflow.sdk.execution_time.comms import AssetEventsResult, TaskState
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
@@ -368,6 +368,43 @@ class TestLazyCadwynImport:
             "assert 'cadwyn' in sys.modules, 'cadwyn should load when the bundle is accessed'"
         )
         subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+
+
+@pytest.mark.parametrize("target_version", ["2026-06-16", "2026-10-30"])
+def test_asset_event_created_dagrun_run_after_matches_supervisor_version(target_version):
+    msg = AssetEventsResult.model_validate(
+        {
+            "asset_events": [
+                {
+                    "id": 1,
+                    "asset": {"name": "asset", "uri": "s3://bucket/key", "group": "asset"},
+                    "timestamp": "2023-01-01T00:00:00Z",
+                    "created_dagruns": [
+                        {
+                            "dag_id": "created_dag",
+                            "run_id": "queued_run",
+                            "logical_date": "2023-01-01T00:00:00Z",
+                            "start_date": None,
+                            "run_after": "2023-01-01T00:00:00Z",
+                            "end_date": None,
+                            "state": "queued",
+                            "data_interval_start": None,
+                            "data_interval_end": None,
+                            "partition_key": None,
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    result = get_schema_version_migrator().downgrade(msg, target_version).model_dump(mode="json")
+    created_run = result["asset_events"][0]["created_dagruns"][0]
+
+    if target_version == "2026-06-16":
+        assert "run_after" not in created_run
+    else:
+        assert created_run["run_after"] == "2023-01-01T00:00:00Z"
+    assert created_run["start_date"] is None
 
 
 class TestRealBundleArgBindingsDowngrade:

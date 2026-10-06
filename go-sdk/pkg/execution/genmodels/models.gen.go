@@ -536,6 +536,9 @@ type DagRunAssetReference struct {
 	// PartitionKey corresponds to the JSON schema field "partition_key".
 	PartitionKey interface{} `msgpack:"partition_key"`
 
+	// RunAfter corresponds to the JSON schema field "run_after".
+	RunAfter time.Time `msgpack:"run_after"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
