@@ -335,4 +335,11 @@ Rerunning an earlier gate then does not change the loop progression that
 already followed it: a new stop result does not remove later iterations, and
 a new continue result does not create a duplicate next iteration.
 
+The choice is the same wherever you clear. The REST clear endpoint takes it as
+``include_later_loop_iterations``, which defaults to ``true``, matching the
+checked box in the UI. ``airflow tasks clear`` has no option for it: it always
+clears later iterations, except with ``--only-failed`` or ``--only-running``,
+which leave them in place. To keep later iterations, clear from the UI or the
+REST endpoint.
+
 Tasks you leave uncleared are not recomputed using the results of the rerun.
