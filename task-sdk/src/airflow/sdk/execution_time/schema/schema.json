@@ -4156,6 +4156,171 @@
       "title": "TaskCallbackRequest",
       "type": "object"
     },
+    "TaskHandlerDeclaration": {
+      "description": "A task handler that a Lang-SDK artifact registers for one task.",
+      "properties": {
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "binding": {
+          "enum": [
+            "positional",
+            "named"
+          ],
+          "title": "Binding",
+          "type": "string"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TaskHandlerParam"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Task Handler Params"
+        }
+      },
+      "required": [
+        "task_id",
+        "binding",
+        "params"
+      ],
+      "title": "TaskHandlerDeclaration",
+      "type": "object"
+    },
+    "TaskHandlerParam": {
+      "description": "One parameter of a task handler.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "exact_name": {
+          "default": false,
+          "title": "Exact Name",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "TaskHandlerParam",
+      "type": "object"
+    },
+    "TaskHandlerParseRequest": {
+      "description": "Request for Task Handler Parsing.\n\nAsks a Lang-SDK runtime for every task handler an artifact registers.\n\nThe bundle_path and bundle_name are the root and the name of the bundle that holds the artifact.",
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "bundle_path": {
+          "format": "path",
+          "title": "Bundle Path",
+          "type": "string"
+        },
+        "bundle_name": {
+          "title": "Bundle Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "TaskHandlerParseRequest",
+          "default": "TaskHandlerParseRequest",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "bundle_path",
+        "bundle_name"
+      ],
+      "title": "TaskHandlerParseRequest",
+      "type": "object"
+    },
+    "TaskHandlerParsingResult": {
+      "description": "Result of Task Handler Parsing.\n\nEvery task handler a Lang-SDK artifact registers, keyed by Dag id.\n\nThe answer depends only on the artifact, never on the request.",
+      "properties": {
+        "fileloc": {
+          "title": "Fileloc",
+          "type": "string"
+        },
+        "task_handlers": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/TaskHandlerDeclaration"
+            },
+            "type": "array"
+          },
+          "title": "Task Handlers",
+          "type": "object"
+        },
+        "import_errors": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Import Errors"
+        },
+        "warnings": {
+          "anyOf": [
+            {
+              "items": {},
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Warnings"
+        },
+        "type": {
+          "const": "TaskHandlerParsingResult",
+          "default": "TaskHandlerParsingResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fileloc",
+        "task_handlers"
+      ],
+      "title": "TaskHandlerParsingResult",
+      "type": "object"
+    },
     "TaskInstanceState": {
       "description": "All possible states that a Task Instance can be in.\n\nNote that None is also allowed, so always use this in a type hint with Optional.",
       "enum": [

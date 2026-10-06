@@ -30,6 +30,7 @@ import attrs
 from pydantic import BaseModel, Field, TypeAdapter
 
 from airflow._shared.observability.metrics import stats
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import ArgValueSchema  # noqa: TC001
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -136,8 +137,91 @@ class DagFileParsingResult(BaseModel):
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
+TaskHandlerBindingMode = Literal["positional", "named"]
+
+
+class TaskHandlerParam(BaseModel):
+    """One parameter of a task handler."""
+
+    name: str | None
+    """``None`` when the runtime has no name for this positional parameter."""
+
+    value_schema: ArgValueSchema | None = None
+    """JSON Schema of the values the parameter accepts; ``None`` when the handler does not constrain it."""
+
+    exact_name: bool = False
+    """Whether ``name`` matches only as spelled, not case-insensitively with underscores ignored."""
+
+
+class TaskHandlerDeclaration(BaseModel):
+    """A task handler that a Lang-SDK artifact registers for one task."""
+
+    task_id: str
+
+    binding: TaskHandlerBindingMode
+    """
+    How stub-task arguments bind to ``params``.
+
+    - ``positional``: by position; names are informative only. An argument count that matches ``params``
+      neither with every argument nor after dropping the defaulted ones, or a value type the param does not
+      accept, makes the Dag fail to import.
+    - ``named``: by name in any order, case-insensitively with underscores ignored unless ``exact_name`` is set.
+      An argument no param takes, or a param no argument fills, is logged as a warning, and the task still
+      runs. When no param matches and exactly one argument was passed, it may be the whole value and is not
+      warned about, unless ``params`` is empty, a param sets ``exact_name``, or the argument cannot be an
+      object. A value type a param does not accept makes the Dag fail to import.
+    """
+
+    # The title keeps Go's generated type for this list apart from the HITL ``Params`` map.
+    params: Annotated[list[TaskHandlerParam] | None, Field(title="Task Handler Params")]
+    """
+    In declaration order; the order is significant only for ``positional`` binding.
+
+    ``None`` when the runtime cannot list the handler's parameters, so only the handler's presence is checked.
+    """
+
+
+class TaskHandlerParseRequest(BaseModel):
+    """
+    Request for Task Handler Parsing.
+
+    Asks a Lang-SDK runtime for every task handler an artifact registers.
+
+    The bundle_path and bundle_name are the root and the name of the bundle that holds the artifact.
+    """
+
+    file: str
+    """The artifact to ask."""
+
+    bundle_path: Path
+
+    bundle_name: str
+
+    type: Literal["TaskHandlerParseRequest"] = "TaskHandlerParseRequest"
+
+
+class TaskHandlerParsingResult(BaseModel):
+    """
+    Result of Task Handler Parsing.
+
+    Every task handler a Lang-SDK artifact registers, keyed by Dag id.
+
+    The answer depends only on the artifact, never on the request.
+    """
+
+    fileloc: str
+
+    task_handlers: dict[str, list[TaskHandlerDeclaration]]
+    """Every Dag id the artifact registers a task handler for; ``{}`` when it registers none."""
+
+    import_errors: dict[str, str] | None = None
+    warnings: list | None = None
+    type: Literal["TaskHandlerParsingResult"] = "TaskHandlerParsingResult"
+
+
 ToManager = Annotated[
     DagFileParsingResult
+    | TaskHandlerParsingResult
     | GetConnection
     | GetVariable
     | GetVariableKeys
@@ -156,9 +240,9 @@ ToManager = Annotated[
     Field(discriminator="type"),
 ]
 
-ToDagProcessor = Annotated[
-    DagFileParseRequest
-    | ConnectionResult
+# Answers to the child's requests, whichever parse it was started for.
+_ParseSideResponses = (
+    ConnectionResult
     | VariableResult
     | VariableKeysResult
     | TaskStatesResult
@@ -170,8 +254,13 @@ ToDagProcessor = Annotated[
     | XComCountResponse
     | XComResult
     | XComSequenceIndexResult
-    | XComSequenceSliceResult,
-    Field(discriminator="type"),
+    | XComSequenceSliceResult
+)
+
+ToDagProcessor = Annotated[DagFileParseRequest | _ParseSideResponses, Field(discriminator="type")]
+
+ToSDKTaskHandlerProcessor = Annotated[
+    TaskHandlerParseRequest | _ParseSideResponses, Field(discriminator="type")
 ]
 
 
