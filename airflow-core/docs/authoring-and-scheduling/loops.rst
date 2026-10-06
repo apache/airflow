@@ -96,6 +96,11 @@ is small enough:
 through ``loop.previous``. The gate appears as a task in the loop, named after
 the condition function: ``refine.accurate_enough`` in this example.
 
+When ``until`` has no usable name, the gate is named ``__loop_gate`` instead.
+That covers a lambda, a ``functools.partial`` and a callable object. A gate name
+that matches a task in the loop body gets a ``__1`` suffix, as with any other
+task ID.
+
 Stopping because ``until`` returned ``True`` means the loop converged.
 Reaching ``max_iterations`` while the condition remains ``False`` means the
 loop did not converge: the gate task in the final iteration is marked as
