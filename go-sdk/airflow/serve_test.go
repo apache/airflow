@@ -284,3 +284,65 @@ func TestServeRunsTaskForSupervisor(t *testing.T) {
 	}
 	assert.True(t, ran)
 }
+
+// A fake Dag processor sends TaskHandlerParseRequest over the comm socket, as the probe does after
+// it starts the bundle with --comm and --logs. The tasks of a Dag from Dag are not task handlers,
+// so the reply leaves them out.
+func TestServeDeclaresTaskHandlersButNotDags(t *testing.T) {
+	commLn, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer commLn.Close()
+	logsLn, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer logsLn.Close()
+	deadline := time.Now().Add(10 * time.Second)
+	require.NoError(t, commLn.(*net.TCPListener).SetDeadline(deadline))
+	require.NoError(t, logsLn.(*net.TCPListener).SetDeadline(deadline))
+
+	native := Dag("native_etl")
+	native.Task(extract)
+	b := Bundle()
+	b.Register(TaskHandler("py_etl", "transform", noop), native)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- b.serve(
+			[]string{"--comm", commLn.Addr().String(), "--logs", logsLn.Addr().String()},
+			io.Discard,
+		)
+	}()
+
+	commConn, err := commLn.Accept()
+	require.NoError(t, err)
+	defer commConn.Close()
+	logsConn, err := logsLn.Accept()
+	require.NoError(t, err)
+	defer logsConn.Close()
+	require.NoError(t, commConn.SetDeadline(deadline))
+
+	dagProcessor := execution.NewCoordinatorComm(commConn, commConn, discardLogger())
+	require.NoError(t, dagProcessor.SendRequest(0, map[string]any{
+		"type":        "TaskHandlerParseRequest",
+		"file":        "/bundles/etl",
+		"bundle_path": "/bundles",
+		"bundle_name": "go",
+	}))
+
+	frame, err := dagProcessor.ReadMessage()
+	require.NoError(t, err)
+	var body map[string]any
+	require.NoError(t, msgpack.Unmarshal(frame.Body, &body))
+	assert.Equal(t, "TaskHandlerParsingResult", body["type"])
+	handlers, ok := body["task_handlers"].(map[string]any)
+	require.True(t, ok)
+	assert.Len(t, handlers, 1)
+	assert.Contains(t, handlers, "py_etl")
+
+	require.NoError(t, dagProcessor.SendRequest(frame.ID, map[string]any{}))
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after the result was acknowledged")
+	}
+}

@@ -101,7 +101,29 @@ func (b testBundle) LookupTask(dagID, taskID string) (bundle.Task, bool) {
 	return task, ok
 }
 
-func buildBundle(t *testing.T, register func(testBundle)) bundle.Bundle {
+// ListTaskHandlers lists nothing: a map keeps no registration order, and only a task
+// handler parse lists handlers. The parse tests use handlerRegistry instead.
+func (b testBundle) ListTaskHandlers() []bundle.TaskHandlerInfo { return nil }
+
+// handlerRegistry lists its task handlers in the order they were added, as airflow.Bundle does.
+type handlerRegistry struct {
+	testBundle
+	order []bundle.TaskHandlerInfo
+}
+
+func newHandlerRegistry() *handlerRegistry { return &handlerRegistry{testBundle: testBundle{}} }
+
+func (r *handlerRegistry) add(dagID, taskID string, fn any) {
+	if _, ok := r.testBundle[dagID]; !ok {
+		r.AddDag(dagID)
+	}
+	r.testBundle[dagID].AddTaskWithName(taskID, fn)
+	r.order = append(r.order, bundle.TaskHandlerInfo{DagID: dagID, TaskID: taskID})
+}
+
+func (r *handlerRegistry) ListTaskHandlers() []bundle.TaskHandlerInfo { return r.order }
+
+func buildBundle(t *testing.T, register func(testBundle)) bundle.Registry {
 	t.Helper()
 	b := testBundle{}
 	register(b)
@@ -996,7 +1018,8 @@ func TestServeFailureAfterConnectClosesComm(t *testing.T) {
 	logsConn := <-logsCh
 	defer logsConn.Close()
 
-	// Serve expects StartupDetails as the first frame, so it fails to decode a VariableResult.
+	// Serve expects StartupDetails or TaskHandlerParseRequest as the first frame, so it fails to
+	// decode a VariableResult.
 	payload, err := encodeRequest(
 		0,
 		map[string]any{"type": "VariableResult", "key": "k", "value": "v"},
@@ -1016,4 +1039,115 @@ func TestServeFailureAfterConnectClosesComm(t *testing.T) {
 	require.NoError(t, commConn.SetReadDeadline(time.Now().Add(time.Second)))
 	_, err = readFrame(commConn)
 	require.Error(t, err)
+}
+
+type loadInput struct {
+	Table string `arg:"table_name"`
+}
+
+// startTaskHandlerParse runs Serve for a registry with two handlers, sends it a
+// TaskHandlerParseRequest, and returns the comm connection and the reply frame.
+func startTaskHandlerParse(t *testing.T) (net.Conn, IncomingFrame, chan error) {
+	t.Helper()
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	t.Cleanup(cleanup)
+
+	registry := newHandlerRegistry()
+	registry.add("etl", "extract", func(actx contexttest.Context, region string, day *int) error {
+		return nil
+	})
+	registry.add("etl", "load", func(actx contexttest.Context, in loadInput) error { return nil })
+	registry.add("etl", "notify", simpleTask)
+
+	done := make(chan error, 1)
+	go func() { done <- Serve(registry, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	t.Cleanup(func() { commConn.Close() })
+	logsConn := <-logsCh
+	t.Cleanup(func() { logsConn.Close() })
+	require.NoError(t, commConn.SetDeadline(time.Now().Add(10*time.Second)))
+
+	payload, err := encodeRequest(0, map[string]any{
+		"type":        "TaskHandlerParseRequest",
+		"file":        "/bundles/go/etl",
+		"bundle_path": "/bundles/go",
+		"bundle_name": "go",
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, payload))
+
+	frame, err := readFrame(commConn)
+	require.NoError(t, err)
+	require.True(t, isNilRaw(frame.Err))
+	return commConn, frame, done
+}
+
+func TestServeTaskHandlerParseRequestEndToEnd(t *testing.T) {
+	commConn, frame, done := startTaskHandlerParse(t)
+
+	// Decoded as a map, so the wire's keys, nulls and empty lists are what is compared.
+	assert.Equal(t, map[string]any{
+		"type":    "TaskHandlerParsingResult",
+		"fileloc": "/bundles/go/etl",
+		"task_handlers": map[string]any{
+			"etl": []any{
+				map[string]any{
+					"task_id": "extract",
+					"binding": "positional",
+					"params": []any{
+						map[string]any{
+							"name":         nil,
+							"value_schema": map[string]any{"type": "string"},
+						},
+						map[string]any{
+							"name": nil,
+							"value_schema": map[string]any{"anyOf": []any{
+								map[string]any{"type": "integer", "format": "int64"},
+								map[string]any{"type": "null"},
+							}},
+						},
+					},
+				},
+				map[string]any{
+					"task_id": "load",
+					"binding": "named",
+					"params": []any{map[string]any{
+						"name":         "table_name",
+						"exact_name":   true,
+						"value_schema": map[string]any{"type": "string"},
+					}},
+				},
+				map[string]any{"task_id": "notify", "binding": "positional", "params": []any{}},
+			},
+		},
+	}, rawToMap(t, frame.Body))
+
+	// Serve returns only once the parent acknowledges the result.
+	select {
+	case err := <-done:
+		t.Fatalf("Serve returned before the result was acknowledged: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	require.NoError(t, writeFrame(commConn, encodeResponseFrame(t, frame.ID, nil, nil)))
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after the result was acknowledged")
+	}
+}
+
+func TestServeTaskHandlerParseFailsWithoutAcknowledgement(t *testing.T) {
+	commConn, _, done := startTaskHandlerParse(t)
+
+	require.NoError(t, commConn.Close())
+
+	select {
+	case err := <-done:
+		require.ErrorContains(t, err, "sending task handler parse result")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after the parent closed the socket")
+	}
 }

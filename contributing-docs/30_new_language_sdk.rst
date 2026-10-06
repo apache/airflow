@@ -126,6 +126,43 @@ or the task's own Dag bundle when it is unset, pinned for the whole task.
 Subclasses should scan those directories rather than locating artifacts
 themselves.
 
+SubprocessCoordinator: answering a task handler parse
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When a Python Dag file has stub tasks, the Dag processor checks each stub task
+against the handler registered by the artifact that a worker would run for it.
+A coordinator opts in by implementing two methods:
+
+.. code-block:: python
+
+    def _find_task_handler_artifact(self, *, bundle_path: pathlib.Path, dag_id: str) -> ResolvedBundle: ...
+
+
+    def _build_parse_task_handler_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]: ...
+
+``_find_task_handler_artifact`` returns the artifact a stub task of *dag_id*
+runs and its supervisor schema version, found in the Dag bundle at
+*bundle_path* the same way ``_build_execute_task_command`` finds it. It scans
+*bundle_path* itself, because ``self._get_scan_roots()`` is not set there. It
+raises ``FileNotFoundError`` when the task would find no artifact it can run,
+or ``ValueError`` when the artifact it found uses a supervisor schema version
+this Task SDK does not know (``ExecutableCoordinator`` skips such bundles, so
+it raises ``FileNotFoundError`` instead).
+
+``_build_parse_task_handler_command`` builds the command that starts the
+runtime for the artifact at *path*, which ``_find_task_handler_artifact``
+returned. ``self._get_scan_roots()`` returns the root of the Dag bundle holding
+*path*, for a command that needs it, such as a classpath. The returned pair
+follows the rules of ``_build_execute_task_command``: no ``--comm`` or
+``--logs`` flags, and the schema version the runtime understands. A runtime
+whose schema version is older than ``TASK_HANDLER_PARSING_SCHEMA_VERSION`` is
+not started. The runtime answers as described in
+`Answering TaskHandlerParseRequest`_.
+
+Both defaults raise ``NotImplementedError``, so the stub tasks of a coordinator
+that does not implement them are not checked. ``ExecutableCoordinator``
+implements both for executable bundles.
+
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~
 
@@ -195,8 +232,10 @@ as soon as possible. The supervisor verifies that the connecting peer belongs
 to the launched process tree, so the SDK MUST connect from the same process or
 one of its descendants.
 
-Once both connections are accepted, the supervisor sends a ``StartupDetails``
-message on the comm socket to initiate execution.
+Once both connections are accepted, the supervisor sends the first message on
+the comm socket. ``StartupDetails`` starts a task. A ``TaskHandlerParseRequest``
+comes from the Dag processor instead, and asks which task handlers the runtime
+registers (see `Answering TaskHandlerParseRequest`_).
 
 Wire protocol
 ~~~~~~~~~~~~~
@@ -272,6 +311,43 @@ The gap is stage 2: the SDK's own startup code (argument parsing, the connect
 calls themselves) can already produce log records before the ``--logs`` socket
 in stage 3 exists to carry them. See `Logging`_ below for how to handle that
 gap.
+
+Answering ``TaskHandlerParseRequest``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The SDK sends back one ``TaskHandlerParsingResult``, waits for the response to
+it, and exits. No task function runs: the answer lists the handlers
+registered through the SDK's ``TaskHandler`` interface, and never the tasks of
+a native Dag. ``task_handlers`` MUST declare every registered handler and
+depend only on the artifact, never on the request. ``fileloc`` repeats the
+request's ``file``.
+
+* ``task_handlers`` maps each Dag id the artifact registers handlers for to
+  their declarations, in registration order. A stub task the answer does not
+  declare makes the Dag fail to import.
+* Each ``TaskHandlerDeclaration`` states in ``binding`` how stub-task arguments
+  bind to its ``params``:
+
+  * ``positional``: by position. An argument count or value type the handler
+    cannot take makes the Dag fail to import.
+  * ``named``: by name in any order, ignoring case and underscores unless a
+    param sets ``exact_name``. An argument or param that matches nothing is
+    logged as a warning and the task still runs, so the runtime must accept
+    both. When no param matches and exactly one argument was passed, it may be
+    the whole value and is not warned about, unless ``params`` is empty, a
+    param sets ``exact_name``, or the argument cannot be an object. A value
+    type a param does not accept makes the Dag fail to import.
+
+* ``params`` lists the handler's parameters in order, ``[]`` when it has none,
+  or is ``null`` when the SDK cannot list them. Then only the handler's
+  presence is checked.
+* Each ``TaskHandlerParam`` has a ``name`` (``null`` when the SDK has no name
+  for a positional parameter) and a ``value_schema``: the JSON Schema of the
+  values it accepts, in the vocabulary ``@task.stub`` uses for Python
+  annotations, or ``null`` when the handler does not constrain it.
+* An empty ``task_handlers`` mapping is sent empty, never as ``null``.
+
+``go-sdk/pkg/execution`` is a reference implementation.
 
 Logging
 ~~~~~~~
