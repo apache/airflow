@@ -1823,16 +1823,15 @@ class S3Hook(AwsBaseHook):
             if obj.key.endswith("/"):
                 continue
             obj_path = Path(obj.key)
-            relative_path = obj_path.relative_to(s3_prefix)
-            if relative_path == Path("."):
-                continue
-            local_target_path = local_dir.joinpath(relative_path)
+            local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
             try:
-                local_target_path.resolve().relative_to(local_dir_resolved)
+                resolved_relative_path = local_target_path.resolve().relative_to(local_dir_resolved)
             except ValueError:
                 raise S3HookPathTraversalError(
                     f"S3 object key {obj.key!r} resolves outside local directory {local_dir}"
                 ) from None
+            if resolved_relative_path == Path("."):
+                continue
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
                 self.log.debug("Created local directory: %s", local_target_path.parent)

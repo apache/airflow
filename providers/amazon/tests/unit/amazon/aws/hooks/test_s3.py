@@ -2076,6 +2076,7 @@ class TestAwsS3Hook:
         [
             pytest.param("dags/", "dags/.", id="prefix-dot"),
             pytest.param("dags/", "dags/./.", id="repeated-dot"),
+            pytest.param("dags/", "dags/../s3_sync_dir", id="parent-directory"),
             pytest.param("", ".", id="bucket-root-dot"),
         ],
     )
