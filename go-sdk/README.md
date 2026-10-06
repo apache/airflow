@@ -298,9 +298,9 @@ the full range of task states, and alternate XCom backends without implementing 
   `task_handler_bundle_name` names the Dag bundle the coordinator scans for packed bundles (the task's own
   Dag bundle when unset). It is used only by mixed-language Dags, to locate the task handlers for the
   `@task.stub` tasks of a Python Dag; Dags defined natively in a language SDK do not use it.
-  `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator. Only files with the
-  executable bit are considered, so use a Dag bundle that keeps it: a `LocalDagBundle` does, object-store
-  Dag bundles such as `S3DagBundle` do not.
+  `queue_to_coordinator` routes stub tasks with `queue="golang"` to this Go coordinator. The matching bundle
+  is marked executable before it is launched, so any Dag bundle works, including an object-store one such as
+  `S3DagBundle`.
 
   > [!IMPORTANT]
   > The `[sdk]` config and the packed bundle files must be present wherever tasks execute and on the Dag

@@ -95,7 +95,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const { dagId = "", runId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
   const { data: dag } = useDagServiceGetDag({ dagId }, undefined, {
-    refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
+    refetchInterval: (query) => query.state.data?.scheduling_state === "draining" && refetchInterval,
   });
   // Only asked while the Dag can still be drained; the answer decides whether
   // pausing needs to offer the drain choice at all.

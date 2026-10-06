@@ -52,7 +52,7 @@ export const HITLResponse = () => {
     undefined,
     {
       enabled: !isNaN(parsedMapIndex),
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
 

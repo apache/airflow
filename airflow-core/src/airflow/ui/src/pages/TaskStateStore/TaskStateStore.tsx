@@ -134,7 +134,7 @@ export const TaskStateStore = () => {
       taskId,
     },
     undefined,
-    { refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false },
+    { refetchInterval: isStatePending(taskInstance?.state) && refetchInterval },
   );
 
   const columns = getColumns({ dagId, mapIndex, runId, taskId, translate });

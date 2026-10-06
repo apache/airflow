@@ -37,7 +37,7 @@ export const useAdvancedSearch = (key: string) => {
   const [storedEnabled, setStoredEnabled] = useLocalStorage<boolean>(advancedSearchKey(key), defaultEnabled);
 
   const urlValues = searchParams.getAll(SearchParamsKeys.ADVANCED_SEARCH);
-  const enabled = urlValues.includes(key) ? true : urlValues.includes(`-${key}`) ? false : storedEnabled;
+  const enabled = urlValues.includes(key) || (!urlValues.includes(`-${key}`) && storedEnabled);
 
   const onToggle = (nextEnabled: boolean) => {
     setSearchParams((previous) => {
