@@ -141,13 +141,12 @@ from airflow.sdk import (
     task,
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
-from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable, PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable, compute_rollup_fingerprint
 from airflow.timetables.simple import (
-    AssetTriggeredTimetable,
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
@@ -12768,305 +12767,98 @@ def _produce_and_register_asset_event(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partitioned_batch_asset_events_true_single_dagrun(dag_maker: DagMaker, session: Session):
-    """batch_asset_events=True (default): APDR reuse produces one DagRun for all events.
-
-    Two events for the same partition key share one APDR. The scheduler
-    creates a single DagRun consuming both events.
-    """
-    asset_1 = Asset(name="asset-batch-true")
-
-    # Consumer Dag with batch_asset_events=True (default).
+@pytest.mark.parametrize("batch_asset_events", [True, False])
+def test_partitioned_batch_asset_events(dag_maker: DagMaker, session: Session, batch_asset_events: bool):
+    asset = Asset(name="partitioned-batch-asset")
+    dag_id = "partitioned-batch-consumer"
     with dag_maker(
-        dag_id="batch-true-consumer",
-        schedule=PartitionedAssetTimetable(
-            assets=asset_1,
-            default_partition_mapper=IdentityMapper(),
-        ),
-        session=session,
-    ):
-        EmptyOperator(task_id="hi")
-    session.commit()
-
-    runner = SchedulerJobRunner(
-        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
-    )
-
-    # Two events, same partition key → same APDR (reuse).
-    apdr = _produce_and_register_asset_event(
-        dag_id="batch-true-producer-1",
-        asset=asset_1,
-        partition_key="key-1",
-        session=session,
-        dag_maker=dag_maker,
-    )
-    _produce_and_register_asset_event(
-        dag_id="batch-true-producer-2",
-        asset=asset_1,
-        partition_key="key-1",
-        session=session,
-        dag_maker=dag_maker,
-    )
-
-    assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
-
-    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
-    assert len(partition_dags) == 1
-    assert partition_dags == {"batch-true-consumer"}
-
-    session.refresh(apdr)
-    assert apdr.created_dag_run_id is not None
-    dag_run = session.scalar(select(DagRun).where(DagRun.id == apdr.created_dag_run_id))
-    assert dag_run is not None
-    assert len(dag_run.consumed_asset_events) == 2
-
-
-@pytest.mark.need_serialized_dag
-@pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partitioned_batch_asset_events_false_one_dagrun_per_event(dag_maker: DagMaker, session: Session):
-    """batch_asset_events=False: each event gets its own APDR → one DagRun per event.
-
-    Two events for the same partition key produce two APDRs (no reuse).
-    The scheduler creates two DagRuns, one per event.
-    """
-    asset_1 = Asset(name="asset-batch-false")
-
-    # Consumer Dag with batch_asset_events=False.
-    with dag_maker(
-        dag_id="batch-false-consumer",
-        schedule=PartitionedAssetTimetable(
-            assets=asset_1,
-            default_partition_mapper=IdentityMapper(),
-            batch_asset_events=False,
-        ),
-        session=session,
-    ):
-        EmptyOperator(task_id="hi")
-    session.commit()
-
-    runner = SchedulerJobRunner(
-        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
-    )
-
-    # Two events, same partition key → two APDRs (no reuse because batch_asset_events=False).
-    apdr_1 = _produce_and_register_asset_event(
-        dag_id="batch-false-producer-1",
-        asset=asset_1,
-        partition_key="key-1",
-        session=session,
-        dag_maker=dag_maker,
-    )
-    apdr_2 = _produce_and_register_asset_event(
-        dag_id="batch-false-producer-2",
-        asset=asset_1,
-        partition_key="key-1",
-        session=session,
-        dag_maker=dag_maker,
-    )
-
-    assert apdr_1.id != apdr_2.id
-    assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 2
-
-    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
-    assert len(partition_dags) == 1
-    assert partition_dags == {"batch-false-consumer"}
-
-    # Both APDRs should now have a DagRun.
-    session.refresh(apdr_1)
-    session.refresh(apdr_2)
-    assert apdr_1.created_dag_run_id is not None
-    assert apdr_2.created_dag_run_id is not None
-    assert apdr_1.created_dag_run_id != apdr_2.created_dag_run_id
-
-    dag_run_1 = session.scalar(select(DagRun).where(DagRun.id == apdr_1.created_dag_run_id))
-    dag_run_2 = session.scalar(select(DagRun).where(DagRun.id == apdr_2.created_dag_run_id))
-    assert dag_run_1 is not None
-    assert dag_run_2 is not None
-    assert dag_run_1.run_id != dag_run_2.run_id
-    assert len(dag_run_1.consumed_asset_events) == 1
-    assert len(dag_run_2.consumed_asset_events) == 1
-
-
-@pytest.mark.need_serialized_dag
-def test_non_partitioned_batch_asset_events_true_single_dagrun(
-    dag_maker: DagMaker,
-    session: Session,
-):
-    """``batch_asset_events=True`` in non-partitioned path: one DagRun for all events.
-
-    Multiple asset events for the same asset and Dag produce a single DagRun
-    that consumes all events.
-    """
-    asset_1 = Asset(name="non-part-batch-true")
-
-    # Consumer Dag with default AssetTriggeredTimetable (batch_asset_events=True).
-    with dag_maker(
-        dag_id="non-part-batch-true-consumer",
-        schedule=[asset_1],
+        dag_id=dag_id,
+        schedule=PartitionedAssetTimetable(assets=asset, batch_asset_events=batch_asset_events),
         session=session,
     ):
         EmptyOperator(task_id="task")
     session.commit()
-
-    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "non-part-batch-true-consumer"))
-    assert dag_model is not None
-    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
-    assert asset_model is not None
-
-    # Events must fall within the event window: after the
-    # DagScheduleAssetReference.created_at floor and before the ADRQ's created_at.
-    base = session.scalar(
-        select(DagScheduleAssetReference.created_at).where(
-            DagScheduleAssetReference.dag_id == "non-part-batch-true-consumer"
+    apdrs = [
+        _produce_and_register_asset_event(
+            dag_id=f"partitioned-batch-producer-{index}",
+            asset=asset,
+            partition_key="key-1",
+            session=session,
+            dag_maker=dag_maker,
         )
-    )
-    assert base is not None
-    event_1 = AssetEvent(
-        asset_id=asset_model.id,
-        source_task_id="task",
-        source_dag_id="non-part-batch-true-consumer",
-        source_run_id="test-run",
-        source_map_index=-1,
-        timestamp=base + timedelta(seconds=1),
-    )
-    event_2 = AssetEvent(
-        asset_id=asset_model.id,
-        source_task_id="task",
-        source_dag_id="non-part-batch-true-consumer",
-        source_run_id="test-run",
-        source_map_index=-1,
-        timestamp=base + timedelta(seconds=2),
-    )
-    session.add_all([event_1, event_2])
-    session.flush()
-
-    # Queue an ADRQ for this Dag so the scheduler picks it up.
-    session.add(
-        AssetDagRunQueue(
-            asset_id=asset_model.id,
-            target_dag_id="non-part-batch-true-consumer",
-            created_at=base + timedelta(hours=1),
-        )
-    )
-    session.flush()
+        for index in range(2)
+    ]
+    expected_count = 1 if batch_asset_events else 2
+    assert len({apdr.id for apdr in apdrs}) == expected_count
 
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
-    runner._create_dag_runs_asset_triggered(
-        dag_models=[dag_model],
-        session=session,
-    )
-
-    dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == "non-part-batch-true-consumer")).all()
-    assert len(dag_runs) == 1
-    dag_run = dag_runs[0]
-    assert dag_run.run_type == DagRunType.ASSET_TRIGGERED
-    assert dag_run.state == DagRunState.QUEUED
-    assert len(dag_run.consumed_asset_events) == 2
-
-    # The ADRQ should have been cleaned up.
-    assert (
-        session.scalar(
-            select(func.count())
-            .select_from(AssetDagRunQueue)
-            .where(AssetDagRunQueue.target_dag_id == "non-part-batch-true-consumer")
-        )
-        == 0
-    )
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {dag_id}
+    dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
+    assert len(dag_runs) == expected_count
+    assert len({run.run_id for run in dag_runs}) == expected_count
+    assert {apdr.created_dag_run_id for apdr in apdrs} == {run.id for run in dag_runs}
+    assert [len(run.consumed_asset_events) for run in dag_runs] == [2 // expected_count] * expected_count
+    assert len({event.id for run in dag_runs for event in run.consumed_asset_events}) == 2
 
 
 @pytest.mark.need_serialized_dag
-def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
-    dag_maker: DagMaker,
-    session: Session,
+@pytest.mark.parametrize("batch_asset_events", [True, False])
+@pytest.mark.parametrize("event_spacing", [timedelta(0), timedelta(seconds=1)])
+def test_non_partitioned_batch_asset_events(
+    dag_maker: DagMaker, session: Session, batch_asset_events: bool, event_spacing: timedelta
 ):
-    """``batch_asset_events=False`` in non-partitioned path: one DagRun per event.
-
-    Multiple asset events for the same asset and Dag each produce their own
-    DagRun, each consuming exactly one event.
-    """
-    asset_1 = Asset(name="non-part-batch-false")
-
-    # Consumer Dag with batch_asset_events=False on the timetable.
+    asset = Asset(name="batch-consumer-asset")
     with dag_maker(
-        dag_id="non-part-batch-false-consumer",
-        schedule=AssetTriggeredTimetable(
-            assets=asset_1,  # type: ignore[arg-type]
-            batch_asset_events=False,
-        ),
+        dag_id="batch-consumer",
+        schedule=AssetTriggeredTimetable(assets=asset, batch_asset_events=batch_asset_events),
         session=session,
     ):
         EmptyOperator(task_id="task")
     session.commit()
-
-    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "non-part-batch-false-consumer"))
+    dag_model = session.get(DagModel, "batch-consumer")
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset.uri))
     assert dag_model is not None
-    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
     assert asset_model is not None
-
-    base = session.scalar(
-        select(DagScheduleAssetReference.created_at).where(
-            DagScheduleAssetReference.dag_id == "non-part-batch-false-consumer"
-        )
-    )
-    assert base is not None
-    event_1 = AssetEvent(
-        asset_id=asset_model.id,
-        source_task_id="task",
-        source_dag_id="non-part-batch-false-consumer",
-        source_run_id="test-run",
-        source_map_index=-1,
-        timestamp=base + timedelta(seconds=1),
-    )
-    event_2 = AssetEvent(
-        asset_id=asset_model.id,
-        source_task_id="task",
-        source_dag_id="non-part-batch-false-consumer",
-        source_run_id="test-run",
-        source_map_index=-1,
-        timestamp=base + timedelta(seconds=2),
-    )
-    session.add_all([event_1, event_2])
+    base = timezone.parse("2026-10-01T00:00:00+00:00")
+    events = [
+        AssetEvent(asset_id=asset_model.id, timestamp=base + index * event_spacing) for index in range(2)
+    ]
+    session.add_all(events)
     session.flush()
-
-    session.add(
-        AssetDagRunQueue(
-            asset_id=asset_model.id,
-            target_dag_id="non-part-batch-false-consumer",
-            created_at=base + timedelta(hours=1),
-        )
+    session.add_all(
+        AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        for event in events
     )
     session.flush()
 
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
-    runner._create_dag_runs_asset_triggered(
-        dag_models=[dag_model],
-        session=session,
-    )
+    runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+    session.flush()
 
     dag_runs = session.scalars(
-        select(DagRun).where(DagRun.dag_id == "non-part-batch-false-consumer").order_by(DagRun.id)
+        select(DagRun).where(DagRun.dag_id == dag_model.dag_id).order_by(DagRun.id)
     ).all()
-    assert len(dag_runs) == 2
-    for dag_run in dag_runs:
-        assert dag_run.run_type == DagRunType.ASSET_TRIGGERED
-        assert dag_run.state == DagRunState.QUEUED
-    assert len(dag_runs[0].consumed_asset_events) == 1
-    assert len(dag_runs[1].consumed_asset_events) == 1
-    assert dag_runs[0].run_id != dag_runs[1].run_id
-
-    # ADRQ cleaned up.
-    assert (
-        session.scalar(
-            select(func.count())
-            .select_from(AssetDagRunQueue)
-            .where(AssetDagRunQueue.target_dag_id == "non-part-batch-false-consumer")
-        )
-        == 0
+    expected_events = [events] if batch_asset_events else [[event] for event in events]
+    assert [{event.id for event in run.consumed_asset_events} for run in dag_runs] == [
+        {event.id for event in group} for group in expected_events
+    ]
+    assert [run.run_after for run in dag_runs] == [
+        max(event.timestamp for event in group) for group in expected_events
+    ]
+    assert len({run.run_id for run in dag_runs}) == len(expected_events)
+    assert all(
+        run.run_type == DagRunType.ASSET_TRIGGERED and run.state == DagRunState.QUEUED for run in dag_runs
     )
+    assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+    runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+    assert session.scalar(
+        select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_model.dag_id)
+    ) == len(expected_events)
 
 
 @pytest.mark.need_serialized_dag

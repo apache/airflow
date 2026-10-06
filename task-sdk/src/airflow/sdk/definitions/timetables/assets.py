@@ -44,7 +44,7 @@ class AssetTriggeredTimetable(BaseTimetable):
 
     asset_triggered = True
     asset_condition: BaseAsset = attrs.field(alias="assets")
-    batch_asset_events: bool = True
+    batch_asset_events: bool = attrs.field(default=True, kw_only=True)
 
 
 @attrs.define

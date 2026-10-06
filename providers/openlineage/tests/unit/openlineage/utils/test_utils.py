@@ -93,8 +93,8 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_3_PLUS,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
-    AIRFLOW_V_3_3_1_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
@@ -2652,7 +2652,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_1_PLUS:
+        if AIRFLOW_V_3_4_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
@@ -2688,7 +2688,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_1_PLUS:
+        if AIRFLOW_V_3_4_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
@@ -2725,7 +2725,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_1_PLUS:
+        if AIRFLOW_V_3_4_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
@@ -2792,7 +2792,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_1_PLUS:
+        if AIRFLOW_V_3_4_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
@@ -2809,7 +2809,7 @@ class TestDagInfoAirflow3:
         )
 
         result = DagInfo(dag)
-        assert dict(result) == {
+        expected: dict = {
             "dag_id": "dag_id",
             "description": None,
             "fileloc": pathlib.Path(__file__).resolve().as_posix(),
@@ -2873,6 +2873,9 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset or */4 3 * * *",
         }
+        if AIRFLOW_V_3_4_PLUS:
+            expected["timetable"]["batch_asset_events"] = True
+        assert dict(result) == expected
 
 
 class TestDagRunInfoDeadlines:

@@ -451,17 +451,23 @@ For more detailed information on asset-aware timetables, refer to :ref:`AssetOrT
 Controlling DagRun creation per asset event
 ---------------------------------------------
 
-.. versionadded:: 3.3.1
+.. versionadded:: 3.4.0
 
 By default, when multiple asset events arrive for the same Dag between
 scheduler ticks, they are batched into a single DagRun. Set
 ``batch_asset_events=False`` on the timetable to create one DagRun per
 individual event instead.
 
+The option is also available on ``AssetOrTimeSchedule`` and
+``PartitionedAssetTimetable``. For partitioned schedules, disabling batching
+creates a separate pending partition run for each event. Keep batching enabled
+when a partition run needs events from multiple assets or a rollup window to
+satisfy its scheduling condition.
+
 .. code-block:: python
 
     from airflow.sdk import DAG, Asset
-    from airflow.timetables.simple import AssetTriggeredTimetable
+    from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
 
     # Each update to "data-file" produces its own DagRun
     with DAG(

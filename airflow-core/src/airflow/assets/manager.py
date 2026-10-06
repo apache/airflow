@@ -689,8 +689,8 @@ class AssetManager(LoggingMixin):
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
-                    session=session,
                     allow_reuse=timetable.batch_asset_events,
+                    session=session,
                 )
                 log_record = PartitionedAssetKeyLog(
                     asset_id=asset_id,
@@ -741,7 +741,7 @@ class AssetManager(LoggingMixin):
           carried date is suppressed to ``None`` (and re-adoptable by a later event).
         - Otherwise (the dates agree, or this event carries none) the existing value is kept.
 
-        When ``allow_reuse=True`` (default), an existing pending APDR for the same
+        When ``allow_reuse=True``, an existing pending APDR for the same
         ``(target_dag, partition_key)`` is reused — multiple events accumulate on one
         APDR. When ``allow_reuse=False`` (set when the timetable's ``batch_asset_events``
         is ``False``), a new APDR is always created so each event gets its own APDR
