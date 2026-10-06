@@ -73,6 +73,9 @@ The provider runs on Airflow 2.11, but some features need a newer Airflow versio
      - Needs
    * - The ``skills`` and ``git`` extras (``apache-airflow-providers-git`` needs Airflow 3)
      - Airflow 3.0
+   * - The ``modal`` extra and the Modal sandbox backend (``apache-airflow-providers-modal``
+       needs Airflow 3)
+     - Airflow 3.0
    * - :doc:`Approval gates <approval_gates>` and :doc:`HITL review <hitl_review>`
      - Airflow 3.1
    * - The **Model** field in the connection form; on older Airflow versions put the model in
@@ -104,7 +107,7 @@ On Airflow 2.11 the operators, decorators, hooks and toolsets run as they do on 
   ``apache-airflow-providers-common-sql`` to releases older than this provider needs.
   Installing Airflow 2.11.0 without its constraints can also pull in a ``universal-pathlib``
   0.3 release, which Airflow 2's ``ObjectStoragePath`` rejects; 2.11.1 and later cap it.
-  Leave out the ``skills`` and ``git`` extras: they need Airflow 3, and without
+  Leave out the ``skills``, ``git`` and ``modal`` extras: they need Airflow 3, and without
   constraints ``pip`` upgrades Airflow to satisfy them.
 * Python 3.10 to 3.12: the provider needs 3.10 or later, and Airflow 2.11 supports up to 3.12.
 

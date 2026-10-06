@@ -4684,6 +4684,7 @@ mcp = [
     { name = "pydantic-ai-slim", extra = ["mcp"] },
 ]
 modal = [
+    { name = "apache-airflow-providers-modal" },
     { name = "modal" },
 ]
 openai = [
@@ -4722,6 +4723,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["datafusion"] },
     { name = "apache-airflow-providers-git" },
+    { name = "apache-airflow-providers-modal" },
     { name = "apache-airflow-providers-standard" },
     { name = "apache-airflow-task-sdk" },
     { name = "langchain" },
@@ -4747,6 +4749,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'sql'", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-git", marker = "extra == 'skills'", editable = "providers/git" },
+    { name = "apache-airflow-providers-modal", marker = "extra == 'modal'", editable = "providers/modal" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
@@ -4786,6 +4789,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["datafusion"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-git", editable = "providers/git" },
+    { name = "apache-airflow-providers-modal", editable = "providers/modal" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "langchain", specifier = ">=1.0.0" },

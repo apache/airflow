@@ -107,15 +107,19 @@ is the only change between this Dag and production:
     :start-after: [START howto_sandbox_agent_local]
     :end-before: [END howto_sandbox_agent_local]
 
-Install the Modal extra and authenticate as you would for Modal's own CLI. On a
-worker, set ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` in the environment
-instead; nothing is read until the first sandbox is created, so a Dag file that
-constructs the backend parses without credentials present:
+Install the Modal extra, which also installs the Modal provider, and create a
+``modal`` connection with the Modal token id as its login and the token secret as
+its password. The backend reads ``modal_default`` unless you pass ``modal_conn_id``;
+without that connection it uses the worker's own Modal credentials, as the
+:ref:`Modal connection page <howto/connection:modal>` describes. Nothing is read until
+the first sandbox is created, so a Dag file that constructs the backend parses without
+credentials present:
 
 .. code-block:: bash
 
     pip install 'apache-airflow-providers-common-ai[modal]'
-    modal token new          # writes ~/.modal.toml
+    airflow connections add modal_default --conn-type modal \
+        --conn-login "$MODAL_TOKEN_ID" --conn-password "$MODAL_TOKEN_SECRET"
 
 What it is for, in practice
 ---------------------------
@@ -425,14 +429,13 @@ system tests, ``example_sandbox_toolset_sbx.py`` and
 ``example_sandbox_toolset_modal.py``, run against a real backend and are
 reachable from the System Tests entry in the sidebar.
 
-**Credentials and where it runs.** This route does not end at an
-Airflow connection. Airflow puts none of its context, connections, variables or
-worker environment into the sandbox; only what you pass through
+**Credentials and where it runs.** Airflow puts none of its context, connections,
+variables or worker environment into the sandbox; only what you pass through
 :class:`~airflow.providers.common.ai.sandbox.SandboxSpec` goes in, and the
-credential that provisions the sandbox never enters it. Authorization to the
-backend sits outside Airflow: ``sbx login`` and ``sbx policy init`` on the
-machine for ``sbx``, or ``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET`` on the
-worker for Modal. Work runs in a per-run microVM on the worker host with
+credential that provisions the sandbox never enters it. For Modal that credential
+is a ``modal`` connection (``modal_conn_id``; see the
+:ref:`Modal connection page <howto/connection:modal>`). For ``sbx`` it sits outside Airflow:
+``sbx login`` on the machine. Work runs in a per-run microVM on the worker host with
 ``sbx``, or off the worker entirely in Modal's infrastructure. Its tool calls
 act as barriers, as they do for the other
 routes that build their own tools; see :ref:`toolset-call-barriers`.
@@ -486,9 +489,9 @@ is the list to read before designing a Dag around an agent with a sandbox.
 - **A file the agent built leaves only through a task**, never through the
   model's context, which is text-only and capped.
   :ref:`Getting a result out <sandbox-results>`.
-- **A credential comes from a connection only when a task provisions the
-  sandbox**; the toolset's own spec is fixed at parse time, and anything injected
-  is readable by the model. :ref:`Credentials <sandbox-credentials>`.
+- **A credential handed to the code inside the sandbox comes from a connection
+  only when a task provisions the sandbox**; the toolset's own spec is fixed at
+  parse time, and anything injected is readable by the model. :ref:`Credentials <sandbox-credentials>`.
 - **Cannot be combined with** ``durable=True``, and with ``enable_hitl_review=True``
   only when the sandbox is task-owned; ``AgentOperator`` raises otherwise.
   :ref:`Lifecycle <sandbox-lifecycle>`.
