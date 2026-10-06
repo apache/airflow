@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example use of SnowflakeCortexAgentOperator.
+Example use of Snowflake Cortex Agent operators.
+
+This example creates, updates, executes, and deletes a Snowflake Cortex Agent.
 """
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 from airflow import DAG
@@ -35,9 +38,11 @@ from airflow.providers.snowflake.operators.snowflake_cortex_agent import (
 SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 DAG_ID = "example_snowflake_cortex_agent"
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+
 DATABASE = "DEFAULT_DATABASE"
 SCHEMA = "DEFAULT_SCHEMA"
-AGENT_NAME = "default_agent"
+AGENT_NAME = f"airflow_cortex_agent_{ENV_ID}"
 
 with DAG(
     DAG_ID,
@@ -104,7 +109,7 @@ with DAG(
     )
     # [END howto_operator_snowflake_cortex_agent_delete]
 
-    create_agent >> update_agent >> run_agent >> delete_agent
+    create_agent >> update_agent >> run_agent >> delete_agent.as_teardown(setups=create_agent)
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

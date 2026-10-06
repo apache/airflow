@@ -155,8 +155,9 @@ class SnowflakeCortexAgentCreateOperator(BaseOperator):
     :param orchestration: Orchestration configuration. Optional.
     :param tools: Agent tools. Optional.
     :param tool_resources: Tool resource configuration. Optional.
-    :param create_mode: Resource creation mode. Defaults to
-        ``CreateMode.ERROR_IF_EXISTS``.
+    :param create_mode: Resource creation mode. Accepted values are
+        ``errorIfExists``, ``orReplace`` and ``ifNotExists``.
+        Defaults to ``errorIfExists``.
     :param timeout: Maximum time in seconds to wait for the request to
         complete. Defaults to ``600``.
     :param snowflake_conn_id: Snowflake connection ID. Defaults to
@@ -209,7 +210,7 @@ class SnowflakeCortexAgentCreateOperator(BaseOperator):
         self.orchestration = orchestration
         self.tools = tools
         self.tool_resources = tool_resources
-        self.create_mode = create_mode
+        self.create_mode = CreateMode(create_mode)
         self.timeout = timeout
         self.snowflake_conn_id = snowflake_conn_id
 
