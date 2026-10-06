@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from botocore.credentials import CredentialProvider
@@ -64,3 +65,21 @@ class MskHook(AwsBaseHook):
             self.region_name, _MskCredentialsProvider(self)
         )
         return token, expiry_ms / 1000
+
+
+def oauth_cb(config_str: str) -> tuple[str, float]:
+    """Generate an Amazon MSK IAM token for a ``confluent_kafka`` OAuth callback."""
+    try:
+        options = json.loads(config_str or "{}")
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid JSON in config_str") from exc
+
+    if not isinstance(options, dict):
+        raise ValueError("config_str must contain a JSON object")
+
+    aws_conn_id = options.get("aws_conn_id")
+    if not isinstance(aws_conn_id, str) or not aws_conn_id:
+        raise ValueError("Missing 'aws_conn_id' in config_str")
+
+    hook = MskHook(aws_conn_id=aws_conn_id, region_name=options.get("region_name"))
+    return hook.confluent_token(config_str)

@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 from botocore.credentials import CredentialProvider
 
-from airflow.providers.amazon.aws.hooks.msk import MskHook
+from airflow.providers.amazon.aws.hooks.msk import MskHook, oauth_cb
 
 MOCK_MSK_SIGNER_MODULE = mock.MagicMock()
 
@@ -61,3 +61,37 @@ class TestMskHook:
 
         with pytest.raises(ValueError, match="AWS region is required"):
             self.hook.confluent_token("")
+
+
+class TestOauthCallback:
+    @pytest.mark.parametrize(
+        ("config_str", "region_name"),
+        [
+            ('{"aws_conn_id":"aws_msk"}', None),
+            ('{"aws_conn_id":"aws_msk","region_name":"us-east-1"}', "us-east-1"),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.msk.MskHook", autospec=True)
+    def test_uses_configured_aws_connection(self, mock_hook, config_str, region_name):
+        mock_hook.return_value.confluent_token.return_value = ("token", 1_700_000_900.0)
+
+        assert oauth_cb(config_str) == ("token", 1_700_000_900.0)
+
+        assert mock_hook.mock_calls == [
+            mock.call(aws_conn_id="aws_msk", region_name=region_name),
+            mock.call().confluent_token(config_str),
+        ]
+
+    @pytest.mark.parametrize(
+        ("config_str", "error"),
+        [
+            ("invalid", "Invalid JSON in config_str"),
+            ("[]", "config_str must contain a JSON object"),
+            ("", "Missing 'aws_conn_id' in config_str"),
+            ('{"aws_conn_id":null}', "Missing 'aws_conn_id' in config_str"),
+            ('{"aws_conn_id":42}', "Missing 'aws_conn_id' in config_str"),
+        ],
+    )
+    def test_rejects_invalid_config(self, config_str, error):
+        with pytest.raises(ValueError, match=error):
+            oauth_cb(config_str)

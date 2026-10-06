@@ -202,6 +202,23 @@ class TestKafkaBaseHook:
         assert passed_config["oauth_cb"] is managed_kafka_hook.return_value.get_confluent_token
         assert connection == (True, "Connection successful.")
 
+    @conf_vars(CALLBACK_ALLOWLIST)
+    @mock.patch("airflow.providers.google.cloud.hooks.managed_kafka.ManagedKafkaHook", autospec=True)
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_managed_kafka_preserves_explicit_oauth_cb(self, mock_get_connection, managed_kafka_hook, hook):
+        config_str = '{"gcp_conn_id":"google_kafka_prod"}'
+        mock_get_connection.return_value.extra_dejson = {
+            "bootstrap.servers": "bootstrap.my-cluster.us-central1.managedkafka.my-project.cloud.goog:9092",
+            "oauth_cb": "json.dumps",
+            "sasl.oauthbearer.config": config_str,
+        }
+
+        config = hook.get_conn
+
+        assert config["oauth_cb"] is json.dumps
+        assert config["sasl.oauthbearer.config"] == config_str
+        assert managed_kafka_hook.mock_calls == []
+
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_get_conn_msk_iam_provisioned(self, mock_get_connection, hook):
         config = {
