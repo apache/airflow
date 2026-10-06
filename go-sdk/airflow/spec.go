@@ -27,8 +27,8 @@ import "reflect"
 //
 // To change a field, change the schema on the Python side, or the exclusions, type
 // overrides and injected properties in internal/genspec/authoring.go, and run
-// `just generate-specs`. A new field also needs an entry in the table of its struct in
-// serialize.go, which says how a serialized Dag carries it.
+// `just generate-specs`. genspec also writes spec_fields.gen.go, which holds the schema key
+// and the schema default of each field, so that serialize.go does not type them by hand.
 //
 // The structs carry no struct tags, because they are the authoring shape and not the
 // wire format: encoding/json would write a time.Duration as the nanoseconds Go counts it
@@ -39,6 +39,7 @@ import "reflect"
 //go:generate go run ../internal/genspec -schema ../schema/dag-schema.json -out ../../.build/go-sdk/spec.schema.json
 //go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags "" --capitalization ID --capitalization JSON --capitalization FgColor --capitalization MD --capitalization UI --capitalization XCom -p airflow -o spec.gen.go ../../.build/go-sdk/spec.schema.json
 //go:generate go run ../internal/genspec -license spec.gen.go
+//go:generate go run ../internal/genspec -fields ../../.build/go-sdk/spec.schema.json -out spec_fields.gen.go
 
 // copySpec returns a copy of spec that shares no slice, map or pointer with it, so that a
 // caller changing what it still holds cannot change a registered Dag. Assigning a spec

@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -1012,14 +1011,14 @@ func TestSerializeKeepsTheNumbersOfConfNumbersInMsgpack(t *testing.T) {
 		reflect.ValueOf(conf["nested"].(map[string]any)["seven"]).Kind())
 }
 
-func TestSpecRulesCoverEveryField(t *testing.T) {
+func TestGeneratedSpecFieldsNameEveryFieldOfTheirStruct(t *testing.T) {
 	for _, tt := range []struct {
 		spec   any
-		fields map[string]fieldRule
+		fields map[string]schemaField
 	}{
-		{DagSpec{}, dagSpecRules},
-		{TaskSpec{}, taskSpecRules},
-		{TaskGroupSpec{}, taskGroupSpecRules},
+		{DagSpec{}, dagSpecFields},
+		{TaskSpec{}, taskSpecFields},
+		{TaskGroupSpec{}, taskGroupSpecFields},
 	} {
 		specType := reflect.TypeOf(tt.spec)
 		names := make([]string, specType.NumField())
@@ -1030,60 +1029,28 @@ func TestSpecRulesCoverEveryField(t *testing.T) {
 	}
 }
 
-// TestSpecRulesMatchTheSchema checks the key and the default of each entry against the vendored
-// copy of the serialization schema. It fails when the schema renames a property or changes a
-// default that a table still holds.
-func TestSpecRulesMatchTheSchema(t *testing.T) {
-	raw, err := os.ReadFile("../schema/dag-schema.json")
-	require.NoError(t, err)
-	var schema struct {
-		Definitions map[string]struct {
-			Properties map[string]map[string]any `json:"properties"`
-		} `json:"definitions"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &schema))
-
-	for definition, fields := range map[string]map[string]fieldRule{
+func TestSpecRulesSkipAndSetOnlyNamedFields(t *testing.T) {
+	for name, rules := range map[string]specRules{
 		"dag":        dagSpecRules,
-		"operator":   taskSpecRules,
-		"task_group": taskGroupSpecRules,
+		"task":       taskSpecRules,
+		"task group": taskGroupSpecRules,
 	} {
-		properties := schema.Definitions[definition].Properties
-		require.NotEmpty(t, properties, definition)
-		for name, field := range fields {
-			if field.key == "" {
-				continue
-			}
-			property, ok := properties[field.key]
-			if !assert.True(
-				t,
-				ok,
-				"%s.%s: the schema has no property %q",
-				definition,
-				name,
-				field.key,
-			) {
-				continue
-			}
-			schemaDefault, hasDefault := property["default"]
-			if !hasDefault {
-				assert.Nil(t, field.schemaDefault, "%s.%s", definition, name)
-				continue
-			}
-			assert.True(t, isSameJSON(field.schemaDefault, schemaDefault),
-				"%s.%s: the table has the default %v, and the schema has %v",
-				definition, name, field.schemaDefault, schemaDefault)
+		for field := range rules.skip {
+			assert.Contains(t, rules.fields, field, "%s skip", name)
+		}
+		for field := range rules.set {
+			assert.Contains(t, rules.fields, field, "%s set", name)
 		}
 	}
 }
 
 func TestWriteSpecFieldsPanicsForAFieldWithoutARule(t *testing.T) {
-	fields := maps.Clone(taskGroupSpecRules)
+	fields := maps.Clone(taskGroupSpecFields)
 	delete(fields, "Tooltip")
 
 	assert.PanicsWithValue(t,
-		"airflow: the serializer has no rule for TaskGroupSpec.Tooltip",
-		func() { writeSpecFields(map[string]any{}, TaskGroupSpec{}, fields) },
+		"airflow: the serializer has no schema field for TaskGroupSpec.Tooltip",
+		func() { writeSpecFields(map[string]any{}, TaskGroupSpec{}, specRules{fields: fields}) },
 	)
 }
 
@@ -1096,7 +1063,7 @@ func TestWriteSpecFieldsPanicsForAFieldOfATypeItCannotWrite(t *testing.T) {
 			writeSpecFields(
 				map[string]any{},
 				spec{Count: 1},
-				map[string]fieldRule{"Count": {key: "count"}},
+				specRules{fields: map[string]schemaField{"Count": {key: "count"}}},
 			)
 		},
 	)

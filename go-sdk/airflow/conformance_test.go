@@ -170,18 +170,16 @@ func conformanceTaskFunction(params int) any {
 // setConformanceSpec sets fields of the struct that target points to, from a spec in
 // test_dags.yaml. It finds the field for each key of the spec in rules.
 func setConformanceSpec(
-	t *testing.T, target any, rules map[string]fieldRule, spec yaml.Node, label string,
+	t *testing.T, target any, rules specRules, spec yaml.Node, label string,
 ) {
 	t.Helper()
 	if spec.Kind == 0 {
 		return
 	}
 	require.Equal(t, yaml.MappingNode, spec.Kind, "%s: spec is not a mapping", label)
-	byKey := map[string]string{"schedule": "Schedule"}
-	for name, rule := range rules {
-		if rule.key != "" {
-			byKey[rule.key] = name
-		}
+	byKey := map[string]string{}
+	for name, field := range rules.fields {
+		byKey[field.key] = name
 	}
 	value := reflect.ValueOf(target).Elem()
 	for i := 0; i < len(spec.Content); i += 2 {

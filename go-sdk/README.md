@@ -461,17 +461,20 @@ The schema types `trigger_rule` and `weight_rule` as plain strings and does not 
 [`airflow/enums.go`](./airflow/enums.go). `TestRuleConstantsMatchPython` checks those constants
 against the Python enums in airflow-core.
 
-The `check-go-sdk-generated-drift` prek hook regenerates the file and fails when the committed one
+`just generate-specs` also writes [`airflow/spec_fields.gen.go`](./airflow/spec_fields.gen.go), which
+holds the schema key and the schema default of each field, keyed by the name of the Go field.
+
+The `check-go-sdk-generated-drift` prek hook regenerates both files and fails when a committed one
 differs, so a schema change that never reached Go cannot merge.
 
 ## Serializing a native Dag
 
 [`airflow/serialize.go`](./airflow/serialize.go) writes a registered `airflow.Dag` as the Dag JSON
 that Airflow stores. Python's `DagSerialization` writes the same shape for a Python Dag. Each field
-of `DagSpec`, `TaskSpec` and `TaskGroupSpec` has an entry in a table in that file, which names the
-schema property that the field sets. `TestSpecRulesCoverEveryField` fails for a generated field
-that has no entry. `TestSpecRulesMatchTheSchema` checks each property and its default against
-`schema/dag-schema.json`.
+of `DagSpec`, `TaskSpec` and `TaskGroupSpec` has an entry in a generated table, which names the
+schema property that the field sets and its schema default. The serializer leaves out a value equal to
+the default. `serialize.go` lists only the fields that the generated tables cannot describe: the ones
+it writes in its own way, and the lists that Python keeps in a set.
 
 The `check-go-sdk-serialization-conformance` prek hook builds the Dags of
 [`scripts/ci/lang_sdk_serialization/test_dags.yaml`](../scripts/ci/lang_sdk_serialization/test_dags.yaml)

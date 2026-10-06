@@ -391,6 +391,7 @@ repos:
           ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
           ^go-sdk/schema/.*\.json$|
           ^go-sdk/airflow/spec\.gen\.go$|
+          ^go-sdk/airflow/spec_fields\.gen\.go$|
           ^go-sdk/airflow/spec\.go$|
           ^go-sdk/internal/genspec/.*\.go$|
           ^go-sdk/internal/genlicense/.*\.go$|

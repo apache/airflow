@@ -184,114 +184,74 @@ func serializeTimetable(schedule string) map[string]any {
 	}
 }
 
-// fieldRule says how the serializer writes one field of DagSpec, TaskSpec or TaskGroupSpec. Each of
-// the three structs has a table with an entry for every field. When the generator adds a field to a
-// struct, TestSpecRulesCoverEveryField fails until the table gets an entry for it.
-type fieldRule struct {
-	// key is the property of the serialization schema that the field sets. A field with no key, such
-	// as DagSpec.Schedule, has code of its own that writes it, which the comment on its entry names.
+// schemaField is the property of the serialization schema that one field of DagSpec, TaskSpec or
+// TaskGroupSpec sets. genspec writes a table of them for each struct in spec_fields.gen.go,
+// keyed by the name of the field.
+type schemaField struct {
 	key string
-	// schemaDefault is the default that the serialization schema gives the property, or nil when the
-	// schema has no default for it. writeSpecFields leaves out a value equal to the default, because
-	// Airflow reads a missing property as its schema default.
+	// schemaDefault is the default that the schema gives the property, or nil when the schema has
+	// none. writeSpecFields leaves out a value equal to the default, because Airflow reads a missing
+	// property as its schema default.
 	schemaDefault any
-	// set marks a list that Python keeps in a set, so Python writes the list sorted and without
-	// repeats. writeSpecFields writes it the same way.
-	set bool
-	// skip marks a field that has a key but that writeSpecFields never writes. The comment on its
-	// entry says why.
-	skip bool
 }
 
-var dagSpecRules = map[string]fieldRule{
-	"Catchup":                     {key: "catchup"},
-	"DagDisplayName":              {key: "dag_display_name"},
-	"DagrunTimeout":               {key: "dagrun_timeout"},
-	"Description":                 {key: "description"},
-	"DisableBundleVersioning":     {key: "disable_bundle_versioning"},
-	"DocMD":                       {key: "doc_md"},
-	"EndDate":                     {key: "end_date"},
-	"FailFast":                    {key: "fail_fast", schemaDefault: false},
-	"IsPausedUponCreation":        {key: "is_paused_upon_creation"},
-	"MaxActiveRuns":               {key: "max_active_runs"},
-	"MaxActiveTasks":              {key: "max_active_tasks"},
-	"MaxConsecutiveFailedDagRuns": {key: "max_consecutive_failed_dag_runs"},
-	// serializeTaskLocked writes Queue as the queue of each Go task whose TaskSpec sets no Queue.
-	"Queue":                     {},
-	"RenderTemplateAsNativeObj": {key: "render_template_as_native_obj", schemaDefault: false},
-	// serializeTimetable writes Schedule as the timetable.
-	"Schedule":  {},
-	"StartDate": {key: "start_date"},
-	"Tags":      {key: "tags", set: true},
+// specRules says how the serializer writes the fields of one spec struct. A field that has no entry
+// in fields panics, so a field that the generator adds to a struct is never left out unnoticed.
+type specRules struct {
+	fields map[string]schemaField
+	// set names the lists that Python keeps in a set, so that Python writes the list sorted and
+	// without repeats. writeSpecFields writes it the same way.
+	set map[string]bool
+	// skip names the fields that writeSpecFields never writes. The comment on each says why.
+	skip map[string]bool
 }
 
-var taskSpecRules = map[string]fieldRule{
-	"TaskDisplayName": {key: "_task_display_name"},
-	"DependsOnPast":   {key: "depends_on_past", schemaDefault: false},
-	"DoXComPush":      {key: "do_xcom_push", schemaDefault: true},
-	"DocMD":           {key: "doc_md"},
-	// Python writes email_on_failure and email_on_retry only for an operator that has an email
-	// recipient, and a TaskSpec has no field for a recipient.
-	"EmailOnFailure":           {key: "email_on_failure", schemaDefault: true, skip: true},
-	"EmailOnRetry":             {key: "email_on_retry", schemaDefault: true, skip: true},
-	"EndDate":                  {key: "end_date"},
-	"ExecutionTimeout":         {key: "execution_timeout"},
-	"Executor":                 {key: "executor"},
-	"IgnoreFirstDependsOnPast": {key: "ignore_first_depends_on_past", schemaDefault: false},
-	"MapIndexTemplate":         {key: "map_index_template"},
-	"MaxActiveTisPerDag":       {key: "max_active_tis_per_dag"},
-	"MaxActiveTisPerDagrun":    {key: "max_active_tis_per_dagrun"},
-	"MaxRetryDelay":            {key: "max_retry_delay"},
-	"Owner":                    {key: "owner", schemaDefault: "airflow"},
-	"Pool":                     {key: "pool", schemaDefault: "default_pool"},
-	"PoolSlots":                {key: "pool_slots", schemaDefault: 1},
-	"PriorityWeight":           {key: "priority_weight", schemaDefault: 1},
-	"Queue":                    {key: "queue", schemaDefault: "default"},
-	"Retries":                  {key: "retries", schemaDefault: 0},
-	"RetryDelay":               {key: "retry_delay", schemaDefault: 300.0},
-	"RetryExponentialBackoff":  {key: "retry_exponential_backoff", schemaDefault: 0},
-	"StartDate":                {key: "start_date"},
-	// serializeTaskLocked writes the task_id of the TaskRef, where the group_ids of the groups that
-	// hold the task prefix it.
-	"TaskID":            {key: "task_id", skip: true},
-	"TriggerRule":       {key: "trigger_rule", schemaDefault: "all_success"},
-	"WaitForDownstream": {key: "wait_for_downstream", schemaDefault: false},
-	"WaitForPastDependsBeforeSkipping": {
-		key:           "wait_for_past_depends_before_skipping",
-		schemaDefault: false,
+var dagSpecRules = specRules{
+	fields: dagSpecFields,
+	set:    map[string]bool{"Tags": true},
+	skip: map[string]bool{
+		// serializeTaskLocked writes Queue as the queue of each Go task whose TaskSpec sets no Queue.
+		"Queue": true,
+		// serializeTimetable writes Schedule as the timetable.
+		"Schedule": true,
 	},
-	"WeightRule": {key: "weight_rule", schemaDefault: "downstream"},
+}
+
+var taskSpecRules = specRules{
+	fields: taskSpecFields,
+	skip: map[string]bool{
+		// Python writes email_on_failure and email_on_retry only for an operator that has an email
+		// recipient, and a TaskSpec has no field for a recipient.
+		"EmailOnFailure": true,
+		"EmailOnRetry":   true,
+		// serializeTaskLocked writes the task_id of the TaskRef, where the group_ids of the groups that
+		// hold the task prefix it.
+		"TaskID": true,
+	},
 }
 
 // The schema gives no property of a task group a default. serializeTaskGroup starts each group
 // from the defaults of Python's TaskGroup instead.
-var taskGroupSpecRules = map[string]fieldRule{
-	"DocMD":            {key: "doc_md"},
-	"GroupDisplayName": {key: "group_display_name"},
-	"PrefixGroupID":    {key: "prefix_group_id"},
-	"Tooltip":          {key: "tooltip"},
-	"UIColor":          {key: "ui_color"},
-	"UIFgColor":        {key: "ui_fgcolor"},
-}
+var taskGroupSpecRules = specRules{fields: taskGroupSpecFields}
 
-// writeSpecFields writes into data each field of spec that has a key in rules. It leaves out a
+// writeSpecFields writes into data each field of spec that rules does not skip. It leaves out a
 // field that is unset or that holds its schema default. A field is unset when it holds its zero
 // value. A pointer field is unset only when it is nil, so a pointer field can set the zero value of
 // the type it points to, such as false or 0.
-func writeSpecFields(data map[string]any, spec any, rules map[string]fieldRule) {
+func writeSpecFields(data map[string]any, spec any, rules specRules) {
 	value := reflect.ValueOf(spec)
 	for i := range value.NumField() {
 		name := value.Type().Field(i).Name
-		field, ok := rules[name]
+		field, ok := rules.fields[name]
 		if !ok {
 			panic(fmt.Sprintf(
-				"airflow: the serializer has no rule for %s.%s", value.Type().Name(), name,
+				"airflow: the serializer has no schema field for %s.%s", value.Type().Name(), name,
 			))
 		}
-		if field.key == "" || field.skip {
+		if rules.skip[name] {
 			continue
 		}
-		encoded, set := encodeSpecValue(value.Field(i), field.set)
+		encoded, set := encodeSpecValue(value.Field(i), rules.set[name])
 		if !set || (field.schemaDefault != nil && isSameJSON(encoded, field.schemaDefault)) {
 			continue
 		}
