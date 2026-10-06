@@ -110,6 +110,30 @@ func TestShapeForAuthoringOverridesTheDocCommentOfAProperty(t *testing.T) {
 	)
 }
 
+func TestShapeForAuthoringOverridesTheDocOfAPropertyWithoutChangingItsType(t *testing.T) {
+	doc := schemaFrom(t, `{
+		"definitions": {
+			"operator": {
+				"type": "object",
+				"properties": {"email_on_failure": {"type": "boolean", "default": true}}
+			}
+		}
+	}`)
+
+	require.NoError(t, shapeForAuthoring(doc, map[string]authoringShape{
+		"operator": {
+			override: map[string]propertyOverride{
+				"email_on_failure": {doc: "EmailOnFailure has no effect yet."},
+			},
+		},
+	}))
+
+	property := doc["definitions"].(map[string]any)["operator"].(map[string]any)["properties"].(map[string]any)["email_on_failure"].(map[string]any)
+	assert.Equal(t, "EmailOnFailure has no effect yet.", property["description"])
+	assert.NotContains(t, property["goJSONSchema"], "type")
+	assert.Equal(t, "boolean", property["type"])
+}
+
 func TestShapeForAuthoringLetsAnOverrideForceAPointer(t *testing.T) {
 	doc := schemaFrom(t, `{
 		"definitions": {

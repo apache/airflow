@@ -127,10 +127,12 @@ type TaskSpec struct {
 	// DocMD corresponds to the JSON schema field "doc_md".
 	DocMD string
 
-	// EmailOnFailure corresponds to the JSON schema field "email_on_failure".
+	// EmailOnFailure has no effect yet. Python writes email_on_failure only for a
+	// task that has an email recipient, and a TaskSpec cannot set one.
 	EmailOnFailure *bool
 
-	// EmailOnRetry corresponds to the JSON schema field "email_on_retry".
+	// EmailOnRetry has no effect yet. Python writes email_on_retry only for a task
+	// that has an email recipient, and a TaskSpec cannot set one.
 	EmailOnRetry *bool
 
 	// EndDate corresponds to the JSON schema field "end_date".

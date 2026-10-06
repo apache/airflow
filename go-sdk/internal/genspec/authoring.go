@@ -49,7 +49,8 @@ type authoringShape struct {
 
 // propertyOverride is the part of a property genspec rewrites. goType and imports
 // become go-jsonschema's goJSONSchema extension, which it reads before a $ref, so
-// an override applies to a property written as a reference too.
+// an override applies to a property written as a reference too. An override with no
+// goType changes the doc alone.
 type propertyOverride struct {
 	goType  string
 	imports []string
@@ -192,6 +193,15 @@ var taskShape = authoringShape{
 		// A multiplier, not a switch: 0 keeps the delay constant, 2.0 doubles it each
 		// retry. The schema's number is right, and the float is what carries the 2.0.
 		"retry_exponential_backoff": {goType: "float64"},
+		// Python writes email_on_failure and email_on_retry only for an operator that has
+		// an email recipient, and a TaskSpec has no field for one. The fields stay, as in
+		// the TypeScript SDK, so that setting one keeps compiling once a recipient exists.
+		"email_on_failure": {
+			doc: "EmailOnFailure has no effect yet. Python writes email_on_failure only for a task that has an email recipient, and a TaskSpec cannot set one.",
+		},
+		"email_on_retry": {
+			doc: "EmailOnRetry has no effect yet. Python writes email_on_retry only for a task that has an email recipient, and a TaskSpec cannot set one.",
+		},
 		"task_id": {
 			goType: "string",
 			doc:    "TaskID is the task_id of the task. When TaskID is empty, the task_id is the name of the Go function that the task runs. A task from TriggerDagRun runs no Go function, so it needs a TaskID. A task added through a task group takes the group_id as a prefix of its task_id, unless the TaskGroupSpec of the group sets PrefixGroupID to false.",
@@ -307,7 +317,13 @@ func overrideProperties(
 				name, property, override[property].goType,
 			)
 		}
-		extension := map[string]any{"type": override[property].goType}
+		extension := map[string]any{}
+		if goType := override[property].goType; goType != "" {
+			extension["type"] = goType
+			// The override replaces whatever the reference resolves to, and dropping it
+			// keeps the pruned schema free of references to definitions that are gone.
+			delete(node, "$ref")
+		}
 		if imports := override[property].imports; len(imports) > 0 {
 			extension["imports"] = anySlice(imports)
 		}
@@ -318,9 +334,6 @@ func overrideProperties(
 			extension["pointer"] = true
 		}
 		node["goJSONSchema"] = extension
-		// The override replaces whatever the reference resolves to, and dropping it
-		// keeps the pruned schema free of references to definitions that are gone.
-		delete(node, "$ref")
 	}
 	return nil
 }
