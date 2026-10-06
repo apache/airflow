@@ -33,6 +33,7 @@ Proposed.
 3. **At most one `airflow.TaskSpec` per task.** A second one is a registration error rather than something to merge, so a task's attributes are only ever written in one place.
 4. **task_id is the Go function name by default**, spelled exactly as the function is, and `airflow.TaskSpec{TaskID: ...}` sets it to anything else.
 5. **`airflow.Inputs(refs...)` declares the data and the edge in one call** for defining graph with TaskFlow syntax.
+   `airflow.Literal(value)` passes a JSON-serializable value in the same call without adding an edge, e.g. `airflow.Inputs(extracted, airflow.Literal("uk"))`.
 6. **`Before` and `After` are order-only edges on `airflow.Node`**, which both `*airflow.TaskRef` and `*airflow.TaskGroupRef` satisfy. They are the Go pair for `>>` and `<<`, and both return their argument set as one `Node`, so `a.Before(b, c).Before(d)` is Python's `a >> [b, c] >> d`.
 7. **An edge label wraps the endpoint**: `loaded.Before(airflow.Label(notify, "when empty"))` is Python's `loaded >> Label("when empty") >> notify`. Labelling the endpoint rather than the call lets one fan-out give each edge its own label.
 8. **Trigger rules belong to the task**, as `airflow.TaskSpec{TriggerRule: ...}`, never to an edge.
@@ -137,7 +138,11 @@ type TaskSpec struct {
 // nothing else. TaskSpec and the value Inputs returns both implement it.
 type TaskOption interface{ applyTask(*taskConfig) error }
 
-func Inputs(refs ...*TaskRef) TaskOption
+// Input is a value Inputs takes: a *TaskRef, or the value Literal returns.
+type Input interface{ input() }
+
+func Inputs(in ...Input) TaskOption
+func Literal(value any) Input
 
 // Node is what an edge connects. *TaskRef and *TaskGroupRef implement it, sealed the same way.
 // It is the Go counterpart of Python's DAGNode / DependencyMixin.
