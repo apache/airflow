@@ -65,7 +65,8 @@ public class EtlPipeline { // extends nothing of ours; your own base class stays
   public void audit(Client client) { /* side effect only, no data in or out */ }
 
   @Builder.Task(id = "notify")
-  public void notify(Client client) { /* side effect only, no data in or out */ }
+  // "notify" is Object.notify, so the method takes another name and keeps the task id.
+  public void alert(Client client) { /* side effect only, no data in or out */ }
 
   @Builder.Deps
   static class Wiring implements EtlPipelineDeps {
@@ -77,7 +78,7 @@ public class EtlPipeline { // extends nothing of ours; your own base class stays
 
       // non-TaskFlow (ordering-only) edges: sequence with no data flowing
       rows.then(audit());              // extract >> audit
-      Flow.of(loaded, audit()).then(notify()); // [load, audit] >> notify
+      Flow.of(loaded, audit()).then(alert()); // [load, audit] >> notify
     }
   }
 
@@ -101,7 +102,7 @@ interface EtlPipelineDeps extends Deps { // Deps: the shared base that nests Flo
   default TaskRef<Long> transform(Arg<Long> extracted, Arg<Double> threshold) { return Flow.call("transform", extracted, threshold); }
   default TaskRef<Void> load(Arg<Long> transformed) { return Flow.call("load", transformed); }
   default TaskRef<Void> audit() { return Flow.node("audit"); }
-  default TaskRef<Void> notify() { return Flow.node("notify"); }
+  default TaskRef<Void> alert() { return Flow.node("notify"); }
 }
 ```
 

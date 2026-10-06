@@ -1003,6 +1003,11 @@ jobs:
       - name: Run Go tests
         working-directory: ./go-sdk
         run: gotestsum --format github-actions ./...
+      # Without -race, the Go SDK tests for concurrent use can still pass when a lock is missing.
+      # The plain run above has to stay because the race build leaves out files with `//go:build !race`.
+      - name: Run Go tests with the race detector
+        working-directory: ./go-sdk
+        run: gotestsum --format github-actions -- -race ./...
       # Go modules have no central registry that pre-scans releases, so we scan our own
       # dependency graph against the Go vulnerability database. govulncheck is reachability
       # based, so it only fails on advisories that actually affect code we call. The version

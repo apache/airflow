@@ -51,6 +51,7 @@ from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
+from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.state.metastore import _get_db_backend
@@ -177,7 +178,7 @@ def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI
     """
     if not tis:
         return tis
-    return list(
+    reloaded = list(
         session.scalars(
             select(TI)
             .options(joinedload(TI.rendered_task_instance_fields))
@@ -185,6 +186,8 @@ def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI
             .execution_options(populate_existing=True)
         ).all()
     )
+    load_legacy_rendered_fields(reloaded, session=session)
+    return reloaded
 
 
 def _patch_ti_validate_request(
@@ -658,7 +661,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         try:
             # Handle deletion of specific (dag_id, dag_run_id, task_id, map_index) tuples
             if delete_specific_map_index_task_keys:
-                task_instances_map, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
+                _, matched_task_keys, not_found_task_keys = self._categorize_task_instances(
                     delete_specific_map_index_task_keys
                 )
                 not_found_task_ids = [
@@ -674,7 +677,13 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
                 for task_key in matched_task_keys:
                     dag_id, run_id, task_id, map_index = task_key
-                    self.session.delete(task_instances_map[task_key])
+                    TI.delete_attempts(
+                        dag_id=dag_id,
+                        run_id=run_id,
+                        task_id=task_id,
+                        map_index=map_index,
+                        session=self.session,
+                    )
                     results.success.append(f"{dag_id}.{run_id}.{task_id}[{map_index}]")
 
             # Handle deletion of all map indexes for certain (dag_id, dag_run_id, task_id) tuples
@@ -709,8 +718,11 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                             detail=f"No task instances found for dag_id: {dag_id}, run_id: {run_id}, task_id: {task_id}",
                         )
 
+                    if all_task_instances:
+                        TI.delete_attempts(
+                            dag_id=dag_id, run_id=run_id, task_id=task_id, session=self.session
+                        )
                     for ti in all_task_instances:
-                        self.session.delete(ti)
                         results.success.append(f"{dag_id}.{run_id}.{task_id}[{ti.map_index}]")
 
         except HTTPException as e:

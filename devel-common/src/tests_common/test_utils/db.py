@@ -422,6 +422,10 @@ def set_default_pool_slots(slots):
 def clear_rendered_ti_fields():
     with create_session() as session:
         session.execute(delete(RenderedTaskInstanceFields))
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.models.renderedtifields import LegacyRenderedTaskInstanceFields
+
+            session.execute(delete(LegacyRenderedTaskInstanceFields))
 
 
 @_retry_db
@@ -439,7 +443,13 @@ def clear_db_dag_warnings():
 @_retry_db
 def clear_db_xcom():
     with create_session() as session:
-        session.execute(delete(XCom))
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.models.xcom import XComModelV1, XComModelV2
+
+            session.execute(delete(XComModelV2))
+            session.execute(delete(XComModelV1))
+        else:
+            session.execute(delete(XCom))
 
 
 @_retry_db

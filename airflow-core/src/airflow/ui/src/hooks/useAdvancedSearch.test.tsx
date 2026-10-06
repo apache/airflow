@@ -22,7 +22,7 @@ import { act, renderHook } from "@testing-library/react";
 import { MemoryRouter, useSearchParams } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { advancedSearchKey } from "src/constants/localStorage";
+import { advancedSearchKey, DEFAULT_MATCH_ANYWHERE_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -144,5 +144,32 @@ describe("useAdvancedSearch toggle", () => {
     act(() => result.current.advanced.onToggle(true));
 
     expect(localStorage.getItem(advancedSearchKey("dags"))).toBe(JSON.stringify(true));
+  });
+});
+
+describe("useAdvancedSearch global default", () => {
+  it("follows the match-anywhere-by-default setting when URL and per-key storage are absent", () => {
+    localStorage.setItem(DEFAULT_MATCH_ANYWHERE_KEY, JSON.stringify(true));
+
+    const { result } = renderAdvancedSearch("dags");
+
+    expect(result.current.advanced.enabled).toBe(true);
+  });
+
+  it("lets an explicit per-searchbar choice override the global default", () => {
+    localStorage.setItem(DEFAULT_MATCH_ANYWHERE_KEY, JSON.stringify(true));
+    localStorage.setItem(advancedSearchKey("dags"), JSON.stringify(false));
+
+    const { result } = renderAdvancedSearch("dags");
+
+    expect(result.current.advanced.enabled).toBe(false);
+  });
+
+  it("lets the URL override the global default", () => {
+    localStorage.setItem(DEFAULT_MATCH_ANYWHERE_KEY, JSON.stringify(false));
+
+    const { result } = renderAdvancedSearch("dags", ["/dags?advanced_search=dags"]);
+
+    expect(result.current.advanced.enabled).toBe(true);
   });
 });

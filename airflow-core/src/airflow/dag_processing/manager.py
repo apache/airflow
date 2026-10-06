@@ -47,6 +47,7 @@ from uuid6 import uuid7
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
@@ -54,7 +55,13 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
+from airflow.dag_processing.importer_routing import get_claiming_importer
+from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
+from airflow.dag_processing.processor import (
+    BaseDagFileProcessorProcess,
+    DagFileParsingResult,
+    DagFileProcessorProcess,
+)
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -262,7 +269,7 @@ class DagFileProcessorManager(LoggingMixin):
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
-    _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
+    _processors: dict[DagFileInfo, BaseDagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
     _parsing_start_time: float | None = attrs.field(default=None, init=False)
     _num_run: int = attrs.field(default=0, init=False)
@@ -803,6 +810,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _add_callback_to_queue(self, request: CallbackRequest) -> None:
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+        if get_claiming_importer(request.filepath, request.bundle_name) is not None:
+            self._log_dropped_lang_sdk_callback(request)
+            return
         bundle = self.prepare_callback_bundle(request)
         if bundle is None:
             return
@@ -817,6 +827,19 @@ class DagFileProcessorManager(LoggingMixin):
         self._add_files_to_queue([file_info], mode="front")
         team_name = self._get_team_name(file_info.bundle_name)
         stats.incr("dag_processing.other_callback_count", tags=prune_dict({"team_name": team_name}))
+
+    def _log_dropped_lang_sdk_callback(self, request: CallbackRequest) -> None:
+        if isinstance(request, DagCallbackRequest):
+            target = f"dag_id={request.dag_id} run_id={request.run_id}"
+        else:
+            ti = request.ti
+            target = f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
+        self.log.warning(
+            "Dropping %s for %s (%s): Lang-SDK runtimes do not run callbacks",
+            type(request).__name__,
+            request.filepath,
+            target,
+        )
 
     @provide_session
     def get_bundle_state(self, bundle_name: str, *, session: Session = NEW_SESSION) -> BundleState | None:
@@ -1277,7 +1300,7 @@ class DagFileProcessorManager(LoggingMixin):
     def handle_parsing_result(
         self,
         file: DagFileInfo,
-        proc: DagFileProcessorProcess,
+        proc: BaseDagFileProcessorProcess,
         *,
         session: Session = NEW_SESSION,
     ) -> None:
@@ -1461,11 +1484,26 @@ class DagFileProcessorManager(LoggingMixin):
         client.base_url = "http://in-process.invalid./"
         return client
 
-    def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
+    def _create_process(self, dag_file: DagFileInfo) -> BaseDagFileProcessorProcess:
         id = uuid7()
 
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
+        subprocess_logs_to_stdout = conf.get("logging", "dag_processor_log_target") == "stdout"
+
+        if get_claiming_importer(dag_file.absolute_path, dag_file.bundle_name) is not None:
+            return LangSDKDagFileProcessorProcess.start(
+                id=id,
+                path=dag_file.absolute_path,
+                bundle_path=cast("Path", dag_file.bundle_path),
+                bundle_name=dag_file.bundle_name,
+                dag_file_rel_path=str(dag_file.rel_path),
+                selector=self.selector,
+                logger=logger,
+                logger_filehandle=logger_filehandle,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                client=self.client,
+            )
 
         return DagFileProcessorProcess.start(
             id=id,
@@ -1477,7 +1515,7 @@ class DagFileProcessorManager(LoggingMixin):
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,
-            subprocess_logs_to_stdout=conf.get("logging", "dag_processor_log_target") == "stdout",
+            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
             client=self.client,
         )
 

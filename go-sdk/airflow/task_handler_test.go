@@ -85,6 +85,10 @@ func panicMessage(t *testing.T, f func()) (msg string) {
 	return ""
 }
 
+type taskError struct{}
+
+func (*taskError) Error() string { return "task error" }
+
 func TestTaskHandlerPanicsOnBadHandler(t *testing.T) {
 	var unassigned func(Context) error
 
@@ -114,6 +118,11 @@ func TestTaskHandlerPanicsOnBadHandler(t *testing.T) {
 			name: "no error result",
 			fn:   func(Context) int { return 0 },
 			want: "last return value to return error but found int",
+		},
+		{
+			name: "error result of a concrete type",
+			fn:   func(Context) (int, *taskError) { return 0, nil },
+			want: "must declare its last result as error, not *airflow.taskError",
 		},
 		{
 			name: "parameter that cannot hold an argument",

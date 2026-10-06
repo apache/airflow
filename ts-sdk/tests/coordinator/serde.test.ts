@@ -726,6 +726,48 @@ describe("serializeDag", () => {
       expect(tasks.get("before")?.["downstream_task_ids"]).toEqual(["after"]);
     });
 
+    it("steps over an empty nested group to the tasks of the group holding it", () => {
+      // Python's find_leaves falls back to the parent group, so an edge out of
+      // an empty nested group leaves from whatever the parent finishes with.
+      const dag = new Dag("d");
+      const outer = dag.taskGroup("outer");
+      place(outer, "t");
+      const inner = outer.taskGroup("inner");
+      const load = place(dag, "load");
+      inner.before(load);
+
+      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      expect(tasks.get("outer.t")?.["downstream_task_ids"]).toEqual(["load"]);
+    });
+
+    it("steps over a chain of empty nested groups to the group holding them", () => {
+      // The fallback is a walk, not one step: mid holds only inner, so neither
+      // has leaves and the edge leaves from outer's.
+      const dag = new Dag("d");
+      const outer = dag.taskGroup("outer");
+      place(outer, "t");
+      const inner = outer.taskGroup("mid").taskGroup("inner");
+      const load = place(dag, "load");
+      inner.before(load);
+
+      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      expect(tasks.get("outer.t")?.["downstream_task_ids"]).toEqual(["load"]);
+    });
+
+    it("draws nothing into an empty nested group, which has no roots to reach", () => {
+      // Only the upstream side falls back to the parent. Python resolves a
+      // group standing downstream through get_roots() alone, with no such
+      // walk, so an edge in reaches nothing rather than the parent's tasks.
+      const dag = new Dag("d");
+      const outer = dag.taskGroup("outer");
+      place(outer, "t");
+      const inner = outer.taskGroup("inner");
+      place(dag, "extract").before(inner);
+
+      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      expect(tasks.get("extract")).not.toHaveProperty("downstream_task_ids");
+    });
+
     it("draws nothing when an empty group has no other side to reach", () => {
       const dag = new Dag("d");
       const before = place(dag, "before");

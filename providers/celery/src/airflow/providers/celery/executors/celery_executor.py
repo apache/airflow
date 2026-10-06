@@ -115,6 +115,7 @@ class CeleryExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
     if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
     else:
@@ -190,10 +191,11 @@ class CeleryExecutor(BaseExecutor):
         workloads_to_be_sent: list[WorkloadInCelery] = []
         for workload in workload_items:
             if isinstance(workload, ExecuteTask):
-                workloads_to_be_sent.append((workload.ti.key, workload, workload.ti.queue, self.team_name))
+                key = self.get_task_key(workload.ti) if self.supports_task_instance_uuid else workload.ti.key
+                workloads_to_be_sent.append((key, workload, workload.ti.queue, self.team_name))
             elif AIRFLOW_V_3_2_PLUS and isinstance(workload, ExecuteCallback):
-                # Use default queue for callbacks, or extract from callback data if available.
-                queue = "default"
+                # Use the configured default queue for callbacks, or extract from callback data if available.
+                queue = self.conf.get_mandatory_value("operators", "default_queue")
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
                     queue = workload.callback.data["queue"]
                 workloads_to_be_sent.append((workload.callback.key, workload, queue, self.team_name))
@@ -222,7 +224,7 @@ class CeleryExecutor(BaseExecutor):
                         "[Try %s of %s] Celery Task Timeout Error for Workload: (%s).",
                         self.workload_publish_retries[key] + 1,
                         self.workload_publish_max_retries,
-                        tuple(key),
+                        key,
                     )
                     self.workload_publish_retries[key] = retries + 1
                     continue
@@ -380,9 +382,10 @@ class CeleryExecutor(BaseExecutor):
 
             # Set the correct elements of the state dicts, then update this
             # like we just queried it.
-            self.workloads[ti.key] = result
-            self.running.add(ti.key)
-            self.update_task_state(ti.key, state, info)
+            key = self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key
+            self.workloads[key] = result
+            self.running.add(key)
+            self.update_task_state(key, state, info)
             adopted.append(f"{ti} in state {state}")
 
         if adopted:
@@ -407,21 +410,22 @@ class CeleryExecutor(BaseExecutor):
         for ti in tis:
             reprs.append(repr(ti))
             self.revoke_task(ti=ti)
-            self.fail(ti.key)
+            self.fail(self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key)
         return reprs
 
     def revoke_task(self, *, ti: TaskInstance):
-        celery_async_result = self.workloads.pop(ti.key, None)
+        key = self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key
+        celery_async_result = self.workloads.pop(key, None)
         if celery_async_result:
             try:
                 self.celery_app.control.revoke(celery_async_result.task_id)
             except Exception:
                 self.log.exception("Error revoking task instance %s from celery", ti.key)
-        self.running.discard(ti.key)
+        self.running.discard(key)
         if AIRFLOW_V_3_4_PLUS:
-            self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
+            self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key, None)
         else:
-            self.queued_tasks.pop(ti.key, None)
+            self.queued_tasks.pop(key, None)
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:

@@ -279,6 +279,10 @@ export const useBackfillServiceListBackfillDagRunsSuspense = <TData = Common.Bac
 * @param data.maxActiveRunsGt
 * @param data.maxActiveRunsLte
 * @param data.maxActiveRunsLt
+* @param data.durationGte
+* @param data.durationGt
+* @param data.durationLte
+* @param data.durationLt
 * @param data.reprocessBehavior
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
 * @param data.dagId
@@ -286,7 +290,7 @@ export const useBackfillServiceListBackfillDagRunsSuspense = <TData = Common.Bac
 * @returns BackfillCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useBackfillServiceListBackfillsUiSuspense = <TData = Common.BackfillServiceListBackfillsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
+export const useBackfillServiceListBackfillsUiSuspense = <TData = Common.BackfillServiceListBackfillsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
   active?: boolean;
   completedAtGt?: string;
   completedAtGte?: string;
@@ -297,6 +301,10 @@ export const useBackfillServiceListBackfillsUiSuspense = <TData = Common.Backfil
   createdAtLt?: string;
   createdAtLte?: string;
   dagId?: string;
+  durationGt?: number;
+  durationGte?: number;
+  durationLt?: number;
+  durationLte?: number;
   fromDateGt?: string;
   fromDateGte?: string;
   fromDateLt?: string;
@@ -313,7 +321,7 @@ export const useBackfillServiceListBackfillsUiSuspense = <TData = Common.Backfil
   toDateGte?: string;
   toDateLt?: string;
   toDateLte?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }) as TData, ...options });
 /**
 * Get Connection
 * Get a connection entry.
@@ -551,6 +559,25 @@ export const useExperimentalServiceWaitDagRunUntilFinishedSuspense = <TData = Co
   interval: number;
   result?: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }, queryKey), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) as TData, ...options });
+/**
+* Experimental: Compare what two stored versions of a Dag currently hold.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.baseVersionNumber Version to compare from.
+* @param data.targetVersionNumber Version to compare to.
+* @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+* @returns DagVersionDiffResponse Successful Response
+* @throws ApiError
+*/
+export const useExperimentalServiceGetDagVersionDiffSuspense = <TData = Common.ExperimentalServiceGetDagVersionDiffDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseExperimentalServiceGetDagVersionDiffKeyFn({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }, queryKey), queryFn: () => ExperimentalService.getDagVersionDiff({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }) as TData, ...options });
 /**
 * Get Dag Source
 * Get source code using file token.
@@ -924,6 +951,25 @@ export const useDagServiceGetLatestRunInfoSuspense = <TData = Common.DagServiceG
 export const useDagServiceGetDagRunStateCountsUiSuspense = <TData = Common.DagServiceGetDagRunStateCountsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds }: {
   dagIds: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }, queryKey), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) as TData, ...options });
+/**
+* Get Recent Task Instance State Counts
+* Return recent task-instance state counts for the Dags of the given runs, for the Dag list page.
+*
+* Like the Airflow 2 "Recent Tasks" column, a Dag's counts cover all of its running Dag
+* runs, or its latest run when none is running.
+*
+* The Dag list response already carries the latest run of each Dag, so the caller passes
+* those run ids straight in. Deriving the latest run again here would mean an
+* ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index and degrades
+* badly once a Dag has many runs. Runs the caller may not read are dropped.
+* @param data The data for the request.
+* @param data.dagRunIds
+* @returns DAGsRecentTaskInstanceStateCountsCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagServiceGetRecentTaskInstanceStateCountsUiSuspense = <TData = Common.DagServiceGetRecentTaskInstanceStateCountsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagRunIds }: {
+  dagRunIds: number[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagServiceGetRecentTaskInstanceStateCountsUiKeyFn({ dagRunIds }, queryKey), queryFn: () => DagService.getRecentTaskInstanceStateCountsUi({ dagRunIds }) as TData, ...options });
 /**
 * Get Event Log
 * @param data The data for the request.
@@ -1887,6 +1933,25 @@ export const useVariableServiceGetVariablesSuspense = <TData = Common.VariableSe
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }, queryKey), queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }) as TData, ...options });
+/**
+* Experimental: Compare what two stored versions of a Dag currently hold.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.baseVersionNumber Version to compare from.
+* @param data.targetVersionNumber Version to compare to.
+* @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+* @returns DagVersionDiffResponse Successful Response
+* @throws ApiError
+*/
+export const useDagVersionServiceGetDagVersionDiffSuspense = <TData = Common.DagVersionServiceGetDagVersionDiffDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionDiffKeyFn({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersionDiff({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }) as TData, ...options });
 /**
 * Get Dag Version
 * Get one Dag Version.

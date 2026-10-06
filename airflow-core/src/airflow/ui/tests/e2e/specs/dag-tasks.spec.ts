@@ -74,9 +74,7 @@ test.describe("Dag Tasks Tab", () => {
           async () => {
             const texts = await dagsPage.taskRows.allTextContents();
 
-            if (texts.length === 0) return false;
-
-            return texts.every((text) => text.includes(operator));
+            return texts.length > 0 && texts.every((text) => text.includes(operator));
           },
           { timeout: 20_000 },
         )
@@ -110,9 +108,7 @@ test.describe("Dag Tasks Tab", () => {
           async () => {
             const texts = await dagsPage.taskRows.allTextContents();
 
-            if (texts.length === 0) return false;
-
-            return texts.every((text) => text.includes(rule));
+            return texts.length > 0 && texts.every((text) => text.includes(rule));
           },
           { timeout: 20_000 },
         )

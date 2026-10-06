@@ -31,9 +31,7 @@ import attrs
 import structlog
 
 from airflow.sdk.coordinators._bundle_metadata import (
-    ARTIFACT_ROOTS_NOT_CONFIGURED,
     ResolvedBundle,
-    convert_configured_roots,
     extract_supervisor_schema_version,
     parse_metadata_mapping,
 )
@@ -41,9 +39,9 @@ from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
+    from typing import Self
 
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
 
@@ -255,9 +253,9 @@ def _dag_ids(metadata: dict[str, Any]) -> set[str]:
     return set(dags.keys())
 
 
-def _find_executables(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
+def _find_bundle_files(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
     """
-    Yield executable regular files under *items*, descending into directories.
+    Yield regular files under *items*, descending into directories.
 
     A symlink loop or a directory that hardlinks into one of its ancestors
     would otherwise recurse until the interpreter stack is exhausted, so
@@ -265,10 +263,10 @@ def _find_executables(items: Iterable[pathlib.Path]) -> Iterator[pathlib.Path]:
     of a single scan.
     """
     seen_dirs: set[tuple[int, int]] = set()
-    yield from _walk_executables(items, seen_dirs)
+    yield from _walk_bundle_files(items, seen_dirs)
 
 
-def _walk_executables(
+def _walk_bundle_files(
     items: Iterable[pathlib.Path], seen_dirs: set[tuple[int, int]]
 ) -> Iterator[pathlib.Path]:
     for item in items:
@@ -286,31 +284,59 @@ def _walk_executables(
                 children = list(item.iterdir())
             except OSError:
                 continue
-            yield from _walk_executables(children, seen_dirs)
-        elif stat.S_ISREG(st.st_mode) and os.access(item, os.X_OK):
+            yield from _walk_bundle_files(children, seen_dirs)
+        elif stat.S_ISREG(st.st_mode):
             yield item
+
+
+def _ensure_executable(path: pathlib.Path) -> str | None:
+    """
+    Make *path* executable if it isn't already. Returns None on success, or a reason.
+
+    Checks ``os.access`` first so an already-runnable file is left untouched and never
+    fails on a mount where chmod itself is refused.
+    """
+    if os.access(path, os.X_OK):
+        return None
+
+    try:
+        mode = path.stat().st_mode
+    except OSError as exc:
+        return f"cannot stat bundle file: {exc}"
+    try:
+        path.chmod(mode | ((mode & 0o444) >> 2))
+    except OSError as exc:
+        return f"cannot set executable bit on bundle: {exc}"
+    return None
 
 
 @attrs.define
 class _Bundle(ResolvedBundle):
     @classmethod
-    def find(cls, executables_root: Sequence[pathlib.Path], dag_id: str) -> Self:
-        log.debug("Finding executable bundles recursively", roots=executables_root)
+    def find(cls, roots: Sequence[pathlib.Path], dag_id: str) -> Self:
+        log.debug("Finding executable bundles recursively", roots=roots)
         rejected: list[tuple[pathlib.Path, str]] = []
-        for p in _find_executables(executables_root):
+        for p in _find_bundle_files(roots):
             if (metadata := _read_bundle_metadata(p)) is None:
                 continue
             if dag_id not in _dag_ids(metadata):
                 continue
 
             try:
-                return cls(path=p.resolve(), schema_version=extract_supervisor_schema_version(metadata))
+                bundle = cls(path=p.resolve(), schema_version=extract_supervisor_schema_version(metadata))
             except (TypeError, ValueError) as exc:
                 log.debug("Bundle metadata rejected; skipping", path=str(p), error=str(exc))
                 rejected.append((p.resolve(), str(exc)))
                 continue
 
-        resolved_paths = os.pathsep.join(str(r.resolve()) for r in executables_root)
+            if (reason := _ensure_executable(p)) is not None:
+                log.debug("Bundle cannot be made executable; skipping", path=str(p), error=reason)
+                rejected.append((p.resolve(), reason))
+                continue
+
+            return bundle
+
+        resolved_paths = os.pathsep.join(str(r.resolve()) for r in roots)
         if rejected:
             details = "; ".join(f"{path}: {reason}" for path, reason in rejected)
             tp = (
@@ -334,26 +360,18 @@ class ExecutableCoordinator(SubprocessCoordinator):
         "go": {
             "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
             "kwargs": {
-                "executables_root": ["~/airflow/executable-bundles"]
+                "task_handler_bundle_name": "go-task-handlers"
             }
         }
 
-    :param executables_root: A list of directories scanned for executable
-        bundles when a Python stub DAG delegates task execution to a native
-        runtime. See :class:`SubprocessCoordinator` for its interaction with
-        ``dag_bundle_name``.
+    :param task_handler_bundle_name: Name of the Dag bundle holding the
+        executable bundles a Python stub Dag delegates task execution to. It must
+        be registered in ``[dag_processor] dag_bundle_config_list``. If unset,
+        the task's own Dag bundle is used. Bundles are identified by their footer
+        trailer, not the execute bit, so an object-store Dag bundle works too.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
-
-    executables_root: list[pathlib.Path] = attrs.field(
-        default=ARTIFACT_ROOTS_NOT_CONFIGURED,
-        converter=convert_configured_roots,
-    )
-
-    @property
-    def _explicit_artifact_roots(self) -> tuple[str, list[pathlib.Path]]:
-        return "executables_root", self.executables_root
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         roots = self._get_scan_roots()

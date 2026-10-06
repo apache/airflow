@@ -43,6 +43,7 @@ vi.mock("openapi/queries/queries", () => ({
 }));
 
 vi.mock("src/utils", () => ({
+  formatNumber: String,
   useAutoRefresh: () => false,
 }));
 
@@ -55,11 +56,9 @@ vi.mock("react-i18next", () => ({
         return `Deferred not counted in slots: ${options?.count}`;
       }
 
-      if (namespace === "dashboard" && key === "deferredSlotsNotCountedTooltip") {
-        return mocks.deferredSlotsNotCountedTooltip;
-      }
-
-      return `${namespace}:${key}`;
+      return namespace === "dashboard" && key === "deferredSlotsNotCountedTooltip"
+        ? mocks.deferredSlotsNotCountedTooltip
+        : `${namespace}:${key}`;
     },
   }),
 }));
