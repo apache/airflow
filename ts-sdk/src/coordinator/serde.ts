@@ -134,6 +134,10 @@ export function serializeDag(
     dag_id: dag.dagId,
     fileloc,
     relative_fileloc: relativeFileloc,
+    // Python derives this from `start_date.tzinfo`, so a cron schedule there
+    // runs in the zone the start date was written in. `startDate` is a Date,
+    // which is an instant and carries no zone, so there is nothing to derive:
+    // a native TypeScript Dag's cron is read in UTC.
     timezone: "UTC",
     timetable: serializeTimetable(dag.spec.schedule, dag.dagId),
     tasks: [...getDagTaskRecords(dag)].map(([taskId, record]) =>
@@ -563,6 +567,7 @@ function serializeTimetable(schedule: unknown, dagId: string): SerializedValue {
   // https://github.com/apache/airflow/issues/67938
   return {
     __type: CRON_TIMETABLE,
+    // UTC for the reason given where the Dag's own `timezone` is written.
     __var: { expression, timezone: "UTC", interval: 0, run_immediately: false },
   };
 }

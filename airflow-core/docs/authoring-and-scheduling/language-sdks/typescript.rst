@@ -360,6 +360,10 @@ without knowing which language declared it.
 expression. A cron preset such as ``@daily`` is recorded as the expression it stands for. Anything
 else names a Python object a TypeScript bundle cannot point at, and is rejected.
 
+A cron schedule is read in UTC. Python takes the Dag's timezone from ``start_date``, but
+``startDate`` here is a ``Date``, which is an instant and carries no timezone, so there is none to
+take.
+
 Every task of a native Dag runs on the Node coordinator, so it needs the queue the deployment routes
 there. Set it once on the Dag and each task inherits it:
 
