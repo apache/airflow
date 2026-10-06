@@ -61,10 +61,8 @@ def find_packages_to_build(available_packages: list[str], package_filters: list[
                 elif folder_name == "task-sdk":
                     package_name = "task-sdk"
                 else:
-                    try:
-                        import tomllib
-                    except ImportError:
-                        import tomli as tomllib  # type: ignore[no-redef]
+                    import tomllib
+
                     read_toml = tomllib.loads(pyproject_toml_path.read_text())
                     package_name = read_toml["project"]["name"]
                     if package_name == "apache-airflow":

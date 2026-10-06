@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import typing
 from collections import namedtuple
 from datetime import date
@@ -81,8 +80,6 @@ if typing.TYPE_CHECKING:
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-PY38 = sys.version_info >= (3, 8)
-PY311 = sys.version_info >= (3, 11)
 
 
 class TestAirflowTaskDecorator(BasePythonTest):
@@ -155,16 +152,10 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert t1().operator.multiple_outputs is True
 
-    # We do not enable `from __future__ import annotations` for particular this test module,
-    # that mean `str | None` annotation would raise TypeError in Python 3.9 and below
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="PEP 604 is implemented in Python 3.10")
     def test_infer_multiple_outputs_pep_604_union_type(self):
         @task_decorator
         def t1() -> str | None:
-            # Before PEP 604 which are implemented in Python 3.10 `str | None`
-            # returns `types.UnionType` which are class and could be check in `issubclass()`.
-            # However in Python 3.10+ this construction returns object `typing.Union`
-            # which can not be used in `issubclass()`
+            # `str | None` evaluates to `types.UnionType`, which cannot be used in `issubclass()`.
             return "foo"
 
         assert t1().operator.multiple_outputs is False
