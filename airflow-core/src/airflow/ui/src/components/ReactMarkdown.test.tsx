@@ -24,7 +24,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { katexStyleLoader } from "./KatexStyleLoader";
-import ReactMarkdown from "./ReactMarkdown";
+import ReactMarkdown, { remarkSoftBreaks } from "./ReactMarkdown";
 
 const { renderMermaidDiagramMock } = vi.hoisted(() => ({
   renderMermaidDiagramMock: vi.fn().mockResolvedValue('<svg data-testid="mermaid-svg"></svg>'),
@@ -94,5 +94,28 @@ describe("ReactMarkdown", () => {
     expect(screen.queryByTestId("markdown-mermaid-copy-button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("markdown-mermaid-diagram")).not.toBeInTheDocument();
     expect(screen.getByTestId("markdown-code-scroll-area")).toHaveTextContent("A-->B");
+  });
+
+  it("renders single line breaks as <br> when remarkSoftBreaks is enabled", () => {
+    const { container } = render(
+      <BaseWrapper>
+        <ReactMarkdown remarkPlugins={[remarkSoftBreaks]}>{"First line\nSecond line"}</ReactMarkdown>
+      </BaseWrapper>,
+    );
+
+    expect(container.querySelector("br")).toBeInTheDocument();
+    expect(container.textContent).toContain("First line");
+    expect(container.textContent).toContain("Second line");
+  });
+
+  it("keeps collapsing single line breaks without remarkSoftBreaks", () => {
+    const { container } = render(
+      <BaseWrapper>
+        <ReactMarkdown>{"First line\nSecond line"}</ReactMarkdown>
+      </BaseWrapper>,
+    );
+
+    expect(container.querySelector("br")).not.toBeInTheDocument();
+    expect(container.textContent).toBe("First line\nSecond line");
   });
 });
