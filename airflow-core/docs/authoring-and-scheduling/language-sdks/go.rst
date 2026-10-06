@@ -62,6 +62,8 @@ is the same coordinator mechanism the Java SDK uses. Because the mature Python s
 Airflow-facing concerns, Go tasks inherit remote task logs (S3/GCS), the full range of task states, and
 alternate XCom backends rather than implementing them again in Go.
 
+.. _go-sdk/quick-start:
+
 Quick start
 -----------
 
@@ -220,6 +222,33 @@ There is no separate Go worker to run: the Airflow worker forks the bundle binar
   ``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker
   and the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config
   is read it is rejected if the name is missing there.
+
+A Dag processor with this ``[sdk]`` configuration also parses the bundle binaries of every Dag bundle (see
+:ref:`go-sdk/native-dag-parsing`). Keep it from parsing the binaries that only register task handlers with
+that Dag bundle's ``.airflowignore``, whose pattern syntax follows ``[core] dag_ignore_file_syntax``. Tasks do
+not read ``.airflowignore``, so the binaries still run.
+
+With ``task_handler_bundle_name`` set to its own Dag bundle, as above, ``go-task-handlers`` holds only handler
+binaries, so ignore everything in it:
+
+.. code-block:: bash
+
+    # [core] dag_ignore_file_syntax = glob (the default)
+    echo '*' > /opt/airflow/go-task-handlers/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp; a bare * is not a valid pattern and is dropped
+    echo '.' > /opt/airflow/go-task-handlers/.airflowignore
+
+With ``task_handler_bundle_name`` unset, the binaries sit in the same Dag bundle as the Python Dag file. Go
+binaries have no extension, so put them in a folder such as ``bin/`` and ignore that folder:
+
+.. code-block:: bash
+
+    # [core] dag_ignore_file_syntax = glob (the default)
+    echo 'bin/*' >> /opt/airflow/dags/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp
+    echo '^bin/' >> /opt/airflow/dags/.airflowignore
 
 Writing tasks
 -------------
@@ -602,6 +631,20 @@ Linux/macOS, ``.exe`` on Windows), so the file name on the worker is irrelevant.
 The matching bundle is marked executable before it is launched, so any Dag bundle works, including an
 object-store one such as ``S3DagBundle`` that has no concept of file permissions and so cannot preserve
 the execute bit the build produced.
+
+.. _go-sdk/native-dag-parsing:
+
+Parsing native Dags
+~~~~~~~~~~~~~~~~~~~
+
+Once an :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` is configured, the Dag processor
+parses every bundle binary in each Dag bundle, whatever its file name, and runs it to collect the Dags it
+defines. A binary that only registers task handlers is parsed too: each parse runs it and finds no Dags, and
+a binary built with a Go SDK that cannot answer the Dag-parse request records an import error. Keep those
+out of the Dag processor with ``.airflowignore``, as described in :ref:`Quick start <go-sdk/quick-start>`.
+
+* The Code view shows each native Dag's own source file, taken from the sources the bundle embeds.
+* A task of a native Go Dag runs the bundle binary its Dag was parsed from.
 
 .. _go-sdk/coordinator-config:
 
