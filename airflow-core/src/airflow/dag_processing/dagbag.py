@@ -496,7 +496,7 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        from airflow.sdk.exceptions import TaskGroupCycleDeprecationWarning
+        from airflow.sdk.exceptions import TaskGroupCycleDeprecationWarning  # noqa: SDK001
 
         self.task_group_cycle_warnings.pop(dag.dag_id, None)
         with warnings.catch_warnings(record=True) as captured_warnings:
