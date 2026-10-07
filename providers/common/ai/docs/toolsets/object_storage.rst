@@ -142,7 +142,9 @@ storage already uses; Parquet and Avro need this provider's ``parquet`` or ``avr
 extra. To hand the model a known file rather than let it find one, ``@task.llm_file_analysis``
 reads the file for it. For read-only access through a hook's own methods,
 ``HookToolset(S3Hook(), allowed_methods=["list_keys", "read_key"])`` works too, but the
-model then chooses the bucket and key, where this toolset holds it under one root.
+model then chooses the bucket and key. Pinning ``bucket_name`` with ``pinned_arguments``
+fixes the bucket and still leaves the model any key in it, where this toolset keeps the
+model under one root.
 
 **What it cannot do**
 
