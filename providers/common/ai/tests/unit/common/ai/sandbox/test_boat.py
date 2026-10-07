@@ -135,6 +135,31 @@ def test_constructor_rejects_invalid_values(kwargs, message):
         BoatSandboxBackend(**kwargs)
 
 
+def test_request_timeout_bounds_every_api_call():
+    backend, api = _backend_with_api(request_timeout=12.5, ready_timeout=45)
+    api.create.return_value = _created("bx_1")
+    api.get.return_value = _sandbox_info("ready")
+    api.command.return_value = _command_response()
+
+    backend.create(spec=SandboxSpec(block_network=False))
+    backend.run_command("bx_1", "true", timeout=1, max_output_bytes=8)
+    backend.write_file("bx_1", "/tmp/f", b"x")
+    backend._confirm_sandbox_exists("bx_1")
+    backend.destroy("bx_1")
+
+    def sent(method):
+        return [call.kwargs["_request_timeout"] for call in method.call_args_list]
+
+    # A call that waits on an operation gets the operation's time plus request_timeout.
+    assert sent(api.create) == [45 + 12.5]
+    assert sent(api.command) == [1 + 15 + 12.5, 120 + 15 + 12.5]
+    assert sent(api.write_file) == [120 + 12.5]
+    # One that answers at once gets request_timeout alone.
+    assert sent(api.update) == [12.5]
+    assert sent(api.get) == [12.5, 12.5]
+    assert sent(api.delete_sandbox) == [12.5]
+
+
 class TestCredentials:
     @mock.patch("boat_sdk.ApiClient", autospec=True)
     def test_construction_reads_no_credentials_and_opens_no_client(self, api_client):
@@ -146,18 +171,16 @@ class TestCredentials:
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)
     @mock.patch("boat_sdk.Configuration", autospec=True)
-    def test_environment_key_and_constructor_knobs_are_forwarded(self, configuration, _client, boat_api):
+    def test_environment_key_and_base_url_are_read(self, configuration, _client, boat_api):
         with mock.patch.dict(
             "os.environ",
             {"BOAT_API_KEY": " env-key ", "BOAT_BASE_URL": "https://custom.example/api/v1/"},
             clear=False,
         ):
-            backend = BoatSandboxBackend(request_timeout=12.5)
-            backend._get_api()
+            BoatSandboxBackend()._get_api()
 
         configuration.assert_called_once_with(host="https://custom.example/api/v1", access_token="env-key")
         boat_api.assert_called_once()
-        assert backend._request_timeout == 12.5
 
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)

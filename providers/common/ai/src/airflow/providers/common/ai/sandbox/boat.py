@@ -172,7 +172,10 @@ class BoatSandboxBackend(SandboxBackend):
         sandbox is archived even if the worker never destroyed it. Default ``3600``.
     :param ready_timeout: Seconds to wait for a newly created sandbox to become
         ready. Default ``300``.
-    :param request_timeout: HTTP request timeout in seconds. Default ``30``.
+    :param request_timeout: HTTP timeout in seconds for a Boat API call that answers
+        at once, such as a status check or a delete, and the time added to the
+        operation's own for a call that waits on one: a command's deadline, a
+        create's ``ready_timeout``, or 120 seconds for a file write. Default ``30``.
     :param no_env: When ``True`` (default), create a no-env sandbox that receives
         none of the account's stored secrets.
     """
@@ -222,7 +225,8 @@ class BoatSandboxBackend(SandboxBackend):
             return self._boat_api
 
     def _http_timeout(self, seconds: float) -> float:
-        return max(self._request_timeout, seconds + 30.0)
+        """HTTP timeout for a call that waits ``seconds`` on an operation before it answers."""
+        return seconds + self._request_timeout
 
     def _wait_until_ready(self, sandbox_id: str) -> None:
         # Not boat_sdk.wait_until_ready: it polls with no HTTP timeout, so one stalled
@@ -322,7 +326,7 @@ class BoatSandboxBackend(SandboxBackend):
             self._get_api().update(
                 sandbox_id,
                 UpdateSandboxRequest(name=_new_sandbox_name()),
-                _request_timeout=self._http_timeout(_FILE_OP_TIMEOUT),
+                _request_timeout=self._request_timeout,
             )
         except Exception:
             log.warning(
@@ -428,7 +432,7 @@ class BoatSandboxBackend(SandboxBackend):
 
     def _confirm_sandbox_exists(self, sandbox: str) -> None:
         with _translate_boat_errors("confirm that a sandbox still exists"):
-            response = self._get_api().get(sandbox, _request_timeout=self._http_timeout(_FILE_OP_TIMEOUT))
+            response = self._get_api().get(sandbox, _request_timeout=self._request_timeout)
         state = response.sandbox.state
         if state not in _READY_STATES:
             raise SandboxTerminalError(f"Boat sandbox {sandbox!r} is not runnable (state={state!r}).")
@@ -484,7 +488,7 @@ class BoatSandboxBackend(SandboxBackend):
 
             try:
                 # The API wants the sandbox id repeated as the delete confirmation.
-                api.delete_sandbox(sandbox, sandbox, _request_timeout=self._http_timeout(_FILE_OP_TIMEOUT))
+                api.delete_sandbox(sandbox, sandbox, _request_timeout=self._request_timeout)
             except ApiException as e:
                 if e.status != 404:
                     raise
