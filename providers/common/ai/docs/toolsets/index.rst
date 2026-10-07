@@ -79,6 +79,7 @@ shows.
 toolset to log its calls, the other converts a toolset for a LangChain agent.
 
 .. toctree::
+    :titlesonly:
     :hidden:
 
     Airflow hooks as tools <hook>
