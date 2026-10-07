@@ -435,6 +435,28 @@ def test_short_circuit_does_not_skip_other_mapped_task_group(session, dag_maker)
     assert tis[("second.b", 1)].state != State.SKIPPED
 
 
+def test_mapped_task_group_ignores_decision_of_other_run(session, dag_maker):
+    """A skip decision recorded in one Dag run must not skip the same map index in another run."""
+    dr, tis = _short_circuit_chain_in_mapped_group(dag_maker, session, "test_mapped_group_other_run_dag")
+    _finish_with_skip_decisions(
+        dr,
+        tis,
+        "group.gate",
+        {1: {XCOM_SKIPMIXIN_SKIPPED: ["group.a", "group.b", "group.c"]}},
+        session=session,
+    )
+    other_dr = dag_maker.create_dagrun(
+        run_id="other_run",
+        run_type=DagRunType.MANUAL,
+        state=State.RUNNING,
+        logical_date=pendulum.datetime(2021, 1, 1),
+    )
+    other_tis = {(ti.task_id, ti.map_index): ti for ti in other_dr.task_instances}
+    _finish_with_skip_decisions(other_dr, other_tis, "group.gate", {}, session=session)
+
+    assert NotPreviouslySkippedDep().is_met(other_tis[("group.b", 1)], session=session)
+
+
 def test_mapped_task_group_does_not_skip_task_missing_from_decision(session, dag_maker):
     """
     A decision that lists only the direct downstream, as ignore_downstream_trigger_rules=False

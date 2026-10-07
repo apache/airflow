@@ -13770,6 +13770,10 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        latest_dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
         is_backfillable:
           type: boolean
           title: Is Backfillable
@@ -13788,12 +13792,6 @@ components:
 
             Deprecated: Use max_active_tasks instead.'
           deprecated: true
-          readOnly: true
-        latest_dag_version:
-          anyOf:
-          - $ref: '#/components/schemas/DagVersionResponse'
-          - type: 'null'
-          description: Return the latest DagVersion.
           readOnly: true
       type: object
       required:
@@ -13838,10 +13836,10 @@ components:
       - timezone
       - last_parsed
       - default_args
+      - latest_dag_version
       - is_backfillable
       - file_token
       - concurrency
-      - latest_dag_version
       title: DAGDetailsResponse
       description: Specific serializer for Dag Details responses.
     DAGPatchBody:

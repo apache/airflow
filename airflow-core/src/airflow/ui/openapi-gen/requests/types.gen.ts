@@ -973,6 +973,7 @@ export type DAGDetailsResponse = {
     is_favorite?: boolean;
     active_runs_count?: number;
     team_name?: string | null;
+    latest_dag_version: DagVersionResponse | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -988,10 +989,6 @@ export type DAGDetailsResponse = {
      * @deprecated
      */
     readonly concurrency: number;
-    /**
-     * Return the latest DagVersion.
-     */
-    readonly latest_dag_version: DagVersionResponse | null;
 };
 
 /**
