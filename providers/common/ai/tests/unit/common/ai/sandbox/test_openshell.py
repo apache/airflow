@@ -20,12 +20,14 @@ import builtins
 import copy
 import errno
 import os
+import re
 import shlex
 import shutil
 import signal
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from unittest import mock
 
 import pytest
@@ -50,6 +52,7 @@ from airflow.providers.common.ai.sandbox.openshell import (
     _STAGING_FAILED,
     _SYSTEM_PATH,
     OpenShellSandboxBackend,
+    _wrapper_line,
 )
 
 _MODULE = "airflow.providers.common.ai.sandbox.openshell"
@@ -175,6 +178,19 @@ def _backend(**kwargs) -> tuple[OpenShellSandboxBackend, mock.MagicMock]:
 
 def _exec_request(client, call: int = -1):
     return client._stub.ExecSandbox.call_args_list[call].args[0]
+
+
+def _nonce(request) -> str:
+    return request.stdin.partition(b"\n")[0].decode()
+
+
+def _reply(code: int, stderr: Callable[[str], bytes]):
+    """An ExecSandbox side effect whose stderr is built from the nonce the call sent."""
+
+    def reply(request, timeout):
+        return _result(code, err=stderr(_nonce(request)))
+
+    return reply
 
 
 @pytest.fixture(autouse=True)
@@ -508,7 +524,9 @@ class TestRunCommand:
         request = _exec_request(client)
         assert request.sandbox == "box"
         assert list(request.command) == ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", "3", "100"]
-        assert request.stdin == b"echo out; echo err >&2; exit 3"
+        nonce, _, command = request.stdin.partition(b"\n")
+        assert re.fullmatch(rb"[0-9a-f]{32}", nonce)
+        assert command == b"echo out; echo err >&2; exit 3"
         assert request.no_login_shell is True
         assert request.request_id
         assert not request.HasField("execution_timeout")
@@ -531,30 +549,72 @@ class TestRunCommand:
 
         assert result.timed_out is timed_out
 
+    def test_each_command_carries_a_fresh_nonce(self):
+        backend, client = _backend()
+        client._stub.ExecSandbox.side_effect = _reply(0, lambda nonce: b"")
+
+        backend.run_command("box", "true", timeout=5, max_output_bytes=100)
+        backend.run_command("box", "true", timeout=5, max_output_bytes=100)
+
+        assert _nonce(_exec_request(client, 0)) != _nonce(_exec_request(client, 1))
+
     @pytest.mark.parametrize(
         ("exit_code", "stderr"),
         [
-            pytest.param(125, b"docker: invalid reference format\n", id="a-command-exiting-125"),
-            pytest.param(1, f"{_STAGING_FAILED}\n".encode(), id="the-staging-line-with-another-status"),
-            pytest.param(125, f"{_STAGING_FAILED}\nmore\n".encode(), id="the-staging-line-not-last"),
-            pytest.param(127, b"sh: 1: setsid: not found\n", id="a-command-exiting-127"),
-            pytest.param(1, f"{_NO_SETSID}\n".encode(), id="the-setsid-line-with-another-status"),
-            pytest.param(127, f"{_NO_SETSID}\nmore\n".encode(), id="the-setsid-line-not-last"),
+            pytest.param(
+                125, lambda nonce: b"docker: invalid reference format\n", id="a-command-exiting-125"
+            ),
+            pytest.param(
+                1,
+                lambda nonce: _wrapper_line(_STAGING_FAILED, nonce),
+                id="the-staging-line-with-another-status",
+            ),
+            pytest.param(
+                125,
+                lambda nonce: _wrapper_line(_STAGING_FAILED, nonce) + b"more\n",
+                id="the-staging-line-not-last",
+            ),
+            pytest.param(
+                125,
+                lambda nonce: f"{_STAGING_FAILED}\n".encode(),
+                id="the-staging-text-printed-by-the-command",
+            ),
+            pytest.param(
+                125,
+                lambda nonce: _wrapper_line(_STAGING_FAILED, "0" * 32),
+                id="the-staging-line-with-another-nonce",
+            ),
+            pytest.param(127, lambda nonce: b"sh: 1: setsid: not found\n", id="a-command-exiting-127"),
+            pytest.param(
+                1, lambda nonce: _wrapper_line(_NO_SETSID, nonce), id="the-setsid-line-with-another-status"
+            ),
+            pytest.param(
+                127, lambda nonce: _wrapper_line(_NO_SETSID, nonce) + b"more\n", id="the-setsid-line-not-last"
+            ),
+            pytest.param(
+                127, lambda nonce: f"{_NO_SETSID}\n".encode(), id="the-setsid-text-printed-by-the-command"
+            ),
+            pytest.param(
+                127,
+                lambda nonce: _wrapper_line(_NO_SETSID, "0" * 32),
+                id="the-setsid-line-with-another-nonce",
+            ),
         ],
     )
     def test_a_result_unlike_a_wrapper_failure_is_the_commands_own(self, exit_code, stderr):
         backend, client = _backend()
-        client._stub.ExecSandbox.return_value = _result(exit_code, err=stderr)
+        client._stub.ExecSandbox.side_effect = _reply(exit_code, stderr)
 
         result = backend.run_command("box", "cmd", timeout=5, max_output_bytes=100)
 
-        assert (result.exit_code, result.stderr) == (exit_code, stderr.decode())
+        expected = stderr(_nonce(_exec_request(client))).decode()
+        assert (result.exit_code, result.stderr) == (exit_code, expected)
 
     @pytest.mark.parametrize(
         ("max_output_bytes", "message"),
         [
             pytest.param(
-                100,
+                200,
                 "The command was not run: the sandbox could not write it to /tmp "
                 "(cat: write error: No space left on device).",
                 id="with-the-cause",
@@ -568,8 +628,11 @@ class TestRunCommand:
     )
     def test_the_wrappers_own_staging_failure_is_a_recoverable_error(self, max_output_bytes, message):
         backend, client = _backend()
-        client._stub.ExecSandbox.return_value = _result(
-            125, err=f"cat: write error: No space left on device\n{_STAGING_FAILED}\n".encode()
+        client._stub.ExecSandbox.side_effect = _reply(
+            125,
+            lambda nonce: (
+                b"cat: write error: No space left on device\n" + _wrapper_line(_STAGING_FAILED, nonce)
+            ),
         )
 
         with pytest.raises(SandboxError) as error:
@@ -580,7 +643,9 @@ class TestRunCommand:
 
     def test_an_image_without_setsid_is_terminal(self):
         backend, client = _backend()
-        client._stub.ExecSandbox.return_value = _result(_NO_SETSID_STATUS, err=f"{_NO_SETSID}\n".encode())
+        client._stub.ExecSandbox.side_effect = _reply(
+            _NO_SETSID_STATUS, lambda nonce: _wrapper_line(_NO_SETSID, nonce)
+        )
 
         # A cap shorter than the line, so the line is still recognised past it.
         with pytest.raises(SandboxTerminalError, match="no setsid.*util-linux"):
@@ -972,19 +1037,45 @@ _HAS_PROC_AND_SETSID = sys.platform.startswith("linux") and os.path.isdir("/proc
 class TestRunWrapper:
     """Run the guest wrapper under the local /bin/sh, the way the sandbox runs it."""
 
+    _NONCE = "4f3c2b1a0e9d8c7b6a5f4e3d2c1b0a99"
+
     @pytest.fixture(autouse=True)
     def _no_sleep(self):
         """Keep the real time.sleep: the module's fixture patches it everywhere, not only in the backend."""
 
-    @staticmethod
-    def _run(command: str, seconds: int = 5, cap: int = 1000) -> subprocess.CompletedProcess[bytes]:
+    @classmethod
+    def _run(
+        cls, command: str, seconds: int = 5, cap: int = 1000, wrapper: str = _RUN_WRAPPER
+    ) -> subprocess.CompletedProcess[bytes]:
         return subprocess.run(
-            ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", str(seconds), str(cap)],
-            input=command.encode(),
+            ["/bin/sh", "-c", wrapper, "airflow-exec", str(seconds), str(cap)],
+            input=f"{cls._NONCE}\n{command}".encode(),
             capture_output=True,
             timeout=seconds + 20,
             check=False,
         )
+
+    @staticmethod
+    def _path_without_setsid(tmp_path) -> str:
+        for tool in ("mktemp", "cat", "rm"):
+            (tmp_path / tool).symlink_to(shutil.which(tool))
+        return f"PATH={tmp_path}"
+
+    @staticmethod
+    def _backend_on_local_shell(system_path: str = _SYSTEM_PATH) -> OpenShellSandboxBackend:
+        """A backend whose gateway runs each exec request under the local /bin/sh."""
+        backend, client = _backend()
+
+        def exec_locally(request, timeout):
+            argv = list(request.command)
+            argv[2] = argv[2].replace(_SYSTEM_PATH, system_path)
+            done = subprocess.run(
+                argv, input=request.stdin, capture_output=True, timeout=timeout, check=False
+            )
+            return _result(done.returncode, done.stdout, done.stderr)
+
+        client._stub.ExecSandbox.side_effect = exec_locally
+        return backend
 
     @staticmethod
     def _pids(marker: str) -> list[int]:
@@ -1035,7 +1126,7 @@ class TestRunWrapper:
         # Stopping the wrapper's process group, which the setsid'd command has left, stands in for
         # CPU contention; a timer counting its own one-second sleeps would fire five seconds late.
         stdin, writer = os.pipe()
-        os.write(writer, b"sleep 306")
+        os.write(writer, f"{self._NONCE}\nsleep 306".encode())
         os.close(writer)
         with subprocess.Popen(
             ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", "6", "1000"],
@@ -1069,42 +1160,56 @@ class TestRunWrapper:
         assert time.monotonic() - started < 5
         assert survivors
 
-    def test_a_failure_to_stage_the_command_has_its_own_status(self):
-        # A directory on stdin fails the staging `cat` the way a full /tmp does.
-        stdin = os.open("/", os.O_RDONLY)
-        try:
-            result = subprocess.run(
-                ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", "5", "1000"],
-                stdin=stdin,
-                capture_output=True,
-                timeout=20,
-                check=False,
-            )
-        finally:
-            os.close(stdin)
-
-        assert result.returncode == 125
-        assert result.stderr.endswith(f"{_STAGING_FAILED}\n".encode())
-
-    def test_a_missing_setsid_has_its_own_status(self, tmp_path):
-        for tool in ("mktemp", "cat", "rm"):
-            (tmp_path / tool).symlink_to(shutil.which(tool))
-        wrapper = _RUN_WRAPPER.replace(_SYSTEM_PATH, f"PATH={tmp_path}")
+    def test_a_failure_to_stage_the_command_has_its_own_status(self, tmp_path):
+        # A missing directory fails the staging the way a read-only or full /tmp does.
+        wrapper = _RUN_WRAPPER.replace("mktemp -d /tmp/", f"mktemp -d {tmp_path}/missing/")
         assert wrapper != _RUN_WRAPPER
 
-        result = subprocess.run(
-            ["/bin/sh", "-c", wrapper, "airflow-exec", "5", "1000"],
-            input=b"echo ran",
-            capture_output=True,
-            timeout=20,
-            check=False,
-        )
+        result = self._run("echo ran", wrapper=wrapper)
+
+        assert (result.returncode, result.stdout) == (125, b"")
+        assert result.stderr.endswith(_wrapper_line(_STAGING_FAILED, self._NONCE))
+
+    def test_a_missing_setsid_has_its_own_status(self, tmp_path):
+        wrapper = _RUN_WRAPPER.replace(_SYSTEM_PATH, self._path_without_setsid(tmp_path))
+        assert wrapper != _RUN_WRAPPER
+
+        result = self._run("echo ran", wrapper=wrapper)
 
         assert (result.returncode, result.stdout, result.stderr) == (
             _NO_SETSID_STATUS,
             b"",
-            f"{_NO_SETSID}\n".encode(),
+            _wrapper_line(_NO_SETSID, self._NONCE),
         )
+
+    def test_the_command_cannot_read_the_nonce(self):
+        result = self._run('cat /proc/[0-9]*/cmdline /proc/[0-9]*/environ "$0" 2>/dev/null; env', cap=10**7)
+
+        # The wrapper's own argv was read, so its nonce would have been too.
+        assert _STAGING_FAILED.encode() in result.stdout
+        assert self._NONCE.encode() not in result.stdout
+
+    @pytest.mark.parametrize(
+        ("line", "status"),
+        [
+            pytest.param(_STAGING_FAILED, 125, id="staging"),
+            pytest.param(_NO_SETSID, _NO_SETSID_STATUS, id="setsid"),
+        ],
+    )
+    def test_a_command_printing_a_wrapper_line_gets_its_own_result(self, line, status):
+        backend = self._backend_on_local_shell()
+
+        result = backend.run_command(
+            "box", f"echo '{line}' >&2; exit {status}", timeout=5, max_output_bytes=1000
+        )
+
+        assert (result.exit_code, result.stdout, result.stderr) == (status, "", f"{line}\n")
+
+    def test_an_image_without_setsid_fails_the_task(self, tmp_path):
+        backend = self._backend_on_local_shell(self._path_without_setsid(tmp_path))
+
+        with pytest.raises(SandboxTerminalError, match="no setsid"):
+            backend.run_command("box", "echo ran", timeout=5, max_output_bytes=1000)
 
     def test_each_stream_is_cut_to_one_byte_past_the_cap(self):
         result = self._run("head -c 5000 /dev/zero; head -c 10 /dev/zero >&2", cap=100)

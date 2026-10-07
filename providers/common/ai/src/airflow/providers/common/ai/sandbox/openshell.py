@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import secrets
 import shlex
 import threading
 import time
@@ -114,14 +115,15 @@ _AGENT_POLICY_PROPOSALS = "agent_policy_proposals_enabled"
 _TIMEOUT_STATUS = 124
 # Wrapper-private exit status and stderr line for "the command could not be
 # staged in /tmp, so it did not run". The status alone is not enough, because a
-# command can exit 125 itself, as docker run, env and nohup do on their own errors.
+# command can exit 125 itself, as docker run, env and nohup do on their own errors,
+# and neither is the text, because a command can print it. The wrapper ends the
+# line with a per-call nonce it reads from the first line of stdin, which reaches
+# neither the command's argv, its environment nor the staged script.
 _STAGING_STATUS = 125
 _STAGING_FAILED = "airflow-exec: could not stage the command in /tmp"
-_STAGING_LINE = f"{_STAGING_FAILED}\n".encode()
 # The same for "the image has no setsid", which no command can fix from inside.
 _NO_SETSID_STATUS = 127
 _NO_SETSID = "airflow-exec: setsid is not installed in the sandbox image"
-_NO_SETSID_LINE = f"{_NO_SETSID}\n".encode()
 _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Runs one command for run_command. OpenShell's own exec timeout returns a
@@ -129,9 +131,10 @@ _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 # inherits stdout holds the call open until the supervisor gives up on it, so
 # the wrapper owns both problems:
 #
-# * The command arrives on stdin, which avoids the gateway's 32 KiB per-argument
-#   cap, and runs in its own session via setsid, with stdout and stderr going to
-#   files, so a background child holds a file rather than the exec stream.
+# * The command arrives on stdin after the nonce line, which avoids the gateway's
+#   32 KiB per-argument cap, and runs in its own session via setsid, with stdout
+#   and stderr going to files, so a background child holds a file rather than
+#   the exec stream.
 # * A timer reading the monotonic /proc/uptime signals the wrapper when the
 #   budget is spent; counting its own one-second sleeps instead drifts late on a
 #   CPU-starved sandbox, past _EXEC_GRACE. The wrapper then SIGKILLs the
@@ -153,12 +156,13 @@ _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 # this one and is not killed on timeout, and one that keeps forking faster than
 # the sweep can outlast it.
 _RUN_WRAPPER = rf"""t=$1 c=$2 o=$PATH
+read -r q
 {_SYSTEM_PATH}
-d=$(mktemp -d /tmp/.airflow-exec.XXXXXX) && cat >"$d/c" || {{ rm -rf "$d"; echo "{_STAGING_FAILED}" >&2; exit {_STAGING_STATUS}; }}
+d=$(mktemp -d /tmp/.airflow-exec.XXXXXX) && cat >"$d/c" || {{ rm -rf "$d"; echo "{_STAGING_FAILED} $q" >&2; exit {_STAGING_STATUS}; }}
 f=0
 trap f=1 ALRM
 trap f=2 HUP INT TERM
-z=$(command -v setsid) || {{ rm -rf "$d"; echo "{_NO_SETSID}" >&2; exit {_NO_SETSID_STATUS}; }}
+z=$(command -v setsid) || {{ rm -rf "$d"; echo "{_NO_SETSID} $q" >&2; exit {_NO_SETSID_STATUS}; }}
 PATH=$o "$z" /bin/sh "$d/c" </dev/null >"$d/o" 2>"$d/e" &
 p=$!
 (
@@ -212,6 +216,11 @@ exec head -c "$2" -- "$1"
 """
 _WRITE_FIRST_SCRIPT = f'{_SYSTEM_PATH}\nmkdir -p -- "$(dirname -- "$1")" && cat >"$1"\n'
 _WRITE_NEXT_SCRIPT = f'{_SYSTEM_PATH}\ncat >>"$1"\n'
+
+
+def _wrapper_line(message: str, nonce: str) -> bytes:
+    """Return the stderr line only the guest wrapper writes: ``message`` and the nonce of the call."""
+    return f"{message} {nonce}\n".encode()
 
 
 def _new_openshell_name() -> str:
@@ -873,13 +882,16 @@ class OpenShellSandboxBackend(SandboxBackend):
                 "in one request. Write the script to a file with write_file and run the file."
             )
         self._check_egress(sandbox)
+        nonce = secrets.token_hex(16)
+        staging_line = _wrapper_line(_STAGING_FAILED, nonce)
+        no_setsid_line = _wrapper_line(_NO_SETSID, nonce)
         stdout = _BoundedTail(int(max_output_bytes))
-        stderr = _BoundedTail(int(max_output_bytes), min_window=max(len(_STAGING_LINE), len(_NO_SETSID_LINE)))
+        stderr = _BoundedTail(int(max_output_bytes), min_window=max(len(staging_line), len(no_setsid_line)))
         try:
             outcome = self._exec_with_recovery(
                 sandbox,
                 ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", str(seconds), str(int(max_output_bytes))],
-                stdin=payload,
+                stdin=f"{nonce}\n".encode() + payload,
                 deadline=seconds + _EXEC_GRACE,
                 stdout=stdout,
                 stderr=stderr,
@@ -887,13 +899,13 @@ class OpenShellSandboxBackend(SandboxBackend):
         except _ExecHung:
             return self._abandon_command(sandbox, stdout, stderr, seconds=seconds)
         self._check_egress(sandbox)
-        if outcome.exit_code == _NO_SETSID_STATUS and stderr.ends_with(_NO_SETSID_LINE):
+        if outcome.exit_code == _NO_SETSID_STATUS and stderr.ends_with(no_setsid_line):
             raise SandboxTerminalError(
                 f"OpenShell sandbox {sandbox} cannot run commands: its image has no setsid, which the "
                 "backend runs every command under. Use an image with setsid from util-linux; "
                 "python:*-slim has it."
             )
-        if outcome.exit_code == _STAGING_STATUS and stderr.ends_with(_STAGING_LINE):
+        if outcome.exit_code == _STAGING_STATUS and stderr.ends_with(staging_line):
             cause = stderr.get_text().rpartition(_STAGING_FAILED)[0].strip()
             raise SandboxError(
                 "The command was not run: the sandbox could not write it to /tmp"
