@@ -36,9 +36,9 @@ package org.apache.airflow.sdk
  *
  * As an upstream, a group stands for its leaves, the tasks nothing else in the
  * group runs after; as a downstream, for its roots, the tasks that run after
- * nothing else in the group. Both are read once, from everything the group
- * holds by then, rather than at each edge as Python reads them, so a group's
- * edges can be drawn before its tasks are declared.
+ * nothing else in the group. What the group holds is read once, rather than at
+ * each edge as Python reads it, so a group's edges can be drawn before its
+ * tasks are declared. The edges still resolve in the order they were drawn.
  *
  * @property id Group ID, including any enclosing group's prefix.
  */

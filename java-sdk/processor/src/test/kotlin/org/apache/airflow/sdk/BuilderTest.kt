@@ -1519,6 +1519,66 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("reject a task in a group named after a member the view inherits from Flow")
+  fun rejectTaskNamedBeforeInGroup() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup
+          static class Staging {
+            @Builder.Task public void before() {}
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task method 'before' clashes with a member of the wiring view; rename the method and keep the " +
+        "task id with @Builder.Task(id = \"before\")",
+    )
+  }
+
+  @Test
+  @DisplayName("reject two task groups in one scope with the same id")
+  fun rejectDuplicateTaskGroupIds() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.TaskGroup(id = "checks")
+          static class Alpha {
+            @Builder.Task public void t1() {}
+          }
+
+          @Builder.TaskGroup(id = "checks")
+          static class Beta {
+            @Builder.Task public void t2() {}
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("Class TestExample declares more than one task group 'checks'")
+  }
+
+  @Test
   @DisplayName("accept a task named after a group view member outside a group")
   fun acceptTaskNamedAfterGroupViewMemberAtTopLevel() {
     val compilation =

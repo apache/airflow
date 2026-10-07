@@ -730,6 +730,8 @@ another nests the groups:
     static class Wiring implements EtlPipelineDeps {
       void depends() {
         var rows = extract();
+        load(transform(rows, lit(0.9)));
+        rows.before(audit());
         var staged = staging().stage(rows);
         staging().checks().nulls(staged);
         extract().before(staging());
@@ -749,10 +751,11 @@ underscores, or dashes, and no task or other group in the Dag can share it.
 
 .. note::
 
-    A group's endpoints are read once, from everything the group holds by the time the Dag is
-    serialized.  Python reads them at each ``>>``, from what the group held at that moment.  The
-    difference is deliberate: it is what lets the wiring class above order a whole group before any
-    of its tasks are declared, as ``extract().before(staging())`` does.
+    What a group holds is read once, when the Dag is serialized, which is what lets the wiring class
+    above order a whole group before any of its tasks are declared, as ``extract().before(staging())``
+    does.  Python instead reads it at each ``>>``.  Edges are still resolved in the order they were
+    drawn, as Python resolves them, so drawing an inner edge before or after an outer one gives
+    different upstreams.
 
 Configuration attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~

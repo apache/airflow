@@ -58,6 +58,7 @@ import javax.lang.model.element.VariableElement
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
+import java.lang.reflect.Modifier as ReflectModifier
 import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
 
 /**
@@ -547,7 +548,7 @@ class BuilderProcessor : AbstractProcessor() {
   /**
    * Rejects a task method or task group whose wiring-view twin would clash
    * with a member the view already has: `depends`, `lit`, a method of
-   * `Object`, or, inside a group, one of [Group]'s own. Names scope to their
+   * `Object`, or, inside a group, one of `Deps.TaskGroup`'s own. Names scope to their
    * own group, so only one scope is compared.
    */
   private fun checkViewNames(
@@ -934,11 +935,16 @@ private val RESERVED_VIEW_NAMES =
   )
 
 /**
- * What a group's view inherits from [Group] on top of [RESERVED_VIEW_NAMES].
- * Only a group scope reserves them: a Dag's view extends [Deps], which has
- * neither.
+ * What a group's view inherits from `Deps.TaskGroup`, on top of
+ * [RESERVED_VIEW_NAMES]. Read from the interface so it cannot drift when a
+ * member is added there.
  */
-private val RESERVED_GROUP_VIEW_NAMES = setOf("groupId", "nodes")
+private val RESERVED_GROUP_VIEW_NAMES: Set<String> =
+  Deps.TaskGroup::class.java
+    .methods
+    .filterNot { ReflectModifier.isStatic(it.modifiers) }
+    .map { it.name }
+    .toSet()
 
 private val DAG_STRUCTURAL_ATTRIBUTES = setOf("id", "to")
 private val TASK_STRUCTURAL_ATTRIBUTES = setOf("id")

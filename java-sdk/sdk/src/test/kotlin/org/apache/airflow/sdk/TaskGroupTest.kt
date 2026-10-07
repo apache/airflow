@@ -158,6 +158,42 @@ internal class TaskGroupTest {
   }
 
   @Test
+  @DisplayName("Should prefer what already runs before an empty group over the group holding it")
+  fun shouldPreferEarlierEdgeOverParentForEmptyGroup() {
+    val dag = DagDef("d")
+    val extract = dag.task<Unit>("extract", NoopTask::class.java)
+    val outer = dag.taskGroup("outer")
+    outer.task<Unit>("t", NoopTask::class.java)
+    val inner = outer.taskGroup("inner")
+    val load = dag.task<Unit>("load", NoopTask::class.java)
+    extract.before(inner)
+    inner.before(load)
+
+    Bundle().register(dag)
+
+    assertEquals(setOf("extract"), upstreamIds(dag, "load"))
+  }
+
+  @Test
+  @DisplayName("Should resolve a group's endpoints in the order the edges were drawn")
+  fun shouldResolveGroupEndpointsInDrawingOrder() {
+    val dag = DagDef("d")
+    val extract = dag.task<Unit>("extract", NoopTask::class.java)
+    val outer = dag.taskGroup("outer")
+    val t = outer.task<Unit>("t", NoopTask::class.java)
+    val inner = outer.taskGroup("inner")
+    inner.task<Unit>("i", NoopTask::class.java)
+    extract.before(outer)
+    inner.before(t)
+
+    Bundle().register(dag)
+
+    // outer had both tasks as roots when the first edge was drawn, so extract reaches both.
+    assertEquals(setOf("extract", "outer.inner.i"), upstreamIds(dag, "outer.t"))
+    assertEquals(setOf("extract"), upstreamIds(dag, "outer.inner.i"))
+  }
+
+  @Test
   @DisplayName("Should resolve a group's endpoints against the edges drawn before it")
   fun shouldResolveGroupEndpointsAgainstEarlierEdges() {
     val dag = DagDef("d")
