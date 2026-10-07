@@ -28,6 +28,7 @@ import type { BackfillDagRunResponse } from "openapi/requests/types.gen";
 import { Modal, RouterLink } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
@@ -63,7 +64,7 @@ const isPendingDagRun = ({ dag_run_state: state, exception_reason: reason }: Bac
 const getColumns = (
   isPartitioned: boolean,
   translate: (key: string) => string,
-): Array<ColumnDef<BackfillDagRunResponse>> => [
+): Array<ColumnDef<DataTableFeatures, BackfillDagRunResponse>> => [
   {
     accessorKey: isPartitioned ? "partition_key" : "logical_date",
     cell: ({ row }) => {

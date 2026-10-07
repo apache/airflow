@@ -16,32 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import {
+  columnVisibilityFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
+  tableFeatures,
+} from "@tanstack/react-table";
 
-import { Wrapper } from "src/utils/Wrapper";
-
-import { FileLocation } from "./FileLocation";
-
-describe("FileLocation", () => {
-  it("falls back to relativeFileloc when fileloc is null", () => {
-    render(
-      <Wrapper>
-        <FileLocation fileloc={null} relativeFileloc="example_dag.py" />
-      </Wrapper>,
-    );
-
-    expect(screen.getByText("example_dag.py")).toBeInTheDocument();
-  });
-
-  it("renders nothing when both fileloc and relativeFileloc are null", () => {
-    const { container } = render(
-      <Wrapper>
-        <FileLocation fileloc={null} relativeFileloc={null} />
-      </Wrapper>,
-    );
-
-    expect(container).toBeEmptyDOMElement();
-  });
+// Pagination and sorting are server-side (`manualPagination`/`manualSorting`), so no row models
+// are registered: rows render in the order and slice the API returns them.
+export const dataTableFeatures = tableFeatures({
+  columnVisibilityFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
 });
+
+export type DataTableFeatures = typeof dataTableFeatures;

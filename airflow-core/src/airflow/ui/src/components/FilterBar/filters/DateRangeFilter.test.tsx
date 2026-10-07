@@ -18,7 +18,7 @@
  */
 import type { ReactNode } from "react";
 
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";

@@ -1570,6 +1570,23 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
         assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
 
     @pytest.mark.asyncio
+    @mock.patch.object(
+        DatabricksHook,
+        "get_connection",
+        autospec=True,
+        side_effect=RuntimeError("You cannot use AsyncToSync in the same thread as an async event loop"),
+    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_async_do_api_call_fetches_connection_asynchronously(self, mock_get, mock_get_connection):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"bar": "baz"})
+        async with self.hook:
+            run_page_url = await self.hook._a_do_api_call(("GET", "2.1/foo/bar"))
+
+        assert run_page_url == {"bar": "baz"}
+        assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
+        mock_get_connection.assert_not_called()
+
+    @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
     async def test_async_do_api_call_only_existing_response_properties_are_read(self, mock_get):
         response = mock_get.return_value.__aenter__.return_value

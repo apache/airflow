@@ -30,6 +30,7 @@ import type { ConnectionResponse } from "openapi/requests/types.gen";
 import { Tooltip, ActionBar } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -75,8 +76,8 @@ const getColumns = ({
 }: {
   hasSelection: boolean;
   translate: TFunction;
-} & GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => {
-  const columns: Array<ColumnDef<ConnectionResponse>> = [
+} & GetColumnsParams): Array<ColumnDef<DataTableFeatures, ConnectionResponse>> => {
+  const columns: Array<ColumnDef<DataTableFeatures, ConnectionResponse>> = [
     {
       accessorKey: "select",
       cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.connection_id} />,
