@@ -191,6 +191,11 @@ class AirflowToolset(AbstractToolset[Any]):
     # A subclass that takes ``max_retries`` stores it here; ``None`` follows the run.
     _max_retries: int | None = None
 
+    #: Whether durable execution may replay a completed call on retry. A toolset whose
+    #: calls act on a system Airflow cannot observe sets it to ``False``, so its calls
+    #: run again on every attempt; see :ref:`durable-execution`.
+    replayable: bool = True
+
     def _get_tool_max_retries(self, ctx: RunContext[Any]) -> int:
         """
         Return how many times the model may correct a failed call to this toolset's tools.

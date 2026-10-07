@@ -71,8 +71,9 @@ dependencies = [
     # 2.33.0 is the first release that works with anthropic>=1: it moved to httpx2 alongside
     # the SDK and stopped passing temperature/top_p/top_k as messages.create() kwargs, both
     # of which raise TypeError on 2.31 and earlier. The cost API this provider relies on
-    # (RunUsage.cost, UsageLimits.cost_limit) landed earlier, in 2.23.0.
-    "pydantic-ai-slim>=2.33.0",
+    # (RunUsage.cost, UsageLimits.cost_limit) landed earlier, in 2.23.0. Durable execution
+    # (AirflowDurability) builds on the durable backend API pydantic-ai-slim published in 2.36.0.
+    "pydantic-ai-slim>=2.36.0",
     # Airflow 3 brings structlog in through the Task SDK; Airflow 2 does not. 24.2.0 is the first
     # release whose render_to_log_kwargs hands ``stacklevel`` to stdlib logging under that name.
     "structlog>=24.2.0",
@@ -87,10 +88,10 @@ dependencies = [
 # (2.45 and 2.46 raise TypeError on it); pydantic-ai-slim[openai]>=2.33.0 itself asks for
 # openai>=3, so this floor only matters where that requirement is overridden, as in this
 # repository's lock.
-"anthropic" = ["pydantic-ai-slim[anthropic]>=2.33.0", "anthropic>=1.0.0"]
-"bedrock" = ["pydantic-ai-slim[bedrock]>=2.33.0"]
-"google" = ["pydantic-ai-slim[google]>=2.33.0"]
-"openai" = ["pydantic-ai-slim[openai]>=2.33.0", "openai>=2.47.0"]
+"anthropic" = ["pydantic-ai-slim[anthropic]>=2.36.0", "anthropic>=1.0.0"]
+"bedrock" = ["pydantic-ai-slim[bedrock]>=2.36.0"]
+"google" = ["pydantic-ai-slim[google]>=2.36.0"]
+"openai" = ["pydantic-ai-slim[openai]>=2.36.0", "openai>=2.47.0"]
 # TypeSafe Jev: answers typed questions (pick one of N, a bounded score, a yes/no
 # probability) and cannot emit text, so it fits a branch or a classification but not a
 # summary. It arrives through pydantic-ai's own ``typesafe:`` provider, so the hook needs
@@ -99,7 +100,7 @@ dependencies = [
 # this extra only adds the pre-1.0 typesafe-sdk it talks to, which is why it is opt-in. It
 # deliberately does not raise the pydantic-ai-slim floor to 2.45; the guide says 2.45+.
 "typesafe" = ["typesafe-sdk>=0.6.0"]
-"mcp" = ["pydantic-ai-slim[mcp]>=2.33.0"]
+"mcp" = ["pydantic-ai-slim[mcp]>=2.36.0"]
 # Modal-hosted sandboxes for SandboxToolset, the backend to use where the worker host
 # cannot run microVMs -- Kubernetes, most notably. Needs no host-level installation,
 # only Modal credentials, which the Modal provider's `modal` connection supplies.
@@ -169,7 +170,7 @@ dev = [
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
-    "pydantic-ai-slim[mcp]>=2.33.0",
+    "pydantic-ai-slim[mcp]>=2.36.0",
     "pydantic-ai-skills>=1.2.0",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",

@@ -18,32 +18,29 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from collections.abc import Iterable
+from typing import Any, Protocol, runtime_checkable
 
-if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelResponse
-
-# Marks a stored entry as a cached tool result; lets ``load_tool_result``
-# tell a cached ``None`` apart from a missing entry. Single source of truth so
-# the two backends cannot drift on the envelope shape.
-TOOL_RESULT_SENTINEL = "__durable_cached__"
-
-# Prefix for durable cache keys. On the task state store backend (>= 3.3) the
-# cache shares the task instance's key namespace with anything user code writes
+# Prefix for durable journal keys. On the task state store backend (>= 3.3) the
+# journal shares the task instance's key namespace with anything user code writes
 # via ``context["task_state_store"]``; the reserved prefix keeps durable steps
 # from colliding with user keys. No ``/`` -- task state store keys are a single,
 # un-encoded URL path segment.
 DURABLE_KEY_PREFIX = "__commonai_durable__"
 
 
-def build_model_step_key(step: int) -> str:
-    """Build the durable cache key for the model response produced at ``step``."""
-    return f"{DURABLE_KEY_PREFIX}model_step_{step}"
+def build_step_key(run: str | int, position: int) -> str:
+    """Build the journal key for the step at ``position`` of the agent run ``run``."""
+    return f"{DURABLE_KEY_PREFIX}run_{run}_step_{position}"
 
 
-def build_tool_step_key(step: int) -> str:
-    """Build the durable cache key for the tool result produced at ``step``."""
-    return f"{DURABLE_KEY_PREFIX}tool_step_{step}"
+def build_run_meta_key(run: str | int) -> str:
+    """Build the journal key for what the agent run ``run`` keeps about itself across attempts."""
+    return f"{DURABLE_KEY_PREFIX}run_{run}_meta"
+
+
+# Holds the id the task's agent run keeps on every attempt; see ``DurableJournal.run_id``.
+RUN_ID_KEY = f"{DURABLE_KEY_PREFIX}run_id"
 
 
 @runtime_checkable
@@ -51,24 +48,21 @@ class DurableStorageProtocol(Protocol):
     """
     Persistence contract shared by the durable execution storage backends.
 
-    Implemented by both :class:`~airflow.providers.common.ai.durable.storage.DurableStorage`
+    Implemented by :class:`~airflow.providers.common.ai.durable.storage.DurableStorage`
     (ObjectStorage, Airflow < 3.3) and
     :class:`~airflow.providers.common.ai.durable.task_state_store.TaskStateStoreDurableStorage`
-    (AIP-103 task state store, Airflow >= 3.3). ``CachingModel`` and
-    ``CachingToolset`` depend on this interface, not a concrete backend.
+    (AIP-103 task state store, Airflow >= 3.3). The journal depends on this interface,
+    not a concrete backend.
 
-    Both ``save_*`` methods return whether the entry was written. A backend may
-    skip a write (a tool result that is not JSON-serializable, a store write that
-    fails) without failing the step; the step then re-runs live on retry, and the
-    caller counts it as skipped rather than cached.
+    An entry is a JSON-compatible dict. ``save_step`` returns whether the entry was
+    written: a backend may skip a write (a value it cannot store, a store write that
+    fails) without failing the step, which then runs again on retry.
     """
 
-    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> bool: ...
+    def save_step(self, key: str, entry: dict[str, Any]) -> bool: ...
 
-    def load_model_response(self, key: str) -> tuple[ModelResponse | None, str | None]: ...
+    def load_step(self, key: str) -> dict[str, Any] | None: ...
 
-    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> bool: ...
-
-    def load_tool_result(self, key: str) -> tuple[bool, Any, str | None]: ...
-
-    def cleanup(self) -> None: ...
+    def delete_steps(self, keys: Iterable[str]) -> None:
+        """Delete these entries. Best-effort: runs after the work succeeded, so it must not raise."""
+        ...
