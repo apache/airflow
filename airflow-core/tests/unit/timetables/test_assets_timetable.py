@@ -44,7 +44,12 @@ from airflow.sdk.definitions.timetables.assets import (
 from airflow.sdk.definitions.timetables.simple import NullTimetable as SdkNullTimetable
 from airflow.sdk.exceptions import AirflowTimetableInvalid
 from airflow.serialization.decoders import decode_timetable
-from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetAny
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAll,
+    SerializedAssetAny,
+    SerializedAssetBase,
+)
 from airflow.serialization.encoders import encode_timetable, ensure_serialized_asset
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.timetables.assets import (
@@ -56,6 +61,39 @@ from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, Pa
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+
+
+@pytest.mark.parametrize("batch_asset_events", [False, True])
+@pytest.mark.parametrize("event_count", [0, 1, 3])
+def test_group_asset_events(batch_asset_events, event_count):
+    timetable = AssetTriggeredTimetable(Asset("a"), batch_asset_events=batch_asset_events)
+    triggered_date = DateTime(2026, 10, 7, tzinfo=UTC)
+    events = [
+        AssetEvent(asset_id=1, timestamp=triggered_date.subtract(hours=index + 1))
+        for index in range(event_count)
+    ]
+
+    if batch_asset_events and events:
+        expected = [(triggered_date, events)]
+    else:
+        expected = [(event.timestamp, [event]) for event in events]
+    assert list(timetable.group_asset_events(events, triggered_date)) == expected
+
+
+def test_custom_asset_condition_requires_batching():
+    class CustomCondition(SerializedAssetBase):
+        @property
+        def requires_batching(self):
+            return True
+
+    condition = SerializedAssetAny([CustomCondition()])
+    with conf_vars({("scheduler", "batch_asset_events"): "False"}):
+        timetable = AssetTriggeredTimetable(condition)
+    assert timetable.batch_asset_events is True
+    timetable.validate()
+
+    with pytest.raises(AirflowTimetableInvalid, match="batch_asset_events=True"):
+        AssetTriggeredTimetable(condition, batch_asset_events=False).validate()
 
 
 class MockTimetable(Timetable):
@@ -538,8 +576,10 @@ def test_batch_asset_events_roundtrip(timetable_type, batch_asset_events):
 )
 def test_batching_configuration(configured, explicit, timetable_type):
     kwargs = {"timetable": NullTimetable()} if timetable_type is CoreAssetOrTimeSchedule else {}
+    if explicit is not None:
+        kwargs["batch_asset_events"] = explicit
     with conf_vars({("scheduler", "batch_asset_events"): str(configured)}):
-        timetable = timetable_type(assets=Asset("test"), batch_asset_events=explicit, **kwargs)
+        timetable = timetable_type(assets=Asset("test"), **kwargs)
     assert timetable.batch_asset_events is (configured if explicit is None else explicit)
 
 

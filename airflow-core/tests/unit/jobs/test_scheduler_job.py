@@ -147,6 +147,7 @@ from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable, compute_rollup_fingerprint
 from airflow.timetables.simple import (
+    AssetTriggeredTimetable as CoreAssetTriggeredTimetable,
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
@@ -12815,10 +12816,16 @@ def test_partitioned_batch_asset_events(dag_maker: DagMaker, session: Session, b
 
 
 @pytest.mark.need_serialized_dag
+@pytest.mark.parametrize("custom_grouping", [False, True])
 @pytest.mark.parametrize("batch_asset_events", [True, False])
 @pytest.mark.parametrize("event_spacing", [timedelta(0), timedelta(seconds=1)])
 def test_non_partitioned_batch_asset_events(
-    dag_maker: DagMaker, session: Session, batch_asset_events: bool, event_spacing: timedelta
+    dag_maker: DagMaker,
+    session: Session,
+    batch_asset_events: bool,
+    event_spacing: timedelta,
+    custom_grouping,
+    mocker,
 ):
     asset = Asset(name="batch-consumer-asset")
     with dag_maker(
@@ -12847,19 +12854,29 @@ def test_non_partitioned_batch_asset_events(
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
+    if custom_grouping:
+        mocker.patch.object(
+            CoreAssetTriggeredTimetable,
+            "group_asset_events",
+            autospec=True,
+            return_value=[(base.add(hours=1), events)],
+        )
     runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
     session.flush()
 
     dag_runs = session.scalars(
         select(DagRun).where(DagRun.dag_id == dag_model.dag_id).order_by(DagRun.id)
     ).all()
-    expected_events = [events] if batch_asset_events else [[event] for event in events]
+    expected_events = [events] if batch_asset_events or custom_grouping else [[event] for event in events]
     assert [{event.id for event in run.consumed_asset_events} for run in dag_runs] == [
         {event.id for event in group} for group in expected_events
     ]
-    assert [run.run_after for run in dag_runs] == [
-        max(event.timestamp for event in group) for group in expected_events
-    ]
+    expected_run_dates = (
+        [base.add(hours=1)]
+        if custom_grouping
+        else [max(event.timestamp for event in group) for group in expected_events]
+    )
+    assert [run.run_after for run in dag_runs] == expected_run_dates
     assert len({run.run_id for run in dag_runs}) == len(expected_events)
     assert all(
         run.run_type == DagRunType.ASSET_TRIGGERED and run.state == DagRunState.QUEUED for run in dag_runs

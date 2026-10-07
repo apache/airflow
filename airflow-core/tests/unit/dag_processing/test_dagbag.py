@@ -896,13 +896,14 @@ class TestDagBag:
     @pytest.mark.parametrize("explicit", [False, None])
     def test_process_file_compound_assets_require_batching(self, tmp_path, batch_asset_events, explicit):
         dag_file = tmp_path / "compound_assets.py"
+        batching_argument = "" if explicit is None else f", batch_asset_events={explicit!r}"
         dag_file.write_text(
             textwrap.dedent(
                 f"""
                 from airflow.sdk import DAG, Asset, PartitionedAssetTimetable
 
                 with DAG("compound_assets", schedule=PartitionedAssetTimetable(
-                    Asset("a") & Asset("b"), batch_asset_events={explicit!r}
+                    Asset("a") & Asset("b"){batching_argument}
                 )):
                     pass
                 """

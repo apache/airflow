@@ -391,7 +391,7 @@ def get_pending_partitioned_dag_run(
             AssetPartitionDagRun.partition_key == partition_key,
             AssetPartitionDagRun.created_dag_run_id.is_(None),
         )
-        .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+        .order_by(AssetPartitionDagRun.id.desc())
     )
     if partitioned_dag_run_id is not None:
         query = query.where(AssetPartitionDagRun.id == partitioned_dag_run_id)

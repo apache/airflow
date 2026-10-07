@@ -2958,16 +2958,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     len(queued_adrqs),
                     triggered_date,
                 )
-                if dag.timetable.batch_asset_events:
-                    event_runs = iter([(triggered_date, asset_events)])
-                else:
-                    event_runs = ((timezone.coerce_datetime(ev.timestamp), [ev]) for ev in asset_events)
                 team_name = (
                     self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
                     if self._multi_team
                     else None
                 )
-                for run_after, events in event_runs:
+                for run_after, events in dag.timetable.group_asset_events(asset_events, triggered_date):
                     dag_run = dag.create_dagrun(
                         run_id=DagRun.generate_run_id(
                             run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
