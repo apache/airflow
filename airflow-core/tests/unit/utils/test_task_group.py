@@ -1351,16 +1351,20 @@ def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(mo
         assert position[f"r{i}"] < position[f"r{i + 1}"]
 
 
+# Deserialization orders a group's children by label, so these Dags declare children in label order
+# to give the Task SDK sort the same input as the serialized one.
+
+
 def _make_sibling_groups_cycle():
     with DAG("sibling_groups_cycle", schedule=None, start_date=DEFAULT_DATE) as dag:
-        start = EmptyOperator(task_id="start")
+        end = EmptyOperator(task_id="end")
         with TaskGroup("group1"):
             a1 = EmptyOperator(task_id="a1")
             a2 = EmptyOperator(task_id="a2")
         with TaskGroup("group2"):
             b1 = EmptyOperator(task_id="b1")
             b2 = EmptyOperator(task_id="b2")
-        end = EmptyOperator(task_id="end")
+        start = EmptyOperator(task_id="start")
         start >> [a1, b2]
         a1 >> b1
         b2 >> a2
@@ -1370,11 +1374,36 @@ def _make_sibling_groups_cycle():
 
 def _make_group_bridged_by_outside_task():
     with DAG("group_bridged_by_outside_task", schedule=None, start_date=DEFAULT_DATE) as dag:
+        bridge = EmptyOperator(task_id="bridge")
         with TaskGroup("group"):
             a = EmptyOperator(task_id="a")
             b = EmptyOperator(task_id="b")
-        bridge = EmptyOperator(task_id="bridge")
         a >> bridge >> b
+    return dag
+
+
+def _make_bridged_group_among_siblings():
+    with DAG("bridged_group_among_siblings", schedule=None, start_date=DEFAULT_DATE) as dag:
+        after = EmptyOperator(task_id="after")
+        bridge = EmptyOperator(task_id="bridge")
+        with TaskGroup("group"):
+            a = EmptyOperator(task_id="a")
+            b = EmptyOperator(task_id="b")
+        for i in range(3):
+            EmptyOperator(task_id=f"x{i}")
+        a >> bridge >> b >> after
+    return dag
+
+
+def _make_nested_bridged_group():
+    with DAG("nested_bridged_group", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("outer"):
+            after = EmptyOperator(task_id="after")
+            bridge = EmptyOperator(task_id="bridge")
+            with TaskGroup("inner"):
+                a = EmptyOperator(task_id="a")
+                b = EmptyOperator(task_id="b")
+        a >> bridge >> b >> after
     return dag
 
 
@@ -1388,6 +1417,13 @@ def _make_three_group_ring():
         groups["g2"][0] >> groups["g1"][1]
         groups["g0"][0] >> groups["g2"][1]
     return dag
+
+
+def _get_topological_orders(group_dict):
+    return {
+        group_id: [node.node_id for node in group.topological_sort(group_dict=group_dict)]
+        for group_id, group in group_dict.items()
+    }
 
 
 @pytest.mark.parametrize(
@@ -1407,6 +1443,25 @@ def _make_three_group_ring():
             {None: ["bridge", "group"], "group": ["group.a", "group.b"]},
             id="group-bridged-by-outside-task",
         ),
+        # Only two of six siblings depend on a later sibling, which keeps the sweep.
+        pytest.param(
+            _make_bridged_group_among_siblings,
+            {
+                None: ["bridge", "group", "x0", "x1", "x2", "after"],
+                "group": ["group.a", "group.b"],
+            },
+            id="bridged-group-among-siblings",
+        ),
+        # Two of outer's three children depend on a later sibling, which selects pass numbering.
+        pytest.param(
+            _make_nested_bridged_group,
+            {
+                None: ["outer"],
+                "outer": ["outer.bridge", "outer.inner", "outer.after"],
+                "outer.inner": ["outer.inner.a", "outer.inner.b"],
+            },
+            id="nested-bridged-group",
+        ),
         # Two of the three siblings depend on a later sibling, which selects pass numbering.
         pytest.param(
             _make_three_group_ring,
@@ -1420,17 +1475,14 @@ def _make_three_group_ring():
         ),
     ],
 )
-def test_topological_sort_serialized_task_group_cycle(make_dag, expected):
+def test_topological_sort_task_group_cycle(make_dag, expected):
     """Siblings that depend on each other only at the group level are ordered instead of raising."""
     dag = make_dag()
     dag.check_cycle()
     serialized = create_scheduler_dag(dag)
-    group_dict = serialized.task_group.get_task_group_dict()
 
-    assert {
-        group_id: [node.node_id for node in group.topological_sort(group_dict=group_dict)]
-        for group_id, group in group_dict.items()
-    } == expected
+    assert _get_topological_orders(serialized.task_group.get_task_group_dict()) == expected
+    assert _get_topological_orders(dag.task_group.get_task_group_dict()) == expected
 
 
 def test_task_group_arrow_with_setup_group():

@@ -236,13 +236,8 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
         """
         Sort children topologically — a task always comes after its upstream dependencies.
 
-        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm. Unlike the task-sdk
-        variant, a cycle between siblings does not raise. ``DAG.check_cycle`` rejects task-level
-        cycles, but a task with no upstream inside its own group counts as a root of that group,
-        so edges routed through tasks outside the group can still make siblings depend on each
-        other. ``partial_subset`` can also create such a cycle by dropping a task's in-group
-        upstream. Grid and Graph must render these Dags, so the siblings on a cycle are ordered
-        as one unit instead (see ``_sort_cyclic_projection``).
+        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm, including how siblings
+        that depend on each other in a cycle are ordered.
         """
         children = self.children
         if not children:
@@ -343,98 +338,6 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
         if len(sorted_indices) != len(nodes):
             return self._sort_cyclic_projection(nodes, projected)
         return [nodes[i] for i in sorted_indices]
-
-    @staticmethod
-    def _compute_pass_order(projected: list[tuple[int, ...]]) -> list[int]:
-        n = len(projected)
-        in_degree = [len(deps) for deps in projected]
-        successors: list[list[int]] = [[] for _ in range(n)]
-        for i, deps in enumerate(projected):
-            for d in deps:
-                successors[d].append(i)
-
-        pass_of = [0] * n
-        queue: deque[int] = deque(i for i in range(n) if in_degree[i] == 0)
-        processed: list[int] = []
-        while queue:
-            i = queue.popleft()
-            my_pass = 1
-            for d in projected[i]:
-                d_pass = pass_of[d]
-                if d < i:
-                    if d_pass > my_pass:
-                        my_pass = d_pass
-                elif d_pass + 1 > my_pass:
-                    my_pass = d_pass + 1
-            pass_of[i] = my_pass
-            processed.append(i)
-            for s in successors[i]:
-                in_degree[s] -= 1
-                if in_degree[s] == 0:
-                    queue.append(s)
-
-        # Children on or downstream of a cycle never reach in-degree 0 and are left out.
-        return sorted(processed, key=lambda i: (pass_of[i], i))
-
-    def _sort_cyclic_projection(
-        self, nodes: list[DAGNode], projected: list[tuple[int, ...]]
-    ) -> list[DAGNode]:
-        # Each component is one unit placed by its first child; units follow the same pass
-        # ordering as the acyclic path, and a unit's children keep insertion order.
-        component_of = self._find_projection_components(projected)
-        count = max(component_of) + 1
-        members: list[list[int]] = [[] for _ in range(count)]
-        component_deps: list[set[int]] = [set() for _ in range(count)]
-        for i, deps in enumerate(projected):
-            c = component_of[i]
-            members[c].append(i)
-            component_deps[c].update(component_of[d] for d in deps if component_of[d] != c)
-        component_order = self._compute_pass_order([tuple(deps) for deps in component_deps])
-        return [nodes[i] for c in component_order for i in members[c]]
-
-    @staticmethod
-    def _find_projection_components(projected: list[tuple[int, ...]]) -> list[int]:
-        """Return each child's strongly connected component, numbered in order of its first child."""
-        n = len(projected)
-        successors: list[list[int]] = [[] for _ in range(n)]
-        for i, deps in enumerate(projected):
-            for d in deps:
-                successors[d].append(i)
-
-        # Kosaraju: finish order along successors, then collect components along dependencies.
-        visited = bytearray(n)
-        finish_order: list[int] = []
-        for start in range(n):
-            if visited[start]:
-                continue
-            visited[start] = 1
-            stack: list[tuple[int, Iterator[int]]] = [(start, iter(successors[start]))]
-            while stack:
-                node, remaining = stack[-1]
-                for s in remaining:
-                    if not visited[s]:
-                        visited[s] = 1
-                        stack.append((s, iter(successors[s])))
-                        break
-                else:
-                    stack.pop()
-                    finish_order.append(node)
-
-        root_of = [-1] * n
-        for start in reversed(finish_order):
-            if root_of[start] != -1:
-                continue
-            root_of[start] = start
-            to_visit = [start]
-            while to_visit:
-                node = to_visit.pop()
-                for d in projected[node]:
-                    if root_of[d] == -1:
-                        root_of[d] = start
-                        to_visit.append(d)
-
-        numbering: dict[int, int] = {}
-        return [numbering.setdefault(root, len(numbering)) for root in root_of]
 
     def add(self, node: DAGNode) -> DAGNode:
         # Set the TG first, as setting it might change the return value of node_id!
