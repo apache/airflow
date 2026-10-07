@@ -514,18 +514,7 @@ class SQLToolset(AirflowToolset):
     def _query(self, sql: str) -> str:
         hook = self._get_db_hook()
         dialect = self._dialect_for_validation()
-        statements: list[Any] | None = None
-        if not self._allow_writes:
-            # allow_read_only_metadata lets agents inspect schemas with DESCRIBE/SHOW
-            # (a common first move) instead of hard-failing; the deep scan still
-            # rejects any data-modifying statement, including EXPLAIN <write>.
-            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
-        elif self._allowed_canonical is not None:
-            # Writes are allowed but tables are restricted: parse anyway so the
-            # allow-list still governs which tables a write may touch.
-            statements = _parse_sql(sql, dialect=dialect)
-        if statements is not None:
-            self._enforce_allowed_tables(statements)
+        self._validate_for_execution(sql, dialect=dialect, require_parse=False)
 
         # One row beyond the cap, so "there is more" is knowable without fetching the
         # rest. strip_sql_string mirrors what get_records did for the hooks that
@@ -546,6 +535,28 @@ class SQLToolset(AirflowToolset):
             total_rows=fetch.total_rows,
         )
 
+    def _validate_for_execution(self, sql: str, *, dialect: str | None, require_parse: bool) -> None:
+        """
+        Apply the checks ``query`` runs before executing ``sql``, raising when it would be refused.
+
+        ``check_query`` shares this so it never reports valid for a statement ``query`` refuses.
+        ``require_parse`` makes ``check_query`` syntax-check writes too; ``query`` leaves a write
+        unparsed unless ``allowed_tables`` needs the AST, so a statement sqlglot cannot parse
+        still reaches the database.
+        """
+        statements: list[Any] | None = None
+        if not self._allow_writes:
+            # allow_read_only_metadata lets agents inspect schemas with DESCRIBE/SHOW
+            # (a common first move) instead of hard-failing; the deep scan still
+            # rejects any data-modifying statement, including EXPLAIN <write>.
+            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
+        elif require_parse or self._allowed_canonical is not None:
+            # Writes are allowed, so only parse: the allow-list, when set, still
+            # governs which tables a write may touch.
+            statements = _parse_sql(sql, dialect=dialect)
+        if statements is not None:
+            self._enforce_allowed_tables(statements)
+
     def _check_query(self, sql: str) -> str:
         # Resolve the dialect best-effort: if the connection can't be reached we
         # still syntax-check dialect-agnostically rather than reporting invalid.
@@ -553,8 +564,7 @@ class SQLToolset(AirflowToolset):
         with suppress(Exception):
             dialect = self._dialect_for_validation()
         try:
-            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
-            self._enforce_allowed_tables(statements)
+            self._validate_for_execution(sql, dialect=dialect, require_parse=True)
             return dumps_masked({"valid": True})
         except Exception as e:
             return dumps_masked({"valid": False, "error": str(e)})

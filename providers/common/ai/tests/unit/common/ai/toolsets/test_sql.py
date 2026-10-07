@@ -548,6 +548,42 @@ class TestSQLToolsetQuery:
 
 
 class TestSQLToolsetCheckQuery:
+    @pytest.mark.parametrize(
+        ("allow_writes", "expected_valid"),
+        [(False, False), (True, True)],
+    )
+    def test_write_statement_validity_follows_allow_writes(self, allow_writes, expected_valid):
+        ts = SQLToolset("pg_default", allow_writes=allow_writes)
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool(
+                "check_query",
+                {"sql": "INSERT INTO users VALUES (3, 'Eve')"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        assert json.loads(result)["valid"] is expected_valid
+
+    @pytest.mark.parametrize(
+        ("table", "expected_valid"),
+        [("orders", True), ("secret_salaries", False)],
+    )
+    def test_writes_are_checked_against_allowed_tables(self, table, expected_valid):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool(
+                "check_query",
+                {"sql": f"INSERT INTO {table} (id) VALUES (1)"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        assert json.loads(result)["valid"] is expected_valid
+
     def test_valid_select(self):
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
