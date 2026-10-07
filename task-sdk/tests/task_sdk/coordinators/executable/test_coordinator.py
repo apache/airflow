@@ -510,7 +510,9 @@ class TestBuildParseDagCommand:
 
         with (
             patch(
-                "airflow.sdk.coordinators.executable.coordinator._ensure_executable", return_value="denied"
+                "airflow.sdk.coordinators.executable.coordinator._ensure_executable",
+                autospec=True,
+                return_value="denied",
             ),
             pytest.raises(ValueError, match="Cannot run bundle .*: denied"),
         ):
