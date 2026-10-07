@@ -262,7 +262,7 @@ interface of its own; a per-sandbox supervisor opens every outbound connection
 on its behalf, against a policy the backend writes and reads back. Airflow workers
 only need gRPC access to the gateway.
 
-Install the SDK extra, which needs Python 3.11 or later:
+Install the SDK extra:
 
 .. code-block:: bash
 

@@ -108,15 +108,15 @@ dependencies = [
     "modal>=1.5.2",
 ]
 "opensandbox" = ["opensandbox>=1.1.0"]
-# NVIDIA OpenShell gateways for SandboxToolset. The SDK needs Python 3.11 or later. Its wheel
-# declares protobuf>=4.25 and grpcio>=1.60, but its generated code imports only with
-# protobuf>=6.31.1 and grpcio>=1.78.0, so those floors are stated here. Capped below 0.2
-# because a minor release may break the Stable protos (OpenShell RFC 0014), and the backend
-# builds requests from the SDK's generated messages.
+# NVIDIA OpenShell gateways for SandboxToolset. The SDK wheel declares protobuf>=4.25 and
+# grpcio>=1.60, but its generated code imports only with protobuf>=6.31.1 and grpcio>=1.78.0,
+# so those floors are stated here. Capped below 0.2 because a minor release may break the
+# Stable protos (OpenShell RFC 0014), and the backend builds requests from the SDK's
+# generated messages.
 "openshell" = [
-    'openshell>=0.1.2,<0.2; python_version >= "3.11"',
-    'grpcio>=1.78.0; python_version >= "3.11"',
-    'protobuf>=6.31.1; python_version >= "3.11"',
+    "openshell>=0.1.2,<0.2",
+    "grpcio>=1.78.0",
+    "protobuf>=6.31.1",
 ]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
@@ -191,9 +191,9 @@ dev = [
     "openai>=2.47.0",
     "anthropic>=1.0.0",
     "opensandbox>=1.1.0",
-    'openshell>=0.1.2,<0.2; python_version >= "3.11"',
-    'grpcio>=1.78.0; python_version >= "3.11"',
-    'protobuf>=6.31.1; python_version >= "3.11"',
+    "openshell>=0.1.2,<0.2",
+    "grpcio>=1.78.0",
+    "protobuf>=6.31.1",
 ]
 
 # To build docs:

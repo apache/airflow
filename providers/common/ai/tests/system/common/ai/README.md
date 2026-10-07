@@ -69,7 +69,7 @@ sandbox lifetime.
 
 ## OpenShell
 
-Install the OpenShell extra (Python 3.11 or later), register the gateway the way the
+Install the OpenShell extra, register the gateway the way the
 `openshell` CLI does, under `$XDG_CONFIG_HOME/openshell/gateways/<name>/` (`metadata.json`
 plus `mtls/ca.crt`, `mtls/tls.crt` and `mtls/tls.key`), and run:
 

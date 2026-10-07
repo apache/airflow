@@ -216,9 +216,9 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-common-ai[anthropic]
 
 
-===============  =================================================================================================================================================
+===============  =======================================================================================================================================
 Extra            Dependencies
-===============  =================================================================================================================================================
+===============  =======================================================================================================================================
 ``anthropic``    ``pydantic-ai-slim[anthropic]>=2.33.0``, ``anthropic>=1.0.0``
 ``bedrock``      ``pydantic-ai-slim[bedrock]>=2.33.0``
 ``google``       ``pydantic-ai-slim[google]>=2.33.0``
@@ -227,7 +227,7 @@ Extra            Dependencies
 ``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
 ``modal``        ``apache-airflow-providers-modal``, ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
-``openshell``    ``openshell>=0.1.2,<0.2; python_version >= "3.11"``, ``grpcio>=1.78.0; python_version >= "3.11"``, ``protobuf>=6.31.1; python_version >= "3.11"``
+``openshell``    ``openshell>=0.1.2,<0.2``, ``grpcio>=1.78.0``, ``protobuf>=6.31.1``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.24.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``
 ``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
@@ -240,7 +240,7 @@ Extra            Dependencies
 ``pdf``          ``pypdf>=4.0.0``
 ``docx``         ``python-docx>=1.0.0``
 ``git``          ``apache-airflow-providers-git``
-===============  =================================================================================================================================================
+===============  =======================================================================================================================================
 
 Downloading official packages
 -----------------------------

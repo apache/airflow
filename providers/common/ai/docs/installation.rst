@@ -51,7 +51,7 @@ The provider's extras split into a few groups:
   ``opensandbox``, ``openshell``): MCP servers, Agent Skills, code-mode tool execution,
   shield capabilities (input/output guards, tool guards, cost tracking), and the hosted
   Modal and self-hosted OpenSandbox and OpenShell backends for
-  :doc:`sandboxed execution <sandbox/index>`. ``openshell`` needs Python 3.11 or later.
+  :doc:`sandboxed execution <sandbox/index>`.
 * **Document loading** (``pdf``, ``docx``, ``avro``, ``parquet``): file formats for
   document pipelines.
 * **Retrieval / SQL** (``sql``, ``common.sql``, ``langchain``, ``llamaindex``): RAG and

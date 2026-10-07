@@ -239,8 +239,7 @@ def _translate_openshell_errors(
         raise
     except ImportError as e:
         raise SandboxTerminalError(
-            "The OpenShell SDK is not installed. Install "
-            '"apache-airflow-providers-common-ai[openshell]" (it needs Python 3.11 or later).'
+            'The OpenShell SDK is not installed. Install "apache-airflow-providers-common-ai[openshell]".'
         ) from e
     except Exception as e:
         message = f"OpenShell could not {operation} ({_describe_error(e)})."
@@ -428,7 +427,7 @@ class OpenShellSandboxBackend(SandboxBackend):
     that runs each sandbox on Docker, Podman or Kubernetes with Landlock and
     seccomp inside the container and a per-sandbox supervisor that mediates
     every outbound connection. Airflow workers only need gRPC access to the
-    gateway, with the ``openshell`` extra installed (Python 3.11 or later).
+    gateway, with the ``openshell`` extra installed.
 
     **Credentials are ambient.** The backend reads the gateway registration the
     ``openshell`` CLI keeps under ``$XDG_CONFIG_HOME/openshell/gateways/<name>/``:
