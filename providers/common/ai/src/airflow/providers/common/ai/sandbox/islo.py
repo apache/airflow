@@ -164,10 +164,13 @@ def _bound_result_stream(text: str, max_bytes: int, *, server_truncated: bool) -
     if len(encoded) > max_bytes:
         encoded = encoded[-max_bytes:]
         truncated = True
-        # A byte-aligned cut usually lands mid-record, and the model must never
-        # be handed a fragment presented as a whole line.
+        # A byte-aligned cut usually lands mid-record, so drop the leading partial
+        # line -- but only while half the window survives, as Modal's ``_drain``
+        # does. One line longer than the budget ends in its only newline, and
+        # dropping through it would leave nothing, which the model reads as "(no
+        # output)"; a partial line kept instead is still marked as cut.
         newline = encoded.find(b"\n")
-        if newline != -1:
+        if newline != -1 and len(encoded) - (newline + 1) >= max_bytes // 2:
             encoded = encoded[newline + 1 :]
     return encoded.decode("utf-8", errors="replace"), truncated
 

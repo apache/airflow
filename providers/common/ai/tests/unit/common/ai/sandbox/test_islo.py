@@ -338,9 +338,9 @@ class TestRunCommand:
         assert result.stdout_truncated
         assert result.stderr_truncated
 
-    def test_truncation_never_emits_a_partial_leading_line(self):
+    def test_truncation_drops_a_short_partial_leading_line(self):
         backend, client = _backend_with_client()
-        # A byte-aligned cut of the last 4 bytes would land inside "line988".
+        # A byte-aligned cut of the last 12 bytes would land inside "line988".
         client.sandboxes.get_exec_result.return_value = _exec_result(stdout="line988\nline989\n")
 
         result = backend.run_command("box", "x", timeout=5, max_output_bytes=12)
@@ -348,13 +348,24 @@ class TestRunCommand:
         assert result.stdout == "line989\n"
         assert result.stdout_truncated
 
-    def test_a_single_line_over_budget_is_cut_rather_than_dropped(self):
+    @pytest.mark.parametrize(
+        ("stdout", "expected"),
+        [
+            ("abcdefghij", "cdefghij"),
+            # The line's only newline is its last byte, so dropping through it
+            # would leave nothing and the model would read "(no output)".
+            ("x" * 20 + "\n", "xxxxxxx\n"),
+            ("z" * 20 + "\nok\n", "zzzz\nok\n"),
+        ],
+        ids=["no-newline", "trailing-newline", "short-line-after"],
+    )
+    def test_a_single_line_over_budget_is_cut_rather_than_dropped(self, stdout, expected):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="abcdef")
+        client.sandboxes.get_exec_result.return_value = _exec_result(stdout=stdout)
 
-        result = backend.run_command("box", "x", timeout=5, max_output_bytes=3)
+        result = backend.run_command("box", "x", timeout=5, max_output_bytes=8)
 
-        assert result.stdout == "def"
+        assert result.stdout == expected
         assert result.stdout_truncated
 
     def test_applies_the_byte_cap_on_utf8_boundaries(self):
