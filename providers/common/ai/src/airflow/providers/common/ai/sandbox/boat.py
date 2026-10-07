@@ -153,6 +153,11 @@ class BoatSandboxBackend(SandboxBackend):
     Modal provider; a ``boat`` connection type belongs in a future Boat provider,
     not in this one.
 
+    Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of the
+    account's stored environment variables, secret files or credentials, and
+    cannot act on the account or its other sandboxes. ``SandboxSpec.env`` is the
+    only environment it receives.
+
     Boat cannot enforce a deny-all, per-domain, or CIDR egress policy. ``create``
     therefore refuses a :class:`~airflow.providers.common.ai.sandbox.SandboxSpec`
     that asks for ``block_network=True``, ``allow_egress_to``, or
@@ -182,12 +187,6 @@ class BoatSandboxBackend(SandboxBackend):
         at once, such as a status check or a delete, and the time added to the
         operation's own for a call that waits on one: a command's deadline, a
         create's ``ready_timeout``, or 120 seconds for a file write. Default ``30``.
-    :param no_env: When ``True`` (default), create a no-env sandbox: none of the
-        account's stored environment variables, secret files or credentials
-        reach it, and it is confined so it cannot act on the account or its
-        other sandboxes. ``False`` attaches the account's ``base`` Boat
-        environment, which boat-sdk names on every create, and lifts that confinement, so secrets ``SandboxSpec.env``
-        never named reach model-written code, which can then act on the account.
     """
 
     name = "boat"
@@ -199,7 +198,6 @@ class BoatSandboxBackend(SandboxBackend):
         ttl_seconds: int = 3600,
         ready_timeout: float = 300.0,
         request_timeout: float = 30.0,
-        no_env: bool = True,
     ) -> None:
         if machine_type not in _MACHINE_TYPES:
             raise ValueError(f"machine_type must be one of {sorted(_MACHINE_TYPES)}, got {machine_type!r}.")
@@ -214,13 +212,10 @@ class BoatSandboxBackend(SandboxBackend):
             )
         _validate_positive_finite(ready_timeout, "ready_timeout")
         _validate_positive_finite(request_timeout, "request_timeout")
-        if not isinstance(no_env, bool):
-            raise ValueError(f"no_env must be a boolean, got {no_env!r}.")
         self._machine_type = machine_type
         self._ttl_seconds = int(ttl_seconds)
         self._ready_timeout = ready_timeout
         self._request_timeout = request_timeout
-        self._no_env = no_env
         self._boat_api: BoatApi | None = None
         self._sandbox_env: dict[str, dict[str, str]] = {}
         self._deleted_at_deadline: set[str] = set()
@@ -321,7 +316,7 @@ class BoatSandboxBackend(SandboxBackend):
                 create_sandbox_request=CreateSandboxRequest(
                     type=self._machine_type,
                     ttlSeconds=self._ttl_seconds,
-                    noEnv=self._no_env,
+                    noEnv=True,
                     env=env or None,
                 ),
                 _request_timeout=self._http_timeout(self._ready_timeout),

@@ -170,7 +170,6 @@ def test_missing_sdk_error_is_actionable():
         ({"ready_timeout": 0}, "ready_timeout"),
         ({"ready_timeout": False}, "ready_timeout"),
         ({"request_timeout": 0}, "request_timeout"),
-        ({"no_env": "false"}, "no_env"),
     ],
 )
 def test_constructor_rejects_invalid_values(kwargs, message):
@@ -271,9 +270,8 @@ class TestCreate:
         with pytest.raises(SandboxTerminalError, match="CIDR egress allowlist"):
             backend.create(spec=SandboxSpec(block_network=False, allow_egress_to_cidrs=["203.0.113.0/24"]))
 
-    @pytest.mark.parametrize("no_env", [True, False])
-    def test_spec_and_sizing_are_passed_at_creation(self, no_env):
-        backend, api = _backend_with_api(machine_type="small", ttl_seconds=120, no_env=no_env)
+    def test_spec_and_sizing_are_passed_at_creation(self):
+        backend, api = _backend_with_api(machine_type="small", ttl_seconds=120)
         api.create.return_value = _created("bx_created1")
         api.get_without_preload_content.return_value = _sandbox_info("ready")
 
@@ -283,7 +281,7 @@ class TestCreate:
         request = api.create.call_args.kwargs["create_sandbox_request"]
         assert request.type == "small"
         assert request.ttl_seconds == 120
-        assert request.no_env is no_env
+        assert request.no_env is True
         assert request.env == {"TOKEN": "value"}
         api.get_without_preload_content.assert_called_once_with("bx_created1", _request_timeout=30.0)
         assert api.update.called

@@ -290,16 +290,10 @@ Constructor parameters:
   once, such as a status check or a delete, and the time added to the
   operation's own for a call that waits on one: a command's deadline, a
   create's ``ready_timeout``, or 120 seconds for a file write. Default ``30``.
-- ``no_env``: Default ``True``, which gives the sandbox none of your Boat
-  account's stored environment variables, secret files or credentials, and
-  confines it so it cannot act on your account or your other sandboxes.
 
-.. warning::
-
-   ``no_env=False`` attaches your account's ``base`` Boat environment, which
-   boat-sdk names on every create, and lifts that confinement: its secrets reach the sandbox without ``SandboxSpec.env``
-   naming them, and model-written code can act on your Boat account and its
-   other sandboxes. Keep the default for an agent's sandbox.
+Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of your Boat
+account's stored environment variables, secret files or credentials, and cannot
+act on your account or your other sandboxes.
 
 ``SandboxSpec.env`` is passed when the sandbox is created and also exported at
 the start of every command, so each value is sent again with every command
