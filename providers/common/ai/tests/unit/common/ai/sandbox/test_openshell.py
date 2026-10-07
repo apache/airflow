@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import builtins
 import copy
+import errno
 import os
 import shlex
 import shutil
@@ -54,6 +55,8 @@ from airflow.providers.common.ai.sandbox.openshell import (
 
 _MODULE = "airflow.providers.common.ai.sandbox.openshell"
 _MONOTONIC_PATH = f"{_MODULE}.time.monotonic"
+# The temp file the SDK writes a refreshed OIDC token through, next to the registration.
+_TOKEN_TEMP_FILE = "/home/airflow/.config/openshell/gateways/prod/.oidc_token.k2x9w1qz.tmp"
 
 
 class _RpcError(grpc.RpcError):
@@ -239,6 +242,26 @@ class TestClient:
 
         with pytest.raises(SandboxTerminalError, match="gateway 'prod' not found"):
             OpenShellSandboxBackend(gateway="prod")._get_client()
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(
+                PermissionError(errno.EACCES, "Permission denied", _TOKEN_TEMP_FILE), id="not-writable"
+            ),
+            pytest.param(
+                OSError(errno.EROFS, "Read-only file system", _TOKEN_TEMP_FILE), id="read-only-mount"
+            ),
+        ],
+    )
+    def test_an_oidc_token_that_cannot_be_written_back_is_terminal(self, error):
+        backend, client = _backend()
+        client._stub.GetSandboxConfig.side_effect = error
+
+        with pytest.raises(SandboxTerminalError, match="registration is read-only.*mTLS is the supported"):
+            backend.run_command("box", "true", timeout=5, max_output_bytes=100)
+
+        client._stub.ExecSandbox.assert_not_called()
 
 
 class TestSpecRefusals:

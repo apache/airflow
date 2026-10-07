@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import shlex
 import threading
 import time
@@ -233,6 +234,18 @@ def _describe_error(error: BaseException) -> str:
     return f"{status}: {text}" if text else status
 
 
+def _is_token_write_back_failure(error: BaseException) -> bool:
+    # A stale OIDC token is refreshed inside the call's auth interceptor, which
+    # writes the new one next to the registration through a ".oidc_token.*" temp
+    # file (openshell 0.1.2 _OidcRefresher._write_to_disk) and raises its OSError.
+    filename = getattr(error, "filename", None)
+    return (
+        isinstance(error, OSError)
+        and isinstance(filename, str)
+        and os.path.basename(filename).startswith(".oidc_token.")
+    )
+
+
 @contextmanager
 def _translate_openshell_errors(
     operation: str, *, recoverable_statuses: frozenset[str] = frozenset()
@@ -246,6 +259,13 @@ def _translate_openshell_errors(
             'The OpenShell SDK is not installed. Install "apache-airflow-providers-common-ai[openshell]".'
         ) from e
     except Exception as e:
+        if _is_token_write_back_failure(e):
+            raise SandboxTerminalError(
+                f"OpenShell could not {operation}: the SDK refreshed the gateway's OIDC token and could not "
+                f"write it back, because the gateway registration is read-only ({e}). An OIDC gateway needs "
+                "a writable registration of its own on each worker; mTLS is the supported setup for a "
+                "worker that mounts the registration read-only."
+            ) from e
         message = f"OpenShell could not {operation} ({_describe_error(e)})."
         if _status_name(e) in recoverable_statuses:
             raise SandboxError(message) from e
@@ -437,6 +457,9 @@ class OpenShellSandboxBackend(SandboxBackend):
     ``openshell`` CLI keeps under ``$XDG_CONFIG_HOME/openshell/gateways/<name>/``:
     its endpoint and either mTLS material or an OIDC token. There is no Airflow
     connection type for it; see the backend page for how to provision a worker.
+    An OIDC registration must be writable and per worker, because the SDK
+    refreshes the token and writes it back into the registration; mTLS is the
+    supported setup for a worker that mounts the registration read-only.
 
     **Egress is deny-all unless listed, and verified.** A spec's hostnames become
     one policy rule admitting each host on port 443 only, and a default spec

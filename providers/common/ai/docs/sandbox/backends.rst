@@ -289,6 +289,14 @@ Deployment Manager:
 
     SandboxToolset(OpenShellSandboxBackend(gateway="prod"))
 
+An OIDC registration must be writable and per worker. The SDK refreshes an
+expiring OIDC token itself and writes the new one back into the registration,
+so a registration mounted read-only, from a Kubernetes Secret or ConfigMap for
+example, fails the task at the first refresh, and copies of one registration on
+several workers share a refresh token that the first refresh can invalidate for
+the others. mTLS is the supported setup for workers that mount the registration
+read-only.
+
 Whoever holds that credential is inside the trust boundary. On a gateway
 without OIDC, an mTLS client is a gateway-wide administrator: it can change the
 policy and settings of every sandbox. ``openshell-gateway generate-certs`` issues
