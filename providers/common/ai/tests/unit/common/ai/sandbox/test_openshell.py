@@ -872,6 +872,12 @@ class TestRunCommand:
             backend.run_command("box", "cmd", timeout=5, max_output_bytes=100)
 
 
+_PATH_OPERATIONS = [
+    pytest.param(lambda backend, path: backend.read_file("box", path, max_bytes=10), id="read"),
+    pytest.param(lambda backend, path: backend.write_file("box", path, b"data"), id="write"),
+]
+
+
 class TestFiles:
     def test_read_returns_raw_bytes_after_the_size_line(self):
         backend, client = _backend()
@@ -970,13 +976,7 @@ class TestFiles:
             pytest.param("/" + "é" * 16384, "is 32769 bytes, over the 32768", id="over-32-kib"),
         ],
     )
-    @pytest.mark.parametrize(
-        "operation",
-        [
-            pytest.param(lambda backend, path: backend.read_file("box", path, max_bytes=10), id="read"),
-            pytest.param(lambda backend, path: backend.write_file("box", path, b"data"), id="write"),
-        ],
-    )
+    @pytest.mark.parametrize("operation", _PATH_OPERATIONS)
     def test_a_path_the_gateway_refuses_is_recoverable_and_not_sent(self, operation, path, message):
         backend, client = _backend()
 
@@ -985,6 +985,24 @@ class TestFiles:
 
         assert not isinstance(error.value, SandboxTerminalError)
         client._stub.ExecSandbox.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            # 16385 characters, exactly 32768 bytes of UTF-8.
+            pytest.param("/" + "é" * 16383 + "x", id="at-32-kib"),
+            pytest.param("/tmp/a\tb\nc\x7f", id="control-characters"),
+        ],
+    )
+    @pytest.mark.parametrize("operation", _PATH_OPERATIONS)
+    def test_a_path_the_gateway_accepts_is_sent(self, operation, path):
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _result(0, b"4\ndata")
+
+        operation(backend, path)
+
+        client._stub.ExecSandbox.assert_called_once()
+        assert path in _exec_request(client).command
 
     def test_listing_parses_nul_separated_records(self):
         backend, client = _backend()
