@@ -340,12 +340,13 @@ A command's deadline is enforced inside the sandbox by GNU coreutils
 a command that runs out of time returns the tail of what it printed, and the
 sandbox and its files survive. Boat's own deadline is set 15 seconds past that
 one, and Boat's API caps it at 600 seconds, so any command that asks for more
-than 585 seconds gets 585, and the result reports that deadline to the model. Only when Boat's own deadline ends the call, because the one in the
-guest did not, is the sandbox torn down, as is a sandbox that never becomes
-ready. A file read, listing, or write that Boat's deadline ends that way fails
-the task, since there is no sandbox left for the model to retry against. If the
-worker dies first, the server-side TTL stops the sandbox. Sandboxes are created
-without snapshots, so stopping one erases its disk rather than keeping it for an
+than 585 seconds gets 585, and the result reports that deadline to the model.
+Only when Boat's own deadline ends the call, because the one in the guest did
+not, is the sandbox torn down, as is a sandbox that never becomes ready. A file
+read, listing, or write that Boat's deadline ends that way fails the task, since
+there is no sandbox left for the model to retry against. If the worker dies
+first, the server-side TTL stops the sandbox. Sandboxes are created without
+snapshots, so stopping one erases its disk rather than keeping it for an
 operator to remove.
 
 .. _sandbox-backend-sbx:
