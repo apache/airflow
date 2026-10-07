@@ -103,11 +103,8 @@ to the model. This mirrors the input types accepted by pydantic-ai's
     def analyze_review(image_url: str):
         return ["Describe what you see:", ImageUrl(url=image_url)]
 
-.. note::
-
-    Combining a non-string prompt with ``enable_hitl_review=True`` is not
-    currently supported -- the HITL session model stores the prompt as a
-    string, so a ``Sequence`` prompt will raise at the review boundary.
+With ``enable_hitl_review=True``, the review session stores the prompt's text
+and a placeholder such as ``[image/png, 2048 bytes]`` for each non-text part.
 
 Structured output
 -----------------
