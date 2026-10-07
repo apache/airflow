@@ -265,7 +265,7 @@ def _ensure_default_role_policies(client: KeycloakAdmin, client_uuid: str, *, _d
 def _attach_default_role_permissions(
     client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
 ) -> None:
-    for role_name in TEAM_ROLE_NAMES:
+    for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
         _attach_policy_to_scope_permission(
             client,
             client_uuid,
@@ -276,7 +276,8 @@ def _attach_default_role_permissions(
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
-    for role_name in ("User", "Op", "Admin"):
+
+    for role_name in ("User", "Op", "Admin", SUPER_ADMIN_ROLE_NAME):
         _attach_policy_to_resource_permission(
             client,
             client_uuid,
@@ -286,7 +287,8 @@ def _attach_default_role_permissions(
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
-    for role_name in ("Op", "Admin"):
+
+    for role_name in ("Op", "Admin", SUPER_ADMIN_ROLE_NAME):
         _attach_policy_to_resource_permission(
             client,
             client_uuid,
@@ -301,6 +303,7 @@ def _attach_default_role_permissions(
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
+
     for role_name in ("Admin", SUPER_ADMIN_ROLE_NAME):
         _attach_policy_to_scope_permission(
             client,
