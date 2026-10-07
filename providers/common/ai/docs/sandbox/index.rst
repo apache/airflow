@@ -352,8 +352,8 @@ leaves its contents alone: the same four tools run in the sandbox.
    * - ``BoatSandboxBackend``
      - A full Linux VM that Boat provisions per sandbox.
      - Boat's infrastructure, off the worker.
-     - Archived by Boat at ``ttl_seconds``; an archived sandbox keeps its snapshot
-       until an operator deletes it.
+     - Stopped by Boat at ``ttl_seconds``. Sandboxes are created without snapshots,
+       so stopping one erases its disk.
 
 When a run ends normally, the task calls the backend's ``destroy``. ``sbx`` runs its
 removal command and waits up to two minutes for it; Modal, OpenSandbox and Boat each send a

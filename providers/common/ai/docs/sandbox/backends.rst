@@ -283,8 +283,8 @@ Boat provider.
 Constructor parameters:
 
 - ``machine_type``: ``"small"``, ``"default"`` or ``"large"``.
-- ``ttl_seconds``: server-side archive TTL, a whole number of seconds up to
-  ``2592000`` (30 days). Default ``3600``.
+- ``ttl_seconds``: server-side TTL after which Boat stops the sandbox, a whole
+  number of seconds up to ``2592000`` (30 days). Default ``3600``.
 - ``ready_timeout``: provisioning deadline. Default ``300``.
 - ``request_timeout``: HTTP timeout in seconds for an API call that answers at
   once, such as a status check or a delete, and the time added to the
@@ -325,8 +325,9 @@ deadline. Only when Boat's own deadline ends the call, because the one in the
 guest did not, is the sandbox torn down, as is a sandbox that never becomes
 ready. A file read, listing, or write that Boat's deadline ends that way fails
 the task, since there is no sandbox left for the model to retry against. If the
-worker dies first, the server-side TTL archives the sandbox rather than deleting
-it, preserving its snapshot until an operator removes it.
+worker dies first, the server-side TTL stops the sandbox. Sandboxes are created
+without snapshots, so stopping one erases its disk rather than keeping it for an
+operator to remove.
 
 .. _sandbox-backend-sbx:
 

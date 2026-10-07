@@ -178,9 +178,10 @@ class BoatSandboxBackend(SandboxBackend):
 
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
         Default ``"default"``.
-    :param ttl_seconds: Server-side archive TTL in seconds after which the
-        sandbox is archived even if the worker never destroyed it: a whole number
-        from 1 to 2592000 (30 days). Default ``3600``.
+    :param ttl_seconds: Server-side TTL in seconds after which Boat stops the
+        sandbox even if the worker never destroyed it: a whole number from 1 to
+        2592000 (30 days). The sandbox is created without snapshots, so stopping
+        it erases its disk. Default ``3600``.
     :param ready_timeout: Seconds to wait for a newly created sandbox to become
         ready. Default ``300``.
     :param request_timeout: HTTP timeout in seconds for a Boat API call that answers
@@ -202,7 +203,7 @@ class BoatSandboxBackend(SandboxBackend):
         if machine_type not in _MACHINE_TYPES:
             raise ValueError(f"machine_type must be one of {sorted(_MACHINE_TYPES)}, got {machine_type!r}.")
         _validate_positive_finite(ttl_seconds, "ttl_seconds")
-        # Refused rather than floored: int() would quietly shorten the archive backstop,
+        # Refused rather than floored: int() would quietly shorten the TTL backstop,
         # and turn a sub-second value into 0, which the SDK only rejects at create time.
         if int(ttl_seconds) != ttl_seconds:
             raise ValueError(f"ttl_seconds must be a whole number of seconds, got {ttl_seconds!r}.")
@@ -317,6 +318,9 @@ class BoatSandboxBackend(SandboxBackend):
                     type=self._machine_type,
                     ttlSeconds=self._ttl_seconds,
                     noEnv=True,
+                    # Nothing here resumes or forks a sandbox, so snapshots would only
+                    # cost CPU and memory and keep a stopped sandbox's disk.
+                    snapshots=False,
                     env=env or None,
                 ),
                 _request_timeout=self._http_timeout(self._ready_timeout),
@@ -328,7 +332,7 @@ class BoatSandboxBackend(SandboxBackend):
             self._sandbox_env[sandbox_id] = env
         except BaseException:
             # The id has not reached the toolset yet, so nothing else can tear
-            # this sandbox down. The server-side TTL would archive it eventually,
+            # this sandbox down. The server-side TTL would stop it eventually,
             # but that leaves a billed machine idling for an hour by default.
             with suppress(Exception):
                 self.destroy(sandbox_id)

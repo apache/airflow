@@ -282,6 +282,7 @@ class TestCreate:
         assert request.type == "small"
         assert request.ttl_seconds == 120
         assert request.no_env is True
+        assert request.snapshots is False
         assert request.env == {"TOKEN": "value"}
         api.get_without_preload_content.assert_called_once_with("bx_created1", _request_timeout=30.0)
         assert api.update.called

@@ -82,5 +82,5 @@ into `SandboxSpec.env` or exposed inside the sandbox. The test passes a separate
 through `SandboxSpec.env` and verifies it from a sandbox command, exercises successful and
 non-zero command exits plus write/read/list operations, and requests open egress
 (`SandboxSpec(block_network=False)`) because Boat cannot enforce a deny-all network policy.
-A 15-minute server-side TTL archives the sandbox if worker-side teardown cannot run; an
-archived sandbox keeps its snapshot until an operator deletes it.
+A 15-minute server-side TTL stops the sandbox if worker-side teardown cannot run; the
+backend creates it without snapshots, so stopping it erases its disk.
