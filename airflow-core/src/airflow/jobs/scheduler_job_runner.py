@@ -109,6 +109,7 @@ from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
@@ -1426,6 +1427,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("scheduler.executor_events.batch_size", num_events)
         stats.incr("scheduler.executor_events.processed", num_events)
 
+    @staticmethod
+    def _find_rescheduled_ti_ids(tis: Sequence[TI], *, session: Session) -> set[UUID]:
+        """Return ids of scheduled or queued task instances that already have a reschedule row."""
+        candidate_ids = [
+            ti.id
+            for ti in tis
+            if ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED) and ti.next_method is None
+        ]
+        if not candidate_ids:
+            return set()
+        # One lookup for the batch. idx_task_reschedule_ti_id_id_desc covers ti_id.
+        return set(
+            session.scalars(
+                select(TaskReschedule.ti_id).where(TaskReschedule.ti_id.in_(candidate_ids)).distinct()
+            )
+        )
+
     @classmethod
     def process_executor_events(
         cls,
@@ -1447,8 +1465,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         1. **Normal task completion**: Updates task states for successful/failed tasks
         2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
         3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors,
-           and tasks moved to ``scheduled`` after a trigger fired so a stale executor success from the
-           pre-deferral worker exit does not fail the task instance
+           tasks moved back to ``scheduled`` or ``queued`` after a trigger fired, and reschedule-mode
+           sensors waiting for their next poke, so a stale executor success does not fail the task instance
         4. **Callback processing**: Sends task callback requests to DAG Processor for execution
         5. **Email notifications**: Sends email notification requests to DAG Processor
 
@@ -1546,7 +1564,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-        tis: Iterator[TI] = session.scalars(locked_query.execution_options(populate_existing=True))
+        tis: Sequence[TI] = list(session.scalars(locked_query.execution_options(populate_existing=True)))
+        rescheduled_ti_ids = cls._find_rescheduled_ti_ids(tis, session=session)
         for ti in tis:
             buffer_key = TaskInstanceUuid(ti.id)
             try_number = ti.try_number
@@ -1609,6 +1628,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # from the worker exit after defer() has not been processed yet - should not fail it.
             # 4) the trigger already put the TI back to queued (resume after defer) but the executor success
             # from the worker exit after defer() has not been processed yet - should not fail it.
+            # 5) a sensor in reschedule mode was put back to scheduled or queued for its next poke but the
+            # executor success from the previous poke has not been processed yet - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1622,11 +1643,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
                 or (
-                    # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
-                    # before we saw the executor success from the defer exit for the same try_number.
                     ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
                     and state == TaskInstanceState.SUCCESS
-                    and ti.next_method is not None
+                    and (
+                        # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
+                        # before we saw the executor success from the defer exit for the same try_number.
+                        ti.next_method is not None
+                        # Sensor in reschedule mode: the TI was put back for its next poke before we saw
+                        # the executor success from the previous poke. That exit leaves next_method unset,
+                        # so an existing task_reschedule row is what separates it from an external kill.
+                        or ti.id in rescheduled_ti_ids
+                    )
                 )
             )
 
