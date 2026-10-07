@@ -25,7 +25,7 @@ import os
 import textwrap
 import time
 from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -147,6 +147,7 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetTaskStateStore,
     SetXCom,
@@ -440,7 +441,7 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
     If startup raises AirflowRescheduleException, the task runner should report a RescheduleTask
     message to the supervisor and exit cleanly (code 0).
     """
-    ts = datetime(2025, 1, 1, tzinfo=dt_timezone.utc)
+    ts = datetime(2025, 1, 1, tzinfo=UTC)
     reschedule_date = ts + timedelta(seconds=60)
 
     mock_comms_instance = mock.Mock()
@@ -1756,7 +1757,7 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
     mock_supervisor_comms.send.assert_called_with(TaskState(state=TaskInstanceState.FAILED, end_date=instant))
 
 
-def test_execution_timeout(create_runtime_ti):
+def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
     def sleep_and_catch_other_exceptions():
         with contextlib.suppress(Exception):
             # Catching Exception should NOT catch AirflowTaskTimeout
@@ -4111,7 +4112,7 @@ class TestRuntimeTaskInstance:
             relative_fileloc="dags/example.py",
             owners="owner_1",
             tags=["a_tag", "z_tag"],
-            next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            next_dagrun=datetime(2026, 4, 13, tzinfo=UTC),
         )
 
         response = RuntimeTaskInstance.get_dag(
@@ -6375,7 +6376,7 @@ class TestRunExecuteCallable:
         task.execution_timeout = execution_timeout
         return task
 
-    def test_runs_in_isolated_context_with_safeguard_tracker_set(self):
+    def test_runs_in_isolated_context_with_safeguard_tracker_set(self, mock_supervisor_comms):
         """The callable runs in an internal context copy that has the safeguard tracker set and does not leak."""
         var = contextvars.ContextVar("marker")
         var.set("outer")
@@ -6397,8 +6398,9 @@ class TestRunExecuteCallable:
         # The .set was confined to the copy, so the tracker never leaked to the caller's context.
         assert ExecutorSafeguard.tracker.get(None) is not task
         task.on_kill.assert_not_called()
+        mock_supervisor_comms.send.assert_not_called()
 
-    def test_applies_execution_timeout(self):
+    def test_applies_execution_timeout(self, mock_supervisor_comms):
         """When a timeout is set and the callable overruns, AirflowTaskTimeout is raised and on_kill is called."""
         task = self._make_task(execution_timeout=timedelta(milliseconds=10))
 
@@ -6409,8 +6411,9 @@ class TestRunExecuteCallable:
             _run_execute_callable(context={}, execute=execute, task=task)
 
         task.on_kill.assert_called_once()
+        mock_supervisor_comms.send.assert_called_once_with(SetExecutionTimeout(timeout_seconds=0.01))
 
-    def test_fast_fails_when_timeout_already_elapsed(self):
+    def test_fast_fails_when_timeout_already_elapsed(self, mock_supervisor_comms):
         """A non-positive timeout fast-fails before running the callable and still calls on_kill."""
         task = self._make_task(execution_timeout=timedelta(seconds=-1))
         execute = mock.MagicMock()
@@ -6420,6 +6423,7 @@ class TestRunExecuteCallable:
 
         execute.assert_not_called()
         task.on_kill.assert_called_once()
+        mock_supervisor_comms.send.assert_not_called()
 
     def test_emits_task_execute_span_at_detail_level_2(self):
         """At detail level 2, running the callable produces a recorded ``task.execute`` span."""
@@ -6521,7 +6525,7 @@ class TestTaskInstanceStateOperations:
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
 
         with conf_vars({("state_store", "default_retention_days"): "30"}):
@@ -6565,7 +6569,7 @@ class TestTaskInstanceStateOperations:
                 ts.set("poll_result", {"status": "succeeded", "rows": 1234})
                 ts.set("checkpoints", [1, 2, 3])
 
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
@@ -6596,7 +6600,7 @@ class TestTaskInstanceStateOperations:
 
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
@@ -6864,7 +6868,7 @@ class TestTaskInstanceStateOperations:
             def execute(self, context):
                 context["task_state_store"].set("job_id", "app_001")
 
-        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
         task = MyOperator(task_id="t")
         runtime_ti = create_runtime_ti(task=task)

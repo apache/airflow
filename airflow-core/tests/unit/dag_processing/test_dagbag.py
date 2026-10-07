@@ -27,7 +27,7 @@ import textwrap
 import warnings
 import zipfile
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -100,7 +100,6 @@ def standard_example_dags_folder() -> Path:
     return _standard_example_dags_folder()
 
 
-PY311 = sys.version_info >= (3, 11)
 PY313 = sys.version_info >= (3, 13)
 
 # Include the words "airflow" and "dag" in the file contents,
@@ -1024,7 +1023,7 @@ class TestDagBag:
         fileloc = str(standard_example_dags_folder / "example_bash_operator.py")
 
         mock_dagmodel.return_value = DagModel()
-        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
+        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=UTC)
         mock_dagmodel.return_value.fileloc = fileloc
 
         class _TestDagBag(DagBag):
@@ -1057,7 +1056,7 @@ class TestDagBag:
         fileloc = os.path.realpath(os.path.join(test_zip_path, "test_zip.py"))
 
         mock_dagmodel.return_value = DagModel()
-        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
+        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=UTC)
         mock_dagmodel.return_value.fileloc = fileloc
 
         processed: list[str] = []
@@ -1180,7 +1179,7 @@ with airflow.DAG(
 
     @staticmethod
     def _make_test_traceback(unparseable_filename: str, depth=None) -> str:
-        python_311_marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        python_311_marker = "           ^^^^^^^^^^^\n"
         python_313_marker = ["    ~~~~~~~~~^^\n"] if PY313 else []
         frames = (
             f'  File "{unparseable_filename}", line 3, in <module>\n    something()\n',

@@ -33,7 +33,7 @@ import re
 import sys
 import warnings
 from collections.abc import Generator
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import UTC, datetime, timedelta, timezone as dt_timezone
 from glob import glob
 from pathlib import Path
 from textwrap import dedent
@@ -5299,7 +5299,7 @@ class TestValidateSerializedDag:
             pytest.param(
                 {
                     "schedule": "@daily",
-                    "default_args": {"start_date": datetime(2024, 1, 1, tzinfo=dt_timezone.utc)},
+                    "default_args": {"start_date": datetime(2024, 1, 1, tzinfo=UTC)},
                 },
                 id="start-date-in-default-args",
             ),
