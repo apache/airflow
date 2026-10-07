@@ -20,6 +20,7 @@ import builtins
 import importlib
 import json
 import logging
+import re
 import sys
 import threading
 
@@ -510,8 +511,10 @@ class TestAddressAllowlist:
             backend, fake, SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["1.1.1.1/32"])
         )
 
-        assert "port 443 is admitted to ANY address" in caplog.text
-        assert "1.1.1.1/32" in caplog.text
+        assert {
+            "event": re.compile(r".*port 443 is admitted to ANY address.*1\.1\.1\.1/32"),
+            "logger": "airflow.providers.common.ai.sandbox.modal",
+        } in caplog
 
     def test_an_address_list_alone_does_not_warn(self, backend, fake, caplog):
         caplog.set_level(logging.WARNING, logger="airflow.providers.common.ai.sandbox.modal")
@@ -1351,7 +1354,7 @@ class TestLivenessProbe:
 
         assert result.timed_out is True
         assert result.sandbox_terminated is False
-        assert "Could not check whether Modal sandbox" in caplog.text
+        assert "Could not check whether Modal sandbox sb-0 is alive" in caplog
         # The handle is still cached, so the next command needs no lookup and no create.
         fake.Sandbox.from_id_error = AssertionError("a kept handle must not be looked up again")
         sandbox.process = FakeProcess(returncode=0)
@@ -1400,7 +1403,7 @@ class TestDestroy:
 
         backend.destroy(handle)
 
-        assert "Could not terminate" in caplog.text
+        assert "Could not terminate Modal sandbox sb-0" in caplog
 
     def test_can_be_called_while_a_command_is_outstanding(self, backend, fake):
         """

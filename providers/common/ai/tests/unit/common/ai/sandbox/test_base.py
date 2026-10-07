@@ -549,7 +549,7 @@ class TestAttachablePolicy:
         attached = backend.attach("sb", owner="o", holder="h")
 
         assert attached.network is None
-        assert "network stamp this backend cannot read" in caplog.text
+        assert "Sandbox sb carries a network stamp this backend cannot read: 'open-ish'" in caplog
 
     def test_release_clears_only_the_callers_claim(self):
         backend = TaggedBackend({"sb": {OWNER_TAG: "o", HOLDER_TAG: "someone_else"}})

@@ -159,7 +159,7 @@ class TestMasking:
             _call(_ScriptedToolset(ApprovalRequired(metadata={"reason": registered_secret})))
 
         assert caught.value.metadata == {"reason": "***"}
-        assert "failed" not in caplog.text
+        assert not any("failed" in e["event"] for e in caplog)
 
     def test_masks_the_exceptions_inside_an_exception_group(self, registered_secret):
         cause = ConnectionError(f"socket closed by {registered_secret}")
@@ -276,4 +276,4 @@ class TestWithMasking:
         with pytest.raises(ValueError, match="boom"):
             _call(MaskingToolset(wrapped=_ScriptedToolset(ValueError("boom"))))
 
-        assert caplog.text.count("Tool t failed") == 1
+        assert [e["event"] for e in caplog].count("Tool t failed") == 1

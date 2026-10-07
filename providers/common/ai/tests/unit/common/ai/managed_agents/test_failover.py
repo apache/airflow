@@ -164,8 +164,11 @@ class TestInvoke:
         group = FailoverManagedAgentClient([FakeClient("a", raises=RuntimeError("503")), FakeClient("b")])
         with caplog.at_level("INFO"):
             group.invoke(REQUEST)
-        assert "a on fake.cloud (member 0) failed; failing over to b on fake.cloud (member 1)" in caplog.text
-        assert "served by standby b on fake.cloud (member 1)" in caplog.text
+        assert (
+            "Managed agent a on fake.cloud (member 0) failed; failing over to b on fake.cloud (member 1)"
+            in caplog
+        )
+        assert "Managed agent request served by standby b on fake.cloud (member 1)" in caplog
 
 
 class TestMetrics:

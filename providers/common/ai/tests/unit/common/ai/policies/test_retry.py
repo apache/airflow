@@ -20,6 +20,7 @@ import copy
 import json
 import logging
 import math
+import re
 import traceback
 import warnings
 from datetime import timedelta
@@ -990,8 +991,8 @@ class TestFallbackBehaviour:
 
         assert decision.action == RetryAction.DEFAULT
         assert decision.reason == "classifier answer not applied (model_error); task retry settings apply"
-        assert "answered 'not_a_category', which is not a configured category" in caplog.text
-        assert "KeyError" not in caplog.text
+        assert "Classifier answered 'not_a_category', which is not a configured category" in caplog
+        assert not [e for e in caplog if e.get("exc_info") and e["exc_info"][0] is KeyError]
 
 
 class TestOnUncertain:
@@ -1162,7 +1163,10 @@ class TestOnUncertain:
         assert decision.action == RetryAction.RETRY
         assert decision.retry_delay == timedelta(seconds=5)
         assert decision.reason == "classifier answer not applied (model_error); rule"
-        assert "decided nothing" in caplog.text
+        assert {
+            "event": re.compile(r"MagicMock decided nothing"),
+            "logger": "airflow.providers.common.ai.policies.retry",
+        } in caplog
 
     def test_fallback_policy_raising_falls_to_the_outer_rules(self, caplog):
         """A third-party policy that blows up must not take the classifier's rules floor with it."""
@@ -1180,7 +1184,7 @@ class TestOnUncertain:
 
         assert decision.action == RetryAction.RETRY
         assert decision.reason == "classifier answer not applied (model_error); rule"
-        assert "fallback_policy failed" in caplog.text
+        assert "fallback_policy failed, using fallback rules" in caplog
 
     @patch(HOOK, autospec=True)
     def test_nested_classifiers_both_down_still_reach_the_outer_fail_rule(self, mock_hook_cls):
@@ -1343,7 +1347,10 @@ class TestLLMRetryPolicy:
             decision = policy.evaluate(ValueError("x"), try_number=1, max_tries=3)
 
         assert decision.action == RetryAction.DEFAULT
-        assert "use ClassifierRetryPolicy" in caplog.text
+        assert (
+            "This model cannot answer ErrorClassification. If it is a decision model, "
+            "use ClassifierRetryPolicy, which asks it a typed question."
+        ) in caplog
 
     def test_no_warning_for_any_instructions(self):
         with warnings.catch_warnings():
