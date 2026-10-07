@@ -126,11 +126,15 @@ def _config(
     extra_rule: tuple[str, int] | None = None,
     allowed_ips=(),
     binaries=("/**",),
+    middlewares=(),
 ):
     config = sandbox_pb2.GetSandboxConfigResponse(
         version=1, policy_source=source, configuration_admitted=admitted
     )
     config.policy.landlock.compatibility = landlock
+    for name in middlewares:
+        # Reading a missing key of a message map adds it.
+        config.policy.network_middlewares[name]
     if hosts or allowed_ips:
         rule = config.policy.network_policies["airflow-egress"]
         rule.name = "airflow-egress"
@@ -381,6 +385,7 @@ class TestCreate:
             (_config(["pypi.org"], proposals=True), "agent_policy_proposals_enabled"),
             (_config(["pypi.org"], landlock="best_effort"), "Landlock"),
             (_config(["pypi.org"], admitted=False), "not admitted"),
+            (_config(["pypi.org"], middlewares=["inspect"]), "network middlewares"),
             (_RpcError(grpc.StatusCode.PERMISSION_DENIED, "config:read"), "PERMISSION_DENIED"),
         ],
         ids=[
@@ -394,6 +399,7 @@ class TestCreate:
             "agent-proposals",
             "landlock-best-effort",
             "not-admitted",
+            "network-middlewares",
             "unreadable",
         ],
     )
@@ -409,6 +415,16 @@ class TestCreate:
 
         client.delete.assert_called_once()
         assert backend._egress == {}
+
+    @pytest.mark.parametrize("code", [grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED])
+    def test_a_policy_read_rides_out_a_restarting_gateway(self, code):
+        backend, client = _backend()
+        client._stub.GetSandboxConfig.side_effect = [_RpcError(code, "restarting"), _config()]
+
+        backend.create(spec=SandboxSpec())
+
+        assert client._stub.GetSandboxConfig.call_count == 2
+        client.delete.assert_not_called()
 
     def test_manual_approval_mode_is_accepted(self):
         backend, client = _backend()
@@ -648,6 +664,17 @@ class TestRunCommand:
 
         client._stub.ExecSandbox.assert_called_once()
 
+    @mock.patch(_MONOTONIC_PATH, side_effect=[0.0, 59.0, 61.0])
+    def test_a_gateway_down_past_the_recovery_window_is_terminal_and_nothing_runs(self, _):
+        backend, client = _backend()
+        client._stub.GetSandboxConfig.side_effect = [_RpcError(grpc.StatusCode.UNAVAILABLE, "down")] * 3
+
+        with pytest.raises(SandboxTerminalError, match="UNAVAILABLE: down"):
+            backend.run_command("box", "true", timeout=5, max_output_bytes=100)
+
+        assert client._stub.GetSandboxConfig.call_count == 2
+        client._stub.ExecSandbox.assert_not_called()
+
     def test_a_handle_created_elsewhere_is_held_to_what_it_admits_when_first_seen(self):
         backend, client = _backend()
         client._stub.GetSandboxConfig.side_effect = [
@@ -714,6 +741,16 @@ class TestFiles:
             backend.read_file("box", "/x", max_bytes=10)
 
         assert not isinstance(error.value, SandboxTerminalError)
+
+    def test_a_hung_file_operation_is_recoverable_and_keeps_the_sandbox(self):
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _Stream([], _RpcError(grpc.StatusCode.DEADLINE_EXCEEDED))
+
+        with pytest.raises(SandboxError, match="did not finish") as error:
+            backend.read_file("box", "/x", max_bytes=10)
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        client.delete.assert_not_called()
 
     def test_write_streams_content_on_stdin_in_chunks(self):
         backend, client = _backend()
