@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.13.0``
+``apache-airflow-providers-common-compat``  ``>=1.17.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``requests``                                ``>=2.32.0,<3``
 ``databricks-sql-connector``                ``>=4.4.0``
