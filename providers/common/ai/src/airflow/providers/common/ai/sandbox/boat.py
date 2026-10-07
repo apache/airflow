@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from boat_sdk.api.boat_api import BoatApi
+    from boat_sdk.models.command_response import CommandResponse
 
     from airflow.providers.common.ai.sandbox.base import SandboxSpec
 
@@ -398,8 +399,14 @@ class BoatSandboxBackend(SandboxBackend):
             max_output_bytes,
             already_truncated=bool(result.stdout_truncated),
         )
+        stderr_text = result.stderr or ""
+        if result.exit_code is None and not result.timed_out:
+            # Boat reports no status when the wrapper shell itself was killed, which also
+            # loses what the command printed; a bare -1 would tell the model nothing.
+            note = self._describe_missing_exit_status(result)
+            stderr_text = f"{stderr_text.rstrip()}\n{note}" if stderr_text.strip() else note
         stderr, err_truncated = _bound_text(
-            result.stderr or "",
+            stderr_text,
             max_output_bytes,
             already_truncated=bool(result.stderr_truncated),
         )
@@ -429,6 +436,15 @@ class BoatSandboxBackend(SandboxBackend):
             stderr_truncated=err_truncated,
             applied_timeout=float(timeout_seconds),
         )
+
+    @staticmethod
+    def _describe_missing_exit_status(result: CommandResponse) -> str:
+        if result.oom_killed:
+            killed_by = f" by {result.signal}" if result.signal else ""
+            return f"The command was killed{killed_by} when the sandbox ran out of memory."
+        if result.signal:
+            return f"The command was killed by {result.signal}."
+        return "The command ended without reporting an exit status."
 
     def _confirm_sandbox_exists(self, sandbox: str) -> None:
         with _translate_boat_errors("confirm that a sandbox still exists"):

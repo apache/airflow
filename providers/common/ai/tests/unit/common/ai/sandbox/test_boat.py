@@ -54,6 +54,8 @@ def _command_response(
     timed_out=False,
     stdout_truncated=False,
     stderr_truncated=False,
+    signal=None,
+    oom_killed=None,
 ):
     """The oneOf wrapper the SDK returns, carrying a real ``CommandResponse``."""
     result = CommandResponse(
@@ -66,6 +68,8 @@ def _command_response(
         stdoutTruncated=stdout_truncated,
         stderrTruncated=stderr_truncated,
         timedOut=timed_out,
+        signal=signal,
+        oomKilled=oom_killed,
     )
     return SimpleNamespace(actual_instance=result)
 
@@ -499,7 +503,37 @@ class TestRunCommand:
 
         assert result.timed_out
         assert result.sandbox_terminated
+        assert result.stderr == ""
         api.delete_sandbox.assert_called_once_with("bx_1", "bx_1", _request_timeout=mock.ANY)
+
+    @pytest.mark.parametrize(
+        ("signal", "oom_killed", "stderr", "expected"),
+        [
+            pytest.param(
+                "SIGKILL",
+                True,
+                "",
+                "The command was killed by SIGKILL when the sandbox ran out of memory.",
+                id="oom_with_signal",
+            ),
+            pytest.param(
+                None, True, "", "The command was killed when the sandbox ran out of memory.", id="oom"
+            ),
+            pytest.param("SIGTERM", None, "boom\n", "boom\nThe command was killed by SIGTERM.", id="signal"),
+            pytest.param(
+                None, None, "", "The command ended without reporting an exit status.", id="no_reason"
+            ),
+        ],
+    )
+    def test_a_missing_exit_status_is_explained(self, signal, oom_killed, stderr, expected):
+        backend, api = _backend_with_api()
+        api.command.return_value = _command_response(
+            exit_code=None, signal=signal, oom_killed=oom_killed, stderr=stderr
+        )
+
+        result = backend.run_command("bx_1", "python big.py", timeout=10, max_output_bytes=1024)
+
+        assert (result.exit_code, result.stderr, result.timed_out) == (-1, expected, False)
 
     def test_boats_own_deadline_with_a_failed_delete_is_terminal(self):
         backend, api = _backend_with_api()
