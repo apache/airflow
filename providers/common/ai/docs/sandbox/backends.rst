@@ -326,7 +326,8 @@ it printed, and the sandbox and its files survive. Boat's own deadline is set
 that asks for more than 585 seconds gets 585, and the result reports that
 deadline. Only when Boat's own deadline ends the call, because the one in the
 guest did not, is the sandbox torn down, as is a sandbox that never becomes
-ready. If the worker dies first, the server-side TTL archives the sandbox rather
+ready. A file read, listing, or write that Boat's deadline ends that way fails
+the task, since there is no sandbox left for the model to retry against. If the worker dies first, the server-side TTL archives the sandbox rather
 than deleting it, preserving its snapshot until an operator removes it.
 
 .. _sandbox-backend-sbx:

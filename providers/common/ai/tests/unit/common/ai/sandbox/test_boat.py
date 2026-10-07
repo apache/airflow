@@ -592,6 +592,42 @@ class TestFiles:
         assert request.timeout_seconds == 120 + 5 + 10
         api.delete_sandbox.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "operation",
+        [
+            pytest.param(lambda backend: backend.read_file("bx_1", "/tmp/x", max_bytes=10), id="read_file"),
+            pytest.param(lambda backend: backend.list_directory("bx_1", "/tmp/x"), id="list_directory"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("response", "expected", "match"),
+        [
+            pytest.param(
+                _command_response(exit_code=None, timed_out=True),
+                SandboxTerminalError,
+                r"ended while '/tmp/x' was being (read|listed)",
+                id="deleted_at_boats_deadline",
+            ),
+            pytest.param(
+                _command_response(exit_code=1, stderr="Permission denied\n"),
+                SandboxError,
+                "Permission denied",
+                id="failed_in_a_live_sandbox",
+            ),
+        ],
+    )
+    def test_a_file_operation_is_terminal_once_boats_deadline_deleted_the_sandbox(
+        self, operation, response, expected, match
+    ):
+        # A retry offered against a deleted sandbox can only fail on its next call.
+        backend, api = _backend_with_api()
+        api.command.return_value = response
+
+        with pytest.raises(SandboxError, match=match) as raised:
+            operation(backend)
+
+        assert type(raised.value) is expected
+
     def test_write_file_uses_base64_and_creates_parents(self):
         backend, api = _backend_with_api()
         api.command.return_value = _command_response()

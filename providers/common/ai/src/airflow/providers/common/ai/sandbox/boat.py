@@ -223,6 +223,7 @@ class BoatSandboxBackend(SandboxBackend):
         self._no_env = no_env
         self._boat_api: BoatApi | None = None
         self._sandbox_env: dict[str, dict[str, str]] = {}
+        self._deleted_at_deadline: set[str] = set()
 
     def _get_api(self) -> BoatApi:
         if self._boat_api is not None:
@@ -357,6 +358,24 @@ class BoatSandboxBackend(SandboxBackend):
             raise SandboxTerminalError(
                 "The Boat command timed out and deletion of its sandbox could not be confirmed."
             ) from e
+        self._deleted_at_deadline.add(sandbox)
+
+    @contextmanager
+    def _terminal_if_deleted_at_deadline(self, sandbox: str, what: str) -> Iterator[None]:
+        """
+        Make a failed file operation terminal when Boat's deadline deleted its sandbox.
+
+        The inherited helpers look only at the exit status, so they would tell the
+        model to retry against a sandbox that no longer exists.
+        """
+        try:
+            yield
+        except SandboxTerminalError:
+            raise
+        except SandboxError as e:
+            if sandbox in self._deleted_at_deadline:
+                raise SandboxTerminalError(f"The sandbox ended while {what}.") from e
+            raise
 
     def run_command(
         self, sandbox: str, command: str, *, timeout: float, max_output_bytes: int
@@ -465,6 +484,14 @@ class BoatSandboxBackend(SandboxBackend):
         state = response.sandbox.state
         if state not in _READY_STATES:
             raise SandboxTerminalError(f"Boat sandbox {sandbox!r} is not runnable (state={state!r}).")
+
+    def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
+        with self._terminal_if_deleted_at_deadline(sandbox, f"{path!r} was being read"):
+            return super().read_file(sandbox, path, max_bytes=max_bytes)
+
+    def list_directory(self, sandbox: str, path: str) -> list[tuple[str, bool]]:
+        with self._terminal_if_deleted_at_deadline(sandbox, f"{path!r} was being listed"):
+            return super().list_directory(sandbox, path)
 
     def write_file(self, sandbox: str, path: str, content: bytes) -> None:
         quoted = shlex.quote(path)
