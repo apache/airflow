@@ -563,7 +563,7 @@ class TestCommands:
             mock_ensure_role_policy.assert_any_call(client, "test-id", role_name, _dry_run=False)
 
         mock_create_permissions.assert_called_once_with(client, "test-id", teams=[], _dry_run=False)
-        for role_name in TEAM_ROLE_NAMES:
+        for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
             mock_attach_scope_policy.assert_any_call(
                 client,
                 "test-id",
@@ -605,6 +605,42 @@ class TestCommands:
                 decision_strategy="AFFIRMATIVE",
                 _dry_run=False,
             )
+        for role_name in ("User", "Op", "Admin", SUPER_ADMIN_ROLE_NAME):
+            mock_attach_resource_policy.assert_any_call(
+                client,
+                "test-id",
+                permission_name="User",
+                policy_name=f"Allow-{role_name}",
+                resource_names=["Dag", "Asset"],
+                decision_strategy="AFFIRMATIVE",
+                _dry_run=False,
+            )
+
+        for role_name in ("Op", "Admin", SUPER_ADMIN_ROLE_NAME):
+            mock_attach_resource_policy.assert_any_call(
+                client,
+                "test-id",
+                permission_name="Op",
+                policy_name=f"Allow-{role_name}",
+                resource_names=["Connection", "Pool", "Variable", "Backfill"],
+                decision_strategy="AFFIRMATIVE",
+                _dry_run=False,
+            )
+        user_permission_policies = {
+            c.kwargs["policy_name"]
+            for c in mock_attach_resource_policy.call_args_list
+            if c.kwargs["permission_name"] == "User"
+        }
+        op_permission_policies = {
+            c.kwargs["policy_name"]
+            for c in mock_attach_resource_policy.call_args_list
+            if c.kwargs["permission_name"] == "Op"
+        }
+
+        assert "Allow-Viewer" not in user_permission_policies
+
+        assert "Allow-Viewer" not in op_permission_policies
+        assert "Allow-User" not in op_permission_policies
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._update_admin_permission_resources")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._update_read_only_permission_resources")
