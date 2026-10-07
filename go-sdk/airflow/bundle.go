@@ -195,7 +195,7 @@ func (m *taskHandlerMap) ListTaskHandlers() []bundle.TaskHandlerInfo {
 	return slices.Clone(m.order)
 }
 
-// dagMap holds the registered Dags by dag_id and keeps the order in which they were registered.
+// dagMap holds the registered Dags by dag_id, in registration order.
 type dagMap struct {
 	mu    sync.Mutex
 	dags  map[string]*DagRef
@@ -225,9 +225,8 @@ func (m *dagMap) has(dagID string) bool {
 	return exists
 }
 
-// serialize serializes the registered Dags in the order they were registered. If serializing a Dag
-// panics, the panic becomes the error of that Dag instead of ending the parse. The import error of
-// the parse then names the Dag.
+// serialize serializes the Dags in registration order. If a Dag panics, the panic becomes that
+// Dag's Err.
 func (m *dagMap) serialize(fileloc, relativeFileloc string) []bundle.SerializedDag {
 	m.mu.Lock()
 	dags := slices.Clone(m.order)

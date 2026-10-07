@@ -418,8 +418,7 @@ func TestSerializeDagsKeepsTheOtherDagsWhenADagCannotBeSerialized(t *testing.T) 
 	etl := Dag("etl")
 	etl.Task(noop)
 	b.Register(etl)
-	// Register checks and expands every Dag it takes. A Dag that skipped Register therefore stands
-	// in for a Dag that the serializer fails on.
+	// A Dag that skipped Register stands in for one the serializer fails on.
 	broken := Dag("broken")
 	b.dags.dags["broken"] = broken
 	b.dags.order = append(b.dags.order, broken)

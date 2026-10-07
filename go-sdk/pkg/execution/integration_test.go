@@ -1361,8 +1361,8 @@ func TestServeFailureAfterConnectClosesComm(t *testing.T) {
 	logsConn := <-logsCh
 	defer logsConn.Close()
 
-	// Serve expects StartupDetails or DagFileParseRequest as the first frame, so it fails to
-	// decode a VariableResult.
+	// Serve expects StartupDetails or DagFileParseRequest first, so it fails to decode a
+	// VariableResult.
 	payload, err := encodeRequest(
 		0,
 		map[string]any{"type": "VariableResult", "key": "k", "value": "v"},

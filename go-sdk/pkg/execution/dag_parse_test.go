@@ -33,8 +33,7 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
-// serializedDags serializes the Dags it holds. It also records the fileloc and relativeFileloc
-// that SerializeDags was called with.
+// serializedDags is a DagSerializer that records the paths it was called with.
 type serializedDags struct {
 	dags              []bundle.SerializedDag
 	fileloc, relative string
@@ -60,8 +59,7 @@ var etlParseRequest = &genmodels.DagFileParseRequest{
 
 func discardLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
 
-// wireJSON passes body through the frame encoding that SendRequest uses and returns the result as
-// JSON. A test then sees the keys, nulls and empty lists that the Dag processor receives.
+// wireJSON returns body as the Dag processor receives it, after the frame encoding of SendRequest.
 func wireJSON(t *testing.T, body any) string {
 	t.Helper()
 	payload, err := encodeRequest(0, body)

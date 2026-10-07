@@ -20,11 +20,8 @@
 // the Airflow supervisor (Python ExecutableCoordinator), the Serve method of
 // airflow.BundleRef dispatches here.
 //
-// The first frame that the runtime reads on the comm socket decides what the
-// runtime does. After a StartupDetails message, the runtime runs a task over
-// several rounds of messages. After a DagFileParseRequest from the Dag
-// processor, the runtime runs no task. It answers with one DagFileParsingResult
-// that holds the Dags from airflow.Dag that the bundle registered.
+// The first frame on the comm socket picks the mode: StartupDetails runs one
+// task, and DagFileParseRequest is answered with the bundle's serialized Dags.
 //
 // See go-sdk/adr/0003-coordinator-protocol-msgpack-ipc.md.
 package execution

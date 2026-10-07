@@ -71,9 +71,8 @@ type DagRef struct {
 // [IfRef.Then], [IfRef.Else], [SwitchRef.Case] and the methods of [TaskGroupRef] panic once the Dag
 // is registered.
 //
-// When the Dag processor asks to parse the bundle, [BundleRef.Serve] answers with the registered
-// Dags in serialized form. Serve does not yet list these Dags in the --airflow-metadata manifest or
-// run their tasks.
+// [BundleRef.Serve] sends the registered Dags to the Dag processor, but does not yet list them in
+// the --airflow-metadata manifest or run their tasks.
 //
 // Dag panics if it gets more than one DagSpec, or if the DagSpec has a value that Python rejects
 // when it builds or validates a Dag:

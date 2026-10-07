@@ -220,9 +220,8 @@ func TestServeHelpIsNotAnError(t *testing.T) {
 	assert.Contains(t, stdout.String(), "--airflow-metadata")
 }
 
-// serveForSupervisor runs b.serve with --comm and --logs, the same flags that Airflow starts the
-// bundle with. It returns the supervisor's end of the comm socket and the channel that gets what
-// serve returns.
+// serveForSupervisor runs b.serve with --comm and --logs and returns the supervisor's end of the
+// comm socket and the channel that gets what serve returns.
 func serveForSupervisor(t *testing.T, b *BundleRef) (*execution.CoordinatorComm, <-chan error) {
 	t.Helper()
 	commLn, err := net.Listen("tcp", "127.0.0.1:0")
@@ -294,8 +293,7 @@ func TestServeRunsTaskForSupervisor(t *testing.T) {
 	assert.True(t, ran)
 }
 
-// To parse the bundle, the Dag processor starts it with --comm and --logs and then sends a
-// DagFileParseRequest over the comm socket.
+// The Dag processor sends a DagFileParseRequest instead of StartupDetails.
 func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
 	var ran []string
 	record := func(name string) func(Context) error {
