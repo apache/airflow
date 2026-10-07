@@ -43,13 +43,11 @@ from airflow.dag_processing.lang_sdk_processor import (
     LangSDKDagFileProcessorProcess,
     LangSDKRuntimeSchemaVersion,
     _get_import_timeout,
-    _StderrExcerpt,
 )
 from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.sdk import DAG, BaseOperator, task
-from airflow.sdk._shared.secrets_masker import _secrets_masker as sdk_secrets_masker
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import VariableResponse
 from airflow.sdk.exceptions import AirflowRuntimeError
@@ -115,18 +113,6 @@ def _stops_running(pid: int, timeout: float = 10) -> bool:
             return False
         time.sleep(0.05)
     return True
-
-
-@contextlib.contextmanager
-def _masked_secret(secret: str):
-    """Register *secret* with the masker of the parse log, and restore the masker's state afterwards."""
-    masker = sdk_secrets_masker()
-    patterns, replacer = set(masker.patterns), masker.replacer
-    masker.add_mask(secret)
-    try:
-        yield
-    finally:
-        masker.patterns, masker.replacer = patterns, replacer
 
 
 @pytest.fixture(autouse=True)
@@ -364,32 +350,6 @@ class TestLangSDKDagFileProcessorProcess:
         assert proc.parsing_result.serialized_dags == []
         assert proc.parsing_result.import_errors == {"dag.native": error}
 
-    def test_an_exit_without_a_result_shows_the_stderr_output(self, parse):
-        runtime = (
-            "import sys; sys.stdout.write('not on stderr\\n'); "
-            "sys.stderr.write('panic: Dag \"etl\" is already registered\\n\\ngoroutine 1 [running]:\\n'); "
-            "sys.exit(2)"
-        )
-
-        proc = parse(argv=[sys.executable, "-c", runtime])
-
-        assert proc.parsing_result.import_errors == {
-            "dag.native": "The Lang-SDK runtime exited with code 2 without a parse result. "
-            'Its stderr output:\npanic: Dag "etl" is already registered\n\ngoroutine 1 [running]:'
-        }
-
-    @pytest.mark.enable_redact
-    def test_an_exit_without_a_result_masks_the_secrets_in_stderr(self, parse):
-        runtime = "import sys; sys.stderr.write('panic: native-secret-value\\n'); sys.exit(2)"
-
-        with _masked_secret("native-secret-value"):
-            proc = parse(argv=[sys.executable, "-c", runtime])
-
-        assert proc.parsing_result.import_errors == {
-            "dag.native": "The Lang-SDK runtime exited with code 2 without a parse result. "
-            "Its stderr output:\npanic: ***"
-        }
-
     @pytest.mark.parametrize(
         ("mapping", "error"),
         [
@@ -578,85 +538,6 @@ class TestLangSDKDagFileProcessorProcess:
 
         assert sorted(fds) == ["0", "1", "2"], fds
         assert fds["0"] == "/dev/null"
-
-
-def _render_excerpt(stderr: bytes) -> str:
-    excerpt = _StderrExcerpt()
-    for line in stderr.splitlines(keepends=True):
-        excerpt.add(line)
-    return excerpt.render()
-
-
-class TestStderrExcerpt:
-    @pytest.mark.parametrize(
-        ("stderr", "shown"),
-        [
-            pytest.param(
-                b'panic: Dag "etl" is already registered\n\ngoroutine 1 [running]:\n',
-                'panic: Dag "etl" is already registered\n\ngoroutine 1 [running]:',
-                id="all-lines",
-            ),
-            pytest.param(
-                b"".join(b"line %d\n" % i for i in range(25)),
-                "\n".join(
-                    [
-                        *(f"line {i}" for i in range(5)),
-                        "... 5 lines omitted ...",
-                        *(f"line {i}" for i in range(10, 25)),
-                    ]
-                ),
-                id="first-and-last-lines",
-            ),
-            pytest.param(
-                b"".join(b"line %d\n" % i for i in range(21)),
-                "\n".join(
-                    [
-                        *(f"line {i}" for i in range(5)),
-                        "... 1 line omitted ...",
-                        *(f"line {i}" for i in range(6, 21)),
-                    ]
-                ),
-                id="one-line-omitted",
-            ),
-            pytest.param(b"a" * 1200 + b"\n", "a" * 1000 + "\N{HORIZONTAL ELLIPSIS}", id="long-line"),
-            pytest.param(b"\n\npanic: x  \r\n\n", "panic: x", id="blank-lines-and-trailing-spaces"),
-            pytest.param(b"\tat frame\n", "\tat frame", id="indented-first-line"),
-            pytest.param(
-                b"bad \xff \xce\xbb\n",
-                "bad \N{REPLACEMENT CHARACTER} \u03bb",
-                id="not-utf-8",
-            ),
-            pytest.param(b"nul\x00byte\n", "nul\N{REPLACEMENT CHARACTER}byte", id="nul"),
-            pytest.param(b"\n\n", "", id="only-blank-lines"),
-        ],
-    )
-    def test_render(self, stderr, shown):
-        assert _render_excerpt(stderr) == shown
-
-    @pytest.mark.enable_redact
-    @pytest.mark.parametrize(
-        ("secret", "stderr", "shown"),
-        [
-            pytest.param(
-                "native-secret-value",
-                b"x" * 990 + b"native-secret-value\n",
-                "x" * 990 + "***",
-                id="across-the-cut",
-            ),
-            pytest.param("k" * 1500, b"key " + b"k" * 1500 + b"\n", "key ***", id="longer-than-the-cut"),
-        ],
-    )
-    def test_render_hides_a_secret_before_it_cuts_the_line(self, secret, stderr, shown):
-        with _masked_secret(secret):
-            assert _render_excerpt(stderr) == shown
-
-    @pytest.mark.enable_redact
-    def test_render_hides_a_secret_masked_after_its_line(self):
-        excerpt = _StderrExcerpt()
-        excerpt.add(b"panic: late-secret-value\n")
-
-        with _masked_secret("late-secret-value"):
-            assert excerpt.render() == "panic: ***"
 
 
 class TestRun:

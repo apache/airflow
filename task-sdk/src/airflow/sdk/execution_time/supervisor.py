@@ -1071,16 +1071,10 @@ class WatchedSubprocess:
             for log in loggers
         )
         return make_buffered_socket_reader(
-            self._create_line_forwarder(loggers, name, log_level),
+            forward_to_log(loggers, logger=name, level=log_level),
             data=data,
             on_close=self._on_socket_closed,
         )
-
-    def _create_line_forwarder(
-        self, loggers: tuple[FilteringBoundLogger, ...], name: str, level: int
-    ) -> Generator[None, bytes | bytearray, None]:
-        """Create the generator that logs each line of the child's output stream named *name*."""
-        return forward_to_log(loggers, logger=name, level=level)
 
     def _on_socket_closed(self, sock: socket):
         # We want to keep servicing this process until we've read up to EOF from all the sockets.
