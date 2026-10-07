@@ -63,6 +63,8 @@ permit (
 );
 """
 
+TEST_REQUEST_ID = "ONELOGIN_authn_request_id"
+
 
 def create_avp_policy_store(env_id):
     description = f"Created by system test TestAwsAuthManager: {env_id}"
@@ -125,6 +127,7 @@ def base_app(region_name, avp_policy_store_id):
             ("aws_auth_manager", "region_name"): region_name,
             ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             ("aws_auth_manager", "avp_policy_store_id"): avp_policy_store_id,
+            ("api", "ssl_cert"): "",
         }
     ):
         with (
@@ -137,30 +140,42 @@ def base_app(region_name, avp_policy_store_id):
             yield mock_init_saml_auth
 
 
-@pytest.fixture
-def client_no_permissions(base_app):
+def _saml_auth_mock(nameid: str, attributes: dict) -> Mock:
     auth = Mock()
     auth.is_authenticated.return_value = True
-    auth.get_nameid.return_value = "user_no_permissions"
-    auth.get_attributes.return_value = {
-        "id": ["user_no_permissions"],
-        "groups": [],
-        "email": ["email"],
-    }
-    base_app.return_value = auth
+    auth.get_nameid.return_value = nameid
+    auth.get_attributes.return_value = attributes
+    auth.login.return_value = SAML_METADATA_PARSED["idp"]["singleSignOnService"]["url"]
+    auth.get_last_request_id.return_value = TEST_REQUEST_ID
+    return auth
+
+
+def _complete_login(client: TestClient, saml_auth: Mock, login_path: str):
+    """Make the whole login round trip and return the callback response."""
+    client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + login_path, follow_redirects=False)
+    relay_state = saml_auth.login.call_args[0][0]
+    return client.post(
+        AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback",
+        follow_redirects=False,
+        data={"RelayState": relay_state},
+    )
+
+
+@pytest.fixture
+def client_no_permissions(base_app):
+    base_app.return_value = _saml_auth_mock(
+        "user_no_permissions",
+        {"id": ["user_no_permissions"], "groups": [], "email": ["email"]},
+    )
     return TestClient(create_app())
 
 
 @pytest.fixture
 def client_admin_permissions(base_app):
-    auth = Mock()
-    auth.is_authenticated.return_value = True
-    auth.get_nameid.return_value = "user_admin_permissions"
-    auth.get_attributes.return_value = {
-        "id": ["user_admin_permissions"],
-        "groups": ["Admin"],
-    }
-    base_app.return_value = auth
+    base_app.return_value = _saml_auth_mock(
+        "user_admin_permissions",
+        {"id": ["user_admin_permissions"], "groups": ["Admin"]},
+    )
     return TestClient(create_app())
 
 
@@ -191,23 +206,15 @@ class TestAwsAuthManager:
         for policy_store_id in policy_store_ids:
             client.delete_policy_store(policyStoreId=policy_store_id)
 
-    def test_login_admin_redirect(self, client_admin_permissions):
-        response = client_admin_permissions.post(
-            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback",
-            follow_redirects=False,
-            data={"RelayState": "login-redirect"},
-        )
+    def test_login_admin_redirect(self, base_app, client_admin_permissions):
+        response = _complete_login(client_admin_permissions, base_app.return_value, "/login")
         token = response.cookies.get(COOKIE_NAME_JWT_TOKEN)
         assert response.status_code == 303
         assert "location" in response.headers
         assert response.headers["location"] == "/"
         assert token is not None
 
-    def test_login_admin_token(self, client_admin_permissions):
-        response = client_admin_permissions.post(
-            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback",
-            follow_redirects=False,
-            data={"RelayState": "login-token"},
-        )
+    def test_login_admin_token(self, base_app, client_admin_permissions):
+        response = _complete_login(client_admin_permissions, base_app.return_value, "/login/token")
         assert response.status_code == 200
         assert response.json()["access_token"]
