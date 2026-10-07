@@ -1,0 +1,9 @@
+Task ``start_date`` and ``end_date`` now only limit scheduled Dag runs
+
+A Dag run whose ``logical_date`` falls outside a task's ``start_date`` or ``end_date`` used to get no task
+instance for that task, so a manual run of a Dag whose ``start_date`` is in the future finished as success
+without running anything. Manual runs, runs created by ``TriggerDagRunOperator`` and asset materialization
+runs now create every task, as backfills already did. Only scheduled runs are still limited by these dates.
+
+A task whose ``end_date`` has passed now also runs in manual runs. Remove the task from the Dag if it
+should no longer run at all.
