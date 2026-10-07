@@ -1257,7 +1257,11 @@ async def get_previous_successful_dagrun(
     return PrevSuccessfulDagRunResponse.model_validate(dag_run)
 
 
-@router.get("/count", status_code=status.HTTP_200_OK)
+@router.get(
+    "/count",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([(status.HTTP_404_NOT_FOUND, "Task group not found")]),
+)
 def get_task_instance_count(
     dag_id: str,
     session: SessionDep,
@@ -1366,7 +1370,11 @@ async def get_previous_task_instance(
     )
 
 
-@router.get("/states", status_code=status.HTTP_200_OK)
+@router.get(
+    "/states",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([(status.HTTP_404_NOT_FOUND, "Task group not found")]),
+)
 def get_task_instance_states(
     dag_id: str,
     session: SessionDep,

@@ -4297,6 +4297,7 @@ export class TaskStateStoreService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -5535,6 +5536,7 @@ export class CalendarService {
                 partition_date_lt: data.partitionDateLt
             },
             errors: {
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
