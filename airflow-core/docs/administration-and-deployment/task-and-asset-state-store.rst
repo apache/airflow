@@ -97,7 +97,7 @@ A separate, optional config key under ``[workers]`` lets you route task state st
     [workers]
     state_store_backend = mypackage.state.S3StateBackend
 
-When this is set, ``TaskStateStoreAccessor.set()`` calls ``serialize_task_state_store_to_ref()`` on the worker-side backend before sending the returned value (a reference to the actual storage) to the Execution API, and ``get()`` calls ``deserialize_task_state_store_from_ref()`` after receiving the stored reference from the Execution API. See `Custom worker-side backends`_ below.
+When this is set, ``TaskStateStoreAccessor.set()`` calls ``serialize_task_state_store_to_ref()`` on the worker-side backend. If the backend returns a reference to the actual storage, only that reference is sent to the Execution API, and ``get()`` calls ``deserialize_task_state_store_from_ref()`` to resolve it. If the backend returns ``None``, the value is stored in the database as plain JSON, as it is without a worker-side backend. See `Custom worker-side backends`_ below.
 
 
 Garbage collection semantics
@@ -175,14 +175,18 @@ Configure the class via ``[state_store] backend``:
 Custom worker-side backends
 ----------------------------
 
-Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_store_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
+Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_store_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure, keeping only a compact reference string in the database for those values.
 
 Override four serialization hooks from :class:`~airflow.sdk.state.BaseStoreBackend`:
 
-* ``serialize_task_state_store_to_ref``: called by ``TaskStateStoreAccessor.set()`` before the value is sent to the Execution API; return a compact reference string (e.g. an S3 key) to be stored in the database instead of the raw value.
+* ``serialize_task_state_store_to_ref``: called by ``TaskStateStoreAccessor.set()`` before the value is sent to the Execution API; return a compact reference string (e.g. an S3 key) to be stored in the database instead of the raw value, or ``None`` to store the value itself in the database.
 * ``deserialize_task_state_store_from_ref``: called by ``TaskStateStoreAccessor.get()`` after retrieving the reference from the backend; return the actual value.
 * ``serialize_asset_state_store_to_ref``: same as the task variant but for asset state store; receives the asset scope as ``scope`` (an :class:`~airflow.sdk.state.AssetScope` with ``name`` and/or ``uri``).
 * ``deserialize_asset_state_store_from_ref``: called by ``AssetStateStoreAccessor.get()`` to resolve the stored reference back to the actual value.
+
+Airflow stores a reference in the database as ``{"__airflow_state_ref__": "<reference>"}``, which is what the UI and REST API show for that key, and passes only the inner string to the ``deserialize_*`` hook. A value kept inline (the hook returned ``None``) is stored and shown as itself, so returning ``None`` for small values keeps them readable and editable in the UI while large values go to external storage. The skeleton below does this with a size threshold.
+
+Older Airflow versions wrap every return value as a reference, including ``None``, and their default ``serialize_*`` hooks return the JSON-encoded value. A backend that also runs on those versions should return ``super().serialize_task_state_store_to_ref(value=value, key=key, scope=scope)`` (or the asset variant) for values it keeps inline: it returns ``None`` where inline storage is supported and the JSON string where it is not.
 
 .. important::
 
@@ -199,6 +203,9 @@ Example skeleton:
     if TYPE_CHECKING:
         from pydantic import JsonValue
 
+    # Values smaller than this stay in the metadata database; larger ones go to S3.
+    THRESHOLD_BYTES = 1024
+
 
     class S3StateBackend(BaseStoreBackend):
 
@@ -212,18 +219,28 @@ Example skeleton:
             safe = hashlib.sha256(asset_identifier.encode()).hexdigest()[:16]
             return f"airflow/asset-store/{safe}/{key}"
 
-        def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
+        def serialize_task_state_store_to_ref(
+            self, *, value: JsonValue, key: str, scope: TaskScope
+        ) -> str | None:
+            payload = json.dumps(value).encode()
+            if len(payload) < THRESHOLD_BYTES:
+                return None  # small enough to keep in the database
             s3_key = self._task_ref(scope, key)
-            s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
+            s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=payload)
             return s3_key
 
         def deserialize_task_state_store_from_ref(self, stored: str) -> JsonValue:
             s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
             return json.loads(s3_object["Body"].read().decode())
 
-        def serialize_asset_state_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
+        def serialize_asset_state_store_to_ref(
+            self, *, value: JsonValue, key: str, scope: AssetScope
+        ) -> str | None:
+            payload = json.dumps(value).encode()
+            if len(payload) < THRESHOLD_BYTES:
+                return None  # small enough to keep in the database
             s3_key = self._asset_ref(scope, key)
-            s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
+            s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=payload)
             return s3_key
 
         def deserialize_asset_state_store_from_ref(self, stored: str) -> JsonValue:

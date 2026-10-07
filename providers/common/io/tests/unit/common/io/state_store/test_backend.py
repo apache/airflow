@@ -35,7 +35,7 @@ from airflow.providers.common.io.state_store.backend import (
     _write_to_object_storage,
 )
 from airflow.sdk import ObjectStoragePath
-from airflow.sdk.state import AssetScope, TaskScope
+from airflow.sdk.state import AssetScope, BaseStoreBackend, TaskScope
 
 from tests_common.test_utils.config import conf_vars
 
@@ -239,7 +239,20 @@ class TestStateStoreObjectStorageBackend:
             ref = store.serialize_asset_state_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
             assert ref.startswith("file://")
 
-    def test_task_serialize_to_db_when_below_threshold(self, task_scope, base_path):
+    @pytest.mark.parametrize(
+        ("kind", "scope_fixture"),
+        [pytest.param("task", "task_scope", id="task"), pytest.param("asset", "asset_scope", id="asset")],
+    )
+    @pytest.mark.parametrize(
+        "base_default",
+        [pytest.param(None, id="sdk-keeps-inline"), pytest.param('{"x": 1}', id="sdk-wraps-every-return")],
+    )
+    def test_serialize_below_threshold_returns_base_default(
+        self, request, kind, scope_fixture, base_default, base_path
+    ):
+        """Below the threshold the backend defers to the installed SDK's default instead of offloading."""
+        scope = request.getfixturevalue(scope_fixture)
+        method = f"serialize_{kind}_state_store_to_ref"
         with conf_vars(
             {
                 ("common.io", "state_store_objectstorage_path"): base_path,
@@ -248,22 +261,18 @@ class TestStateStoreObjectStorageBackend:
         ):
             backend._get_threshold.cache_clear()
             store = StateStoreObjectStorageBackend()
-            ref = store.serialize_task_state_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
-            assert not ref.startswith("file://")
-            assert store.deserialize_task_state_store_from_ref(ref) == {"x": 1}
+            with mock.patch.object(
+                BaseStoreBackend, method, autospec=True, return_value=base_default
+            ) as base_method:
+                ref = getattr(store, method)(value={"x": 1}, key="k", scope=scope)
 
-    def test_asset_serialize_to_db_when_below_threshold(self, asset_scope, base_path):
-        with conf_vars(
-            {
-                ("common.io", "state_store_objectstorage_path"): base_path,
-                ("common.io", "state_store_objectstorage_threshold"): "10000",
-            }
-        ):
-            backend._get_threshold.cache_clear()
-            store = StateStoreObjectStorageBackend()
-            ref = store.serialize_asset_state_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
-            assert not ref.startswith("file://")
-            assert store.deserialize_asset_state_store_from_ref(ref) == {"x": 1}
+        assert ref == base_default
+        base_method.assert_called_once_with(store, value={"x": 1}, key="k", scope=scope)
+
+    def test_deserialize_decodes_inline_json_from_older_versions(self, store):
+        """Rows written before inline storage hold the JSON-encoded value instead of a storage path."""
+        assert store.deserialize_task_state_store_from_ref('{"x": 1}') == {"x": 1}
+        assert store.deserialize_asset_state_store_from_ref('{"x": 1}') == {"x": 1}
 
     def test_negative_threshold_raises(self, base_path):
         with conf_vars(

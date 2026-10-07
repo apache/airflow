@@ -86,25 +86,13 @@ class TestBaseStoreBackend:
         expected = {"get", "set", "delete", "clear", "aget", "aset", "adelete", "aclear"}
         assert BaseStoreBackend.__abstractmethods__ == expected
 
-    def test_task_state_store_serialize_deserialize_round_trip(self, backend):
-        original = "app_1234"
+    def test_task_state_store_default_serialize_keeps_value_inline(self, backend):
         scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=-1)
-        serialized = backend.serialize_task_state_store_to_ref(value=original, key="job_id", scope=scope)
-        deserialized = backend.deserialize_task_state_store_from_ref(serialized)
-        assert deserialized == original
+        assert backend.serialize_task_state_store_to_ref(value={"status": "ok"}, key="k", scope=scope) is None
 
-    def test_task_state_store_serialize_deserialize_typed_values(self, backend):
-        """Default backend passes typed values through unchanged (custom backends handle storage)."""
-        scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=-1)
-        assert (
-            backend.deserialize_task_state_store_from_ref(
-                backend.serialize_task_state_store_to_ref(value=42, key="count", scope=scope)
-            )
-            == 42
-        )
-        assert backend.deserialize_task_state_store_from_ref(
-            backend.serialize_task_state_store_to_ref(value={"status": "ok"}, key="result", scope=scope)
-        ) == {"status": "ok"}
+    def test_task_state_store_default_deserialize_decodes_legacy_inline_json(self, backend):
+        """Rows written before inline storage existed hold the JSON-encoded value as the reference."""
+        assert backend.deserialize_task_state_store_from_ref('{"status": "ok"}') == {"status": "ok"}
 
     def test_custom_backend_overrides_task_state_store_ser_deser(self):
         class MyBackend(BaseStoreBackend):
@@ -133,26 +121,13 @@ class TestBaseStoreBackend:
             == "fetched:s3://bucket/my_dag/my_task/job_id"
         )
 
-    def test_asset_state_store_serialize_deserialize_round_trip(self, backend):
-        original = "2026-05-01"
+    def test_asset_state_store_default_serialize_keeps_value_inline(self, backend):
         scope = AssetScope(name="my_asset")
-        serialized = backend.serialize_asset_state_store_to_ref(
-            value="2026-05-01", key="watermark", scope=scope
-        )
-        deserialized = backend.deserialize_asset_state_store_from_ref(serialized)
-        assert deserialized == original
+        assert backend.serialize_asset_state_store_to_ref(value="2026-05-01", key="k", scope=scope) is None
 
-    def test_asset_state_store_serialize_deserialize_typed_values(self, backend):
-        scope = AssetScope(name="my_asset")
-        assert (
-            backend.deserialize_asset_state_store_from_ref(
-                backend.serialize_asset_state_store_to_ref(value=5, key="total_runs", scope=scope)
-            )
-            == 5
-        )
-        assert backend.deserialize_asset_state_store_from_ref(
-            backend.serialize_asset_state_store_to_ref(value={"rows": 1234}, key="last_run", scope=scope)
-        ) == {"rows": 1234}
+    def test_asset_state_store_default_deserialize_decodes_legacy_inline_json(self, backend):
+        """Rows written before inline storage existed hold the JSON-encoded value as the reference."""
+        assert backend.deserialize_asset_state_store_from_ref('"2026-05-01"') == "2026-05-01"
 
     def test_custom_backend_overrides_asset_state_store_ser_deser(self):
         class MyBackend(BaseStoreBackend):

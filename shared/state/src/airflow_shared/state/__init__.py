@@ -248,62 +248,72 @@ class BaseStoreBackend(ABC):
         ``[state_store] default_retention_days``) and deciding what to delete.
         """
 
-    def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
+    def serialize_task_state_store_to_ref(
+        self, *, value: JsonValue, key: str, scope: TaskScope
+    ) -> str | None:
         """
-        Serialize a task state store value before it is sent to the execution API for db persistence.
+        Store a task state store value externally and return a reference, or ``None`` to keep it inline.
 
-        Called by ``TaskStateStoreAccessor.set()`` on the worker. The return value is what gets
-        stored in the DB — typically a reference path (e.g. an S3 key) rather than the
-        actual value. Default: return ``value`` unchanged.
+        Called on the worker by ``TaskStateStoreAccessor.set()``
+        before the value is sent to the Execution API.
 
-        **Important:** return only the raw reference string. The worker framework automatically
-        wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
-        that wrapper before passing ``stored`` to ``deserialize_task_state_store_from_ref()``. Do not
-        wrap the reference yourself.
+        * Return a reference string (e.g. an S3 key) to keep only that reference in the DB. The
+          worker framework wraps it in ``{"__airflow_state_ref__": "<ref>"}`` and strips that
+          wrapper before passing it to ``deserialize_task_state_store_from_ref()``. Do not wrap
+          the reference yourself.
+        * Return ``None`` to store ``value`` in the DB as plain JSON, as when no worker backend is
+          configured. ``get()`` returns it without calling
+          ``deserialize_task_state_store_from_ref()``, and the UI and REST API show the value
+          itself. Use this for values too small to be worth offloading.
 
         The returned reference must be deterministic — given the same ``scope`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
-        object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
+        object will be orphaned. Default: return ``None``.
         """
-        return json.dumps(value)
+        return None
 
     def deserialize_task_state_store_from_ref(self, stored: str) -> JsonValue:
         """
         Resolve a stored task state store reference back to the actual value.
 
-        Called by ``TaskStateStoreAccessor.get()`` after the stored string is retrieved from
-        the execution API. By default, it JSON decodes ``stored`` to reverse the default
-        ``serialize_task_state_store_to_ref`` encoding.
+        Called by ``TaskStateStoreAccessor.get()`` with the reference returned by
+        ``serialize_task_state_store_to_ref()``. By default, it JSON decodes ``stored``, which
+        reads values that earlier Airflow versions kept inline inside the reference wrapper.
         """
         return json.loads(stored)
 
-    def serialize_asset_state_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
+    def serialize_asset_state_store_to_ref(
+        self, *, value: JsonValue, key: str, scope: AssetScope
+    ) -> str | None:
         """
-        Serialize an asset state store value before it is sent to the Execution API for db persistence.
+        Store an asset state store value externally and return a reference, or ``None`` to keep it inline.
 
-        Called by ``AssetStateStoreAccessor.set()`` on the worker. The return value is what gets
-        stored in the DB — typically a reference path rather than the actual value.
-        Default: return ``value`` unchanged.
+        Called on the worker by ``AssetStateStoreAccessor.set()``
+        before the value is sent to the Execution API.
 
-        **Important:** return only the raw reference string. The worker framework automatically
-        wraps it in ``{"__airflow_state_ref__": "<ref>"}`` before writing to the DB, and strips
-        that wrapper before passing ``stored`` to ``deserialize_asset_state_store_from_ref()``. Do not
-        wrap the reference yourself.
+        * Return a reference string (e.g. an S3 key) to keep only that reference in the DB. The
+          worker framework wraps it in ``{"__airflow_state_ref__": "<ref>"}`` and strips that
+          wrapper before passing it to ``deserialize_asset_state_store_from_ref()``. Do not wrap
+          the reference yourself.
+        * Return ``None`` to store ``value`` in the DB as plain JSON, as when no worker backend is
+          configured. ``get()`` returns it without calling
+          ``deserialize_asset_state_store_from_ref()``, and the UI and REST API show the value
+          itself. Use this for values too small to be worth offloading.
 
         The returned reference must be deterministic — given the same ``scope`` and ``key`` it
         must always return the same string. Do not use timestamps or random UUIDs as part of
         the reference, otherwise ``delete()``/``clear()`` cannot reconstruct it and the external
-        object will be orphaned. By default, it JSON dumps the value and returns a JSON string.
+        object will be orphaned. Default: return ``None``.
         """
-        return json.dumps(value)
+        return None
 
     def deserialize_asset_state_store_from_ref(self, stored: str) -> JsonValue:
         """
         Resolve a stored asset state store reference back to the actual value.
 
-        Called by ``AssetStateStoreAccessor.get()`` after the stored string is retrieved from
-        the Execution API. By default, it JSON decodes ``stored`` to reverse the default
-        ``serialize_asset_state_store_to_ref`` encoding.
+        Called by ``AssetStateStoreAccessor.get()`` with the reference returned by
+        ``serialize_asset_state_store_to_ref()``. By default, it JSON decodes ``stored``, which
+        reads values that earlier Airflow versions kept inline inside the reference wrapper.
         """
         return json.loads(stored)
