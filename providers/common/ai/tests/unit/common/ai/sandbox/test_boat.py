@@ -86,6 +86,30 @@ def _created(sandbox_id: str):
     return SimpleNamespace(sandbox=SimpleNamespace(id=sandbox_id))
 
 
+def _answer_creates(clock, *answers, seconds: float = 0.0):
+    """
+    Side effect for ``api.create`` that gives each answer in turn.
+
+    An HTTP timeout surfaces only once the call's whole ``_request_timeout`` has
+    passed on ``clock``, as it does in urllib3; any other answer takes ``seconds``.
+    """
+    pending = iter(answers)
+
+    def create(**kwargs):
+        answer = next(pending)
+        timed_out = isinstance(answer, urllib3.exceptions.TimeoutError)
+        clock[0] += kwargs["_request_timeout"] if timed_out else seconds
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    return create
+
+
+def _read_timeout() -> urllib3.exceptions.ReadTimeoutError:
+    return urllib3.exceptions.ReadTimeoutError(None, "/sandboxes", "timed out")
+
+
 def _http_response(status: int, payload: dict) -> urllib3.HTTPResponse:
     return urllib3.HTTPResponse(
         body=json.dumps(payload).encode(), status=status, headers={"content-type": "application/json"}
@@ -196,10 +220,10 @@ def test_request_timeout_bounds_every_api_call(clock):
         return [call.kwargs["_request_timeout"] for call in method.call_args_list]
 
     # A call that waits on an operation gets the operation's time plus request_timeout.
-    assert sent(api.create) == [45 + 12.5]
     assert sent(api.command) == [1 + 15 + 12.5, 120 + 15 + 12.5]
     assert sent(api.write_file) == [120 + 12.5]
     # One that answers at once gets request_timeout alone.
+    assert sent(api.create) == [12.5]
     assert sent(api.update) == [12.5]
     assert sent(api.get_without_preload_content) == [12.5, 12.5]
     assert sent(api.delete_sandbox) == [12.5]
@@ -439,15 +463,17 @@ class TestCreate:
     @pytest.mark.parametrize(
         "lost",
         [
-            pytest.param(urllib3.exceptions.ReadTimeoutError(None, "/sandboxes", "timed out"), id="timeout"),
+            pytest.param(_read_timeout(), id="timeout"),
             pytest.param(urllib3.exceptions.ProtocolError("Connection aborted."), id="transport"),
             pytest.param(_api_error(502), id="server_error"),
+            # How boat-sdk reports a TLS failure.
+            pytest.param(_api_error(0), id="tls_failure"),
         ],
     )
     def test_a_lost_create_answer_is_retried_with_the_same_key(self, clock, lost):
         backend, api = _backend_with_api()
         # Boat answers a repeated key and body with the sandbox the first request created.
-        api.create.side_effect = [lost, _created("bx_created1")]
+        api.create.side_effect = _answer_creates(clock, lost, _created("bx_created1"))
         api.get_without_preload_content.return_value = _sandbox_info("ready")
 
         assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_created1"
@@ -460,7 +486,7 @@ class TestCreate:
     @pytest.mark.parametrize(
         "retry_error",
         [
-            pytest.param(urllib3.exceptions.ReadTimeoutError(None, "/sandboxes", "timed out"), id="timeout"),
+            pytest.param(_read_timeout(), id="timeout"),
             pytest.param(_api_error(503), id="server_error"),
             pytest.param(
                 _api_error(409, json.dumps({"error": {"code": "idempotency_key_reused"}})), id="key_reused"
@@ -469,7 +495,7 @@ class TestCreate:
     )
     def test_a_create_whose_retry_also_fails_is_terminal(self, clock, retry_error):
         backend, api = _backend_with_api()
-        api.create.side_effect = [_api_error(503), retry_error]
+        api.create.side_effect = _answer_creates(clock, _api_error(503), retry_error)
 
         with pytest.raises(SandboxTerminalError, match="create a sandbox"):
             backend.create(spec=SandboxSpec(block_network=False))
@@ -506,29 +532,55 @@ class TestCreate:
         assert clock[0] == elapsed
 
     def test_provisioning_shares_one_ready_timeout_deadline(self, clock):
-        backend, api = _backend_with_api(ready_timeout=10, request_timeout=30)
-        answers = iter([urllib3.exceptions.ProtocolError("Connection aborted."), _created("bx_slow01")])
-
-        def slow_create(**_kwargs):
-            clock[0] += 3
-            answer = next(answers)
-            if isinstance(answer, Exception):
-                raise answer
-            return answer
-
-        api.create.side_effect = slow_create
+        backend, api = _backend_with_api(ready_timeout=10, request_timeout=4)
+        api.create.side_effect = _answer_creates(clock, _read_timeout(), _created("bx_slow01"), seconds=3)
         api.get_without_preload_content.return_value = _sandbox_info("provisioning")
 
         with pytest.raises(SandboxTerminalError, match="not ready within 10 seconds"):
             backend.create(spec=SandboxSpec(block_network=False))
 
-        # The retry and the polls get what is left, so provisioning ends at ready_timeout;
-        # only an HTTP call that waits on Boat gets request_timeout on top.
-        assert [call.kwargs["_request_timeout"] for call in api.create.call_args_list] == [10 + 30, 7 + 30]
-        assert [
-            call.kwargs["_request_timeout"] for call in api.get_without_preload_content.call_args_list
-        ] == [4.0, 2.0]
+        def sent(method):
+            return [call.kwargs["_request_timeout"] for call in method.call_args_list]
+
+        # The first request gets request_timeout, which leaves time to retry it. The retry,
+        # the rename and the polls get what is left, so provisioning ends at ready_timeout;
+        # only the retry gets request_timeout on top.
+        assert sent(api.create) == [4, 6 + 4]
+        assert sent(api.update) == [3]
+        assert sent(api.get_without_preload_content) == [3.0, 1.0]
         assert clock[0] == 10.0
+
+    def test_a_create_lost_at_the_deadline_is_retried_and_its_sandbox_deleted(self, clock):
+        backend, api = _backend_with_api(ready_timeout=2, request_timeout=5)
+        api.create.side_effect = _answer_creates(clock, _read_timeout(), _created("bx_late01"))
+
+        with pytest.raises(SandboxTerminalError, match="not ready within 2 seconds"):
+            backend.create(spec=SandboxSpec(block_network=False))
+
+        # Only the retry's answer names the sandbox the first request may have started, and
+        # it still ends within ready_timeout plus request_timeout.
+        first, second = (call.kwargs for call in api.create.call_args_list)
+        assert (first["_request_timeout"], second["_request_timeout"]) == (2, 5)
+        assert first["idempotency_key"] == second["idempotency_key"]
+        api.update.assert_not_called()
+        api.get_without_preload_content.assert_not_called()
+        api.delete_sandbox.assert_called_once_with("bx_late01", "bx_late01", _request_timeout=5)
+
+    @mock.patch(_BASE_HOOK, autospec=True)
+    @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
+    def test_provisioning_time_starts_once_the_connection_is_read(self, boat_api, hook, clock):
+        def slow_lookup(_conn_id):
+            clock[0] += 60
+            return SimpleNamespace(password="k", host=None)
+
+        hook.get_connection.side_effect = slow_lookup
+        api = boat_api.return_value
+        api.create.return_value = _created("bx_created1")
+        api.get_without_preload_content.return_value = _sandbox_info("ready")
+        backend = BoatSandboxBackend(boat_conn_id="my_boat", ready_timeout=5)
+
+        assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_created1"
+        assert api.create.call_args.kwargs["_request_timeout"] == 5
 
     def test_api_error_reason_is_surfaced(self):
         backend, api = _backend_with_api()

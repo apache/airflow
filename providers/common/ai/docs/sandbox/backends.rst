@@ -296,18 +296,20 @@ Constructor parameters:
 - ``machine_type``: ``"small"``, ``"default"`` or ``"large"``.
 - ``ttl_seconds``: server-side TTL after which Boat stops the sandbox, a whole
   number of seconds up to ``2592000`` (30 days). Default ``3600``.
-- ``ready_timeout``: provisioning deadline, shared by the create request and the
-  wait for the sandbox to become ready. Default ``300``.
+- ``ready_timeout``: provisioning deadline in seconds, from the create request
+  until the sandbox is ready. Default ``300``.
 - ``request_timeout``: HTTP timeout in seconds for an API call that answers at
-  once, such as a status check or a delete, and the time added to the
-  operation's own for a call that waits on one: a command's deadline, what is
-  left of ``ready_timeout`` for a create, or 120 seconds for a file write.
-  Default ``30``.
+  once, such as the create request, a status check or a delete, and the time
+  added to the operation's own for a call that waits on one: a command's
+  deadline, or 120 seconds for a file write. Default ``30``.
 
-A create whose answer is lost to a timeout, a transport error or a server error
-is retried once within ``ready_timeout``. Both requests carry the same
-idempotency key, so Boat answers the retry with the sandbox the first request
-created rather than starting a second one.
+A create request that times out, fails in transport, or gets a server error may
+still have started a sandbox, so it is sent once more with the same idempotency
+key, and Boat answers with the sandbox the first request created rather than
+starting a second one. The retry gets what is left of ``ready_timeout`` plus
+``request_timeout``, so provisioning takes at most their sum, and a sandbox the
+retry finds too late to become ready in time is deleted rather than left running
+until its TTL.
 
 Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of your Boat
 account's stored environment variables, secret files or credentials, and cannot

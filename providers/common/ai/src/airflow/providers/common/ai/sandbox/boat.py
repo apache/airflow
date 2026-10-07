@@ -110,7 +110,8 @@ def _may_have_lost_response(error: Exception) -> bool:
     from urllib3.exceptions import HTTPError
 
     if isinstance(error, ApiException):
-        # boat-sdk reports a TLS failure as status 0.
+        # boat-sdk reports a TLS failure as status 0, and also a request it could not
+        # build and never sent, which a retry only repeats.
         return isinstance(error.status, int) and (error.status == 0 or error.status >= 500)
     return isinstance(error, HTTPError)
 
@@ -212,13 +213,14 @@ class BoatSandboxBackend(SandboxBackend):
         2592000 (30 days). The sandbox is created without snapshots, so stopping
         it erases its disk. Default ``3600``.
     :param ready_timeout: Seconds allowed for provisioning, from the create request
-        until the sandbox is ready; a create whose answer may have been lost is
-        retried once with the same idempotency key within it. Default ``300``.
+        until the sandbox is ready. A create request that times out, fails in
+        transport, or gets a server error is sent once more with the same
+        idempotency key, with what is left of ``ready_timeout`` plus
+        ``request_timeout``, so provisioning takes at most their sum. Default ``300``.
     :param request_timeout: HTTP timeout in seconds for a Boat API call that answers
-        at once, such as a status check or a delete, and the time added to the
-        operation's own for a call that waits on one: a command's deadline, what
-        is left of ``ready_timeout`` for a create, or 120 seconds for a file
-        write. Default ``30``.
+        at once, such as the create request, a status check or a delete, and the
+        time added to the operation's own for a call that waits on one: a
+        command's deadline, or 120 seconds for a file write. Default ``30``.
     """
 
     name = "boat"
@@ -356,10 +358,13 @@ class BoatSandboxBackend(SandboxBackend):
     def create(self, *, spec: SandboxSpec | None = None) -> str:
         self._check_spec(spec)
         env = dict(spec.env) if spec is not None and spec.env else {}
+        # Taken once the client exists, so a slow connection lookup is not counted
+        # against provisioning.
+        api = self._get_api()
         deadline = time.monotonic() + self._ready_timeout
-        sandbox_id = self._request_sandbox(env, deadline)
+        sandbox_id = self._request_sandbox(api, env, deadline)
         try:
-            self._name_sandbox(sandbox_id)
+            self._name_sandbox(sandbox_id, deadline)
             self._wait_until_ready(sandbox_id, deadline)
             self._sandbox_env[sandbox_id] = env
         except BaseException:
@@ -371,14 +376,18 @@ class BoatSandboxBackend(SandboxBackend):
             raise
         return sandbox_id
 
-    def _request_sandbox(self, env: dict[str, str], deadline: float) -> str:
+    def _request_sandbox(self, api: BoatApi, env: dict[str, str], deadline: float) -> str:
         """
         Send the create request, retrying it once if its answer may have been lost.
 
         Both attempts carry the same idempotency key and body, for which Boat
         returns the sandbox the first one created rather than billing a second.
+        The first attempt gets at most ``request_timeout``, so a lost answer
+        leaves time to retry; a retry that arrives while Boat is still creating
+        that sandbox is answered with 409 ``idempotency_in_progress``. The retry
+        is sent even at the deadline, because only its answer names a sandbox
+        the first request may have started, which ``create`` then deletes.
         """
-        api = self._get_api()
         with _translate_boat_errors("create a sandbox"):
             from boat_sdk.models.create_sandbox_request import CreateSandboxRequest
 
@@ -393,28 +402,28 @@ class BoatSandboxBackend(SandboxBackend):
                 env=env or None,
             )
         idempotency_key = uuid.uuid4().hex
+        http_timeout = min(self._request_timeout, deadline - time.monotonic())
         retried = False
         while True:
             try:
                 return api.create(
                     idempotency_key=idempotency_key,
                     create_sandbox_request=request,
-                    _request_timeout=self._http_timeout(max(0.0, deadline - time.monotonic())),
+                    _request_timeout=http_timeout,
                 ).sandbox.id
             except Exception as e:
-                if retried:
-                    # Boat is still creating the first request's sandbox under this key.
-                    retry = _is_idempotency_in_progress(e)
-                    if retry:
-                        time.sleep(min(_READY_POLL_INTERVAL, max(0.0, deadline - time.monotonic())))
+                if retried and _is_idempotency_in_progress(e):
+                    time.sleep(min(_READY_POLL_INTERVAL, max(0.0, deadline - time.monotonic())))
+                    retry = time.monotonic() < deadline
                 else:
-                    retry = _may_have_lost_response(e)
-                if not retry or time.monotonic() >= deadline:
+                    retry = not retried and _may_have_lost_response(e)
+                if not retry:
                     with _translate_boat_errors("create a sandbox"):
                         raise
-                retried = True
+            retried = True
+            http_timeout = self._http_timeout(max(0.0, deadline - time.monotonic()))
 
-    def _name_sandbox(self, sandbox_id: str) -> None:
+    def _name_sandbox(self, sandbox_id: str, deadline: float) -> None:
         """
         Best-effort rename to the ``airflow-sandbox-`` prefix used for correlation.
 
@@ -424,11 +433,15 @@ class BoatSandboxBackend(SandboxBackend):
         """
         from boat_sdk.models.update_sandbox_request import UpdateSandboxRequest
 
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            # The wait for readiness fails at once, and create deletes the sandbox.
+            return
         try:
             self._get_api().update(
                 sandbox_id,
                 UpdateSandboxRequest(name=_new_sandbox_name()),
-                _request_timeout=self._request_timeout,
+                _request_timeout=min(self._request_timeout, remaining),
             )
         except Exception:
             log.warning(
