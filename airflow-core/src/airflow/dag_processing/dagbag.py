@@ -498,14 +498,14 @@ class DagBag(LoggingMixin):
         """
         from airflow.sdk.exceptions import TaskGroupCycleDeprecationWarning  # noqa: SDK001
 
-        self.task_group_cycle_warnings.pop(dag.dag_id, None)
+        task_group_cycle_warning = None
         with warnings.catch_warnings(record=True) as captured_warnings:
             # DeprecationWarning is ignored by default outside __main__, which would hide it here too.
             warnings.simplefilter("always", TaskGroupCycleDeprecationWarning)
             dag.check_cycle()
         for captured in captured_warnings:
             if issubclass(captured.category, TaskGroupCycleDeprecationWarning):
-                self.task_group_cycle_warnings[dag.dag_id] = str(captured.message)
+                task_group_cycle_warning = str(captured.message)
             warnings.warn_explicit(
                 message=captured.message,
                 category=captured.category,
@@ -536,6 +536,11 @@ class DagBag(LoggingMixin):
             self.log.exception(e)
             raise AirflowClusterPolicyError(e)
         self._add_to_bag(dag)
+        # Only once bagged: a rejected duplicate must not touch the warning of the Dag it lost to.
+        if task_group_cycle_warning is None:
+            self.task_group_cycle_warnings.pop(dag.dag_id, None)
+        else:
+            self.task_group_cycle_warnings[dag.dag_id] = task_group_cycle_warning
 
     def _add_to_bag(self, dag: BaggedDAG) -> None:
         """

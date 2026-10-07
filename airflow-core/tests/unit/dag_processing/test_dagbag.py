@@ -44,7 +44,7 @@ from airflow.dag_processing.dagbag import (
 )
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.processor import DagFileParsingResult
-from airflow.exceptions import UnknownExecutorException
+from airflow.exceptions import AirflowDagDuplicatedIdException, UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -1428,6 +1428,31 @@ with airflow.DAG(
 
         dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=False))
         assert dagbag.dag_warnings == set()
+
+    @pytest.mark.parametrize(
+        ("bagged_cyclic", "duplicate_cyclic"),
+        [
+            pytest.param(False, True, id="cyclic-duplicate-of-acyclic"),
+            pytest.param(True, False, id="acyclic-duplicate-of-cyclic"),
+        ],
+    )
+    def test_dag_warnings_task_group_cycle_ignores_rejected_duplicate(self, bagged_cyclic, duplicate_cyclic):
+        dagbag = DagBag(dag_folder="", collect_dags=False)
+        bagged = self._make_task_group_cycle_dag(cyclic=bagged_cyclic)
+        bagged.fileloc = "/dags/bagged.py"
+        duplicate = self._make_task_group_cycle_dag(cyclic=duplicate_cyclic)
+        duplicate.fileloc = "/dags/duplicate.py"
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dagbag.bag_dag(bagged)
+            with pytest.raises(AirflowDagDuplicatedIdException):
+                dagbag.bag_dag(duplicate)
+
+        assert dagbag.dags["test"] is bagged
+        assert {w.warning_type for w in dagbag.dag_warnings} == (
+            {DagWarningType.TASK_GROUP_CYCLE} if bagged_cyclic else set()
+        )
 
     def test_sigsegv_handling(self, tmp_path, caplog):
         """
