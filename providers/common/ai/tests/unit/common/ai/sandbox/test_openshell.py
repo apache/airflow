@@ -476,9 +476,10 @@ class TestRunCommand:
         [
             pytest.param(125, b"docker: invalid reference format\n", id="a-command-exiting-125"),
             pytest.param(1, f"{_STAGING_FAILED}\n".encode(), id="the-staging-line-with-another-status"),
+            pytest.param(125, f"{_STAGING_FAILED}\nmore\n".encode(), id="the-staging-line-not-last"),
         ],
     )
-    def test_the_status_or_the_staging_line_alone_is_the_commands_own_result(self, exit_code, stderr):
+    def test_a_result_unlike_the_wrappers_staging_failure_is_the_commands_own(self, exit_code, stderr):
         backend, client = _backend()
         client._stub.ExecSandbox.return_value = _result(exit_code, err=stderr)
 
