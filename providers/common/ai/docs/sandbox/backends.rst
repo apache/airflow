@@ -312,11 +312,14 @@ Since ``block_network`` defaults to ``True``, that includes a bare
 egress is acceptable, or use Modal when it is not.
 
 Writes use Boat's native file API, which accepts only paths that resolve under
-``/home/user`` (where relative paths land) or ``/tmp``. A ``write_file``
-anywhere else is refused, and the model gets Boat's ``invalid_path`` error back
-as a tool error it can retry. Reads deliberately keep the inherited bounded
-shell implementation, so ``max_bytes`` is enforced inside the guest before file
-contents reach worker memory.
+``/home/user`` (where relative paths land) or ``/tmp``. The parent directory is
+created first with ``mkdir -p`` in the guest, so a ``write_file`` anywhere else
+fails with ``mkdir``'s own error when the guest user cannot create the parent
+directory, and with Boat's ``invalid_path`` error when that directory exists or
+could be created. Either way the model gets it back as a tool error it can
+retry. Reads deliberately keep the inherited bounded shell implementation, so
+``max_bytes`` is enforced inside the guest before file contents reach worker
+memory.
 
 Command timeouts are capped at 600 seconds. The deadline is enforced inside the
 sandbox by GNU coreutils ``timeout``, which sends ``SIGTERM`` and then

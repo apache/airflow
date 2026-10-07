@@ -165,11 +165,14 @@ class BoatSandboxBackend(SandboxBackend):
     open egress is acceptable.
 
     Writes use Boat's native file API, which accepts only paths that resolve
-    under ``/home/user`` (where relative paths land) or ``/tmp``; a write
-    anywhere else reaches the model as a recoverable error carrying Boat's
-    ``invalid_path`` code. Reads use the inherited shell implementation, because
-    the native read API takes no size parameter and would land a whole file in
-    worker memory before ``max_bytes`` could reject it.
+    under ``/home/user`` (where relative paths land) or ``/tmp``. The parent
+    directory is created first with ``mkdir -p`` in the guest, so a write
+    anywhere else reaches the model as a recoverable error: ``mkdir``'s own
+    when the guest user cannot create the parent directory, and one carrying
+    Boat's ``invalid_path`` code when that directory exists or could be
+    created. Reads use the inherited shell implementation, because the native
+    read API takes no size parameter and would land a whole file in worker
+    memory before ``max_bytes`` could reject it.
 
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
         Default ``"default"``.
