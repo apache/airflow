@@ -416,7 +416,8 @@ behaves identically everywhere:
   past the client-side grace period, and Boat only if its own deadline, set past
   the one in the guest, ends the call.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  replaces it on Modal and OpenSandbox.
+  Boat, which write the target and leave the link in place, and replaces the link
+  with a regular file on Modal and OpenSandbox.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an
   agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
   that created it and cannot be reached from another task, and OpenSandbox and Boat
