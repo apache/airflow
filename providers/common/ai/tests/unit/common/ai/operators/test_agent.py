@@ -2630,7 +2630,7 @@ class TestAgentOperatorUsageBudget:
         accessor.delete.assert_not_called()
         assert seen["usage_at_call"] == RunUsage()
 
-    @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", False)
+    @patch("airflow.providers.common.ai.mixins.usage_budget.AIRFLOW_V_3_3_PLUS", False)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_budget_not_engaged_below_3_3(self, mock_hook_cls, make_mock_run_result):
         """On < 3.3 each attempt still counts on its own, even with usage_limits set."""

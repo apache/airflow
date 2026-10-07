@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin, normalize_assigned_users
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
+from airflow.providers.common.ai.mixins.usage_budget import UsageBudgetMixin
 from airflow.providers.common.ai.policies.decision import DecisionPolicy
 from airflow.providers.common.ai.utils.decision import (
     DECISION_XCOM_KEY,
@@ -63,6 +64,7 @@ if TYPE_CHECKING:
     from types import UnionType
 
     from pydantic_ai import Agent
+    from pydantic_ai.agent import AgentRunResult
     from pydantic_ai.usage import UsageLimits
 
     from airflow.sdk import Context
@@ -75,7 +77,7 @@ __all__ = ["DecisionPolicy", "LLMOperator"]
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
-class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
+class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, UsageBudgetMixin):
     """
     Call an LLM with a prompt and return the output.
 
@@ -128,7 +130,10 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
 
         A dict that omits ``request_limit`` gets the same default of ``50``
         requests -- pass ``"request_limit": None`` explicitly for no request
-        cap. This matches building a ``UsageLimits`` directly. See
+        cap. This matches building a ``UsageLimits`` directly.
+
+        On Airflow >= 3.3, a set ``usage_limits`` bounds the whole task instance:
+        usage from earlier attempts counts against it. See
         :ref:`howto/operator:llm` for the full set of caveats.
     :param require_approval: If ``True``, the task defers after generating
         output and waits for a human reviewer to approve or reject via the
@@ -305,8 +310,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
-        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
         model_confidence = ModelConfidence.from_result(result)
@@ -354,6 +358,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
             # JSON payload that deserializes without an allow-list entry.
             output = output.model_dump()
 
+        self._clear_usage_budget(context)
         return output
 
     def execute_complete(
@@ -364,11 +369,40 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         decision: dict[str, Any] | None = None,
     ) -> Any:
         """Resume after human review and restore the Pydantic model for XCom consumers."""
+        output = self._complete_review(context, generated_output, event, decision)
+        self._clear_usage_budget(context)
+        return output
+
+    def _complete_review(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None,
+    ) -> Any:
+        """Resolve the review and rehydrate the output, leaving the usage budget for the caller to clear."""
         output = self._resume_after_review(context, generated_output, event, decision)
         self._finalize_decision(context, event, decision, action=None)
         return rehydrate_pydantic_output(
             self.output_type, output, serialize_output=self._serialize_model_output
         )
+
+    def _run_llm(
+        self, context: Context, agent: Agent[Any, Any], user_prompt: Any, *, usage_limits: UsageLimits | None
+    ) -> AgentRunResult[Any]:
+        """Run the agent, bounding ``usage_limits`` across task retries when the usage budget applies."""
+        self._usage_budget = self._get_usage_budget(context, usage_limits)
+        if self._usage_budget is None:
+            result = self.run_agent_sync(agent, user_prompt, usage_limits=usage_limits)
+            log_run_summary(self.log, result)
+            return result
+        run_usage = self._usage_budget.load()
+        result, attempt_usage = self._run_tracked(
+            agent, user_prompt, run_usage=run_usage, usage_limits=usage_limits
+        )
+        log_run_summary(self.log, result, usage=attempt_usage)
+        self._log_cumulative_usage(run_usage)
+        return result
 
     def _log_review(self, review: ReviewReason, confidence: float | None, threshold: float | None) -> None:
         if review == "below_threshold":

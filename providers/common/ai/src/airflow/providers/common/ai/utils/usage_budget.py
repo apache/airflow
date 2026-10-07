@@ -23,7 +23,7 @@ Cross-attempt ``pydantic_ai.usage.RunUsage`` accounting, backed by the task stat
 pydantic-ai field is carried through automatically. This module has no
 top-level import of any Airflow >= 3.3-only symbol: it must stay importable on
 older Airflow versions, even though :class:`TaskStateStoreUsageBudget` is only
-constructed on 3.3+ (see ``AgentOperator._build_usage_budget``).
+constructed on 3.3+ (see ``UsageBudgetMixin._build_usage_budget``).
 """
 
 from __future__ import annotations
