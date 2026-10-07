@@ -130,10 +130,10 @@ _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 #   nothing, at most 50 times, so children forked mid-sweep are usually caught
 #   too. A negative-pid kill of the group is blocked by the sandbox's seccomp
 #   filter. The sweep shares the CPU with the processes it is killing, so it
-#   reads /proc with builtins and strips the name from each stat line with the
-#   cheap shortest match, taking the longest only for a name that contains ")":
-#   a `cat` per entry let one sweep of 128 busy processes on one CPU run past
-#   _EXEC_GRACE.
+#   reads /proc with builtins, joining the lines of a stat file whose process
+#   name holds a newline, and strips the name with the cheap shortest match,
+#   taking the longest only for a name that contains ")": a `cat` per entry let
+#   one sweep of 128 busy processes on one CPU run past _EXEC_GRACE.
 # * The exit status is the wrapper's own process status, which the supervisor
 #   reports out of band, so nothing the command prints can change it; a command
 #   that signals the wrapper only ends its own run early. Output is sent last as
@@ -171,7 +171,8 @@ if [ "$f" != 0 ]; then
   while [ "$n" -lt 50 ]; do
     k=0
     for x in /proc/[0-9]*/stat; do
-      read -r s 2>/dev/null <"$x" || continue
+      s=
+      while read -r l; do s="$s $l"; done 2>/dev/null <"$x" || continue
       s=${{s#*) }}
       case $s in *")"*) s=${{s##*) }} ;; esac
       set -- $s

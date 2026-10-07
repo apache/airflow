@@ -917,10 +917,13 @@ class TestRunWrapper:
         time.sleep(0.5)
         assert not any(self._pids(f"sleep {n}") for n in (301, 302, 303))
 
-    def test_the_timeout_kills_a_process_whose_name_contains_a_parenthesis(self, tmp_path):
+    @pytest.mark.parametrize(
+        "name", [pytest.param("a) b c", id="a-parenthesis"), pytest.param("a\nb", id="a-newline")]
+    )
+    def test_the_timeout_kills_a_process_with_a_parenthesis_or_newline_in_its_name(self, tmp_path, name):
         # The kernel names a process after the file it executes, and /proc/<pid>/stat shows that
-        # name in parentheses. Under a subshell, the sleep's parent is not the session leader.
-        named = tmp_path / "a) b c"
+        # name unescaped, in parentheses. Under a subshell, the sleep's parent is not the session leader.
+        named = tmp_path / name
         named.symlink_to(shutil.which("sleep"))
 
         result = self._run(f"({shlex.quote(str(named))} 309; :) & sleep 310", seconds=2)
