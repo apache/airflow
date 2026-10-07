@@ -18,13 +18,24 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
+import type * as UserSettings from "src/hooks/useUserSettings";
 import { Wrapper } from "src/utils/Wrapper";
 
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
+
+const mocks = vi.hoisted(() => ({
+  defaultOptions: [] as Array<string>,
+  dryRun: vi.fn(),
+}));
+
+vi.mock("src/hooks/useUserSettings", async (importOriginal) => ({
+  ...(await importOriginal<typeof UserSettings>()),
+  useMarkTaskInstanceDefaultOptions: () => [mocks.defaultOptions, vi.fn()],
+}));
 
 vi.mock("src/queries/usePatchTaskInstance", () => ({
   usePatchTaskInstance: () => ({
@@ -34,14 +45,23 @@ vi.mock("src/queries/usePatchTaskInstance", () => ({
 }));
 
 vi.mock("src/queries/usePatchTaskInstanceDryRun", () => ({
-  usePatchTaskInstanceDryRun: () => ({
-    data: {
-      task_instances: [],
-      total_entries: 0,
-    },
-    isPending: false,
-  }),
+  usePatchTaskInstanceDryRun: (args: unknown) => {
+    mocks.dryRun(args);
+
+    return {
+      data: {
+        task_instances: [],
+        total_entries: 0,
+      },
+      isPending: false,
+    };
+  },
 }));
+
+afterEach(() => {
+  mocks.defaultOptions = [];
+  mocks.dryRun.mockClear();
+});
 
 const taskInstance: TaskInstanceResponse = {
   dag_display_name: "Test DAG",
@@ -87,5 +107,38 @@ describe("MarkTaskInstanceAsDialog", () => {
     });
 
     expect(screen.getByRole("button", { name: /downstream/iu })).not.toHaveAttribute("data-selected");
+  });
+
+  it("does not show the skipped info for other states", () => {
+    render(<MarkTaskInstanceAsDialog onClose={vi.fn()} open state="success" taskInstance={taskInstance} />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.queryByText("dags:runAndTaskActions.markAs.skippedInfo")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /downstream/iu })).toBeEnabled();
+  });
+
+  it("shows the info text and limits skipping to the selected task instance", () => {
+    mocks.defaultOptions = ["past", "future", "upstream", "downstream"];
+
+    render(<MarkTaskInstanceAsDialog onClose={vi.fn()} open state="skipped" taskInstance={taskInstance} />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.getByText("dags:runAndTaskActions.markAs.skippedInfo")).toBeInTheDocument();
+    for (const option of [/past/iu, /future/iu, /upstream/iu, /downstream/iu]) {
+      expect(screen.getByRole("button", { name: option })).toBeDisabled();
+    }
+    expect(mocks.dryRun).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        requestBody: expect.objectContaining({
+          include_downstream: false,
+          include_future: false,
+          include_past: false,
+          include_upstream: false,
+          new_state: "skipped",
+        }) as unknown,
+      }),
+    );
   });
 });

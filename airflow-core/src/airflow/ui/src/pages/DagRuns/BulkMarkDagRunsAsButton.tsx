@@ -29,7 +29,7 @@ import { Modal, Menu } from "src/system-components";
 
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { ActionErrors } from "src/components/ActionErrors";
-import { allowedRunStates } from "src/components/MarkAs/utils";
+import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
 
 import { useBulkPatchDagRun } from "src/queries/useBulkPatchDagRun";
@@ -71,7 +71,7 @@ const BulkMarkDagRunsAsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
           </Button>
         </Menu.Trigger>
         <Menu.Content>
-          {allowedRunStates.map((menuState) => (
+          {allowedStates.map((menuState) => (
             <Menu.Item key={menuState} onClick={() => handleOpen(menuState)} value={menuState}>
               <HStack justify="space-between" width="full">
                 <StateBadge state={menuState}>{translate(`common:states.${menuState}`)}</StateBadge>

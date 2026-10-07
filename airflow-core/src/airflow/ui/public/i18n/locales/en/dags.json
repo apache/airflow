@@ -82,9 +82,9 @@
       "button": "Mark {{type}} as...",
       "buttonTooltip": {
         "failed": "Press shift+f to mark as failed",
-        "skipped": "Mark as skipped",
         "success": "Press shift+s to mark as success"
       },
+      "skippedInfo": "Marking a task instance as skipped records that it was intentionally not run. Downstream tasks are still evaluated by their trigger rules: with the default \"all_success\" rule they will also be skipped. Only task instances that have not started running can be skipped, and only this task instance is affected.",
       "title": "Mark {{type}} as {{state}}"
     },
     "options": {
