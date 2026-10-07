@@ -159,16 +159,138 @@ tracer, so an ``Agent`` created earlier in the process, such as at module level,
 content capture on. See
 :doc:`../observability`.
 
+.. _howto/frameworks:strands-durable:
+
+Durable execution with Strands
+------------------------------
+
+When a task that calls ``agent(question)`` fails and Airflow retries it, the agent
+starts again from the prompt: every model call is paid for again, and every tool
+call happens again. On a task with ``retries``, run the agent with
+:func:`~airflow.providers.common.ai.durable.strands.invoke_durably` instead, and a
+retry resumes it from the last cycle boundary it reached:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_strands_durable.py
+    :language: python
+    :start-after: [START example_strands_durable]
+    :end-before: [END example_strands_durable]
+
+The example needs Airflow 3.3 or later, ``strands-agents``, a connection holding an
+Anthropic API key, and a database connection; its module docstring lists the details.
+
+``invoke_durably`` takes a function that builds the agent, here
+``functools.partial(Agent, ...)``, and calls it with two more arguments:
+``checkpointing=True`` and a ``SnapshotSessionManager``. Strands
+`pauses an agent built with checkpointing
+<https://github.com/strands-agents/harness-sdk/blob/main/strands-py/src/strands/experimental/checkpoint/checkpoint.py>`__
+at each boundary of a cycle that calls tools: once the model has asked for tools,
+and once they have run. It leaves keeping the conversation to a session manager.
+At each pause ``invoke_durably`` has the session manager save the conversation,
+with where the agent paused in ``agent.state["airflow_checkpoint"]``, as one
+snapshot in the task instance's
+:doc:`task state store <apache-airflow:core-concepts/task-state-store>`, and the
+agent carries on. Strands saves the snapshot on its own only to redact or trim the
+conversation it already holds, so a failed invocation leaves the last pause's
+snapshot as it was. On a retry, the agent is rebuilt from the snapshot and resumed
+from the pause. The task log says where. This line comes from a test Dag whose
+model failed in its second cycle; ``cycle`` counts from 0:
+
+.. code-block:: text
+
+    [2026-10-07 11:03:38] INFO - Resuming the Strands agent from its last checkpoint session_id=f711ace605c22a218c598a0f9e9a19a3d392fbcf6551055d8af473bdff33dd72 position=after_tools cycle=0
+
+``invoke_durably`` returns at the agent's first stop that is not a pause: its final
+answer, or an interrupt or a cancellation, which it does not resume. It deletes the
+saved state then, so clearing the task later starts the agent over. If that delete
+fails, the task still succeeds and logs ``Could not delete the Strands agent's saved
+state``, and a later clear of the whole Dag run resumes from the last pause.
+
+A retry runs some work again:
+
+- It resumes from a cycle boundary. If the task fails while a cycle's tools run,
+  the retry runs all of that cycle's tools again, the finished ones included, so
+  tools that change data must still be safe to repeat.
+- A task that fails before the model's first request for tools starts over.
+- A retry whose prompt differs from the first try's starts over.
+- The state is deleted when ``invoke_durably`` returns, not when the task succeeds.
+  If the task fails after that, for example in a second agent or while returning
+  the answer, the retry runs the finished agent again from its prompt.
+- A ``SandboxToolset`` without ``attach_to`` is destroyed when the try ends, so a
+  resumed agent works from a conversation that describes files the retry's new,
+  empty sandbox does not have. Attach the toolset to a sandbox another task owns,
+  or keep sandbox work out of a durable agent.
+
+A retry resumes the saved conversation with the system prompt it was saved with.
+So does clearing the whole Dag run, which keeps task state. To run a changed system
+prompt on a failed task, clear the task itself without keeping its task state.
+
+An agent whose model keeps the conversation server-side (``model.stateful``) raises
+``ValueError``: Strands' `session manager
+<https://github.com/strands-agents/harness-sdk/blob/main/strands-py/src/strands/session/snapshot_session_manager.py>`__
+drops a restored conversation for such a model, so it cannot be resumed.
+
+The snapshot holds the whole conversation (the prompt, the model's replies, every
+tool call and result), the system prompt and ``agent.state``. It goes to the
+metadata database unless ``[workers] state_store_backend`` sends task state to
+external storage, and anyone who can read the task instance's task state can read
+it. Each pause rewrites it whole, and once it is larger than
+``[state_store] max_value_storage_bytes`` (64 KB by default) every write logs a
+warning; the write still goes through. ``AirflowTools`` masks
+registered secrets in its tools' results; results of your own ``@tool`` functions
+are saved as returned. A task that never succeeds leaves its state in the task
+state store until the Dag run is deleted. A snapshot offloaded to a custom
+``[workers] state_store_backend`` stays in that storage after the rows are gone,
+and clearing the task does not reach it.
+
+Within one try, a tool's retry limit in ``AirflowTools`` counts across the agent's
+pauses; a task retry starts the count again. The ``AgentResult`` that
+``invoke_durably`` returns comes from the agent's last invocation. Its metrics
+cover every invocation of the current try, one per resume in
+``metrics.agent_invocations``, and none of the earlier tries.
+
+When a task runs more than one agent with ``invoke_durably``, give each a
+``session_id`` of its own that stays the same across tries.
+
+The task state store needs Airflow 3.3 or later. On an earlier version,
+``invoke_durably`` without ``storage`` raises
+``AirflowOptionalProviderFeatureException``. Pass a Strands storage instead, such
+as ``S3Storage``, inside the task; ``AwsBaseHook`` comes from the Amazon provider:
+
+.. code-block:: python
+
+    from strands.storage import S3Storage
+
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+    storage = S3Storage(
+        "my-agent-state",
+        prefix="strands/",
+        boto_session=AwsBaseHook(aws_conn_id="aws_default").get_session(),
+    )
+    result = invoke_durably(agent, question, storage=storage)
+
+The default ``session_id`` is derived from the Dag id, run id, task id and map
+index, so it differs between Dag runs. If you pass your own ``session_id`` and the
+storage is shared across Dag runs, as a bucket is, it must differ between runs too. ``invoke_durably`` deletes the
+state when the agent finishes or a try starts over; a task that never succeeds
+leaves it in the bucket.
+
+Strands marks checkpointing experimental (``strands.experimental.checkpoint``). It
+needs ``strands-agents`` 1.51 or later, which the version in
+:ref:`howto/frameworks:strands-install` covers. For Pydantic AI agents, see
+:doc:`../durable_execution`.
+
 Differences from ``AgentOperator``
 ----------------------------------
 
 The agent is Strands', so features that ``AgentOperator`` implements on top of
-Pydantic AI do not apply:
+Pydantic AI work differently or do not apply:
 
-- A task retry runs the agent again from the start. There is no step-level
-  replay as with ``AgentOperator(durable=True)``, so tools that change data must
-  be safe to repeat.
+- Durable execution resumes from a cycle boundary rather than replaying each
+  model call and tool call. See :ref:`howto/frameworks:strands-durable`.
 - There is no human review step like ``AgentOperator(enable_hitl_review=True)``.
+
+.. _howto/frameworks:strands-install:
 
 Installation
 ------------

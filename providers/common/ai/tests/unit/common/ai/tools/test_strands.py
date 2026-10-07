@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -39,6 +39,9 @@ from airflow.providers.common.ai.tools.strands import AirflowTools
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
+
+if TYPE_CHECKING:
+    from strands.agent import AgentResult
 
 
 class _OneToolCallModel(Model):
@@ -72,6 +75,37 @@ class _OneToolCallModel(Model):
         yield {"contentBlockDelta": {"delta": {"text": answer}}}
         yield {"contentBlockStop": {}}
         yield {"messageStop": {"stopReason": "end_turn"}}
+
+
+class _RetryingModel(_OneToolCallModel):
+    """Calls ``tool_name`` again after every error result, up to ``attempts`` times, then answers."""
+
+    def __init__(self, tool_name: str, tool_input: dict[str, Any], *, attempts: int) -> None:
+        super().__init__(tool_name, tool_input)
+        self._attempts = attempts
+
+    async def stream(self, messages, tool_specs=None, system_prompt=None, **kwargs: Any):
+        calls = sum(1 for message in messages if any("toolResult" in block for block in message["content"]))
+        yield {"messageStart": {"role": "assistant"}}
+        if calls < self._attempts:
+            start = {"toolUse": {"toolUseId": f"call-{calls}", "name": self._tool_name}}
+            yield {"contentBlockStart": {"start": start}}
+            yield {"contentBlockDelta": {"delta": {"toolUse": {"input": json.dumps(self._tool_input)}}}}
+            yield {"contentBlockStop": {}}
+            yield {"messageStop": {"stopReason": "tool_use"}}
+            return
+        yield {"contentBlockDelta": {"delta": {"text": "gave up"}}}
+        yield {"contentBlockStop": {}}
+        yield {"messageStop": {"stopReason": "end_turn"}}
+
+
+def _run_through_checkpoints(agent: Agent, prompt: str) -> AgentResult:
+    """Resume a checkpointing agent from each checkpoint it returns, until it finishes."""
+    result = agent(prompt)
+    while result.checkpoint is not None:
+        # Strands types the prompt as AgentInput, which leaves out its checkpointResume block.
+        result = agent({"checkpointResume": {"checkpoint": result.checkpoint.to_dict()}})  # type: ignore[arg-type]
+    return result
 
 
 def _tool(result: ToolResult | Exception) -> AirflowTool:
@@ -187,6 +221,25 @@ class TestAgentRun:
 
         assert str(agent("go")).startswith("error:")
         assert str(agent("go again")).startswith("error:")
+
+    def test_resuming_from_a_checkpoint_keeps_the_retry_budget(self):
+        """With checkpointing every cycle is its own invocation; the budget must still span the run."""
+
+        def lookup(key: str) -> str:
+            """Look a key up."""
+            raise ModelRetry("no such key")
+
+        agent = Agent(
+            model=_RetryingModel("lookup", {"key": "a"}, attempts=3),
+            plugins=[AirflowTools(*airflow_tools_from_toolset(FunctionToolset([lookup], max_retries=1)))],
+            callback_handler=None,
+            checkpointing=True,
+        )
+
+        with pytest.raises(EventLoopException) as caught:
+            _run_through_checkpoints(agent, "go")
+
+        assert isinstance(caught.value.original_exception, ToolCallError)
 
     @pytest.mark.enable_redact
     def test_a_secret_in_a_result_reaches_the_model_masked(self, registered_secret):

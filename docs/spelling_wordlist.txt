@@ -29,6 +29,7 @@ afterall
 agentcore
 AgentDetails
 agentic
+AgentResult
 AgentVersionDetails
 ai
 aio
