@@ -132,7 +132,7 @@ const changeTimeInput = (input: HTMLElement | undefined, value: string) => {
   }
 };
 
-const pressEnter = (input: HTMLElement | undefined) => {
+const triggerEnterKey = (input: HTMLElement | undefined) => {
   if (input) {
     fireEvent.keyDown(input, { key: "Enter" });
   }
@@ -207,7 +207,7 @@ describe("DateRangeFilter", () => {
     changeDateInput(endDateInput, "2024/01/15");
     expect(onChange).not.toHaveBeenCalled();
 
-    pressEnter(endDateInput);
+    triggerEnterKey(endDateInput);
 
     await waitFor(() => {
       expect(onChange).toHaveBeenLastCalledWith({
