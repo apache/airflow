@@ -124,10 +124,11 @@ _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 #   files, so a background child holds a file rather than the exec stream.
 # * A timer reading the monotonic /proc/uptime signals the wrapper when the
 #   budget is spent; counting its own one-second sleeps instead drifts late on a
-#   CPU-starved sandbox, past _EXEC_GRACE. The wrapper then SIGKILLs every
-#   process in the command's session, rescanning /proc until a pass finds none
-#   left, so children forked mid-sweep are caught too. A negative-pid kill of
-#   the group is blocked by the sandbox's seccomp filter.
+#   CPU-starved sandbox, past _EXEC_GRACE. The wrapper then SIGKILLs the
+#   processes in the command's session, rescanning /proc until a pass kills
+#   nothing, at most 50 times, so children forked mid-sweep are usually caught
+#   too. A negative-pid kill of the group is blocked by the sandbox's seccomp
+#   filter.
 # * The exit status is the wrapper's own process status, which the supervisor
 #   reports out of band, so nothing the command prints can change it; a command
 #   that signals the wrapper only ends its own run early. Output is sent last as
@@ -135,7 +136,8 @@ _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 #   counting what arrives rather than trusting a trailer.
 #
 # A command that starts its own session (setsid, a daemonizing server) leaves
-# this one and is not killed on timeout.
+# this one and is not killed on timeout, and one that keeps forking faster than
+# the sweep can outlast it.
 _RUN_WRAPPER = rf"""t=$1 c=$2 o=$PATH
 {_SYSTEM_PATH}
 d=$(mktemp -d /tmp/.airflow-exec.XXXXXX) && cat >"$d/c" || {{ rm -rf "$d"; echo "{_STAGING_FAILED}" >&2; exit {_STAGING_STATUS}; }}
@@ -432,11 +434,11 @@ class OpenShellSandboxBackend(SandboxBackend):
 
     **Commands run through a guest wrapper.** OpenShell's own exec timeout
     leaves the command running, so the wrapper enforces the budget itself and
-    kills the command's whole session when it runs out. Output is spooled to
-    the sandbox's ``/tmp`` and each stream is capped to ``max_output_bytes``
-    before it leaves the sandbox. ``allow_egress_to_cidrs``, an open network and
-    ``SandboxSpec.owner`` are refused. The image needs ``setsid`` and GNU
-    coreutils and findutils; ``python:*-slim`` has them.
+    kills the processes in the command's session when it runs out. Output is
+    spooled to the sandbox's ``/tmp`` and each stream is capped to
+    ``max_output_bytes`` before it leaves the sandbox. ``allow_egress_to_cidrs``,
+    an open network and ``SandboxSpec.owner`` are refused. The image needs
+    ``setsid`` and GNU coreutils and findutils; ``python:*-slim`` has them.
 
     :param gateway: Name of the OpenShell CLI gateway registration to use.
         ``None`` uses ``$OPENSHELL_GATEWAY``, then the CLI's active gateway.

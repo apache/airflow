@@ -31,7 +31,8 @@ Modal (hosted)
 :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` runs each
 sandbox in Modal, provisioned over the API. Of the backends that ship with the
 provider, **this is the managed one to use in production**, and with
-:ref:`OpenSandbox <sandbox-backend-opensandbox>` one of the two that run on
+:ref:`OpenSandbox <sandbox-backend-opensandbox>` and
+:ref:`OpenShell <sandbox-backend-openshell>` one of the three that run on
 Kubernetes: nothing has to be installed on the worker, model-written code never
 executes on the worker host, and Modal reclaims a sandbox at its own lifetime
 whether or not the worker survives. It needs the ``modal`` extra and Modal
@@ -268,14 +269,14 @@ Install the SDK extra, which needs Python 3.11 or later:
     pip install "apache-airflow-providers-common-ai[openshell]"
 
 **Credentials are ambient; there is no Airflow connection for this backend.**
-The gateway's mTLS client key or OIDC token would otherwise sit in a
-connection's extras, which Airflow does not mask, as file paths or PEM text. The
-backend instead reads the gateway registration that the ``openshell`` CLI keeps
-under ``$XDG_CONFIG_HOME/openshell/gateways/<name>/`` (``~/.config`` by default):
-``metadata.json`` with the endpoint, and ``mtls/ca.crt``, ``mtls/tls.crt`` and
-``mtls/tls.key`` for mTLS, or the CLI's cached token for an OIDC gateway. A
-worker without the CLI needs the same files, provisioned by the Deployment
-Manager the way ``~/.modal.toml`` is for Modal:
+The gateway's endpoint, mTLS material and OIDC token live in the gateway
+registration that the ``openshell`` CLI keeps under
+``$XDG_CONFIG_HOME/openshell/gateways/<name>/`` (``~/.config`` by default), and
+the OpenShell SDK reads them from there itself: ``metadata.json`` with the
+endpoint, and ``mtls/ca.crt``, ``mtls/tls.crt`` and ``mtls/tls.key`` for mTLS,
+or the CLI's cached token for an OIDC gateway. The backend only names the
+registration. A worker without the CLI needs the same files, provisioned by the
+Deployment Manager:
 
 .. code-block:: json
 
@@ -337,11 +338,14 @@ included, reaches commands as given, since they run without a login shell.
 **Commands.** OpenShell's own exec timeout reports exit 124 and leaves the
 command running, so the backend runs each command through a small shell wrapper
 in the sandbox. The command arrives on stdin and runs in a session of its own,
-with its output spooled to ``/tmp``; when the budget runs out the wrapper kills
-every process in that session, rescanning until none is left, and returns the
+with the command and its output spooled to ``/tmp``; one that cannot be written
+there, because ``/tmp`` is full for example, is not run and is reported as an
+error. When the budget runs out the wrapper kills the processes in that session,
+scanning again until a pass finds none to kill, at most 50 times, and returns the
 tail of each stream. A process the command left in the background keeps running
 after a command that finishes in time, and one that started a session of its own
-(``setsid``, a daemonizing server) escapes the kill on timeout. If the gateway
+(``setsid``, a daemonizing server) escapes the kill on timeout, as can a command
+that keeps forking faster than the sweep. If the gateway
 stops relaying the command for longer than its budget plus 30 seconds, the
 sandbox is destroyed and ``sandbox_terminated`` is reported. Nothing crosses the
 stream until the command ends, so a proxy or load balancer in front of the gateway

@@ -360,9 +360,10 @@ leaves its contents alone: the same four tools run in the sandbox.
 When a run ends normally, the task calls the backend's ``destroy``. ``sbx`` runs its
 removal command and waits up to two minutes for it; Modal, OpenSandbox and OpenShell each
 send a termination request and return without waiting for the sandbox to stop. Any of them
-can return with the sandbox still present, and none of those cases fails the task. A SIGKILL, an
-out-of-memory kill or a lost node skips that teardown entirely, and then only the
-last column applies.
+can return with the sandbox still present, and none of those cases fails the task. A
+SIGKILL, an out-of-memory kill or a lost node skips that teardown entirely, and then
+only the last column applies.
+
 Why not ``KubernetesPodOperator`` or the ``KubernetesExecutor``?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
