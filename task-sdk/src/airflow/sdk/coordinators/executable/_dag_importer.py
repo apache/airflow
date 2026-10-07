@@ -85,8 +85,8 @@ class ExecutableDagImporter(CoordinatorDagImporter):
         Return ``True`` for every bundle.
 
         ``safe_mode`` does not apply: whether a bundle defines Dags is known only by running it, and a
-        bundle that only registers task handlers is parsed too. A file that cannot be read is kept, so
-        that parsing it reports why.
+        bundle that only registers task handlers is parsed too. A bundle that fails verification is kept,
+        so that parsing it reports why.
         """
         return True
 
