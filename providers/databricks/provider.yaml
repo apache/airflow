@@ -178,6 +178,7 @@ hooks:
     python-modules:
       - airflow.providers.databricks.hooks.databricks
       - airflow.providers.databricks.hooks.databricks_base
+      - airflow.providers.databricks.hooks.genie
   - integration-name: Databricks SQL
     python-modules:
       - airflow.providers.databricks.hooks.databricks_sql
