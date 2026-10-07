@@ -620,8 +620,9 @@ value. ``get`` returns ``null`` only to mean "key not found."
 Two behaviors to note:
 
 * ``[workers] state_store_backend`` is not used from TypeScript tasks, so values are always stored inline
-  through the Execution API. A key written by a Python task through a custom worker-side backend reads back
-  from TypeScript as that backend's reference marker string, not the original value.
+  through the Execution API. A key a Python task's custom worker-side backend offloaded reads back from
+  TypeScript as that backend's reference marker string, not the original value; a value the backend kept
+  in the database reads back as-is.
 * ``[state_store] clear_on_success`` removes all of a task instance's state store keys when the task
   succeeds, the same as for Python tasks.
 

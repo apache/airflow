@@ -572,7 +572,8 @@ and ``Clear``.
 * ``Set`` without options keeps the key for ``[state_store] default_retention_days``.
   ``sdk.WithRetention(d)`` keeps it for a positive ``time.Duration``, and ``sdk.NeverExpire`` keeps it forever.
 * ``[workers] state_store_backend`` is not used from Go tasks, so values are always stored in the database. A
-  key a Python task wrote through such a backend reads back as the backend's reference marker.
+  key a Python task's backend offloaded reads back as the backend's reference marker; a value the backend
+  kept in the database reads back as-is.
 
 .. _go-sdk/logging:
 
