@@ -378,19 +378,20 @@ async def require_dag_in_granted_bundle(request: Request, token=CurrentExecution
     """
     Limit a parsing request to Dags in the bundle its token grants.
 
-    The Dag comes from the ``dag_id`` path or query parameter. A Dag that does not exist is refused
-    like one in an ungranted bundle, so the response does not reveal Dags in other bundles.
+    The Dag comes from the ``dag_id`` path or query parameter. A Dag without a ``DagModel`` row yet, as on its
+    first parse, belongs to no other bundle, so it is let through to answer like it would for an execution token.
     """
     if token.claims.scope not in ("dag_processor", "dag_parse"):
         return
 
     from airflow.models import DagModel
 
-    bundle_name = None
-    if dag_id := request.path_params.get("dag_id") or request.query_params.get("dag_id"):
-        async with create_session_async() as session:
-            bundle_name = await session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
-    if bundle_name is None or bundle_name not in token.claims.dag_bundles:
+    dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
+    if not dag_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="A Dag must be named")
+    async with create_session_async() as session:
+        bundle_name = await session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
+    if bundle_name is not None and bundle_name not in token.claims.dag_bundles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Token is not granted the Dag bundle of this Dag",

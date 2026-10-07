@@ -473,7 +473,7 @@ class TestRequireDagInGrantedBundle:
             pytest.param("/dags/granted_dag", 200, id="path-dag-in-granted-bundle"),
             pytest.param("/dags?dag_id=granted_dag", 200, id="query-dag-in-granted-bundle"),
             pytest.param("/dags/other_dag", 403, id="dag-in-other-bundle"),
-            pytest.param("/dags/missing_dag", 403, id="unknown-dag"),
+            pytest.param("/dags/missing_dag", 200, id="dag-without-model-row"),
             pytest.param("/dags", 403, id="no-dag"),
         ],
     )
@@ -612,6 +612,20 @@ class TestDagProcessorTokenOverHTTP:
 
         assert response.status_code == expected, response.text
         assert "Refreshed-API-Token" not in response.headers
+
+    @pytest.mark.usefixtures("open_job")
+    def test_parsing_token_can_query_a_dag_before_its_first_parse(self, client):
+        exchanged = self._exchange_parse_token(client)
+        assert exchanged.status_code == 200, exchanged.text
+
+        response = client.get(
+            "/execution/task-instances/count",
+            params={"dag_id": "missing_dag"},
+            headers={"Authorization": f"Bearer {exchanged.json()['token']}"},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json() == 0
 
     @pytest.mark.parametrize("retirement", ["completed", "replaced"])
     @pytest.mark.usefixtures("open_job")
