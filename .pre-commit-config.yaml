@@ -446,7 +446,7 @@ repos:
           ^java-sdk/sdk/build\.gradle\.kts$|
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Bundle|DagDef|Deps|Arg|TaskGroupRef)\.kt$|
           ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/execution/Serde\.kt$|
-          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/Refs\.kt$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/(Refs|Fields)\.kt$|
           ^java-sdk/sdk/src/test/kotlin/org/apache/airflow/sdk/conformance/.*$|
           ^scripts/ci/lang_sdk_serialization/.*$
       - id: check-go-version-in-sync

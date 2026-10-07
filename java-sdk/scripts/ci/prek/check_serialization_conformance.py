@@ -50,5 +50,14 @@ if __name__ == "__main__":
     classpath = lines[-1]
     compare = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "lang_sdk_serialization" / "compare.py"
     serializer = ["java", "-cp", classpath, "org.apache.airflow.sdk.conformance.SerializeJavaKt"]
-    command = [sys.executable, str(compare), "--sdk", "java", "--", *serializer]
+    command = [
+        sys.executable,
+        str(compare),
+        "--sdk",
+        "java",
+        "--supports",
+        "literal_inputs",
+        "--",
+        *serializer,
+    ]
     sys.exit(subprocess.run(command, check=False).returncode)

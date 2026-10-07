@@ -31,6 +31,7 @@ package org.apache.airflow.sdk.conformance
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
+import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
@@ -90,7 +91,15 @@ private fun buildDag(case: JsonNode): DagDef {
         groups.getValue(groupId).task(localId, ConformanceTask::class.java)
       }
     task.path("spec").fields().forEach { (key, value) -> ref.config(key, toValue(SchemaFields.TASK, key, value)) }
-    task.path("upstream").forEach { ref.after(tasks.getValue(it.asText())) }
+    // A task's `upstream` handles and its `literals` are its call arguments, in that order, so the
+    // Dag carries the binding spec a stub call would. Names are positional, as the Go SDK names
+    // them: the interface API has no signature to read parameter names from.
+    val inputs: List<Arg<*>> =
+      task.path("upstream").map { tasks.getValue(it.asText()) } +
+        task.path("literals").map { Arg.lit(toJsonValue(it)) }
+    inputs.filterIsInstance<TaskRef<*>>().forEach { ref.after(it) }
+    ref.def.inputs += inputs
+    ref.def.inputNames += inputs.indices.map { "arg$it" }
     tasks[ref.def.id] = ref
   }
 
@@ -116,4 +125,16 @@ private fun toValue(
     FieldType.DATETIME -> OffsetDateTime.parse(node.asText())
     FieldType.TIMEDELTA -> Duration.ofNanos((node.asText().toDouble() * 1e9).toLong())
     FieldType.STRING_ARRAY -> node.map { it.asText() }
+  }
+
+/** Reads a YAML literal as the plain value `Serde` writes out. */
+private fun toJsonValue(node: JsonNode): Any? =
+  when {
+    node.isNull -> null
+    node.isTextual -> node.asText()
+    node.isBoolean -> node.asBoolean()
+    node.isIntegralNumber -> node.numberValue()
+    node.isNumber -> node.asDouble()
+    node.isArray -> node.map { toJsonValue(it) }
+    else -> node.fields().asSequence().associate { (key, value) -> key to toJsonValue(value) }
   }

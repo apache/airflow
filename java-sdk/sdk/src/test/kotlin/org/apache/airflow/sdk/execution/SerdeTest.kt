@@ -311,6 +311,39 @@ internal class SerdeTest {
     assertEquals(19800, (serialized["timetable"] as Map<*, *>)["__var"].let { (it as Map<*, *>)["timezone"] })
   }
 
+  private fun cronExpression(schedule: String): Any? {
+    val timetable = serializeDag(DagDef("d").config("schedule", schedule), "", ".")["timetable"] as Map<*, *>
+    return (timetable["__var"] as Map<*, *>)["expression"]
+  }
+
+  @Test
+  @DisplayName("Should accept every cron schedule croniter does")
+  fun shouldAcceptCroniterSchedules() {
+    listOf(
+      "0 9 * * MON,WED,FRI",
+      "0 0 * JAN,JUL *",
+      "0 0 * * MON#2",
+      "0 0 15W * *",
+      "*/5 1-5/2 * * MON-FRI",
+    ).forEach { assertEquals(it, cronExpression(it)) }
+  }
+
+  @Test
+  @DisplayName("Should serialize croniter's @midnight and @annually aliases unexpanded")
+  fun shouldKeepCronAliasesUnexpanded() {
+    assertEquals("@midnight", cronExpression("@midnight"))
+    assertEquals("@annually", cronExpression("@annually"))
+    assertEquals("0 0 * * *", cronExpression("@daily"))
+  }
+
+  @Test
+  @DisplayName("Should reject schedules that are not cron expressions")
+  fun shouldRejectProseAndUnknownAliases() {
+    listOf("every tuesday", "@bogus", "0 0 * * tuesday").forEach {
+      assertThrows(IllegalArgumentException::class.java) { cronExpression(it) }
+    }
+  }
+
   @Test
   @DisplayName("Should reject a schedule the scheduler cannot build a timetable from")
   fun shouldRejectNonCronSchedule() {
@@ -320,7 +353,7 @@ internal class SerdeTest {
 
     assertEquals(
       "Schedule 'every monday' of Dag 'd' is not a cron expression or a preset " +
-        "(@hourly, @daily, @weekly, @monthly, @quarterly, @yearly, @once, @continuous); a schedule the " +
+        "(@hourly, @daily, @weekly, @monthly, @quarterly, @yearly, @midnight, @annually, @once, @continuous); a schedule the " +
         "scheduler cannot parse would leave the Dag unschedulable",
       error.message,
     )
@@ -344,7 +377,7 @@ internal class SerdeTest {
       mapOf(
         "app/dags.jar" to
           "Dag \"broken\": Schedule 'every monday' of Dag 'broken' is not a cron expression or a preset " +
-          "(@hourly, @daily, @weekly, @monthly, @quarterly, @yearly, @once, @continuous); a schedule the " +
+          "(@hourly, @daily, @weekly, @monthly, @quarterly, @yearly, @midnight, @annually, @once, @continuous); a schedule the " +
           "scheduler cannot parse would leave the Dag unschedulable",
       ),
       result["import_errors"],

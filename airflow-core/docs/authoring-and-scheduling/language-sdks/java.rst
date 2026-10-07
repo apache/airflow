@@ -692,9 +692,9 @@ class that supplies only task bodies, for a Dag a Python file declares, carries
 
 .. note::
 
-   Runtime argument bindings win over Java-declared wiring.  When the supervisor delivers bindings
-   for a run (see :ref:`java-sdk/arg-binding`), the binding at a parameter's position is what the
-   task receives.  Wired inputs are the fallback, which is what a native Java Dag always uses.
+   A native Java Dag binds its task arguments from its own wiring, and the ``_arg_bindings`` it
+   serializes are what Airflow records and shows.  Runtime bindings (see :ref:`java-sdk/arg-binding`)
+   are what a ``@Builder.TaskHandler`` class reads, for a task whose Dag a Python file declares.
 
 Task groups
 ~~~~~~~~~~~
@@ -773,6 +773,9 @@ Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT
 ``startDate = "2026-01-01T00:00:00Z"``, validated at compile time) and ``java.time.Duration`` /
 ``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
 fails the build for an annotation, and the ``config`` call itself for an object.
+
+A Dag with a cron ``schedule`` runs in the time zone of its ``startDate``.  With no ``startDate`` it
+is scheduled in UTC, so set ``startDate`` to pin the zone.
 
 .. _java-sdk/task-state-store:
 

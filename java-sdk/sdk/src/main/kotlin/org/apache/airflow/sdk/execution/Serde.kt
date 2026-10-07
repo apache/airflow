@@ -144,8 +144,11 @@ private fun serializeTask(
     )
   argBindings(taskId, def)?.let { data["_arg_bindings"] = it }
   // Emit only config entries that differ from their schema default, mirroring
-  // Python BaseSerialization's "omit hard-coded default" behavior. Operator
-  // fields are stored unwrapped, so the __type encoding is stripped.
+  // Python BaseSerialization's "omit hard-coded default" behavior, which the Go
+  // and TypeScript SDKs mirror too. Operator fields are stored unwrapped, so the
+  // __type encoding is stripped. If core grows a task-level fill_config_defaults,
+  // every SDK has to keep explicitly set values instead, or an explicit retries=0
+  // reads as unset and picks up the configured default.
   def.configValues.forEach { (key, value) ->
     if (key !in OMITTED_TASK_KEYS && !matchesSchemaDefault(SchemaFields.TASK[key], value)) {
       data[key] = unwrapTypeEncoding(serializeValue(value))
@@ -264,6 +267,8 @@ private fun applyDagConfig(
 // TODO: respect [scheduler] create_cron_data_intervals like Python's
 // _create_timetable; the JVM bundle cannot read airflow.cfg, so the
 // supervisor must send those flags over the coordinator protocol first.
+// The same gap applies to [core] default_timezone, which Python's
+// _extract_tz uses for a Dag with no start date; this uses UTC.
 // The TypeScript SDK waits on the same flag; tracked at
 // https://github.com/apache/airflow/issues/67938
 private fun serializeTimetable(
@@ -279,8 +284,8 @@ private fun serializeTimetable(
       val expression = CRON_PRESETS[schedule] ?: schedule
       require(isCronExpression(expression)) {
         "Schedule '$schedule' of Dag '$dagId' is not a cron expression or a preset " +
-          "(${CRON_PRESETS.keys.joinToString()}, @once, @continuous); a schedule the scheduler cannot " +
-          "parse would leave the Dag unschedulable"
+          "(${(CRON_PRESETS.keys + CRON_ALIASES).joinToString()}, @once, @continuous); a schedule the " +
+          "scheduler cannot parse would leave the Dag unschedulable"
       }
       mapOf(
         "__type" to "airflow.timetables.trigger.CronTriggerTimetable",
@@ -324,11 +329,25 @@ private val CRON_PRESETS =
     "@yearly" to "0 0 1 1 *",
   )
 
-private val CRON_FIELD = Regex("[\\d*,\\-/?LW#]+|[A-Z]{3}(-[A-Z]{3})?", RegexOption.IGNORE_CASE)
+/** One value in a cron field: a number, `*`, `?`, or a three-letter month or weekday name. */
+private const val CRON_VALUE = "(\\d+|\\*|\\?|[A-Z]{3})"
+
+/**
+ * One comma-separated element of a cron field: a value or a range, either
+ * stepped, with croniter's `L`, `W` and `#` qualifiers.
+ */
+private val CRON_ELEMENT =
+  Regex("$CRON_VALUE(-$CRON_VALUE)?([/#]\\d+)?[LW]*|L(-\\d+)?|LW", RegexOption.IGNORE_CASE)
+
+/**
+ * Aliases croniter accepts that `cron_presets` does not expand, so Python
+ * stores them unexpanded and so does this.
+ */
+private val CRON_ALIASES = setOf("@midnight", "@annually")
 
 /**
  * Whether [expression] has the shape croniter accepts: five or six
- * space-separated fields of cron characters.
+ * space-separated fields of cron characters, or an `@` alias.
  *
  * A shape check, not a parse: croniter validates the ranges, and repeating
  * that here would be a second implementation to keep in step. What it catches
@@ -336,8 +355,11 @@ private val CRON_FIELD = Regex("[\\d*,\\-/?LW#]+|[A-Z]{3}(-[A-Z]{3})?", RegexOpt
  * Dag the scheduler then fails to build a timetable for.
  */
 private fun isCronExpression(expression: String): Boolean {
-  val fields = expression.trim().split(Regex("\\s+"))
-  return fields.size in 5..6 && fields.all { CRON_FIELD.matches(it) }
+  val trimmed = expression.trim()
+  if (trimmed.startsWith("@")) return trimmed in CRON_PRESETS || trimmed in CRON_ALIASES
+  val fields = trimmed.split(Regex("\\s+"))
+  return fields.size in 5..6 &&
+    fields.all { field -> field.split(',').all { CRON_ELEMENT.matches(it) } }
 }
 
 /**
