@@ -18,6 +18,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -429,7 +430,8 @@ func TestRunPack_PacksABundleWithOnlyNativeDags(t *testing.T) {
 	), 0o644))
 	out := filepath.Join(dir, "bundle")
 
-	err := runPack(io.Discard, io.Discard, &packOptions{
+	var stdout bytes.Buffer
+	err := runPack(&stdout, io.Discard, &packOptions{
 		executable:      exe,
 		source:          source,
 		airflowMetadata: meta,
@@ -440,6 +442,7 @@ func TestRunPack_PacksABundleWithOnlyNativeDags(t *testing.T) {
 	_, gotMeta, err := bundlefooter.Read(out)
 	require.NoError(t, err)
 	assert.Contains(t, string(gotMeta), `"native_dag": "main.go"`)
+	assert.Contains(t, stdout.String(), "task_handler_dags=0, native_dags=1")
 }
 
 // --airflow-metadata also accepts a YAML manifest, not only the JSON the

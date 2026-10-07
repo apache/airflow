@@ -198,8 +198,8 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(stdout, "Wrote bundle %s (sdk=%s/%s, dags=%d)\n",
-		output, meta.SDK.Language, meta.SDK.Version, len(meta.Dags))
+	fmt.Fprintf(stdout, "Wrote bundle %s (sdk=%s/%s, task_handler_dags=%d, native_dags=%d)\n",
+		output, meta.SDK.Language, meta.SDK.Version, len(meta.Dags), len(meta.DagSourceFiles))
 	return nil
 }
 
