@@ -28,13 +28,14 @@ from pydantic_ai import Agent
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
-from pydantic_ai.usage import RequestUsage, UsageLimits
+from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
 from airflow.providers.common.ai.operators import llm as llm_module
 from airflow.providers.common.ai.operators.llm import DecisionPolicy, LLMOperator
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -134,7 +135,7 @@ class TestLLMOperator:
 
         assert result == "Paris is the capital of France."
         mock_agent.run_sync.assert_called_once_with(
-            "What is the capital of France?", usage_limits=None, cancellation_token=ANY
+            "What is the capital of France?", usage=ANY, usage_limits=None, cancellation_token=ANY
         )
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions=""
@@ -159,7 +160,9 @@ class TestLLMOperator:
         )
         op.execute(context=MagicMock())
 
-        mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits, cancellation_token=ANY)
+        mock_agent.run_sync.assert_called_once_with(
+            "Summarize", usage=ANY, usage_limits=limits, cancellation_token=ANY
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):
@@ -376,8 +379,8 @@ def _make_context(ti_id=None):
 class TestLLMOperatorConfidenceGate:
     """decision_policy on a structured output, and the decision XCom."""
 
-    def _result(self, make_mock_run_result, output, details):
-        result = make_mock_run_result(output)
+    def _result(self, make_mock_run_result, output, details, *, cost=None):
+        result = make_mock_run_result(output, cost=cost)
         result.response = ModelResponse(parts=[], model_name="jev-1.13.0", provider_details=details)
         return result
 
@@ -403,7 +406,74 @@ class TestLLMOperatorConfidenceGate:
             output = op.execute(context)
 
         assert Summary.model_validate(output).text == "t"
-        assert "the decision record was not pushed to XCom" in caplog.text
+        assert "'decision' was not pushed to XCom" in caplog.text
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_resolved_model_name_and_usage_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
+        """The model that actually answered, and the run's token usage/cost, are both exposed on XCom."""
+        cost = Decimal("0.0042")
+        mock_agent = MagicMock(spec=["run_sync"])
+        result = self._result(make_mock_run_result, Summary(text="t"), None, cost=cost)
+
+        def _run_sync(*args, **kwargs):
+            # Mirrors what a real pydantic-ai run does to the ``usage=`` object it was
+            # called with, so the usage pushed to XCom (read from that object, not from
+            # the mock result's own ``.usage``) reflects the ``cost=`` configured here.
+            kwargs["usage"].incr(RunUsage(requests=1, cost=cost))
+            return result
+
+        mock_agent.run_sync.side_effect = _run_sync
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
+        context = MagicMock(spec=dict)
+
+        op.execute(context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes[MODEL_NAME_XCOM_KEY] == "jev-1.13.0"
+        assert pushes["usage"] == {
+            "requests": 1,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "tool_calls": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "cost": str(cost),
+        }
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failure_pushes_partial_usage_to_xcom(self, mock_hook_cls):
+        """A run that raises before finishing (e.g. a cost_limit) still reports the usage incurred."""
+        mock_agent = MagicMock(spec=["run_sync"])
+
+        def _run_sync(*args, **kwargs):
+            kwargs["usage"].incr(RunUsage(requests=1, input_tokens=10, cost=Decimal("0.1")))
+            raise UsageLimitExceeded("boom")
+
+        mock_agent.run_sync.side_effect = _run_sync
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        context = _make_context()
+        with pytest.raises(UsageLimitExceeded):
+            op.execute(context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes["usage"] == {
+            "requests": 1,
+            "input_tokens": 10,
+            "output_tokens": 0,
+            "total_tokens": 10,
+            "tool_calls": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "cost": "0.1",
+        }
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="a reviewing decision_policy needs the HITL flow, Airflow >= 3.1"

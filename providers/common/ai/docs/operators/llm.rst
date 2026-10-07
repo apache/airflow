@@ -284,3 +284,8 @@ After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. At DEBUG level, the LLM output is also logged
 (truncated to 500 characters). See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+The same request/token/cost counts are also pushed to XCom under the ``usage``
+key, the same shape ``AgentOperator`` uses. It is pushed on a failed run too,
+so a downstream ``all_done`` task or failure callback can read what was spent
+before the run raised.
