@@ -28,6 +28,7 @@ from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolC
 from pydantic_ai.models.function import FunctionModel
 from pydantic_core import ValidationError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.toolsets.hook import (
     HookToolset,
     _build_json_schema_from_signature,
@@ -166,11 +167,26 @@ class TestHookToolsetGetTools:
         # prefix has a default, so it's not required
         assert "prefix" not in tool_def.parameters_json_schema.get("required", [])
 
-    def test_tool_name_prefix(self):
+    def test_tool_prefix(self):
         hook = _FakeHook()
-        ts = HookToolset(hook, allowed_methods=["list_keys"], tool_name_prefix="s3_")
+        ts = HookToolset(hook, allowed_methods=["list_keys"], tool_prefix="s3_")
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         assert "s3_list_keys" in tools
+
+    def test_tool_name_prefix_is_a_deprecated_alias(self):
+        hook = _FakeHook()
+        with pytest.warns(AirflowProviderDeprecationWarning, match="tool_name_prefix"):
+            ts = HookToolset(hook, allowed_methods=["list_keys"], tool_name_prefix="s3_")
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        assert "s3_list_keys" in tools
+
+    def test_tool_prefix_and_tool_name_prefix_that_agree_still_warn(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="tool_name_prefix"):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix="s3_", tool_name_prefix="s3_")
+
+    def test_conflicting_prefixes_raise(self):
+        with pytest.raises(ValueError, match="tool_prefix.*tool_name_prefix"):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix="a_", tool_name_prefix="b_")
 
     def test_description_from_docstring(self):
         hook = _FakeHook()
@@ -256,7 +272,7 @@ class TestHookToolsetCallTool:
 
     def test_dispatches_with_prefix(self):
         hook = _FakeHook()
-        ts = HookToolset(hook, allowed_methods=["read_file"], tool_name_prefix="storage_")
+        ts = HookToolset(hook, allowed_methods=["read_file"], tool_prefix="storage_")
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
 
         result = asyncio.run(

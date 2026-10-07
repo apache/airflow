@@ -22,12 +22,14 @@ import copy
 import inspect
 import re
 import types
+import warnings
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
 
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import ToolsetTool
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     return_schema_kwargs,
@@ -70,8 +72,10 @@ class HookToolset(AirflowToolset):
         is not modified; each task instance gets a copy.
     :param allowed_methods: Method names to expose as tools. Required —
         auto-discovery is intentionally not supported for safety.
-    :param tool_name_prefix: Optional prefix prepended to each tool name
+    :param tool_prefix: Optional prefix prepended to each tool name
         (e.g. ``"s3_"`` → ``"s3_list_keys"``).
+    :param tool_name_prefix: Deprecated alias of ``tool_prefix``. Passing both with
+        different values raises ``ValueError``.
     :param pinned_arguments: Experimental. Arguments the Dag author fixes, such as the bucket a
         storage hook may use: ``{"bucket_name": "reports"}``. Each is left out of the
         arguments the model sees, refused if the model supplies it anyway, and passed to
@@ -95,10 +99,23 @@ class HookToolset(AirflowToolset):
         hook: BaseHook,
         *,
         allowed_methods: list[str],
-        tool_name_prefix: str = "",
+        tool_prefix: str = "",
+        tool_name_prefix: str | None = None,
         pinned_arguments: dict[str, Any] | None = None,
         max_retries: int | None = None,
     ) -> None:
+        if tool_name_prefix is not None:
+            if tool_prefix and tool_prefix != tool_name_prefix:
+                raise ValueError(
+                    f"tool_prefix={tool_prefix!r} and tool_name_prefix={tool_name_prefix!r} differ. "
+                    "Pass only tool_prefix; tool_name_prefix is its deprecated alias."
+                )
+            warnings.warn(
+                "Parameter `tool_name_prefix` is deprecated. Use the parameter `tool_prefix` instead.",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            tool_prefix = tool_name_prefix
         self._max_retries = validate_max_retries(max_retries)
         if not allowed_methods:
             raise ValueError("allowed_methods must be a non-empty list.")
@@ -135,7 +152,7 @@ class HookToolset(AirflowToolset):
 
         self._hook = hook
         self._allowed_methods = allowed_methods
-        self._tool_name_prefix = tool_name_prefix
+        self._tool_prefix = tool_prefix
         # The attribute holding the hook's connection ID, e.g. ``postgres_conn_id``. Some hooks
         # name one attribute in conn_name_attr but keep the ID in ``conn_id`` (WasbHook,
         # KubernetesHook), so fall back to that.
@@ -170,7 +187,7 @@ class HookToolset(AirflowToolset):
         tools: dict[str, ToolsetTool[Any]] = {}
         for method_name in self._allowed_methods:
             method = getattr(self._hook, method_name)
-            tool_name = f"{self._tool_name_prefix}{method_name}" if self._tool_name_prefix else method_name
+            tool_name = f"{self._tool_prefix}{method_name}" if self._tool_prefix else method_name
 
             json_schema = _build_json_schema_from_signature(method)
             description = _extract_description(method)
@@ -228,7 +245,7 @@ class HookToolset(AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        method_name = name.removeprefix(self._tool_name_prefix) if self._tool_name_prefix else name
+        method_name = name.removeprefix(self._tool_prefix) if self._tool_prefix else name
         method: Callable[..., Any] = getattr(self._hook, method_name)
         # The framework bridges validate arguments without args_validator_func, so check again here.
         self._refuse_pinned(ctx, **tool_args)
