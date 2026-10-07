@@ -35,6 +35,9 @@ from airflow.providers.common.ai.utils.hitl_review import (
 
 log = logging.getLogger(__name__)
 
+# ``hitl_timeout`` may be ``None``, so a persistently failing poll would otherwise loop forever.
+_MAX_CONSECUTIVE_XCOM_PULL_FAILURES = 10
+
 if TYPE_CHECKING:
     from airflow.sdk import Context
 
@@ -159,6 +162,7 @@ class HITLReviewMixin:
 
         last_seen_iteration = 0
         first_poll = True
+        consecutive_pull_failures = 0
 
         while True:
             if deadline is not None and time.monotonic() > deadline:
@@ -181,8 +185,12 @@ class HITLReviewMixin:
                     key=XCOM_HUMAN_ACTION, task_ids=ti.task_id, map_indexes=ti.map_index
                 )
             except Exception:
+                consecutive_pull_failures += 1
+                if consecutive_pull_failures >= _MAX_CONSECUTIVE_XCOM_PULL_FAILURES:
+                    raise
                 self.log.warning("Failed to pull XCom", exc_info=True)
                 continue
+            consecutive_pull_failures = 0
 
             if action_raw is None:
                 # Human action may take some time to propagate; it must be performed in the UI,

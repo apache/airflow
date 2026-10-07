@@ -61,6 +61,7 @@ except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` wa
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
+    from pydantic_ai.output import OutputSpec
     from pydantic_ai.usage import UsageLimits
 
     from airflow.sdk import Context
@@ -197,7 +198,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type = str,
+        output_type: OutputSpec[Any] = str,
         agent_params: dict[str, Any] | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
