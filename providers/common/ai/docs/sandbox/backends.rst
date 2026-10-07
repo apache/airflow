@@ -345,14 +345,13 @@ scanning again until a pass finds none to kill, at most 50 times, and returns th
 tail of each stream. A process the command left in the background keeps running
 after a command that finishes in time, and one that started a session of its own
 (``setsid``, a daemonizing server) escapes the kill on timeout, as can a command
-that keeps forking faster than the sweep. If the gateway
-stops relaying the command for longer than its budget plus 30 seconds, the
-sandbox is destroyed and ``sandbox_terminated`` is reported. Nothing crosses the
-stream until the command ends, so a proxy or load balancer in front of the gateway
-needs an idle timeout longer than the longest command budget plus 30 seconds. A
-gateway restart stops every process in its sandboxes and keeps their files; a
-command in flight is reported to the model as having an unknown outcome rather
-than retried.
+that keeps forking faster than the sweep. If the gateway stops relaying the
+command for longer than its budget plus 30 seconds, the sandbox is destroyed and
+``sandbox_terminated`` is reported. Nothing crosses the stream until the command
+ends, so a proxy or load balancer in front of the gateway needs an idle timeout
+longer than the longest command budget plus 30 seconds. A gateway restart stops
+every process in its sandboxes and keeps their files; a command in flight is
+reported to the model as having an unknown outcome rather than retried.
 
 **Files.** ``write_file`` sends content on stdin in chunks of 768 KiB, since the
 gateway limits one command argument to 32 KiB and one request to 1 MiB; a larger
