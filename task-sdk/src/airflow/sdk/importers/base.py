@@ -34,8 +34,7 @@ from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
-
-    from typing_extensions import Self
+    from typing import Self
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk import DAG

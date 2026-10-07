@@ -884,7 +884,7 @@ class _CredentialsToken(Token):
         # On subsequent calls of `get` it will be used with `datetime.datetime.utcnow()`.
         # Therefore we have to use an offset-naive datetime.
         # https://github.com/talkiq/gcloud-aio/blob/f1132b005ba35d8059229a9ca88b90f31f77456d/auth/gcloud/aio/auth/token.py#L204
-        return datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None)
+        return datetime.datetime.now(tz=datetime.UTC).replace(tzinfo=None)
 
 
 class GoogleBaseAsyncHook(BaseHook):

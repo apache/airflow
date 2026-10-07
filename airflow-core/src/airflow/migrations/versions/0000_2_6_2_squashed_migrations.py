@@ -27,7 +27,7 @@ Create Date: 2025-12-08 14:46:22.497513
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from alembic import op
@@ -766,12 +766,12 @@ def upgrade() -> None:
             {
                 "filename": "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
                 "elasticsearch_id": "{dag_id}-{task_id}-{execution_date}-{try_number}",
-                "created_at": datetime.now(tz=timezone.utc),
+                "created_at": datetime.now(tz=UTC),
             },
             {
                 "filename": "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}attempt={{ try_number }}.log",
                 "elasticsearch_id": "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
-                "created_at": datetime.now(tz=timezone.utc),
+                "created_at": datetime.now(tz=UTC),
             },
         ],
     )

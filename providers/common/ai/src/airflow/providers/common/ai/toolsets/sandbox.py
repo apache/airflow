@@ -27,13 +27,12 @@ import sys
 import threading
 import time
 import uuid
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, Self
 
 from fsspec.implementations.local import LocalFileSystem
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
-from typing_extensions import Self
 
 from airflow.providers.common.ai.sandbox.base import (
     AttachableSandboxBackend,

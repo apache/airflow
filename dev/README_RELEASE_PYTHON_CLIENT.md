@@ -526,17 +526,15 @@ Both commands should produce reproducible `.whl`, `.tar.gz` packages in dist fol
 file containing airflow sources in dist folder.
 
 > [!IMPORTANT]
-> Run the build with Python 3.10 — the project's `DEFAULT_PYTHON_MAJOR_MINOR_VERSION`. The
+> Run the build with Python 3.11 — the project's `DEFAULT_PYTHON_MAJOR_MINOR_VERSION`. The
 > client generator applies the `trigger_dag_run_post_body.py` AST patch with `ast.unparse`, which
 > re-emits that file using the running interpreter's grammar, so building under a different Python
-> (e.g. the host's 3.11+/3.13) produces a non-reproducible client and the `prepare-python-client`
+> (e.g. the host's 3.13) produces a non-reproducible client and the `prepare-python-client`
 > step may not even emit the wheel/sdist. `prepare-python-client` refuses to run under any other
 > Python and exits early with this guidance, so pin the interpreter explicitly:
 >
 > ```shell
-> UV_PYTHON=3.10 breeze release-management prepare-python-client --distribution-format both --version-suffix ""
-> # or equivalently
-> breeze --python 3.10 release-management prepare-python-client --distribution-format both --version-suffix ""
+> UV_PYTHON=3.11 breeze release-management prepare-python-client --distribution-format both --version-suffix ""
 > ```
 
 4) Change to the directory where you have the packages from svn and check if they are identical to the ones

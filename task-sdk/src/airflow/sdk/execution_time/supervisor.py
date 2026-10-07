@@ -35,7 +35,7 @@ import weakref
 from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
 from socket import socket, socketpair
@@ -182,8 +182,9 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 _trace_propagator = TraceContextTextMapPropagator()
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from structlog.typing import FilteringBoundLogger, WrappedLogger
-    from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
@@ -1690,7 +1691,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
+            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=UTC))
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception as e:
@@ -1706,7 +1707,7 @@ class ActivitySubprocess(WatchedSubprocess):
         # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
         # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
         # for more context. Do not remove this without updating related comments and deferral handling.
-        start_date = ti_context.start_date or datetime.now(tz=timezone.utc)
+        start_date = ti_context.start_date or datetime.now(tz=UTC)
 
         msg = StartupDetails.model_construct(
             ti=ti,
@@ -1765,7 +1766,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 self.client.task_instances.finish(
                     id=self.id,
                     state=SERVER_TERMINATED,
-                    when=datetime.now(tz=timezone.utc),
+                    when=datetime.now(tz=UTC),
                     rendered_map_index=self._rendered_map_index,
                     pid=self.pid,
                 )
@@ -1788,7 +1789,7 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_instances.finish(
                 id=self.id,
                 state=self.final_state,
-                when=datetime.now(tz=timezone.utc),
+                when=datetime.now(tz=UTC),
                 rendered_map_index=self._rendered_map_index,
             )
 
@@ -1804,7 +1805,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 self.client.task_instances.finish(
                     id=self.id,
                     state=msg.state,
-                    when=msg.end_date or datetime.now(tz=timezone.utc),
+                    when=msg.end_date or datetime.now(tz=UTC),
                     rendered_map_index=self._rendered_map_index,
                     retry_reason=msg.retry_reason,
                 )
@@ -2532,7 +2533,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
             # By directly constructing the `RuntimeTaskInstance`,
             #   we skip re-parsing (`task_runner.parse()`) and avoid needing to set Dag Bundle config
             #   and run the task in-process.
-            start_date = datetime.now(tz=timezone.utc)
+            start_date = datetime.now(tz=UTC)
             ti_context = supervisor.client.task_instances.start(supervisor.id, supervisor.pid, start_date)
 
             ti = RuntimeTaskInstance.model_construct(
@@ -2930,7 +2931,7 @@ def _fail_task_before_runtime(
     from airflow.sdk.log import upload_to_remote
 
     try:
-        ti_context = client.task_instances.start(ti.id, os.getpid(), datetime.now(tz=timezone.utc))
+        ti_context = client.task_instances.start(ti.id, os.getpid(), datetime.now(tz=UTC))
     except Exception as e:
         if _is_start_rejected_as_cleared(e):
             logger.info(_START_REJECTED_AS_CLEARED_MESSAGE)
@@ -2945,7 +2946,7 @@ def _fail_task_before_runtime(
         exc_info=error if error.__cause__ is not None else None,
     )
     try:
-        end_date = datetime.now(tz=timezone.utc)
+        end_date = datetime.now(tz=UTC)
         try:
             if error.retryable and ti_context.should_retry:
                 client.task_instances.retry(
