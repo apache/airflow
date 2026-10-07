@@ -19,8 +19,19 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from kubernetes.client import Configuration
 
-from airflow.providers.cncf.kubernetes.kube_client import _TimeoutAsyncK8sApiClient, get_async_kube_client
+from airflow.providers.cncf.kubernetes.kube_client import (
+    _get_default_configuration,
+    _get_request_timeout,
+    _TimeoutAsyncK8sApiClient,
+    _TimeoutK8sApiClient,
+    get_async_kube_client,
+)
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    API_TIMEOUT,
+    API_TIMEOUT_OFFSET_SERVER_SIDE,
+)
 
 from tests_common.test_utils.config import conf_vars
 
@@ -37,3 +48,61 @@ class TestGetAsyncKubeClient:
 
         assert isinstance(api.api_client, _TimeoutAsyncK8sApiClient)
         mock_load_incluster.assert_called_once()
+
+
+class TestGetRequestTimeout:
+    @pytest.mark.parametrize(
+        ("timeout_seconds", "expected"),
+        [
+            (None, API_TIMEOUT),
+            (1, API_TIMEOUT),
+            (API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE, API_TIMEOUT),
+            (API_TIMEOUT, API_TIMEOUT + API_TIMEOUT_OFFSET_SERVER_SIDE),
+            (600, 600 + API_TIMEOUT_OFFSET_SERVER_SIDE),
+        ],
+    )
+    def test_client_side_timeout_stays_above_server_side_timeout(self, timeout_seconds, expected):
+        assert _get_request_timeout(timeout_seconds) == expected
+
+
+def test_get_default_configuration_returns_fresh_copy():
+    configuration = _get_default_configuration()
+
+    assert isinstance(configuration, Configuration)
+    assert configuration is not _get_default_configuration()
+
+
+class TestTimeoutK8sApiClient:
+    def test_disable_verify_ssl_turns_off_tls_check_on_given_configuration(self):
+        configuration = Configuration()
+        configuration.verify_ssl = True
+
+        client = _TimeoutK8sApiClient(configuration, disable_verify_ssl=True)
+
+        assert client.configuration.verify_ssl is False
+
+    def test_verify_ssl_kept_by_default(self):
+        configuration = Configuration()
+        configuration.verify_ssl = True
+
+        client = _TimeoutK8sApiClient(configuration)
+
+        assert client.configuration.verify_ssl is True
+
+    @mock.patch("kubernetes.client.ApiClient.call_api")
+    def test_call_api_replaces_explicit_none_request_timeout(self, mock_call_api):
+        _TimeoutK8sApiClient(Configuration()).call_api("/api", "GET", _request_timeout=None)
+
+        assert mock_call_api.call_args.kwargs["_request_timeout"] == API_TIMEOUT
+
+    @mock.patch("kubernetes.client.ApiClient.call_api")
+    def test_call_api_derives_timeout_from_server_side_timeout(self, mock_call_api):
+        _TimeoutK8sApiClient(Configuration()).call_api("/api", "GET", timeout_seconds=600)
+
+        assert mock_call_api.call_args.kwargs["_request_timeout"] == 600 + API_TIMEOUT_OFFSET_SERVER_SIDE
+
+    @mock.patch("kubernetes.client.ApiClient.call_api")
+    def test_call_api_keeps_explicit_request_timeout(self, mock_call_api):
+        _TimeoutK8sApiClient(Configuration()).call_api("/api", "GET", _request_timeout=42)
+
+        assert mock_call_api.call_args.kwargs["_request_timeout"] == 42

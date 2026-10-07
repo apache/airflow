@@ -75,7 +75,6 @@ class TestProjectStructure:
             "providers/celery/tests/unit/celery/executors/test_default_celery.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_exceptions.py",
-            "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_kube_config.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_python_kubernetes_script.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",

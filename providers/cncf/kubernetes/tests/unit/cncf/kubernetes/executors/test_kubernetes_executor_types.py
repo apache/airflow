@@ -22,7 +22,16 @@ from uuid import uuid4
 import pytest
 from kubernetes.client import models as k8s
 
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import task_instance_id_from_pod
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+    ADOPTED,
+    ALL_NAMESPACES,
+    POD_EXECUTOR_DONE_KEY,
+    POD_REVOKED_KEY,
+    FailureDetails,
+    KubernetesJob,
+    task_instance_id_from_pod,
+)
+from airflow.providers.common.compat.sdk import TaskInstanceKey
 
 
 @pytest.mark.parametrize("command_length", [0, 3, 4, 5])
@@ -87,3 +96,27 @@ def test_annotation_takes_precedence_over_legacy_workload(annotation):
     )
 
     assert task_instance_id_from_pod(pod) == (annotated_id if annotation == "valid" else None)
+
+
+def test_pod_annotation_and_label_keys_are_stable():
+    """These values are persisted on live pods; renaming them breaks adoption of running tasks."""
+    assert ADOPTED == "adopted"
+    assert ALL_NAMESPACES == "ALL_NAMESPACES"
+    assert POD_EXECUTOR_DONE_KEY == "airflow_executor_done"
+    assert POD_REVOKED_KEY == "airflow_pod_revoked"
+
+
+def test_kubernetes_job_defaults_to_no_image_override():
+    job = KubernetesJob(
+        key=TaskInstanceKey("dag", "task", "run", 1, -1),
+        command=["airflow", "tasks", "run"],
+        kube_executor_config=None,
+        pod_template_file=None,
+    )
+
+    assert job.kube_image is None
+
+
+def test_failure_details_fields_are_all_optional():
+    assert FailureDetails.__total__ is False
+    assert FailureDetails(exit_code=1) == {"exit_code": 1}
