@@ -748,22 +748,15 @@ class AssetManager(LoggingMixin):
         and the scheduler produces one DagRun per event.
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
-            latest_apdr: AssetPartitionDagRun | None = None
-            if allow_reuse:
-                latest_apdr = session.scalar(
-                    with_row_locks(
-                        select(AssetPartitionDagRun)
-                        .where(
-                            AssetPartitionDagRun.partition_key == target_key,
-                            AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
-                        )
-                        .order_by(AssetPartitionDagRun.id.desc())
-                        .limit(1)
-                        .execution_options(populate_existing=True),
-                        session=session,
-                        key_share=False,
-                    )
+            latest_apdr: AssetPartitionDagRun | None = session.scalar(
+                select(AssetPartitionDagRun)
+                .where(
+                    AssetPartitionDagRun.partition_key == target_key,
+                    AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
                 )
+                .order_by(AssetPartitionDagRun.id.desc())
+                .limit(1)
+            )
             if latest_apdr and latest_apdr.created_dag_run_id is None and allow_reuse:
                 existing_partition_date = latest_apdr.partition_date
                 if existing_partition_date is None:
