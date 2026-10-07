@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import json
+import smtplib
 import tempfile
 from dataclasses import dataclass
 from unittest import mock
@@ -24,6 +26,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from airflow.providers.common.compat.sdk import Connection
 from airflow.providers.smtp.notifications.smtp import SmtpNotifier, send_smtp_notification
 
 from tests_common.test_utils.config import conf_vars
@@ -94,6 +97,29 @@ TEMPLATED_TI_SENDER = TemplatedString(f"{TI_TEMPLATE_STRING}_{SENDER_EMAIL_SUFFI
 
 
 class TestSmtpNotifier:
+    @mock.patch("smtplib.SMTP_SSL", autospec=True)
+    def test_repeated_notifications_reconnect(self, mock_smtp_ssl, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=SMTP_CONN_ID,
+                conn_type="smtp",
+                host="smtp.example.com",
+                port=465,
+                extra=json.dumps({"disable_tls": True}),
+            )
+        )
+        clients = [mock.create_autospec(smtplib.SMTP, instance=True) for _ in range(2)]
+        mock_smtp_ssl.side_effect = clients
+        notifier = SmtpNotifier(**NOTIFIER_DEFAULT_PARAMS)
+
+        notifier.notify({})
+        notifier.notify({})
+
+        assert mock_smtp_ssl.call_count == 2
+        for client in clients:
+            client.sendmail.assert_called_once()
+            client.close.assert_called_once()
+
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier(_self, mock_smtphook_hook, create_dag_without_db):
         notifier = send_smtp_notification(**NOTIFIER_DEFAULT_PARAMS)
