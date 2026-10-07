@@ -474,9 +474,8 @@ independently, so they default to batching when ``batch_asset_events`` is not se
 Passing ``batch_asset_events=False`` explicitly for them makes timetable validation
 raise an error. Single-asset schedules and ``|`` expressions support either mode.
 
-Enabling batching on a partitioned Dag also combines its pending runs for each
-partition key, preserving their asset events. Large backlogs are combined across
-multiple scheduler passes before the combined run is created.
+Pending partitioned runs created while batching was disabled are not merged when you
+enable batching, so let them finish before changing the setting.
 
 For non-partitioned Dags, per-event run creation respects ``max_active_runs`` and the scheduler's
 :ref:`config:scheduler__max_dagruns_to_create_per_loop` budget. Events left over
