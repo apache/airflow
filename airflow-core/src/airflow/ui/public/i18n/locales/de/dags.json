@@ -10,8 +10,6 @@
   "filters": {
     "allRunTypes": "Alle Arten von Läufen",
     "allStates": "Alle Stati",
-    "anyRunState": "Beliebiger Lauf",
-    "anyRunStatePlaceholder": "Beliebigen Laufzustand auswählen…",
     "favorite": {
       "all": "Alle",
       "favorite": "Favorisierte",
@@ -19,8 +17,6 @@
     },
     "favoriteState": "Favorisierter Zustand",
     "favoriteStatePlaceholder": "Favorisierten Zustand auswählen…",
-    "lastRunState": "Letzter Lauf",
-    "lastRunStatePlaceholder": "Letzten Laufzustand auswählen…",
     "noTimetableTypesFound": "Keine Zeitplantypen gefunden",
     "paused": {
       "active": "Aktiv",
@@ -31,7 +27,16 @@
     "pausedState": "Pausierter Zustand",
     "requiresHitlAction": "Erfordert HITL-Aktion",
     "runIdPatternFilter": "Dag Läufe suchen",
+    "runState": "Lauf status",
+    "runStatePlaceholder": "Lauf status wählen…",
     "timetableType": "Zeitplantyp"
+  },
+  "folders": {
+    "all": "Alle Dags",
+    "empty": "Keine Ordner",
+    "hide": "Ordner ausblenden",
+    "show": "Ordner anzeigen",
+    "title": "Ordner"
   },
   "ownerLink": "Besitzer Verlinkungen zu {{owner}}",
   "runAndTaskActions": {
@@ -79,6 +84,7 @@
       "downstream": "Nachfolgende",
       "existingTasks": "Bestehende Tasks bereinigen",
       "future": "Zukünftige",
+      "keepTaskState": "Aufgabenstatus beim Neuversuch beibehalten",
       "onlyFailed": "Nur fehlgeschlagene Tasks bereinigen",
       "past": "Vergangene",
       "preventRunningTasks": "Zurücksetzen von laufenden Tasks verhindern",
@@ -92,6 +98,25 @@
     "label": "Laufstatus",
     "loading": "Laufstatuszahlen werden geladen",
     "tooltip": "{{state}}: {{formattedCount}} – klicken, um Läufe zu filtern"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Abbrechen auslaufen lassen",
+    "drain": "Auslaufen dann pausieren",
+    "drainPrompt": "Dieses Dag hat Läufe aktiv. Auslaufen lässt diese beenden bevor das Dag pausiert. Pausieren stoppt Planung sofort ohne auf Ergebnisse zu warten.",
+    "pauseNow": "Jetzt pausieren",
+    "pauseSelected": "Pausieren / Auslaufen"
+  },
+  "schedulingBanner": {
+    "message": "Dieses Dag läuft aus. Es wird pausieren sobald aktive Läufe komplett sind."
+  },
+  "schedulingState": {
+    "active": "Aktiv",
+    "draining": "Auslaufend",
+    "drainingBadgeTooltip": "Dieses Dag pausiert sobald alle Läufe komplett sind.",
+    "drainingTooltip": "Auslaufen {{dagDisplayName}} — pausiert wenn Dag Läufe komplett sind. Klicken zum Forstsetzen.",
+    "label": "Planungsstatus",
+    "paused": "Pausiert",
+    "placeholder": "Auswahl des Planungszustands…"
   },
   "search": {
     "advanced": "Erweiterte Suche",

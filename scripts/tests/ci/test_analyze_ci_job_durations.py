@@ -248,7 +248,7 @@ class TestGetRunJobs:
                         "completedAt": "2026-06-10T13:20:00Z",
                         "steps": [
                             {
-                                "name": "Prepare breeze & CI image: 3.10",
+                                "name": "Prepare breeze & CI image: 3.11",
                                 "startedAt": "2026-06-10T13:00:00Z",
                                 "completedAt": "2026-06-10T13:05:00Z",
                             }
@@ -305,7 +305,7 @@ class TestGetRunJobs:
                         "completedAt": "2026-06-10T13:20:00Z",
                         "steps": [
                             {
-                                "name": "Prepare breeze & CI image: 3.10",
+                                "name": "Prepare breeze & CI image: 3.11",
                                 "startedAt": "2026-06-10T13:00:00Z",
                                 "completedAt": "2026-06-10T13:05:00Z",
                             }
@@ -345,9 +345,9 @@ class TestGetImageWorkSeconds:
 
     def test_covers_prod_prepare_and_push_steps(self, durations_module):
         job = self._job(
-            ("Prepare breeze & PROD image: 3.10", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
+            ("Prepare breeze & PROD image: 3.11", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
             (
-                "Push PROD latest image: 3.10 (linux/amd64 ONLY)",
+                "Push PROD latest image: 3.11 (linux/amd64 ONLY)",
                 "2026-08-13T04:05:00Z",
                 "2026-08-13T04:15:00Z",
             ),
@@ -360,8 +360,8 @@ class TestGetImageWorkSeconds:
 
     def test_ignores_steps_with_unusable_timestamps(self, durations_module):
         job = self._job(
-            ("Prepare breeze & CI image: 3.10", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
-            ("Push CI latest images: 3.10 (linux/amd64 only)", "", ""),
+            ("Prepare breeze & CI image: 3.11", "2026-08-13T04:00:00Z", "2026-08-13T04:05:00Z"),
+            ("Push CI latest images: 3.11 (linux/amd64 only)", "", ""),
         )
         assert durations_module.get_image_work_seconds(job) == 5 * 60
 
@@ -659,3 +659,49 @@ class TestFormatSlackMessage:
             channel="internal-airflow-ci-cd",
         )
         assert "image build slow" not in json.dumps(msg).lower()
+
+
+class TestComputeRunAgeDays:
+    @pytest.mark.parametrize(
+        ("created_at", "expected"),
+        [
+            pytest.param("2026-09-28T09:00:00Z", 0.0, id="same-moment"),
+            pytest.param("2026-09-26T21:00:00Z", 1.5, id="fractional-days"),
+            pytest.param("2026-08-21T09:00:00Z", 38.0, id="weeks-old"),
+            pytest.param("", None, id="missing"),
+            pytest.param("not-a-date", None, id="unparsable"),
+        ],
+    )
+    def test_age(self, durations_module, created_at, expected):
+        now = durations_module.parse_iso("2026-09-28T09:00:00Z")
+        assert durations_module.compute_run_age_days({"created_at": created_at}, now) == expected
+
+
+class TestMainSkipsStaleRuns:
+    def test_skips_analysis_when_newest_run_is_stale(self, durations_module, tmp_path, monkeypatch):
+        stale_runs = [
+            {
+                "id": run_id,
+                "run_number": run_id,
+                "created_at": "2020-01-01T02:00:00Z",
+                "conclusion": "success",
+                "event": "schedule",
+                "html_url": f"https://example/{run_id}",
+                "duration": 6000,
+            }
+            for run_id in range(10, 4, -1)
+        ]
+        github_output = tmp_path / "github_output"
+        output_file = tmp_path / "slack-message.json"
+        monkeypatch.setenv("GITHUB_OUTPUT", str(github_output))
+        monkeypatch.setenv("OUTPUT_FILE", str(output_file))
+        with (
+            patch.object(durations_module, "get_recent_runs", autospec=True, return_value=stale_runs),
+            patch.object(durations_module, "fetch_run_jobs_map", autospec=True) as mock_fetch_jobs,
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            durations_module.main()
+        assert exc_info.value.code == 0
+        mock_fetch_jobs.assert_not_called()
+        assert not output_file.exists()
+        assert "has-regression=false" in github_output.read_text()

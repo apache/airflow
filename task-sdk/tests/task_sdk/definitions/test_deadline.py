@@ -19,13 +19,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from unittest import mock
 
+import pendulum
 import pytest
 from task_sdk.definitions.test_callback import TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH, UNIMPORTABLE_DOT_PATH
 
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import AirflowRuntimeError
+from airflow.sdk.exceptions import AirflowRuntimeError, RemovedInAirflow4Warning
 
 DAG_ID = "dag_id_1"
 RUN_ID = 1
@@ -43,6 +44,11 @@ TEST_DEADLINE_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_
 
 
 class TestDeadlineAlert:
+    class SubclassedCallback(SyncCallback):
+        """Stand-in for a Dag author's own Callback subclass, which DeadlineAlert must reject."""
+
+        ...
+
     @pytest.mark.parametrize(
         ("test_alert", "should_equal"),
         [
@@ -142,29 +148,137 @@ class TestDeadlineAlert:
         assert len(alert_set) == 1
 
     @pytest.mark.parametrize(
-        ("callback_class"),
+        ("test_callback", "expected_name", "expected_pass"),
         [
-            pytest.param(AsyncCallback, id="async_callback"),
-            pytest.param(SyncCallback, id="sync_callback"),
+            pytest.param(
+                SyncCallback(TEST_CALLBACK_PATH),
+                "SyncCallback",
+                True,
+                id="sync_callback_passes",
+            ),
+            pytest.param(
+                AsyncCallback(TEST_CALLBACK_PATH),
+                "AsyncCallback",
+                True,
+                id="async_callback_passes",
+            ),
+            pytest.param(
+                type(TEST_CALLBACK_PATH),
+                "type",
+                False,
+                id="non_callback_callable_fails",
+            ),
+            pytest.param(
+                SubclassedCallback(TEST_CALLBACK_PATH),
+                "SubclassedCallback",
+                False,
+                id="subclassed_callback_fails",
+            ),
+            pytest.param(
+                "not_a_callback",
+                "str",
+                False,
+                id="non_callback_fails",
+            ),
+            pytest.param(
+                None,
+                "NoneType",
+                False,
+                id="can_not_be_none",
+            ),
         ],
     )
-    def test_deadline_alert_accepts_all_callbacks(self, callback_class):
-        alert = DeadlineAlert(
-            reference=DeadlineReference.DAGRUN_QUEUED_AT,
-            interval=timedelta(hours=1),
-            callback=callback_class(TEST_CALLBACK_PATH),
-        )
-        assert alert.callback is not None
-        assert isinstance(alert.callback, callback_class)
-
-    def test_deadline_alert_rejects_invalid_callback(self):
-        """Test that DeadlineAlert rejects non-callback types."""
-        with pytest.raises(ValueError, match="Callbacks of type str are not currently supported"):
-            DeadlineAlert(
+    def test_deadline_init_callback_type_checks(self, test_callback, expected_name, expected_pass):
+        if expected_pass:
+            alert = DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_QUEUED_AT,
                 interval=timedelta(hours=1),
-                callback="not_a_callback",  # type: ignore
+                callback=test_callback,
             )
+
+            assert alert.callback is test_callback
+            assert type(alert.callback).__name__ == expected_name
+        else:
+            with pytest.raises(
+                ValueError,
+                match=f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {expected_name}",
+            ):
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=timedelta(hours=1),
+                    callback=test_callback,
+                )
+
+    @pytest.mark.parametrize(
+        ("test_interval", "expected_name", "expected_pass"),
+        [
+            pytest.param(timedelta(1), "timedelta", True, id="positive_timedelta_passes"),
+            pytest.param(timedelta(-1), "timedelta", True, id="negative_timedelta_passes"),
+            pytest.param(timedelta(0), "timedelta", True, id="zero_timedelta_passes"),
+            pytest.param(VariableInterval("var"), "VariableInterval", True, id="VariableInterval_passes"),
+            pytest.param(True, "bool", False, id="bool_fails"),
+            pytest.param("str", "str", False, id="string_fails"),
+            pytest.param(None, "NoneType", False, id="can_not_be_none"),
+        ],
+    )
+    def test_deadline_init_interval_type_checks(self, test_interval, expected_name, expected_pass):
+        if expected_pass:
+            alert = DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=test_interval,
+                callback=TEST_DEADLINE_CALLBACK,
+            )
+
+            assert alert.interval == test_interval
+            assert type(alert.interval).__name__ == expected_name
+        else:
+            with pytest.raises(
+                ValueError,
+                match=f"Interval must be a `timedelta` or a `VariableInterval`, received {expected_name}",
+            ):
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                    interval=test_interval,
+                    callback=TEST_DEADLINE_CALLBACK,
+                )
+
+    @pytest.mark.parametrize(
+        ("test_interval", "expected"),
+        [
+            pytest.param(3600, timedelta(seconds=3600), id="positive_int"),
+            pytest.param(-5, timedelta(seconds=-5), id="negative_int"),
+            pytest.param(0, timedelta(0), id="zero"),
+            pytest.param(0.1, timedelta(seconds=0.1), id="float"),
+        ],
+    )
+    def test_deadline_init_number_interval_is_deprecated_not_rejected(self, test_interval, expected):
+        """A bare number was never a documented interval type, but it parses today, so it is warned about."""
+        with pytest.warns(
+            RemovedInAirflow4Warning, match="Passing a number as a deadline interval is deprecated"
+        ):
+            alert = DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=test_interval,
+                callback=TEST_DEADLINE_CALLBACK,
+            )
+
+        assert alert.interval == expected
+        assert type(alert.interval) is timedelta
+
+    def test_deadline_init_normalizes_timedelta_subclass(self):
+        """``pendulum.duration()`` has no serializer of its own, so it is flattened to a ``timedelta``.
+
+        Without this it passes the isinstance check and then fails much later in serde, which
+        dispatches on qualified class name and registers only ``datetime.timedelta``.
+        """
+        alert = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=pendulum.duration(hours=1),
+            callback=TEST_DEADLINE_CALLBACK,
+        )
+
+        assert alert.interval == timedelta(hours=1)
+        assert type(alert.interval) is timedelta
 
 
 class TestVariableInterval:

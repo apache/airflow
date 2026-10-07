@@ -56,7 +56,7 @@ SHOULD_DELETE_POD = True
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
 SCHEDULE_TIMEOUT_SECS = 60
-TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
+TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.UTC)
 CLUSTER_URL = "https://test-host"
 SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."

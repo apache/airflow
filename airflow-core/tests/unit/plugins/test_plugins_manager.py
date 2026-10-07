@@ -23,16 +23,22 @@ import json
 import logging
 import os
 import sys
+from email.message import Message
+from importlib.metadata import EntryPoint
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
+import airflow._shared.module_loading as module_loading
+import airflow._shared.plugins_manager.plugins_manager as plugin_loader_module
 import airflow.plugins_manager as plugins_manager
 from airflow._shared.module_loading import qualname
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.partition_mappers.window import Window
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers_manager import provider_incompatibility_reason
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -237,13 +243,15 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
+            external_views = [{"url_route": "/test_route"}, {"wrong_view": "/no_url_route"}]  # type: ignore[typeddict-item, typeddict-unknown-key]
 
         class TestPluginB(AirflowPlugin):
             name = "test_plugin_b"
 
-            external_views = [{"url_route": "/test_route"}]
-            react_apps = [{"url_route": "/test_route"}]
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
+            external_views = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
+            react_apps = [{"url_route": "/test_route"}]  # type: ignore[typeddict-item]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA(), TestPluginB()]),
@@ -266,8 +274,9 @@ class TestPluginsManager:
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
-            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]
-            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]
+            # Malformed on purpose to trigger the warning path; mypy ignores below.
+            external_views = [[{"nested_list": "/test_route"}], {"url_route": "/test_route"}]  # type: ignore[list-item, typeddict-item]
+            react_apps = [[{"nested_list": "/test_route"}], {"url_route": "/test_route_react_app"}]  # type: ignore[list-item, typeddict-item]
 
         with (
             mock_plugin_manager(plugins=[TestPluginA()]),
@@ -300,6 +309,24 @@ class TestPluginsManager:
                 "The React App will not be loaded.",
             ),
         ]
+
+    def test_loads_typed_external_views_and_react_apps(self):
+        class TypedPlugin(AirflowPlugin):
+            name = "typed_plugin"
+
+            # Recommended `ExternalViewDict` / `ReactAppDict` shapes — no `# type: ignore` needed here.
+            external_views = [{"name": "typed-view", "href": "/typed", "url_route": "/typed"}]
+            react_apps = [{"name": "typed-react", "bundle_url": "/typed.js", "url_route": "/typed_react"}]
+
+        with mock_plugin_manager(plugins=[TypedPlugin()]):
+            from airflow import plugins_manager
+
+            external_views, react_apps = plugins_manager._get_ui_plugins()
+
+            assert external_views == [{"name": "typed-view", "href": "/typed", "url_route": "/typed"}]
+            assert react_apps == [
+                {"name": "typed-react", "bundle_url": "/typed.js", "url_route": "/typed_react"}
+            ]
 
     @pytest.mark.parametrize(
         ("applies_to", "error"),
@@ -337,7 +364,13 @@ class TestPluginsManager:
             name = "test_plugin"
 
             external_views = [
-                {"name": "Scoped", "url_route": "/scoped", "destination": "dag", "applies_to": applies_to}
+                {
+                    "name": "Scoped",
+                    "href": "/scoped",
+                    "url_route": "/scoped",
+                    "destination": "dag",
+                    "applies_to": applies_to,
+                }
             ]
 
         with (
@@ -348,7 +381,9 @@ class TestPluginsManager:
 
             external_views, _ = plugins_manager._get_ui_plugins()
 
-            assert external_views == [{"name": "Scoped", "url_route": "/scoped", "destination": "dag"}]
+            assert external_views == [
+                {"name": "Scoped", "href": "/scoped", "url_route": "/scoped", "destination": "dag"}
+            ]
 
         assert caplog.record_tuples == [
             (
@@ -366,6 +401,7 @@ class TestPluginsManager:
             react_apps = [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -385,6 +421,7 @@ class TestPluginsManager:
             assert react_apps == [
                 {
                     "name": "Scoped",
+                    "bundle_url": "/scoped.js",
                     "url_route": "/scoped",
                     "destination": "dag_run",
                     "applies_to": {"dag_tags": ["ml"], "task_ids": ["train"], "operators": ["Op"]},
@@ -407,6 +444,7 @@ class TestPluginsManager:
             external_views = [
                 {
                     "name": "Scoped",
+                    "href": "/scoped",
                     "url_route": "/scoped",
                     "destination": "task",
                     "applies_to": {
@@ -611,6 +649,67 @@ class TestPluginTeamName:
 
         assert info_by_name["global_plugin"]["team_name"] is None
         assert info_by_name["team_plugin"]["team_name"] == "team_a"
+
+
+class TestGetSchedulingClassTeams:
+    @staticmethod
+    def _plugin(team_name, **registries):
+        plugin = AirflowPlugin()
+        plugin.name = f"plugin_{team_name}"
+        plugin.team_name = team_name
+        for registry, classes in registries.items():
+            setattr(plugin, registry, classes)
+        return plugin
+
+    def test_maps_each_registry_by_qualname(self):
+        from airflow.example_dags.plugins.business_day_window import BusinessDayWindow
+        from airflow.example_dags.plugins.custom_partition_mapper import PrefixStripMapper
+        from airflow.example_dags.plugins.decreasing_priority_weight_strategy import (
+            DecreasingPriorityStrategy,
+        )
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        plugin = self._plugin(
+            "team_a",
+            timetables=[AfterWorkdayTimetable],
+            partition_mappers=[PrefixStripMapper],
+            windows=[BusinessDayWindow],
+            priority_weight_strategies=[DecreasingPriorityStrategy],
+        )
+        with mock_plugin_manager(plugins=[plugin]):
+            assert plugins_manager.get_scheduling_class_teams() == {
+                qualname(cls): frozenset({"team_a"})
+                for cls in (
+                    AfterWorkdayTimetable,
+                    PrefixStripMapper,
+                    BusinessDayWindow,
+                    DecreasingPriorityStrategy,
+                )
+            }
+
+    def test_class_registered_by_several_plugins_maps_to_all_their_teams(self):
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        plugins = [self._plugin(team, timetables=[AfterWorkdayTimetable]) for team in ("team_a", None)]
+        with mock_plugin_manager(plugins=plugins):
+            assert plugins_manager.get_scheduling_class_teams() == {
+                qualname(AfterWorkdayTimetable): frozenset({"team_a", None})
+            }
+
+    def test_airflow_classes_are_left_out(self):
+        """The decoder imports these directly, so no plugin can own them."""
+        from airflow.partition_mappers.temporal import StartOfDayMapper
+        from airflow.partition_mappers.window import DayWindow
+        from airflow.timetables.trigger import CronTriggerTimetable
+
+        plugin = self._plugin(
+            "team_a",
+            timetables=[CronTriggerTimetable],
+            partition_mappers=[StartOfDayMapper],
+            windows=[DayWindow],
+        )
+        with mock_plugin_manager(plugins=[plugin]):
+            assert plugins_manager.get_scheduling_class_teams() == {}
 
 
 class TestValidatePluginTeams:
@@ -880,3 +979,154 @@ class TestWarnAboutUnknownTranslationKeys:
             plugins_manager.warn_about_unknown_translation_keys(plugin_translations, tmp_path / "en")
 
         assert any("'a'" in record.getMessage() for record in caplog.records)
+
+
+class TestExtraLinkTeamVisibility:
+    """``is_extra_link_visible_to_team`` decides whether a team-scoped plugin's operator link
+    is rendered for a given Dag, so the API server can hide one team's links from another."""
+
+    @staticmethod
+    def _link_class():
+        from tests_common.test_utils.compat import BaseOperatorLink
+
+        class SomeLink(BaseOperatorLink):
+            name = "Some Link"
+
+            def get_link(self, operator, ti_key):
+                return "https://example.com"
+
+        return SomeLink
+
+    def test_operator_defined_link_is_visible_to_every_team(self):
+        """A link no plugin registered belongs to the operator, so no team owns it."""
+        from airflow import plugins_manager
+
+        link = self._link_class()()
+        with mock_plugin_manager(plugins=[]):
+            assert plugins_manager.is_extra_link_visible_to_team(link, "team_a") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link, None) is True
+
+    @pytest.mark.parametrize(
+        ("dag_team", "expected"),
+        [
+            pytest.param("team_a", True, id="owning-team"),
+            pytest.param("team_b", False, id="other-team"),
+            pytest.param(None, False, id="teamless-dag"),
+        ],
+    )
+    def test_team_scoped_link_is_visible_only_to_its_team(self, dag_team, expected):
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            global_operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), dag_team) is expected
+
+    def test_link_registered_by_a_global_plugin_too_stays_global(self):
+        """Ownership resolves least restrictively: one global registration keeps the link
+        visible everywhere, rather than the team registration narrowing it."""
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            global_operator_extra_links = [link_class()]
+
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_link_plugin"
+            global_operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin, GlobalPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_b") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), None) is True
+
+    def test_operator_scoped_links_are_tracked_alongside_global_ones(self):
+        """``operator_extra_links`` are team-owned on the same terms as ``global_operator_extra_links``."""
+        from airflow import plugins_manager
+
+        link_class = self._link_class()
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_a_link_plugin"
+            team_name = "team_a"
+            operator_extra_links = [link_class()]
+
+        with mock_plugin_manager(plugins=[TeamPlugin]):
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_a") is True
+            assert plugins_manager.is_extra_link_visible_to_team(link_class(), "team_b") is False
+
+
+@pytest.mark.parametrize(
+    ("version", "direct_url", "allowed"),
+    [
+        pytest.param("0.10.0", None, False, id="released-0.10.0"),
+        pytest.param("1.0.0rc1", None, True, id="release-candidate-1.0.0rc1"),
+        pytest.param("1.0.0", None, True, id="released-1.0.0"),
+        pytest.param("1.1.0", None, True, id="released-1.1.0"),
+        pytest.param("0.10.0", {"dir_info": {"editable": True}}, True, id="editable-source-install"),
+        pytest.param("0.10.0", {"dir_info": {}}, True, id="directory-source-install"),
+        pytest.param("0.10.0", {"archive_info": {}}, False, id="local-archive-install"),
+    ],
+)
+def test_common_ai_plugin_entrypoint_checks_installed_version_before_import(
+    monkeypatch, caplog, version, direct_url, allowed
+):
+    metadata = Message()
+    metadata["Name"] = "apache-airflow-providers-common-ai"
+    distribution = SimpleNamespace(
+        metadata=metadata,
+        version=version,
+        read_text=lambda filename: json.dumps(direct_url) if direct_url else None,
+    )
+
+    # Defined here, not at module level: this module sits in the plugins folder and would be loaded as a plugin.
+    class CompatiblePlugin(AirflowPlugin):
+        name = "compatible_test_plugin"
+
+    entry_point = mock.Mock(spec=EntryPoint)
+    entry_point.name = "hitl_review"
+    entry_point.module = "airflow.providers.common.ai.plugins.hitl_review"
+    entry_point.load.return_value = CompatiblePlugin
+    monkeypatch.setattr(
+        module_loading,
+        "entry_points_with_dist",
+        lambda group: [(entry_point, distribution)],
+    )
+
+    with caplog.at_level(logging.WARNING):
+        plugins, import_errors = plugin_loader_module._load_entrypoint_plugins(
+            provider_incompatibility_reason
+        )
+
+    assert bool(plugins) is allowed
+    assert entry_point.load.called is allowed
+    if not allowed:
+        assert import_errors[entry_point.module].startswith(
+            f"Skipping incompatible provider apache-airflow-providers-common-ai {version}"
+        )
+        assert "apache-airflow-providers-common-ai>=1.0.0" in caplog.text
+    else:
+        assert import_errors == {}
+
+
+def test_core_plugin_manager_passes_compatibility_policy(monkeypatch, tmp_path):
+    monkeypatch.setattr(plugins_manager.settings, "PLUGINS_FOLDER", str(tmp_path))
+    with (
+        mock.patch.object(
+            plugins_manager, "_load_entrypoint_plugins", autospec=True, return_value=([], {})
+        ) as load,
+        mock.patch.object(
+            plugins_manager, "_load_plugins_from_plugin_directory", autospec=True, return_value=([], {})
+        ),
+        mock.patch.object(plugins_manager, "_load_providers_plugins", autospec=True, return_value=([], {})),
+    ):
+        plugins_manager._get_plugins.__wrapped__()
+
+    load.assert_called_once_with(provider_incompatibility_reason)

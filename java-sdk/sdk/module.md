@@ -29,7 +29,7 @@ meaning of each dimension is defined in the
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.3 · supervisor schema: 2026-06-16*
+*Min. Airflow version: 3.3 · supervisor schema: 2026-10-30*
 
 | Dimension | Tier | Supported | Since | Notes |
 |---|---|---|---|---|
@@ -44,13 +44,14 @@ meaning of each dimension is defined in the
 | state: `removed` | MAY | ✓ | 3.3 |  |
 | **Runtime capabilities** |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
 | capability: `task-logging` | MUST | ✓ | 3.3 | SLF4J + JPL bridged to the task log |
 | capability: `xcom-read-write` | MUST | ✓ | 3.3 |  |
 | capability: `connection-read` | MUST | ✓ | 3.3 |  |
-| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
+| capability: `variable-read-write` | MUST | ✓ | 3.3 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the jar artifact |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.3 | Client.getTaskStateStore() get/set/delete/clear |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |

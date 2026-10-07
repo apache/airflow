@@ -28,6 +28,31 @@
 Changelog
 ---------
 
+4.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Link dbt Cloud runs to the triggering Airflow task via OpenLineage (#70131)``
+* ``Surface dbt Cloud failure details in Airflow task logs (#70171)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typo in dbt cloud hook docstring (#71971)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Prepare providers release 2026-09-09 (#72834)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 4.9.3
 .....
 

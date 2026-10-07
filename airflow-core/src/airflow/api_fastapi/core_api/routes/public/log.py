@@ -39,7 +39,6 @@ from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_acce
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance, Trigger
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.log.log_reader import TaskLogReader
 
 _NDJSON_BATCH_SIZE = conf.getint("api", "log_stream_buffer_size")
@@ -79,7 +78,7 @@ def _buffered_ndjson_stream(
 @task_instances_log_router.get(
     "/{task_id}/logs/{try_number}",
     responses={
-        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+        **create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
         status.HTTP_200_OK: {
             "description": "Successful Response",
             "content": ndjson_example_response_for_get_log,
@@ -135,23 +134,9 @@ def get_log(
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
         .options(joinedload(TaskInstance.dag_model))
+        .execution_options(include_all_attempts=True)
     )
     ti = session.scalar(query)
-    if ti is None:
-        query = (
-            select(TaskInstanceHistory)
-            .where(
-                TaskInstanceHistory.task_id == task_id,
-                TaskInstanceHistory.dag_id == dag_id,
-                TaskInstanceHistory.run_id == dag_run_id,
-                TaskInstanceHistory.map_index == map_index,
-                TaskInstanceHistory.try_number == try_number,
-            )
-            .options(joinedload(TaskInstanceHistory.dag_run))
-            # we need to joinedload the dag_run, since FileTaskHandler._render_filename needs ti.dag_run
-        )
-        ti = session.scalar(query)
-
     if ti is None:
         metadata["end_of_log"] = True
         raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")

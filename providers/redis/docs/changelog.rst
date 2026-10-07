@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+4.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add redis_conn_id to RedisKeySensor and RedisPubSubSensor template_fields (#73018)``
+* ``Add redis_conn_id to RedisPublishOperator template_fields (#72883)``
+
+Doc-only
+~~~~~~~~
+
+* ``Keep message queue provider doc markers out of class docstrings (#73588)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 4.6.0
 .....
 

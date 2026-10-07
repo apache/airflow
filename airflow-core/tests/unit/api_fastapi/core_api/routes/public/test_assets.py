@@ -54,7 +54,7 @@ from airflow.sdk import Asset
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -2029,12 +2029,49 @@ class TestPostAssetEvents(TestAssets):
         }
         check_last_log(session, dag_id=None, event="create_asset_event", logical_date=None)
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset",
+        autospec=True,
+    )
+    def test_should_authorize_on_the_asset_named_in_the_body(
+        self, mock_is_authorized_asset, test_client, session
+    ):
+        """The asset id lives in the body, so the route must resolve it and authorize on the full asset."""
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_is_authorized_asset.return_value = True
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id})
+
+        assert response.status_code == 200
+        mock_is_authorized_asset.assert_called_once_with(
+            mock.ANY,
+            method="POST",
+            details=AssetDetails(id=str(asset.id), name="simple1", uri="s3://bucket/key/1"),
+            user=mock.ANY,
+        )
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_asset",
+        autospec=True,
+    )
+    def test_should_respond_403_when_not_authorized_on_the_asset(
+        self, mock_is_authorized_asset, test_client, session
+    ):
+        (asset,) = self.create_assets(num=1, session=session)
+        mock_is_authorized_asset.return_value = False
+
+        response = test_client.post("/assets/events", json={"asset_id": asset.id})
+
+        assert response.status_code == 403
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/assets/events", json={"asset_uri": "s3://bucket/key/1"})
         assert response.status_code == 401
 
-    def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/assets/events", json={"asset_uri": "s3://bucket/key/1"})
+    def test_should_respond_403(self, unauthorized_test_client, session):
+        (asset,) = self.create_assets(num=1, session=session)
+        response = unauthorized_test_client.post("/assets/events", json={"asset_id": asset.id})
         assert response.status_code == 403
 
     def test_invalid_attr_not_allowed(self, test_client, session):
@@ -2268,13 +2305,13 @@ class TestPostAssetMaterialize(TestAssets):
         return_value="Jane Doe",
     )
     def test_materialize_records_triggering_user_display_name(self, mock_display_name, test_client):
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 200
         assert response.json()["triggering_user_name"] == "Jane Doe"
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 200
         assert response.json() == {
             "bundle_version": None,
@@ -2301,6 +2338,77 @@ class TestPostAssetMaterialize(TestAssets):
             "note": None,
             "team_name": None,
         }
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("headers", "content"),
+        [
+            pytest.param(None, None, id="no-body"),
+            pytest.param(
+                {"content-type": "application/x-www-form-urlencoded"}, b"", id="empty-urlencoded-form"
+            ),
+            pytest.param(
+                {"content-type": "application/x-www-form-urlencoded"},
+                b"partition_key=x",
+                id="urlencoded-form-with-field",
+            ),
+            pytest.param({"content-type": "multipart/form-data; boundary=x"}, b"", id="empty-multipart-form"),
+            pytest.param({"content-type": "text/plain"}, b"", id="empty-text-plain"),
+        ],
+    )
+    def test_should_reject_missing_or_non_json_body(self, test_client, session, headers, content):
+        # The request body is required and must be JSON, like the other mutating endpoints. A bodyless
+        # request and a browser HTML form submission (url-encoded/multipart/text, which is all a plain
+        # cross-origin <form> can send) are both rejected without queuing a Dag run.
+        response = test_client.post("/assets/1/materialize", content=content, headers=headers)
+        assert response.status_code == 422
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_state"),
+        [
+            pytest.param(True, DagSchedulingState.DRAINING, id="drain"),
+            pytest.param(False, DagSchedulingState.PAUSED, id="leave-paused"),
+        ],
+    )
+    def test_materialize_paused_dag_with_drain_dag(self, test_client, session, drain_dag, expected_state):
+        session.execute(update(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post("/assets/1/materialize", json={"drain_dag": drain_dag})
+
+        assert response.status_code == 200
+        session.expire_all()
+        assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == expected_state
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_status"),
+        [({"drain_dag": True}, 403), ({"drain_dag": False}, 200), ({}, 200)],
+    )
+    def test_drain_dag_requires_dag_edit_access(
+        self, test_client, session, deny_dag_edit_access, request_fields, expected_status
+    ):
+        session.execute(update(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post("/assets/1/materialize", json=request_fields)
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == DagSchedulingState.PAUSED
+        if expected_status == 403:
+            assert (
+                response.json()["detail"] == f"Draining requires permission to edit Dag: {self.DAG_ASSET1_ID}"
+            )
+            assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=self.DAG_ASSET1_ID), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
+            )
+        else:
+            assert session.scalar(select(func.count()).select_from(DagRun)) == 1
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_partition_key(self, test_client):
@@ -2364,12 +2472,12 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 403
 
     def test_should_respond_409_on_multiple_dags(self, test_client):
-        response = test_client.post("/assets/2/materialize")
+        response = test_client.post("/assets/2/materialize", json={})
         assert response.status_code == 409
         assert response.json()["detail"] == "More than one Dag materializes asset with ID: 2"
 
     def test_should_respond_404_on_multiple_dags(self, test_client):
-        response = test_client.post("/assets/3/materialize")
+        response = test_client.post("/assets/3/materialize", json={})
         assert response.status_code == 404
         assert response.json()["detail"] == "No Dag materializes asset with ID: 3"
 
@@ -2385,7 +2493,7 @@ class TestPostAssetMaterialize(TestAssets):
             .values(_data=data)
         )
         session.commit()
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 400
         assert (
             response.json()["detail"]
@@ -2422,7 +2530,7 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.json()["bundle_version"] == "v1"
 
         # Without bundle_version the latest (v2) governs and rejects the run.
-        response = test_client.post("/assets/1/materialize")
+        response = test_client.post("/assets/1/materialize", json={})
         assert response.status_code == 400
         assert (
             response.json()["detail"]
@@ -2437,7 +2545,7 @@ class TestPostAssetMaterialize(TestAssets):
         ) as mock_get_auth_manager:
             mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
 
-            response = test_client.post("/assets/1/materialize")
+            response = test_client.post("/assets/1/materialize", json={})
 
             assert response.status_code == 403
             assert response.json()["detail"] == (
@@ -2566,7 +2674,7 @@ class TestPostAssetMaterialize(TestAssets):
                 DagModel, "get_team_name", return_value=team_name, autospec=True
             ) as mock_get_team_name,
         ):
-            test_client.post("/assets/1/materialize")
+            test_client.post("/assets/1/materialize", json={})
 
         assert len(recorded) == 1, "expected exactly one authorization check"
         details = recorded[0]["details"]

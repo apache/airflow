@@ -35,7 +35,6 @@
         "title": "Backfill generated"
       }
     },
-    "unpause": "Unpause {{dag_display_name}} on trigger",
     "validation": {
       "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
       "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."
@@ -131,11 +130,23 @@
     "hide": "Hide value",
     "show": "Show value"
   },
+  "pausedDag": {
+    "drain": "Drain",
+    "drainDescription": "Unfinished runs continue, but no scheduled runs are created. Paused backfills stay paused. The Dag pauses again once all unfinished runs finish.",
+    "keepPaused": "Keep paused",
+    "keepPausedDescription": "New and unfinished runs wait until the Dag is unpaused.",
+    "title": "Dag is paused",
+    "unfinishedRunsWillRun_one": "1 unfinished Dag run will start or resume.",
+    "unfinishedRunsWillRun_other": "{{count}} unfinished Dag runs will start or resume.",
+    "unpause": "Unpause",
+    "unpauseDescription": "The Dag becomes active: unfinished runs continue and the schedule resumes. Paused backfills stay paused."
+  },
   "reparseDag": "Reparse Dag",
   "slowestTaskInstances": {
     "empty": "No completed task instances in this range",
     "title": "Slowest task instances"
   },
+  "sortMultiColumnHint": "Shift-click to sort by multiple columns",
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",
@@ -155,6 +166,7 @@
     "dataInterval": "Data Interval",
     "dataIntervalAuto": "Inferred from Logical Date and Timetable",
     "dataIntervalManual": "Specify Manually",
+    "editConfigAndTrigger": "Edit config and trigger",
     "intervalEnd": "End",
     "intervalStart": "Start",
     "loading": "Loading Dag information...",
@@ -175,7 +187,7 @@
       }
     },
     "triggerAgainWithConfig": "Trigger again with this config",
-    "unpause": "Unpause {{dagDisplayName}} on trigger"
+    "triggerOptions": "Trigger options"
   },
   "trimText": {
     "details": "Details",
@@ -192,6 +204,7 @@
   "versionSelect": {
     "allVersions": "All Versions",
     "dagVersion": "Dag Version",
+    "placeholder": "Select version",
     "versionCode": "v{{versionCode}}"
   }
 }

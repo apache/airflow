@@ -30,7 +30,7 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from airflow._shared.timezones import timezone
 from airflow.api.client import get_current_api_client
@@ -59,7 +59,7 @@ from airflow.utils.helpers import ask_yesno, chunks
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
@@ -270,11 +271,14 @@ def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Ses
     else:
         query = query.where(DagModel.dag_id == args.dag_id)
 
-    query = query.where(DagModel.is_paused != is_paused)
+    query = query.where(or_(DagModel.is_paused != is_paused, DagModel.is_draining))
 
     matched_dags = list(session.scalars(query).all())
     if not matched_dags:
-        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        if args.output in ("table", "plain"):
+            print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        else:
+            AirflowConsole().print_as(data=[], output=args.output)
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
@@ -290,7 +294,7 @@ def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Ses
 
     def _update_is_paused(dag_model: DagModel) -> bool:
         old_is_paused = dag_model.is_paused
-        dag_model.is_paused = is_paused
+        dag_model.set_scheduling_state(DagSchedulingState.PAUSED if is_paused else DagSchedulingState.ACTIVE)
         return old_is_paused
 
     old_values = [
@@ -370,7 +374,7 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
     print(f"File {filename} saved")
 
 
-def _get_dagbag_dag_details(dag: DAG) -> dict:
+def _get_dagbag_dag_details(dag: BaggedDAG) -> dict:
     """Return a dagbag dag details dict."""
     from airflow.serialization.encoders import coerce_to_core_timetable
 
@@ -381,6 +385,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "bundle_name": None,
         "bundle_version": None,
         "is_paused": None,
+        "scheduling_state": None,
         "is_stale": None,
         "last_parsed_time": None,
         "last_parse_duration": None,
@@ -595,7 +600,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
-    def get_dag_detail(dag: DAG) -> dict:
+    def get_dag_detail(dag: BaggedDAG) -> dict:
         if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
             dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
         else:
@@ -604,7 +609,9 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             return dag_detail
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
-    def filter_dags_by_bundle(dags: Iterable[DAG], bundle_names: list[str] | None) -> Iterable[DAG]:
+    def filter_dags_by_bundle(
+        dags: Iterable[BaggedDAG], bundle_names: list[str] | None
+    ) -> Iterable[BaggedDAG]:
         """Filter DAGs based on the specified bundle name, if provided."""
         if not bundle_names:
             return dags
@@ -795,6 +802,10 @@ def dag_list_dag_runs(args, dag: DAG | None = None, *, session: Session = NEW_SE
         session=session,
     )
     dag_runs.sort(key=operator.attrgetter("run_after"), reverse=True)
+    # Slice after sorting so `--limit` reliably returns the most recent runs,
+    # independent of insertion order in DagRun.find().
+    if getattr(args, "limit", None):
+        dag_runs = dag_runs[: args.limit]
 
     def _render_dagrun(dr: DagRun) -> dict[str, str]:
         return {
@@ -850,7 +861,7 @@ def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) ->
     if show_dagrun or imgcat or filename:
         tis = session.scalars(
             select(TaskInstance).where(
-                TaskInstance.dag_id == args.dag_id,
+                TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.run_id == dr.run_id,
             )
         ).all()

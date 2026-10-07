@@ -27,13 +27,17 @@ import type { Direction } from "src/components/Graph/DirectionDropdown";
 
 import type { DefaultTaskInstanceTab } from "src/constants/tab";
 import {
+  useClearKeepTaskStateDefault,
   useClearPreventRunningTaskDefault,
   useClearRunDefaultOptions,
   useClearTaskInstanceDefaultOptions,
   useDefaultGraphDirection,
   useDefaultLandingPage,
+  useDefaultMatchAnywhere,
   useDefaultTaskInstanceTab,
+  useDefaultTaskGroupsExpanded,
   useMarkTaskInstanceDefaultOptions,
+  useShowDagsListRecentTasks,
   type LandingPageOption,
 } from "src/hooks/useUserSettings";
 import { useDocumentTitle } from "src/utils";
@@ -170,12 +174,16 @@ export const Settings = () => {
   useDocumentTitle(translate("settings.title"));
 
   const [graphDirection, setGraphDirection] = useDefaultGraphDirection();
+  const [taskGroupsExpanded, setTaskGroupsExpanded] = useDefaultTaskGroupsExpanded();
   const [clearRunOptions, setClearRunOptions] = useClearRunDefaultOptions();
   const [clearTaskOptions, setClearTaskOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTask, setPreventRunningTask] = useClearPreventRunningTaskDefault();
+  const [keepTaskState, setKeepTaskState] = useClearKeepTaskStateDefault();
   const [markTaskOptions, setMarkTaskOptions] = useMarkTaskInstanceDefaultOptions();
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
+  const [matchAnywhere, setMatchAnywhere] = useDefaultMatchAnywhere();
+  const [showRecentTasks, setShowRecentTasks] = useShowDagsListRecentTasks();
 
   const taskInstanceTabOptions: Array<SelectOption<DefaultTaskInstanceTab>> = [
     { label: translate("dag:tabs.logs"), value: "logs" },
@@ -231,7 +239,47 @@ export const Settings = () => {
             value={defaultLandingPage}
           />
         </Section>
+        <Section title={translate("settings.search.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.search.matchAnywhere.label")}
+                checked={matchAnywhere}
+                data-testid="default-match-anywhere"
+                onCheckedChange={(event) => setMatchAnywhere(event.checked)}
+              />
+            }
+            helper={translate("settings.search.matchAnywhere.helper")}
+            label={translate("settings.search.matchAnywhere.label")}
+          />
+        </Section>
+        <Section title={translate("settings.dagsList.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.dagsList.recentTasks.label")}
+                checked={showRecentTasks}
+                data-testid="dags-list-show-recent-tasks"
+                onCheckedChange={(event) => setShowRecentTasks(event.checked)}
+              />
+            }
+            helper={translate("settings.dagsList.recentTasks.helper")}
+            label={translate("settings.dagsList.recentTasks.label")}
+          />
+        </Section>
         <Section title={translate("settings.graph.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.graph.taskGroupsExpanded.label")}
+                checked={taskGroupsExpanded}
+                data-testid="default-task-groups-expanded"
+                onCheckedChange={(event) => setTaskGroupsExpanded(event.checked)}
+              />
+            }
+            helper={translate("settings.graph.taskGroupsExpanded.helper")}
+            label={translate("settings.graph.taskGroupsExpanded.label")}
+          />
           <SelectSetting
             helper={translate("settings.graph.defaultDirection.helper")}
             label={translate("settings.graph.defaultDirection.label")}
@@ -270,6 +318,17 @@ export const Settings = () => {
             }
             helper={translate("settings.clearing.preventRunningTask.helper")}
             label={translate("settings.clearing.preventRunningTask.label")}
+          />
+          <SettingRow
+            control={
+              <Switch
+                checked={keepTaskState}
+                data-testid="clear-keep-task-state"
+                onCheckedChange={(event) => setKeepTaskState(event.checked)}
+              />
+            }
+            helper={translate("settings.clearing.keepTaskState.helper")}
+            label={translate("settings.clearing.keepTaskState.label")}
           />
         </Section>
         <Section title={translate("settings.marking.title")}>

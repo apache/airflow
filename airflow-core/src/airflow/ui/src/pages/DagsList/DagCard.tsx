@@ -24,27 +24,37 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { RouterLink, Tooltip } from "src/system-components";
 
 import DagRunInfo from "src/components/DagRunInfo";
+import { DrainingBadge } from "src/components/DrainingBadge";
 import { Stat } from "src/components/Stat";
 import { TeamName } from "src/components/TeamName";
 
 import { useNearViewport } from "src/hooks/useNearViewport";
 import { useConfig } from "src/queries/useConfig";
+import type { RecentTasks } from "src/queries/useRecentTaskStateCounts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagCardActions } from "./DagCardActions";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { RecentRuns } from "./RecentRuns";
+import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
 import { Schedule } from "./Schedule";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
+  readonly recentTasks: RecentTasks;
   readonly runStateCounts: Record<string, number> | undefined;
   readonly runStateCountsLoading: boolean;
   readonly stateCountLimit: number | undefined;
 };
 
-export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCountLimit }: Props) => {
+export const DagCard = ({
+  dag,
+  recentTasks,
+  runStateCounts,
+  runStateCountsLoading,
+  stateCountLimit,
+}: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
@@ -118,7 +128,9 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
         </GridItem>
         <GridItem gridColumn={3} gridRow={1}>
           <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
-            {!dag.is_paused && Boolean(dag.next_dagrun_run_after) ? (
+            {dag.is_paused ? undefined : dag.scheduling_state === "draining" ? (
+              <DrainingBadge />
+            ) : Boolean(dag.next_dagrun_run_after) ? (
               <DagRunInfo
                 logicalDate={dag.next_dagrun_logical_date}
                 runAfter={dag.next_dagrun_run_after as string}
@@ -156,6 +168,19 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
             ) : undefined}
           </Box>
         </GridItem>
+        {recentTasks.show ? (
+          <GridItem alignSelf="end" gridColumn="2 / 4" gridRow={2}>
+            <Box minHeight="22px">
+              {isNearViewport ? (
+                <RecentTaskStateCounts
+                  dagId={dag.dag_id}
+                  entry={recentTasks.entriesByDag[dag.dag_id]}
+                  isLoading={recentTasks.isLoading}
+                />
+              ) : undefined}
+            </Box>
+          </GridItem>
+        ) : undefined}
       </Grid>
     </Box>
   );

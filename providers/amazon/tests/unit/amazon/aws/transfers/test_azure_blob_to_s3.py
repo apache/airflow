@@ -20,6 +20,7 @@ from __future__ import annotations
 from io import RawIOBase
 from unittest import mock
 
+import pytest
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -216,3 +217,23 @@ class TestAzureBlobToS3Operator:
             replace=False,
             acl_policy=s3_acl_policy,
         )
+
+    @pytest.mark.parametrize("replace", [False, True])
+    @mock.patch("airflow.providers.amazon.aws.transfers.azure_blob_to_s3.WasbHook")
+    def test_execute_skips_overlapping_folder_markers(self, mock_hook, replace):
+        mock_hook.return_value.get_blobs_list_recursive.return_value = [
+            "src/",
+            "src/file.txt",
+            "lonely/",
+        ]
+        operator = AzureBlobStorageToS3Operator(
+            task_id=TASK_ID,
+            container_name=CONTAINER_NAME,
+            dest_s3_key=S3_BUCKET,
+            replace=replace,
+        )
+        hook, _ = _create_test_bucket()
+
+        uploaded_files = operator.execute(None)
+        assert uploaded_files == ["lonely/", "src/file.txt"]
+        assert hook.list_keys("bucket") == ["lonely/", "src/file.txt"]

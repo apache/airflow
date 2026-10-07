@@ -78,20 +78,30 @@ class TestBaseBotoWaiter:
         )
         assert result is waiter_instance
 
-    @mock.patch("aiobotocore.waiter.create_waiter_with_client")
-    def test_waiter_deferrable(self, mock_async_create_waiter, mock_client):
-        async_waiter_instance = mock.MagicMock()
-        mock_async_create_waiter.return_value = async_waiter_instance
-
+    @mock.patch.object(BaseBotoWaiter, "_get_async_waiter_with_client", autospec=True)
+    def test_waiter_deferrable(self, mock_get_async_waiter, mock_client):
         boto_waiter = BaseBotoWaiter(
             client=mock_client, model_config=SAMPLE_WAITER_MODEL_CONFIG, deferrable=True
         )
         result = boto_waiter.waiter("sample_waiter")
 
+        mock_get_async_waiter.assert_called_once_with(boto_waiter, waiter_name="sample_waiter")
+        assert result is mock_get_async_waiter.return_value
+
+    def test_get_async_waiter_with_client(self, mock_client):
+        # aiobotocore is an optional extra, so it has to be imported inside the test
+        pytest.importorskip("aiobotocore")
+
+        boto_waiter = BaseBotoWaiter(
+            client=mock_client, model_config=SAMPLE_WAITER_MODEL_CONFIG, deferrable=True
+        )
+        with mock.patch("aiobotocore.waiter.create_waiter_with_client") as mock_async_create_waiter:
+            result = boto_waiter.waiter("sample_waiter")
+
         mock_async_create_waiter.assert_called_once_with(
             waiter_name="sample_waiter", waiter_model=boto_waiter.model, client=mock_client
         )
-        assert result is async_waiter_instance
+        assert result is mock_async_create_waiter.return_value
 
     def test_waiter_with_real_botocore_creation(self, mock_client):
         boto_waiter = BaseBotoWaiter(

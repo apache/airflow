@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+.. warning::
+  In multi-team mode with ``use_team_secrets_path`` enabled (the default), a connection or variable
+  looked up with no team is no longer resolved when its id contains ``/`` below the mount point. Such an
+  id resolves under the same base path that team-scoped secrets are stored under, so it could name a
+  team's secret. Store secrets used outside any team under ids without ``/``, or set
+  ``use_team_secrets_path=False`` if the deployment does not use team-scoped Vault paths.
+
+4.8.2
+.....
+
+Misc
+~~~~
+
+* ``Bump the minimum apache-airflow-providers-common-compat version to 1.12.0 (#72503)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 4.8.1
 .....
 

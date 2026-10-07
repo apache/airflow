@@ -150,6 +150,8 @@ class SerializedDAG:
 
     # Only on serialized dag.
     last_loaded: datetime.datetime = attrs.field(init=False)
+    fileloc: str = attrs.field(init=False)
+    relative_fileloc: str | None = attrs.field(init=False)
     # Determine the relative fileloc based only on the serialize dag.
     _processor_dags_folder: str = attrs.field(init=False)
 
@@ -763,7 +765,7 @@ class SerializedDAG:
             interval = deserialized_deadline_alert.interval
 
             if isinstance(interval, SerializedVariableInterval):
-                interval = interval.resolve()
+                interval = interval.resolve(session=session)
 
             if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(

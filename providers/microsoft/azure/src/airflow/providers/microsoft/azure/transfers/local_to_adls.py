@@ -54,7 +54,7 @@ class LocalFilesystemToADLSOperator(BaseOperator):
     :param azure_data_lake_conn_id: Reference to the Azure Data Lake connection
     """
 
-    template_fields: Sequence[str] = ("local_path", "remote_path")
+    template_fields: Sequence[str] = ("local_path", "remote_path", "azure_data_lake_conn_id")
     ui_color = "#e4f0e8"
 
     def __init__(

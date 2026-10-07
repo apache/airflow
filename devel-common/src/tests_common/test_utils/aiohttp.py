@@ -51,13 +51,6 @@ class MockAiohttpClientResponse:
         self.headers = headers or {}
 
     @property
-    def request_info(self) -> RequestInfo:
-        return RequestInfo(url=URL(self._url), method=self._method, headers=None)  # type: ignore[arg-type]
-
-    async def release(self) -> None:
-        return None
-
-    @property
     def reason(self) -> str:
         if self._reason is not None:
             return self._reason

@@ -32,12 +32,22 @@ from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager import (
     AirflowPlugin as AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
+    AppliesToDict as AppliesToDict,
+    BaseDestinationLiteral as BaseDestinationLiteral,
+    ExternalViewDict as ExternalViewDict,
+    FastAPIAppDict as FastAPIAppDict,
+    FastAPIRootMiddlewareDict as FastAPIRootMiddlewareDict,
     PluginsDirectorySource as PluginsDirectorySource,
+    ReactAppDict as ReactAppDict,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     is_valid_plugin,
 )
 from airflow.configuration import conf
+from airflow.serialization.helpers import (
+    is_core_partition_mapper_import_path,
+    is_core_timetable_import_path,
+)
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
@@ -90,6 +100,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     Plugins are only loaded if they have not been previously loaded.
     """
     from airflow._shared.observability.metrics import stats
+    from airflow.providers_manager import provider_incompatibility_reason
 
     if not settings.PLUGINS_FOLDER:
         raise ValueError("Plugins folder is not set")
@@ -130,7 +141,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
                 ignore_file_syntax=ignore_file_syntax,
             )
         )
-        __register_plugins(*_load_entrypoint_plugins())
+        __register_plugins(*_load_entrypoint_plugins(provider_incompatibility_reason))
 
         if not settings.LAZY_LOAD_PROVIDERS:
             __register_plugins(*_load_providers_plugins())
@@ -185,7 +196,7 @@ def _describe_applies_to_error(applies_to: Any) -> str | None:
     return None
 
 
-def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: str) -> None:
+def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | ReactAppDict, kind: str) -> None:
     """
     Warn about scoping a UI plugin cannot honour, and strip it if it is malformed.
 
@@ -232,17 +243,17 @@ def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: st
 
 
 @cache
-def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
+def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
     """Collect extension points for the UI."""
     log.debug("Initialize UI plugin")
 
     seen_url_routes: dict[str, str | None] = {}
 
-    external_views: list[Any] = []
-    react_apps: list[Any] = []
+    external_views: list[ExternalViewDict] = []
+    react_apps: list[ReactAppDict] = []
     for plugin in _get_plugins()[0]:
-        external_views_to_remove = []
-        react_apps_to_remove = []
+        external_views_to_remove: list[ExternalViewDict] = []
+        react_apps_to_remove: list[ReactAppDict] = []
         for external_view in plugin.external_views:
             if not isinstance(external_view, dict):
                 log.warning(
@@ -293,10 +304,10 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
             react_apps.append(react_app)
             seen_url_routes[url_route] = plugin.name
 
-        for item in external_views_to_remove:
-            plugin.external_views.remove(item)
-        for item in react_apps_to_remove:
-            plugin.react_apps.remove(item)
+        for external_view in external_views_to_remove:
+            plugin.external_views.remove(external_view)
+        for react_app in react_apps_to_remove:
+            plugin.react_apps.remove(react_app)
     return external_views, react_apps
 
 
@@ -471,6 +482,84 @@ def get_global_operator_extra_links() -> list[Any]:
 def get_operator_extra_links() -> list[Any]:
     """Get operator extra links registered by plugins."""
     return _get_extra_operators_links_plugins()[1]
+
+
+@cache
+def _get_extra_link_class_teams() -> dict[type, frozenset[str | None]]:
+    """
+    Map every plugin-registered extra link class to the teams that registered it.
+
+    Keyed by class because neither of the alternatives works: ``BaseOperatorLink`` sets
+    ``__hash__ = None`` and compares equal across instances, and two distinct link
+    classes may share a ``name`` (plugin links deliberately override operator links of
+    the same name), so a name key would conflate them.
+
+    A class registered by several plugins maps to all of their teams, which
+    :func:`is_extra_link_visible_to_team` then resolves least restrictively.
+    """
+    teams: dict[type, set[str | None]] = {}
+    for plugin in _get_plugins()[0]:
+        for link in (*plugin.global_operator_extra_links, *plugin.operator_extra_links):
+            teams.setdefault(type(link), set()).add(plugin.team_name)
+    return {link_class: frozenset(team_names) for link_class, team_names in teams.items()}
+
+
+def is_extra_link_visible_to_team(link: Any, team_name: str | None) -> bool:
+    """
+    Whether ``link`` should be shown on a task instance belonging to ``team_name``.
+
+    A team-scoped plugin's links are shown only on that team's task instances, so they
+    appear neither on another team's Dags nor on teamless (global) ones. Links from
+    global plugins, and links the operator defines itself, stay visible everywhere.
+
+    :param link: The operator link object, whose class identifies the registering plugin.
+    :param team_name: Team owning the Dag the link would be rendered for, or ``None``
+        when the Dag is not team-owned.
+    """
+    link_teams = _get_extra_link_class_teams().get(type(link))
+    # Not registered by any plugin (defined by the operator), or registered by at least
+    # one global plugin: either way it is not restricted to a team.
+    if link_teams is None or None in link_teams:
+        return True
+    return team_name in link_teams
+
+
+@cache
+def get_scheduling_class_teams() -> dict[str, frozenset[str | None]]:
+    """
+    Map the qualname of every plugin-registered scheduling class to the teams that registered it.
+
+    Covers timetables, partition mappers, windows, deadline references and priority weight
+    strategies: the registries a Dag names directly, with no team-aware lookup in between.
+
+    Keyed by qualname because that is what a serialized Dag records and what the scheduler
+    resolves through ``get_timetables_plugins()`` and its siblings. Class identity is not
+    stable enough to key on: the plugin loader executes a plugin file again under its own
+    module entry, so a Dag importing a class from that file can hold a different class
+    object with the same qualname as the one that was registered.
+
+    A qualname registered by several plugins maps to all of their teams, and is then
+    resolved least restrictively.
+
+    Airflow's own timetables, partition mappers and windows are left out even if a plugin
+    lists them: the decoder imports anything under those core paths directly and never
+    consults plugins, so a plugin cannot own them.
+    """
+    teams: dict[str, set[str | None]] = {}
+    for plugin in _get_plugins()[0]:
+        for scheduling_class in (
+            *plugin.timetables,
+            *plugin.partition_mappers,
+            *plugin.windows,
+            *plugin.deadline_references,
+            *plugin.priority_weight_strategies,
+        ):
+            name = qualname(scheduling_class)
+            # The partition mapper prefix also covers core windows.
+            if is_core_timetable_import_path(name) or is_core_partition_mapper_import_path(name):
+                continue
+            teams.setdefault(name, set()).add(plugin.team_name)
+    return {name: frozenset(team_names) for name, team_names in teams.items()}
 
 
 @cache

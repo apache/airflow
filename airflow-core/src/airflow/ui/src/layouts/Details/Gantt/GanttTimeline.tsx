@@ -289,10 +289,10 @@ export const GanttTimeline = ({
             // from the filtered list so the adjacent execution bar keeps rounded corners.
             const segments =
               bodyWidthPx > 0
-                ? allSegments.filter((segment) =>
-                    segment.state !== "scheduled" && segment.state !== "queued"
-                      ? true
-                      : segmentLayout(segment).widthPx >= MIN_SEGMENT_RENDER_PX,
+                ? allSegments.filter(
+                    (segment) =>
+                      (segment.state !== "scheduled" && segment.state !== "queued") ||
+                      segmentLayout(segment).widthPx >= MIN_SEGMENT_RENDER_PX,
                   )
                 : allSegments;
             const taskId = node.id;
@@ -341,9 +341,9 @@ export const GanttTimeline = ({
 
                     // Task groups don't have a try number
                     const touchesNext =
-                      tryNumber === undefined ? false : segments[segIndex + 1]?.tryNumber === tryNumber;
+                      tryNumber !== undefined && segments[segIndex + 1]?.tryNumber === tryNumber;
                     const touchesPrev =
-                      tryNumber === undefined ? false : segments[segIndex - 1]?.tryNumber === tryNumber;
+                      tryNumber !== undefined && segments[segIndex - 1]?.tryNumber === tryNumber;
 
                     return (
                       <TaskInstanceTooltip
@@ -385,6 +385,18 @@ export const GanttTimeline = ({
                               justifyContent="center"
                               minH={0}
                               p={0}
+                              // Aggregate task-group bars are the envelope of their children's
+                              // runtime, not a real running task. Overlay a diagonal stripe so
+                              // they read as an aggregate at a glance and don't get mistaken for
+                              // a single long-running task.
+                              style={
+                                node.isGroup === true
+                                  ? {
+                                      backgroundImage:
+                                        "repeating-linear-gradient(45deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 3px, transparent 3px, transparent 6px)",
+                                    }
+                                  : undefined
+                              }
                               variant="solid"
                               w="100%"
                             >

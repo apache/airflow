@@ -22,7 +22,7 @@ from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
 import attrs
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from airflow.models.referencemixin import ReferenceMixin
@@ -154,8 +154,7 @@ def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Ses
 @get_task_map_length.register
 def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int | None:
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskmap import TaskMap
-    from airflow.models.xcom import XComModel
+    from airflow.models.xcom import XComModel, xcom_entity
     from airflow.serialization.definitions.mappedoperator import is_mapped
 
     dag_id = xcom_arg.operator.dag_id
@@ -163,6 +162,7 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int 
 
     if is_mapped(xcom_arg.operator):
         unfinished_ti_exists = exists_query(
+            TaskInstance.working_set.is_(True),
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == run_id,
             TaskInstance.task_id == task_id,
@@ -177,21 +177,17 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int 
         )
         if unfinished_ti_exists:
             return None  # Not all of the expanded tis are done yet.
-        query = select(func.count(XComModel.map_index)).where(
-            XComModel.dag_id == dag_id,
-            XComModel.run_id == run_id,
-            XComModel.task_id == task_id,
-            XComModel.map_index >= 0,
-            XComModel.key == XCOM_RETURN_KEY,
+        read = XComModel.get_many(dag_ids=dag_id, run_id=run_id, task_ids=task_id, key=XCOM_RETURN_KEY)
+        entity = xcom_entity(read)
+        return session.scalar(
+            read.order_by(None).where(entity.map_index >= 0).with_only_columns(func.count(entity.map_index))
         )
-    else:
-        query = select(TaskMap.length).where(
-            TaskMap.dag_id == dag_id,
-            TaskMap.run_id == run_id,
-            TaskMap.task_id == task_id,
-            TaskMap.map_index < 0,
-        )
-    return session.scalar(query)
+
+    read = XComModel.get_many(
+        dag_ids=dag_id, run_id=run_id, task_ids=task_id, map_indexes=-1, key=XCOM_RETURN_KEY
+    )
+    entity = xcom_entity(read)
+    return session.scalar(read.with_only_columns(entity.mapped_length))
 
 
 @get_task_map_length.register

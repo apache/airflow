@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -523,7 +524,9 @@ SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH = (
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local-all-sources.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mount-ui-dist.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mount-uv-lock.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mypy.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "pycache.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH = (
     SCRIPTS_CI_DOCKER_COMPOSE_PATH / "providers-and-tests-sources.yml"
 )
@@ -542,6 +545,9 @@ BREEZE_IMAGES_PATH = BREEZE_DOC_PATH / "images"
 AIRFLOW_HOME_PATH = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow"))
 
 
+PYCACHE_VOLUME_NAME = "airflow-pycache-volume"
+
+
 def create_volume_if_missing(volume_name: str):
     from airflow_breeze.utils.run_utils import run_command
 
@@ -553,7 +559,7 @@ def create_volume_if_missing(volume_name: str):
     )
     if res_inspect.returncode != 0:
         result = run_command(
-            cmd=["docker", "volume", "create", volume_name],
+            cmd=["docker", "volume", "create", "--label", "org.apache.airflow.breeze=true", volume_name],
             check=False,
             capture_output=True,
         )
@@ -567,6 +573,10 @@ def create_volume_if_missing(volume_name: str):
 
 def create_mypy_volume_if_needed():
     create_volume_if_missing("mypy-cache-volume")
+
+
+def create_pycache_volume_if_needed():
+    create_volume_if_missing(PYCACHE_VOLUME_NAME)
 
 
 def create_directories_and_files() -> None:
@@ -628,6 +638,13 @@ def cleanup_python_generated_files():
             console_print("You can also remove those files manually using sudo.")
     if get_verbose():
         console_print("[info]Cleaned")
+
+
+def get_default_project_name() -> str:
+    if get_main_git_dir_for_worktree() is None:
+        return "breeze"
+    name = re.sub(r"[^a-z0-9_-]", "-", AIRFLOW_ROOT_PATH.resolve().name.lower())
+    return f"breeze-{name}"
 
 
 def get_main_git_dir_for_worktree() -> Path | None:
