@@ -862,6 +862,30 @@ class TestFiles:
 
         assert not isinstance(error.value, SandboxTerminalError)
 
+    @pytest.mark.parametrize(
+        ("path", "message"),
+        [
+            pytest.param("/tmp/a\0b", "contains a NUL", id="nul"),
+            # 16385 characters, but 32769 bytes of UTF-8.
+            pytest.param("/" + "é" * 16384, "is 32769 bytes, over the 32768", id="over-32-kib"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "operation",
+        [
+            pytest.param(lambda backend, path: backend.read_file("box", path, max_bytes=10), id="read"),
+            pytest.param(lambda backend, path: backend.write_file("box", path, b"data"), id="write"),
+        ],
+    )
+    def test_a_path_the_gateway_refuses_is_recoverable_and_not_sent(self, operation, path, message):
+        backend, client = _backend()
+
+        with pytest.raises(SandboxError, match=message) as error:
+            operation(backend, path)
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        client._stub.ExecSandbox.assert_not_called()
+
     def test_listing_parses_nul_separated_records(self):
         backend, client = _backend()
         client._stub.ExecSandbox.return_value = _result(0, b"d sub\0f a file\0f new\nline\0")

@@ -64,6 +64,9 @@ _POLL_INTERVAL = 0.25
 # travels as stdin inside that request, so both stay under it with headroom.
 _MAX_STDIN_BYTES = 1_000_000
 _WRITE_CHUNK_BYTES = 768 * 1024
+# The gateway refuses a command argument over 32 KiB of UTF-8 or containing NUL
+# with INVALID_ARGUMENT, which is terminal, and file paths travel as arguments.
+_MAX_ARG_BYTES = 32 * 1024
 # The gateway rejects a sandbox name longer than 19 characters, which
 # _new_sandbox_name's ``airflow-sandbox-<12 hex>`` is, so the name is shorter
 # here. Labels carry the attribution instead, and the creation time so an
@@ -933,6 +936,16 @@ class OpenShellSandboxBackend(SandboxBackend):
             applied_timeout=float(seconds),
         )
 
+    @staticmethod
+    def _check_path(path: str) -> None:
+        if "\0" in path:
+            raise SandboxError("The path contains a NUL character, which OpenShell does not accept.")
+        size = len(path.encode("utf-8"))
+        if size > _MAX_ARG_BYTES:
+            raise SandboxError(
+                f"The path is {size} bytes, over the {_MAX_ARG_BYTES} bytes OpenShell accepts. Use a shorter path."
+            )
+
     def _run_file_op(
         self, sandbox: str, script: str, *args: str, stdin: bytes = b"", stdout_cap: int = _FILE_OP_OUTPUT_CAP
     ) -> tuple[_ExecOutcome, bytes]:
@@ -955,6 +968,7 @@ class OpenShellSandboxBackend(SandboxBackend):
     def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
         """Read a file as raw bytes, stopping one byte past ``max_bytes`` inside the guest."""
         _validate_positive_finite(max_bytes, "max_bytes")
+        self._check_path(path)
         # The size line is at most 20 digits and a newline; the rest is the content.
         outcome, raw = self._run_file_op(
             sandbox, _READ_SCRIPT, path, str(max_bytes + 1), stdout_cap=max_bytes + 1 + 32
@@ -984,6 +998,7 @@ class OpenShellSandboxBackend(SandboxBackend):
         chunks has no such ceiling. A file larger than one chunk is not written
         atomically: a failure part way leaves the chunks written so far.
         """
+        self._check_path(path)
         chunks = [
             content[i : i + _WRITE_CHUNK_BYTES] for i in range(0, len(content), _WRITE_CHUNK_BYTES)
         ] or [b""]
