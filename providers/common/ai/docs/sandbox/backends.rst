@@ -354,12 +354,14 @@ tail of each stream. A process the command left in the background keeps running
 after a command that finishes in time, and one that started a session of its own
 (``setsid``, a daemonizing server) escapes the kill on timeout, as can a command
 that keeps forking faster than the sweep. If the gateway stops relaying the
-command for longer than its budget plus 30 seconds, the sandbox is destroyed and
-``sandbox_terminated`` is reported. Nothing crosses the stream until the command
-ends, so a proxy or load balancer in front of the gateway needs an idle timeout
-longer than the longest command budget plus 30 seconds. A gateway restart stops
-every process in its sandboxes and keeps their files; a command in flight is
-reported to the model as having an unknown outcome rather than retried.
+command for longer than its budget plus 30 seconds, ``sandbox_terminated`` is
+reported, and the backend asks the gateway to delete the sandbox and logs a
+failure, for the reaper described below to clean up. Nothing crosses the stream
+until the command ends, so a proxy or load balancer in front of the gateway
+needs an idle timeout longer than the longest command budget plus 30 seconds. A
+gateway restart stops every process in its sandboxes and keeps their files; a
+command in flight is reported to the model as having an unknown outcome rather
+than retried.
 
 **Files.** ``write_file`` sends content on stdin in chunks of 768 KiB, since the
 gateway limits one command argument to 32 KiB and one request to 1 MiB; a larger
@@ -478,7 +480,9 @@ behaves identically everywhere:
   Modal and a server-enforced OpenSandbox timeout preserve the sandbox and files.
   OpenSandbox destroys it only if the command event stream itself stalls past the
   client-side grace period. OpenShell kills the command's session and keeps the
-  sandbox, and destroys it only if the gateway stops relaying the command.
+  sandbox. If the gateway stops relaying the command, the backend asks it to delete
+  the sandbox and logs a failure, for the reaper described under
+  :ref:`OpenShell <sandbox-backend-openshell>` to clean up.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
   OpenShell and replaces it on Modal and OpenSandbox.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an
