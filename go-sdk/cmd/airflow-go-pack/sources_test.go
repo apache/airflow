@@ -21,10 +21,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -289,20 +291,32 @@ func TestRunPack_DagFileOutsideModuleFallsBackToEntrypoint(t *testing.T) {
 	)
 }
 
-func TestRejectOutputAlias_EmbeddedSourceFile(t *testing.T) {
-	dir := t.TempDir()
-	exe := filepath.Join(dir, "exe")
-	entry := filepath.Join(dir, "main.go")
-	other := filepath.Join(dir, "dag.go")
-	for _, p := range []string{exe, entry, other} {
-		require.NoError(t, os.WriteFile(p, []byte("x"), 0o644))
-	}
+func TestRunPack_RejectsOutputAliasingDagSourceFile(t *testing.T) {
+	dir := writeModule(t, "example.com/app", map[string]string{
+		"main.go":         "package main\nfunc main() {}\n",
+		"dags/reports.go": "package dags\n",
+	})
+	exe := filepath.Join(dir, "prebuilt")
+	require.NoError(t, os.WriteFile(exe, []byte("prebuilt-binary-bytes"), 0o755))
+	reports := filepath.Join(dir, "dags", "reports.go")
+	meta := filepath.Join(dir, "airflow-metadata.json")
+	require.NoError(t, os.WriteFile(meta, []byte(
+		`{"airflow_bundle_metadata_version":"1.0",`+
+			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},`+
+			`"dags":{},"dag_source_files":{"reports":`+strconv.Quote(reports)+`}}`,
+	), 0o644))
 
-	err := rejectOutputAlias(other, exe, []string{entry, other}, "")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "same file as the source")
+	err := runPack(io.Discard, io.Discard, &packOptions{
+		executable:      exe,
+		source:          filepath.Join(dir, "main.go"),
+		airflowMetadata: meta,
+		output:          reports,
+	})
+	require.ErrorContains(t, err, "same file as the source")
 
-	assert.NoError(t, rejectOutputAlias(filepath.Join(dir, "out"), exe, []string{entry, other}, ""))
+	got, readErr := os.ReadFile(reports)
+	require.NoError(t, readErr)
+	assert.Equal(t, "package dags\n", string(got))
 }
 
 // Packs the multidag fixture through the real build path: three Dag files across two imported
