@@ -108,6 +108,7 @@ class AwsEcsExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
+    supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
 
     if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = frozenset(
@@ -173,7 +174,7 @@ class AwsEcsExecutor(BaseExecutor):
             command: CommandType
             if isinstance(workload, workloads.ExecuteTask):
                 command = [workload]
-                key = workload.ti.key
+                key = self.get_task_key(workload.ti) if self.supports_task_instance_uuid else workload.ti.key
                 queue = workload.ti.queue
                 executor_config = workload.ti.executor_config or {}
 
@@ -669,7 +670,7 @@ class AwsEcsExecutor(BaseExecutor):
 
                     self.active_workers.add_task(
                         task,
-                        ti.key,
+                        self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key,
                         ti.queue or "",
                         command,
                         ti.executor_config or {},

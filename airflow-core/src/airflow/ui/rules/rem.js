@@ -95,16 +95,13 @@ export const remPlugin = {
                   if (attr.value !== null && attr.value.type === AST_NODE_TYPES.Literal) {
                     return fixer.replaceText(attr.value, `{${fixedValue}}`);
                   }
+
                   // For JSX expressions with literal values, replace just the literal
-                  if (
-                    attr.value !== null &&
+                  return attr.value !== null &&
                     attr.value.type === AST_NODE_TYPES.JSXExpressionContainer &&
                     attr.value.expression.type === AST_NODE_TYPES.Literal
-                  ) {
-                    return fixer.replaceText(attr.value.expression, fixedValue);
-                  }
-
-                  return null;
+                    ? fixer.replaceText(attr.value.expression, fixedValue)
+                    : null;
                 },
                 messageId: "noRemInProps",
                 node: attr,

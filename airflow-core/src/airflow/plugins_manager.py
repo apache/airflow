@@ -44,6 +44,10 @@ from airflow._shared.plugins_manager import (
     is_valid_plugin,
 )
 from airflow.configuration import conf
+from airflow.serialization.helpers import (
+    is_core_partition_mapper_import_path,
+    is_core_timetable_import_path,
+)
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
@@ -96,6 +100,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     Plugins are only loaded if they have not been previously loaded.
     """
     from airflow._shared.observability.metrics import stats
+    from airflow.providers_manager import provider_incompatibility_reason
 
     if not settings.PLUGINS_FOLDER:
         raise ValueError("Plugins folder is not set")
@@ -136,7 +141,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
                 ignore_file_syntax=ignore_file_syntax,
             )
         )
-        __register_plugins(*_load_entrypoint_plugins())
+        __register_plugins(*_load_entrypoint_plugins(provider_incompatibility_reason))
 
         if not settings.LAZY_LOAD_PROVIDERS:
             __register_plugins(*_load_providers_plugins())
@@ -517,6 +522,44 @@ def is_extra_link_visible_to_team(link: Any, team_name: str | None) -> bool:
     if link_teams is None or None in link_teams:
         return True
     return team_name in link_teams
+
+
+@cache
+def get_scheduling_class_teams() -> dict[str, frozenset[str | None]]:
+    """
+    Map the qualname of every plugin-registered scheduling class to the teams that registered it.
+
+    Covers timetables, partition mappers, windows, deadline references and priority weight
+    strategies: the registries a Dag names directly, with no team-aware lookup in between.
+
+    Keyed by qualname because that is what a serialized Dag records and what the scheduler
+    resolves through ``get_timetables_plugins()`` and its siblings. Class identity is not
+    stable enough to key on: the plugin loader executes a plugin file again under its own
+    module entry, so a Dag importing a class from that file can hold a different class
+    object with the same qualname as the one that was registered.
+
+    A qualname registered by several plugins maps to all of their teams, and is then
+    resolved least restrictively.
+
+    Airflow's own timetables, partition mappers and windows are left out even if a plugin
+    lists them: the decoder imports anything under those core paths directly and never
+    consults plugins, so a plugin cannot own them.
+    """
+    teams: dict[str, set[str | None]] = {}
+    for plugin in _get_plugins()[0]:
+        for scheduling_class in (
+            *plugin.timetables,
+            *plugin.partition_mappers,
+            *plugin.windows,
+            *plugin.deadline_references,
+            *plugin.priority_weight_strategies,
+        ):
+            name = qualname(scheduling_class)
+            # The partition mapper prefix also covers core windows.
+            if is_core_timetable_import_path(name) or is_core_partition_mapper_import_path(name):
+                continue
+            teams.setdefault(name, set()).add(plugin.team_name)
+    return {name: frozenset(team_names) for name, team_names in teams.items()}
 
 
 @cache

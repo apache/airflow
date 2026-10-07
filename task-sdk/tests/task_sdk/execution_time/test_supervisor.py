@@ -30,7 +30,7 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -38,6 +38,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, get_args, get_type_hints
 from unittest import mock
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import httpx
 import msgspec
@@ -56,6 +57,7 @@ from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk import DAG, BaseOperator, timezone
+from airflow.sdk._shared.secrets_masker import mask_secret
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -150,6 +152,7 @@ from airflow.sdk.execution_time.comms import (
     TICount,
     ToSupervisor,
     TriggerDagRun,
+    UpdateDagRunNote,
     UpdateHITLDetail,
     ValidateInletsAndOutlets,
     VariableKeysResult,
@@ -161,6 +164,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import (
     SERVER_TERMINATED,
     ActivitySubprocess,
@@ -182,6 +186,8 @@ from airflow.sdk.execution_time.task_runner import run
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import kgb
 
     from airflow.sdk.definitions.context import Context
@@ -266,6 +272,258 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
+
+
+def _response_error(status: int, detail: dict[str, Any]) -> ServerResponseError:
+    error = ServerResponseError.from_response(
+        httpx.Response(status, json={"detail": detail}, request=httpx.Request("PATCH", "http://server/x"))
+    )
+    assert error is not None
+    return error
+
+
+class TestSuperviseTaskLaunchError:
+    """A task whose runtime cannot be launched fails its try in the supervisor, with the reason."""
+
+    LAUNCH_EVENT = "Cannot launch the task's runtime"
+
+    @pytest.fixture
+    def ti(self):
+        return TaskInstance(
+            id=uuid7(),
+            task_id="extract",
+            dag_id="etl",
+            run_id="r",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="java",
+        )
+
+    @pytest.fixture
+    def client(self, make_ti_context):
+        client = MagicMock(spec=sdk_client.Client)
+        client.task_instances.start.return_value = make_ti_context(should_retry=False)
+        return client
+
+    @pytest.fixture
+    def upload_to_remote(self):
+        with patch("airflow.sdk.log.upload_to_remote", autospec=True) as mock_upload:
+            yield mock_upload
+
+    def _supervise(
+        self, client, ti, error: BaseException | Callable[..., Any], *, log_path: str | None = None
+    ) -> int:
+        coordinator = MagicMock(spec=BaseCoordinator)
+        coordinator.execute_task.side_effect = error
+        with patch.object(supervisor, "get_coordinator_manager", autospec=True) as mock_manager:
+            mock_manager.return_value.for_queue.return_value = coordinator
+            return supervise_task(
+                ti=ti,
+                bundle_info=BundleInfo(name="dags", version="v1"),
+                dag_rel_path="etl.jar",
+                token="",
+                client=client,
+                log_path=log_path,
+            )
+
+    def _read_task_log(self, tmp_path, log_path: str) -> list[dict[str, Any]]:
+        return [json.loads(line) for line in (tmp_path / log_path).read_text().splitlines() if line]
+
+    def test_fails_the_try_with_the_reason(self, client, ti, upload_to_remote):
+        exit_code = self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"))
+
+        assert exit_code == 1
+        client.task_instances.start.assert_called_once_with(ti.id, os.getpid(), mock.ANY)
+        client.task_instances.finish.assert_called_once_with(
+            id=ti.id,
+            state=TaskInstanceState.FAILED,
+            when=mock.ANY,
+            rendered_map_index=None,
+            retry_reason="no jar for 'extract'",
+        )
+        client.task_instances.retry.assert_not_called()
+
+    def test_retries_the_try_when_the_task_has_retries_left(
+        self, client, ti, make_ti_context, upload_to_remote
+    ):
+        client.task_instances.start.return_value = make_ti_context(should_retry=True, max_tries=2)
+
+        exit_code = self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"))
+
+        assert exit_code == 1
+        client.task_instances.retry.assert_called_once_with(
+            ti.id, end_date=mock.ANY, rendered_map_index=None, retry_reason="no jar for 'extract'"
+        )
+        client.task_instances.finish.assert_not_called()
+
+    def test_fails_the_try_of_an_error_that_is_not_retryable_even_with_retries_left(
+        self, client, ti, make_ti_context, upload_to_remote
+    ):
+        client.task_instances.start.return_value = make_ti_context(should_retry=True, max_tries=2)
+
+        exit_code = self._supervise(client, ti, TaskLaunchError("wrong coordinator", retryable=False))
+
+        assert exit_code == 1
+        client.task_instances.finish.assert_called_once_with(
+            id=ti.id,
+            state=TaskInstanceState.FAILED,
+            when=mock.ANY,
+            rendered_map_index=None,
+            retry_reason="wrong coordinator",
+        )
+        client.task_instances.retry.assert_not_called()
+
+    def test_writes_the_reason_to_the_task_log(self, client, ti, tmp_path, upload_to_remote):
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"), log_path="etl/extract.log")
+
+        entries = self._read_task_log(tmp_path, "etl/extract.log")
+        assert [(e["level"], e["event"], e["reason"]) for e in entries if "reason" in e] == [
+            ("error", self.LAUNCH_EVENT, "no jar for 'extract'")
+        ]
+
+    def test_logs_the_cause_of_the_error(self, client, ti, tmp_path, upload_to_remote):
+        try:
+            try:
+                raise OSError("disk gone")
+            except OSError as cause:
+                raise TaskLaunchError("cannot read the bundle") from cause
+        except TaskLaunchError as e:
+            error = e
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, error, log_path="etl/extract.log")
+
+        (entry,) = [e for e in self._read_task_log(tmp_path, "etl/extract.log") if "reason" in e]
+        assert "disk gone" in json.dumps(entry["exception"])
+
+    def test_truncates_the_reason_for_the_server_but_not_the_log(
+        self, client, ti, tmp_path, upload_to_remote
+    ):
+        reason = "x" * 700
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, TaskLaunchError(reason), log_path="etl/extract.log")
+
+        assert client.task_instances.finish.call_args.kwargs["retry_reason"] == "x" * 500
+        (entry,) = [e for e in self._read_task_log(tmp_path, "etl/extract.log") if "reason" in e]
+        assert entry["reason"] == reason
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        ("message", "expected"),
+        [
+            pytest.param(
+                "cannot read https://user:hunter2-hunter2@git/repo",
+                "cannot read https://user:***@git/repo",
+                id="short",
+            ),
+            pytest.param("x" * 490 + "hunter2-hunter2", "x" * 490 + "***", id="across-the-cut"),
+        ],
+    )
+    def test_redacts_a_masked_secret_in_the_reason_before_cutting_it(
+        self, client, ti, tmp_path, upload_to_remote, message, expected
+    ):
+        def fail_with_a_secret(**kwargs):
+            mask_secret("hunter2-hunter2")
+            raise TaskLaunchError(message)
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, fail_with_a_secret, log_path="etl/extract.log")
+
+        assert client.task_instances.finish.call_args.kwargs["retry_reason"] == expected
+        assert "hunter2" not in (tmp_path / "etl/extract.log").read_text()
+
+    def test_uploads_the_task_log(self, client, ti, upload_to_remote):
+        self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        upload_to_remote.assert_called_once_with(mock.ANY, ti)
+
+    def test_uploads_the_task_log_when_reporting_the_state_fails(self, client, ti, upload_to_remote):
+        client.task_instances.finish.side_effect = _response_error(500, {"reason": "boom"})
+
+        with pytest.raises(ServerResponseError):
+            self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        upload_to_remote.assert_called_once()
+
+    def test_an_upload_failure_is_logged_and_not_raised(self, client, ti, tmp_path, upload_to_remote):
+        upload_to_remote.side_effect = OSError("disk gone")
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = self._supervise(client, ti, TaskLaunchError("no jar"), log_path="etl/extract.log")
+
+        assert exit_code == 1
+        client.task_instances.finish.assert_called_once()
+        events = [e["event"] for e in self._read_task_log(tmp_path, "etl/extract.log")]
+        assert "Failed to upload remote logs" in events
+
+    @pytest.mark.parametrize(
+        "should_retry", [pytest.param(False, id="finish"), pytest.param(True, id="retry")]
+    )
+    def test_a_conflict_on_the_state_is_logged_and_the_try_is_left_to_the_server(
+        self, client, ti, make_ti_context, tmp_path, upload_to_remote, should_retry
+    ):
+        client.task_instances.start.return_value = make_ti_context(
+            should_retry=should_retry, max_tries=2 if should_retry else 0
+        )
+        reported = client.task_instances.retry if should_retry else client.task_instances.finish
+        reported.side_effect = _response_error(409, {"reason": "invalid_state"})
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = self._supervise(client, ti, TaskLaunchError("no jar"), log_path="etl/extract.log")
+
+        assert exit_code == 1
+        reported.assert_called_once()
+        events = [e["event"] for e in self._read_task_log(tmp_path, "etl/extract.log")]
+        assert "Server rejected task outcome with a conflict. Discarding task outcome." in events
+        upload_to_remote.assert_called_once()
+
+    def test_a_cleared_task_reports_no_state_and_logs_it(self, client, ti, tmp_path, upload_to_remote):
+        client.task_instances.start.side_effect = _response_error(
+            409, {"reason": "invalid_state", "previous_state": "restarting"}
+        )
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = self._supervise(client, ti, TaskLaunchError("no jar"), log_path="etl/extract.log")
+
+        assert exit_code == 1
+        client.task_instances.finish.assert_not_called()
+        client.task_instances.retry.assert_not_called()
+        events = [e["event"] for e in self._read_task_log(tmp_path, "etl/extract.log")]
+        assert "Server rejected task start because the task was cleared. Task process stopped." in events
+
+    def test_logs_the_reason_to_the_supervisor_log(self, client, ti, captured_logs, upload_to_remote):
+        self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"))
+
+        supervisor_entries = [e for e in captured_logs if e["event"] == self.LAUNCH_EVENT and "ti_id" in e]
+        assert [(e["level"], e["ti_id"], e["reason"]) for e in supervisor_entries] == [
+            ("warning", str(ti.id), "no jar for 'extract'")
+        ]
+
+    def test_a_task_already_running_elsewhere_propagates(self, client, ti, upload_to_remote):
+        client.task_instances.start.side_effect = TaskAlreadyRunningError("already running")
+
+        with pytest.raises(TaskAlreadyRunningError):
+            self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        client.task_instances.finish.assert_not_called()
+
+    def test_another_start_error_propagates(self, client, ti, upload_to_remote):
+        client.task_instances.start.side_effect = _response_error(500, {"reason": "boom"})
+
+        with pytest.raises(ServerResponseError):
+            self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        client.task_instances.finish.assert_not_called()
+
+    def test_other_errors_from_the_coordinator_are_not_reported_as_a_launch_failure(
+        self, client, ti, upload_to_remote
+    ):
+        with pytest.raises(RuntimeError, match="boom"):
+            self._supervise(client, ti, RuntimeError("boom"))
+
+        client.task_instances.start.assert_not_called()
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -892,7 +1150,12 @@ class TestWatchedSubprocess:
             if request.url.path == f"/task-instances/{ti_id}/run":
                 return httpx.Response(200, json=make_ti_context_dict())
             if request.url.path == f"/task-instances/{ti_id}/state":
-                pytest.fail("Should not have sent a state update request")
+                assert proc._process.wait(timeout=0) == -signal.SIGTERM
+                payload = json.loads(request.content)
+                assert payload["state"] == "server_terminated"
+                assert payload["hostname"] == sdk_client.get_hostname()
+                assert payload["pid"] == proc.pid
+                request_count["stopped"] = request_count.get("stopped", 0) + 1
             # Return a 204 for all other requests
             return httpx.Response(status_code=204)
 
@@ -915,9 +1178,10 @@ class TestWatchedSubprocess:
         # Wait for the subprocess to finish -- it should have been terminated with SIGTERM
         assert proc.wait() == -signal.SIGTERM
         assert proc._exit_code == -signal.SIGTERM
-        assert proc.final_state == "SERVER_TERMINATED"
+        assert proc.final_state == "server_terminated"
 
         assert request_count["count"] == 2
+        assert request_count["stopped"] == 1
         # Verify the error was logged
         assert captured_logs == [
             {
@@ -954,6 +1218,147 @@ class TestWatchedSubprocess:
                 "loc": mocker.ANY,
             },
         ]
+
+    @pytest.mark.parametrize(
+        "msg",
+        [
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+            TaskState(state=TaskInstanceState.FAILED),
+            TaskState(state=TaskInstanceState.SKIPPED),
+            RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+            DeferTask(next_method="execute_complete", classpath="test.Trigger", trigger_kwargs={}),
+            RescheduleTask(
+                end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                reschedule_date=timezone.parse("2024-10-31T12:01:00Z"),
+            ),
+            AwaitInputTask(next_method="execute_complete"),
+        ],
+        ids=["success", "failure", "skipped", "retry", "defer", "reschedule", "await_input"],
+    )
+    @pytest.mark.parametrize(
+        "detail",
+        [
+            {"reason": "invalid_state", "previous_state": "restarting"},
+            {"reason": "invalid_state", "previous_state": "success"},
+            {"reason": "running_elsewhere", "previous_state": "restarting"},
+            "conflict",
+        ],
+        ids=["restarting", "success", "running_elsewhere", "unstructured"],
+    )
+    def test_conflicting_report_acknowledges_after_finalization(
+        self, msg, detail, tmp_path, mocker, make_ti_context_dict
+    ):
+        """A rejected outcome must wait for finalization before acknowledging termination to the server."""
+        finalized = tmp_path / "finalized"
+        reports = []
+        mocker.patch.object(supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
+        upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs", autospec=True)
+
+        def subprocess_main():
+            comms = CommsDecoder()
+            comms._get_response()
+            comms.send(msg)
+            finalized.touch()
+
+        def handle_request(request):
+            if request.url.path.endswith("/run"):
+                return httpx.Response(200, json=make_ti_context_dict())
+            if request.url.path.endswith("/heartbeat"):
+                return httpx.Response(204)
+            assert request.url.path.endswith("/state")
+            payload = json.loads(request.content)
+            reports.append(payload["state"])
+            if payload["state"] != SERVER_TERMINATED:
+                return httpx.Response(409, json={"detail": detail})
+            assert proc._process.wait(timeout=0) == 0
+            assert finalized.exists()
+            assert payload["hostname"] == sdk_client.get_hostname()
+            assert payload["pid"] == proc.pid
+            return httpx.Response(204)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="task",
+                dag_id="dag",
+                run_id="run",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=make_client(transport=httpx.MockTransport(handle_request)),
+            target=subprocess_main,
+            bundle_info=FAKE_BUNDLE,
+        )
+
+        assert proc.wait() == 0
+        assert proc.final_state == SERVER_TERMINATED
+        assert proc._pending_terminal_state_msg is None
+        assert reports == [msg.state, SERVER_TERMINATED]
+        assert proc.wait() == 0
+        assert reports == [msg.state, SERVER_TERMINATED]
+        upload_logs.assert_called_once_with(proc)
+
+    @pytest.mark.parametrize("ack_status", [204, 404, 409])
+    def test_restarting_start_reports_stop_after_reaping(self, mocker, ack_status, captured_logs):
+        ti_id = uuid7()
+        start = mocker.spy(ActivitySubprocess, "start")
+        requests = []
+
+        def handle_request(request):
+            requests.append(request.url.path)
+            if request.url.path.endswith("/run"):
+                return httpx.Response(
+                    409,
+                    json={
+                        "detail": {
+                            "reason": "invalid_state",
+                            "previous_state": "restarting",
+                        }
+                    },
+                )
+            assert request.url.path.endswith("/state")
+            proc = start.spy_return
+            assert proc._process.wait(timeout=0) == -signal.SIGKILL
+            payload = json.loads(request.content)
+            assert payload["state"] == SERVER_TERMINATED
+            assert payload["hostname"] == sdk_client.get_hostname()
+            assert payload["pid"] == proc.pid
+            if ack_status == 404:
+                return httpx.Response(
+                    404, json={"detail": {"reason": "not_found", "message": "Task Instance not found"}}
+                )
+            if ack_status == 409:
+                return httpx.Response(409, json={"detail": {"reason": "running_elsewhere"}})
+            return httpx.Response(ack_status)
+
+        exit_code = supervise_task(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            token="",
+            ti=TaskInstance(
+                id=ti_id,
+                task_id="task",
+                dag_id="dag",
+                run_id="run",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=make_client(transport=httpx.MockTransport(handle_request)),
+        )
+        assert exit_code == -signal.SIGKILL
+        assert requests == [f"/task-instances/{ti_id}/run", f"/task-instances/{ti_id}/state"]
+        assert start.spy_return.wait() == -signal.SIGKILL
+        assert len(requests) == 2
+        assert {
+            "logger": "task",
+            "level": "info",
+            "event": "Server rejected task start because the task was cleared. Task process stopped.",
+            "timestamp": mocker.ANY,
+            "loc": mocker.ANY,
+        } in captured_logs
 
     def test_start_raises_task_already_running_and_kills_subprocess(self):
         """Test that ActivitySubprocess.start() raises TaskAlreadyRunningError and kills the child
@@ -2786,6 +3191,19 @@ REQUEST_TEST_CASES = [
         test_id="get_dag_run_state",
     ),
     RequestTestCase(
+        message=UpdateDagRunNote(
+            ti_id=UUID("9c230b40-da03-451d-8bd7-be30471be383"),
+            note="Updated from task runtime",
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="task_instances.update_dagrun_note",
+            args=(UUID("9c230b40-da03-451d-8bd7-be30471be383"), "Updated from task runtime"),
+            response=OKResponse(ok=True),
+        ),
+        test_id="update_dag_run_note",
+    ),
+    RequestTestCase(
         message=GetPreviousDagRun(
             dag_id="test_dag",
             logical_date=timezone.parse("2024-01-15T12:00:00Z"),
@@ -3144,7 +3562,7 @@ REQUEST_TEST_CASES = [
             "relative_fileloc": "dags/example.py",
             "owners": "owner_1",
             "tags": ["a_tag", "z_tag"],
-            "next_dagrun": datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            "next_dagrun": datetime(2026, 4, 13, tzinfo=UTC),
             "type": "DagResult",
         },
         client_mock=ClientMock(
@@ -3160,7 +3578,7 @@ REQUEST_TEST_CASES = [
                 relative_fileloc="dags/example.py",
                 owners="owner_1",
                 tags=["a_tag", "z_tag"],
-                next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+                next_dagrun=datetime(2026, 4, 13, tzinfo=UTC),
             ),
         ),
         test_id="get_dag",
@@ -3180,13 +3598,13 @@ REQUEST_TEST_CASES = [
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
-            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC),
         ),
         test_id="set_task_store",
         client_mock=ClientMock(
             method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
-            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
@@ -3196,13 +3614,13 @@ REQUEST_TEST_CASES = [
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
-            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
+            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC),
         ),
         test_id="set_task_store_with_expires_at",
         client_mock=ClientMock(
             method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
-            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
@@ -3322,6 +3740,54 @@ REQUEST_TEST_CASES = [
 
 
 class TestHandleRequest:
+    @pytest.mark.parametrize("status", [404, 410, 422, 500])
+    def test_terminal_report_propagates_errors_other_than_conflict(self, watched_subprocess, status):
+        process, _ = watched_subprocess
+        msg = TaskState(state=TaskInstanceState.FAILED)
+        error = ServerResponseError.from_response(
+            httpx.Response(
+                status,
+                json={"detail": {"reason": "invalid_state", "previous_state": "restarting"}},
+                request=httpx.Request("PATCH", "http://server/state"),
+            )
+        )
+        process.client.task_instances.finish.side_effect = error
+        process._handle_request(msg, structlog.get_logger(), req_id=1)
+        process._exit_code = 0
+
+        with pytest.raises(ServerResponseError) as raised:
+            process.update_task_state_if_needed()
+
+        assert raised.value is error
+        assert process._pending_terminal_state_msg is msg
+        assert process.final_state == TaskInstanceState.FAILED
+
+    def test_restarting_during_success_replay_acknowledges_in_same_update(self, watched_subprocess):
+        process, _ = watched_subprocess
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        process.client.task_instances.succeed.side_effect = [
+            httpx.ConnectError("response lost"),
+            ServerResponseError.from_response(
+                httpx.Response(
+                    409,
+                    json={"detail": {"reason": "invalid_state", "previous_state": "restarting"}},
+                    request=httpx.Request("PATCH", "http://server/state"),
+                )
+            ),
+        ]
+        with pytest.raises(httpx.ConnectError):
+            process._handle_request(msg, structlog.get_logger(), req_id=1)
+        process.client.task_instances.finish.assert_not_called()
+        process._exit_code = 0
+
+        process.update_task_state_if_needed()
+
+        assert process.final_state == SERVER_TERMINATED
+        assert process._pending_terminal_state_msg is None
+        process.client.task_instances.finish.assert_called_once()
+        assert process.client.task_instances.finish.call_args.kwargs["state"] == SERVER_TERMINATED
+        assert process.client.task_instances.finish.call_args.kwargs["pid"] == process.pid
+
     @pytest.mark.parametrize("arrival", ["during_kill", "after_kill"])
     @pytest.mark.parametrize(
         ("msg", "api_method"),
@@ -3371,11 +3837,18 @@ class TestHandleRequest:
         assert observed_at_kill == [(supervisor.SERVER_TERMINATED, None)]
         assert process.final_state == supervisor.SERVER_TERMINATED
         assert process._pending_terminal_state_msg is None
-        getattr(process.client.task_instances, api_method).assert_not_called()
-        process.client.task_instances.finish.assert_not_called()
+        if api_method != "finish":
+            getattr(process.client.task_instances, api_method).assert_not_called()
+        process.client.task_instances.finish.assert_called_once_with(
+            id=process.id,
+            state=SERVER_TERMINATED,
+            when=mocker.ANY,
+            rendered_map_index=None,
+            pid=process.pid,
+        )
 
     @pytest.mark.parametrize("exit_code", [0, -signal.SIGTERM])
-    def test_server_termination_cancels_pending_report(self, watched_subprocess, exit_code):
+    def test_server_termination_cancels_pending_report(self, watched_subprocess, exit_code, mocker):
         process, _ = watched_subprocess
         process._handle_request(TaskState(state=TaskInstanceState.FAILED), structlog.get_logger(), req_id=1)
         process._terminal_state = supervisor.SERVER_TERMINATED
@@ -3385,7 +3858,13 @@ class TestHandleRequest:
         process.update_task_state_if_needed()
 
         process.client.task_instances.heartbeat.assert_not_called()
-        process.client.task_instances.finish.assert_not_called()
+        process.client.task_instances.finish.assert_called_once_with(
+            id=process.id,
+            state=SERVER_TERMINATED,
+            when=mocker.ANY,
+            rendered_map_index=None,
+            pid=process.pid,
+        )
         assert process._pending_terminal_state_msg is None
         assert process.final_state == supervisor.SERVER_TERMINATED
 
@@ -3501,7 +3980,7 @@ class TestHandleRequest:
         process.client.task_instances.finish.assert_not_called()
         upload_logs.assert_called_once_with(process)
 
-    def test_server_termination_cancels_pending_retry(self, watched_subprocess):
+    def test_server_termination_cancels_pending_retry(self, watched_subprocess, mocker):
         process, _ = watched_subprocess
         process._handle_request(RetryTask(end_date=timezone.utcnow()), structlog.get_logger(), req_id=1)
         process._terminal_state = supervisor.SERVER_TERMINATED
@@ -3510,7 +3989,14 @@ class TestHandleRequest:
         process.update_task_state_if_needed()
 
         process.client.task_instances.retry.assert_not_called()
-        process.client.task_instances.finish.assert_not_called()
+        process.client.task_instances.finish.assert_called_once_with(
+            id=process.id,
+            state=SERVER_TERMINATED,
+            when=mocker.ANY,
+            rendered_map_index=None,
+            pid=process.pid,
+        )
+        assert process._pending_terminal_state_msg is None
         assert process.final_state == supervisor.SERVER_TERMINATED
 
     class _OverrideActivitySubprocess(ActivitySubprocess):
@@ -3963,11 +4449,6 @@ class TestHandleRequest:
     def test_update_task_state_replays_pending_terminal_state_call(
         self, watched_subprocess, mocker, msg, api_method, expected_state
     ):
-        """If a direct terminal-state API call was attempted and raised, the
-        recovery dispatcher must re-issue the dedicated endpoint (not
-        `finish()`, which the server-side endpoint refuses for SUCCESS /
-        DEFERRED / SERVER_TERMINATED).
-        """
         watched_subprocess, _ = watched_subprocess
         watched_subprocess._exit_code = 0
         # Simulate the failure scenario: original API call raised, msg preserved.
@@ -3993,6 +4474,52 @@ class TestHandleRequest:
 
         watched_subprocess.client.task_instances.finish.assert_not_called()
         watched_subprocess.client.task_instances.succeed.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("state", "status_code"),
+        [
+            (SERVER_TERMINATED, 403),
+            (SERVER_TERMINATED, 500),
+            (SERVER_TERMINATED, None),
+            (TaskInstanceState.FAILED, 404),
+        ],
+    )
+    def test_terminal_report_failure_propagates(self, watched_subprocess, state, status_code):
+        proc, _ = watched_subprocess
+        proc._exit_code = -signal.SIGTERM
+        proc._terminal_state = state
+        error = (
+            ServerResponseError(
+                message="Acknowledgement rejected",
+                request=httpx.Request("PATCH", "http://test/task-instances/state"),
+                response=httpx.Response(status_code),
+            )
+            if status_code is not None
+            else httpx.ConnectError("connection refused")
+        )
+        proc.client.task_instances.finish.side_effect = error
+
+        with pytest.raises(type(error)) as exc:
+            proc.update_task_state_if_needed()
+
+        assert exc.value is error
+        proc.client.task_instances.finish.assert_called_once()
+
+    @pytest.mark.parametrize("status_code", [404, 409, 410])
+    def test_server_termination_acknowledgement_after_archival(self, watched_subprocess, status_code):
+        proc, _ = watched_subprocess
+        proc._exit_code = -signal.SIGTERM
+        proc._terminal_state = SERVER_TERMINATED
+        proc.client.task_instances.finish.side_effect = ServerResponseError(
+            message="Acknowledgement rejected",
+            request=httpx.Request("PATCH", "http://test/task-instances/state"),
+            response=httpx.Response(status_code),
+        )
+
+        proc.update_task_state_if_needed()
+
+        proc.client.task_instances.finish.assert_called_once()
+        assert proc._pending_terminal_state_msg is None
 
     def test_task_state_retry_reason_forwarded_to_finish(self, watched_subprocess, mocker):
         """A TaskState message's retry_reason must reach the deferred finish() call."""
@@ -4232,9 +4759,13 @@ class TestInProcessTestSupervisor:
         fake_task_instances.start.return_value = make_ti_context()
         fake_client = mock.MagicMock(spec_set=["task_instances"])
         fake_client.task_instances = fake_task_instances
-        monkeypatch.setattr(
-            InProcessTestSupervisor, "_api_client", staticmethod(lambda dag=None: fake_client)
-        )
+
+        def fake_api_client(dag, attempt_id):
+            assert dag is task.dag
+            assert attempt_id == ti.id
+            return fake_client
+
+        monkeypatch.setattr(InProcessTestSupervisor, "_api_client", staticmethod(fake_api_client))
 
         result = InProcessTestSupervisor.start(what=ti, task=task)
 

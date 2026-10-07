@@ -71,6 +71,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -143,6 +149,11 @@ paths:
           description: JWT Authorization Token
           title: Authorization
         description: JWT Authorization Token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Body_state'
       responses:
         '200':
           description: Successful Response
@@ -967,6 +978,16 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    Body_state:
+      properties:
+        task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
+      type: object
+      title: Body_state
     BundleInfo:
       properties:
         name:
@@ -1066,6 +1087,13 @@ components:
           type: integer
           title: Concurrency Slots
           description: Number of concurrency slots the job requires.
+        task_instance_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Instance Id
+          description: Attempt UUID required when reporting this job's state.
       type: object
       required:
       - dag_id
@@ -1207,6 +1235,11 @@ components:
           type: integer
           title: Try Number
           description: The number of attempt to execute this task.
+        task_instance_id:
+          type: string
+          title: Task Instance Id
+          description: Task-instance UUID, or empty for a legacy job.
+          default: ''
         state:
           $ref: '#/components/schemas/TaskInstanceState'
           description: State of the job from the view of the executor.
@@ -1583,6 +1616,12 @@ components:
           type: integer
           title: Free Concurrency
           description: Number of free concurrency slots on the worker.
+        supports_task_instance_uuid:
+          type: boolean
+          title: Supports Task Instance Uuid
+          description: Whether the worker reports task-instance UUIDs when updating
+            jobs.
+          default: false
       type: object
       required:
       - free_concurrency

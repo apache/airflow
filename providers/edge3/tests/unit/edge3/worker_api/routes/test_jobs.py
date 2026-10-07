@@ -20,7 +20,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException, status
@@ -32,6 +32,7 @@ from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
+from airflow.providers.edge3.worker_api.routes import jobs
 from airflow.providers.edge3.worker_api.routes.jobs import fetch, parse_command, state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
@@ -84,9 +85,57 @@ class TestJobsApiRoutes:
         session.execute(delete(EdgeJobModel))
         session.execute(delete(EdgeWorkerModel))
         session.commit()
+        yield
+        session.execute(delete(EdgeJobModel))
+        session.execute(delete(EdgeWorkerModel))
+        session.commit()
 
-    @patch(f"{Stats.__module__}.Stats.incr")
-    def test_state(self, mock_stats_incr, session: Session):
+    @pytest.mark.parametrize("uuid_worker", [None, False, True])
+    def test_fetch_uuid_job_requires_worker_capability(self, session, uuid_worker, mocker):
+        warning = mocker.patch.object(jobs.log, "warning", autospec=True)
+        task_id = uuid4()
+        worker = EdgeWorkerModel(
+            worker_name="uuid_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=[QUEUE],
+        )
+        worker.sysinfo = {"supports_task_instance_uuid": not uuid_worker}
+        job = EdgeJobModel(
+            dag_id=DAG_ID,
+            task_id=TASK_ID,
+            run_id=RUN_ID,
+            try_number=1,
+            map_index=-1,
+            task_instance_id=str(task_id),
+            state=TaskInstanceState.QUEUED,
+            queue=QUEUE,
+            concurrency_slots=1,
+            command=MOCK_COMMAND_STR,
+        )
+        session.add_all([worker, job])
+        session.flush()
+        body = WorkerQueuesBody(
+            free_concurrency=1,
+            queues=[QUEUE],
+            **({"supports_task_instance_uuid": uuid_worker} if uuid_worker is not None else {}),
+        )
+        if uuid_worker:
+            result = fetch("uuid_worker", body, session)
+            assert result.task_instance_id == task_id
+            assert job.state == TaskInstanceState.RESTARTING
+            warning.assert_not_called()
+        else:
+            with pytest.raises(HTTPException) as error:
+                fetch("uuid_worker", body, session)
+            assert error.value.status_code == 409
+            assert job.state == TaskInstanceState.QUEUED
+            warning.assert_called_once_with(
+                "Edge worker %s cannot fetch UUID-keyed jobs; upgrade the worker.", "uuid_worker"
+            )
+
+    @pytest.mark.parametrize("terminal_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED])
+    @patch(f"{Stats.__module__}.Stats.incr", autospec=True)
+    def test_state(self, mock_stats_incr, session: Session, terminal_state):
         with create_session() as session:
             job = EdgeJobModel(
                 dag_id=DAG_ID,
@@ -120,7 +169,7 @@ class TestJobsApiRoutes:
                 run_id=RUN_ID,
                 try_number=1,
                 map_index=-1,
-                state=TaskInstanceState.SUCCESS,
+                state=terminal_state,
                 session=session,
             )
 
@@ -129,7 +178,7 @@ class TestJobsApiRoutes:
                 tags={
                     "dag_id": DAG_ID,
                     "queue": QUEUE,
-                    "state": TaskInstanceState.SUCCESS,
+                    "state": terminal_state,
                     "task_id": TASK_ID,
                     "team_name": "team_a",
                 },
@@ -138,46 +187,90 @@ class TestJobsApiRoutes:
 
             db_job: EdgeJobModel | None = session.scalar(select(EdgeJobModel))
             assert db_job is not None
-            assert db_job.state == TaskInstanceState.SUCCESS
+            assert db_job.state == terminal_state
 
-    @patch(f"{Stats.__module__}.Stats.incr")
-    def test_state_failed(self, mock_stats_incr, session: Session):
-        with create_session() as session:
-            job = EdgeJobModel(
-                dag_id=DAG_ID,
-                task_id=TASK_ID,
-                run_id=RUN_ID,
-                try_number=1,
-                map_index=-1,
-                state=TaskInstanceState.RUNNING,
-                queue=QUEUE,
-                concurrency_slots=1,
-                command="execute",
-                team_name="team_a",
+    @pytest.mark.parametrize(
+        "target", ["", "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"]
+    )
+    def test_state_updates_only_matching_attempt(self, session, target, mocker):
+        warning = mocker.patch.object(jobs.log, "warning", autospec=True)
+        identities = ["", "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"]
+        for identity in identities:
+            session.add(
+                EdgeJobModel(
+                    dag_id=DAG_ID,
+                    task_id=TASK_ID,
+                    run_id=RUN_ID,
+                    try_number=1,
+                    map_index=-1,
+                    task_instance_id=identity,
+                    state=TaskInstanceState.RUNNING,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command="execute",
+                )
             )
-            session.add(job)
-            session.commit()
+        session.flush()
+        state(
+            DAG_ID,
+            TASK_ID,
+            RUN_ID,
+            1,
+            -1,
+            TaskInstanceState.SUCCESS,
+            session,
+            task_instance_id=UUID(target) if target else None,
+        )
+        session.flush()
+        session.expire_all()
+        actual = {job.task_instance_id: job.state for job in session.scalars(select(EdgeJobModel))}
+        assert actual == {
+            identity: TaskInstanceState.SUCCESS if identity == target else TaskInstanceState.RUNNING
+            for identity in identities
+        }
+        warning.assert_not_called()
 
-            state(
-                dag_id=DAG_ID,
-                task_id=TASK_ID,
-                run_id=RUN_ID,
-                try_number=1,
-                map_index=-1,
-                state=TaskInstanceState.FAILED,
-                session=session,
-            )
-
-            mock_stats_incr.assert_called_with(
-                "edge_worker.ti.finish",
-                tags={
-                    "dag_id": DAG_ID,
-                    "queue": QUEUE,
-                    "state": str(TaskInstanceState.FAILED),
-                    "task_id": TASK_ID,
-                    "team_name": "team_a",
-                },
-            )
+    @pytest.mark.parametrize(
+        ("stored", "reported", "known_coordinates"),
+        [
+            ("00000000-0000-0000-0000-000000000001", None, True),
+            ("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002", True),
+            ("", "00000000-0000-0000-0000-000000000002", True),
+            ("", None, False),
+        ],
+    )
+    def test_state_warns_only_for_attempt_identity_mismatch(
+        self, session, mocker, stored, reported, known_coordinates
+    ):
+        warning = mocker.patch.object(jobs.log, "warning", autospec=True)
+        job = EdgeJobModel(
+            dag_id=DAG_ID,
+            task_id=TASK_ID,
+            run_id=RUN_ID,
+            try_number=1,
+            map_index=-1,
+            task_instance_id=stored,
+            state=TaskInstanceState.RUNNING,
+            queue=QUEUE,
+            concurrency_slots=1,
+            command="execute",
+        )
+        session.add(job)
+        session.flush()
+        state(
+            DAG_ID if known_coordinates else "unknown",
+            TASK_ID,
+            RUN_ID,
+            1,
+            -1,
+            TaskInstanceState.SUCCESS,
+            session,
+            task_instance_id=UUID(reported) if reported else None,
+        )
+        session.flush()
+        session.expire_all()
+        assert session.scalar(select(EdgeJobModel)).state == TaskInstanceState.RUNNING
+        assert warning.call_count == int(known_coordinates)
 
     @patch(f"{Stats.__module__}.Stats.incr")
     def test_state_finish_metric_omits_team_name_for_global_job(self, mock_stats_incr, session: Session):

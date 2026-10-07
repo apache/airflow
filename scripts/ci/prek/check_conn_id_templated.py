@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -39,6 +39,7 @@ or it is never stored under ``self.<argument>`` (there is nothing for the render
 from __future__ import annotations
 
 import ast
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -89,12 +90,19 @@ class ClassInfo:
 
 
 def iter_source_files(roots: list[Path]):
-    """Yield source (non-test) Python files under the roots."""
+    """
+    Yield source (non-test) Python files under the roots.
+
+    ``os.walk`` rather than ``Path.rglob``: other processes create and remove ``__pycache__``
+    directories under the providers tree while this walks it, and ``rglob`` raises
+    ``FileNotFoundError`` on a directory that disappears mid-walk, where ``os.walk`` skips it.
+    """
     for root in roots:
-        for path in root.rglob("*.py"):
-            parts = path.relative_to(root).parts
-            if "tests" not in parts:
-                yield path
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [name for name in dirnames if name not in ("__pycache__", "tests")]
+            for filename in filenames:
+                if filename.endswith(".py"):
+                    yield Path(dirpath, filename)
 
 
 def parse_classes(path: Path) -> list[ClassInfo]:

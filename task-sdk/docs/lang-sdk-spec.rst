@@ -27,35 +27,33 @@ Spec version: ``1.0``.
 
 There are two authoring features, and they differ in one thing: who owns the graph.
 
-.. code-block:: text
+.. mermaid::
 
-     FEATURE 1                                   FEATURE 2
-     Mixed Language Task Handler                 Native Dag
-     Python owns the graph                       the SDK owns the graph
+    flowchart TD
+        subgraph F1["Feature 1 — Mixed Language Task Handler"]
+            direction TB
+            P1["Python @task.stub<br/>declares dag_id, task_id,<br/>arguments, and every edge"]
+            H1["fn -&gt; TaskHandler(dagId, taskId, fn)"]
+            H2[TaskHandlerRef]
+            P1 -. "binds by dag_id + task_id" .-> H1
+            H1 --> H2
+        end
 
-     Python @task.stub                           Dag(spec)
-     declares dag_id, task_id,                          |
-     arguments, and every edge                          v
-           |                                           dag  <-- owns the schedule,
-           | binds by dag_id + task_id                  |        the tasks, the edges
-           v                                            v
-     fn --> TaskHandler(dagId, taskId, fn)       fn --> dag.Task(fn, options)
-                    |                                           |
-                    v                                           v
-             TaskHandlerRef                                  TaskRef
-                    |                                           |
-                    |                                           |  Inputs(ref)      data edge, carries a value
-                    |                                           |  before / after   order edge, carries nothing
-                    |                                           v
-                    |                                        TaskRef
-                    |                                           |
-                    +---------------------+---------------------+
-                                          |
-                                          v
-                         bundle.register(Dag | TaskHandler)
-                                          |
-                                          v
-                                   bundle.serve()  <-- the task subprocess entrypoint
+        subgraph F2["Feature 2 — Native Dag"]
+            direction TB
+            D1["Dag(spec)"]
+            D2["dag<br/>(owns the schedule, the tasks, the edges)"]
+            D3["fn -&gt; dag.Task(fn, options)"]
+            D4a[TaskRef]
+            D4b[TaskRef]
+            D1 --> D2 --> D3 --> D4a
+            D4a -- "Inputs(ref): data edge<br/>(carries a value)" --> D4b
+            D4a -. "before / after: order edge<br/>(carries nothing)" .-> D4b
+        end
+
+        H2 --> R["bundle.register(Dag | TaskHandler)"]
+        D4b --> R
+        R --> SV["bundle.serve()<br/>the task subprocess entrypoint"]
 
 A ``TaskHandler`` supplies a body for a task Python already declared, so it names the
 ``dagId``/``taskId`` pair it binds to and nothing else. A native ``Dag`` owns the schedule, the
@@ -148,17 +146,22 @@ Task subprocess lifecycle
 Authoring is only half the contract. Every SDK runs the same sequence inside the task
 subprocess, once per task instance:
 
-.. code-block:: text
+.. mermaid::
 
-   1  process start
-   2  receive StartupDetails from the supervisor
-   3  build Context + Client, bind the cancellation signal
-   4  look up the registered fn for (dag_id, task_id)
-   5  bind arguments: TaskFlow data, plus ctx/client where they are injected
-   6  +-- scope holding Context + Client --+
-      |             invoke fn              |   <-- a getter reads this scope
-      +------------------------------------+
-   7  push the return value to XCom, report the terminal state
+    sequenceDiagram
+        participant S as Supervisor
+        participant T as Task subprocess
+
+        T->>T: 1. process start
+        S->>T: 2. send StartupDetails
+        T->>T: 3. build Context + Client,<br/>bind the cancellation signal
+        T->>T: 4. look up the registered fn<br/>for (dag_id, task_id)
+        T->>T: 5. bind arguments: TaskFlow data,<br/>plus ctx/client where injected
+        rect rgb(230, 230, 250)
+            note right of T: scope holding Context + Client<br/>(a getter reads this scope)
+            T->>T: 6. invoke fn
+        end
+        T->>S: 7. push the return value to XCom,<br/>report the terminal state
 
 Steps 2 through 5 and step 7 belong to the SDK; step 6 is the only one that runs code a user
 wrote. How ``fn`` reaches ``Context`` and ``Client`` is each SDK's own choice — parameters, or

@@ -44,17 +44,19 @@ development tools may have further requirements (see the toolchain in
 
 Repositories are centralized in `settings.gradle.kts`, and dynamic and changing versions are rejected for project dependency configurations (not for plugin markers or detached configurations — pin those by hand). `buildSrc/` declares its own repositories, but its dependencies *are* covered by this metadata.
 
-To update a dependency or plugin, regenerate from a trusted network. The task list must cover everything CI runs, since only what the invoked tasks resolve gets recorded:
+To update a dependency or plugin, regenerate the file from a trusted network. Run the command from the repository root:
 
 ```bash
-./gradlew --write-verification-metadata sha256 --refresh-dependencies \
-  build \
-  :sdk:dokkaGeneratePublicationHtml :sdk:dokkaGeneratePublicationJavadoc \
-  sourceTarball checksumSourceTarball \
-  publishToMavenLocal -PskipSigning=true
+prek run regenerate-java-sdk-verification-metadata --all-files
 ```
 
-Without `-PskipSigning=true` the signing tasks fail and Gradle still writes metadata from the partial run. Regeneration only appends, so delete superseded entries by hand after a version bump.
+The hook runs on its own whenever a change moves the resolved dependency set, and it keeps failing until you stage the rewritten file too. It is a plain script, so you can also run it directly:
+
+```bash
+uv run scripts/ci/prek/regenerate_java_sdk_verification_metadata.py
+```
+
+Gradle only appends to the file, so the script empties the component list before regenerating. Otherwise every version bump leaves its superseded entries behind, and they stay trusted. The script also owns the task list, which has to cover everything CI builds, because Gradle records only what the invoked tasks resolve.
 
 Review every entry in the diff. Generating the file records what the repositories served at that moment; it does not make those bytes trustworthy. Cross-check new coordinates and checksums against the dependency's official release information, and never bypass a failure with lenient or disabled verification.
 
@@ -91,20 +93,36 @@ Now `cd example` into the example project, and
 
 * Put the [DAG with stub tasks](./example/src/resources/dags) to somewhere Airflow can find.
 
-* Ensure the `java` command is available in the same environment the Airflow
-  task worker is in.
+* Ensure the `java` command is available in the same environments the Airflow
+  task worker and the Dag processor are in.
 
-* Configure Airflow to route tasks in the *java* queue to be run with Java:
+* Register the packaged example as a Dag bundle, and configure Airflow to route tasks in the *java*
+  queue to be run with Java from it:
 
   ```bash
+  export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+    {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+    {
+      "name": "java-task-handlers",
+      "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+      "kwargs": {"path": "/opt/airflow/java-sdk/example/build/bundle"}
+    }
+  ]'
   export AIRFLOW__SDK__COORDINATORS='{
     "java": {
       "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-      "kwargs": {"jars_root": ["/opt/airflow/java-sdk/example/build/bundle"]}
+      "kwargs": {"task_handler_bundle_name": "java-task-handlers"}
     }
   }'
   export AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"java": "java"}'
   ```
+
+  Set these, and make the bundle directory available, for the Dag processor
+  as well as the worker: the Dag processor checks the stub tasks against the
+  task handlers the JARs register. The API server does not need them.
+  `task_handler_bundle_name` is used only by mixed-language Dags, to locate
+  the task handlers for the `@task.stub` tasks of a Python Dag; Dags defined
+  natively in a language SDK do not use it.
 
 * Ensure the Connection and Variable needed by the example DAG are available:
 
@@ -612,7 +630,7 @@ prek hook regenerate it.
 | capability: `variable-read-write` | MUST | ✓ | 3.3 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the jar artifact |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.3 | Client.getTaskStateStore() get/set/delete/clear |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
@@ -642,9 +660,9 @@ where Airflow can find it.
 When the Airflow supervisor identifies that a task should run with Java, it
 launches the JVM application as a subprocess. The flow is:
 
-1. `JavaCoordinator.execute_task()` (Python) scans `jars_root`, builds the
-   classpath, and spawns `java -cp <jars> <MainClass> --comm=<host>:<port>
-   --logs=<host>:<port>`.
+1. `JavaCoordinator.execute_task()` (Python) scans the Dag bundle named by
+   `task_handler_bundle_name`, builds the classpath, and spawns
+   `java -cp <jars> <MainClass> --comm=<host>:<port> --logs=<host>:<port>`.
 2. `Server.kt` connects to both sockets immediately on startup.
 3. The supervisor sends a `StartupDetails` MessagePack message; the JVM reads
    it, looks up the matching task by `dag_id` + `task_id`, and calls the
@@ -724,9 +742,13 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
   not the implementation language.
 - Keep `sdk/src/main/kotlin/` (the public API surface) free of internal
   implementation details; those belong in the `execution/` sub-package.
-- The annotation processor (`BuilderProcessor.kt`) uses `kapt`. When adding a
-  new annotation, define it in `Builder.kt`, handle it in
-  `BuilderProcessor.kt`, and add a golden-output test in
+- The annotation processor (`BuilderProcessor.kt`) uses `kapt`. The `Builder`
+  class holding the `@Builder.Dag` / `@Builder.Task` annotations is generated
+  from the Dag serialization schema by `:sdk:generateDagDsl` (vendored at
+  `sdk/schema/dag-schema.json`), `@Builder.Deps` included. The `Arg`/`TaskRef`
+  and `Deps`/`Flow` graph types are hand-written next to the rest of the public
+  surface in `sdk/src/main/kotlin/org/apache/airflow/sdk/`. When adding annotation
+  behaviour, handle it in `BuilderProcessor.kt` and add a golden-output test in
   `processor/src/test/kotlin/`.
 - The Python coordinator subclasses `SubprocessCoordinator`. Do not reach into
   the JVM process from Python beyond what `_build_execute_task_command`
@@ -748,9 +770,14 @@ E2E_TEST_MODE=java_sdk uv run --project airflow-e2e-tests pytest \
 5. Update `airflow-core/docs/authoring-and-scheduling/language-sdks/java.rst`
    if the change is user-visible.
 
-**Adding a new annotation**:
+**Adding a new annotation or configuration attribute**:
 
-1. Define the annotation interface in `Builder.kt`.
+1. Hand-written annotations live in `sdk/src/main/kotlin/org/apache/airflow/sdk/`
+   next to the runtime types (one package, so user code needs a single
+   `import org.apache.airflow.sdk.*`); the configuration attributes of
+   `@Builder.Dag` / `@Builder.Task` come from the Dag serialization schema via
+   `:sdk:generateDagDsl` (adjust its allowlist/exclusion rules in
+   `sdk/build.gradle.kts` when the exposed field set should change).
 2. Handle it in `BuilderProcessor.kt` — generate the appropriate code in the
    `*Builder` class.
 3. Add a test in `BuilderTest.kt` with expected generated output.

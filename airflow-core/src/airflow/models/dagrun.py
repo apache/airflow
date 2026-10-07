@@ -89,7 +89,6 @@ from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
-from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
@@ -356,13 +355,13 @@ class DagRun(Base, LoggingMixin):
     task_instances = relationship(
         TI,
         back_populates="dag_run",
+        primaryjoin="and_(DagRun.dag_id == TaskInstance.dag_id, DagRun.run_id == TaskInstance.run_id, TaskInstance.working_set.is_(True))",
         cascade="save-update, merge, delete, delete-orphan",
+        passive_deletes=True,
     )
-    task_instances_histories = relationship(
-        TIH,
-        primaryjoin="and_(DagRun.dag_id == TaskInstanceHistory.dag_id, DagRun.run_id == TaskInstanceHistory.run_id)",
-        foreign_keys="TaskInstanceHistory.dag_id, TaskInstanceHistory.run_id",
-        order_by=TIH.dag_version_id,
+    historical_task_instances = relationship(
+        TI,
+        primaryjoin="and_(DagRun.dag_id == TaskInstance.dag_id, DagRun.run_id == TaskInstance.run_id, TaskInstance.working_set.is_(None))",
         viewonly=True,
     )
     dag_model = relationship(
@@ -412,10 +411,10 @@ class DagRun(Base, LoggingMixin):
         fallback=20,
     )
     _ti_dag_versions = association_proxy("task_instances", "dag_version")
-    _tih_dag_versions = association_proxy("task_instances_histories", "dag_version")
+    _historical_dag_versions = association_proxy("historical_task_instances", "dag_version")
 
     # Can be set by manual prefetch, such as attach_dag_versions_to_runs()
-    # as an alternative to traversing all TI/TIH ORM relationships. Maps version_id -> DagVersion.
+    # as an alternative to traversing all current and historical attempts. Maps version_id -> DagVersion.
     _prefetched_dag_version_ids: dict[UUID, DagVersion] | None = None
 
     def __init__(
@@ -543,7 +542,7 @@ class DagRun(Base, LoggingMixin):
         else:
             dag_version_objects = [
                 dv
-                for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
+                for dv in dict.fromkeys(list(self._historical_dag_versions) + list(self._ti_dag_versions))
                 if dv is not None
             ]
         return sorted(dag_version_objects, key=lambda dv: dv.id)
@@ -587,11 +586,8 @@ class DagRun(Base, LoggingMixin):
         select_stmt = (
             select(TI.dag_version_id)
             .where(TI.dag_id == self.dag_id, TI.dag_version_id == dag_version_id, TI.run_id == self.run_id)
-            .union(
-                select(TIH.dag_version_id).where(
-                    TIH.dag_id == self.dag_id, TIH.dag_version_id == dag_version_id, TIH.run_id == self.run_id
-                )
-            )
+            .limit(1)
+            .execution_options(include_all_attempts=True)
         )
         return session.scalar(select_stmt)
 
@@ -1948,15 +1944,6 @@ class DagRun(Base, LoggingMixin):
             task_ids.add(ti.task_id)
             try:
                 task = dag.get_task(ti.task_id)
-
-                should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
-                if should_restore_task:
-                    self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    stats.incr(
-                        "task_restored_to_dag",
-                        tags={**self.stats_tags, "dag_id": dag.dag_id},
-                    )
-                    ti.state = None
             except AirflowException:
                 if ti.state == TaskInstanceState.REMOVED:
                     pass  # ti has already been removed, just ignore it
@@ -1972,7 +1959,7 @@ class DagRun(Base, LoggingMixin):
             try:
                 num_mapped_tis = task.get_parse_time_mapped_ti_count()
             except NotMapped:
-                continue
+                pass
             except NotFullyPopulated:
                 # What if it is _now_ dynamically mapped, but wasn't before?
                 try:
@@ -1984,15 +1971,17 @@ class DagRun(Base, LoggingMixin):
                             "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
                         )
                         ti.state = TaskInstanceState.REMOVED
-                    continue
-                # Upstreams finished, check there aren't any extras
-                if ti.map_index >= total_length:
-                    self.log.debug(
-                        "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
-                        ti,
-                        total_length,
-                    )
-                    ti.state = TaskInstanceState.REMOVED
+                        continue
+                else:
+                    # Upstreams finished, check there aren't any extras
+                    if ti.map_index >= total_length:
+                        self.log.debug(
+                            "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
+                            ti,
+                            total_length,
+                        )
+                        ti.state = TaskInstanceState.REMOVED
+                        continue
             else:
                 # Check if the number of mapped literals has changed, and we need to mark this TI as removed.
                 if ti.map_index >= num_mapped_tis:
@@ -2002,9 +1991,20 @@ class DagRun(Base, LoggingMixin):
                         num_mapped_tis,
                     )
                     ti.state = TaskInstanceState.REMOVED
-                elif ti.map_index < 0:
+                    continue
+                if ti.map_index < 0:
                     self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = TaskInstanceState.REMOVED
+                    continue
+
+            if ti.state == TaskInstanceState.REMOVED:
+                self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
+                stats.incr(
+                    "task_restored_to_dag",
+                    tags={**self.stats_tags, "dag_id": dag.dag_id},
+                )
+                restored = ti.prepare_db_for_next_try(session) if ti.try_number > 0 else ti
+                restored.state = None
 
         return task_ids
 
@@ -2196,11 +2196,22 @@ class DagRun(Base, LoggingMixin):
             )
             session.flush()
 
+        missing_indexes = [index for index in range(total_length) if index not in existing_indexes]
+        if not missing_indexes:
+            return []
+        last_tries = TI.get_last_try_numbers(
+            dag_id=self.dag_id,
+            task_id=task.task_id,
+            run_id=self.run_id,
+            map_indexes=missing_indexes,
+            session=session,
+        )
+
         new_tis: list[TI] = []
-        for index in range(total_length):
-            if index in existing_indexes:
-                continue
+        for index in missing_indexes:
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
+            ti.try_number = last_tries.get(index, -1) + 1
+            ti.max_tries += ti.try_number
             self.log.debug("Expanding TIs upserted %s", ti)
             _add_and_prime_mapped_ti(ti, task, self, session=session)
             new_tis.append(ti)
@@ -2249,10 +2260,13 @@ class DagRun(Base, LoggingMixin):
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
         empty_ti_ids: list[UUID] = []
         schedulable_ti_ids: list[UUID] = []
-        reschedule_ti_ids: set[UUID] = set()
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
         expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
+            if ti.state == TaskInstanceState.UP_FOR_RETRY:
+                if TYPE_CHECKING:
+                    assert ti.task
+                ti.refresh_from_task(ti.task, dag_run=self)
             if not ti.is_schedulable:
                 empty_ti_ids.append(ti.id)
             # The defer_task method will check "start_trigger_args" to see whether the operator
@@ -2262,13 +2276,9 @@ class DagRun(Base, LoggingMixin):
             # execute it to run in the worker.
             elif not ti.defer_task(session=session):
                 schedulable_ti_ids.append(ti.id)
-                if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-                    reschedule_ti_ids.add(ti.id)
                 if debug_try_number_check:
                     expected_try_number_by_ti_id[ti.id] = (
-                        ti.try_number
-                        if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE
-                        else ti.try_number + 1,
+                        max(1, ti.try_number),
                         ti.try_number,
                         ti.state,
                     )
@@ -2282,17 +2292,8 @@ class DagRun(Base, LoggingMixin):
             TI.state.is_(None),
             TI.state.in_(non_null_schedulable_states),
         )
-        # Use TI.id (not TI.state) in the CASE to decide try_number. MySQL evaluates
-        # SET left-to-right, so referencing TI.state here would see the already-updated
-        # value if state is assigned first. TI.id is never modified in the SET clause.
-        next_try_number = (
-            case(
-                (TI.id.in_(reschedule_ti_ids), TI.try_number),
-                else_=TI.try_number + 1,
-            )
-            if reschedule_ti_ids
-            else TI.try_number + 1
-        )
+        # Allocate the first attempt; retries and clears allocate theirs when rotating the TI id.
+        next_try_number = case((TI.try_number == 0, 1), else_=TI.try_number)
         if schedulable_ti_ids:
             schedulable_ti_ids_chunks = chunks(
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
@@ -2591,24 +2592,28 @@ def get_or_create_dagrun(
     """
     Create a DAG run, replacing an existing instance if needed to prevent collisions.
 
-    This function is only meant to be used by :meth:`DAG.test` as a helper function.
+    This function is only meant to be used by :meth:`DAG.test` and ``airflow tasks test``
+    as a helper function.
 
     :param dag: DAG to be used to find run.
     :param conf: Configuration to pass to newly created run.
     :param start_date: Start date of new run.
-    :param logical_date: Logical date for finding an existing run.
+    :param logical_date: Logical date for finding an existing run to replace. ``None`` skips
+        the lookup, since NULL dates cannot violate the ``(dag_id, logical_date)`` unique key.
     :param run_id: Run ID for the new DAG run.
     :param triggered_by: the entity which triggers the dag_run
     :param triggering_user_name: the user name who triggers the dag_run
 
     :return: The newly created DAG run.
     """
-    dr = session.scalar(
-        select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.logical_date == logical_date)
-    )
-    if dr:
-        session.delete(dr)
-        session.commit()
+    # ``== None`` compiles to ``IS NULL``, which would match an unrelated dateless run.
+    if logical_date is not None:
+        dr = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.logical_date == logical_date)
+        )
+        if dr:
+            session.delete(dr)
+            session.flush()
     dr = dag.create_dagrun(
         run_id=run_id,
         logical_date=logical_date,
@@ -2619,7 +2624,7 @@ def get_or_create_dagrun(
         state=DagRunState.RUNNING,
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
-        start_date=start_date or logical_date,
+        start_date=start_date or timezone.utcnow(),
         session=session,
     )
     log.info("Created dag run.", dagrun=dr)

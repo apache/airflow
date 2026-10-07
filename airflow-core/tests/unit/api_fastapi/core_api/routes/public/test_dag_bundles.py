@@ -16,12 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from fastapi.testclient import TestClient
 from itsdangerous import URLSafeSerializer
 from sqlalchemy import insert, update
 
@@ -61,10 +60,10 @@ UNREGISTERED_FILE = "broken.py"
 UNREADABLE_FILE = "secret.py"
 
 GIT_VERSION = "8f0e5b1c9a2d4e6f8a0b1c2d3e4f5a6b7c8d9e0f"
-REFRESHED_AT = datetime(2026, 9, 10, 12, 0, tzinfo=timezone.utc)
-PARSED_AT = datetime(2026, 9, 10, 12, 1, tzinfo=timezone.utc)
+REFRESHED_AT = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
+PARSED_AT = datetime(2026, 9, 10, 12, 1, tzinfo=UTC)
 PARSE_DURATION = 0.125
-GONE_REFRESHED_AT = datetime(2026, 9, 1, 8, 30, tzinfo=timezone.utc)
+GONE_REFRESHED_AT = datetime(2026, 9, 1, 8, 30, tzinfo=UTC)
 
 WITH_DAGS = (GIT_BUNDLE, LOCAL_BUNDLE, GONE_BUNDLE, OTHER_TEAM_BUNDLE)
 # Everything except the Dag in OTHER_TEAM_BUNDLE.
@@ -275,7 +274,7 @@ def dag_scoped_client(test_client, readable_dag_ids):
 
 
 @pytest.fixture
-def viewer_client(test_client, readable_dag_ids):
+def viewer_headers(test_client, readable_dag_ids):
     """
     A viewer with the same readable Dags: may read import errors, but not the admin-gated view.
 
@@ -286,12 +285,7 @@ def viewer_client(test_client, readable_dag_ids):
     token = auth_manager._get_token_signer().generate(
         auth_manager.serialize_user(SimpleAuthManagerUser(username="viewer", role="viewer"))
     )
-    with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-        yield TestClient(
-            test_client.app,
-            headers={"Authorization": f"Bearer {token}"},
-            base_url=str(test_client.base_url),
-        )
+    return {"Authorization": f"Bearer {token}"}
 
 
 class TestGetDagBundles:
@@ -325,7 +319,7 @@ class TestGetDagBundles:
         assert DAGLESS_BUNDLE not in [bundle["name"] for bundle in body["dag_bundles"]]
         assert body["total_entries"] == 3
 
-    def test_hides_a_bundle_with_no_dags_from_a_viewer(self, viewer_client):
+    def test_hides_a_bundle_with_no_dags_from_a_viewer(self, viewer_headers, test_client):
         """
         The bundle name and its version are the disclosure, so a viewer must not get them.
 
@@ -333,7 +327,7 @@ class TestGetDagBundles:
         with no Dag to authorize against, there is nothing weaker than the admin view to fall back
         on.
         """
-        body = viewer_client.get("/dagBundles").json()
+        body = test_client.get("/dagBundles", headers=viewer_headers).json()
 
         assert DAGLESS_BUNDLE not in [bundle["name"] for bundle in body["dag_bundles"]]
         # Absent from the count too, so its existence does not leak through pagination.
@@ -381,12 +375,12 @@ class TestGetDagBundles:
 
         assert GIT_BUNDLE in [bundle["name"] for bundle in body["dag_bundles"]]
 
-    def test_returns_nothing_when_no_dag_is_readable(self, viewer_client):
+    def test_returns_nothing_when_no_dag_is_readable(self, viewer_headers, test_client):
         # The fixture already patched this attribute, so retarget its mock rather than nesting a
         # second autospec patch over it.
-        viewer_client.app.state.auth_manager.get_authorized_dag_ids.return_value = set()
+        test_client.app.state.auth_manager.get_authorized_dag_ids.return_value = set()
 
-        body = viewer_client.get("/dagBundles").json()
+        body = test_client.get("/dagBundles", headers=viewer_headers).json()
 
         assert body == {"dag_bundles": [], "total_entries": 0}
 
@@ -483,7 +477,9 @@ class TestGetDagBundles:
         assert bundle["active"] is False
         assert bundle["version"] == "deadbeef"
 
-    def test_import_error_count_authorizes_on_the_same_terms_as_import_errors(self, viewer_client):
+    def test_import_error_count_authorizes_on_the_same_terms_as_import_errors(
+        self, viewer_headers, test_client
+    ):
         """
         Count on the same terms as ``GET /importErrors``, not "every row for this bundle".
 
@@ -498,7 +494,7 @@ class TestGetDagBundles:
 
         Dropping either restriction takes the count to 2, so one assertion pins both halves.
         """
-        body = viewer_client.get("/dagBundles").json()
+        body = test_client.get("/dagBundles", headers=viewer_headers).json()
         bundle = next(b for b in body["dag_bundles"] if b["name"] == GIT_BUNDLE)
 
         assert bundle["import_error_count"] == 1
@@ -755,7 +751,7 @@ class TestGetDagBundle:
     def test_404_for_an_unknown_bundle(self, dag_scoped_client):
         assert dag_scoped_client.get("/dagBundles/no_such_bundle").status_code == 404
 
-    def test_import_error_count_is_gated_like_the_collection(self, admin_client, viewer_client):
+    def test_import_error_count_is_gated_like_the_collection(self, admin_client, viewer_headers):
         """
         The admin sees the unregistered-file error as well; the viewer sees only the registered one.
 
@@ -763,7 +759,10 @@ class TestGetDagBundle:
         cannot drift from the collection route it shares a helper with.
         """
         assert admin_client.get(f"/dagBundles/{GIT_BUNDLE}").json()["import_error_count"] == 2
-        assert viewer_client.get(f"/dagBundles/{GIT_BUNDLE}").json()["import_error_count"] == 1
+        assert (
+            admin_client.get(f"/dagBundles/{GIT_BUNDLE}", headers=viewer_headers).json()["import_error_count"]
+            == 1
+        )
 
     def test_import_error_count_is_withheld_without_permission(self, admin_client):
         auth_manager = admin_client.app.state.auth_manager
@@ -856,14 +855,14 @@ class TestGetDagBundleFiles:
         assert by_path[UNREGISTERED_FILE]["last_parsed_time"] is None
         assert by_path[UNREGISTERED_FILE]["last_parse_duration"] is None
 
-    def test_excludes_a_file_whose_dag_is_not_readable(self, admin_client, viewer_client):
+    def test_excludes_a_file_whose_dag_is_not_readable(self, admin_client, viewer_headers):
         """``UNREADABLE_FILE`` is registered, so only the readable-Dag filter keeps it out."""
-        for client in (admin_client, viewer_client):
-            body = client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+        for headers in ({}, viewer_headers):
+            body = admin_client.get(f"/dagBundles/{GIT_BUNDLE}/files", headers=headers).json()
             assert UNREADABLE_FILE not in {file["relative_fileloc"] for file in body["dag_bundle_files"]}
 
-    def test_viewer_does_not_see_the_unregistered_file(self, viewer_client):
-        body = viewer_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+    def test_viewer_does_not_see_the_unregistered_file(self, viewer_headers, test_client):
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files", headers=viewer_headers).json()
 
         assert [file["relative_fileloc"] for file in body["dag_bundle_files"]] == [REGISTERED_FILE]
         assert body["total_entries"] == 1

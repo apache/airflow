@@ -121,15 +121,30 @@ def build_run_identity_attributes(ti: Any) -> dict[str, Any]:
     Reuses core's task-span attribute keys (see ``_make_task_span``) so agent
     spans filter identically to the task span they nest under, plus the
     per-attempt task-instance id as the run join key carried on every span.
+    Airflow 2 task instances have no id, so the attribute is left out there.
     """
-    return {
+    attributes: dict[str, Any] = {
         "airflow.dag_id": ti.dag_id,
         "airflow.task_id": ti.task_id,
         "airflow.dag_run.run_id": ti.run_id,
         "airflow.task_instance.try_number": ti.try_number,
         "airflow.task_instance.map_index": ti.map_index if ti.map_index is not None else -1,
-        "airflow.task_instance.id": str(ti.id),
     }
+    if (ti_id := getattr(ti, "id", None)) is not None:
+        attributes["airflow.task_instance.id"] = str(ti_id)
+    return attributes
+
+
+def make_task_instance_run_key(ti: Any) -> str:
+    """
+    Return a per-attempt key for ``ti``: its id on Airflow 3, a composite on Airflow 2.
+
+    Airflow 2 task instances have no ``id`` column; dag, run, task, map index and try
+    number identify one attempt just as uniquely.
+    """
+    if (ti_id := getattr(ti, "id", None)) is not None:
+        return str(ti_id)
+    return f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number}"
 
 
 def stamp_identity_on_agent_spans(agent: Agent, attributes: dict[str, Any]) -> None:

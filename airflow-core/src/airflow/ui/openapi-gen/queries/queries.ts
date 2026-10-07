@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagSchedulingState, DagWarningType, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, ReprocessBehavior, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGBody_, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagSchedulingState, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, ReprocessBehavior, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -172,6 +172,7 @@ export const useAssetServiceGetDagAssetQueuedEvent = <TData = Common.AssetServic
 * @param data.groupPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.groupPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.dagIds
+* @param data.hasEvents Filter assets that have events
 * @param data.onlyActive
 * @param data.lastAssetEventTimestampGte
 * @param data.lastAssetEventTimestampGt
@@ -181,10 +182,11 @@ export const useAssetServiceGetDagAssetQueuedEvent = <TData = Common.AssetServic
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetServiceGetAssetsUi = <TData = Common.AssetServiceGetAssetsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, groupPattern, groupPrefixPattern, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const useAssetServiceGetAssetsUi = <TData = Common.AssetServiceGetAssetsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, groupPattern, groupPrefixPattern, hasEvents, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   groupPattern?: string;
   groupPrefixPattern?: string;
+  hasEvents?: boolean;
   lastAssetEventTimestampGt?: string;
   lastAssetEventTimestampGte?: string;
   lastAssetEventTimestampLt?: string;
@@ -198,7 +200,7 @@ export const useAssetServiceGetAssetsUi = <TData = Common.AssetServiceGetAssetsU
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ dagIds, groupPattern, groupPrefixPattern, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssetsUi({ dagIds, groupPattern, groupPrefixPattern, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsUiKeyFn({ dagIds, groupPattern, groupPrefixPattern, hasEvents, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssetsUi({ dagIds, groupPattern, groupPrefixPattern, hasEvents, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
 /**
 * Next Run Assets
 * @param data The data for the request.
@@ -277,6 +279,10 @@ export const useBackfillServiceListBackfillDagRuns = <TData = Common.BackfillSer
 * @param data.maxActiveRunsGt
 * @param data.maxActiveRunsLte
 * @param data.maxActiveRunsLt
+* @param data.durationGte
+* @param data.durationGt
+* @param data.durationLte
+* @param data.durationLt
 * @param data.reprocessBehavior
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
 * @param data.dagId
@@ -284,7 +290,7 @@ export const useBackfillServiceListBackfillDagRuns = <TData = Common.BackfillSer
 * @returns BackfillCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useBackfillServiceListBackfillsUi = <TData = Common.BackfillServiceListBackfillsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
+export const useBackfillServiceListBackfillsUi = <TData = Common.BackfillServiceListBackfillsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
   active?: boolean;
   completedAtGt?: string;
   completedAtGte?: string;
@@ -295,6 +301,10 @@ export const useBackfillServiceListBackfillsUi = <TData = Common.BackfillService
   createdAtLt?: string;
   createdAtLte?: string;
   dagId?: string;
+  durationGt?: number;
+  durationGte?: number;
+  durationLt?: number;
+  durationLte?: number;
   fromDateGt?: string;
   fromDateGte?: string;
   fromDateLt?: string;
@@ -311,7 +321,7 @@ export const useBackfillServiceListBackfillsUi = <TData = Common.BackfillService
   toDateGte?: string;
   toDateLt?: string;
   toDateLte?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, durationGt, durationGte, durationLt, durationLte, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }) as TData, ...options });
 /**
 * Get Connection
 * Get a connection entry.
@@ -424,6 +434,8 @@ export const useDagRunServiceGetDagRun = <TData = Common.DagRunServiceGetDagRunD
 * @param data.dagVersion
 * @param data.bundleVersion
 * @param data.teams
+* @param data.tags
+* @param data.tagsMatchMode
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
 * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
@@ -437,7 +449,7 @@ export const useDagRunServiceGetDagRun = <TData = Common.DagRunServiceGetDagRunD
 * @returns DAGRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDagRunServiceGetDagRuns = <TData = Common.DagRunServiceGetDagRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionDateGte, partitionDateLte, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, teams, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
+export const useDagRunServiceGetDagRuns = <TData = Common.DagRunServiceGetDagRunsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionDateGte, partitionDateLte, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
   bundleVersion?: string;
   confContains?: string;
   consumingAssetPattern?: string;
@@ -477,6 +489,8 @@ export const useDagRunServiceGetDagRuns = <TData = Common.DagRunServiceGetDagRun
   startDateLt?: string;
   startDateLte?: string;
   state?: string[];
+  tags?: string[];
+  tagsMatchMode?: "any" | "all";
   teams?: string[];
   triggeringUserNamePattern?: string;
   triggeringUserNamePrefixPattern?: string;
@@ -484,7 +498,7 @@ export const useDagRunServiceGetDagRuns = <TData = Common.DagRunServiceGetDagRun
   updatedAtGte?: string;
   updatedAtLt?: string;
   updatedAtLte?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionDateGte, partitionDateLte, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, teams, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }, queryKey), queryFn: () => DagRunService.getDagRuns({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionDateGte, partitionDateLte, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, teams, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionDateGte, partitionDateLte, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }, queryKey), queryFn: () => DagRunService.getDagRuns({ bundleVersion, confContains, consumingAssetPattern, cursor, dagId, dagIdPattern, dagIdPrefixPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionDateGte, partitionDateLte, partitionKeyPattern, partitionKeyPrefixPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, tags, tagsMatchMode, teams, triggeringUserNamePattern, triggeringUserNamePrefixPattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) as TData, ...options });
 /**
 * Get Upstream Asset Events
 * If dag run is asset-triggered, return the asset events that triggered it.
@@ -545,6 +559,25 @@ export const useExperimentalServiceWaitDagRunUntilFinished = <TData = Common.Exp
   interval: number;
   result?: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }, queryKey), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) as TData, ...options });
+/**
+* Experimental: Compare what two stored versions of a Dag currently hold.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.baseVersionNumber Version to compare from.
+* @param data.targetVersionNumber Version to compare to.
+* @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+* @returns DagVersionDiffResponse Successful Response
+* @throws ApiError
+*/
+export const useExperimentalServiceGetDagVersionDiff = <TData = Common.ExperimentalServiceGetDagVersionDiffDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseExperimentalServiceGetDagVersionDiffKeyFn({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }, queryKey), queryFn: () => ExperimentalService.getDagVersionDiff({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }) as TData, ...options });
 /**
 * Get Dag Source
 * Get source code using file token.
@@ -685,7 +718,7 @@ export const useDagWarningServiceListDagWarnings = <TData = Common.DagWarningSer
   limit?: number;
   offset?: number;
   orderBy?: string[];
-  warningType?: DagWarningType;
+  warningType?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }, queryKey), queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData, ...options });
 /**
 * Get Dags
@@ -819,8 +852,10 @@ export const useDagServiceGetDagTags = <TData = Common.DagServiceGetDagTagsDefau
 * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
 * @param data.lastDagRunState
 * @param data.dagRunState Filter Dags that have any DagRun in the given state.
+* @param data.dagRunStateWithinHours Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
 * @param data.bundleName
 * @param data.bundleVersion
+* @param data.relativeFilelocPrefix Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
 * @param data.isFavorite
 * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
@@ -830,7 +865,7 @@ export const useDagServiceGetDagTags = <TData = Common.DagServiceGetDagTagsDefau
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDagServiceGetDagsUi = <TData = Common.DagServiceGetDagsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }: {
+export const useDagServiceGetDagsUi = <TData = Common.DagServiceGetDagsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -841,6 +876,7 @@ export const useDagServiceGetDagsUi = <TData = Common.DagServiceGetDagsUiDefault
   dagIds?: string[];
   dagRunsLimit?: number;
   dagRunState?: DagRunState;
+  dagRunStateWithinHours?: number;
   excludeStale?: boolean;
   hasAssetSchedule?: boolean;
   hasImportErrors?: boolean;
@@ -852,12 +888,13 @@ export const useDagServiceGetDagsUi = <TData = Common.DagServiceGetDagsUiDefault
   orderBy?: string[];
   owners?: string[];
   paused?: boolean;
+  relativeFilelocPrefix?: string;
   schedulingState?: DagSchedulingState;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
   teams?: string[];
   timetableType?: string[];
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }, queryKey), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, schedulingState, tags, tagsMatchMode, teams, timetableType }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }, queryKey), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, dagRunStateWithinHours, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, relativeFilelocPrefix, schedulingState, tags, tagsMatchMode, teams, timetableType }) as TData, ...options });
 /**
 * Get Dag Timetable Types
 * Get timetable types used by readable Dags.
@@ -873,6 +910,25 @@ export const useDagServiceGetDagTimetableTypesUi = <TData = Common.DagServiceGet
   offset?: number;
   timetableTypePrefixPattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagTimetableTypesUiKeyFn({ limit, offset, timetableTypePrefixPattern }, queryKey), queryFn: () => DagService.getDagTimetableTypesUi({ limit, offset, timetableTypePrefixPattern }) as TData, ...options });
+/**
+* Get Dag Folders
+* Get the distinct folders the readable Dags live in, scoped to their bundle.
+*
+* A folder is the directory part of a Dag's ``relative_fileloc`` (relative to its
+* bundle root). Because ``relative_fileloc`` is relative to each bundle, the same
+* path can exist in several bundles, so every folder is paired with its bundle
+* name to keep them apart. Dags located directly at the bundle root have no folder
+* and are not represented here. The result powers the folder navigation tree in
+* the UI, which reconstructs the hierarchy by splitting each path on ``/`` and
+* groups it under its bundle when more than one bundle is present.
+*
+* Stale Dags are left out to match the Dag list, which hides them by default: keeping
+* them would surface folders (or whole bundles, once they stop being parsed) that
+* select down to an empty list.
+* @returns DagFolderCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagServiceGetDagFolders = <TData = Common.DagServiceGetDagFoldersDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagFoldersKeyFn(queryKey), queryFn: () => DagService.getDagFolders() as TData, ...options });
 /**
 * Get Latest Run Info
 * Get latest run.
@@ -895,6 +951,25 @@ export const useDagServiceGetLatestRunInfo = <TData = Common.DagServiceGetLatest
 export const useDagServiceGetDagRunStateCountsUi = <TData = Common.DagServiceGetDagRunStateCountsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds }: {
   dagIds: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetDagRunStateCountsUiKeyFn({ dagIds }, queryKey), queryFn: () => DagService.getDagRunStateCountsUi({ dagIds }) as TData, ...options });
+/**
+* Get Recent Task Instance State Counts
+* Return recent task-instance state counts for the Dags of the given runs, for the Dag list page.
+*
+* Like the Airflow 2 "Recent Tasks" column, a Dag's counts cover all of its running Dag
+* runs, or its latest run when none is running.
+*
+* The Dag list response already carries the latest run of each Dag, so the caller passes
+* those run ids straight in. Deriving the latest run again here would mean an
+* ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index and degrades
+* badly once a Dag has many runs. Runs the caller may not read are dropped.
+* @param data The data for the request.
+* @param data.dagRunIds
+* @returns DAGsRecentTaskInstanceStateCountsCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useDagServiceGetRecentTaskInstanceStateCountsUi = <TData = Common.DagServiceGetRecentTaskInstanceStateCountsUiDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagRunIds }: {
+  dagRunIds: number[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagServiceGetRecentTaskInstanceStateCountsUiKeyFn({ dagRunIds }, queryKey), queryFn: () => DagService.getRecentTaskInstanceStateCountsUi({ dagRunIds }) as TData, ...options });
 /**
 * Get Event Log
 * @param data The data for the request.
@@ -1471,6 +1546,7 @@ export const useTaskInstanceServiceGetHitlDetailTryDetail = <TData = Common.Task
 * @param data.taskIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.mapIndex
 * @param data.state
+* @param data.teams
 * @param data.responseReceived
 * @param data.respondedByUserId
 * @param data.respondedByUserName
@@ -1483,7 +1559,7 @@ export const useTaskInstanceServiceGetHitlDetailTryDetail = <TData = Common.Task
 * @returns HITLDetailCollection Successful Response
 * @throws ApiError
 */
-export const useTaskInstanceServiceGetHitlDetails = <TData = Common.TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern }: {
+export const useTaskInstanceServiceGetHitlDetails = <TData = Common.TaskInstanceServiceGetHitlDetailsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }: {
   bodySearch?: string;
   createdAtGt?: string;
   createdAtGte?: string;
@@ -1505,7 +1581,8 @@ export const useTaskInstanceServiceGetHitlDetails = <TData = Common.TaskInstance
   taskId?: string;
   taskIdPattern?: string;
   taskIdPrefixPattern?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern }, queryKey), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern }) as TData, ...options });
+  teams?: string[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }, queryKey), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagIdPrefixPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern, taskIdPrefixPattern, teams }) as TData, ...options });
 /**
 * Get Import Error
 * Get an import error.
@@ -1523,7 +1600,7 @@ export const useImportErrorServiceGetImportError = <TData = Common.ImportErrorSe
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
 * @param data.filenamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `filename_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.filenamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.filename Exact filename match. Returns only the import error for this specific file path.
@@ -1544,7 +1621,6 @@ export const useImportErrorServiceGetImportErrors = <TData = Common.ImportErrorS
 * Get Jobs
 * Get all jobs.
 * @param data The data for the request.
-* @param data.isAlive
 * @param data.startDateGte
 * @param data.startDateGt
 * @param data.startDateLte
@@ -1561,10 +1637,12 @@ export const useImportErrorServiceGetImportErrors = <TData = Common.ImportErrorS
 * @param data.jobType
 * @param data.hostname
 * @param data.executorClass
+* @param data.teams
+* @param data.isAlive
 * @returns JobCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useJobServiceGetJobs = <TData = Common.JobServiceGetJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }: {
+export const useJobServiceGetJobs = <TData = Common.JobServiceGetJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte, teams }: {
   dagId?: string;
   endDateGt?: string;
   endDateGte?: string;
@@ -1582,7 +1660,8 @@ export const useJobServiceGetJobs = <TData = Common.JobServiceGetJobsDefaultResp
   startDateGte?: string;
   startDateLt?: string;
   startDateLte?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseJobServiceGetJobsKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }, queryKey), queryFn: () => JobService.getJobs({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }) as TData, ...options });
+  teams?: string[];
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseJobServiceGetJobsKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte, teams }, queryKey), queryFn: () => JobService.getJobs({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte, teams }) as TData, ...options });
 /**
 * Get Plugins
 * @param data The data for the request.
@@ -1854,6 +1933,25 @@ export const useVariableServiceGetVariables = <TData = Common.VariableServiceGet
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }, queryKey), queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }) as TData, ...options });
+/**
+* Experimental: Compare what two stored versions of a Dag currently hold.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Reports observed state — what the two stored versions currently hold — not why a version was created. Version access returns the changed structure with identifying path components masked; the raw values behind those changes, and the paths that name them, are disclosed only to a caller who may also read the Dag's code.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.baseVersionNumber Version to compare from.
+* @param data.targetVersionNumber Version to compare to.
+* @param data.maxChanges Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+* @returns DagVersionDiffResponse Successful Response
+* @throws ApiError
+*/
+export const useDagVersionServiceGetDagVersionDiff = <TData = Common.DagVersionServiceGetDagVersionDiffDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }: {
+  baseVersionNumber: number;
+  dagId: string;
+  maxChanges?: number;
+  targetVersionNumber: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDagVersionServiceGetDagVersionDiffKeyFn({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }, queryKey), queryFn: () => DagVersionService.getDagVersionDiff({ baseVersionNumber, dagId, maxChanges, targetVersionNumber }) as TData, ...options });
 /**
 * Get Dag Version
 * Get one Dag Version.
@@ -2800,6 +2898,19 @@ export const useDagServicePatchDag = <TData = Common.DagServicePatchDagMutationR
   requestBody: DAGPatchBody;
   updateMask?: string[];
 }, TContext>({ mutationFn: ({ dagId, requestBody, updateMask }) => DagService.patchDag({ dagId, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
+/**
+* Bulk Dags
+* Bulk pause, resume, or drain Dags by id.
+* @param data The data for the request.
+* @param data.requestBody
+* @returns BulkResponse Successful Response
+* @throws ApiError
+*/
+export const useDagServiceBulkDags = <TData = Common.DagServiceBulkDagsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: BulkBody_BulkDAGBody_;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: BulkBody_BulkDAGBody_;
+}, TContext>({ mutationFn: ({ requestBody }) => DagService.bulkDags({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Task Instance
 * Update a task instance.

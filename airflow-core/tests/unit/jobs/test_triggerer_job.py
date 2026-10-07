@@ -74,7 +74,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
@@ -1237,18 +1237,24 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     Checks that the triggerer will log watcher and trigger in separate lines.
     """
     create_trigger_in_db(session, trigger)
+    trigger_line = f"{trigger_count} triggers currently running"
+    watcher_line = f"{watcher_count} watchers currently running"
 
     trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
-    trigger_runner_supervisor.load_triggers()
+    try:
+        trigger_runner_supervisor.load_triggers()
 
-    for _ in range(30):
-        trigger_runner_supervisor._service_subprocess(0.1)
+        stdout = ""
+        for _ in range(300):
+            trigger_runner_supervisor._service_subprocess(0.1)
+            stdout += capsys.readouterr().out
+            if trigger_line in stdout and watcher_line in stdout:
+                break
+    finally:
+        trigger_runner_supervisor.kill(force=False)
 
-    stdout = capsys.readouterr().out
-    assert f"{trigger_count} triggers currently running" in stdout
-    assert f"{watcher_count} watchers currently running" in stdout
-
-    trigger_runner_supervisor.kill(force=False)
+    assert trigger_line in stdout
+    assert watcher_line in stdout
 
 
 def test_trigger_logger_close():
@@ -2487,6 +2493,9 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
         }
     }
     assert task_instance.next_kwargs == expected_event
+    session.expire_all()
+    assert XComModelV2.get_for_attempt(task_instance.id, "test_set_xcom", session=session).value == "set_xcom"
+    assert XComModelV2.get_for_attempt(task_instance.id, "test_delete_xcom", session=session) is None
 
 
 class CustomTriggerDagRun(BaseTrigger):
@@ -3065,6 +3074,7 @@ class TestTriggererMessageTypes:
             "SetTaskStateStore",
             "DeleteTaskStateStore",
             "ClearTaskStateStore",
+            "UpdateDagRunNote",
         }
 
         in_task_but_not_in_trigger_runner = {

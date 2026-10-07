@@ -46,6 +46,7 @@ from airflow_breeze.commands.sbom_commands import sbom_group  # noqa: E402
 from airflow_breeze.commands.setup_commands import setup_group  # noqa: E402
 from airflow_breeze.commands.testing_commands import testing_group  # noqa: E402
 from airflow_breeze.commands.ui_commands import ui_group  # noqa: E402
+from airflow_breeze.commands import verify_commands  # noqa: E402, F401
 
 main.add_command(testing_group)
 main.add_command(kubernetes_group)
