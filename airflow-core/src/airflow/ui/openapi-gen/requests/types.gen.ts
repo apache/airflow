@@ -5030,6 +5030,7 @@ export type GetTasksResponse = TaskCollectionResponse;
 export type GetTaskData = {
     dagId: string;
     taskId: unknown;
+    versionNumber?: number | null;
 };
 
 export type GetTaskResponse = TaskResponse;

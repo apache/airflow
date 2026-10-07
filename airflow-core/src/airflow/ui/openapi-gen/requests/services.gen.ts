@@ -4634,9 +4634,14 @@ export class TaskService {
     /**
      * Get Task
      * Get simplified representation of a task.
+     *
+     * Pass ``version_number`` (e.g. a task instance's ``dag_version.version_number``) to get the task
+     * as defined in that Dag version. Without it the latest version is used. Returns 404 if that
+     * version of the Dag does not exist.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.taskId
+     * @param data.versionNumber
      * @returns TaskResponse Successful Response
      * @throws ApiError
      */
@@ -4647,6 +4652,9 @@ export class TaskService {
             path: {
                 dag_id: data.dagId,
                 task_id: data.taskId
+            },
+            query: {
+                version_number: data.versionNumber
             },
             errors: {
                 400: 'Bad Request',
