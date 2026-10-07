@@ -84,11 +84,12 @@ How it works
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
   identity keys without ``airflow.task_instance.id``.
-* **Scope.** The ``run_id`` / ``usage`` XComs come only from ``AgentOperator`` and
-  ``@task.agent``, and so do the ``airflow.*`` identity attributes, apart from a Strands or
-  ADK agent run inside ``agent_framework_tracing`` (see below). The other LLM
-  operators still emit GenAI spans correlated to the task span by nesting, but
-  without the identity attributes or the run join key.
+* **Scope.** The ``run_id`` XCom and the ``airflow.*`` identity attributes come only from
+  ``AgentOperator`` and ``@task.agent``, apart from a Strands or ADK agent run inside
+  ``agent_framework_tracing`` (see below). ``LLMOperator`` / ``@task.llm`` also push a
+  ``usage`` XCom, but without a ``run_id`` to join it to a trace. The remaining LLM
+  operators still emit GenAI spans correlated to the task span by nesting, but without the
+  identity attributes, the run join key, or a ``usage`` XCom.
 * **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
   task-instance page showing the resolved model name and the ``usage`` XCom above as a
   readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on
