@@ -807,7 +807,8 @@ garbage collection skips, or omit the retention to use the deployment's ``[state
 ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``. A zero or negative retention is rejected. ``delete`` removes
 one key and ``clear`` removes every key for the task instance. The Java SDK does not use a
 ``[workers] state_store_backend``: values always go to the metadata database as-is, so keys written by Python
-tasks through a custom backend are returned to Java as the raw reference marker rather than the stored value.
+tasks and offloaded by a custom backend are returned to Java as the raw reference marker rather than the stored
+value. Values the backend kept in the database come back as-is.
 
 .. _java-sdk/native-dag-parsing:
 
