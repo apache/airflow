@@ -19,8 +19,12 @@
 
 .. _howto/operator:DatabricksAgentInvokeOperator:
 
+.. spelling:word-list::
+
+    MLflow
+
 Invoke a Databricks agent
-========================
+============================
 
 Use :class:`~airflow.providers.databricks.operators.agent.DatabricksAgentInvokeOperator`
 to invoke an agent deployed on Databricks Apps using ``DurableAgentServer``.
