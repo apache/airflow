@@ -19,6 +19,7 @@ from __future__ import annotations
 import builtins
 import copy
 import os
+import shlex
 import shutil
 import signal
 import subprocess
@@ -873,14 +874,29 @@ class TestRunWrapper:
         time.sleep(0.5)
         assert not any(self._pids(f"sleep {n}") for n in (301, 302, 303))
 
+    def test_the_timeout_kills_a_process_whose_name_contains_a_parenthesis(self, tmp_path):
+        # The kernel names a process after the file it executes, and /proc/<pid>/stat shows that
+        # name in parentheses. Under a subshell, the sleep's parent is not the session leader.
+        named = tmp_path / "a) b c"
+        named.symlink_to(shutil.which("sleep"))
+
+        result = self._run(f"({shlex.quote(str(named))} 309; :) & sleep 310", seconds=2)
+
+        time.sleep(0.5)
+        survivors = self._pids(f"{named} 309")
+        for pid in survivors:
+            os.kill(pid, signal.SIGKILL)
+        assert result.returncode == 124
+        assert not survivors
+
     def test_a_timer_starved_of_cpu_fires_on_elapsed_time(self):
         # Stopping the wrapper's process group, which the setsid'd command has left, stands in for
-        # CPU contention; a timer counting its own one-second sleeps would fire two seconds late.
+        # CPU contention; a timer counting its own one-second sleeps would fire five seconds late.
         stdin, writer = os.pipe()
         os.write(writer, b"sleep 306")
         os.close(writer)
         with subprocess.Popen(
-            ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", "3", "1000"],
+            ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", "6", "1000"],
             stdin=stdin,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -893,12 +909,12 @@ class TestRunWrapper:
                 time.sleep(0.05)
             time.sleep(0.3)
             os.killpg(wrapper.pid, signal.SIGSTOP)
-            time.sleep(3)
+            time.sleep(6)
             os.killpg(wrapper.pid, signal.SIGCONT)
             resumed = time.monotonic()
 
             assert wrapper.wait(timeout=10) == 124
-        assert time.monotonic() - resumed < 1.5
+        assert time.monotonic() - resumed < 3
 
     def test_a_background_child_does_not_hold_the_call(self):
         started = time.monotonic()
