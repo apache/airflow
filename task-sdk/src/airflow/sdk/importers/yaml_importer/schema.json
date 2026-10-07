@@ -2,7 +2,7 @@
   "$defs": {
     "CodeTask": {
       "additionalProperties": true,
-      "description": "A task running custom code.\n\nThis should have ``run`` holding function arguments, and optionally\n``queue`` to route it.",
+      "description": "A task running custom code.",
       "properties": {
         "id": {
           "title": "Id",
@@ -85,7 +85,7 @@
     },
     "OperatorTask": {
       "additionalProperties": true,
-      "description": "A ready-made operator.\n\nThis should have ``uses`` (import path) + ``with``.",
+      "description": "A ready-made operator.",
       "properties": {
         "id": {
           "title": "Id",
@@ -139,7 +139,7 @@
     },
     "TaskTemplate": {
       "additionalProperties": true,
-      "description": "A reusable, partial task fragment merged into any task that ``extends`` it.\n\nThis holds arbitrary keys as-is. All validation is done on the merged task.",
+      "description": "A reusable, partial task fragment merged into any task that extends it.\n\nThis holds arbitrary keys as-is. All validation is done on the merged task.",
       "properties": {},
       "title": "TaskTemplate",
       "type": "object"
@@ -168,22 +168,7 @@
           "type": "string"
         },
         "with": {
-          "additionalProperties": {
-            "oneOf": [
-              {
-                "$ref": "#/$defs/XComRef"
-              },
-              {
-                "$ref": "#/$defs/TemplateRef"
-              },
-              {
-                "$ref": "#/$defs/ConstRef"
-              },
-              {
-                "$ref": "#/$defs/_Literal"
-              }
-            ]
-          },
+          "additionalProperties": true,
           "title": "With",
           "type": "object"
         }

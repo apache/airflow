@@ -14,18 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Parse a YAML/JSON DAG file into validated :class:`~.models.DagDocument` objects.
 
-The pydantic models (`.models`) are the schema; this module is the thin I/O + versioning
-layer around them: it lazily streams each document of a multi-document YAML/JSON stream (a string or a
-readable file object),
-resolves its `$schema` version against the Cadwyn bundle (migrating an older-pinned document
-up to head), validates it, and turns pydantic/YAML failures into a readable
-:class:`YamlDagParseError` at the offending document. Parsing is lazy, so errors surface as
-the iterator is consumed. It is pure (yaml + pydantic + cadwyn; no `airflow` import), so it is
-unit-testable without a runtime.
-"""
+"""Parse a YAML/JSON DAG file into validated :class:`~.models.DagDocument` objects."""
 
 from __future__ import annotations
 

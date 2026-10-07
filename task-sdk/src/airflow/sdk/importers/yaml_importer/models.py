@@ -195,6 +195,10 @@ class OperatorTask(_TaskBase):
 
     uses: str
 
+    model_config = ConfigDict(
+        json_schema_extra={"description": "A ready-made operator."},
+    )
+
 
 class CodeTask(_TaskBase):
     """
@@ -205,6 +209,10 @@ class CodeTask(_TaskBase):
     """
 
     run: dict[str, Value] = Field(default_factory=dict)
+
+    model_config = ConfigDict(
+        json_schema_extra={"description": "A task running custom code."},
+    )
 
 
 def _task_discriminator(v: Any) -> str:
@@ -230,14 +238,23 @@ class TaskTemplate(BaseModel):
     This holds arbitrary keys as-is. All validation is done on the merged task.
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(
+        extra="allow",
+        json_schema_extra={
+            "description": (
+                "A reusable, partial task fragment merged into any task that "
+                "extends it.\n\nThis holds arbitrary keys as-is. All "
+                "validation is done on the merged task."
+            ),
+        },
+    )
 
 
 class TimetableSchedule(BaseModel):
     """A constructed timetable."""
 
     uses: str
-    with_: dict[str, Value] = Field(default_factory=dict, alias="with")
+    with_: dict[str, Any] = Field(default_factory=dict, alias="with")
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
