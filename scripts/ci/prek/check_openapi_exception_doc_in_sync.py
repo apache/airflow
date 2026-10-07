@@ -23,13 +23,18 @@ it — uses to model error responses, but nothing ties it to the statuses a
 handler actually raises. The two drift apart silently, and that drift has been
 patched by hand repeatedly (#67570, #67571, #70992, #71011).
 
-A handler violates the rule when it raises ``HTTPException(<status>)`` in its
-own body with a status neither its own ``responses=`` block nor its router's
-declares. The check is deliberately conservative so it can gate CI: ``401``,
-``403`` and ``422`` are never required (FastAPI and the routers' auth
-dependencies supply them), only the handler's own body is inspected, and
-anything it cannot resolve statically is skipped rather than guessed at. It
-therefore under-reports rather than over-reports.
+A handler violates the rule when it raises ``HTTPException(<status>)`` -- in its
+own body, or in a helper it calls -- with a status neither its own ``responses=``
+block nor its router's declares. Helper calls are followed across modules up to
+``MAX_CALL_DEPTH``, which is how a status raised by something like
+``get_latest_version_of_dag`` is attributed to the route that calls it.
+
+The check is deliberately conservative so it can gate CI: ``401``, ``403`` and
+``422`` are never required (FastAPI and the routers' auth dependencies supply
+them), only calls in a handler's *body* are followed, so the security
+dependencies in a route decorator stay exempt, and anything that cannot be
+resolved statically is skipped rather than guessed at. It therefore
+under-reports rather than over-reports.
 """
 
 # /// script
@@ -45,6 +50,7 @@ import ast
 import re
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 from common_prek_utils import console
 
@@ -55,7 +61,22 @@ DOC_HELPER = "create_openapi_http_exception_doc"
 # dependencies, declared once on a router this file-scoped check often cannot reach.
 ALWAYS_DOCUMENTED = {401, 403, 422}
 
+# Helper chains in these routes are shallow; the bound only stops pathological recursion.
+MAX_CALL_DEPTH = 3
+
 _STATUS_CONSTANT = re.compile(r"^HTTP_(\d{3})_")
+
+
+class Violation(NamedTuple):
+    handler: str
+    status: int
+    lineno: int
+    # Name of the helper that raises the status, or None when the handler raises it itself.
+    via: str | None
+
+    def describe(self) -> str:
+        source = f" via {self.via}()" if self.via else ""
+        return f"  Line {self.lineno}: {self.handler}() raises {self.status}{source} but never declares it"
 
 
 def _resolve_status(node: ast.expr) -> int | None:
@@ -137,13 +158,23 @@ def _router_statuses(tree: ast.Module) -> dict[str, set[int] | None]:
     return routers
 
 
-def _raised_statuses(handler: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[int, int]:
+FunctionNode = ast.FunctionDef | ast.AsyncFunctionDef
+
+
+def _body_calls(function: FunctionNode) -> list[ast.Call]:
+    """Return calls made in the function's body, excluding its decorators.
+
+    Route decorators carry the ``Depends(...)`` security dependencies, whose statuses
+    the router supplies and this check does not require, so they must not be followed.
+    """
+    return [node for statement in function.body for node in ast.walk(statement) if isinstance(node, ast.Call)]
+
+
+def _raised_statuses(handler: FunctionNode) -> dict[int, int]:
     """Map each status raised as ``HTTPException`` in the body to its first line."""
     raised: dict[int, int] = {}
-    for node in ast.walk(handler):
-        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
-            continue
-        if node.func.id != "HTTPException":
+    for node in _body_calls(handler):
+        if not isinstance(node.func, ast.Name) or node.func.id != "HTTPException":
             continue
         argument = next(
             (kw.value for kw in node.keywords if kw.arg == "status_code"),
@@ -156,7 +187,123 @@ def _raised_statuses(handler: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[in
     return raised
 
 
-def _route_decorators(handler: ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.Call]:
+def _source_root(file_path: Path) -> Path | None:
+    """Return the import root (the ``src`` directory) this file lives under."""
+    return next((parent for parent in file_path.parents if parent.name == "src"), None)
+
+
+class _ModuleIndex:
+    """Lazily parsed view of the functions each module defines, keyed by import path."""
+
+    def __init__(self, source_root: Path | None) -> None:
+        self._source_root = source_root
+        self._cache: dict[str, dict[str, FunctionNode]] = {}
+
+    def functions(self, module: str) -> dict[str, FunctionNode]:
+        if (source_root := self._source_root) is None:
+            return {}
+        if module not in self._cache:
+            self._cache[module] = self._parse(source_root, module)
+        return self._cache[module]
+
+    @staticmethod
+    def _parse(source_root: Path, module: str) -> dict[str, FunctionNode]:
+        relative = Path(*module.split("."))
+        for candidate in (
+            source_root / relative.with_suffix(".py"),
+            source_root / relative / "__init__.py",
+        ):
+            try:
+                tree = ast.parse(candidate.read_text(encoding="utf-8"), filename=str(candidate))
+            except (OSError, UnicodeDecodeError, SyntaxError):
+                continue
+            return {
+                node.name: node
+                for node in ast.walk(tree)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            }
+        return {}
+
+
+def _imported_functions(tree: ast.Module) -> dict[str, tuple[str, str]]:
+    """Map each name bound by ``from <module> import <name>`` to ``(module, original)``."""
+    imported: dict[str, tuple[str, str]] = {}
+    for node in ast.walk(tree):
+        # ``level`` is non-zero for relative imports, which this resolver does not handle.
+        if isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            for alias in node.names:
+                imported[alias.asname or alias.name] = (node.module, alias.name)
+    return imported
+
+
+class _CallGraph:
+    """Resolves the statuses a handler raises through the helpers it calls."""
+
+    def __init__(self, tree: ast.Module, index: _ModuleIndex) -> None:
+        self._index = index
+        self._local = {
+            node.name: node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        self._imported = _imported_functions(tree)
+
+    def _resolve(
+        self, name: str, namespace: dict[str, FunctionNode]
+    ) -> tuple[FunctionNode, dict[str, FunctionNode]] | None:
+        """Return the called function and the namespace defining it.
+
+        Imports are followed only from the route module itself; inside an imported
+        module just that module's own definitions are visible, which is what keeps a
+        chain from fanning out across the whole package.
+        """
+        if (function := namespace.get(name)) is not None:
+            return function, namespace
+        if namespace is not self._local or (origin := self._imported.get(name)) is None:
+            return None
+        module, original = origin
+        imported = self._index.functions(module)
+        if (function := imported.get(original)) is None:
+            return None
+        return function, imported
+
+    def statuses_via_helpers(self, handler: FunctionNode) -> dict[int, str]:
+        """Map each status raised only by a helper to the name of the helper raising it."""
+        found: dict[int, str] = {}
+        self._walk(handler, self._local, depth=0, seen={handler.name}, attribute_to=None, found=found)
+        for status in _raised_statuses(handler):
+            found.pop(status, None)
+        return found
+
+    def _walk(
+        self,
+        function: FunctionNode,
+        namespace: dict[str, FunctionNode],
+        depth: int,
+        seen: set[str],
+        attribute_to: str | None,
+        found: dict[int, str],
+    ) -> None:
+        if depth >= MAX_CALL_DEPTH:
+            return
+        for call in _body_calls(function):
+            if not isinstance(call.func, ast.Name):
+                continue
+            name = call.func.id
+            if name in seen:
+                continue
+            resolved = self._resolve(name, namespace)
+            if resolved is None:
+                continue
+            callee, callee_namespace = resolved
+            # The first helper in the chain is the one worth naming in the message.
+            credit = attribute_to or name
+            for status in _raised_statuses(callee):
+                found.setdefault(status, credit)
+            self._walk(callee, callee_namespace, depth + 1, seen | {name}, credit, found)
+
+
+def _route_decorators(handler: FunctionNode) -> list[ast.Call]:
     return [
         decorator
         for decorator in handler.decorator_list
@@ -166,15 +313,16 @@ def _route_decorators(handler: ast.FunctionDef | ast.AsyncFunctionDef) -> list[a
     ]
 
 
-def check_file(file_path: Path) -> list[tuple[str, int, int]]:
-    """Return ``(handler_name, status, line_number)`` for each undeclared status."""
+def check_file(file_path: Path) -> list[Violation]:
+    """Return a :class:`Violation` for each status a route raises but never declares."""
     try:
         tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
     except (OSError, UnicodeDecodeError, SyntaxError):
         return []
 
     routers = _router_statuses(tree)
-    violations: list[tuple[str, int, int]] = []
+    call_graph = _CallGraph(tree, _ModuleIndex(_source_root(file_path)))
+    violations: list[Violation] = []
     for handler in ast.walk(tree):
         if not isinstance(handler, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
@@ -185,12 +333,18 @@ def check_file(file_path: Path) -> list[tuple[str, int, int]]:
             inherited = routers.get(router.id, set()) if isinstance(router, ast.Name) else set()
             if declared is None or inherited is None:
                 continue
-            undeclared = {
-                status: lineno
+            documented = declared | inherited | ALWAYS_DOCUMENTED
+            found = [
+                Violation(handler.name, status, lineno, None)
                 for status, lineno in _raised_statuses(handler).items()
-                if status not in declared | inherited | ALWAYS_DOCUMENTED
-            }
-            violations.extend((handler.name, status, lineno) for status, lineno in sorted(undeclared.items()))
+                if status not in documented
+            ]
+            found += [
+                Violation(handler.name, status, handler.lineno, helper)
+                for status, helper in call_graph.statuses_via_helpers(handler).items()
+                if status not in documented
+            ]
+            violations.extend(sorted(found, key=lambda violation: violation.status))
     return violations
 
 
@@ -205,10 +359,7 @@ def main() -> int:
         if not violations:
             continue
         total += len(violations)
-        lines = [
-            f"  Line {lineno}: {handler}() raises {status} but never declares it"
-            for handler, status, lineno in violations
-        ]
+        lines = [violation.describe() for violation in violations]
         if console:
             console.print(f"[red]{file_path}[/red]:")
             for line in lines:

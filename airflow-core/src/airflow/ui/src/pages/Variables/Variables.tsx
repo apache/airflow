@@ -30,6 +30,7 @@ import type { VariableResponse } from "openapi/requests/types.gen";
 import { Tooltip, ActionBar } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -65,8 +66,10 @@ const getColumns = ({
   multiTeam,
   open,
   translate,
-}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
-  const columns: Array<ColumnDef<VariableResponse>> = [
+}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<
+  ColumnDef<DataTableFeatures, VariableResponse>
+> => {
+  const columns: Array<ColumnDef<DataTableFeatures, VariableResponse>> = [
     {
       accessorKey: "select",
       cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.key} />,

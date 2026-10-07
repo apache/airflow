@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DagRunMutableStates, TaskInstanceState } from "openapi/requests/types.gen";
+import {
+  columnVisibilityFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
+  tableFeatures,
+} from "@tanstack/react-table";
 
-export const allowedStates: Array<DagRunMutableStates> = ["success", "failed"];
+// Pagination and sorting are server-side (`manualPagination`/`manualSorting`), so no row models
+// are registered: rows render in the order and slice the API returns them.
+export const dataTableFeatures = tableFeatures({
+  columnVisibilityFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
+});
 
-// Narrower than isStatePending: excludes states where the task has started or may start at any moment.
-const skippableTaskInstanceStates: Array<TaskInstanceState> = [
-  "scheduled",
-  "up_for_reschedule",
-  "up_for_retry",
-];
-
-export const canMarkTaskInstanceAsSkipped = (state?: TaskInstanceState | null) =>
-  state === null || state === undefined || skippableTaskInstanceStates.includes(state);
+export type DataTableFeatures = typeof dataTableFeatures;
