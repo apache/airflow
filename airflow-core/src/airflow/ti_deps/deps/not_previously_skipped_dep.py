@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XComModel, xcom_entity
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
 
@@ -177,8 +177,9 @@ def _mapped_group_skip_decisions(
         query = XComModel.get_many(
             run_id=ti.run_id, key=XCOM_SKIPMIXIN_KEY, dag_ids=ti.dag_id, task_ids=skipmixin_task_ids
         )
+        entity = xcom_entity(query)
         rows = session.execute(
-            query.with_only_columns(XComModel.task_id, XComModel.map_index, XComModel.value).order_by(None)
+            query.with_only_columns(entity.task_id, entity.map_index, entity.value).order_by(None)
         )
         for row in rows:
             if (state := finished_states.get((row.task_id, row.map_index))) is None:
