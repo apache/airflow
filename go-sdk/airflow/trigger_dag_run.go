@@ -39,11 +39,14 @@ import (
 // pointer to 0 or false can set that value instead of leaving the default.
 //
 // The task does not render templates. DagID, RunID, Note and the values in Conf are sent as they
-// are, so a string such as "{{ ds }}" reaches the new Dag run unchanged.
+// are, so a string such as "{{ ds }}" reaches the new Dag run unchanged. The task does not offer
+// openlineage_inject_parent_info, so it adds nothing to Conf.
 type TriggerDagRunSpec struct {
 	// DagID is the dag_id of the Dag to trigger. It is required.
 	DagID string
-	// RunID is the run_id of the new Dag run. When RunID is empty, Airflow generates one.
+	// RunID is the run_id of the new Dag run. When RunID is empty, the task names the run after
+	// the time it can start, such as "manual__2026-09-30T00:00:00+00:00", and adds an underscore
+	// and eight random characters when the run has no logical date.
 	RunID string
 	// Conf is the conf of the new Dag run. Each value must marshal to JSON, and each integer in
 	// Conf must fit in 64 bits.
@@ -78,9 +81,11 @@ type TriggerDagRunSpec struct {
 	FailWhenDagIsPaused bool
 	// Note is the note of the new Dag run.
 	Note string
-	// Deferrable makes a task that waits defer instead of holding a worker slot. When Deferrable
-	// is nil, the task follows the default_deferrable option in the operators section of the
-	// Airflow configuration.
+	// Deferrable makes a task that waits defer instead of holding a worker slot. The wait then
+	// runs in the Airflow triggerer, which needs the standard provider installed, and the task
+	// resumes in the Go runtime when the new Dag run finishes. Deferrable has no effect on a task
+	// that does not wait. When Deferrable is nil, the task follows the default_deferrable option
+	// in the operators section of the Airflow configuration.
 	Deferrable *bool
 }
 
