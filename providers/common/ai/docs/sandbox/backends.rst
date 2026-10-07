@@ -287,7 +287,9 @@ use:
 
 The connection ``password`` is the Boat API key and is required. ``host``, when
 set, is the full API base URL, such as ``https://boat.dev/api/v1``, which is also
-the default. With ``boat_conn_id=None``, the default, the backend reads
+the default. It must start with ``https://`` or ``http://``: a bare domain such as
+``boat.dev``, which is what Airflow's connection URI form leaves in ``host``, is
+refused, since the API key would otherwise be sent to it over plain HTTP. With ``boat_conn_id=None``, the default, the backend reads
 ``BOAT_API_KEY`` (required) and optional ``BOAT_BASE_URL`` from the worker
 environment instead.
 

@@ -28,6 +28,7 @@ import time
 import uuid
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 from airflow.providers.common.ai.sandbox.base import (
     _FILE_OP_OUTPUT_CAP,
@@ -203,7 +204,7 @@ class BoatSandboxBackend(SandboxBackend):
 
     :param boat_conn_id: Generic Airflow connection ID. Its ``password`` is the
         Boat API key and is required; its ``host``, when set, is the full API base
-        URL, such as ``https://boat.dev/api/v1``. ``None`` (default) reads
+        URL with its scheme, such as ``https://boat.dev/api/v1``. ``None`` (default) reads
         ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL`` from the worker
         environment instead.
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
@@ -277,6 +278,15 @@ class BoatSandboxBackend(SandboxBackend):
                         f"Connection {self._boat_conn_id!r} has no password; set it to the Boat API key."
                     )
                 base_url = conn.host or _DEFAULT_BASE_URL
+                # A bare domain, which is what Airflow's connection URI form leaves in host,
+                # would make urllib3 send the API key to it over plain HTTP.
+                parts = urlsplit(base_url)
+                if parts.scheme not in ("https", "http") or not parts.netloc:
+                    raise SandboxTerminalError(
+                        f"Connection {self._boat_conn_id!r} host {conn.host!r} has no http:// or https:// "
+                        f"scheme; set it to the full Boat API base URL, such as {_DEFAULT_BASE_URL}, "
+                        "or leave it empty for that default."
+                    )
             # urllib3 would otherwise resend a request that stalled or failed up to three
             # times, each with the call's whole timeout, so one call could outlast the
             # deadline it was given. Unlike retries=False, this still follows redirects.

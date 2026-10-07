@@ -285,6 +285,7 @@ class TestCredentials:
         ("host", "base_url"),
         [
             pytest.param("https://custom.example/api/v1/", "https://custom.example/api/v1", id="host"),
+            pytest.param("http://127.0.0.1:8080", "http://127.0.0.1:8080", id="explicit_http"),
             pytest.param(None, "https://boat.dev/api/v1", id="no_host"),
             pytest.param("", "https://boat.dev/api/v1", id="empty_host"),
         ],
@@ -312,6 +313,29 @@ class TestCredentials:
 
         with pytest.raises(SandboxTerminalError, match="'my_boat' has no password"):
             BoatSandboxBackend(boat_conn_id="my_boat")._get_api()
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            # What Airflow's URI form generic://:key@boat.dev/api/v1 leaves in host.
+            "boat.dev",
+            "boat.dev/api/v1",
+            "127.0.0.1:8080",
+            "localhost:8080",
+            "https:boat.dev",
+        ],
+    )
+    @mock.patch(_BASE_HOOK, autospec=True)
+    @mock.patch("boat_sdk.ApiClient", autospec=True)
+    def test_connection_host_without_a_scheme_is_terminal(self, api_client, hook, host):
+        hook.get_connection.return_value = SimpleNamespace(password="conn-key", host=host)
+
+        with pytest.raises(
+            SandboxTerminalError, match=r"'my_boat' host .* has no http:// or https:// scheme"
+        ):
+            BoatSandboxBackend(boat_conn_id="my_boat")._get_api()
+
+        api_client.assert_not_called()
 
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)
