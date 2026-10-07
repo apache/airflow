@@ -32,7 +32,7 @@ from airflow.sdk.coordinators.executable._bundle_reader import (
     read_bundle_source,
 )
 from airflow.sdk.coordinators.executable.coordinator import FOOTER_MAGIC
-from airflow.sdk.importers.base import DagSourceCode, FilesystemDagDefinition
+from airflow.sdk.importers.base import DagSourceCode, FilesystemDagDefinition, get_file_suffix
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -48,9 +48,8 @@ class ExecutableDagImporter(CoordinatorDagImporter):
     """
     Claim the native Dags of executable bundles, such as the ones the Go SDK packs.
 
-    An :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` parses them. A bundle is
-    identified by the ``AFBNDL01`` magic that ends the file, not by its name, so it can have any extension
-    or none.
+    An :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` parses them. A bundle binary has
+    no file extension, and the ``AFBNDL01`` magic that ends the file identifies it when the bundle is scanned.
     """
 
     coordinator_classpath: ClassVar[str] = "airflow.sdk.coordinators.executable.ExecutableCoordinator"
@@ -58,12 +57,7 @@ class ExecutableDagImporter(CoordinatorDagImporter):
     supported_extensions: list[str] = []
 
     def can_handle(self, definition: DagDefinition | str | Path) -> bool:
-        try:
-            with open(str(definition), "rb") as bundle_file:
-                bundle_file.seek(-len(FOOTER_MAGIC), os.SEEK_END)
-                return bundle_file.read(len(FOOTER_MAGIC)) == FOOTER_MAGIC
-        except OSError:
-            return False
+        return get_file_suffix(definition) == ""
 
     def list_dag_definitions(
         self, bundle: BaseDagBundle, *, safe_mode: bool = True
@@ -82,13 +76,18 @@ class ExecutableDagImporter(CoordinatorDagImporter):
 
     def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
         """
-        Return ``True`` for every bundle.
+        Return whether the file ends with the bundle trailer.
 
         ``safe_mode`` does not apply: whether a bundle defines Dags is known only by running it, and a
         bundle that only registers task handlers is parsed too. A bundle that fails verification is kept,
         so that parsing it reports why.
         """
-        return True
+        try:
+            with definition.as_file() as path, open(path, "rb") as bundle_file:
+                bundle_file.seek(-len(FOOTER_MAGIC), os.SEEK_END)
+                return bundle_file.read(len(FOOTER_MAGIC)) == FOOTER_MAGIC
+        except OSError:
+            return False
 
     def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
         """

@@ -625,8 +625,8 @@ Deploying
 Copy or mount the packed bundle into the Dag bundle named by the coordinator's ``task_handler_bundle_name``.
 The :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` scans that Dag bundle recursively,
 matches the incoming ``dag_id`` against each bundle's manifest, verifies the bundle's integrity hash, and
-launches the matching bundle. Bundles are identified by the trailer magic, not by filename (no extension on
-Linux/macOS, ``.exe`` on Windows), so the file name on the worker is irrelevant.
+launches the matching bundle. This scan identifies bundles by the trailer magic, not by file name. The Dag
+processor also requires a file name without an extension, see :ref:`go-sdk/native-dag-parsing`.
 
 The matching bundle is marked executable before it is launched, so any Dag bundle works, including an
 object-store one such as ``S3DagBundle`` that has no concept of file permissions and so cannot preserve
@@ -638,10 +638,11 @@ Parsing native Dags
 ~~~~~~~~~~~~~~~~~~~
 
 Once an :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` is configured, the Dag processor
-parses every bundle binary in each Dag bundle, whatever its file name, and runs it to collect the Dags it
-defines. A binary that only registers task handlers is parsed too: each parse runs it and finds no Dags, and
-a binary built with a Go SDK that cannot answer the Dag-parse request records an import error. Keep those
-out of the Dag processor with ``.airflowignore``, as described in :ref:`Quick start <go-sdk/quick-start>`.
+parses every bundle binary in each Dag bundle and runs it to collect the Dags it defines. The Dag processor
+recognizes a bundle binary only when its file name has no extension, such as ``bin/orders``, not
+``bin/orders.bin``. A binary that only registers task handlers is parsed too: each parse runs it and finds
+no Dags, and a binary built with a Go SDK that cannot answer the Dag-parse request records an import error.
+Keep those out of the Dag processor with ``.airflowignore``, as described in :ref:`Quick start <go-sdk/quick-start>`.
 
 With one :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator`, it parses the binaries of every Dag
 bundle. With several, for example a second one for another ``task_handler_bundle_name``, map each Dag bundle that

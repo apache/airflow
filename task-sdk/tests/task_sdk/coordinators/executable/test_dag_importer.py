@@ -68,34 +68,31 @@ def _bundle(root: SimpleNamespace | Path) -> SimpleNamespace:
 
 
 class TestCanHandle:
-    @pytest.mark.parametrize("name", ["go-bundle", "go-bundle.bin", "go-bundle.exe"])
-    def test_claims_a_bundle_whatever_its_name(self, importer, tmp_path, name):
-        path = write_bundle(tmp_path / name, "orders")
-
-        assert importer.can_handle(path) is True
-        assert importer.can_handle(str(path)) is True
-        assert importer.can_handle(FilesystemDagDefinition(path)) is True
-
     @pytest.mark.parametrize(
-        "content",
-        [b"", b"short", b"x" * 100, b"AFBNDL01 and then more bytes"],
-        ids=["empty", "shorter-than-magic", "plain", "magic-not-at-the-end"],
+        "name",
+        ["bin/orders", "orders", "/opt/airflow/dags/bin/orders"],
+        ids=["relative", "bare-name", "absolute"],
     )
-    def test_ignores_a_file_that_does_not_end_with_the_magic(self, importer, tmp_path, content):
-        path = tmp_path / "plain.bin"
-        path.write_bytes(content)
+    def test_claims_a_name_without_an_extension(self, importer, name):
+        assert importer.can_handle(name) is True
+        assert importer.can_handle(Path(name)) is True
+        assert importer.can_handle(FilesystemDagDefinition(Path(name))) is True
+
+    @pytest.mark.parametrize("name", ["bin/orders.bin", "dags/etl.py", "x.jar", "orders.exe"])
+    def test_ignores_a_name_with_an_extension(self, importer, name):
+        assert importer.can_handle(name) is False
+        assert importer.can_handle(Path(name)) is False
+        assert importer.can_handle(FilesystemDagDefinition(Path(name))) is False
+
+    def test_ignores_a_bundle_with_an_extension(self, importer, tmp_path):
+        path = write_bundle(tmp_path / "orders.bin", "orders")
 
         assert importer.can_handle(path) is False
 
-    def test_ignores_a_python_file(self, importer, tmp_path):
-        path = tmp_path / "dag.py"
-        path.write_text("from airflow.sdk import dag\n")
+    def test_does_not_read_the_file(self, importer, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
 
-        assert importer.can_handle(path) is False
-
-    @pytest.mark.parametrize("name", ["missing", "."])
-    def test_ignores_a_path_it_cannot_read(self, importer, tmp_path, name):
-        assert importer.can_handle(tmp_path / name) is False
+        assert importer.can_handle("bin/orders") is True
 
     def test_declares_no_extension(self, importer):
         assert importer.artifact_suffix == ""
@@ -106,13 +103,23 @@ class TestListDagDefinitions:
     def test_lists_every_bundle_under_the_root(self, importer, tmp_path):
         top = write_bundle(tmp_path / "top", "orders")
         (tmp_path / "team").mkdir()
-        nested = write_bundle(tmp_path / "team" / "nested.bin", "reports")
+        nested = write_bundle(tmp_path / "team" / "nested", "reports")
         (tmp_path / "README.md").write_text("docs")
         (tmp_path / "dag.py").write_text("x = 1\n")
 
         definitions = list(importer.list_dag_definitions(_bundle(tmp_path)))
 
         assert sorted(d.path for d in definitions) == sorted([top, nested])
+
+    def test_lists_only_the_bundles_without_an_extension(self, importer, tmp_path):
+        (tmp_path / "bin").mkdir()
+        bundle = write_bundle(tmp_path / "bin" / "orders", "orders")
+        write_bundle(tmp_path / "bin" / "orders.bin", "orders")
+        (tmp_path / "README").write_text("docs")
+
+        definitions = list(importer.list_dag_definitions(_bundle(tmp_path)))
+
+        assert [d.path for d in definitions] == [bundle]
 
     def test_honors_airflowignore(self, importer, tmp_path):
         kept = write_bundle(tmp_path / "kept", "orders")
@@ -143,8 +150,20 @@ class TestMightContainDag:
 
         assert importer.might_contain_dag(FilesystemDagDefinition(handlers_only), safe_mode) is True
 
-    def test_keeps_an_unreadable_file(self, importer, tmp_path):
-        assert importer.might_contain_dag(FilesystemDagDefinition(tmp_path / "gone"), True) is True
+    @pytest.mark.parametrize(
+        "content",
+        [b"", b"short", b"x" * 100, b"AFBNDL01 and then more bytes"],
+        ids=["empty", "shorter-than-magic", "plain", "magic-not-at-the-end"],
+    )
+    def test_drops_a_file_that_does_not_end_with_the_magic(self, importer, tmp_path, content):
+        path = tmp_path / "plain"
+        path.write_bytes(content)
+
+        assert importer.might_contain_dag(FilesystemDagDefinition(path), True) is False
+
+    @pytest.mark.parametrize("name", ["gone", "."])
+    def test_drops_a_file_it_cannot_read(self, importer, tmp_path, name):
+        assert importer.might_contain_dag(FilesystemDagDefinition(tmp_path / name), True) is False
 
 
 class TestGetSourceCode:
@@ -201,9 +220,8 @@ class TestGetSourceCode:
 
 
 class TestRegistry:
-    @pytest.mark.parametrize("name", ["go-bundle", "go-bundle.bin"])
-    def test_routes_a_bundle_to_the_importer(self, tmp_path, name):
-        path = write_bundle(tmp_path / name, "orders")
+    def test_routes_a_bundle_to_the_importer(self, tmp_path):
+        path = write_bundle(tmp_path / "go-bundle", "orders")
         with conf_vars(COORDINATORS):
             routed = get_importer_registry("dags-folder").get_importer(path)
             claiming = find_claiming_importer(path, "dags-folder")
@@ -211,6 +229,12 @@ class TestRegistry:
         assert isinstance(routed, ExecutableDagImporter)
         assert isinstance(claiming, ExecutableDagImporter)
         assert claiming.bundle_name == "dags-folder"
+
+    def test_does_not_route_a_bundle_with_an_extension(self, tmp_path):
+        path = write_bundle(tmp_path / "go-bundle.bin", "orders")
+        with conf_vars(COORDINATORS):
+            assert get_importer_registry("dags-folder").get_importer(path) is None
+            assert find_claiming_importer(path, "dags-folder") is None
 
     def test_leaves_other_files_to_the_python_importers(self, tmp_path):
         python_file = tmp_path / "dag.py"
@@ -235,9 +259,9 @@ class TestRegistry:
 
         assert [name for name, _ in listed] == ["PythonDagImporter"]
 
-    def test_registry_listing_keeps_suffixless_and_bin_bundles(self, tmp_path):
+    def test_registry_listing_keeps_only_the_bundles_without_an_extension(self, tmp_path):
         suffixless = write_bundle(tmp_path / "go-bundle", "orders")
-        with_suffix = write_bundle(tmp_path / "other.bin", "reports")
+        write_bundle(tmp_path / "other.bin", "reports")
         with conf_vars(COORDINATORS):
             listed = [
                 item.path
@@ -247,7 +271,7 @@ class TestRegistry:
                 if isinstance(importer, ExecutableDagImporter)
             ]
 
-        assert sorted(listed) == sorted([suffixless, with_suffix])
+        assert listed == [suffixless]
 
     def test_registers_nothing_without_an_executable_coordinator(self, tmp_path):
         path = write_bundle(tmp_path / "go-bundle", "orders")

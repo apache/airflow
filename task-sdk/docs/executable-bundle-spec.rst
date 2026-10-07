@@ -50,9 +50,9 @@ The file ends with a fixed 64-byte trailer that locates regions (2) and (3),
 carries an integrity hash of the binary region, and identifies the file as a
 bundle. See :ref:`bundle-trailer-layout`.
 
-Filenames follow OS conventions for executables: no extension on Linux/macOS,
-``.exe`` on Windows. The scanner identifies bundles by the trailer's magic,
-not by the filename.
+A bundle file has no file extension, and the Dag processor does not treat a
+file with an extension as a bundle. The scanner identifies bundles by the
+trailer's magic.
 
 The complete bundle file regions are:
 

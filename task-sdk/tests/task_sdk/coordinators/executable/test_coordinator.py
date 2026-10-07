@@ -32,7 +32,9 @@ import pytest
 import yaml
 from uuid6 import uuid7
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
 from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_MAGIC,
     FOOTER_SIZE,
@@ -44,6 +46,7 @@ from airflow.sdk.coordinators.executable.coordinator import (
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
+from airflow.sdk.importers import reset_importer_registry
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
@@ -689,3 +692,49 @@ class TestExecutableCoordinatorExecuteTask:
 
         assert isinstance(result, BaseCoordinator.ExecutionResult)
         assert result.exit_code == 0
+
+
+class TestExecuteTaskNativeBundle:
+    def test_runs_a_bundle_found_by_its_bundle_relative_name(self, tmp_path, monkeypatch, mock_client):
+        dags = tmp_path / "dags"
+        (dags / "bin").mkdir(parents=True)
+        binary = _build_bundle(dags / "bin" / "orders", dag_ids=["orders"])
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+        bundle = MagicMock(spec=BaseDagBundle, path=dags, version="v1")
+        bundle.name = "dags"
+        coordinators = {
+            ("sdk", "coordinators"): json.dumps(
+                {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator"}}
+            )
+        }
+
+        reset_importer_registry()
+        try:
+            with (
+                conf_vars(coordinators),
+                patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True) as init,
+                patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True),
+                patch.object(_PopenActivitySubprocess, "start", autospec=True) as mock_start,
+                patch.object(
+                    ExecutableCoordinator,
+                    "_build_execute_task_command",
+                    autospec=True,
+                    side_effect=ExecutableCoordinator._build_execute_task_command,
+                ) as mock_scan,
+            ):
+                init.return_value = bundle
+                mock_start.return_value.wait.return_value = 0
+                ExecutableCoordinator().execute_task(
+                    what=_make_ti(dag_id="orders"),
+                    dag_rel_path="bin/orders",
+                    bundle_info=BundleInfo(name="dags", version="v1"),
+                    client=mock_client,
+                    subprocess_logs_to_stdout=False,
+                )
+        finally:
+            reset_importer_registry()
+
+        mock_scan.assert_not_called()
+        assert mock_start.call_args.kwargs["command"][0] == str(binary.resolve())
