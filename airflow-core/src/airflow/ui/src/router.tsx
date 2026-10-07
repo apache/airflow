@@ -75,7 +75,7 @@ import { TaskStateStore } from "src/pages/TaskStateStore";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
-import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
+import { DagRunTab, TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
 
 import { client } from "./queryClient";
 
@@ -249,7 +249,7 @@ export const routerConfig = [
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
-          { element: <DagRunAssetEvents />, path: "asset_events" },
+          { element: <DagRunAssetEvents />, path: DagRunTab.AssetEvents },
           pluginRoute,
         ],
         element: <Run />,

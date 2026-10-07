@@ -22,7 +22,7 @@ from collections import abc
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from pydantic import computed_field, field_validator, model_validator
+from pydantic import Field, computed_field, field_validator, model_validator
 
 from airflow._shared.module_loading import qualname
 from airflow.api_fastapi.common.types import TimeDeltaWithValidation
@@ -81,11 +81,22 @@ class TaskResponse(BaseModel):
     params: abc.MutableMapping | None
     class_ref: dict | None
     is_mapped: bool | None
+    has_outlets: bool = Field(
+        default=False,
+        description="Whether the task declares any ``outlets``, i.e. whether running it can "
+        "produce asset events.",
+    )
 
     @model_validator(mode="before")
     @classmethod
     def validate_model(cls, task: Any) -> Any:
-        task.__dict__.update({"class_ref": _get_class_ref(task), "is_mapped": task.is_mapped})
+        task.__dict__.update(
+            {
+                "class_ref": _get_class_ref(task),
+                "is_mapped": task.is_mapped,
+                "has_outlets": bool(task.outlets),
+            }
+        )
         return task
 
     @field_validator("weight_rule", mode="before")

@@ -2688,6 +2688,13 @@ class TaskResponse(BaseModel):
     params: Annotated[dict[str, Any] | None, Field(title="Params")]
     class_ref: Annotated[dict[str, Any] | None, Field(title="Class Ref")]
     is_mapped: Annotated[bool | None, Field(title="Is Mapped")]
+    has_outlets: Annotated[
+        bool | None,
+        Field(
+            description="Whether the task declares any ``outlets``, i.e. whether running it can produce asset events.",
+            title="Has Outlets",
+        ),
+    ] = False
     extra_links: Annotated[
         list[str], Field(description="Extract and return extra_links.", title="Extra Links")
     ]

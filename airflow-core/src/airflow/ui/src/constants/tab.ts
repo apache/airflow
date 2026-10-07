@@ -35,6 +35,11 @@ export enum TabName {
   Versions = "versions",
 }
 
+/** Route path segments for the Dag-run detail tabs. Single source of truth powering the router. */
+export enum DagRunTab {
+  AssetEvents = "asset_events",
+}
+
 /** Route path segments for the task-instance detail tabs. Single source of truth powering the router. */
 export enum TaskInstanceTab {
   AssetEvents = "asset_events",

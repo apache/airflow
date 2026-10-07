@@ -8981,6 +8981,12 @@ export const $TaskResponse = {
             ],
             title: 'Is Mapped'
         },
+        has_outlets: {
+            type: 'boolean',
+            title: 'Has Outlets',
+            description: 'Whether the task declares any ``outlets``, i.e. whether running it can produce asset events.',
+            default: false
+        },
         extra_links: {
             items: {
                 type: 'string'

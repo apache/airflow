@@ -2303,6 +2303,10 @@ export type TaskResponse = {
 } | null;
     is_mapped: boolean | null;
     /**
+     * Whether the task declares any ``outlets``, i.e. whether running it can produce asset events.
+     */
+    has_outlets?: boolean;
+    /**
      * Extract and return extra_links.
      */
     readonly extra_links: Array<(string)>;

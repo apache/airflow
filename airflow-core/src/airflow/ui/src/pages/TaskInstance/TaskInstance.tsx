@@ -39,6 +39,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
+import { useTaskInstanceTabs } from "src/hooks/useTaskInstanceTabs";
 import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
@@ -143,10 +144,21 @@ export const TaskInstance = () => {
     refetchInterval: isStatePending(taskInstance?.state) && refetchInterval,
   });
 
-  const { tabs: displayTabs } = useHITLReviewTabs({ dagId, dagRunId: runId, taskId }, requiredActionTabs, {
+  const { tabs: hitlTabs } = useHITLReviewTabs({ dagId, dagRunId: runId, taskId }, requiredActionTabs, {
     mapIndex: parsedMapIndex,
     refetchInterval: isStatePending(taskInstance?.state) && refetchInterval,
   });
+
+  const { tabs: displayTabs } = useTaskInstanceTabs(
+    {
+      dagId,
+      isVersionKnown: taskInstance !== undefined,
+      taskId,
+      // Pre-versioning instances have no version and correctly fall back to the latest definition.
+      versionNumber: taskInstance?.dag_version?.version_number ?? undefined,
+    },
+    hitlTabs,
+  );
 
   return (
     <ReactFlowProvider>
