@@ -63,47 +63,43 @@ class TestLogsApiRoutes:
         assert str(Path(f"dag_id={DAG_ID}") / f"run_id={RUN_ID}" / f"task_id={TASK_ID}" / "attempt=1") in p
         assert "-1" not in Path(p).parts
 
+    @pytest.mark.parametrize(
+        ("method", "route", "body"),
+        [
+            ("GET", f"logs/logfile_path/{DAG_ID}/nonexistent_task/{RUN_ID}/1/-1", None),
+            (
+                "POST",
+                f"logs/push/{DAG_ID}/nonexistent_task/{RUN_ID}/1/-1",
+                {
+                    "log_chunk_data": "This is Lorem Ipsum log data",
+                    "log_chunk_time": "2024-11-24T00:00:00Z",
+                },
+            ),
+        ],
+        ids=["logfile_path", "push_logs"],
+    )
     @conf_vars({("api_auth", "jwt_secret"): "edge-log-test-secret"})
-    def test_logfile_path_missing_ti_returns_404(self):
+    def test_missing_ti_returns_404(
+        self,
+        method: str,
+        route: str,
+        body: dict[str, str] | None,
+    ) -> None:
         app = FastAPI()
         app.include_router(logs_router, prefix="/edge_worker/v1")
-        method = f"logs/logfile_path/{DAG_ID}/nonexistent_task/{RUN_ID}/1/-1"
         token = JWTGenerator(
-            secret_key=conf.get("api_auth", "jwt_secret"), valid_for=60, audience="api"
-        ).generate(extras={"method": method})
+            secret_key=conf.get("api_auth", "jwt_secret"),
+            valid_for=60,
+            audience="api",
+        ).generate(extras={"method": route})
         jwt_validator.cache_clear()
         try:
             with TestClient(app, raise_server_exceptions=False) as client:
-                response = client.get(f"/edge_worker/v1/{method}", headers={"Authorization": token})
-        finally:
-            jwt_validator.cache_clear()
-
-        assert response.status_code == 404
-        assert response.json() == {
-            "detail": (
-                f"TaskInstance not found for dag_id={DAG_ID}, task_id=nonexistent_task, "
-                f"run_id={RUN_ID}, map_index=-1"
-            )
-        }
-
-    @conf_vars({("api_auth", "jwt_secret"): "edge-log-test-secret"})
-    def test_push_logs_missing_ti_returns_404(self):
-        app = FastAPI()
-        app.include_router(logs_router, prefix="/edge_worker/v1")
-        method = f"logs/push/{DAG_ID}/nonexistent_task/{RUN_ID}/1/-1"
-        token = JWTGenerator(
-            secret_key=conf.get("api_auth", "jwt_secret"), valid_for=60, audience="api"
-        ).generate(extras={"method": method})
-        jwt_validator.cache_clear()
-        try:
-            with TestClient(app, raise_server_exceptions=False) as client:
-                response = client.post(
-                    f"/edge_worker/v1/{method}",
+                response = client.request(
+                    method=method,
+                    url=f"/edge_worker/v1/{route}",
                     headers={"Authorization": token},
-                    json={
-                        "log_chunk_data": "This is Lorem Ipsum log data",
-                        "log_chunk_time": timezone.utcnow().isoformat(),
-                    },
+                    json=body,
                 )
         finally:
             jwt_validator.cache_clear()
