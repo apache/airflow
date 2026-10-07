@@ -15,6 +15,8 @@ and ``b`` in the same TaskGroup and ``bridge`` outside it, makes the group depen
 - Move tasks between TaskGroups, or out of them, so that each group depends on the others in one direction
   only. In the example above, move ``bridge`` into the group, or move ``b`` out of it.
 - To catch these Dags in CI, run your Dag tests with
-  ``-W error::airflow.sdk.exceptions.TaskGroupCycleDeprecationWarning``.
+  ``-W error::airflow.sdk.exceptions.TaskGroupCycleDeprecationWarning``. The check runs when a Dag is
+  added to a ``DagBag``, so only tests that load your Dags into a ``DagBag`` and assert there are no import
+  errors catch them; a test that only imports a Dag file does not.
 
 See "Cyclic TaskGroup dependencies" in the Dags documentation.

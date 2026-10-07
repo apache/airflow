@@ -663,15 +663,33 @@ group are ordered directly as well:
 
     a >> bridge >> b  # group -> bridge -> group
 
+This includes a setup and teardown pair inside a TaskGroup with the work they wrap outside it. This is
+intended: a TaskGroup that holds a setup and its teardown must also hold the tasks between them.
+
+.. code-block:: python
+
+    with TaskGroup("cluster"):
+        create = EmptyOperator(task_id="create")
+        delete = EmptyOperator(task_id="delete")
+
+    work = EmptyOperator(task_id="work")
+
+    create >> work >> delete.as_teardown(setups=create)  # cluster -> work -> cluster
+
 These Dags still parse and run, but features that act on a TaskGroup as a whole need an unambiguous order
 between groups. Parsing them emits a ``TaskGroupCycleDeprecationWarning`` and a Dag warning in the UI that
 name the TaskGroups and tasks involved.
 
 To remove the cycle, move tasks between TaskGroups, or out of them, so that each group depends on the others
-in one direction only. In the second example, move ``bridge`` into ``group``, or move ``b`` out of it.
+in one direction only. In the second example, move ``bridge`` into ``group``, or move ``b`` out of it. In the
+setup and teardown example, move ``work`` into ``cluster``.
 
-To catch these Dags in CI, turn the warning into an error. For example, when a pytest test loads your Dags
-into a ``DagBag`` and asserts there are no import errors:
+Only Dags authored with the Python Task SDK are checked. Dags from the Go, Java and TypeScript SDKs are not
+checked yet.
+
+To catch these Dags in CI, turn the warning into an error. The check runs when a Dag is added to a
+``DagBag``, so this works for a pytest test that loads your Dags into a ``DagBag`` and asserts there are no
+import errors, but not for one that only imports a Dag file:
 
 .. code-block:: bash
 
