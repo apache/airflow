@@ -32,7 +32,11 @@ import { BreadcrumbRow, CrumbLink, CrumbStack, CrumbText, type CrumbShape } from
 
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { DagRunSwitcherButton } from "./DagRunSwitcherButton";
 import { DagSwitcherButton } from "./DagSwitcherButton";
+
+/** Levels that stand for a Dag run — both offer the run search. */
+const RUN_LEVEL_KEYS = new Set(["allRuns", "dagRun"]);
 
 type Crumb = {
   readonly caption: string;
@@ -70,6 +74,14 @@ const BreadcrumbItem = ({
       <DagSwitcherButton dagId={dagId} shape={shape}>
         {content}
       </DagSwitcherButton>
+    );
+  }
+
+  if (RUN_LEVEL_KEYS.has(crumb.key) && crumb.to !== undefined) {
+    return (
+      <DagRunSwitcherButton dagId={dagId} shape={shape} to={crumb.to}>
+        {content}
+      </DagRunSwitcherButton>
     );
   }
 

@@ -419,6 +419,7 @@
     "upstream_failed": "Upstream Failed"
   },
   "switchDag": "Switch $t(dag_one)",
+  "switchDagRun": "Switch $t(dagRun_one)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",

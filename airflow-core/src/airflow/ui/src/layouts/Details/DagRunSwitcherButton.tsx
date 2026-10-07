@@ -21,38 +21,32 @@ import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CrumbSwitcher, type CrumbShape } from "src/components/Breadcrumb";
-import { SearchDags } from "src/components/SearchDags";
-
-import { SHORTCUTS } from "src/context/keyboardShortcuts";
-import { useShortcut } from "src/hooks/useShortcut";
+import { SearchDagRuns } from "src/components/SearchDagRuns";
 
 type Props = {
   readonly children: ReactNode;
   readonly dagId: string;
   readonly shape: CrumbShape;
+  readonly to: string;
 };
 
-/** The Dag level of the breadcrumb, with the Dag search behind its chevron. */
-export const DagSwitcherButton = ({ children, dagId, shape }: Props) => {
+/**
+ * The Dag run level of the breadcrumb, with a search over the Dag's runs behind its chevron. It
+ * stands in for both a named run and the "all runs" level, so `to` comes from the crumb itself.
+ */
+export const DagRunSwitcherButton = ({ children, dagId, shape, to }: Props) => {
   const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
 
-  useShortcut({
-    ...SHORTCUTS.search.searchDags,
-    callback: () => setOpen(true),
-    dependencies: [open],
-    options: { preventDefault: true },
-  });
-
   return (
     <CrumbSwitcher
-      label={translate("switchDag")}
+      label={translate("switchDagRun")}
       onOpenChange={setOpen}
       open={open}
-      search={<SearchDags onClose={() => setOpen(false)} />}
+      search={<SearchDagRuns dagId={dagId} onClose={() => setOpen(false)} />}
       shape={shape}
-      testId="switch-dag"
-      to={`/dags/${dagId}`}
+      testId="switch-dag-run"
+      to={to}
     >
       {children}
     </CrumbSwitcher>

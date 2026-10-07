@@ -118,6 +118,25 @@ describe("DagBreadcrumb", () => {
     );
   });
 
+  it("switches Dag run from the chevron dropdown, keeping the task in view", async () => {
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/task_1`,
+        "/dags/:dagId/runs/:runId/tasks/:taskId",
+      ),
+    });
+
+    fireEvent.click(await screen.findByTestId("switch-dag-run"));
+
+    fireEvent.click(await screen.findByText("run_in_range", undefined, { timeout: 3000 }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+        `/dags/${DAG_ID}/runs/run_in_range/tasks/task_1`,
+      ),
+    );
+  });
+
   it("renders one level per URL segment, with only the current one unlinked", async () => {
     render(<DagBreadcrumb />, {
       wrapper: createWrapper(

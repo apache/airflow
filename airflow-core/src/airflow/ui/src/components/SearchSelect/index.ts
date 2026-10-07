@@ -16,22 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { chakraComponents } from "chakra-react-select";
-import type { ControlProps } from "chakra-react-select";
-import { FiSearch } from "react-icons/fi";
 
-import type { DagSearchOption } from "src/utils/option";
-
-/**
- * Leads the input with the search affordance. react-select only renders indicators after the value
- * container, so an icon on the start side has to come from the control itself.
- */
-export const Control = ({ children, ...props }: ControlProps<DagSearchOption, false>) => (
-  <chakraComponents.Control {...props}>
-    <Box alignItems="center" as="span" color="fg.muted" display="flex" flexShrink={0} pe={1.5}>
-      <FiSearch />
-    </Box>
-    {children}
-  </chakraComponents.Control>
-);
+export { SearchSelect } from "./SearchSelect";
