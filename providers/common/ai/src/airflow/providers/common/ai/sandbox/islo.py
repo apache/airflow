@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import shlex
 import time
 from contextlib import closing, contextmanager, suppress
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
     from typing import BinaryIO
 
     from islo import Islo
+    from islo.types import ExecResponse, ExecResultResponse, SandboxResponse
 
     from airflow.providers.common.ai.sandbox.base import SandboxSpec
 
@@ -66,6 +68,11 @@ _POLL_BACKOFF = 1.5
 # not become a one-second request budget that a slow API -- the first call after
 # an auto-resume, say -- turns into a task failure instead of a command result.
 _POLL_HTTP_TIMEOUT_MIN = 5.0
+# Starting a command is sent without the SDK's retries (see ``_request_options``),
+# so the backend resends it itself, and only after a failure that proves the
+# command never ran.
+_START_RETRIES = 2
+_START_RETRY_DELAY = 1.0
 _FILE_OP_TIMEOUT = 120.0
 # File-transfer responses that say nothing the model can act on: bad credentials,
 # a rate limit, or an overloaded API. Every other status is checked against the
@@ -74,8 +81,8 @@ _TERMINAL_FILE_OP_STATUSES = frozenset({401, 403, 429})
 _API_MESSAGE_MAX_CHARS = 200
 # Measured against the compute API: each stream is capped at exactly this many
 # bytes with the tail kept, and one ``truncated`` flag covers both streams. The
-# wrapper never asks for more than this per stream, so the server's cap is not
-# reached by wrapper output and its flag stays a fallback.
+# wrapper never asks for more than this per stream, so that flag is not read: a
+# stream long enough to reach the cap is over the budget and marked as cut anyway.
 _SERVER_STREAM_CAP = 1024 * 1024
 _HELPER_OUTPUT_CAP = _SERVER_STREAM_CAP - 1
 # Runs the agent's command with each stream captured to a scratch file, then
@@ -154,17 +161,25 @@ def _is_transient_error(error: Exception) -> bool:
     return isinstance(error, httpx.TransportError)
 
 
-def _bound_result_stream(text: str, max_bytes: int, *, server_truncated: bool) -> tuple[str, bool]:
+def _is_undelivered_start(error: Exception) -> bool:
+    """Whether a failed start proves the command never ran: no connection was made, or a 429 refused it."""
+    import httpx
+    from islo.core.api_error import ApiError
+
+    if isinstance(error, ApiError):
+        return error.status_code == 429
+    return isinstance(error, httpx.ConnectError)
+
+
+def _bound_result_stream(text: str, max_bytes: int) -> tuple[str, bool]:
     """
     Trim one stream to ``max_bytes``, keeping the tail, and report whether bytes were dropped.
 
     The sandbox is asked for one byte more than the budget, so a stream that
-    comes back over budget is the signal that the guest had more to give. The
-    server's own flag covers both streams at once, so it is only attributed to a
-    stream that sits at the server's cap.
+    comes back over budget is the signal that the guest had more to give.
     """
     encoded = text.encode("utf-8", errors="surrogatepass")
-    truncated = server_truncated and len(encoded) >= _SERVER_STREAM_CAP
+    truncated = False
     if len(encoded) > max_bytes:
         encoded = encoded[-max_bytes:]
         truncated = True
@@ -193,9 +208,10 @@ class IsloSandboxBackend(SandboxBackend):
 
     **Credentials are ambient.** The SDK reads ``ISLO_API_KEY``, and optionally
     ``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``, from the worker environment on first
-    use. Modal reads a ``modal`` connection first, but that connection type is owned by
-    the Modal provider; an ``islo`` connection type belongs in a future Islo provider,
-    not in this one.
+    use; an unset ``ISLO_API_KEY`` fails the task at that point. Modal reads a
+    ``modal`` connection first, but that connection type is owned by the Modal
+    provider; an ``islo`` connection type belongs in a future Islo provider, not in
+    this one.
 
     File reads, writes and exports move file contents through Islo's native
     streaming APIs. Everything else runs through a shell wrapper in the sandbox,
@@ -267,6 +283,13 @@ class IsloSandboxBackend(SandboxBackend):
         with _translate_islo_errors("initialize its client"):
             from islo import Islo
 
+            # Without a key the SDK builds a client that sends no credentials, and
+            # the first sign of it would be a bare HTTP error from create.
+            if not os.environ.get("ISLO_API_KEY"):
+                raise SandboxTerminalError(
+                    "ISLO_API_KEY is not set in the worker environment; the Islo backend reads its "
+                    "credentials only from there."
+                )
             self._client = Islo()
         return self._client
 
@@ -275,7 +298,10 @@ class IsloSandboxBackend(SandboxBackend):
         *, timeout: float, chunk_size: int | None = None, max_retries: int | None = None
     ) -> dict[str, int]:
         # ``max_retries`` is left to the SDK's default unless asked for: passing
-        # 0 would switch off the two transport retries it does on its own.
+        # 0 switches off its retries of dropped connections and of 5xx, 408, 409
+        # and 429 answers. Starting a command is the exception: that POST carries no
+        # idempotency key, so a resend after a lost response or a 5xx would run the
+        # agent's command a second time.
         options = {"timeout_in_seconds": max(1, math.ceil(timeout))}
         if chunk_size is not None:
             options["chunk_size"] = chunk_size
@@ -283,14 +309,14 @@ class IsloSandboxBackend(SandboxBackend):
             options["max_retries"] = max_retries
         return options
 
-    def _ensure_sandbox_usable(self, info: Any) -> None:
-        status = getattr(info, "status", None)
-        unusable = getattr(info, "deleted_at", None) is not None or status in _UNUSABLE_SANDBOX_STATUSES
+    def _ensure_sandbox_usable(self, info: SandboxResponse) -> None:
+        status = info.status
+        unusable = info.deleted_at is not None or status in _UNUSABLE_SANDBOX_STATUSES
         if status == "paused" and self._auto_resume != "on_activity":
             unusable = True
         if unusable:
             raise SandboxTerminalError(
-                f"Islo sandbox {getattr(info, 'name', '?')!r} cannot serve requests (status={status!r})."
+                f"Islo sandbox {info.name!r} cannot serve requests (status={status!r})."
             )
 
     @staticmethod
@@ -355,7 +381,7 @@ class IsloSandboxBackend(SandboxBackend):
             # the leak is neither cleanable nor traceable to a run.
             name = _new_sandbox_name()
             try:
-                sandbox = self._get_client().sandboxes.create_sandbox(
+                sandbox: SandboxResponse = self._get_client().sandboxes.create_sandbox(
                     name=name,
                     request_options=self._request_options(timeout=_FILE_OP_TIMEOUT),
                     **kwargs,
@@ -372,14 +398,14 @@ class IsloSandboxBackend(SandboxBackend):
             raise
         return sandbox.name
 
-    def _await_exec(self, sandbox: str, exec_id: str, *, deadline: float) -> Any:
+    def _await_exec(self, sandbox: str, exec_id: str, *, deadline: float) -> ExecResultResponse | None:
         client = self._get_client()
         interval = _POLL_INITIAL
         last_error: Exception | None = None
         while time.monotonic() < deadline:
             remaining = deadline - time.monotonic()
             try:
-                result = client.sandboxes.get_exec_result(
+                result: ExecResultResponse = client.sandboxes.get_exec_result(
                     sandbox,
                     exec_id,
                     request_options=self._request_options(timeout=max(_POLL_HTTP_TIMEOUT_MIN, remaining)),
@@ -429,22 +455,32 @@ class IsloSandboxBackend(SandboxBackend):
         # The server returns at most _SERVER_STREAM_CAP bytes per stream, so a
         # larger budget cannot be honoured and is clamped below it.
         budget = min(max_output_bytes, _SERVER_STREAM_CAP - 1)
-        with _translate_islo_errors("start a sandbox command"):
-            response = client.sandboxes.exec_in_sandbox(
-                sandbox,
-                # One byte over the budget, so a stream that comes back over it
-                # is proof the guest had more to give.
-                command=[
-                    "sh",
-                    "-c",
-                    _COMMAND_WRAPPER,
-                    "airflow-sandbox",
-                    command,
-                    str(budget + 1),
-                ],
-                timeout_secs=max(1, math.ceil(timeout)),
-                request_options=self._request_options(timeout=max(_POLL_HTTP_TIMEOUT_MIN, timeout)),
-            )
+        attempt = 0
+        while True:
+            try:
+                response: ExecResponse = client.sandboxes.exec_in_sandbox(
+                    sandbox,
+                    # One byte over the budget, so a stream that comes back over it
+                    # is proof the guest had more to give.
+                    command=[
+                        "sh",
+                        "-c",
+                        _COMMAND_WRAPPER,
+                        "airflow-sandbox",
+                        command,
+                        str(budget + 1),
+                    ],
+                    timeout_secs=max(1, math.ceil(timeout)),
+                    request_options=self._request_options(
+                        timeout=max(_POLL_HTTP_TIMEOUT_MIN, timeout), max_retries=0
+                    ),
+                )
+                break
+            except Exception as e:
+                if attempt >= _START_RETRIES or not _is_undelivered_start(e):
+                    _raise_translated(e, "start a sandbox command")
+                time.sleep(_START_RETRY_DELAY * 2**attempt)
+                attempt += 1
         # Timed from the start's answer, so a slow start cannot spend the
         # command's budget and leave it destroyed without a single poll.
         deadline = time.monotonic() + timeout
@@ -455,13 +491,8 @@ class IsloSandboxBackend(SandboxBackend):
                 exit_code=-1, stdout="", stderr="", timed_out=True, sandbox_terminated=True
             )
 
-        server_truncated = bool(getattr(result, "truncated", False))
-        stdout, out_truncated = _bound_result_stream(
-            result.stdout or "", budget, server_truncated=server_truncated
-        )
-        stderr, err_truncated = _bound_result_stream(
-            result.stderr or "", budget, server_truncated=server_truncated
-        )
+        stdout, out_truncated = _bound_result_stream(result.stdout, budget)
+        stderr, err_truncated = _bound_result_stream(result.stderr, budget)
         if result.status == "timeout":
             self._destroy_after_timeout(sandbox)
             return SandboxExecResult(
@@ -511,7 +542,7 @@ class IsloSandboxBackend(SandboxBackend):
         if status is None or status in _TERMINAL_FILE_OP_STATUSES or status > 500:
             _raise_translated(error, f"{operation} a sandbox file")
         with _translate_islo_errors(f"check a sandbox after a failed file {operation}"):
-            info = self._get_client().sandboxes.get_sandbox(
+            info: SandboxResponse = self._get_client().sandboxes.get_sandbox(
                 sandbox, request_options=self._request_options(timeout=_FILE_OP_TIMEOUT)
             )
         self._ensure_sandbox_usable(info)

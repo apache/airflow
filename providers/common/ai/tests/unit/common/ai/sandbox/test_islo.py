@@ -31,6 +31,7 @@ import pytest
 pytest.importorskip("islo")
 
 import httpx
+from islo import Islo
 from islo.core.api_error import ApiError
 from islo.errors import NotFoundError
 from islo.sandboxes.client import SandboxesClient
@@ -82,20 +83,36 @@ def _backend_with_client(**kwargs) -> tuple[IsloSandboxBackend, mock.MagicMock]:
 
 class TestCredentials:
     @mock.patch(_ISLO_PATH, autospec=True)
-    def test_client_comes_from_the_sdk_environment(self, islo):
+    def test_client_comes_from_the_sdk_environment(self, islo, monkeypatch):
+        monkeypatch.setenv("ISLO_API_KEY", "ak_test")
+
         client = IsloSandboxBackend()._get_client()
 
         islo.assert_called_once_with()
         assert client is islo.return_value
 
     @mock.patch(_ISLO_PATH, autospec=True)
-    def test_client_is_resolved_once_and_cached(self, islo):
+    def test_client_is_resolved_once_and_cached(self, islo, monkeypatch):
+        monkeypatch.setenv("ISLO_API_KEY", "ak_test")
         backend = IsloSandboxBackend()
 
         backend._get_client()
         backend._get_client()
 
         islo.assert_called_once_with()
+
+    @pytest.mark.parametrize("value", [None, ""], ids=["unset", "empty"])
+    @mock.patch(_ISLO_PATH, autospec=True)
+    def test_a_missing_api_key_is_terminal_and_names_the_variable(self, islo, monkeypatch, value):
+        if value is None:
+            monkeypatch.delenv("ISLO_API_KEY", raising=False)
+        else:
+            monkeypatch.setenv("ISLO_API_KEY", value)
+
+        with pytest.raises(SandboxTerminalError, match="ISLO_API_KEY"):
+            IsloSandboxBackend()._get_client()
+
+        islo.assert_not_called()
 
     def test_missing_sdk_error_is_actionable(self):
         real_import = builtins.__import__
@@ -128,35 +145,23 @@ def test_constructor_rejects_invalid_values(kwargs, message):
 
 
 class TestCreate:
-    def test_refuses_an_owner_it_could_not_be_attached_by(self):
+    @pytest.mark.parametrize(
+        ("spec", "match"),
+        [
+            (SandboxSpec(owner="example_dag/manual__1"), "owner"),
+            (SandboxSpec(allow_egress_to=["example.com"]), "per-domain egress allowlist"),
+            # internet_enabled is all-or-nothing, so honouring block_network=True alone
+            # would silently drop the ranges the Dag author asked to reach.
+            (SandboxSpec(allow_egress_to_cidrs=["203.0.113.0/24"]), "allow_egress_to_cidrs"),
+            (SandboxSpec(env={"PATH": "/opt/tool/bin"}), "PATH"),
+        ],
+        ids=["owner", "domain-allowlist", "cidr-allowlist", "path"],
+    )
+    def test_refuses_a_spec_it_cannot_carry_before_provisioning(self, spec, match):
         backend, client = _backend_with_client()
 
-        with pytest.raises(SandboxTerminalError, match="owner"):
-            backend.create(spec=SandboxSpec(owner="example_dag/manual__1"))
-
-        client.sandboxes.create_sandbox.assert_not_called()
-
-    def test_refuses_a_per_domain_egress_allowlist(self):
-        backend, _ = _backend_with_client()
-
-        with pytest.raises(SandboxTerminalError, match="per-domain egress allowlist"):
-            backend.create(spec=SandboxSpec(allow_egress_to=["example.com"]))
-
-    def test_refuses_an_address_egress_allowlist(self):
-        backend, client = _backend_with_client()
-
-        # internet_enabled is all-or-nothing, so honouring block_network=True alone
-        # would silently drop the ranges the Dag author asked to reach.
-        with pytest.raises(SandboxTerminalError, match="allow_egress_to_cidrs"):
-            backend.create(spec=SandboxSpec(allow_egress_to_cidrs=["203.0.113.0/24"]))
-
-        client.sandboxes.create_sandbox.assert_not_called()
-
-    def test_refuses_a_path_the_runner_would_drop(self):
-        backend, client = _backend_with_client()
-
-        with pytest.raises(SandboxTerminalError, match="PATH"):
-            backend.create(spec=SandboxSpec(env={"PATH": "/opt/tool/bin"}))
+        with pytest.raises(SandboxTerminalError, match=match):
+            backend.create(spec=spec)
 
         client.sandboxes.create_sandbox.assert_not_called()
 
@@ -312,13 +317,96 @@ class TestRunCommand:
         command = client.sandboxes.exec_in_sandbox.call_args.kwargs["command"]
         assert command[-1] == str(_SERVER_STREAM_CAP)
 
-    def test_requests_leave_the_sdk_retries_in_place(self):
+    def test_polls_keep_the_sdk_retries_but_the_start_is_sent_once(self):
         backend, client = _backend_with_client()
 
         backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
 
-        for call in (client.sandboxes.exec_in_sandbox, client.sandboxes.get_exec_result):
-            assert "max_retries" not in call.call_args.kwargs["request_options"]
+        assert client.sandboxes.exec_in_sandbox.call_args.kwargs["request_options"]["max_retries"] == 0
+        assert "max_retries" not in client.sandboxes.get_exec_result.call_args.kwargs["request_options"]
+
+    @staticmethod
+    def _real_client(monkeypatch, first_start):
+        """
+        A real SDK client whose first command start fails with ``first_start``.
+
+        The SDK's own retries are what the backend has to keep off this POST, so
+        they must run for real rather than through a mocked ``SandboxesClient``.
+        """
+        # With a key the SDK exchanges it for a token over the network, outside this
+        # transport, before the start is ever sent.
+        monkeypatch.delenv("ISLO_API_KEY", raising=False)
+        posts = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.method == "GET":
+                return httpx.Response(
+                    200,
+                    json={
+                        "exec_id": "exec-2",
+                        "status": "completed",
+                        "exit_code": 0,
+                        "stdout": "ok\n",
+                        "stderr": "",
+                        "truncated": False,
+                    },
+                )
+            posts.append(request.url.path)
+            if len(posts) == 1:
+                if isinstance(first_start, Exception):
+                    raise first_start
+                return first_start
+            return httpx.Response(200, json={"exec_id": "exec-2", "sandbox_id": "sb-1", "status": "running"})
+
+        client = Islo(
+            base_url="https://islo.test",
+            compute_url="https://compute.islo.test",
+            httpx_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+        return client, posts
+
+    @pytest.mark.parametrize(
+        "first_start",
+        [httpx.RemoteProtocolError("connection dropped"), httpx.Response(503)],
+        ids=["lost-response", "5xx"],
+    )
+    @mock.patch(f"{_MODULE}.time.sleep", autospec=True)
+    def test_a_start_that_may_have_run_is_never_resent(self, sleep, first_start, monkeypatch):
+        # Islo may have started the command before the response was lost or the 5xx
+        # was sent, so a resend could run a "git push" or an ">> file" twice.
+        backend = IsloSandboxBackend()
+        backend._client, posts = self._real_client(monkeypatch, first_start)
+
+        with pytest.raises(SandboxTerminalError, match="start a sandbox command"):
+            backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+
+        assert len(posts) == 1
+
+    @pytest.mark.parametrize(
+        "first_start",
+        [httpx.ConnectError("connection refused"), httpx.Response(429)],
+        ids=["no-connection", "rate-limited"],
+    )
+    @mock.patch(f"{_MODULE}.time.sleep", autospec=True)
+    def test_a_start_that_never_ran_is_resent(self, sleep, first_start, monkeypatch):
+        backend = IsloSandboxBackend()
+        backend._client, posts = self._real_client(monkeypatch, first_start)
+
+        result = backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+
+        assert len(posts) == 2
+        assert result.stdout == "ok\n"
+        sleep.assert_called_once_with(1.0)
+
+    def test_a_start_that_keeps_failing_to_connect_gives_up(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.exec_in_sandbox.side_effect = httpx.ConnectError("connection refused")
+
+        with mock.patch(f"{_MODULE}.time.sleep", autospec=True):
+            with pytest.raises(SandboxTerminalError, match="start a sandbox command"):
+                backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+
+        assert client.sandboxes.exec_in_sandbox.call_count == 3
 
     def test_a_stream_within_budget_is_passed_through_untouched(self):
         backend, client = _backend_with_client()
@@ -374,25 +462,19 @@ class TestRunCommand:
         assert result.stdout == expected
         assert result.stdout_truncated
 
-    def test_applies_the_byte_cap_on_utf8_boundaries(self):
+    @pytest.mark.parametrize(
+        ("max_bytes", "expected"),
+        [(4, "éé"), (3, "\ufffdé")],
+        ids=["whole-characters", "cut-inside-a-character"],
+    )
+    def test_applies_the_byte_cap_to_utf8_and_replaces_a_split_character(self, max_bytes, expected):
         backend, client = _backend_with_client()
         client.sandboxes.get_exec_result.return_value = _exec_result(stdout="ééé")
 
-        result = backend.run_command("box", "x", timeout=5, max_output_bytes=4)
+        result = backend.run_command("box", "x", timeout=5, max_output_bytes=max_bytes)
 
-        assert result.stdout == "éé"
+        assert result.stdout == expected
         assert result.stdout_truncated
-
-    def test_the_server_flag_marks_only_a_stream_at_the_server_cap(self):
-        backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.return_value = _exec_result(
-            stdout="x" * _SERVER_STREAM_CAP, stderr="short\n", truncated=True
-        )
-
-        result = backend.run_command("box", "x", timeout=5, max_output_bytes=_SERVER_STREAM_CAP)
-
-        assert result.stdout_truncated
-        assert not result.stderr_truncated
 
     def test_the_server_flag_alone_does_not_mark_streams_that_fit(self):
         backend, client = _backend_with_client()
@@ -1059,7 +1141,7 @@ class TestCommandWrapper:
         # stream was over budget. These records are a few bytes each, so the
         # cut one is dropped and every record left is whole.
         assert len(result.stdout.encode()) == cap + 1
-        payload, truncated = _bound_result_stream(result.stdout, cap, server_truncated=False)
+        payload, truncated = _bound_result_stream(result.stdout, cap)
         assert truncated
         assert payload.endswith("line1000\n")
         assert all(line.startswith("line") for line in payload.splitlines())

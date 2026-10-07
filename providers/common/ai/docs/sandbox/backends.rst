@@ -401,7 +401,7 @@ behaves identically everywhere:
   files. OpenSandbox destroys it only if the command event stream itself stalls
   past the client-side grace period.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  replaces it on Modal, OpenSandbox and Islo.
+  replaces it on Modal and OpenSandbox.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an
   agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
   that created it and cannot be reached from another task, and neither OpenSandbox
