@@ -897,6 +897,7 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
                 "outlets are set with wait_for_termination=False. The asset event will mean the "
                 "Databricks run was submitted, not that the table was refreshed."
             )
+
         self.deferrable = deferrable
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
@@ -1727,7 +1728,7 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
             self.log.warning(
                 "outlets are set with wait_for_termination=False. The asset event will mean the "
                 "SQL statement was submitted, not that the table was refreshed."
-        )
+            )
         self.deferrable = deferrable
         self.query_tags = query_tags or {}
         self.include_airflow_query_tags = include_airflow_query_tags
