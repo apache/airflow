@@ -20,6 +20,8 @@ import innerText from "react-innertext";
 
 import type { ParsedLogEntry } from "src/queries/useLogs";
 
+import { getGroupHeaderMarker } from "./utils";
+
 type RowRange = {
   end: number;
   start: number;
@@ -139,11 +141,9 @@ export const getBottomDragClampTarget = ({
   const { lastRow } = boundary;
   const offset = lastRow.childNodes.length;
 
-  if (selection.focusNode === lastRow && selection.focusOffset === offset) {
-    return undefined;
-  }
-
-  return { node: lastRow, offset };
+  return selection.focusNode === lastRow && selection.focusOffset === offset
+    ? undefined
+    : { node: lastRow, offset };
 };
 
 /**
@@ -158,22 +158,23 @@ export const mergePinnedIndexes = (
 ): Array<number> => {
   const validPins = pinnedIndexes.filter((index) => index >= 0 && index < count);
 
-  if (validPins.length === 0) {
-    return defaultIndexes;
-  }
-
-  return [...new Set([...validPins, ...defaultIndexes])].sort((first, second) => first - second);
+  return validPins.length === 0
+    ? defaultIndexes
+    : [...new Set([...validPins, ...defaultIndexes])].sort((first, second) => first - second);
 };
 
 /**
  * Canonical plain text of a parsed log entry for clipboard rebuilding:
- * group headers are plain strings, log lines render through the download
- * text pipeline, and the innerText fallback covers synthetic entries such
- * as the TI-context preamble.
+ * group headers rebuild as the on-screen `▶/▼ name` form (marker follows
+ * the group's current expand state), log lines render through the
+ * plain-text pipeline, and the innerText fallback covers synthetic
+ * entries such as the TI-context preamble.
  */
-export const getEntryText = (entry: ParsedLogEntry): string => {
+export const getEntryText = (entry: ParsedLogEntry, expandedGroupIds?: ReadonlySet<number>): string => {
   if (typeof entry.element === "string") {
-    return entry.element;
+    return entry.group?.type === "header"
+      ? `${getGroupHeaderMarker(expandedGroupIds?.has(entry.group.id) ?? false)} ${entry.element}`
+      : entry.element;
   }
   if (entry.getPlainText) {
     return entry.getPlainText();

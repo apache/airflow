@@ -24,6 +24,8 @@ from typing import Any, Literal
 from pydantic_ai.tools import ToolDefinition
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
+
 # ``ToolDefinition.return_schema`` is newer than the provider's pydantic-ai
 # floor. Detect it once so callers can include the kwarg only when supported,
 # rather than raising ``TypeError`` on older installs.
@@ -42,6 +44,50 @@ def return_schema_kwargs(schema: dict[str, Any]) -> dict[str, Any]:
     """
     if _SUPPORTS_RETURN_SCHEMA:
         return {"return_schema": schema}
+    return {}
+
+
+def serialize_for_llm(value: Any) -> str:
+    """
+    Convert a Python return value to a string suitable for an LLM, with registered secrets masked.
+
+    :param value: The tool's return value.
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, str):
+        return mask_secrets(value)
+    try:
+        return dumps_masked(value)
+    except (TypeError, ValueError):
+        # Masked before str(), which escapes backslashes and quotes inside the strings it
+        # renders, so a secret containing either would no longer match once rendered.
+        return mask_secrets(str(mask_secrets(value)))
+
+
+_SUPPORTS_METADATA = any(f.name == "metadata" for f in dataclasses.fields(ToolDefinition))
+
+
+def code_arg_kwargs(arg_name: str, language: str) -> dict[str, Any]:
+    """
+    Mark a tool as a code-execution surface whose ``arg_name`` argument holds code.
+
+    Two consumers read this metadata. Instrumentation renders the argument as
+    code in traces, tagged with ``language``. More importantly, CodeMode uses it
+    to decide which tools stay native: a tool that itself executes code must not
+    be folded into ``run_code``, because the model would then have to write a
+    script whose argument is a second script quoted as a string. Without the
+    marker, a sandbox tool is folded in and the generated orchestration runs
+    in-process on the worker -- the opposite of what a sandbox tool is for.
+
+    Returns ``{}`` when the installed pydantic-ai predates
+    ``ToolDefinition.metadata``, matching :func:`return_schema_kwargs`.
+
+    :param arg_name: The tool argument that carries the code or command.
+    :param language: Language tag for the argument, e.g. ``"shell"``.
+    """
+    if _SUPPORTS_METADATA:
+        return {"metadata": {"code_arg_name": arg_name, "code_arg_language": language}}
     return {}
 
 

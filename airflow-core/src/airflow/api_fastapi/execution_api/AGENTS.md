@@ -32,6 +32,17 @@ uv run --active --group codegen --project apache-airflow-task-sdk --directory ta
 - Don't use keyword arguments with `endpoint()` — use positional: `endpoint("/path", ["GET"])`.
 - Don't add changes to already-released version files.
 - Don't forget response converters for new fields in nested objects.
+- Don't branch business logic by comparing the negotiated API version to a date/version string. For this case, subclass `VersionChangeWithSideEffects` for the version change and check its `is_applied` flag instead:
+
+  ```python
+  class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects): ...
+
+
+  def _client_supports_arg_bindings() -> bool:
+      return AddArgBindingsToTIRunContext.is_applied
+  ```
+
+  See [Cadwyn's docs](https://docs.cadwyn.dev/concepts/version_changes/#version-changes-with-side-effects).
 
 ### Adding a New Feature End-to-End
 

@@ -10,13 +10,11 @@
   "filters": {
     "allRunTypes": "सभी रन प्रकार",
     "allStates": "सभी स्थितियां",
-    "anyRunState": "कोई भी रन",
     "favorite": {
       "all": "सभी",
       "favorite": "पसंदीदा",
       "unfavorite": "गैर-पसंदीदा"
     },
-    "lastRunState": "अंतिम रन",
     "paused": {
       "active": "सक्रिय",
       "all": "सभी",

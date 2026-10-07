@@ -82,7 +82,7 @@ no effect on docs generation, logos, or tags.
     connection-types:
       - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook
         hook-name: "Pydantic AI (Azure OpenAI)"
-        connection-type: pydanticai-azure
+        connection-type: pydanticai_azure
         external-services:
           - Azure OpenAI
 

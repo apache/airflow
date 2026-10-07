@@ -18,12 +18,21 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { PoolBar } from "./PoolBar";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    i18n: { language: "en" },
+    // eslint-disable-next-line id-length
+    t: (key: string) => key,
+  }),
+}));
 
 const createPool = (pool: Partial<PoolResponse>): PoolResponse => ({
   deferred_slots: 1,
@@ -61,5 +70,19 @@ describe("PoolBar", () => {
 
     expect(container.querySelector('a[href*="task_state=deferred"]')).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("groups thousands in slot counts", () => {
+    render(
+      <PoolBar
+        pool={createPool({ deferred_slots: 2345, open_slots: 8766, running_slots: 1234, slots: 10_000 })}
+        totalSlots={10_000}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText("1,234")).toBeInTheDocument();
+    expect(screen.getByText("8,766")).toBeInTheDocument();
+    expect(screen.getByText(/common:states\.deferred/u)).toHaveTextContent("2,345");
   });
 });

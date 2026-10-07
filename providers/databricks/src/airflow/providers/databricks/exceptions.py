@@ -36,6 +36,10 @@ class DatabricksOperatorPayloadError(AirflowException):
     """Raised when a Databricks operator payload is invalid."""
 
 
+class DatabricksWarehouseError(AirflowException):
+    """Raised when a SQL warehouse fails to reach or times out waiting for a target state."""
+
+
 class DatabricksApiError(AirflowException):
     """Raised when a Databricks REST API call returns an error response."""
 

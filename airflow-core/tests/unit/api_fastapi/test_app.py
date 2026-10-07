@@ -16,16 +16,107 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import threading
+from contextlib import asynccontextmanager
 from unittest import mock
 
 import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import event, text
+from sqlalchemy.engine import Engine
 
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
+from airflow import settings
+from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
+from airflow.utils.session import create_session_async
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.fixture
+def async_db_app():
+    app = FastAPI(lifespan=app_module.lifespan)
+    opened = []
+    closed = []
+
+    def record_connect(connection, record):
+        opened.append((connection, asyncio.get_running_loop()))
+
+    def record_close(connection, record):
+        closed.append((connection, asyncio.get_running_loop()))
+
+    event.listen(Engine, "connect", record_connect)
+    event.listen(Engine, "close", record_close)
+
+    @app.get("/")
+    async def query(fail: bool = False):
+        async with create_session_async() as session:
+            value = (await session.execute(text("SELECT 1"))).scalar_one()
+            if fail:
+                raise RuntimeError("request failed")
+            return value
+
+    try:
+        yield app, opened, closed
+    finally:
+        event.remove(Engine, "connect", record_connect)
+        event.remove(Engine, "close", record_close)
+
+
+def test_async_connections_are_reused_and_disposed_on_the_client_loop(async_db_app):
+    app, opened, closed = async_db_app
+    configured_engine = settings.async_engine
+    configured_factory = settings.AsyncSession
+    for count in (1, 2):
+        with TestClient(app) as client:
+            assert settings.async_engine is configured_engine
+            assert settings.AsyncSession is configured_factory
+            assert client.get("/").json() == 1
+            assert client.get("/").json() == 1
+            assert len(opened) == count
+            assert len(closed) == count - 1
+        assert closed == opened
+        assert settings.async_engine is configured_engine
+        assert settings.AsyncSession is configured_factory
+    configured_engine.sync_engine.dispose()
+    assert opened[0][1] is not opened[1][1]
+
+
+def test_async_pool_is_disposed_after_a_request_error(async_db_app):
+    app, opened, closed = async_db_app
+    with pytest.raises(RuntimeError, match="request failed"):
+        with TestClient(app) as client:
+            client.get("/?fail=true")
+    assert len(opened) == 1
+    assert closed == opened
+
+
+@pytest.mark.parametrize("fail_at", ["startup", "shutdown"])
+def test_async_pool_is_disposed_after_a_lifespan_error(async_db_app, fail_at):
+    app, opened, closed = async_db_app
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async with create_session_async() as session:
+            await session.execute(text("SELECT 1"))
+        if fail_at == "startup":
+            raise RuntimeError("startup failed")
+        yield
+        async with create_session_async() as session:
+            await session.execute(text("SELECT 1"))
+        raise RuntimeError("shutdown failed")
+
+    app.mount("/child", FastAPI(lifespan=lifespan))
+    with pytest.raises(RuntimeError, match=f"{fail_at} failed"):
+        with TestClient(app):
+            pass
+    assert len(opened) == 1
+    assert closed == opened
 
 
 def test_main_app_lifespan(client):
@@ -40,8 +131,8 @@ def test_main_app_lifespan(client):
 @mock.patch("airflow.api_fastapi.app.init_views")
 @mock.patch("airflow.api_fastapi.app.init_plugins")
 @mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
-def test_core_api_app(mock_create_task_exec_api, mock_init_plugins, mock_init_views, client):
-    test_app = client(apps="core").app
+def test_core_api_app(mock_create_task_exec_api, mock_init_plugins, mock_init_views):
+    test_app = app_module.create_app(apps="core")
 
     # Assert that core-related functions were called
     mock_init_views.assert_called_once_with(test_app)
@@ -54,8 +145,8 @@ def test_core_api_app(mock_create_task_exec_api, mock_init_plugins, mock_init_vi
 @mock.patch("airflow.api_fastapi.app.init_views")
 @mock.patch("airflow.api_fastapi.app.init_plugins")
 @mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
-def test_execution_api_app(mock_create_task_exec_api, mock_init_plugins, mock_init_views, client):
-    client(apps="execution")
+def test_execution_api_app(mock_create_task_exec_api, mock_init_plugins, mock_init_views):
+    app_module.create_app(apps="execution")
 
     # Assert that execution-related functions were called
     mock_create_task_exec_api.assert_called_once()
@@ -75,8 +166,8 @@ def test_execution_api_app_lifespan(client, get_execution_app):
 @mock.patch("airflow.api_fastapi.app.init_views")
 @mock.patch("airflow.api_fastapi.app.init_plugins")
 @mock.patch("airflow.api_fastapi.app.create_task_execution_api_app")
-def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views, client):
-    test_app = client(apps="all").app
+def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views):
+    test_app = app_module.create_app(apps="all")
 
     # Assert that core-related functions were called
     mock_init_views.assert_called_once_with(test_app)
@@ -86,14 +177,26 @@ def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views,
     mock_create_task_exec_api.assert_called_once_with()
 
 
-def test_catch_all_route_last(client):
+@pytest.mark.parametrize("apps", ["all", "core", "execution"])
+def test_access_log_middleware_installed_outermost_for_every_apps_selection(apps):
+    """Both server backends disable their own access logger, so a selection that skips this
+    middleware has no access logging at all. It must also stay outermost so it times the full
+    request including inner middlewares (GZip compression in particular — see #60165); the
+    test default config has no CORS so index 0 is HttpAccessLogMiddleware."""
+    installed = [m.cls for m in app_module.create_app(apps=apps).user_middleware]
+
+    assert installed.count(HttpAccessLogMiddleware) == 1
+    assert installed[0] is HttpAccessLogMiddleware
+
+
+def test_catch_all_route_last():
     """
     Ensure the catch all route that returns the initial html is the last route in the fastapi app.
 
     If it's not, it results in any routes/apps added afterwards to not be reachable, as the catch all
     route responds instead.
     """
-    test_app = client(apps="all").app
+    test_app = app_module.create_app(apps="all")
     assert test_app.routes[-1].path == "/{rest_of_path:path}"
 
 
@@ -112,6 +215,79 @@ def test_plugin_with_invalid_url_prefix(caplog, invalid_prefix, expected_message
 
     assert any(expected_message in rec.message for rec in caplog.records)
     assert not any(r.path == invalid_prefix for r in app.routes)
+
+
+class TestInitPluginsTeamAuthorization:
+    """A team-scoped plugin's app must be mounted behind the team authorization
+    middleware, since Airflow applies no authorization to plugin apps itself."""
+
+    @staticmethod
+    def _mount_for(app, url_prefix):
+        return next(route for route in app.routes if getattr(route, "path", None) == url_prefix)
+
+    @staticmethod
+    def _has_team_middleware(mount, team_name):
+        from airflow.api_fastapi.auth.middlewares.team_authorization import TeamAuthorizationMiddleware
+
+        # Starlette applies a Mount's middleware by wrapping the sub-app, so the mounted
+        # app *is* the middleware instance when the plugin is team-scoped.
+        return isinstance(mount.app, TeamAuthorizationMiddleware) and mount.app.team_name == team_name
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_team_plugin_app_is_wrapped(self):
+        fastapi_apps = [
+            {"name": "team_a_app", "app": FastAPI(), "url_prefix": "/team_a", "team_name": "team_a"}
+        ]
+        app = FastAPI()
+        with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
+            app_module.init_plugins(app)
+
+        assert self._has_team_middleware(self._mount_for(app, "/team_a"), "team_a")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_global_plugin_app_is_not_wrapped(self):
+        fastapi_apps = [{"name": "global_app", "app": FastAPI(), "url_prefix": "/global", "team_name": None}]
+        app = FastAPI()
+        with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
+            app_module.init_plugins(app)
+
+        mount = self._mount_for(app, "/global")
+        assert not self._has_team_middleware(mount, None)
+
+    @conf_vars({("core", "multi_team"): "False"})
+    def test_team_plugin_app_is_not_wrapped_when_multi_team_disabled(self):
+        fastapi_apps = [
+            {"name": "team_a_app", "app": FastAPI(), "url_prefix": "/team_a", "team_name": "team_a"}
+        ]
+        app = FastAPI()
+        with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
+            app_module.init_plugins(app)
+
+        assert not self._has_team_middleware(self._mount_for(app, "/team_a"), "team_a")
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_team_plugin_root_middleware_is_skipped(self, caplog):
+        root_middlewares = [
+            {"name": "team_a_middleware", "middleware": mock.MagicMock(), "team_name": "team_a"}
+        ]
+        app = FastAPI()
+        with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=([], root_middlewares)):
+            with mock.patch.object(app, "add_middleware") as mock_add_middleware:
+                app_module.init_plugins(app)
+
+        mock_add_middleware.assert_not_called()
+        assert any("Skipping root middleware team_a_middleware" in rec.message for rec in caplog.records)
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_global_root_middleware_is_still_added(self):
+        middleware = mock.MagicMock()
+        root_middlewares = [{"name": "global_middleware", "middleware": middleware, "team_name": None}]
+        app = FastAPI()
+        with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=([], root_middlewares)):
+            with mock.patch.object(app, "add_middleware") as mock_add_middleware:
+                app_module.init_plugins(app)
+
+        mock_add_middleware.assert_called_once_with(middleware)
 
 
 class TestGetCookiePath:

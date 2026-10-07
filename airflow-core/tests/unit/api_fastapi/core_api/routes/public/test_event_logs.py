@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import re
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
@@ -30,7 +31,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.models.log import Log
 from airflow.utils.session import NEW_SESSION, provide_session
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
@@ -41,7 +42,7 @@ DAG_DISPLAY_NAME = "TEST_DAG_ID"
 DAG_RUN_ID = "TEST_DAG_RUN_ID"
 TASK_ID = "TEST_TASK_ID"
 TASK_DISPLAY_NAME = "TEST_TASK_ID"
-DAG_EXECUTION_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
+DAG_EXECUTION_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=UTC)
 OWNER = "TEST_OWNER"
 OWNER_DISPLAY_NAME = "Test Owner"
 OWNER_AIRFLOW = "airflow"
@@ -54,6 +55,20 @@ EVENT_WITH_TASK_INSTANCE = "EVENT_WITH_TASK_INSTANCE"
 EVENT_WITH_OWNER_AND_TASK_INSTANCE = "EVENT_WITH_OWNER_AND_TASK_INSTANCE"
 EVENT_WITHOUT_DTTM = "EVENT_WITHOUT_DTTM"
 EVENT_NON_EXISTED_ID = 9999
+TEAM_EVENT = "TEAM_EVENT"
+TEAM_NAME = "TEST_TEAM"
+
+
+def _assert_selects_only_display_name_columns(statements: list[str]) -> None:
+    (sql,) = [sql for sql in statements if "task_instance_1" in sql]
+    select_clause = sql.split(" FROM ", 1)[0]
+    assert set(re.findall(r"\bdag_1\.(\w+)", select_clause)) == {"dag_id", "dag_display_name"}
+    assert set(re.findall(r"\btask_instance_1\.(\w+)", select_clause)) == {
+        "id",
+        "task_id",
+        "task_display_name",
+    }
+    assert "dag_run" not in sql
 
 
 class TestEventLogsEndpoint:
@@ -192,9 +207,27 @@ class TestGetEventLog(TestEventLogsEndpoint):
             "owner": expected_body.get("owner"),
             "owner_display_name": expected_body.get("owner_display_name"),
             "extra": expected_body.get("extra"),
+            "team_name": None,
         }
 
         assert response.json() == expected_json
+
+    def test_get_event_log_selects_only_display_name_columns(self, test_client, setup):
+        with capture_orm_selects("log") as statements:
+            response = test_client.get(f"/eventLogs/{setup[TASK_INSTANCE_EVENT].id}")
+
+        assert response.status_code == 200
+        _assert_selects_only_display_name_columns(statements)
+
+    def test_get_event_log_returns_the_recorded_team(self, test_client, session):
+        event_log = Log(event="cli_triggerer", team_name=TEAM_NAME)
+        session.add(event_log)
+        session.commit()
+
+        response = test_client.get(f"/eventLogs/{event_log.id}")
+
+        assert response.status_code == 200
+        assert response.json()["team_name"] == TEAM_NAME
 
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, setup):
         event_log_id = setup[EVENT_NORMAL].id
@@ -413,6 +446,13 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         for event_log, expected_event in zip(resp_json["event_logs"], expected_events):
             assert event_log["event"] == expected_event
 
+    def test_get_event_logs_selects_only_display_name_columns(self, test_client):
+        with capture_orm_selects("log") as statements:
+            response = test_client.get("/eventLogs")
+
+        assert response.status_code == 200
+        _assert_selects_only_display_name_columns(statements)
+
     @provide_session
     def test_get_event_logs_excludes_logs_without_dttm(
         self,
@@ -449,6 +489,48 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         event_log = response.json()["event_logs"][0]
         assert event_log["owner"] == OWNER_AIRFLOW
         assert event_log["owner_display_name"] == OWNER_AIRFLOW
+
+    def test_get_event_logs_returns_the_recorded_team(self, test_client, session):
+        session.add(Log(event=TEAM_EVENT, dag_id=DAG_ID, team_name=TEAM_NAME))
+        session.commit()
+
+        with assert_queries_count(4):
+            response = test_client.get("/eventLogs")
+
+        assert response.status_code == 200
+        teams_by_event = {
+            event_log["event"]: event_log["team_name"] for event_log in response.json()["event_logs"]
+        }
+        assert teams_by_event == {
+            EVENT_NORMAL: None,
+            EVENT_WITH_OWNER: None,
+            TASK_INSTANCE_EVENT: None,
+            EVENT_WITH_OWNER_AND_TASK_INSTANCE: None,
+            TEAM_EVENT: TEAM_NAME,
+        }
+
+    def test_get_event_logs_filtered_by_team(self, test_client, session):
+        session.add_all(
+            [
+                Log(event=TEAM_EVENT, dag_id=DAG_ID, team_name=TEAM_NAME),
+                Log(event="cli_triggerer", team_name=TEAM_NAME),
+                Log(event="cli_triggerer", team_name="other-team"),
+            ]
+        )
+        session.commit()
+
+        with assert_queries_count(4):
+            response = test_client.get("/eventLogs", params={"teams": [TEAM_NAME]})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert {event_log["event"] for event_log in body["event_logs"]} == {TEAM_EVENT, "cli_triggerer"}
+
+        # A team no event was recorded for returns nothing.
+        response = test_client.get("/eventLogs", params={"teams": ["nonexistent-team"]})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 0
 
     def test_get_event_logs_filters_by_owner_display_name_pattern(self, test_client):
         response = test_client.get("/eventLogs", params={"owner_display_name_pattern": "est Own"})

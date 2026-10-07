@@ -117,6 +117,36 @@ class TestDeadlineAlert:
         assert "interval=1m" in repr_str
         assert repr(deadline_alert_orm.callback_def) in repr_str
 
+    @pytest.mark.parametrize(
+        ("interval", "expected"),
+        [
+            # Post-0117 shape: interval is the serialized dict, not a bare number.
+            pytest.param(
+                {"__classname__": "datetime.timedelta", "__data__": 7200.0}, "interval=2h", id="timedelta_2h"
+            ),
+            # A corrupted dict without ``__data__`` must still render (no raise) as dynamic.
+            pytest.param({"unexpected": "shape"}, "interval=dynamic", id="corrupted_dict_dynamic"),
+            # A VariableInterval serializes with a dict ``__data__`` (its key), not a number,
+            # so it renders as dynamic rather than a fixed duration.
+            pytest.param(
+                {
+                    "__classname__": "airflow.sdk.definitions.deadline.VariableInterval",
+                    "__data__": {"key": "deadline_seconds"},
+                },
+                "interval=dynamic",
+                id="variable_interval_dynamic",
+            ),
+        ],
+    )
+    def test_deadline_alert_repr_does_not_raise_on_json_dict_interval(
+        self, deadline_alert_orm, interval, expected
+    ):
+        """``DeadlineAlert.__repr__`` must not raise for the production JSON-dict interval shape."""
+        deadline_alert_orm.interval = interval
+        repr_str = repr(deadline_alert_orm)  # must not raise
+        assert "[DeadlineAlert]" in repr_str
+        assert expected in repr_str
+
     def test_deadline_alert_matches_definition(self, session, deadline_reference):
         alert1 = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,

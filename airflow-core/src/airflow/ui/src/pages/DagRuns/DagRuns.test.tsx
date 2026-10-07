@@ -17,8 +17,8 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -55,15 +55,65 @@ describe("DagRuns logical date filter", () => {
   });
 });
 
-describe("DagRuns conf expand/collapse", () => {
-  beforeEach(() => {
-    // The conf column is hidden by default; reveal it so the JSON viewer renders.
-    globalThis.localStorage.setItem(
-      "dataTable:common:dagRun:columnVisibility",
-      JSON.stringify({ conf: true }),
-    );
+// dag_runs mock handler (see src/mocks/handlers/dag_runs.ts) tags "tagged_dag" with
+// "example_tag" and "multi_tagged_dag" with "example_tag" and "other_tag"; "test_dag" has no tags.
+describe("DagRuns tags filter", () => {
+  it("filters runs by the tags query param", async () => {
+    render(<AppWrapper initialEntries={["/dag_runs?tags=example_tag"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_tagged_dag")).toBeInTheDocument());
+    expect(screen.getByText("run_multi_tagged_dag")).toBeInTheDocument();
+    expect(screen.queryByText("run_in_range")).not.toBeInTheDocument();
+    expect(screen.queryByText("run_before_filter")).not.toBeInTheDocument();
   });
 
+  it("matches runs of Dags with any of the tags by default", async () => {
+    render(<AppWrapper initialEntries={["/dag_runs?tags=example_tag&tags=other_tag"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_tagged_dag")).toBeInTheDocument());
+    expect(screen.getByText("run_multi_tagged_dag")).toBeInTheDocument();
+  });
+
+  it("matches only runs of Dags with all of the tags when tags_match_mode is all", async () => {
+    render(<AppWrapper initialEntries={["/dag_runs?tags=example_tag&tags=other_tag&tags_match_mode=all"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_multi_tagged_dag")).toBeInTheDocument());
+    expect(screen.queryByText("run_tagged_dag")).not.toBeInTheDocument();
+  });
+});
+
+describe("DagRuns logical date column", () => {
+  afterEach(() => {
+    globalThis.localStorage.clear();
+  });
+
+  it("hides the logical date column by default", async () => {
+    render(<AppWrapper initialEntries={["/dag_runs"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_in_range")).toBeInTheDocument());
+    expect(screen.queryByTestId("table-cell-logical_date")).not.toBeInTheDocument();
+  });
+
+  it("renders the logical date once the column is enabled", async () => {
+    globalThis.localStorage.setItem(
+      "dataTable:common:dagRun:columnVisibility",
+      JSON.stringify({ logical_date: true }),
+    );
+
+    render(<AppWrapper initialEntries={["/dag_runs"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_in_range")).toBeInTheDocument());
+
+    const cells = screen.getAllByTestId("table-cell-logical_date");
+
+    expect(cells.length).toBeGreaterThan(0);
+    expect(within(cells[0] as HTMLElement).getByTestId("time-display")).toBeInTheDocument();
+  });
+});
+
+describe("DagRuns conf expand/collapse", () => {
+  // Relies on the conf column being visible by default, which is what renders the JSON viewer.
+  // useTableURLState persists sorting to localStorage, so clear it between cases.
   afterEach(() => {
     globalThis.localStorage.clear();
   });
@@ -84,5 +134,20 @@ describe("DagRuns conf expand/collapse", () => {
     await waitFor(() =>
       expect(screen.getByTestId("rendered-json-field")).toHaveAttribute("data-collapsed", "true"),
     );
+  });
+
+  it("hides the expand/collapse buttons when no runs match the filter", async () => {
+    render(
+      <AppWrapper
+        initialEntries={[
+          "/dag_runs?logical_date_gte=2030-01-01T00%3A00%3A00Z&logical_date_lte=2030-01-31T23%3A59%3A59Z",
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("table-no-rows")).toBeInTheDocument());
+
+    expect(screen.queryByTestId("expand-all-button")).toBeNull();
+    expect(screen.queryByTestId("collapse-all-button")).toBeNull();
   });
 });

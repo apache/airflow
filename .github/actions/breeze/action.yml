@@ -21,7 +21,7 @@ description: 'Sets up Python and Breeze'
 inputs:
   python-version:
     description: 'Python version to use'
-    default: "3.10"
+    default: "3.11"
 outputs:
   host-python-version:
     description: Python version used in host

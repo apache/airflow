@@ -56,9 +56,10 @@ from airflow.sdk.execution_time.supervisor import (
 )
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from pydantic import BaseModel
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
 
@@ -432,6 +433,9 @@ def supervise_callback(
             logger, log_file_descriptor = _configure_logging(log_path, client)
         else:
             logger = structlog.get_logger(logger_name="callback").bind()
+
+        # Swap the single-use callback token for an execution token before any context read.
+        client.callbacks.run(UUID(id))
 
         try:
             process = CallbackSubprocess.start(

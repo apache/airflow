@@ -16,18 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Input, Button, Box, Spacer, HStack, Field, Stack, VStack, Spinner } from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
-import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
+
+import { Accordion } from "src/system-components";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FlexibleForm } from "src/components/FlexibleForm";
 import { JsonEditor } from "src/components/JsonEditor";
 import { TeamSelector } from "src/components/TeamSelector.tsx";
-import { Accordion } from "src/components/ui";
+
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import { useParamStore } from "src/queries/useParamStore";
@@ -73,6 +76,9 @@ const ConnectionForm = ({
   const selectedConnType = watch("conn_type"); // Get the selected connection type
   const standardFields = connectionTypeMeta[selectedConnType]?.standard_fields ?? {};
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? {} };
+  const connectionTypeFieldsSection = translate("connections.form.connectionTypeFields", {
+    connectionType: hookNameMap[selectedConnType] ?? selectedConnType,
+  });
 
   const [formErrors, setFormErrors] = useState(false);
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
@@ -166,8 +172,7 @@ const ConnectionForm = ({
           )}
           rules={{
             required: translate("connections.form.connectionIdRequired"),
-            validate: (value) =>
-              value.trim() === "" ? translate("connections.form.connectionIdRequirement") : true,
+            validate: (value) => value.trim() !== "" || translate("connections.form.connectionIdRequirement"),
           }}
         />
 
@@ -204,10 +209,11 @@ const ConnectionForm = ({
           }}
         />
 
-        {selectedConnType ? (
+        {selectedConnType && !isMetaPending ? (
           <Accordion.Root
             collapsible
-            defaultValue={["standardFields"]}
+            defaultValue={["standardFields", connectionTypeFieldsSection]}
+            key={selectedConnType}
             mb={4}
             mt={4}
             size="lg"
@@ -220,9 +226,8 @@ const ConnectionForm = ({
               </Accordion.ItemContent>
             </Accordion.Item>
             <FlexibleForm
-              flexibleFormDefaultSection={translate("connections.form.extraFields")}
+              flexibleFormDefaultSection={connectionTypeFieldsSection}
               initialParamsDict={paramsDic}
-              key={selectedConnType}
               setError={setFormErrors}
               subHeader={isEditMode ? translate("connections.form.helperTextForRedactedFields") : undefined}
             />

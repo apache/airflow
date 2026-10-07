@@ -19,16 +19,21 @@ from __future__ import annotations
 
 import argparse
 from argparse import BooleanOptionalAction
+from datetime import UTC
 from pathlib import Path
 from textwrap import dedent
+from unittest import mock
 
 import httpx
 import pytest
 
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
-from airflowctl.api.operations import ServerResponseError
+from airflowctl.api.client import Client
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, ConnectionTestResponse
+from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
+from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
+    ARG_OUTPUT,
     ActionCommand,
     Arg,
     CommandFactory,
@@ -38,6 +43,7 @@ from airflowctl.ctl.cli_config import (
     merge_commands,
     safe_call_command,
 )
+from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -340,6 +346,27 @@ class TestCommandFactory:
 
         assert parsed_conf == {"my-key": "my-value"}
 
+    def test_group_commands_is_stable_across_repeated_access(self):
+        """Reading ``group_commands`` twice must not duplicate groups or subcommands."""
+        command_factory = CommandFactory()
+
+        # Snapshot the names and sizes rather than the list itself: both accesses
+        # hand back the same object, so only values captured before the second
+        # access can witness it mutating them.
+        first = [(group.name, len(group.subcommands)) for group in command_factory.group_commands]
+        second = [(group.name, len(group.subcommands)) for group in command_factory.group_commands]
+
+        assert second == first
+        assert len(second) == len({name for name, _ in second})
+
+    def test_command_factory_parses_comma_separated_list_fields(self):
+        """List fields should parse comma-separated CLI values as whole items."""
+        command_factory = CommandFactory()
+
+        list_type = command_factory._python_type_from_string("list")
+
+        assert list_type("dag1, dag2") == ["dag1", "dag2"]
+
     def test_json_dict_type_returns_dict_input_unchanged(self):
         """A dict input is returned as-is without re-parsing."""
         value = {"my-key": "my-value"}
@@ -455,6 +482,19 @@ class TestCommandFactory:
         assert limit_arg.flags == ("--limit",)
         assert limit_arg.kwargs["type"] is int
 
+    def test_every_generated_command_accepts_the_output_flag(self):
+        """``_get_func`` always prints through ``args.output``, so every generated command must declare it."""
+        command_factory = CommandFactory()
+
+        missing = [
+            f"{group_command.name} {sub_command.name}"
+            for group_command in command_factory.group_commands
+            for sub_command in group_command.subcommands
+            if ARG_OUTPUT not in sub_command.args
+        ]
+
+        assert missing == []
+
 
 class TestCliConfigMethods:
     @pytest.mark.parametrize(
@@ -513,6 +553,43 @@ class TestCliConfigMethods:
             safe_call_command(raise_error, args=argparse.Namespace())
 
         assert ctx.value.code == 1
+
+    @pytest.mark.parametrize(
+        ("response", "hint_expected"),
+        [
+            pytest.param(
+                httpx.Response(302, headers={"location": "https://sso.example.com/login"}),
+                True,
+                id="redirect",
+            ),
+            pytest.param(
+                httpx.Response(502, headers={"content-type": "text/html"}, content=b"<html>nope</html>"),
+                False,
+                id="non-json-server-error",
+            ),
+            pytest.param(
+                httpx.Response(401, headers={"content-type": "text/html"}, content=b"<html>nope</html>"),
+                False,
+                id="non-json-client-error",
+            ),
+        ],
+    )
+    def test_safe_call_command_exits_non_zero_for_bare_http_status_error(
+        self, response, hint_expected, capsys
+    ):
+        response.request = httpx.Request("GET", "http://localhost:8080/api/v2/dags")
+
+        def raise_error(_args):
+            response.raise_for_status()
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        # Rich hard-wraps at the console width, so normalise before matching on a phrase.
+        out = " ".join(capsys.readouterr().out.split())
+        assert "Server response error:" in out
+        assert ("does not follow" in out) is hint_expected
 
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
@@ -670,7 +747,7 @@ class TestCliConfigMethods:
 
     def test_trigger_dag_run_defaults_logical_date_to_now(self):
         """Test that trigger command defaults logical_date to now when not provided."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -700,7 +777,7 @@ class TestCliConfigMethods:
             and "logical_date" in method_params[datamodel_param_name]
             and method_params[datamodel_param_name]["logical_date"] is None
         ):
-            method_params[datamodel_param_name]["logical_date"] = datetime.now(timezone.utc)
+            method_params[datamodel_param_name]["logical_date"] = datetime.now(UTC)
 
         # Step 3: Create the Pydantic model (what happens in the actual code)
         trigger_body = datamodel.model_validate(method_params[datamodel_param_name])
@@ -710,7 +787,7 @@ class TestCliConfigMethods:
         assert isinstance(trigger_body.logical_date, datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - trigger_body.logical_date).total_seconds())
+        time_diff = abs((datetime.now(UTC) - trigger_body.logical_date).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Also verify timezone is UTC
@@ -718,7 +795,7 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_none(self):
         """Test _apply_datamodel_defaults sets logical_date to now when None for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
@@ -732,7 +809,7 @@ class TestCliConfigMethods:
         assert isinstance(result["logical_date"], datetime)
 
         # Verify it's close to current time (within 5 seconds)
-        time_diff = abs((datetime.now(timezone.utc) - result["logical_date"]).total_seconds())
+        time_diff = abs((datetime.now(UTC) - result["logical_date"]).total_seconds())
         assert time_diff < 5, f"logical_date should be close to now, but diff is {time_diff} seconds"
 
         # Verify timezone is UTC
@@ -740,14 +817,14 @@ class TestCliConfigMethods:
 
     def test_apply_datamodel_defaults_trigger_dag_run_with_value(self):
         """Test _apply_datamodel_defaults preserves existing logical_date for TriggerDAGRunPostBody."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from airflowctl.api.datamodels.generated import TriggerDAGRunPostBody
 
         command_factory = CommandFactory()
 
         # Test with an existing logical_date value
-        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        specific_date = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
         params = {"logical_date": specific_date, "conf": {}}
         result = command_factory._apply_datamodel_defaults(TriggerDAGRunPostBody, params)
 
@@ -850,3 +927,64 @@ class TestCliConfigMethods:
                         )
                         return
         pytest.fail(f"Auto-generated command not found: {group_name} {subcommand_name}")
+
+    @staticmethod
+    def _call_generated_command(monkeypatch, operations_class, method_name: str, **parsed_args):
+        """Run the auto-generated command for ``operations_class.method_name`` and return its call kwargs."""
+        monkeypatch.setattr("airflowctl.ctl.cli_config.AirflowConsole.print_as", lambda *_, **__: None)
+
+        command_factory = CommandFactory()
+        command_factory._inspect_operations()
+        operation = next(
+            op
+            for op in command_factory.operations
+            if op["name"] == method_name and op["parent"].name == operations_class.__name__
+        )
+        command_factory.operations = [operation]
+        command_factory._create_func_map_from_operation()
+
+        namespace = argparse.Namespace(
+            output="json",
+            **{key: parsed_args.get(key) for parameter in operation["parameters"] for key in parameter},
+        )
+        with mock.patch.object(operations_class, method_name, autospec=True) as mocked_method:
+            command_factory.func_map[(method_name, operations_class.__name__)](
+                namespace, api_client=mock.MagicMock()
+            )
+        return mocked_method.call_args.kwargs
+
+    @pytest.mark.parametrize(
+        ("parsed_limit", "limit_is_forwarded"),
+        [
+            pytest.param(None, False, id="omitted-flag-keeps-signature-default"),
+            pytest.param(25, True, id="explicit-flag-overrides-signature-default"),
+        ],
+    )
+    def test_primitive_param_with_non_none_default_is_not_clobbered(
+        self, monkeypatch, parsed_limit, limit_is_forwarded
+    ):
+        """``DagRunOperations.list`` declares ``limit: int = 100``; argparse's None must not override it."""
+        call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list", limit=parsed_limit)
+
+        assert ("limit" in call_kwargs) is limit_is_forwarded
+        if limit_is_forwarded:
+            assert call_kwargs["limit"] == parsed_limit
+
+    def test_primitive_param_defaulting_to_none_is_still_forwarded(self, monkeypatch):
+        """Only a non-None signature default is worth protecting, so ``state: str | None = None`` still goes through."""
+        call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list")
+
+        assert call_kwargs["state"] is None
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "test", autospec=True)
+    def test_connections_test_reaches_the_printer(self, mocked_test, mocked_print_as):
+        """``connections test`` has no CRUD-verb prefix, so argparse used to leave ``args.output`` undefined."""
+        mocked_test.return_value = ConnectionTestResponse(status=True, message="ok")
+        args = cli_parser.get_parser().parse_args(
+            ["connections", "test", "--connection-id", "my_conn", "--conn-type", "http"]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_print_as.call_args.kwargs["output"] == "json"

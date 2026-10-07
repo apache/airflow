@@ -26,6 +26,7 @@ from cadwyn import (
 )
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    AssetEventDagRunReference,
     DagRun,
     TaskInstance,
     TIAwaitingInputStatePayload,
@@ -99,6 +100,20 @@ class AddTeamNameField(VersionChange):
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("team_name", None)
 
+    @convert_response_to_previous_version_for(DagRun)  # type: ignore[arg-type]
+    def remove_team_name_from_dag_run_response(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove the ``team_name`` field from responses returning a DagRun directly."""
+        if isinstance(response.body, dict):
+            response.body.pop("team_name", None)
+
+    # Schema-based converters are matched against the route's response model by identity, so a
+    # route annotated ``DagRun | None`` never matches ``DagRun`` and has to be addressed by path.
+    @convert_response_to_previous_version_for("/dag-runs/previous", ["GET"])  # type: ignore[arg-type]
+    def remove_team_name_from_previous_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove the ``team_name`` field from the previous-run response."""
+        if isinstance(response.body, dict):
+            response.body.pop("team_name", None)
+
 
 class AddAssetsByAliasEndpoint(VersionChange):
     """Add endpoint to resolve assets from an AssetAlias."""
@@ -141,3 +156,38 @@ class AddPartitionDateField(VersionChange):
         """Strip ``partition_date`` from the nested ``dag_run`` payload for older clients."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("partition_date", None)
+
+    @convert_response_to_previous_version_for(DagRun)  # type: ignore[arg-type]
+    def remove_partition_date_from_dag_run_response(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``partition_date`` from responses returning a DagRun directly."""
+        if isinstance(response.body, dict):
+            response.body.pop("partition_date", None)
+
+    # See remove_team_name_from_previous_dag_run: ``DagRun | None`` needs a path-based converter.
+    @convert_response_to_previous_version_for("/dag-runs/previous", ["GET"])  # type: ignore[arg-type]
+    def remove_partition_date_from_previous_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``partition_date`` from the previous-run response."""
+        if isinstance(response.body, dict):
+            response.body.pop("partition_date", None)
+
+
+class AddConsumedAssetEventPartitionKeyField(VersionChange):
+    """Expose the upstream partition key on the asset events that triggered a consumer Dag run."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(AssetEventDagRunReference).field("partition_key").didnt_exist,
+    )
+
+    # Only ``TIRunContext`` can carry these events: ``DagRun.safe_extract_from_orm`` defaults
+    # ``consumed_asset_events`` to ``[]`` whenever the relationship is not already loaded, and
+    # ``/run`` is the only route that loads it -- so bare ``DagRun`` responses never carry one.
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_partition_key_from_consumed_asset_events(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``partition_key`` from each consumed asset event for older clients."""
+        dag_run = response.body.get("dag_run")
+        if isinstance(dag_run, dict):
+            for event in dag_run.get("consumed_asset_events") or ():
+                if isinstance(event, dict):
+                    event.pop("partition_key", None)

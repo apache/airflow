@@ -30,6 +30,7 @@ import { FieldMultiType } from "./FieldMultiType";
 import { FieldMultilineText } from "./FieldMultilineText";
 import { FieldNumber } from "./FieldNumber";
 import { FieldObject } from "./FieldObject";
+import { FieldPassword } from "./FieldPassword";
 import { FieldString } from "./FieldString";
 import { FieldStringArray } from "./FieldStringArray";
 
@@ -37,11 +38,9 @@ const inferType = (param: ParamSpec) => {
   if (Boolean(param.schema.type)) {
     // If there are multiple types, we assume that the first one is the correct one that is not "null".
     // "null" is only used to signal the value is optional.
-    if (Array.isArray(param.schema.type)) {
-      return param.schema.type.find((type) => type !== "null") ?? "string";
-    }
-
-    return param.schema.type ?? "string";
+    return Array.isArray(param.schema.type)
+      ? (param.schema.type.find((type) => type !== "null") ?? "string")
+      : (param.schema.type ?? "string");
   }
 
   // If the type is not defined, we infer it from the value.
@@ -50,11 +49,7 @@ const inferType = (param: ParamSpec) => {
   }
 
   // Missing value, return 'null' as typeof(null) = 'dict'
-  if (param.value === null) {
-    return "null";
-  }
-
-  return typeof param.value;
+  return param.value === null ? "null" : typeof param.value;
 };
 
 const isFieldAdvancedArray = (fieldType: string, fieldSchema: ParamSchema) =>
@@ -89,6 +84,9 @@ const isFieldNumber = (fieldType: string) => {
 };
 
 const isFieldObject = (fieldType: string) => fieldType === "object";
+
+const isFieldPassword = (fieldType: string, fieldSchema: ParamSchema) =>
+  fieldType === "string" && fieldSchema.format === "password";
 
 const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "array" && (fieldSchema.items?.type === undefined || fieldSchema.items.type === "string");
@@ -148,6 +146,8 @@ export const FieldSelector = ({ name, namespace = "default", onUpdate }: Flexibl
     return <FieldDuration name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else if (isFieldMultilineText(fieldType, param.schema)) {
     return <FieldMultilineText name={name} namespace={namespace} onUpdate={onUpdate} />;
+  } else if (isFieldPassword(fieldType, param.schema)) {
+    return <FieldPassword name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else {
     return <FieldString name={name} namespace={namespace} onUpdate={onUpdate} />;
   }

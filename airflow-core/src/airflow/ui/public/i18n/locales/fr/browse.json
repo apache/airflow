@@ -8,8 +8,39 @@
     },
     "filters": {
       "eventType": "Type d'événement"
+    }
+  },
+  "dagBundles": {
+    "active": "Actif",
+    "columns": {
+      "active": "Actif",
+      "importErrors": "Erreurs d'import",
+      "lastRefreshed": "Dernier rafraîchissement",
+      "name": "Nom",
+      "version": "Version"
     },
-    "title": "Journal d'Audit"
+    "detail": {
+      "status": "Statut"
+    },
+    "files": {
+      "columns": {
+        "file": "Fichier",
+        "lastParsed": "Dernière analyse",
+        "parseDuration": "Durée d'analyse"
+      },
+      "file_many": "Fichiers",
+      "file_one": "Fichier",
+      "file_other": "Fichiers",
+      "importErrorGone": "Cette erreur d'import n'est plus enregistrée. Elle a probablement été corrigée par une nouvelle analyse.",
+      "neverParsed": "Jamais",
+      "showImportError_many": "Voir {{count}} erreurs",
+      "showImportError_one": "Voir {{count}} erreur",
+      "showImportError_other": "Voir {{count}} erreurs"
+    },
+    "inactive": "Inactif",
+    "neverRefreshed": "Jamais",
+    "notRefreshedYet": "Pas encore rafraîchi",
+    "notVersioned": "Non versionné"
   },
   "deadlines": {
     "columns": {
@@ -58,6 +89,9 @@
       "successTitle": "XCom mis à jour",
       "title": "Modifier le XCom"
     },
+    "entry_many": "Entrées XCom",
+    "entry_one": "Entrée XCom",
+    "entry_other": "Entrées XCom",
     "key": "Clé",
     "title": "XCom",
     "value": "Valeur"

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "pyyaml>=6.0.3",
 #   "requests>=2.31.0",
@@ -68,10 +68,7 @@ VALUE_SETS: list[dict] = [
     {"executor": "CeleryKubernetesExecutor"},
     {"executor": "LocalExecutor"},
     {"executor": "LocalKubernetesExecutor"},
-    {
-        "executor": "CeleryExecutor",
-        "workers": {"keda": {"enabled": True}},
-    },
+    {"executor": "CeleryExecutor", "workers": {"celery": {"keda": {"enabled": True}}}},
     {"pgbouncer": {"enabled": True}},
     {
         "dags": {"persistence": {"enabled": True}},
@@ -91,7 +88,7 @@ VALUE_SETS: list[dict] = [
         "executor": "CeleryExecutor",
     },
     {
-        "workers": {"hpa": {"enabled": True}},
+        "workers": {"celery": {"hpa": {"enabled": True}}},
         "webserver": {
             "hpa": {"enabled": True},
             "podDisruptionBudget": {"enabled": True},

@@ -22,14 +22,14 @@ from unittest import mock
 from azure.kusto.data._models import KustoResultTable
 
 from airflow.models import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 TEST_DAG_ID = "unit_tests"
-DEFAULT_DATE = datetime(2019, 1, 1)
+DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
 MOCK_DATA = {
     "task_id": "test_azure_data_explorer_query_operator",

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from pydantic import (
@@ -30,11 +30,11 @@ from pydantic import (
     NonNegativeInt,
     StringConstraints,
     Tag,
-    ValidationError,
     field_validator,
     model_validator,
 )
 
+from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
@@ -90,6 +90,21 @@ class TaskInstanceResponse(BaseModel):
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
     dag_version: DagVersionResponse | None
     team_name: str | None = None
+    state_reason: str | None = Field(
+        default=None,
+        validation_alias="retry_reason",
+        description=(
+            "The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended."
+        ),
+    )
+
+    @field_validator("state_reason", mode="after")
+    @classmethod
+    def redact_state_reason(cls, v: str | None) -> str | None:
+        # The worker already redacts this. Kept for rows written by an older task-sdk.
+        if v is None:
+            return None
+        return cast("str", redact(v))
 
 
 class TaskInstanceCollectionResponse(BaseModel):
@@ -107,8 +122,14 @@ class TaskInstanceCollectionResponse(BaseModel):
     task_instances: Iterable[TaskInstanceResponse]
     total_entries: int | None = Field(
         default=None,
-        description="Total number of matching items. Populated for offset pagination, "
-        "``null`` when using cursor pagination.",
+        description="Number of matching items. For offset pagination this is the exact total. "
+        "For cursor pagination it is capped at ``total_entries_limit``; a value equal to that "
+        "limit means at least that many items match.",
+    )
+    total_entries_limit: int | None = Field(
+        default=None,
+        description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset "
+        "pagination, where ``total_entries`` is exact.",
     )
     next_cursor: str | None = Field(
         default=None,
@@ -212,6 +233,12 @@ class ClearTaskInstancesBody(StrictBaseModel):
         description="A list of `task_id` or [`task_id`, `map_index`]. "
         "If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
     )
+    task_group_id: str | None = Field(
+        default=None,
+        description="Clear every task in this task group. Mutually exclusive with `task_ids`. "
+        "The group's tasks are resolved on the server from the dag structure, so all of them are "
+        "targeted regardless of how many there are.",
+    )
     dag_run_id: str | None = None
     include_upstream: bool = False
     include_downstream: bool = False
@@ -226,6 +253,11 @@ class ClearTaskInstancesBody(StrictBaseModel):
         "and finally ``False`` (the historical default for clear/rerun).",
     )
     prevent_running_task: bool = False
+    keep_task_state: bool = Field(
+        default=False,
+        description="Keep the task state store entries of the cleared task instances so the next "
+        "attempt resumes from them. By default they are discarded, so the task starts over.",
+    )
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None
 
     @model_validator(mode="before")
@@ -233,18 +265,20 @@ class ClearTaskInstancesBody(StrictBaseModel):
     def validate_model(cls, data: Any) -> Any:
         """Validate clear task instance form."""
         if data.get("only_failed") and data.get("only_running"):
-            raise ValidationError("only_failed and only_running both are set to True")
+            raise ValueError("only_failed and only_running both are set to True")
         if data.get("start_date") and data.get("end_date"):
             if data.get("start_date") > data.get("end_date"):
-                raise ValidationError("end_date is sooner than start_date")
+                raise ValueError("end_date is sooner than start_date")
         if data.get("start_date") and data.get("end_date") and data.get("dag_run_id"):
-            raise ValidationError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
+            raise ValueError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
         if data.get("start_date") and data.get("dag_run_id"):
-            raise ValidationError("Exactly one of dag_run_id or start_date must be provided")
+            raise ValueError("Exactly one of dag_run_id or start_date must be provided")
         if data.get("end_date") and data.get("dag_run_id"):
-            raise ValidationError("Exactly one of dag_run_id or end_date must be provided")
+            raise ValueError("Exactly one of dag_run_id or end_date must be provided")
         if isinstance(data.get("task_ids"), list) and len(data.get("task_ids")) < 1:
-            raise ValidationError("task_ids list should have at least 1 element.")
+            raise ValueError("task_ids list should have at least 1 element.")
+        if data.get("task_ids") and data.get("task_group_id"):
+            raise ValueError("Only one of task_ids or task_group_id may be provided")
         return data
 
 

@@ -31,6 +31,14 @@ SQL command. It submits the job asynchronously, optionally polls until the job
 reaches a terminal state, retrieves container logs, and can drop the service on
 completion.
 
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
+This will ensure that the task is deferred from the Airflow worker slot and polling for the job status happens on the trigger.
+
+.. note::
+
+  In deferrable mode, clearing or marking a deferred task as failed drops the job service
+  only on Airflow 3.3 or later. On earlier versions the service is left running and billing.
+
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

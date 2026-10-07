@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_shared.secrets_backend.base import BaseSecretsBackend
+from airflow_shared.secrets_backend.base import BaseSecretsBackend, accepts_kwarg
 
 
 class MockConnection:
@@ -150,7 +150,7 @@ class TestBaseSecretsBackend:
         assert conn.uri == sample_conn_uri
 
 
-class _LegacyConnValueBackend(BaseSecretsBackend):
+class _TeamUnawareConnValueBackend(BaseSecretsBackend):
     """Backend overriding ``get_conn_value`` with the pre-3.2 ``(self, conn_id)`` signature."""
 
     def __init__(self, conn_values: dict[str, str]):
@@ -203,8 +203,8 @@ class TestTeamNameBackwardCompat:
     """``get_connection`` must not forward ``team_name`` to overrides that predate it (issue #1333)."""
 
     @pytest.mark.parametrize("team_name", [None, "team_a"])
-    def test_legacy_get_conn_value_signature_does_not_break(self, sample_conn_uri, team_name):
-        backend = _LegacyConnValueBackend(conn_values={"test_conn": sample_conn_uri})
+    def test_team_unaware_get_conn_value_signature_does_not_break(self, sample_conn_uri, team_name):
+        backend = _TeamUnawareConnValueBackend(conn_values={"test_conn": sample_conn_uri})
 
         conn = backend.get_connection(conn_id="test_conn", team_name=team_name)
 
@@ -239,7 +239,30 @@ class TestTeamNameBackwardCompat:
         assert backend.call_count == 1
 
     @pytest.mark.parametrize("team_name", [None, "team_a"])
-    def test_legacy_backend_missing_conn_returns_none(self, team_name):
-        backend = _LegacyConnValueBackend(conn_values={})
+    def test_team_unaware_backend_missing_conn_returns_none(self, team_name):
+        backend = _TeamUnawareConnValueBackend(conn_values={})
 
         assert backend.get_connection(conn_id="missing", team_name=team_name) is None
+
+
+class TestAcceptsKwarg:
+    @pytest.mark.parametrize(
+        ("method", "name", "expected"),
+        [
+            (lambda key: None, "session", False),
+            (lambda key, session=None: None, "session", True),
+            (lambda key, **kwargs: None, "session", True),
+            (lambda conn_id: None, "team_name", False),
+            (lambda conn_id, team_name=None: None, "team_name", True),
+            (lambda conn_id, **kwargs: None, "team_name", True),
+        ],
+    )
+    def test_declared_parameter_or_kwargs_catch_all(self, method, name, expected):
+        assert accepts_kwarg(method, name) is expected
+
+    def test_each_keyword_judged_independently(self):
+        def get_variable(key, team_name=None):
+            return None
+
+        assert accepts_kwarg(get_variable, "team_name") is True
+        assert accepts_kwarg(get_variable, "session") is False

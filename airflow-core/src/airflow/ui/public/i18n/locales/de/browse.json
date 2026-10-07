@@ -8,8 +8,37 @@
     },
     "filters": {
       "eventType": "Ereignis Typ"
+    }
+  },
+  "dagBundles": {
+    "active": "Aktiv",
+    "columns": {
+      "active": "Aktiv",
+      "importErrors": "Importfehler",
+      "lastRefreshed": "Zuletzt aktualisiert",
+      "name": "Name",
+      "version": "Version"
     },
-    "title": "Prüf-Log"
+    "detail": {
+      "status": "Status"
+    },
+    "files": {
+      "columns": {
+        "file": "Datei",
+        "lastParsed": "Zuletzt geparst",
+        "parseDuration": "Parsezeit"
+      },
+      "file_one": "Datei",
+      "file_other": "Dateien",
+      "importErrorGone": "Der Importfehler ist nicht mehr aufgetreten. Vermutlich durch ein Wiedereinlesen behoben.",
+      "neverParsed": "Nie",
+      "showImportError_one": "{{count}} Importfehler ansehen",
+      "showImportError_other": "{{count}} Importfehler ansehen"
+    },
+    "inactive": "Inaktiv",
+    "neverRefreshed": "Nie",
+    "notRefreshedYet": "Noch nicht aktualisiert",
+    "notVersioned": "Nicht versioniert"
   },
   "deadlines": {
     "columns": {
@@ -57,6 +86,8 @@
       "successTitle": "Task Kommunikation (XCom) aktualisiert",
       "title": "Task Kommunikation (XCom) bearbeiten"
     },
+    "entry_one": "XCom-Eintrag",
+    "entry_other": "XCom-Einträge",
     "key": "Name",
     "title": "Task Kommunikation (XComs)",
     "value": "Wert"

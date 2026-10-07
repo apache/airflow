@@ -48,10 +48,10 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.3.0"
+ARG AIRFLOW_VERSION="3.3.2"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-ARG AIRFLOW_PYTHON_VERSION="3.13.14"
+ARG AIRFLOW_PYTHON_VERSION="3.13.15"
 
 # PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
 #
@@ -71,9 +71,9 @@ ARG PYTHON_LTO="true"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.1.2
+ARG AIRFLOW_PIP_VERSION=26.2.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.29
+ARG AIRFLOW_UV_VERSION=0.12.18
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -119,7 +119,7 @@ if [[ "$#" != 1 ]]; then
     exit 1
 fi
 
-AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.11.16}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 TEMURIN_VERSION=${TEMURIN_VERSION:-11}
@@ -193,6 +193,7 @@ pkgconf \
 sasl2-bin \
 sqlite3 \
 sudo \
+tdsodbc \
 tk-dev \
 unixodbc \
 unixodbc-dev \
@@ -248,6 +249,7 @@ rsync \
 sasl2-bin \
 sqlite3 \
 sudo \
+tdsodbc \
 unixodbc \
 wget\
 "
@@ -396,56 +398,35 @@ function install_python() {
     wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
-    local major minor
-    major="${major_minor_version%.*}"
-    minor="${major_minor_version#*.}"
     echo "Verifying Python ${AIRFLOW_PYTHON_VERSION} (${major_minor_version})"
-    if [[ "${major}" -gt 3 ]] || [[ "${major}" -eq 3 && "${minor}" -ge 11 ]]; then
-        # Sigstore verification for Python >= 3.11 (PEP 761)
-        declare -A sigstore_identities=(
-            # https://peps.python.org/pep-0664/#release-manager-and-crew
-            [3.11]="pablogsal@python.org"
-            # https://peps.python.org/pep-0693/#release-manager-and-crew
-            [3.12]="thomas@python.org"
-            # https://peps.python.org/pep-0719/#release-manager-and-crew
-            [3.13]="thomas@python.org"
-            # https://peps.python.org/pep-0745/#release-manager-and-crew
-            [3.14]="hugo@python.org"
-        )
-        declare -A sigstore_issuers=(
-            [3.11]="https://accounts.google.com"
-            [3.12]="https://accounts.google.com"
-            [3.13]="https://accounts.google.com"
-            [3.14]="https://github.com/login/oauth"
-        )
-        wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
-            "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
-        install_cosign
-        local identity="${sigstore_identities[${major_minor_version}]}"
-        local issuer="${sigstore_issuers[${major_minor_version}]}"
-        /tmp/cosign verify-blob \
-            --bundle python.tar.xz.sigstore \
-            --certificate-identity "${identity}" \
-            --certificate-oidc-issuer "${issuer}" \
-            python.tar.xz
-        rm -f python.tar.xz.sigstore /tmp/cosign
-    else
-        # PGP verification for Python 3.10
-        declare -A keys=(
-            # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
-            # https://peps.python.org/pep-0619/#release-manager-and-crew
-            [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
-        )
-        wget --tries=3 --waitretry=5 -O python.tar.xz.asc \
-            "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc"
-        GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
-        local gpg_key="${keys[${major_minor_version}]}"
-        echo "Using GPG key ${gpg_key}"
-        gpg --batch --import "/scripts/docker/keys/python-${major_minor_version}.asc"
-        gpg --batch --verify python.tar.xz.asc python.tar.xz
-        gpgconf --kill all
-        rm -rf "${GNUPGHOME}" python.tar.xz.asc
-    fi
+    # Sigstore verification (PEP 761)
+    declare -A sigstore_identities=(
+        # https://peps.python.org/pep-0664/#release-manager-and-crew
+        [3.11]="pablogsal@python.org"
+        # https://peps.python.org/pep-0693/#release-manager-and-crew
+        [3.12]="thomas@python.org"
+        # https://peps.python.org/pep-0719/#release-manager-and-crew
+        [3.13]="thomas@python.org"
+        # https://peps.python.org/pep-0745/#release-manager-and-crew
+        [3.14]="hugo@python.org"
+    )
+    declare -A sigstore_issuers=(
+        [3.11]="https://accounts.google.com"
+        [3.12]="https://accounts.google.com"
+        [3.13]="https://accounts.google.com"
+        [3.14]="https://github.com/login/oauth"
+    )
+    wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
+        "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
+    install_cosign
+    local identity="${sigstore_identities[${major_minor_version}]}"
+    local issuer="${sigstore_issuers[${major_minor_version}]}"
+    /tmp/cosign verify-blob \
+        --bundle python.tar.xz.sigstore \
+        --certificate-identity "${identity}" \
+        --certificate-oidc-issuer "${issuer}" \
+        python.tar.xz
+    rm -f python.tar.xz.sigstore /tmp/cosign
     mkdir -p /usr/src/python
     tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz
     rm python.tar.xz
@@ -496,6 +477,7 @@ function install_python() {
 function install_golang() {
     curl --retry 3 --retry-delay 5 "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+    rm -f go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
 function install_jdk() {
@@ -569,7 +551,9 @@ function install_rustup() {
         -o /tmp/rustup-init
     echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
     chmod +x /tmp/rustup-init
-    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    # Building wheels from source needs only rustc and cargo. The default profile also adds
+    # rust-docs, clippy and rustfmt, which add tens of thousands of files to the image.
+    /tmp/rustup-init -y --profile minimal --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
     rm -f /tmp/rustup-init
 }
 

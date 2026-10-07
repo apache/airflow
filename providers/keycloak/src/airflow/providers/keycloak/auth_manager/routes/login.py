@@ -126,6 +126,7 @@ def login_callback(request: Request):
         refresh_token=tokens["refresh_token"],
     )
     token = get_auth_manager().generate_jwt(user)
+    request.state.jwt_token_issued = True
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))

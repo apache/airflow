@@ -29,15 +29,31 @@
   },
   "group": "Groupe",
   "health": {
-    "dagProcessor": "Analyseur de Dag",
+    "dagProcessor": "Dag Processeur",
+    "degraded": "Dégradé",
+    "degradedHint": {
+      "dagProcessor": "Certains Dag Bundles configurés n'ont pas d'Analyseur de Dag qui les analyse.",
+      "triggerer": "Certaines équipes n'ont pas de Déclencheur exécutant des tâches différées pour elles."
+    },
+    "down": "Hors service",
     "health": "État de santé",
     "healthy": "Sain",
-    "lastHeartbeat": "Dernier battement",
-    "metaDatabase": "Base de données Meta",
-    "scheduler": "Planificateur",
+    "instances": {
+      "bundles": "Bundles",
+      "hostname": "Hôte",
+      "team": "Équipe",
+      "title_many": "{{title}} — {{status}} ({{count}} instances)",
+      "title_one": "{{title}} — {{status}} ({{count}} instance)",
+      "title_other": "{{title}} — {{status}} ({{count}} instances)",
+      "unknownHostname": "Hôte inconnu"
+    },
+    "lastHeartbeat": "Dernier Heartbeat",
+    "metaDatabase": "Metadata Database",
+    "scheduler": "Scheduler",
     "status": "Statut",
-    "triggerer": "Déclencheur",
-    "unhealthy": "Non sain"
+    "triggerer": "Triggerer",
+    "unhealthy": "Non sain",
+    "unknownStatus": "Inconnu"
   },
   "history": "Historique",
   "importErrors": {

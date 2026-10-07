@@ -18,19 +18,24 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from typing import Any
+from typing import Any, get_type_hints
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 pytest.importorskip("langchain_core")
 
-from pydantic import ValidationError
+from pydantic import JsonValue, ValidationError
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.tools import ToolCallError
 from airflow.providers.common.ai.toolsets.langchain_bridge import airflow_toolset_to_langchain_tools
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
 
 _PASSTHROUGH = SchemaValidator(core_schema.any_schema())
 # Coerces the ``n`` field to int so we can assert the args_validator runs.
@@ -156,13 +161,13 @@ class TestAirflowToolsetToLangChainTools:
 
     def test_repeated_model_retry_propagates_then_resets(self):
         # A tool that keeps raising ModelRetry must not loop forever: once the tool's
-        # max_retries (1 here) is exhausted, the error propagates so the run fails
+        # max_retries (1 here) is exhausted, the call raises so the run fails
         # instead of the bridge feeding the message back indefinitely. The budget then
         # resets so a reused tool is not poisoned for the next run.
         boom = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["boom"]
 
         assert boom.invoke({}) == "fix your input and try again"  # fed back
-        with pytest.raises(ModelRetry, match="fix your input"):  # budget exhausted -> propagates
+        with pytest.raises(ToolCallError, match="fix your input"):  # budget exhausted -> fails the run
             boom.invoke({})
         assert boom.invoke({}) == "fix your input and try again"  # reset -> fed back again
 
@@ -215,7 +220,7 @@ class TestAirflowToolsetToLangChainTools:
         add_one = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["add_one"]
 
         assert "validation error" in add_one.invoke({"n": "bad"})
-        with pytest.raises(ValidationError):
+        with pytest.raises(ToolCallError, match="validation error"):
             add_one.invoke({"n": "bad"})
 
     def test_tool_body_validation_error_propagates(self):
@@ -233,9 +238,9 @@ class TestAirflowToolsetToLangChainTools:
 
         boom = {t.name: t for t in airflow_toolset_to_langchain_tools(BodyValidationToolset())}["boom"]
 
-        with pytest.raises(ValidationError, match="response"):
+        with pytest.raises(ToolCallError, match="response"):
             boom.invoke({})
-        with pytest.raises(ValidationError, match="response"):
+        with pytest.raises(ToolCallError, match="response"):
             asyncio.run(boom.ainvoke({}))
 
     def test_deps_are_exposed_on_the_run_context(self):
@@ -261,6 +266,13 @@ class TestAirflowToolsetToLangChainTools:
         with pytest.raises(AirflowOptionalProviderFeatureException):
             airflow_toolset_to_langchain_tools(FakeToolset())
 
+    def test_the_tool_functions_type_hints_resolve(self):
+        """LangChain's agent runtime evaluates them to find injected arguments."""
+        tool = airflow_toolset_to_langchain_tools(FakeToolset())[0]
+
+        assert get_type_hints(tool.func)["return"] == JsonValue
+        assert get_type_hints(tool.coroutine)["return"] == JsonValue
+
 
 class TestSQLToolsetConversion:
     def test_sql_toolset_exposes_its_four_tools(self):
@@ -271,3 +283,35 @@ class TestSQLToolsetConversion:
         tools = airflow_toolset_to_langchain_tools(sql.SQLToolset(db_conn_id="db"))
 
         assert {t.name for t in tools} == {"list_tables", "get_schema", "query", "check_query"}
+
+
+class TestErrorStatusAndMasking:
+    def test_a_correctable_failure_is_an_error_tool_message(self):
+        boom = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["boom"]
+
+        message = boom.invoke({"type": "tool_call", "name": "boom", "args": {}, "id": "call-1"})
+
+        assert message.status == "error"
+        assert message.content == "fix your input and try again"
+
+    @pytest.mark.enable_redact
+    def test_a_result_carrying_a_registered_secret_is_masked_sync(self, registered_secret):
+        echo = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["echo"]
+
+        assert echo.invoke({"text": registered_secret}) == "echo: ***"
+
+    @pytest.mark.enable_redact
+    def test_a_result_carrying_a_registered_secret_is_masked_async(self, registered_secret):
+        echo = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["echo"]
+
+        assert asyncio.run(echo.ainvoke({"text": registered_secret})) == "echo: ***"
+
+    def test_calls_are_counted_as_langchain(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        list_tables = {t.name: t for t in airflow_toolset_to_langchain_tools(ts)}["list_tables"]
+
+        with patch("airflow.providers.common.ai.utils.tool_metrics.Stats", MagicMock(spec=["incr"])) as stats:
+            list_tables.invoke({})
+
+        assert stats.incr.call_args.kwargs["tags"]["framework"] == "langchain"

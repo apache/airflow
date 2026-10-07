@@ -17,7 +17,9 @@
  * under the License.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
+
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 import { waitForStableRowCount } from "tests/e2e/utils/ui/waits";
 
 type ConnectionDetails = {
@@ -121,11 +123,7 @@ export class ConnectionsPage extends BasePage {
   public async connectionExists(connectionId: string): Promise<boolean> {
     const emptyState = await this.emptyState.isVisible({ timeout: 1000 }).catch(() => false);
 
-    if (emptyState) {
-      return false;
-    }
-
-    return (await this.findConnectionRow(connectionId)) !== undefined;
+    return !emptyState && (await this.findConnectionRow(connectionId)) !== undefined;
   }
 
   public async createConnection(details: ConnectionDetails): Promise<void> {
@@ -259,7 +257,7 @@ export class ConnectionsPage extends BasePage {
   }
 
   public async getConnectionIds(): Promise<Array<string>> {
-    const rowLocator = this.page.locator("tbody tr");
+    const rowLocator = this.page.locator(DATA_ROWS);
     const stableRowCount = await waitForStableRowCount(rowLocator).catch(() => 0);
 
     if (stableRowCount === 0) {
@@ -273,7 +271,7 @@ export class ConnectionsPage extends BasePage {
       throw new Error(`"Connection ID" column not found in headers: ${JSON.stringify(headerTexts)}`);
     }
 
-    const rows = this.page.locator("tbody tr");
+    const rows = this.page.locator(DATA_ROWS);
     const connectionIds: Array<string> = [];
 
     for (let i = 0; i < stableRowCount; i++) {
@@ -336,11 +334,9 @@ export class ConnectionsPage extends BasePage {
             return false;
           }
 
-          if (searchTerm === "") {
-            return ids.length > 0;
-          }
-
-          return ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
+          return searchTerm === ""
+            ? ids.length > 0
+            : ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
         },
         { message: "Search results did not match search term", timeout: 30_000 },
       )
@@ -363,11 +359,7 @@ export class ConnectionsPage extends BasePage {
   private async findConnectionRow(connectionId: string): Promise<Locator | undefined> {
     const hasSearch = await this.searchInput.isVisible({ timeout: 500 }).catch(() => false);
 
-    if (hasSearch) {
-      return await this.findConnectionRowUsingSearch(connectionId);
-    }
-
-    return undefined;
+    return hasSearch ? await this.findConnectionRowUsingSearch(connectionId) : undefined;
   }
 
   private async findConnectionRowUsingSearch(connectionId: string): Promise<Locator | undefined> {
@@ -379,15 +371,11 @@ export class ConnectionsPage extends BasePage {
       return undefined;
     }
 
-    const row = this.page.locator("tbody tr").filter({ hasText: connectionId }).first();
+    const row = this.page.locator(DATA_ROWS).filter({ hasText: connectionId }).first();
 
     const rowExists = await row.isVisible({ timeout: 3000 }).catch(() => false);
 
-    if (!rowExists) {
-      return undefined;
-    }
-
-    return row;
+    return rowExists ? row : undefined;
   }
 
   private async waitForConnectionsListLoad(): Promise<void> {
@@ -401,7 +389,7 @@ export class ConnectionsPage extends BasePage {
     const isTableVisible = await table.isVisible();
 
     if (isTableVisible) {
-      const firstRow = this.page.locator("tbody tr").first();
+      const firstRow = this.page.locator(DATA_ROWS).first();
 
       await expect(firstRow.or(this.emptyState)).toBeVisible({ timeout: 15_000 });
     }

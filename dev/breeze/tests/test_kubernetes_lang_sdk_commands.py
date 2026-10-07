@@ -25,6 +25,7 @@ from airflow_breeze.commands.kubernetes_commands import (
     _lang_sdk_build_go_bundle,
     _lang_sdk_build_java_jar,
     _lang_sdk_fetch_upstream_sdk_sources,
+    _lang_sdk_resolve_sdk_sources,
     _lang_sdk_upload_artifacts,
 )
 from airflow_breeze.utils import shared_options
@@ -307,7 +308,7 @@ class TestLangSdkDryRun:
     def test_upload_artifacts_uses_placeholder_for_never_built_jar(self, mock_run, dry_run, tmp_path):
         mock_run.return_value = mock.Mock(stdout="")
 
-        _lang_sdk_upload_artifacts(tmp_path, "3.10", "v1.35.0", None)
+        _lang_sdk_upload_artifacts(tmp_path, "3.11", "v1.35.0", None)
 
         cp_sources = [call.args[0][2] for call in mock_run.call_args_list if call.args[0][1] == "cp"]
         assert str(tmp_path / "java-artifacts" / "app.jar") in cp_sources
@@ -325,8 +326,8 @@ class TestSetupLangSdkTestNativeSelection:
             monkeypatch.setenv("LANG_SDK_NATIVE_TOOLCHAIN", env_value)
 
         captured: dict[str, bool] = {}
-        fake_go_sdk = tmp_path / "upstream_go_sdk"
-        fake_java_sdk = tmp_path / "upstream_java_sdk"
+        fake_go_sdk = tmp_path / "resolved_go_sdk"
+        fake_java_sdk = tmp_path / "resolved_java_sdk"
 
         def fake_parallel(steps, output):
             for _title, thunk in steps:
@@ -335,21 +336,21 @@ class TestSetupLangSdkTestNativeSelection:
         monkeypatch.setattr(kubernetes_commands, "_run_lang_sdk_parallel", fake_parallel)
         monkeypatch.setattr(
             kubernetes_commands,
-            "_lang_sdk_fetch_upstream_sdk_sources",
+            "_lang_sdk_resolve_sdk_sources",
             lambda staging, output: (fake_go_sdk, fake_java_sdk),
         )
         monkeypatch.setattr(
             kubernetes_commands,
             "_lang_sdk_build_go_bundle",
-            lambda staging, upstream_go_sdk, output, *, native: captured.update(
-                go=native, go_sdk=upstream_go_sdk
+            lambda staging, go_sdk_source, output, *, native: captured.update(
+                go=native, go_sdk=go_sdk_source
             ),
         )
         monkeypatch.setattr(
             kubernetes_commands,
             "_lang_sdk_build_java_jar",
-            lambda staging, upstream_java_sdk, output, *, native: captured.update(
-                java=native, java_sdk=upstream_java_sdk
+            lambda staging, java_sdk_source, output, *, native: captured.update(
+                java=native, java_sdk=java_sdk_source
             ),
         )
         for name in (
@@ -366,7 +367,7 @@ class TestSetupLangSdkTestNativeSelection:
             lambda python: mock.Mock(airflow_image_kubernetes="img"),
         )
 
-        kubernetes_commands._setup_lang_sdk_test(python="3.10", kubernetes_version="v1.35.0")
+        kubernetes_commands._setup_lang_sdk_test(python="3.11", kubernetes_version="v1.35.0")
 
         assert captured == {
             "go": expected_native,
@@ -374,3 +375,61 @@ class TestSetupLangSdkTestNativeSelection:
             "go_sdk": fake_go_sdk,
             "java_sdk": fake_java_sdk,
         }
+
+
+class TestLangSdkResolveSdkSources:
+    @pytest.fixture
+    def repo_root(self, tmp_path, monkeypatch):
+        root = tmp_path / "repo"
+        root.mkdir()
+        monkeypatch.setattr(kubernetes_commands, "AIRFLOW_ROOT_PATH", root)
+        return root
+
+    @pytest.mark.parametrize(
+        "env",
+        [
+            pytest.param({}, id="no-branch-env"),
+            # A release-branch run must build the branch's own SDKs: upstream main's speak a later
+            # supervisor_schema_version than that branch's task-SDK supervisor knows.
+            pytest.param(
+                {"GITHUB_BASE_REF": "v3-3-test", "DEFAULT_BRANCH": "v3-3-test"},
+                id="release-branch-env",
+            ),
+        ],
+    )
+    @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
+    def test_checkout_with_both_sdks_builds_from_them(
+        self, mock_fetch, env, repo_root, tmp_path, monkeypatch
+    ):
+        monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
+        monkeypatch.delenv("DEFAULT_BRANCH", raising=False)
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+        (repo_root / "go-sdk").mkdir()
+        (repo_root / "java-sdk").mkdir()
+
+        go_sdk, java_sdk = _lang_sdk_resolve_sdk_sources(tmp_path, None)
+
+        assert (go_sdk, java_sdk) == (repo_root / "go-sdk", repo_root / "java-sdk")
+        mock_fetch.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "present",
+        [
+            pytest.param((), id="neither-sdk"),
+            pytest.param(("go-sdk",), id="only-go-sdk"),
+            pytest.param(("java-sdk",), id="only-java-sdk"),
+        ],
+    )
+    @mock.patch.object(kubernetes_commands, "_lang_sdk_fetch_upstream_sdk_sources")
+    def test_checkout_without_both_sdks_falls_back_to_upstream_main(
+        self, mock_fetch, present, repo_root, tmp_path
+    ):
+        for name in present:
+            (repo_root / name).mkdir()
+        mock_fetch.return_value = (tmp_path / "go-sdk", tmp_path / "java-sdk")
+
+        go_sdk, java_sdk = _lang_sdk_resolve_sdk_sources(tmp_path, None)
+
+        mock_fetch.assert_called_once_with(tmp_path, None)
+        assert (go_sdk, java_sdk) == (tmp_path / "go-sdk", tmp_path / "java-sdk")

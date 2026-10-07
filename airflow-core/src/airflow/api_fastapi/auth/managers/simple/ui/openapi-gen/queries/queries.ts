@@ -1,10 +1,15 @@
-// generated with @7nohe/openapi-react-query-codegen@2.2.0
-import { useMutation, UseMutationOptions, useQuery, UseQueryOptions } from "@tanstack/react-query";
+// generated with @7nohe/openapi-react-query-codegen@3.0.2
+import { useMutation, useQuery, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 
-import type { Options } from "../requests/sdk.gen";
-import { createToken, createTokenAllAdmins, createTokenCli, loginAllAdmins } from "../requests/sdk.gen";
 import {
+  createToken,
+  createTokenAllAdmins,
+  createTokenCli,
+  loginAllAdmins,
+  type Options,
+} from "../requests/sdk.gen";
+import type {
   CreateTokenAllAdminsData,
   CreateTokenAllAdminsError,
   CreateTokenCliData,
@@ -32,8 +37,10 @@ export const useCreateTokenAllAdmins = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseCreateTokenAllAdminsKeyFn(clientOptions, queryKey),
-    queryFn: () =>
-      createTokenAllAdmins({ ...clientOptions }).then((response) => response.data as TData) as TData,
+    queryFn: ({ signal }) =>
+      createTokenAllAdmins({ ...clientOptions, signal, throwOnError: true }).then(
+        (response) => response.data as TData,
+      ) as TData,
     ...options,
   });
 /**
@@ -52,7 +59,10 @@ export const useLoginAllAdmins = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseLoginAllAdminsKeyFn(clientOptions, queryKey),
-    queryFn: () => loginAllAdmins({ ...clientOptions }).then((response) => response.data as TData) as TData,
+    queryFn: ({ signal }) =>
+      loginAllAdmins({ ...clientOptions, signal, throwOnError: true }).then(
+        (response) => response.data as TData,
+      ) as TData,
     ...options,
   });
 /**
@@ -74,7 +84,8 @@ export const useCreateToken = <
 ) =>
   useMutation<TData, TError, Options<CreateTokenData, true>, TContext>({
     mutationKey: Common.UseCreateTokenKeyFn(mutationKey),
-    mutationFn: (clientOptions) => createToken(clientOptions) as unknown as Promise<TData>,
+    mutationFn: (clientOptions) =>
+      createToken({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -96,6 +107,7 @@ export const useCreateTokenCli = <
 ) =>
   useMutation<TData, TError, Options<CreateTokenCliData, true>, TContext>({
     mutationKey: Common.UseCreateTokenCliKeyFn(mutationKey),
-    mutationFn: (clientOptions) => createTokenCli(clientOptions) as unknown as Promise<TData>,
+    mutationFn: (clientOptions) =>
+      createTokenCli({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>,
     ...options,
   });

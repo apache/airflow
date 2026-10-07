@@ -16,19 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Text } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
+
+import { Text } from "@chakra-ui/react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 
 import { useBackfillServiceGetBackfill, useBackfillServiceListBackfillDagRuns } from "openapi/queries";
 import type { BackfillDagRunResponse } from "openapi/requests/types.gen";
+
+import { Modal, RouterLink } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Dialog, RouterLink } from "src/components/ui";
+
 import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh } from "src/utils";
 
@@ -89,11 +93,11 @@ const getColumns = (
     cell: ({ row }) => {
       const state = row.original.dag_run_state;
 
-      if (state === null || state === undefined) {
-        return <Text color="fg.muted">—</Text>;
-      }
-
-      return <StateBadge state={state}>{translate(`states.${state}`)}</StateBadge>;
+      return state === null || state === undefined ? (
+        <Text color="fg.muted">—</Text>
+      ) : (
+        <StateBadge state={state}>{translate(`states.${state}`)}</StateBadge>
+      );
     },
     enableSorting: false,
     header: translate("dagRunState"),
@@ -103,11 +107,11 @@ const getColumns = (
     cell: ({ row }) => {
       const reason = row.original.exception_reason;
 
-      if (reason === null || reason === "") {
-        return <Text color="fg.muted">—</Text>;
-      }
-
-      return <Text>{translateExceptionReason(reason, translate)}</Text>;
+      return reason === null || reason === "" ? (
+        <Text color="fg.muted">—</Text>
+      ) : (
+        <Text>{translateExceptionReason(reason, translate)}</Text>
+      );
     },
     enableSorting: false,
     header: translate("components:backfill.notCreatedReason"),
@@ -138,7 +142,7 @@ const getColumns = (
 ];
 
 export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: BackfillDagRunsModalProps) => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["common", "components"]);
   const pageSize = (useConfig("fallback_page_limit") as number | undefined) ?? 100;
   const [pageIndex, setPageIndex] = useState(0);
   const tableState = {
@@ -156,7 +160,7 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
     isLoading: isBackfillLoading,
   } = useBackfillServiceGetBackfill({ backfillId: backfillId ?? 0 }, undefined, {
     enabled: open && backfillId !== undefined,
-    refetchInterval: (query) => (query.state.data?.completed_at === null ? refetchInterval : false),
+    refetchInterval: (query) => query.state.data?.completed_at === null && refetchInterval,
   });
   const shouldPoll = backfill?.completed_at === null;
 
@@ -183,37 +187,31 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
   };
 
   return (
-    <Dialog.Root
+    <Modal
       lazyMount
       onOpenChange={handleOpenChange}
       open={open}
       scrollBehavior="inside"
       size="cover"
+      title={
+        <>
+          {translate("common:backfill_one")} #{backfillId}
+        </>
+      }
       unmountOnExit
     >
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <Heading size="md">
-            {translate("common:backfill_one")} #{backfillId}
-          </Heading>
-        </Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <ErrorAlert error={backfillError} />
-          <ErrorAlert error={error} />
-          <DataTable
-            columns={getColumns(isPartitioned, translate)}
-            data={data?.backfill_dag_runs ?? []}
-            initialState={tableState}
-            isFetching={isFetching}
-            isLoading={isBackfillLoading || isLoading}
-            modelName="common:slot"
-            onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
-            showRowCountHeading
-            total={data?.total_entries ?? 0}
-          />
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+      <ErrorAlert error={backfillError} />
+      <ErrorAlert error={error} />
+      <DataTable
+        columns={getColumns(isPartitioned, translate)}
+        data={data?.backfill_dag_runs ?? []}
+        initialState={tableState}
+        isFetching={isFetching}
+        isLoading={isBackfillLoading || isLoading}
+        modelName="common:slot"
+        onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
+        total={data?.total_entries ?? 0}
+      />
+    </Modal>
   );
 };

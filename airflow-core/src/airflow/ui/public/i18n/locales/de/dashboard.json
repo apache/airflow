@@ -1,4 +1,22 @@
 {
+  "alerts": {
+    "seeLessContext": "Weniger anzeigen",
+    "seeMoreContext": "Mehr anzeigen",
+    "showMoreAlerts_one": "+{{count}} weitere Warnung",
+    "showMoreAlerts_other": "+{{count}} weitere Warnungen"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "Keine bevorstehenden Fristen",
+      "title": "Bevorstehend"
+    },
+    "recentlyMissed": {
+      "empty": "Keine verpassten Fristen",
+      "title": "Verpasste Fristen"
+    },
+    "showMore": "Mehr anzeigen",
+    "title": "Fristen"
+  },
   "deferredSlotsNotCounted": "Delegierte Tasks, die nicht für die Pool-Belegung zählen: {{count}}",
   "deferredSlotsNotCountedTooltip": "Delegierte Tasks, die in der Leiste angezeigt werden, werden bei der Berechnung der Pool-Belegung berücksichtigt. Delegierte Tasks, die unterhalb der Leiste angezeigt werden, stammen aus Pools, die delegierte Tasks nicht für ihre Belegung berücksichtigen.",
   "favorite": {
@@ -10,14 +28,29 @@
   "group": "Gruppe",
   "health": {
     "dagProcessor": "Dag Prozessor",
+    "degraded": "Degradiert",
+    "degradedHint": {
+      "dagProcessor": "Einige konfigurierte Dag Bündel haben keinen Dag Prozessor zur Verarbeitung.",
+      "triggerer": "Einige Teams haben keinen Triggerer für Hintergrundsaufgaben zur Abarbeitung."
+    },
+    "down": "Nicht aktiv",
     "health": "System-Gesundheit",
     "healthy": "Gut",
+    "instances": {
+      "bundles": "Bündel",
+      "hostname": "Host",
+      "team": "Team",
+      "title_one": "{{title}} — {{status}} ({{count}} Instanzen)",
+      "title_other": "{{title}} — {{status}} ({{count}} Instanzen)",
+      "unknownHostname": "Unbekannter Host"
+    },
     "lastHeartbeat": "Letztes Lebenszeichen",
     "metaDatabase": "Meta-Datenbank",
     "scheduler": "Planer",
     "status": "Status",
     "triggerer": "Triggerer",
-    "unhealthy": "Nicht in Ordnung"
+    "unhealthy": "Nicht in Ordnung",
+    "unknownStatus": "Unbekannt"
   },
   "history": "Historie",
   "importErrors": {

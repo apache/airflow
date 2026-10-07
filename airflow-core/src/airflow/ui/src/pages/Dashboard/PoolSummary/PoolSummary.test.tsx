@@ -21,6 +21,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { PoolSummary } from "./PoolSummary";
@@ -42,22 +43,22 @@ vi.mock("openapi/queries/queries", () => ({
 }));
 
 vi.mock("src/utils", () => ({
+  formatNumber: String,
   useAutoRefresh: () => false,
 }));
 
 vi.mock("react-i18next", () => ({
   useTranslation: (namespace: string) => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, options?: { count?: number }) => {
       if (namespace === "dashboard" && key === "deferredSlotsNotCounted") {
         return `Deferred not counted in slots: ${options?.count}`;
       }
 
-      if (namespace === "dashboard" && key === "deferredSlotsNotCountedTooltip") {
-        return mocks.deferredSlotsNotCountedTooltip;
-      }
-
-      return `${namespace}:${key}`;
+      return namespace === "dashboard" && key === "deferredSlotsNotCountedTooltip"
+        ? mocks.deferredSlotsNotCountedTooltip
+        : `${namespace}:${key}`;
     },
   }),
 }));

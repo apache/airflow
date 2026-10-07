@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection Types <connections/snowflake>
+    Connection Types <connections/index>
     Operators <operators/index>
     Decorators <decorators/index>
 
@@ -79,7 +79,7 @@ apache-airflow-providers-snowflake package
 `Snowflake <https://www.snowflake.com/>`__
 
 
-Release: 6.16.0
+Release: 6.18.0
 
 Provider package
 ----------------
@@ -105,6 +105,8 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
+``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
+``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
 ``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
@@ -129,12 +131,13 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-snowflake[microsoft.azure]
+    pip install apache-airflow-providers-snowflake[common.ai]
 
 
 ======================================================================================================================  ===================
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
+`apache-airflow-providers-common-ai <https://airflow.apache.org/docs/apache-airflow-providers-common-ai>`_              ``common.ai``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
 ======================================================================================================================  ===================
@@ -147,15 +150,16 @@ Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-snowflake[microsoft.azure]
+    pip install apache-airflow-providers-snowflake[common.ai]
 
 
-===================  ====================================================
+===================  ======================================================
 Extra                Dependencies
-===================  ====================================================
+===================  ======================================================
+``common.ai``        ``apache-airflow-providers-common-ai[openai]>=0.10.0``
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
 ``openlineage``      ``apache-airflow-providers-openlineage>=2.3.0``
-===================  ====================================================
+===================  ======================================================
 
 Downloading official packages
 -----------------------------
@@ -163,5 +167,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-snowflake 6.16.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-snowflake 6.16.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.16.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.18.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.18.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.18.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.18.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.18.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.18.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.18.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.18.0-py3-none-any.whl.sha512>`__)

@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "Sectie"
-    },
-    "title": "Airflow configuratie"
+    }
   },
   "connections": {
     "add": "Connectie toevoegen",
@@ -34,7 +33,6 @@
       "connectionIdRequired": "Connectie ID is verplicht",
       "connectionIdRequirement": "Connectie ID kan niet bestaan uit enkel spaties",
       "connectionTypeRequired": "Connectie type is verplicht",
-      "extraFields": "Extra velden",
       "extraFieldsJson": "Extra velden JSON",
       "helperText": "Missend connectie type? Controller of je de bijbehorende Airflow Providers Package hebt geïnstalleerd.",
       "helperTextForRedactedFields": "Gemaskeerde velden ('***') blijven onveranderd als ze niet worden gewijzigd.",

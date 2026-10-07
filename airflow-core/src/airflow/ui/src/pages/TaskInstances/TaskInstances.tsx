@@ -24,6 +24,9 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { RouterLink, ActionBar } from "src/system-components";
+
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
@@ -35,17 +38,18 @@ import {
   type GetColumnsParams,
 } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { useAutoRefresh, isStatePending, renderDuration, useDocumentTitle } from "src/utils";
+import { formatNumber, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
@@ -136,6 +140,16 @@ const taskInstanceColumns = ({
             ),
           header: translate("dagRun_one"),
         },
+        {
+          accessorKey: "dag_run_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+              <TruncatedText text={original.dag_run_id} />
+            </RouterLink>
+          ),
+          enableSorting: false,
+          header: translate("dagRunId"),
+        },
       ]),
   ...(Boolean(taskId)
     ? []
@@ -181,12 +195,7 @@ const taskInstanceColumns = ({
     ? [
         {
           accessorKey: "team_name",
-          cell: ({ row: { original } }: TaskInstanceRow) =>
-            original.team_name !== undefined && original.team_name !== null ? (
-              <RouterLink to={`/dags?teams=${encodeURIComponent(original.team_name)}`}>
-                {original.team_name}
-              </RouterLink>
-            ) : undefined,
+          cell: ({ row: { original } }: TaskInstanceRow) => <TeamName teamName={original.team_name} />,
           enableSorting: false,
           header: translate("dagDetails.team"),
         },
@@ -241,7 +250,7 @@ const taskInstanceColumns = ({
   },
   {
     accessorKey: "duration",
-    cell: ({ row: { original } }) => renderDuration(original.duration),
+    cell: ({ row: { original } }) => <DurationCell duration={original.duration} />,
     header: translate("duration"),
   },
   {
@@ -269,7 +278,7 @@ const taskInstanceColumns = ({
 ];
 
 export const TaskInstances = () => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
@@ -280,6 +289,7 @@ export const TaskInstances = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
+      dag_run_id: false,
       dag_version: false,
       end_date: false,
       executor: false,
@@ -420,22 +430,24 @@ export const TaskInstances = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <TaskInstancesFilter />
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={<TaskInstancesFilter />}
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:taskInstance"
         nextCursor={nextCursor}
         onStateChange={setTableURLState}
         previousCursor={previousCursor}
+        total={data?.total_entries ?? 0}
+        totalEntriesLimit={data?.total_entries_limit ?? undefined}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearTaskInstancesButton

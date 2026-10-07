@@ -39,7 +39,11 @@ Prerequisites
 For Breeze (local development):
 
 * `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
-* `Podman <https://podman.io/>`__, a drop-in, license-friendly replacement for Docker Desktop
+* `Podman <https://podman.io/>`__ is a license-friendly alternative to Docker Desktop, but it is
+  **not yet fully supported** by Breeze. Breeze will detect Podman and print a warning, and you
+  may run into issues that do not occur with Docker. Docker Desktop is recommended unless you are
+  comfortable troubleshooting Podman-specific problems yourself. Track full support in
+  `#54894 <https://github.com/apache/airflow/issues/54894>`_.
 * `Docker Compose <https://docs.docker.com/compose/install/>`__
 * `uv <https://github.com/astral-sh/uv>`__, which is a fast, reliable package manager that you'll use to install other developer tools to make contributing to Airflow easier.
 
@@ -57,7 +61,9 @@ For Breeze (local development):
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
 .. note::
-   Docker **or Podman** installation varies by OS. See the `full guide <03_contributors_quick_start.rst#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
+   Docker installation varies by OS. See the `full guide <03_contributors_quick_start.rst#local-machine-development>`_
+   for Ubuntu, macOS, and Windows instructions. Podman can be installed the same way, but since it is not
+   yet fully supported by Breeze, use it at your own risk and prefer Docker if you run into problems.
 
 Option A – Breeze on Your Laptop
 --------------------------------

@@ -89,7 +89,7 @@ source code so it stays up to date as endpoints are added or changed.
    * - ``DELETE``
      - ``/api/v2/assets/{asset_id}/queuedEvents``
      - ``DAG``
-     - ``GET``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/assets/{asset_id}/queuedEvents``
      - ``Asset``
@@ -183,6 +183,18 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Connection``
      - ``PUT``
    * - ``GET``
+     - ``/api/v2/dagBundles``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dagBundles/{bundle_name}``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dagBundles/{bundle_name}/files``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
      - ``/api/v2/dagSources/{dag_id}``
      - ``DAG.CODE``
      - ``GET``
@@ -206,6 +218,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags``
      - ``DAG``
      - ``PUT``
+   * - ``PATCH``
+     - ``/api/v2/dags/bulk``
+     - ``DAG``
+     - ``multi``
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}``
      - ``DAG``
@@ -225,7 +241,7 @@ source code so it stays up to date as endpoints are added or changed.
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
      - ``DAG``
-     - ``GET``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
      - ``Asset``
@@ -241,7 +257,7 @@ source code so it stays up to date as endpoints are added or changed.
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents``
      - ``DAG``
-     - ``GET``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents``
      - ``Asset``
@@ -456,6 +472,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``GET``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagVersions``
+     - ``DAG.VERSION``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dags/{dag_id}/dagVersions/diff``
      - ``DAG.VERSION``
      - ``GET``
    * - ``GET``

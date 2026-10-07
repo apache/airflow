@@ -17,13 +17,12 @@
 from __future__ import annotations
 
 import collections
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Literal, cast
 
 import sqlalchemy as sa
 import structlog
-from croniter.croniter import croniter
 from sqlalchemy.engine import Row
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
@@ -41,6 +40,7 @@ from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.types import DagRunType
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -102,10 +102,16 @@ class CalendarService:
         effective_date = sa.func.coalesce(DagRun.partition_date, DagRun.logical_date)
         time_expression = self._get_time_truncation_expression(effective_date, granularity, dialect)
 
+        is_backfill_expression = sa.case(
+            (DagRun.run_type == DagRunType.BACKFILL_JOB, sa.literal(True)),
+            else_=sa.literal(False),
+        )
+
         select_stmt = (
             sa.select(
                 time_expression.label("datetime"),
                 DagRun.state,
+                is_backfill_expression.label("is_backfill"),
                 sa.func.max(DagRun.data_interval_start).label("data_interval_start"),
                 sa.func.max(DagRun.data_interval_end).label("data_interval_end"),
                 sa.func.max(DagRun.run_after).label("run_after"),
@@ -113,7 +119,7 @@ class CalendarService:
                 sa.func.count("*").label("count"),
             )
             .where(DagRun.dag_id == dag_id)
-            .group_by(time_expression, DagRun.state)
+            .group_by(time_expression, DagRun.state, is_backfill_expression)
             .order_by(time_expression.asc())
         )
 
@@ -126,6 +132,7 @@ class CalendarService:
                 date=ds.datetime,
                 state=ds.state,
                 count=int(ds._mapping["count"]),
+                is_backfill=bool(ds._mapping["is_backfill"]),
             )
             for ds in dag_states
         ]
@@ -215,14 +222,17 @@ class CalendarService:
         """Calculate planned runs for cron-based timetables."""
         dates: dict[datetime, int] = collections.Counter()
 
-        dates_iter: Iterator[datetime | None] = croniter(
-            cast("CronMixin", dag.timetable)._expression,
-            start_time=last_data_interval.end,
-            ret_type=datetime,
-        )
+        cron_timetable = cast("CronMixin", dag.timetable)
+        dt = last_data_interval.end
 
-        for dt in dates_iter:
-            if dt is None or dt.year != year:
+        # Step with CronMixin._get_next so planned instants match the scheduler exactly,
+        # including its DST gap/fold handling. Cap the iteration like
+        # _calculate_timetable_planned_runs does; a high-frequency expression (e.g.
+        # "* * * * *", or a seconds-resolution cron) would otherwise take hundreds of
+        # thousands of steps before hitting the year boundary.
+        for _ in range(self.MAX_PLANNED_RUNS):
+            dt = cron_timetable._get_next(dt)
+            if dt.year != year:
                 break
             if dag.end_date and dt > dag.end_date:
                 break

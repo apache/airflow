@@ -28,14 +28,15 @@ import os
 import sys
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
     if sys.version_info >= (3, 12):
         from importlib import metadata
     else:
         import importlib_metadata as metadata
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
+    from importlib.metadata import Distribution
     from types import ModuleType
 
     from ..listeners.listener import ListenerManager
@@ -85,6 +86,62 @@ class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
 
+BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"]
+
+
+class AppliesToDict(TypedDict):
+    """Dictionary structure for the optional ``applies_to`` scoping block on UI plugins."""
+
+    dag_tags: NotRequired[list[str] | None]
+    dag_ids: NotRequired[list[str] | None]
+    task_ids: NotRequired[list[str] | None]
+    operators: NotRequired[list[str] | None]
+    operator_names: NotRequired[list[str] | None]
+
+
+class _BaseUIDict(TypedDict):
+    """Shared UI fields mirroring ``BaseUIResponse``."""
+
+    name: str
+    icon: NotRequired[str | None]
+    icon_dark_mode: NotRequired[str | None]
+    url_route: NotRequired[str | None]
+    category: NotRequired[str | None]
+    nav_top_level: NotRequired[bool | None]
+    applies_to: NotRequired[AppliesToDict | None]
+
+
+class ExternalViewDict(_BaseUIDict):
+    """Dictionary structure for entries in AirflowPlugin.external_views."""
+
+    href: str
+    destination: NotRequired[BaseDestinationLiteral]
+
+
+class ReactAppDict(_BaseUIDict):
+    """Dictionary structure for entries in AirflowPlugin.react_apps."""
+
+    bundle_url: str
+    destination: NotRequired[Literal[BaseDestinationLiteral, "dashboard", "dag_overview", "task_overview"]]
+
+
+class FastAPIAppDict(TypedDict):
+    """Dictionary structure for entries in AirflowPlugin.fastapi_apps."""
+
+    app: Any
+    url_prefix: str
+    name: str
+
+
+class FastAPIRootMiddlewareDict(TypedDict):
+    """Dictionary structure for entries in AirflowPlugin.fastapi_root_middlewares."""
+
+    middleware: Any
+    args: NotRequired[list[Any]]
+    kwargs: NotRequired[dict[str, Any]]
+    name: str
+
+
 class AirflowPlugin:
     """Class used to define AirflowPlugin."""
 
@@ -98,13 +155,14 @@ class AirflowPlugin:
     team_name: str | None = None
 
     source: AirflowPluginSource | None = None
-    macros: list[Any] = []
+    macros: list[Callable[..., Any]] = []
     admin_views: list[Any] = []
     flask_blueprints: list[Any] = []
-    fastapi_apps: list[Any] = []
-    fastapi_root_middlewares: list[Any] = []
-    external_views: list[Any] = []
-    react_apps: list[Any] = []
+    fastapi_apps: list[FastAPIAppDict] = []
+    fastapi_root_middlewares: list[FastAPIRootMiddlewareDict] = []
+    external_views: list[ExternalViewDict] = []
+    react_apps: list[ReactAppDict] = []
+    ui_translations: list[Any] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
     appbuilder_menu_items: list[Any] = []
@@ -192,7 +250,9 @@ def is_valid_plugin(plugin_obj) -> bool:
     return False
 
 
-def _load_entrypoint_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
+def _load_entrypoint_plugins(
+    incompatibility_reason: Callable[[Distribution], str | None] | None = None,
+) -> tuple[list[AirflowPlugin], dict[str, str]]:
     """
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
 
@@ -206,6 +266,10 @@ def _load_entrypoint_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     import_errors: dict[str, str] = {}
     for entry_point, dist in entry_points_with_dist("airflow.plugins"):
         log.debug("Importing entry_point plugin %s", entry_point.name)
+        if incompatibility_reason and dist.metadata and (reason := incompatibility_reason(dist)):
+            log.warning(reason)
+            import_errors[entry_point.module] = reason
+            continue
         try:
             plugin_class = entry_point.load()
             if not is_valid_plugin(plugin_class):

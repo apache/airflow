@@ -17,19 +17,19 @@
 
 [build-system]
 requires = [
-    "hatchling==1.31.0",
-    "packaging==26.2",
+    "hatchling==1.32.4",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.6.1.19",
+    "tomlkit==0.15.1",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers"
 description = "Programmatically author, schedule and monitor data pipelines"
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -44,7 +44,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",

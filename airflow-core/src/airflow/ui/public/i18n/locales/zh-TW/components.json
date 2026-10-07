@@ -17,6 +17,10 @@
     "missingRuns": "遺漏的執行",
     "notCreatedReason": "未建立原因",
     "overrideExistingParams": "覆寫既有執行的參數",
+    "partitionRange": "分區範圍",
+    "partitionsAffected_one": "將會回填 1 個分區：",
+    "partitionsAffected_other": "將會回填 {{count}} 個分區：",
+    "partitionsNone": "無符合所選範圍的分區。",
     "permissionDenied": "試執行失敗：使用者沒有建立回填的權限。",
     "reprocessBehavior": "重新處理行為",
     "run": "執行回填",
@@ -31,7 +35,6 @@
         "title": "已觸發 Dag 執行"
       }
     },
-    "unpause": "觸發時取消暫停 {{dag_display_name}}",
     "validation": {
       "datesRequired": "必須提供資料區間的開始與結束日期。",
       "startBeforeEnd": "資料區間起始日期必須早於或等於結束日期。"
@@ -106,6 +109,10 @@
     "taskGroup": "任務群組",
     "zoomToTask": "縮放至選定任務"
   },
+  "jsonPreview": {
+    "items_one": "{{count}} 個項目",
+    "items_other": "{{count}} 個項目"
+  },
   "limitedList": "+ 其他 {{count}} 項",
   "limitedList.allItems": "所有 {{count}} 個項目：",
   "limitedList.allTags_one": " 所有標籤 (1)",
@@ -119,11 +126,27 @@
     "file": "檔案",
     "location": "第 {{line}} 行，位於 {{name}}"
   },
+  "passwordToggle": {
+    "hide": "隱藏",
+    "show": "顯示"
+  },
+  "pausedDag": {
+    "drain": "完成後暫停",
+    "drainDescription": "未完成的執行會繼續，但不會建立排程執行。已暫停的回填維持暫停。所有未完成的執行結束後，Dag 會再次暫停。",
+    "keepPaused": "保持暫停",
+    "keepPausedDescription": "新的與未完成的執行會等到 Dag 取消暫停後才進行。",
+    "title": "Dag 已暫停",
+    "unfinishedRunsWillRun_one": "1 個未完成的 Dag 執行將會開始或繼續。",
+    "unfinishedRunsWillRun_other": "{{count}} 個未完成的 Dag 執行將會開始或繼續。",
+    "unpause": "取消暫停",
+    "unpauseDescription": "Dag 將變為活躍：未完成的執行會繼續，排程也會恢復。已暫停的回填維持暫停。"
+  },
   "reparseDag": "重新解析 Dag",
   "slowestTaskInstances": {
     "empty": "此範圍內沒有已完成的任務實例",
     "title": "最慢的任務實例"
   },
+  "sortMultiColumnHint": "按住 Shift 並點擊可依多個欄位排序",
   "sortedAscending": "遞增排序",
   "sortedDescending": "遞減排序",
   "sortedUnsorted": "未排序",
@@ -143,6 +166,7 @@
     "dataInterval": "資料區間",
     "dataIntervalAuto": "依邏輯日期與排程規則推斷",
     "dataIntervalManual": "手動指定",
+    "editConfigAndTrigger": "編輯設定並且觸發",
     "intervalEnd": "結束",
     "intervalStart": "開始",
     "loading": "正在載入 Dag 資訊...",
@@ -163,7 +187,7 @@
       }
     },
     "triggerAgainWithConfig": "使用此設定再次觸發",
-    "unpause": "觸發時取消暫停 {{dagDisplayName}}"
+    "triggerOptions": "觸發選項"
   },
   "trimText": {
     "details": "詳細資訊",
@@ -180,6 +204,7 @@
   "versionSelect": {
     "allVersions": "所有版本",
     "dagVersion": "Dag 版本",
+    "placeholder": "選擇版本",
     "versionCode": "v{{versionCode}}"
   }
 }

@@ -186,4 +186,21 @@ describe("Test SearchBar", () => {
 
     expect(screen.getByTestId("advanced-search-toggle").getAttribute("aria-pressed")).toBe("true");
   });
+
+  it("appends the hotkey hint to the placeholder by default", () => {
+    render(<SearchBar defaultValue="" onChange={vi.fn()} placeholder="Search Dags" />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.getByTestId("search-dags").getAttribute("placeholder")).toContain("Search Dags (");
+  });
+
+  // Interpolating the suffix conditionally used to stringify `undefined` into the placeholder
+  it("shows only the placeholder when the hotkey is disabled", () => {
+    render(<SearchBar defaultValue="" hotkeyDisabled onChange={vi.fn()} placeholder="Search Dags" />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.getByTestId("search-dags").getAttribute("placeholder")).toBe("Search Dags");
+  });
 });

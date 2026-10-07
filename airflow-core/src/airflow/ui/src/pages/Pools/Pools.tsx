@@ -16,20 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton, Spacer } from "@chakra-ui/react";
-import { createListCollection } from "@chakra-ui/react/collection";
 import { useState } from "react";
+
+import { Skeleton } from "@chakra-ui/react";
+import { createListCollection } from "@chakra-ui/react/collection";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { usePoolServiceGetPools } from "openapi/queries";
 import type { PoolResponse } from "openapi/requests/types.gen";
+
+import { Select } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import { Select } from "src/components/ui";
+
 import type { SearchParamsKeysType } from "src/constants/searchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
@@ -100,49 +104,48 @@ export const Pools = () => {
   return (
     <>
       <ErrorAlert error={error} />
-      <SearchBar
-        advancedSearch={advancedSearch}
-        defaultValue={poolNamePattern ?? ""}
-        onChange={handleSearchChange}
-        placeholder={translate("pools.searchPlaceholder")}
-      />
-      <HStack gap={4} mt={4}>
-        <Select.Root
-          borderWidth={0}
-          collection={poolSortOptions}
-          defaultValue={["name"]}
-          onValueChange={handleSortChange}
-          width={130}
-        >
-          <Select.Trigger>
-            <Select.ValueText placeholder={translate("pools.sort.placeholder")} />
-          </Select.Trigger>
+      <DataTable
+        cardDef={cardDef()}
+        columns={[]}
+        data={data ? data.pools : []}
+        displayMode="card"
+        filterActions={
+          <SearchBar
+            advancedSearch={advancedSearch}
+            defaultValue={poolNamePattern ?? ""}
+            onChange={handleSearchChange}
+            placeholder={translate("pools.searchPlaceholder")}
+          />
+        }
+        initialState={tableURLState}
+        isLoading={isLoading}
+        modelName="admin:pools.pool"
+        noRowsMessage={translate("pools.noPoolsFound")}
+        onStateChange={setTableURLState}
+        presentationActions={
+          <Select.Root
+            borderWidth={0}
+            collection={poolSortOptions}
+            defaultValue={["name"]}
+            onValueChange={handleSortChange}
+            width={130}
+          >
+            <Select.Trigger>
+              <Select.ValueText placeholder={translate("pools.sort.placeholder")} />
+            </Select.Trigger>
 
-          <Select.Content>
-            {poolSortOptions.items.map((option) => (
-              <Select.Item item={option} key={option.value}>
-                {option.label}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-        <Spacer />
-        <AddPoolButton />
-      </HStack>
-      <Box mt={4}>
-        <DataTable
-          cardDef={cardDef()}
-          columns={[]}
-          data={data ? data.pools : []}
-          displayMode="card"
-          initialState={tableURLState}
-          isLoading={isLoading}
-          modelName="admin:pools.pool"
-          noRowsMessage={translate("pools.noPoolsFound")}
-          onStateChange={setTableURLState}
-          total={data ? data.total_entries : 0}
-        />
-      </Box>
+            <Select.Content>
+              {poolSortOptions.items.map((option) => (
+                <Select.Item item={option} key={option.value}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        }
+        primaryActions={<AddPoolButton />}
+        total={data ? data.total_entries : 0}
+      />
     </>
   );
 };

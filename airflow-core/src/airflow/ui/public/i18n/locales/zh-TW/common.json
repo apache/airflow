@@ -4,7 +4,7 @@
     "Connections": "連線",
     "Plugins": "外掛",
     "Pools": "資源池",
-    "Providers": "Providers",
+    "Providers": "整合套件",
     "Variables": "變數"
   },
   "allOperators": "所有任務操作器",
@@ -24,8 +24,10 @@
   },
   "backfill_one": "回填",
   "backfill_other": "回填",
+  "breadcrumb": "麵包屑導覽",
   "browse": {
     "auditLog": "稽核日誌",
+    "dagBundles": "Dag 套件包",
     "deadlines": "截止期限",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
@@ -38,7 +40,10 @@
   "createdAssetEvent_other": "已建立資源事件",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag 套件包",
+  "dagBundle_other": "Dag 套件包",
   "dagDetails": {
+    "activeRuns": "活躍執行數",
     "catchup": "自動回填",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
@@ -88,8 +93,6 @@
   "dagRunId": "Dag 執行 ID",
   "dagRunState": "Dag 執行狀態",
   "dagWarnings": "Dag 警告 / 錯誤",
-  "defaultToGraphView": "預設使用圖形檢視",
-  "defaultToGridView": "預設使用網格檢視",
   "delete": "刪除",
   "diff": "差異",
   "diffCompareWith": "與以下版本比較",
@@ -123,6 +126,8 @@
       "title": "存取被拒"
     }
   },
+  "event_one": "事件",
+  "event_other": "事件",
   "expand": {
     "collapse": "收合",
     "expand": "展開",
@@ -138,22 +143,36 @@
   },
   "filter": "篩選",
   "filters": {
+    "addFilter": "新增篩選",
+    "completedAt": "完成時間",
+    "date": "日期",
     "durationFrom": "從執行時間",
     "durationTo": "到執行時間",
     "endTime": "結束時間",
     "logicalDateFrom": "從邏輯日期",
     "logicalDateTo": "到邏輯日期",
+    "maxActiveRunsFrom": "活躍執行數上限（最小值）",
+    "maxActiveRunsTo": "活躍執行數上限（最大值）",
+    "removeFilter": "移除篩選",
     "runAfterFrom": "從最早可執行時間",
     "runAfterTo": "從最早可執行時間",
     "searchAsset": "搜尋資源",
     "selectDateRange": "選擇日期範圍",
-    "startTime": "起始時間"
+    "selectDateTime": "選擇日期與時間",
+    "startTime": "起始時間",
+    "time": "時間"
   },
   "fullscreen": {
     "tooltip": "按下 {{hotkey}} 進入全螢幕"
   },
   "generateToken": "產生權杖",
+  "includedIn": "包含於",
   "key": "鍵",
+  "logLevel": {
+    "hide": "隱藏日誌層級",
+    "hotkey": "l",
+    "show": "顯示日誌層級"
+  },
   "logicalDate": "邏輯日期",
   "logout": "登出",
   "logoutConfirmation": "確定要登出嗎？",
@@ -173,12 +192,14 @@
     "assets": "資源",
     "browse": "瀏覽",
     "dags": "Dags",
+    "dashboard": "儀表板",
     "docs": "文件",
     "home": "首頁",
     "legacyFabViews": "舊版檢視",
     "plugins": "外掛",
     "security": "安全"
   },
+  "no": "否",
   "noItemsFound": "找不到 {{modelName}}",
   "note": {
     "add": "新增筆記",
@@ -191,11 +212,14 @@
     "write": "撰寫"
   },
   "overallStatus": "整體狀態",
+  "partition_one": "資源分區",
+  "partition_other": "資源分區",
   "partitionedDagRun_one": "分區的 Dag 執行",
   "partitionedDagRun_other": "分區的 Dag 執行",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "收到的資源事件"
   },
+  "pause": "暫停",
   "pendingDagRun_one": "{{count}} 個待執行的 Dag 執行",
   "pendingDagRun_other": "{{count}} 個待執行的 Dag 執行",
   "presetFilters": {
@@ -246,6 +270,72 @@
   },
   "selectLanguage": "選擇語言",
   "selected": "已選取",
+  "settings": {
+    "clearing": {
+      "keepTaskState": {
+        "helper": "清除任務實例時，預設保留任務狀態儲存項目，而不是捨棄。",
+        "label": "清除時保留任務狀態"
+      },
+      "preventRunningTask": {
+        "helper": "清除任務實例時，跳過目前正在執行中的任務。",
+        "label": "防止清除執行中的任務"
+      },
+      "runSelection": {
+        "helper": "清除 Dag 執行時，預設選取的選項。",
+        "label": "預設 Dag 執行清除選項"
+      },
+      "taskSelection": {
+        "helper": "清除任務實例時，預設選取的選項。",
+        "label": "預設任務清除選項"
+      },
+      "title": "清除"
+    },
+    "description": "這些偏好設定僅會儲存在此瀏覽器中，並套用至整個應用程式。",
+    "general": {
+      "landingPage": {
+        "helper": "開啟 Airflow 時顯示的頁面。",
+        "label": "起始頁面",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "儀表板"
+        }
+      },
+      "title": "一般"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "尚未個別設定的 Dag 與資源圖形版面配置方向。",
+        "label": "預設圖形方向"
+      },
+      "taskGroupsExpanded": {
+        "helper": "在尚未儲存群組選擇的 Dag 中展開任務群組。既有的選擇會保留。",
+        "label": "預設展開任務群組"
+      },
+      "title": "圖形"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "標記任務實例狀態時，預設選取的選項。",
+        "label": "預設標記選項"
+      },
+      "title": "標記"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) 各搜尋列的個別選擇與分享連結仍具有較高優先權。",
+        "label": "預設比對任意位置"
+      },
+      "title": "搜尋"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "開啟任務實例時優先顯示的分頁。指向特定分頁的連結仍會開啟該分頁。",
+        "label": "預設任務實例分頁"
+      },
+      "title": "任務實例"
+    },
+    "title": "設定"
+  },
   "shortcuts": {
     "categories": {
       "code": "程式碼",
@@ -279,6 +369,7 @@
       "toggleExpand": "展開或收合所有群組",
       "toggleFullscreen": "切換全螢幕",
       "toggleGraphGrid": "切換圖形／網格檢視",
+      "toggleLogLevel": "切換日誌層級",
       "toggleSource": "切換來源",
       "toggleTaskGroup": "展開或收合$t(taskGroup_one)",
       "toggleTimestamp": "切換時間戳記",
@@ -320,6 +411,7 @@
     "up_for_retry": "等待重試",
     "upstream_failed": "上游任務失敗"
   },
+  "switchDag": "切換 $t(dag_one)",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
@@ -329,8 +421,10 @@
     "filterReset_other": "重置篩選",
     "from": "從",
     "maxActiveRuns": "最大活躍執行數",
+    "noResultsFound": "找不到結果",
     "noTagsFound": "找不到標籤",
     "noTeamsFound": "找不到團隊",
+    "ownerPlaceholder": "依擁有者篩選",
     "tagMode": {
       "all": "全部",
       "any": "任何"
@@ -372,6 +466,11 @@
     "queuedWhen": "開始排隊時間",
     "renderedMapIndex": "渲染後的映射索引",
     "scheduledWhen": "開始排程時間",
+    "stateReason": "狀態原因",
+    "stateReasonSummary": {
+      "failed": "於第 {{tryNumber}} 次嘗試（共 {{totalTries}} 次）時停止",
+      "upForRetry": "第 {{tryNumber}} 次嘗試（共 {{totalTries}} 次）後重試中"
+    },
     "trigger": "觸發器",
     "triggerer": {
       "assigned": "指派的觸發者",
@@ -386,10 +485,21 @@
   },
   "taskInstance_one": "任務實例",
   "taskInstance_other": "任務實例",
+  "teams": {
+    "more_one": "還有 {{count}} 個",
+    "more_other": "還有 {{count}} 個",
+    "none": "沒有團隊",
+    "title": "團隊"
+  },
   "timeRange": {
+    "anyTime": "不限時間",
+    "in": "於",
+    "last7Days": "最近 7 天",
     "last12Hours": "最近 12 小時",
     "last24Hours": "最近 24 小時",
+    "last30Days": "最近 30 天",
     "lastHour": "最近 1 小時",
+    "latestRun": "最近一次執行",
     "pastWeek": "過去一週"
   },
   "timestamp": {
@@ -470,6 +580,7 @@
   "total": "總計 {{state}}",
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
+  "unpause": "取消暫停",
   "user": "使用者",
   "validation": {
     "mustBeAtLeast": "必須至少為 {{min}}。",
@@ -481,5 +592,6 @@
     "tooltip": "按 {{hotkey}} 切換換行",
     "unwrap": "不換行",
     "wrap": "換行"
-  }
+  },
+  "yes": "是"
 }

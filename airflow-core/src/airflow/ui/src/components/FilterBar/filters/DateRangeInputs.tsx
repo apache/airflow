@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+
 import { HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
@@ -35,9 +37,9 @@ type DateRangeInputsProps = {
   readonly handleInputChange: (
     field: "end" | "start",
     inputType: "date" | "time",
-  ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
+  ) => (event: ChangeEvent<HTMLInputElement>) => void;
   readonly onChange: (value: DateRangeValue) => void;
-  readonly setEditingState: React.Dispatch<React.SetStateAction<DateRangeEditingState>>;
+  readonly setEditingState: Dispatch<SetStateAction<DateRangeEditingState>>;
   readonly startDateValue: dayjs.Dayjs | undefined;
   readonly translate: TFunction;
   readonly value: DateRangeValue;
@@ -64,11 +66,8 @@ export const DateRangeInputs = ({
     if (getFieldError("range") && (fieldName === "start" || fieldName === "end")) {
       return "danger.solid";
     }
-    if (editingState.selectionTarget === fieldName) {
-      return "brand.focusRing";
-    }
 
-    return "border";
+    return editingState.selectionTarget === fieldName ? "brand.focusRing" : "border";
   };
 
   const clearField = (field: "end" | "start") => {
@@ -111,7 +110,7 @@ export const DateRangeInputs = ({
       "time",
     )({
       target: { value: "" },
-    } as React.ChangeEvent<HTMLInputElement>);
+    } as ChangeEvent<HTMLInputElement>);
   };
 
   return (

@@ -20,8 +20,9 @@ import { Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiCalendar } from "react-icons/fi";
 
+import { Tooltip } from "src/system-components";
+
 import type { ExpressionType } from "src/components/AssetExpression";
-import { Tooltip } from "src/components/ui";
 
 import { AssetSchedule } from "./AssetSchedule";
 
@@ -51,7 +52,7 @@ export const Schedule = ({
         timetableSummary={timetableSummary}
       />
     ) : (
-      <Tooltip content={timetableDescription}>
+      <Tooltip content={timetableDescription} portalled>
         <Text fontSize="sm">
           <FiCalendar style={{ display: "inline" }} /> {timetableSummary}
         </Text>

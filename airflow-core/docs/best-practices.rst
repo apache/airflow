@@ -103,7 +103,7 @@ You should avoid writing the top level code which is not necessary to create Ope
 and build Dag relations between them. This is because of the design decision for the scheduler of Airflow
 and the impact the top-level code parsing speed on both performance and scalability of Airflow.
 
-Airflow scheduler executes the code outside the Operator's ``execute`` methods with the minimum interval of
+Airflow Dag processor executes the code outside the Operator's ``execute`` methods with the minimum interval of
 :ref:`min_file_process_interval<config:dag_processor__min_file_process_interval>` seconds. This is done in order
 to allow dynamic scheduling of the Dags - where scheduling and dependencies might change over time and
 impact the next schedule of the Dag. Airflow scheduler tries to continuously make sure that what you have
@@ -291,7 +291,7 @@ When you execute that code you will see:
 
 .. code-block:: bash
 
-    [Breeze:3.10.19] root@cf85ab34571e:/opt/airflow# python /files/test_python.py
+    [Breeze:3.11.16] root@cf85ab34571e:/opt/airflow# python /files/test_python.py
     Executing 1
 
 This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
@@ -319,7 +319,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.15.22"
+      pip install "ruff>=0.16.8"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
@@ -411,7 +411,7 @@ or if you need to deserialize a json object from the variable :
     {{ var.json.<variable_name> }}
 
 In top-level code, variables using jinja templates do not produce a request until a task is running, whereas,
-``Variable.get()`` produces a request every time the Dag file is parsed by the scheduler if caching is not enabled.
+``Variable.get()`` produces a request every time the Dag file is parsed by the Dag processor if caching is not enabled.
 Using ``Variable.get()`` without :ref:`enabling caching<config:secrets__use_cache>` will lead to suboptimal
 performance in the Dag file processing.
 In some cases this can cause the Dag file to timeout before it is fully parsed.
@@ -501,10 +501,10 @@ Avoid triggering Dags immediately after changing them or any other accompanying 
 Dag folder.
 
 You should give the system sufficient time to process the changed files. This takes several steps.
-First the files have to be distributed to scheduler - usually via distributed filesystem or Git-Sync, then
-scheduler has to parse the Python files and store them in the database. Depending on your configuration,
+First the files have to be distributed to the Dag processor - usually via distributed filesystem or Git-Sync, then
+the Dag processor has to parse the Python files and store them in the database. Depending on your configuration,
 speed of your distributed filesystem, number of files, number of Dags, number of changes in the files,
-sizes of the files, number of schedulers, speed of CPUS, this can take from seconds to minutes, in extreme
+sizes of the files, number of Dag processors, speed of CPUS, this can take from seconds to minutes, in extreme
 cases many minutes. You should wait for your Dag to appear in the UI to be able to trigger it.
 
 In case you see long delays between updating it and the time it is ready to be triggered, you can look
@@ -733,6 +733,8 @@ the example_python_operator.py above so the actual parsing time is about ~ 0.62 
 
 You can look into :ref:`Testing a Dag <testing>` for details on how to test individual operators.
 
+.. _best_practices:unit_tests:
+
 Unit tests
 -----------
 
@@ -786,29 +788,62 @@ This is an example test want to verify the structure of a code-generated Dag aga
 
 **Unit test for custom operator:**
 
+To unit test an operator or a sensor, call it directly. You do not need a Dag run, a Dag, or a
+metadata database — instantiate the operator and call ``execute()`` with the context keys your
+code actually reads:
+
 .. code-block:: python
 
-    import pendulum
+    def test_my_custom_operator_execute():
+        op = MyCustomOperator(task_id="my_custom_operator_task", prefix="s3://bucket/some/prefix")
 
-    from airflow.sdk import DAG, TaskInstanceState
+        assert op.execute(context={}) == "expected return value"
+
+For a sensor, call ``poke()`` and assert on the returned boolean:
+
+.. code-block:: python
+
+    def test_my_custom_sensor_poke():
+        sensor = MyCustomSensor(task_id="my_custom_sensor_task", key="some-key")
+
+        assert sensor.poke(context={}) is True
+
+If your operator renders templated fields, render them before asserting:
+
+.. code-block:: python
+
+    op.render_template_fields(context={"ds": "2021-09-13"})
+    assert op.prefix == "s3://bucket/2021-09-13"
+
+For a deferrable operator, assert that it defers with the trigger you expect, then drive the
+resume path directly:
+
+.. code-block:: python
+
+    from airflow.sdk.exceptions import TaskDeferred
 
 
-    def test_my_custom_operator_execute_no_trigger(dag):
-        TEST_TASK_ID = "my_custom_operator_task"
-        with DAG(
-            dag_id="my_custom_operator_dag",
-            schedule="@daily",
-            start_date=pendulum.datetime(2021, 9, 13, tz="UTC"),
-        ) as dag:
-            MyCustomOperator(
-                task_id=TEST_TASK_ID,
-                prefix="s3://bucket/some/prefix",
-            )
+    def test_my_custom_operator_defers():
+        op = MyCustomOperator(task_id="my_custom_operator_task", deferrable=True)
 
-        dagrun = dag.test()
-        ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
-        assert ti.state == TaskInstanceState.SUCCESS
-        # Assert something related to tasks results: ti.xcom_pull()
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context={})
+        assert isinstance(exc.value.trigger, MyCustomTrigger)
+
+        # Drive the method the trigger resumes into.
+        getattr(op, exc.value.method_name)(context={}, event={"status": "success"})
+
+.. note::
+
+    ``TaskInstance.run()`` and ``TaskInstance.render_templates()`` were removed in Airflow 3.2 —
+    ``TaskInstance`` has been an internal class since Airflow 3.0. Replace ``ti.run()`` with
+    ``op.execute(context)`` and ``ti.render_templates(context)`` with
+    ``op.render_template_fields(context)`` as shown above.
+
+To exercise a whole Dag run rather than a single operator, see
+:ref:`Testing Dags with dag.test() <concepts:debugging>`. That is an integration test: it needs a
+metadata database and a Dag that Airflow can serialize, so it is not a substitute for the unit
+tests above.
 
 
 Self-Checks
@@ -1013,7 +1048,7 @@ Using ExternalPythonOperator
 .. versionadded:: 2.4
 
 A bit more involved but with significantly less overhead, security, stability problems is to use the
-:class:`airflow.providers.standard.operators.python.ExternalPythonOperator``. In the modern
+:class:`airflow.providers.standard.operators.python.ExternalPythonOperator`. In the modern
 TaskFlow approach described in :doc:`/tutorial/taskflow`. this also can be done with decorating
 your callable with ``@task.external_python`` decorator (recommended way of using the operator).
 It requires, however, that you have a pre-existing, immutable Python environment, that is prepared upfront.
@@ -1096,7 +1131,7 @@ As of version 2.2 of Airflow you can use ``@task.docker`` decorator to run your 
 
 .. versionadded:: 2.4
 
-As of version 2.2 of Airflow you can use ``@task.kubernetes`` decorator to run your functions with ``KubernetesPodOperator``.
+As of version 2.4 of Airflow you can use ``@task.kubernetes`` decorator to run your functions with ``KubernetesPodOperator``.
 
 
 The benefits of using those operators are:
@@ -1137,7 +1172,7 @@ The drawbacks:
   provided by those two are "leaky", so you need to understand a bit more about resources, networking,
   containers etc. in order to author a Dag that uses those operators.
 
-You can see detailed examples of using :class:`airflow.operators.providers.Docker` in
+You can see detailed examples of using :class:`airflow.providers.docker.operators.docker.DockerOperator` in
 :ref:`TaskFlow Docker example <taskflow-docker_environment>`
 and :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 :ref:`TaskFlow Kubernetes example <tasfklow-kpo>`

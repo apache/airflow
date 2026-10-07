@@ -25,7 +25,7 @@ license-files = ["LICENSE", "NOTICE"]
 # We do not want to upper-bind Python version unnecessarily. Airflow-ctl is a small tool with
 # minimal dependencies and does not use sophisticated Python features, so it should work with
 # new Python versions once all dependencies are updated to support them.
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 dependencies = [
     # TODO there could be still missing deps such as airflow-core
     "argcomplete>=1.10",
@@ -75,12 +75,12 @@ apache-airflow-ctl = "airflowctl.__main__:main"
 
 [build-system]
 requires = [
-    "hatchling==1.31.0",
-    "packaging==26.2",
+    "hatchling==1.32.4",
+    "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.6.1.19",
+    "tomlkit==0.15.1",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
@@ -166,7 +166,7 @@ enum-field-as-literal='one' # When a single enum member, make it output a `Liter
 input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='datetime'
-target-python-version='3.10'
+target-python-version='3.11'
 use-annotated=true
 use-default=true
 use-double-quotes=true
@@ -174,6 +174,7 @@ use-schema-description=true  # Desc becomes class doc comment
 use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # +annotations, not `Union[]`
+use-specialized-enum=false # (str, Enum), not StrEnum: str() and format() keep returning `Class.MEMBER`
 
 input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 output = "src/airflowctl/api/datamodels/generated.py"

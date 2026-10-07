@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { CloseButton, HStack, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+
+import { Box, Icon, Input, InputGroup, type InputGroupProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiSearch } from "react-icons/fi";
+import { FiSearch, FiX } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
 
+import { IconButton } from "src/system-components";
+
 import { AdvancedSearchToggle, type AdvancedSearchToggleProps } from "src/components/AdvancedSearchToggle";
+
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { getMetaKey } from "src/utils";
@@ -83,49 +87,42 @@ export const SearchBar = ({
     options: { enabled: !hotkeyDisabled, preventDefault: true },
   });
 
-  const inputGroup = (
+  return (
     <InputGroup
       colorPalette="brand"
+      maxW={{ base: "100%", md: "300px" }}
+      w="100%"
       {...props}
       endElement={
-        <>
-          {Boolean(value) ? (
-            <CloseButton
-              aria-label={translate("search.clear")}
-              data-testid="clear-search"
-              onClick={clearSearch}
-              size="xs"
-            />
-          ) : undefined}
-          {!hotkeyDisabled && (
-            <Kbd size="sm">
-              {metaKey}
-              {translate("search.hotkey")}
-            </Kbd>
-          )}
-        </>
+        Boolean(value) || advancedSearch ? (
+          <Box alignItems="center" bg="bg" display="flex" gap={1} mr={-2}>
+            {Boolean(value) ? (
+              <IconButton
+                data-testid="clear-search"
+                label={translate("search.clear")}
+                onClick={clearSearch}
+                size="xs"
+                variant="ghost"
+              >
+                <FiX />
+              </IconButton>
+            ) : undefined}
+            {advancedSearch ? <AdvancedSearchToggle size="xs" {...advancedSearch} /> : undefined}
+          </Box>
+        ) : undefined
       }
-      startElement={<FiSearch />}
+      startElement={<Icon as={FiSearch} color="fg.subtle" />}
     >
       <Input
         data-testid="search-dags"
         onChange={onSearchChange}
-        placeholder={placeholder}
-        pr={150}
+        placeholder={
+          hotkeyDisabled ? placeholder : `${placeholder} (${metaKey}${translate("search.hotkey")})`
+        }
         ref={searchRef}
+        size="sm"
         value={value}
       />
     </InputGroup>
-  );
-
-  if (!advancedSearch) {
-    return inputGroup;
-  }
-
-  return (
-    <HStack alignItems="center" gap={2}>
-      {inputGroup}
-      <AdvancedSearchToggle {...advancedSearch} />
-    </HStack>
   );
 };

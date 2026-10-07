@@ -130,6 +130,8 @@ Wait on an EMR Serverless Job state
 
 To monitor the state of an EMR Serverless Job you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`.
+This sensor can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
+the aiobotocore module to be installed.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_emr_serverless.py
    :language: python
@@ -150,6 +152,29 @@ To monitor the state of an EMR Serverless Application you can use
    :dedent: 4
    :start-after: [START howto_sensor_emr_serverless_application]
    :end-before: [END howto_sensor_emr_serverless_application]
+
+.. _howto/operator:EmrServerlessStartSessionOperator:
+
+Start an EMR Serverless interactive session
+===========================================
+
+To start an EMR Serverless interactive session that a Spark Connect client can attach to, use
+:class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStartSessionOperator`.
+Set ``deferrable=True`` to release the worker slot while the session warms up.
+
+.. note::
+    Interactive sessions require Amazon EMR release ``emr-7.13.0`` or later, and the session APIs
+    are only available in ``botocore>=1.43.0``. Deferrable mode additionally needs
+    ``aiobotocore>=3.6.0``, the first release whose ``botocore`` pin allows 1.43.0. The Amazon
+    provider keeps a lower minimum for these libraries, so install compatible versions to use
+    interactive sessions; the operator raises a clear error at runtime if the installed
+    ``botocore`` is too old.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_emr_serverless_session.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_emr_serverless_start_session]
+   :end-before: [END howto_operator_emr_serverless_start_session]
 
 Reference
 ---------

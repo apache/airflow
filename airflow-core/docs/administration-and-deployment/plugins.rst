@@ -81,6 +81,7 @@ Airflow plugins can register the following components:
 * *Macros* – Define reusable Python functions available in DAG templates.
 * *Operator Extra Links* – Add custom buttons in the task details view.
 * *Timetables & Listeners* – Implement custom scheduling logic and event hooks.
+* *Deadline References* – Register custom :doc:`Deadline Alert </howto/deadline-alerts>` reference classes.
 
 When are plugins (re)loaded?
 ----------------------------
@@ -118,6 +119,9 @@ looks like:
     class AirflowPlugin:
         # The name of your plugin (str)
         name = None
+        # The team owning this plugin (str), when multi-team mode is enabled. None means the
+        # plugin is global. Ignored when multi-team mode is off. See "Multi-team deployments" below.
+        team_name = None
         # A list of references to inject into the macros namespace
         macros = []
         # A list of dictionaries containing FastAPI app objects and some metadata. See the example below.
@@ -130,6 +134,10 @@ looks like:
         # Note: React apps are only supported in Airflow 3.1 and later.
         # Note: The React app integration is experimental and interfaces might change in future versions. Particularly, dependency and state interactions between the UI and plugins may need to be refactored for more complex plugin apps.
         react_apps = []
+        # A list of UI translation sources to add languages to, or override translations in, the UI.
+        # Each entry is a path to a ``<language>/<namespace>.json`` directory tree or an inline
+        # ``{language: {namespace: {key: value}}}`` mapping. See the example below.
+        ui_translations = []
 
         # A callback to perform actions when Airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
@@ -171,6 +179,10 @@ looks like:
 You can derive it by inheritance (please refer to the example below). In the example, all options have been
 defined as class attributes, but you can also define them as properties if you need to perform
 additional initialization. Please note ``name`` inside this class must be specified.
+
+``name`` must also be unique across all plugins. Airflow registers the first plugin it discovers under a
+given name and skips any later plugin that reuses it, so two plugins sharing a name means one of them is
+not loaded.
 
 Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
 
@@ -224,6 +236,75 @@ definitions in Airflow.
     app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
 
+.. warning::
+
+    **Airflow does not authenticate plugin FastAPI apps. Authenticating them is the
+    plugin author's responsibility.**
+
+    Airflow authenticates the core API with authentication dependencies, declared at the
+    router level and, for some endpoints, per route. A plugin app is attached with
+    ``app.mount()``, and a Starlette mount has its own route table and inherits none of the
+    parent's dependencies, so those dependencies never reach a plugin's routes. No
+    middleware in the API server authenticates them either.
+
+    Every route a plugin exposes is therefore reachable by **anonymous callers** unless
+    the plugin authenticates it itself. The minimal ``app`` above is a structural
+    illustration, not a template to deploy as-is.
+
+    Depend on ``GetUserDep`` to require a caller Airflow has authenticated:
+
+    .. code-block:: python
+
+        from fastapi import FastAPI
+
+        from airflow.api_fastapi.core_api.security import GetUserDep
+
+        app = FastAPI()
+
+
+        @app.get("/dashboard")
+        def dashboard(user: GetUserDep):
+            return {"user": user.get_name()}
+
+    Prefer attaching the dependency once, at the application or router level, so that a
+    route added later does not silently ship unauthenticated:
+
+    .. code-block:: python
+
+        from fastapi import Depends, FastAPI
+
+        from airflow.api_fastapi.core_api.security import get_user
+
+        app = FastAPI(dependencies=[Depends(get_user)])
+
+    Authentication is not authorization. ``GetUserDep`` establishes *who* is calling;
+    whether that user may perform a given action remains the plugin's own decision. This
+    applies to team scoping too and a global plugin that does not check the caller's team
+    serves every team's users the same data. The one exception is a plugin that declares a
+    ``team_name`` in a deployment with ``[core] multi_team`` enabled: Airflow then
+    authenticates its app and restricts it to that team's users, as described in
+    :ref:`plugins-multi-team`. With multi-team mode off, that plugin's app is mounted like
+    any other (unauthenticated).
+
+    The core API's access helpers can enforce that decision for you. For example,
+    ``requires_access_dag`` restricts a route to callers allowed the requested action on a
+    Dag; it authenticates the caller and reads the ``dag_id`` from the request:
+
+    .. code-block:: python
+
+        from fastapi import Depends, FastAPI
+
+        from airflow.api_fastapi.core_api.security import requires_access_dag
+
+        app = FastAPI()
+
+
+        @app.get("/dags/{dag_id}", dependencies=[Depends(requires_access_dag(method="GET"))])
+        def dag_detail(dag_id: str):
+            return {"dag_id": dag_id}
+
+.. code-block:: python
+
     # Creating a FastAPI middleware that will operates on all the server api requests.
     middleware_with_metadata = {
         "middleware": TrustedHostMiddleware,
@@ -257,6 +338,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional scoping, limiting where this view is shown. Omit it entirely to show the view
+        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        "applies_to": {
+            "dag_tags": ["production", "ml"],
+            "dag_ids": ["my_dag", "my_other_dag"],
+        },
     }
 
     # Note: The React app integration is experimental and interfaces might change in future versions.
@@ -272,7 +359,7 @@ definitions in Airflow.
         # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
         # element in the existing page via the css `order` rule which will determine the flex order.
         # Use "base" to mount the app in the base layout (e.g. a toolbar strip); the host uses a flex container so you can set ``order`` in your root JSX to control position.
-        "destination": "dag_run",
+        "destination": "task",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
@@ -287,6 +374,12 @@ definitions in Airflow.
         # are still grouped into the submenu; a single remaining non-promoted item is also shown on the toolbar.
         # Defaults to False.
         "nav_top_level": True,
+        # Optional scoping, limiting where this app is shown. Omit it entirely to show the app
+        # everywhere (the default). See "Scoping a view to specific Dags and tasks" below.
+        "applies_to": {
+            "dag_tags": ["production", "ml"],
+            "operators": ["KubernetesPodOperator"],
+        },
     }
 
 
@@ -300,6 +393,71 @@ definitions in Airflow.
         react_apps = [react_app_with_metadata]
 
 .. seealso:: :doc:`/howto/define-extra-link`
+
+Scoping a view to specific Dags and tasks
+-----------------------------------------
+
+By default an external view or React app is shown on every page matching its ``destination``.
+The optional ``applies_to`` block narrows that down, so a tab is only offered where it is
+relevant instead of appearing on every Dag:
+
+.. code-block:: python
+
+    "applies_to": {
+        "dag_tags": ["ml"],  # Dag carries any of these tags
+        "dag_ids": ["train_pipeline"],  # exact dag_id
+        "task_ids": ["train_model"],  # exact task_id
+        "operators": ["KubernetesPodOperator"],  # operator class name
+    }
+
+All keys are optional. ``operators`` and ``operator_names`` are matched separately, the same
+way the task instance filters treat them: ``operators`` is the operator class name, while
+``operator_names`` is the display name shown in the UI (an operator's
+``custom_operator_name``). For a plain operator the two are identical, so either key works.
+They differ for decorator-based tasks: a ``@task.bash`` task has the display name
+``@task.bash`` but the private class name ``_BashDecoratedOperator``, so use
+``operator_names`` to target it.
+
+Criteria combine like Kubernetes label selectors — **OR within a key, AND across keys**. A
+Dag matching any listed tag satisfies ``dag_tags``, and a view configured with both
+``dag_tags`` and ``operators`` requires both to match.
+
+Crucially, the AND applies **only across criteria the current page can evaluate**. A
+``task_ids`` criterion cannot be judged on a Dag-level page, so it is skipped there rather
+than failing the match. This lets one ``applies_to`` block be shared by a plugin's Dag- and
+task-level destinations. Which criteria each destination can evaluate:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Destination
+     - ``dag_tags`` / ``dag_ids``
+     - ``task_ids`` / ``operators`` / ``operator_names``
+   * - ``dag``, ``dag_run``, ``dag_overview``
+     - evaluated
+     - skipped
+   * - ``task``, ``task_overview``, ``task_instance``
+     - evaluated
+     - evaluated
+   * - ``nav``, ``base``, ``dashboard``, ``asset``
+     - skipped
+     - skipped
+
+If none of the configured criteria can be evaluated on a given page, the view is shown. On
+task group pages the task-level criteria are skipped, since a group is not a task.
+
+A malformed ``applies_to`` — one that is not a dictionary, names an unknown criterion, or
+gives a criterion something other than a list of strings — is reported as a warning when
+plugins are loaded, and ignored, so the view still loads unscoped. Configuring a criterion
+the ``destination`` cannot evaluate (for example ``task_ids`` on a ``dag`` view) is also
+warned about, since it has no effect there. Check the API server log for these warnings if a
+view is not scoped the way you expect.
+
+.. note::
+    ``applies_to`` is a display convenience, not an authorization boundary. It controls
+    whether the UI offers the tab, not whether the underlying view can be reached — a user
+    who knows the ``url_route`` can still navigate to it directly. Use access control to
+    restrict who may view a plugin's data.
 
 React app context props
 -----------------------
@@ -321,6 +479,208 @@ The props available depend on where the app is mounted (its ``destination`` and 
   is served from the UI's query cache the details page has already populated (no extra request).
   On routes or ``destination`` values without those identifiers (e.g. ``nav``, ``base``,
   ``dashboard``), the corresponding objects are ``undefined``.
+
+Adding or overriding UI translations
+------------------------------------
+
+The ``ui_translations`` attribute lets a plugin add a language the Airflow UI does not ship, or
+override individual strings in a language it does. Each entry is either a path to a
+``<language>/<namespace>.json`` directory tree (mirroring Airflow's own
+``airflow/ui/public/i18n/locales`` layout) or an inline
+``{language: {namespace: {key: value}}}`` mapping. Both forms can be mixed in the same list.
+
+.. code-block:: python
+
+    from pathlib import Path
+
+    from airflow.plugins_manager import AirflowPlugin
+
+
+    class TranslationsPlugin(AirflowPlugin):
+        name = "translations"
+        ui_translations = [
+            # A directory tree, e.g. locales/eo/common.json, adding Esperanto as a new language.
+            Path(__file__).parent / "locales",
+            # Override individual keys in a language Airflow already ships.
+            {"en": {"dags": {"dag_one": "Pipeline"}}},
+        ]
+
+The plugin's values are deep-merged on top of the built-in translations, so an override replaces
+only the keys it names (at any nesting depth) and leaves the rest untouched. Keys a plugin does not
+provide fall back to the built-in language, and ultimately to English.
+
+Because translations are not versioned in lockstep with Airflow, robustness is built in:
+
+- A malformed or unreadable translation source is skipped with a warning in the API server log; it
+  never stops the API server from starting or keeps other plugins from loading.
+- English is the reference for which keys exist. When translations are consolidated at startup, any
+  plugin key that is **not** present in the English file for its namespace (likely renamed or removed
+  upstream) is logged as a warning in the API server log and otherwise ignored.
+
+Right-to-left languages are handled automatically: the UI derives text direction from the language
+code (via the browser's locale data, e.g. Persian ``fa`` or Urdu ``ur``), so a custom RTL language
+flips the whole UI to right-to-left without any extra configuration.
+
+.. _plugins-multi-team:
+
+Multi-team deployments
+----------------------
+
+.. versionadded:: 3.4.0
+
+A plugin can name the team that owns it by setting ``team_name``. Airflow then offers what the
+plugin contributes to that team only, instead of to the whole deployment:
+
+.. code-block:: python
+
+    from airflow.plugins_manager import AirflowPlugin
+
+    from my_package.payments import PaymentWindowTimetable, settlement_date
+
+
+    class PaymentsPlugin(AirflowPlugin):
+        name = "payments"
+        # Only this team's Dags, tasks and users get the pieces below.
+        team_name = "payments"
+        macros = [settlement_date]
+        timetables = [PaymentWindowTimetable]
+
+``team_name`` is part of the plugin's code, so the plugin author decides it; there is no
+deployment-time override. Leaving it unset (the default) makes the plugin **global**: everything
+it contributes is available to every team, which is how plugins written before multi-team support
+behaved.
+
+``team_name`` only takes effect when :doc:`multi-team mode </core-concepts/multi-team>` is
+enabled. With ``[core] multi_team = False`` it is ignored and every plugin is global.
+
+The team must already exist in the metadata database (``airflow teams create <team_name>``). The
+API server checks this when it loads plugins for the API: a plugin naming an unknown team is
+recorded as a plugin import error (surfaced under *Admin → Plugins* and at
+``GET /api/v2/plugins/importErrors``) and logged as a warning. It is deliberately not raised, so
+one misconfigured plugin does not stop the API server, or the other plugins, from starting. This is
+cached for the life of the process, so creating the team afterwards does not clear
+the error until the API server restarts. The plugin still loads, and everything it scopes to the
+nonexistent team is unusable in the meantime. Its scheduling classes are refused for every Dag,
+its macros resolve for no task, and its extra links are shown nowhere.
+
+Team validation of plugins runs in the API server. Plugin loading in the other components
+does no team lookup at all, and the subprocess that imports Dag files has no database session.
+
+Plugin *discovery* is unchanged: every Airflow component still loads every installed plugin, and
+``team_name`` decides who is offered what. ``airflow plugins`` lists each plugin's ``team_name``.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - Plugin attribute
+     - Effect of ``team_name``
+   * - ``fastapi_apps``
+     - App is mounted behind a team check; only that team's users may call it.
+   * - ``fastapi_root_middlewares``
+     - Skipped, with a warning. A root middleware cannot be scoped to one team.
+   * - ``external_views``, ``react_apps``
+     - Only offered in the UI to that team's users.
+   * - ``macros``
+     - Only resolvable when rendering templates for that team's tasks.
+   * - ``global_operator_extra_links``, ``operator_extra_links``
+     - Only shown on task instances of that team's Dags.
+   * - ``timetables``, ``partition_mappers``, ``windows``, ``deadline_references``,
+       ``priority_weight_strategies``
+     - Only usable by that team's Dags.
+   * - ``listeners``
+     - None. Every listener receives events for all teams.
+   * - ``ui_translations``, ``hook_lineage_readers``, ``flask_blueprints``,
+       ``appbuilder_views``, ``appbuilder_menu_items``, ``admin_views``, ``menu_links``
+     - None. These stay global.
+
+Listeners are deployment-wide by design: every listener, including one a team plugin registers,
+receives events for every team's Dags. Their hooks fire in shared components such as the scheduler
+and the API server, so choosing which listeners run is the Deployment Manager's responsibility.
+
+API endpoints
+^^^^^^^^^^^^^
+
+A team plugin's ``fastapi_apps`` are mounted with a middleware that resolves the caller (bearer
+token or UI session cookie, exactly as the core API does) and asks the auth manager whether that
+user is authorized for the team. A caller the middleware cannot authenticate gets the same
+``401``/``403`` the core API returns for that token; an authenticated caller who is not authorized
+for the team gets ``403``. The request's HTTP method is mapped onto one of Airflow's resource
+methods (``GET``/``HEAD``/``OPTIONS`` → ``GET``, ``POST`` → ``POST``, ``PUT``/``PATCH`` → ``PUT``,
+``DELETE`` → ``DELETE``) before it is passed on, so an auth manager that distinguishes methods can
+grant a team read-only access to its own plugin. Auth managers that only check membership can
+ignore it.
+
+This is the only authorization Airflow adds to a plugin app. Whether the caller may perform a
+given action *within* the team is still the plugin's decision, and a **global** plugin's app gets
+no authentication and no team check at all — see the warning in :ref:`the example above
+<plugin-example>`.
+
+``fastapi_root_middlewares`` are not scoped. A root middleware wraps every request to the API
+server, including core routes and other teams' plugins, so one declared by a team plugin is
+skipped and a warning is logged. A team plugin that needs middleware should apply it inside its
+own FastAPI app, where it only sees that app's requests.
+
+UI elements
+^^^^^^^^^^^
+
+The UI builds its navigation items, external views and React apps from ``GET /api/v2/plugins``,
+which returns global plugins plus the plugins of teams the caller is authorized for. A team
+plugin's UI pieces are therefore only offered to that team's users. The endpoint still requires
+the existing *Plugins* view permission; team scoping narrows what that permission returns rather
+than introducing a separate one.
+
+``GET /api/v2/plugins/importErrors`` is **not** filtered by team: anyone with the *Plugins* view
+permission sees the import errors of all plugins, including their source paths and error text. A
+plugin load failure is deployment-level information that the person debugging it needs, so it is
+reported the same way to everyone who may see the plugins page at all.
+
+Macros
+^^^^^^
+
+``{{ macros.<plugin_name>.<macro> }}`` resolves only for that team's tasks. A task of another
+team, or of a teamless Dag, gets an ``AttributeError`` naming the owning team. Built-in macros and
+global plugins' macros are unaffected.
+
+This is logical scoping not an isolation boundary. The plugin's macro module is imported into
+the worker process like any other, so task code that goes looking for it — through
+``sys.modules``, say — will still find it. The scoping keeps one team's macros out of another
+team's templates; it does not stop a task author who sets out to reach them.
+
+Operator extra links
+^^^^^^^^^^^^^^^^^^^^
+
+Extra links a team plugin registers, through either ``global_operator_extra_links`` or
+``operator_extra_links``, are shown only on task instances of that team's Dags (not on another
+team's Dags and not on teamless ones). Filtering is by the team of the Dag the link would be
+rendered for.
+
+Links that a global plugin registers as well as links that an operator defines itself are
+untouched. A link class registered by both a team plugin and a global plugin stays visible
+everywhere: the global registration wins, so a team plugin cannot withdraw a link from the
+rest of the deployment.
+
+Scheduling classes
+^^^^^^^^^^^^^^^^^^
+
+Timetables, partition mappers, windows, deadline references and priority weight strategies are
+named by a Dag directly, so scoping them means deciding which Dags may name them. A Dag's team is
+the team that owns the bundle it was parsed from (see :ref:`multi-team-dag-bundles`). If only
+team-scoped plugins register a class, a Dag that names it and does not belong to one of those
+teams is **not stored**, and gets an import error naming the class, its owning team and the two
+ways out: move the Dag into a bundle owned by that team, or have the plugin provide the class
+globally. The rest of the bundle is stored normally, so one such Dag does not take its neighbours
+down with it.
+
+A class that any global plugin also registers stays available to every Dag. Airflow's own
+timetables, partition mappers and windows (anything under ``airflow.timetables.`` or
+``airflow.partition_mappers.``) are never team-owned, even if a team plugin lists them:
+deserialization imports those paths directly and never consults plugins.
+
+One gap remains: a partition mapper that a timetable picks inside ``get_partition_mapper()`` is
+not covered, because nothing names it until the timetable runs. As with macros, this is logical
+scoping, it decides which Dags Airflow will schedule with a class, not what Dag code is able to
+import.
 
 Exclude views from CSRF protection
 ----------------------------------

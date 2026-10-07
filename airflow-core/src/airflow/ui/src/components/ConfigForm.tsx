@@ -16,27 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode, Dispatch, SetStateAction } from "react";
+
 import { Box, Field } from "@chakra-ui/react";
 import { type Control, type FieldValues, type Path, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+
+import { Accordion } from "src/system-components";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import { FlexibleForm, flexibleFormDefaultSection } from "./FlexibleForm";
 import { JsonEditor } from "./JsonEditor";
-import { Accordion } from "./ui";
 
 type ConfigFormProps<T extends FieldValues = FieldValues> = {
-  readonly children?: React.ReactNode;
+  readonly children?: ReactNode;
   readonly control: Control<T>;
   readonly errors: {
     conf?: string;
     date?: unknown;
   };
   readonly initialParamsDict: { paramsDict: ParamsSpec };
-  readonly setErrors: React.Dispatch<
-    React.SetStateAction<{
+  readonly setErrors: Dispatch<
+    SetStateAction<{
       conf?: string;
       date?: unknown;
     }>

@@ -16,11 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, type TextProps } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
-import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
+
+import { Box, type TextProps } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { FiArrowDownRight, FiArrowUpRight } from "react-icons/fi";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
+
+import { formatNumber } from "src/utils";
 
 export type TaskNameProps = {
   readonly childCount?: number;
@@ -48,9 +52,11 @@ export const TaskName = ({
   setupTeardownType,
   ...rest
 }: TaskNameProps) => {
+  const { i18n } = useTranslation();
+
   if (isGroup) {
     return (
-      <Text
+      <Box
         fontSize="md"
         fontWeight="bold"
         overflow="hidden"
@@ -60,12 +66,12 @@ export const TaskName = ({
       >
         {label}
         {isMapped ? " [ ]" : undefined}
-      </Text>
+      </Box>
     );
   }
 
   return (
-    <Text
+    <Box
       fontSize={isZoomedOut ? "lg" : "md"}
       fontWeight="bold"
       overflow="hidden"
@@ -74,11 +80,13 @@ export const TaskName = ({
       {...rest}
     >
       {label}
-      {isMapped ? ` [${childCount ?? " "}]` : undefined}
+      {isMapped
+        ? ` [${childCount === undefined ? " " : formatNumber(childCount, i18n.language)}]`
+        : undefined}
       {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
       {setupTeardownType === "teardown" && (
         <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
       )}
-    </Text>
+    </Box>
   );
 };

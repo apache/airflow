@@ -30,14 +30,17 @@ from cachetools import TTLCache, cached
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Float,
     ForeignKey,
     Index,
     Integer,
     String,
     Text,
+    and_,
     case,
     func,
+    inspect as sa_inspect,
     or_,
     select,
 )
@@ -69,16 +72,17 @@ from airflow.serialization.encoders import DAT, encode_deadline_alert
 from airflow.serialization.enums import Encoding
 from airflow.timetables.base import DataInterval, PartitionMapperInfo, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from typing import TypeAlias
 
     from dateutil.relativedelta import relativedelta
+    from sqlalchemy.orm.state import InstanceState
 
     from airflow.sdk import Context
     from airflow.serialization.definitions.assets import (
@@ -128,8 +132,9 @@ def infer_automated_data_interval(timetable: Timetable, logical_date: datetime) 
 
     :meta private:
     """
-    timetable_type = type(timetable)
-    if issubclass(timetable_type, (NullTimetable, OnceTimetable, AssetTriggeredTimetable)):
+    if timetable.asset_triggered or issubclass(
+        timetable_type := type(timetable), (NullTimetable, OnceTimetable)
+    ):
         return DataInterval.exact(timezone.coerce_datetime(logical_date))
     start = timezone.coerce_datetime(logical_date)
     if issubclass(timetable_type, CronDataIntervalTimetable):
@@ -319,6 +324,7 @@ class DagModel(Base):
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused: Mapped[bool] = mapped_column(Boolean, default=is_paused_at_creation)
+    is_draining: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     exceeds_max_non_backfill: Mapped[bool] = mapped_column(
@@ -358,6 +364,8 @@ class DagModel(Base):
     timetable_partitioned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Whether the timetable is periodic (supports backfilling).
     timetable_periodic: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    # Whether the timetable's scheduled runs are gated on an asset condition.
+    timetable_asset_gated: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Cached partition mapper metadata for partitioned timetables, populated
     # during Dag serialization so the UI can resolve mapper attributes without
     # deserializing the timetable. See ``PartitionMapperInfo`` for the per-asset
@@ -403,7 +411,11 @@ class DagModel(Base):
     # Earliest time at which this ``next_dagrun`` can be created.
     next_dagrun_create_after: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
-    __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
+    __table_args__ = (
+        Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
+        Index("idx_dag_is_draining", is_draining, unique=False),
+        CheckConstraint("NOT (is_paused AND is_draining)", name="dag_pause_state_valid"),
+    )
 
     schedule_asset_references = relationship(
         "DagScheduleAssetReference",
@@ -440,6 +452,28 @@ class DagModel(Base):
     dag_versions = relationship(
         "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
     )
+    # Path from a Dag to its owning team, used by ``team_name`` below. ``lazy="raise"`` keeps the
+    # traversal opt-in so a caller that forgets eager_load_teams() cannot emit a silent N+1.
+    bundle = relationship("DagBundleModel", viewonly=True, lazy="raise")
+
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning this Dag, or ``None`` when it is not team-owned."""
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+
+        state: InstanceState = sa_inspect(self)
+        if "bundle" in state.unloaded:
+            # Serialization paths that fetch a Dag by primary key cannot apply loader options
+            # (e.g. Deadline.handle_miss, asset materialization), so fall back to the cached
+            # resolver rather than tripping ``lazy="raise"``. Reuse this instance's own session:
+            # ``get_team_name`` is ``@provide_session``, and the session it would otherwise open
+            # is the *same* scoped session the caller holds, so closing it on exit would detach
+            # every object still in use.
+            if state.session is not None:
+                return DagModel.get_team_name(self.dag_id, session=state.session)
+            return DagModel.get_team_name(self.dag_id)
+        return self.bundle.team_name if self.bundle else None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -460,6 +494,36 @@ class DagModel(Base):
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
+
+    @property
+    def scheduling_state(self) -> DagSchedulingState:
+        """Return the Dag's scheduling state."""
+        if self.is_paused:
+            return DagSchedulingState.PAUSED
+        if self.is_draining:
+            return DagSchedulingState.DRAINING
+        return DagSchedulingState.ACTIVE
+
+    def set_scheduling_state(self, state: DagSchedulingState) -> None:
+        """Set the Dag's scheduling state."""
+        self.is_paused = state == DagSchedulingState.PAUSED
+        self.is_draining = state == DagSchedulingState.DRAINING
+
+    @classmethod
+    def start_drain(cls, dag_id: str, *, session: Session) -> None:
+        """
+        Put the Dag into the draining state.
+
+        Lock the Dag row and change its scheduling state in the caller's transaction.
+        Call this in the transaction that creates the explicit runs so the state change
+        commits or rolls back with them.
+        """
+        dag_model = session.scalars(
+            with_row_locks(
+                select(cls).where(cls.dag_id == dag_id), of=cls, session=session
+            ).execution_options(populate_existing=True)
+        ).one()
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
 
     def is_rollup_asset(self, *, name: str, uri: str) -> bool:
         """
@@ -646,9 +710,10 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
 
-        For asset-triggered scheduling, Dags that have ``AssetDagRunQueue`` rows but no matching
-        ``SerializedDagModel`` row are omitted from ``triggered_date_by_dag`` until serialization exists;
-        ADRQs are **not** deleted here so the scheduler can re-evaluate on a later run.
+        For asset-triggered and asset-gated scheduling, Dags that have ``AssetDagRunQueue`` rows
+        but no matching ``SerializedDagModel`` row are omitted from the asset-aware scheduling
+        buckets until serialization exists; ADRQs are **not** deleted here so the scheduler can
+        re-evaluate on a later run.
 
         :meta private:
         """
@@ -687,7 +752,7 @@ class DagModel(Base):
 
         if adrq_by_dag:
             log.info(
-                "Asset-triggered Dags with queued events: %s",
+                "Asset-aware Dags with queued events: %s",
                 {dag_id: len(adrqs) for dag_id, adrqs in adrq_by_dag.items()},
             )
 
@@ -706,12 +771,19 @@ class DagModel(Base):
             for dag_id in missing_from_serialized:
                 del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
+        asset_gated_ready_dag_ids: set[str] = set()
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
-            ready = dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses)
+            timetable = ser_dag.dag.timetable
+            ready = dag_ready(dag_id, cond=timetable.asset_condition, statuses=statuses)
             if not ready:
                 log.debug("Asset condition not met for dag '%s'", dag_id)
+            if timetable.asset_gated and ready:
+                asset_gated_ready_dag_ids.add(dag_id)
+            if not (timetable.asset_triggered and ready):
+                # Only satisfied asset-triggered Dags stay in the asset-triggered bucket
+                # (adrq_by_dag feeds triggered_date_by_dag below).
                 del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
@@ -745,17 +817,20 @@ class DagModel(Base):
                     k: v for k, v in triggered_date_by_dag.items() if k not in exclusion_list
                 }
 
+        time_due = cls.next_dagrun_create_after <= func.now()
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
         query = (
             select(cls)
             .where(
                 cls.is_paused == expression.false(),
+                cls.is_draining == expression.false(),
                 cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
                 cls.exceeds_max_non_backfill == expression.false(),
                 or_(
-                    cls.next_dagrun_create_after <= func.now(),
                     cls.dag_id.in_(asset_triggered_dag_ids),
+                    and_(cls.dag_id.in_(asset_gated_ready_dag_ids), time_due),
+                    and_(cls.timetable_asset_gated == expression.false(), time_due),
                 ),
             )
             .order_by(cls.next_dagrun_create_after)

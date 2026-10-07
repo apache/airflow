@@ -23,9 +23,11 @@
 //
 //     node my-bundle.mjs --comm=host:port --logs=host:port
 //
-// where `my-bundle.mjs` is a user-bundled Node script that imports
-// the SDK, calls `registerTask(...)` for each handler, then calls
-// `startCoordinator()`.
+// where `my-bundle.mjs` is a user-bundled Node script that imports the SDK,
+// registers what it provides on a `Bundle` (a `TaskHandler` per Python-owned
+// task, a `Dag` per natively declared one), then awaits `bundle.serve()`. Each
+// handler runs inside a task scope, which is what `getContext()` and
+// `getClient()` read.
 //
 // Lifecycle:
 //   1. Parse --comm / --logs from argv
@@ -34,6 +36,7 @@
 //        - DagFileParseRequest → respond with DagFileParsingResult, exit
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
+import { resolveArgs, type BoundArgs } from "./arg-binding.js";
 import { createCoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
@@ -46,13 +49,19 @@ import {
   asMsgFromSupervisor,
   SUPERVISOR_API_VERSION,
   type RuntimeDagFileParsingResult,
+  type RuntimeDeferTask,
   type RuntimeRetryTask,
   type RuntimeSucceedTask,
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import { getRegisteredTask, listRegisteredTasks } from "../sdk/registry.js";
-import type { TaskContext, TaskHandlerArgs } from "../sdk/task.js";
+import { getArgNames } from "../sdk/arg-names.js";
+import { bundleDags, bundleDagTaskIds, getBundleTrigger, type Bundle } from "../sdk/bundle.js";
+import { finalizeDag } from "../sdk/dag.js";
+import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
+import { computeRelativeFileloc, serializeDag } from "./serde.js";
+import { runTriggerDagRun } from "./trigger-runner.js";
+import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
@@ -108,12 +117,21 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   return { commAddr, logsAddr };
 }
 
-/** Start the coordinator runtime. Resolves when the subprocess has
- *  delivered its terminal frame and closed both sockets. */
-export async function startCoordinator(opts: StartCoordinatorOptions = {}): Promise<void> {
+/** Start the coordinator runtime, dispatching to `bundle`. Resolves when the
+ *  subprocess has delivered its terminal frame and closed both sockets.
+ *
+ *  Internal: `bundle.serve()` is the entry point Dag authors call, so this is
+ *  deliberately absent from the package `"exports"` map. Tests drive it
+ *  directly to supply explicit socket addresses. */
+export async function startCoordinator(
+  bundle: Bundle,
+  opts: StartCoordinatorOptions = {},
+): Promise<void> {
   const argv = opts.argv ?? process.argv;
   if (argv.includes(AIRFLOW_METADATA_FLAG)) {
-    process.stdout.write(`${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest())}\n`);
+    process.stdout.write(
+      `${AIRFLOW_METADATA_SENTINEL}${JSON.stringify(buildBundleManifest(bundle))}\n`,
+    );
     return;
   }
   const parsed =
@@ -135,10 +153,10 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
-    const tasks = listRegisteredTasks();
+    const byDag = bundleDagTaskIds(bundle);
     runtimeLogs.info("Coordinator runtime started", {
-      registered_tasks: tasks,
-      count: tasks.length,
+      registered_tasks: Object.fromEntries(byDag),
+      count: [...byDag.values()].reduce((total, tasks) => total + tasks.length, 0),
       // Cadwyn schema version this SDK was generated against. Logged
       // for operator visibility; not sent on the wire.
       supervisor_api_version: SUPERVISOR_API_VERSION,
@@ -157,7 +175,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
         file: body.file,
         bundle_path: body.bundle_path,
       });
-      const response = handleParse(body, runtimeLogs);
+      const response = handleParse(body, bundle, runtimeLogs);
       await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
     } else if (body.type === "StartupDetails") {
       runtimeLogs.info("Received task startup details", {
@@ -170,6 +188,7 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
       });
       const response = await handleTask(
         body,
+        bundle,
         comm,
         runtimeLogs,
         logs.child("client"),
@@ -178,6 +197,8 @@ export async function startCoordinator(opts: StartCoordinatorOptions = {}): Prom
       await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
       if (response.type === "SucceedTask") {
         runtimeLogs.info("Task succeeded", { task_id: body.ti.task_id });
+      } else if (response.type === "DeferTask") {
+        runtimeLogs.info("Task deferred", { task_id: body.ti.task_id });
       }
     } else {
       const errMsg = `First frame must be DagFileParseRequest or StartupDetails, got ${body.type}`;
@@ -248,38 +269,102 @@ export function createRuntimeAbort(
   };
 }
 
+/**
+ * Answer a parse request with the Dags this bundle declared in TypeScript.
+ *
+ * A Dag known only through task handlers is left out: its graph belongs to the
+ * Python Dag file that declares it, and serializing it here would register a
+ * second Dag with the same `dag_id` from a different `fileloc`.
+ *
+ * No handler body runs: a `TaskRef` is inert, so reading a Dag only walks what
+ * its module already built. Reading it is also what enforces that every task
+ * was called exactly once, which is why a Dag that is not fully laid out
+ * surfaces here.
+ *
+ * A Dag that cannot be finalized or serialized becomes an import error against
+ * this file, as a Python Dag file that raises does, rather than failing the
+ * whole parse: one broken Dag must not take out the others a bundle serves.
+ */
 function handleParse(
   request: { file: string; bundle_path: string },
+  bundle: Bundle,
   logs: LogChannel,
 ): RuntimeDagFileParsingResult {
-  // TypeScript-native Dag parsing is not yet supported.
-  // Respond with an empty result so the Python-stub-Dag workflow works.
-  logs.info("Parse-mode response (TS Dag parsing not yet supported)", {
-    registered_tasks: listRegisteredTasks(),
+  const fileloc = request.file;
+  const relativeFileloc = computeRelativeFileloc(fileloc, request.bundle_path);
+  const serializedDags: { data: Record<string, unknown> }[] = [];
+  // Airflow keys an import error by the bundle-relative path and holds one row
+  // per file (`DagFileProcessorManager.update_import_errors`), so every failure
+  // in this bundle is reported under that one key, naming its Dag in the
+  // message. An absolute path, or one with a Dag id appended, would give a row
+  // the UI cannot tie back to the file, and would leave the file itself looking
+  // healthy while its Dags had vanished.
+  const failures: string[] = [];
+
+  const dags = [...bundleDags(bundle).values()];
+  for (const dag of dags) {
+    try {
+      finalizeDag(dag);
+      serializedDags.push({
+        data: {
+          __version: SERIALIZATION_VERSION,
+          dag: serializeDag(dag, fileloc, relativeFileloc),
+        },
+      });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      logs.error("Dag could not be serialized", { dag_id: dag.dagId, detail });
+      failures.push(`Dag "${dag.dagId}": ${detail}`);
+    }
+  }
+
+  logs.info("Parse-mode response", {
+    fileloc,
+    dag_ids: dags.map((dag) => dag.dagId),
+    serialized: serializedDags.length,
+    import_errors: failures.length,
   });
-  const response: RuntimeDagFileParsingResult = {
+  const result: RuntimeDagFileParsingResult = {
     type: "DagFileParsingResult",
-    fileloc: request.file,
-    serialized_dags: [],
+    fileloc,
+    serialized_dags: serializedDags,
   };
-  return response;
+  if (failures.length > 0) {
+    result.import_errors = { [relativeFileloc]: failures.join("\n") };
+  }
+  return result;
 }
 
 async function handleTask(
   details: StartupDetails,
+  bundle: Bundle,
   comm: CommChannel,
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
-): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
+): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState | RuntimeDeferTask> {
   const ti = details.ti;
-  const handler = getRegisteredTask(ti.dag_id, ti.task_id);
+  const trigger = getBundleTrigger(bundle, ti.dag_id, ti.task_id);
+  if (trigger) {
+    const ctx = buildContext(details, signal);
+    const client = createCoordinatorClient(comm, ctx, clientLogs);
+    const fail = (message: string) => {
+      logs.error("Task failed", { task_id: ctx.taskId, error: message });
+      return buildFailureResponse(details, message);
+    };
+    try {
+      return await runTriggerDagRun(details, trigger, client, logs, ctx.signal, fail);
+    } catch (err) {
+      return fail((err as Error).message ?? String(err));
+    }
+  }
+  const handler = bundle.getTaskHandler(ti.dag_id, ti.task_id);
 
   if (!handler) {
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
-      available: listRegisteredTasks(),
+      available: Object.fromEntries(bundleDagTaskIds(bundle)),
     });
     // A missing handler means this bundle cannot run the task, so retrying the
     // same bundle/configuration mismatch would not help.
@@ -293,18 +378,38 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, clientLogs);
-  const args: TaskHandlerArgs = { ctx, client };
+
+  let bound: BoundArgs;
+  try {
+    bound = await resolveArgs(details.ti_context?.arg_bindings, {
+      client,
+      signal: ctx.signal,
+      logs,
+      argNames: getArgNames(handler),
+    });
+  } catch (err) {
+    // Before the handler ran, so nothing it might have written is at stake.
+    const message = (err as Error).message ?? String(err);
+    logs.error("Cannot bind this task's call arguments", {
+      task_id: ctx.taskId,
+      error: message,
+    });
+    return buildFailureResponse(details, message);
+  }
   // Startup-details fields already logged above (`Received task
   // startup details`); this line just marks the handler-call boundary.
-  logs.debug("Dispatching to handler", { task_id: ctx.taskId });
+  logs.debug("Dispatching to handler", { task_id: ctx.taskId, bound_args: bound.names });
 
   try {
-    const result = await handler(args);
+    // The scope is installed around the call, not awaited inside it: the store
+    // follows the handler across every `await` it makes, so `getContext()` and
+    // `getClient()` work at any depth without the handler being handed either.
+    const result = await runInTaskScope({ ctx, client }, () => handler(bound.args as never));
     if (result !== undefined) {
       await client.setXCom({ key: "return_value", value: result as JsonValue });
     }
     // SucceedTask MUST include task_outlets and outlet_events as
-    // empty lists — the Execution API's TISuccessStatePayload
+    // empty lists, since the Execution API's TISuccessStatePayload
     // tagged-union validator rejects null for these fields.
     const response: RuntimeSucceedTask = {
       type: "SucceedTask",
@@ -319,6 +424,10 @@ async function handleTask(
       task_id: ctx.taskId,
       error: message,
       stack: (err as Error).stack ?? null,
+      // A handler that destructured a bound argument under a name nothing
+      // folds to gets no error of its own, so a failing task says what its
+      // call actually delivered.
+      bound_args: bound.names,
     });
     return buildFailureResponse(details, message);
   }

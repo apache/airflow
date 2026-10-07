@@ -72,11 +72,6 @@ class AlibabaBaseHook(BaseHook):
             ),
         }
 
-    @classmethod
-    def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Return custom field behaviour."""
-        return super().get_ui_field_behaviour()
-
     def _get_field(self, field_name: str, default: Any = None) -> Any:
         """Fetch a field from extras, and returns it."""
         value = self.extras.get(field_name)

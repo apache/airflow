@@ -19,40 +19,207 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.builderName
+import org.apache.airflow.sdk.internal.registrarName
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
+
 /**
- * An immutable snapshot of all [Dag]s that this JVM process can execute.
+ * All [DagDef]s that this JVM process can execute.
  *
- * Build a [Bundle] by implementing [BundleBuilder], then pass it to
- * [Server.serve] to start accepting task-execution requests.
+ * Register everything before passing the bundle to [Server.serve]: serving
+ * ends registration, so a `register` left below it fails rather than racing
+ * the running task.
  *
- * @property dags All registered Dags keyed by [Dag.id].
- * @throws IllegalArgumentException if any two Dags share the same ID.
+ * @property dags Dags declared in Java, keyed by [DagDef.id].
+ * @throws IllegalArgumentException if any two Dags share the same ID, if a
+ *    task depends on an upstream that is not registered in its own Dag, or if
+ *    the dependencies of a Dag contain a cycle.
  */
 class Bundle(
-  dags: Iterable<Dag>,
+  dags: Iterable<DagDef>,
 ) {
-  internal val dags: Map<String, Dag> = dags.associateByDagId()
-}
+  /** Dags declared in Java, which own their own tasks. */
+  internal val dags = linkedMapOf<String, DagDef>()
 
-private fun Iterable<Dag>.associateByDagId(): Map<String, Dag> {
-  val dagMap = linkedMapOf<String, Dag>()
-  for (dag in this) {
-    require(dagMap.putIfAbsent(dag.id, dag) == null) {
+  /** Dags the Python file owns, holding the task handlers registered for them. */
+  internal val taskHandlers = linkedMapOf<String, DagDef>()
+
+  // This only guards the serve boundary, not registers racing each other. This is fine since
+  // we only encourage one sync register() chain; single-threaded by contract.
+  @Volatile
+  private var served = false
+
+  /** Creates an empty bundle to [register] into. */
+  constructor() : this(emptyList())
+
+  init {
+    dags.forEach { register(it) }
+  }
+
+  /**
+   * Registers a Dag.
+   *
+   * The Dag is checked as it is registered, so a bad edge fails here rather
+   * than at the first task run.
+   *
+   * @return This bundle, for chaining.
+   * @throws IllegalArgumentException if another Dag shares its ID, task
+   *    handlers are already registered against it, a task depends on an
+   *    upstream not registered in the same Dag, or the dependencies contain a
+   *    cycle.
+   * @throws IllegalStateException if [Server.serve] has already been called.
+   */
+  fun register(dag: DagDef): Bundle {
+    checkOpen()
+    require(dag.id !in taskHandlers) {
+      "Dag '${dag.id}' already has registered task handlers; a Dag declared in Java owns its " +
+        "own tasks, so one Dag ID cannot have both"
+    }
+    for ((taskId, def) in dag.tasks) {
+      for (upstream in def.upstreams) {
+        require(dag.tasks[upstream.id] === upstream) {
+          "Task '$taskId' in Dag '${dag.id}' depends on task '${upstream.id}' " +
+            "that is not registered in the same Dag"
+        }
+      }
+    }
+    checkNoCycle(dag)
+    require(dags.putIfAbsent(dag.id, dag) == null) {
       "Dags in bundle have duplicate ID: ${dag.id}"
     }
+    return this
   }
-  return dagMap
+
+  /**
+   * Registers what an annotated class holds, read from the class itself so
+   * there is no second name to keep in sync.
+   *
+   * A [Builder.Dag] class contributes the Dag its generated builder builds; a
+   * class of [Builder.TaskHandler] methods contributes each handler, bound to
+   * the Dag the Python file owns. A class can carry both.
+   *
+   * @param annotated A class carrying [Builder.Dag] or [Builder.TaskHandler].
+   * @return This bundle, for chaining.
+   * @throws IllegalArgumentException if the class has no generated code,
+   *    because annotation processing did not run over it, or if the Dag's
+   *    wiring is invalid, such as a task the `@Builder.Deps` class did not
+   *    call.
+   */
+  fun register(annotated: Class<*>): Bundle {
+    checkOpen()
+    val dag = annotated.getAnnotation(Builder.Dag::class.java)
+    if (dag != null) {
+      val builder = generated(builderName(annotated.packageName, annotated.simpleName, dag.to), annotated, "builder")
+      register(invokeGenerated(builder.getMethod("build")) as DagDef)
+    }
+    if (dag == null || annotated.declaredMethods.any { it.isAnnotationPresent(Builder.TaskHandler::class.java) }) {
+      val registrar = generated(registrarName(annotated.name), annotated, "registrar")
+      invokeGenerated(registrar.getMethod("registerInto", Bundle::class.java), this)
+    }
+    return this
+  }
+
+  /**
+   * Registers one task implementation against a Dag the Python file owns, for
+   * a task with no annotation to read the ids from.
+   *
+   * The Dag is created on first use and holds only the tasks registered
+   * here; its graph lives in the Python Dag file.
+   *
+   * @param dagId Dag ID as declared in the Python Dag file.
+   * @param taskId Task ID as declared by the `@task.stub` function.
+   * @param definition Class that implements [Task].
+   * @return This bundle, for chaining.
+   * @throws IllegalArgumentException if a Dag declared in Java already holds
+   *    that ID.
+   * @throws IllegalStateException if [Server.serve] has already been called.
+   */
+  fun register(
+    dagId: String,
+    taskId: String,
+    definition: Class<out Task>,
+  ): Bundle {
+    checkOpen()
+    require(dagId !in dags) {
+      "Dag '$dagId' is declared in Java; attach its tasks with addTask(...) rather than " +
+        "registering task handlers for them"
+    }
+    taskHandlers.getOrPut(dagId) { DagDef(dagId) }.addTask(taskId, definition)
+    return this
+  }
+
+  /** The task to run for a request, from whichever side registered its Dag. */
+  internal fun taskDef(
+    dagId: String,
+    taskId: String,
+  ): TaskDef? = (dags[dagId] ?: taskHandlers[dagId])?.tasks?.get(taskId)
+
+  private fun generated(
+    name: String,
+    from: Class<*>,
+    what: String,
+  ): Class<*> =
+    try {
+      Class.forName(name, true, from.classLoader)
+    } catch (e: ClassNotFoundException) {
+      throw IllegalArgumentException(
+        "No generated $what $name for ${from.name}; does it carry @Builder.Dag or " +
+          "@Builder.TaskHandler, and is airflow-sdk-processor on the annotationProcessor path?",
+        e,
+      )
+    }
+
+  private fun invokeGenerated(
+    method: Method,
+    vararg args: Any?,
+  ): Any? =
+    try {
+      method.invoke(null, *args)
+    } catch (e: InvocationTargetException) {
+      throw e.cause ?: e
+    }
+
+  /**
+   * Ends registration, so a `register` left below `serve` is reported as the
+   * mistake it is rather than racing the runtime. [Server] calls it when it
+   * starts serving, whatever the run turns out to do.
+   */
+  internal fun finalizeRegistration() {
+    served = true
+  }
+
+  private fun checkOpen() = check(!served) { "Server.serve has already been called; register everything before serve" }
+}
+
+// Reject cycles produced by before and after at registration time. This is (non-tailrec-eligible)
+// recursive and could blow up with deep dependency chains. I kept the recursive implementation
+// for readability since the scenario is unlikely; feel free to rewrite if it blows up for you.
+private fun checkNoCycle(dag: DagDef) {
+  val visiting = mutableSetOf<String>()
+  val done = mutableSetOf<String>()
+
+  fun visit(def: TaskDef) {
+    if (def.id in done) return
+    require(visiting.add(def.id)) {
+      "Task dependencies in Dag '${dag.id}' contain a cycle involving task '${def.id}'"
+    }
+    def.upstreams.forEach(::visit)
+    visiting -= def.id
+    done += def.id
+  }
+  dag.tasks.values.forEach(::visit)
 }
 
 /**
- * Entry point for declaring the [Dag]s that this bundle contains.
+ * Entry point for declaring the [DagDef]s that this bundle contains.
  *
  * Implement this interface to create a Dag bundle to be served by [Server].
  *
  * ```java
  * public class MyBundleBuilder implements BundleBuilder {
  *     @Override
- *     public Iterable<Dag> getDags() {
+ *     public Iterable<DagDef> getDags() {
  *         return List.of(MyDagBuilder.build());
  *     }
  *
@@ -64,14 +231,14 @@ private fun Iterable<Dag>.associateByDagId(): Map<String, Dag> {
  */
 interface BundleBuilder {
   /**
-   * Returns all [Dag]s that belong to this bundle.
+   * Returns all [DagDef]s that belong to this bundle.
    *
    * Called once during [build]; Dag IDs must be unique across the returned
    * collection.
    *
    * @throws IllegalArgumentException if any two Dags share the same ID.
    */
-  fun getDags(): Iterable<Dag>
+  fun getDags(): Iterable<DagDef>
 
   /**
    * Constructs a [Bundle] from the Dags returned by [getDags].

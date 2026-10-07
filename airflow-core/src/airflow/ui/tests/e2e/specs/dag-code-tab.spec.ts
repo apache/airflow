@@ -17,6 +17,7 @@
  * under the License.
  */
 import { testConfig } from "playwright.config";
+
 import { test } from "tests/e2e/fixtures";
 
 test.describe("Dag Code Tab", () => {

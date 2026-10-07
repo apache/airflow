@@ -91,12 +91,16 @@ spec:
           serviceAccountName: {{ include "databaseCleanup.serviceAccountName" . }}
           enableServiceLinks: {{ .Values.enableServiceLinks }}
           imagePullSecrets: {{- include "image_pull_secrets" . | nindent 12 }}
+          {{- if $securityContext }}
           securityContext: {{ $securityContext | nindent 12 }}
+          {{- end }}
           containers:
             - name: database-cleanup
               image: {{ template "airflow_image" . }}
               imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+              {{- if $containerSecurityContext }}
               securityContext: {{ $containerSecurityContext | nindent 16 }}
+              {{- end }}
               {{- if $containerLifecycleHooks }}
               lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 16 }}
               {{- end }}

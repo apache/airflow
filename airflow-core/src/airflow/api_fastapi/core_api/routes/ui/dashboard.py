@@ -20,12 +20,12 @@ from decimal import ROUND_FLOOR, Context
 from typing import TYPE_CHECKING, cast
 
 from fastapi import Depends, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.sql.expression import case, false
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import EXACT_COUNT_LIMIT, SessionDep
 from airflow.api_fastapi.common.parameters import DateTimeQuery, OptionalDateTimeQuery
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.dashboard import (
@@ -43,9 +43,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 dashboard_router = AirflowRouter(tags=["Dashboard"], prefix="/dashboard")
-
-# Rows a single scan reads. Windows that fit are counted exactly; wider ones report a floor.
-EXACT_COUNT_LIMIT = 50_000
 
 
 _ROUNDING = Context(prec=2, rounding=ROUND_FLOOR)
@@ -155,7 +152,10 @@ def dag_stats(
     )
     dag_counts_query = (
         select(
-            func.coalesce(func.sum(case((DagModel.is_paused == false(), 1))), 0).label("active"),
+            func.coalesce(
+                func.sum(case((and_(DagModel.is_paused == false(), DagModel.is_draining == false()), 1))),
+                0,
+            ).label("active"),
             func.coalesce(func.sum(case((latest_state == DagRunState.FAILED, 1))), 0).label("failed"),
         )
         .select_from(DagModel)

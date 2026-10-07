@@ -37,12 +37,17 @@ from airflow.api_fastapi.common.cursors import (
     parse_cursor,
 )
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
+from airflow.api_fastapi.common.db.common import (
+    SessionDep,
+    apply_filters_to_select,
+    bounded_total_entries,
+    paginated_select,
+)
 from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
 )
-from airflow.api_fastapi.common.db.dags import attach_team_names
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -59,6 +64,7 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
+    _DagIdTagsFilter,
     _DagIdTeamsFilter,
     _PrefixSearchParam,
     _SearchParam,
@@ -67,6 +73,7 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
     prefix_search_param_factory,
     search_param_factory,
+    tags_filter_factory,
     teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -101,6 +108,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag_run_bulk,
     requires_access_dag_run_clear_bulk,
 )
+from airflow.api_fastapi.core_api.services.public.assets import serialize_asset_events
 from airflow.api_fastapi.core_api.services.public.dag_run import (
     BulkDagRunService,
     DagRunWaiter,
@@ -134,7 +142,9 @@ dag_run_at_dag_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}")
 )
 def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResponse:
     dag_run = session.scalar(
-        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
+        select(DagRun)
+        .filter_by(dag_id=dag_id, run_id=dag_run_id)
+        .options(joinedload(DagRun.dag_model), *eager_load_teams(DagRun.dag_model))
     )
     if dag_run is None:
         raise HTTPException(
@@ -151,6 +161,7 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
         ],
     ),
     dependencies=[
@@ -230,7 +241,7 @@ def patch_dag_run(
     if "note" in data:
         updated_dag_run = session.get(DagRun, dag_run.id)
         if updated_dag_run is not None:
-            patch_dag_run_note(dag_run=updated_dag_run, note=data["note"], user=user)
+            patch_dag_run_note(dag_run=updated_dag_run, note=data["note"], user_id=user.get_id())
     if "state" in data and patch_body.state is not None:
         patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
 
@@ -280,7 +291,10 @@ def get_upstream_asset_events(
             DagRun.dag_id == dag_id,
             DagRun.run_id == dag_run_id,
         )
-        .options(joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset))
+        .options(
+            joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset),
+            joinedload(DagRun.consumed_asset_events).subqueryload(AssetEvent.created_dagruns),
+        )
     )
     if dag_run is None:
         raise HTTPException(
@@ -289,7 +303,7 @@ def get_upstream_asset_events(
         )
     events = dag_run.consumed_asset_events
     return AssetEventCollectionResponse(
-        asset_events=events,
+        asset_events=serialize_asset_events(events, session=session),
         total_entries=len(events),
     )
 
@@ -480,7 +494,12 @@ def clear_dag_run_partitions(
 
 @dag_run_router.get(
     "",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_dag_runs(
@@ -504,6 +523,7 @@ def get_dag_runs(
         FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
     ],
     teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(DagRun.dag_id))],
+    tags: Annotated[_DagIdTagsFilter, Depends(tags_filter_factory(DagRun.dag_id))],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -585,7 +605,8 @@ def get_dag_runs(
     **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
 
     **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
-    When `cursor` is provided, `offset` is ignored and `total_entries` is not returned.
+    When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+    `total_entries_limit` (a value equal to that limit means at least that many runs match).
     ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null``
     on the first page.
     """
@@ -660,6 +681,7 @@ def get_dag_runs(
         partition_key_prefix_pattern,
         consuming_asset_pattern,
         teams,
+        tags,
     ]
 
     if use_cursor:
@@ -693,10 +715,14 @@ def get_dag_runs(
             has_next = has_more
 
         attach_dag_versions_to_runs(dag_runs, session=session)
-        attach_team_names(dag_runs, session=session)
 
+        total_entries, total_entries_limit = bounded_total_entries(
+            statement=query, filters=filters, session=session
+        )
         return DAGRunCollectionResponse(
             dag_runs=dag_runs,
+            total_entries=total_entries,
+            total_entries_limit=total_entries_limit,
             next_cursor=(encode_cursor(dag_runs[-1], order_by) if has_next and dag_runs else None),
             previous_cursor=(
                 make_backward_cursor(encode_cursor(dag_runs[0], order_by)) if has_prev and dag_runs else None
@@ -713,7 +739,6 @@ def get_dag_runs(
     )
     dag_runs = list(session.scalars(dag_run_select))
     attach_dag_versions_to_runs(dag_runs, session=session)
-    attach_team_names(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
@@ -791,6 +816,17 @@ def trigger_dag_run(
                     status.HTTP_400_BAD_REQUEST,
                     f"DAG with dag_id: '{dag_id}' does not support bundle versioning",
                 )
+
+        if body.drain_dag:
+            if not get_auth_manager().is_authorized_dag(
+                method="PUT",
+                details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
+                user=user,
+            ):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN, f"Draining requires permission to edit Dag: {dag_id}"
+                )
+            DagModel.start_drain(dag_id, session=session)
 
         dag_run = dag.create_dagrun(
             run_id=params["run_id"],

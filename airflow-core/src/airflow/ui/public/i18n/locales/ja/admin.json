@@ -8,8 +8,7 @@
   "config": {
     "columns": {
       "section": "セクション"
-    },
-    "title": "Airflow 設定"
+    }
   },
   "connections": {
     "add": "接続を追加",
@@ -33,7 +32,6 @@
       "connectionIdRequired": "接続 ID は必須です",
       "connectionIdRequirement": "空白文字だけの接続 ID は認められません",
       "connectionTypeRequired": "接続タイプは必須です",
-      "extraFields": "追加項目",
       "extraFieldsJson": "追加項目 (JSON 形式)",
       "helperText": "接続タイプが見つかりませんか？対応する Airflow Providers パッケージがインストールされていることを確認してください",
       "helperTextForRedactedFields": "非表示の項目 ('***') は、編集しなければ以前の値がそのまま使われます",

@@ -7,10 +7,20 @@
     "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
     "dateRange": "Datumsbereich",
     "errorStartDateBeforeEndDate": "Das Startdatum muss vor dem Enddatum liegen.",
+    "exceptionReason": {
+      "alreadyExists": "Existiert bereits",
+      "inFlight": "In Bearbeitung",
+      "unknown": "Unbekannt"
+    },
     "maxRuns": "Anzahl aktiver paralleler Läufe",
     "missingAndErroredRuns": "Fehlende und fehlgeschlagene Läufe",
     "missingRuns": "Fehlende Läufe",
+    "notCreatedReason": "Grund für die Nichterstellung",
     "overrideExistingParams": "Parameter bei bestehenden Läufen überschreiben",
+    "partitionRange": "Partitionsbereich",
+    "partitionsAffected_one": "{{count}} Partition wird aufgefüllt:",
+    "partitionsAffected_other": "{{count}} Partitionen werden aufgefüllt:",
+    "partitionsNone": "Keine Partitionen entsprechen dem ausgewählten Bereich.",
     "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
@@ -25,11 +35,11 @@
         "title": "Auffüllung gestartet"
       }
     },
-    "unpause": "Dag {{dag_display_name}} beim Start der Auffüllung aktiv schalten",
     "validation": {
       "datesRequired": "Sowohl Start- als auch Enddatum müssen angegeben werden.",
       "startBeforeEnd": "Das Startdatum muss vor oder auf dem Enddatum liegen."
-    }
+    },
+    "viewSlots": "Slots für Auffüllung Nr. {{id}} anzeigen"
   },
   "banner": {
     "backfillInProgress": "Auffüllung läuft",
@@ -65,6 +75,7 @@
     "lastDagRun_other": "Letzte {{count}} Dag Läufe",
     "lastTaskInstance_one": "Letzte Task Instanz",
     "lastTaskInstance_other": "Letzte {{count}} Task Instanzen",
+    "medianTotalDuration": "Gesamt: {{duration}}",
     "queuedDuration": "Zeit in der Warteschlange",
     "runAfter": "Lauf ab",
     "runDuration": "Laufzeit"
@@ -99,6 +110,10 @@
     "taskGroup": "Task Gruppe",
     "zoomToTask": "Zum ausgewählten Task zoomen"
   },
+  "jsonPreview": {
+    "items_one": "{{count}} Element",
+    "items_other": "{{count}} Elemente"
+  },
   "limitedList": "+{{count}} mehr",
   "limitedList.allItems": "Alle {{count}} Einträge:",
   "limitedList.allTags_one": "Alle Markierungen ({{count}})",
@@ -112,7 +127,27 @@
     "file": "Datei",
     "location": "Zeile {{line}} in {{name}}"
   },
+  "passwordToggle": {
+    "hide": "Wert ausblenden",
+    "show": "Wert anzeigen"
+  },
+  "pausedDag": {
+    "drain": "Auslaufend",
+    "drainDescription": "Nicht beendete Läufe werden fortgesetzt, aber es werden keine neuen geplanten Läufe erstellt. Pausierte Läufe bleiben pausiert. Das Dag pausiert wieder sobald alle Läufe komplett sind.",
+    "keepPaused": "Pausiert lassen",
+    "keepPausedDescription": "Neue und nicht beendete Läufe warten bis die Dag-Pause beendet ist.",
+    "title": "Dag ist pausiert",
+    "unfinishedRunsWillRun_one": "{{count}} offener Dag Lauf wird starten oder weiterlaufen.",
+    "unfinishedRunsWillRun_other": "{{count}} offene Dag Läufe werden starten oder weiterlaufen.",
+    "unpause": "Unpausieren",
+    "unpauseDescription": "Das Dag wird aktiv: nicht komplettierte Läufe starten wieder und die Planung neuer Dag Läufe wird aufgenommen. Pausierte Auffüllungen bleiben pausiert."
+  },
   "reparseDag": "Dag neu parsen",
+  "slowestTaskInstances": {
+    "empty": "Keine abgeschlossenen Task Instanzen in diesem Bereich",
+    "title": "Langsamste Task Instanzen"
+  },
+  "sortMultiColumnHint": "Mit Großschreibtaste klicken um mehrere Spalten zur Sortierung zu verwenden",
   "sortedAscending": "aufsteigend sortiert",
   "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
@@ -137,6 +172,7 @@
     "loading": "Lade Dag Information...",
     "loadingFailed": "Das Laden der Dag Informationen ist fehlgeschlagen. Bitte versuchen Sie es noch einmal.",
     "manualRunDenied": "Manuelles Auslösen dieses Dags ist nicht erlaubt.",
+    "partitionKeyHelp": "Optional – gilt nur für partitionierte Dags",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
     "selectDescription": "Einen einzelnen Lauf dieses Dags auslösen",
     "selectLabel": "Einzelner Lauf",
@@ -150,8 +186,7 @@
         "title": "Dag-Lauf ausgelöst"
       }
     },
-    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen",
-    "unpause": "Dag {{dagDisplayName}} beim Auslösen des Laufes aktiv schalten"
+    "triggerAgainWithConfig": "Erneut mit dieser Konfiguration auslösen"
   },
   "trimText": {
     "details": "Details",
@@ -168,6 +203,7 @@
   "versionSelect": {
     "allVersions": "Alle Versionen",
     "dagVersion": "Dag Version",
+    "placeholder": "Version wählen",
     "versionCode": "v{{versionCode}}"
   }
 }

@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -27,7 +28,8 @@ import {
 } from "openapi/queries";
 import { TaskInstanceService } from "openapi/requests/services.gen";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
+
+import { toaster } from "src/system-components";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 
@@ -42,6 +44,7 @@ export type BulkClearOptions = {
   includeOnlyFailed: boolean;
   includePast: boolean;
   includeUpstream: boolean;
+  keepTaskState: boolean;
   note: string | null;
   preventRunningTask: boolean;
 };
@@ -94,6 +97,7 @@ export const useBulkClearTaskInstances = ({ clearSelections, onSuccessConfirm }:
               include_upstream: options.includeUpstream,
               note: options.note,
               only_failed: options.includeOnlyFailed,
+              ...(options.keepTaskState ? { keep_task_state: true } : {}),
               ...(options.preventRunningTask ? { prevent_running_task: true } : {}),
               task_ids: tis.map((ti) =>
                 ti.map_index >= 0 ? ([ti.task_id, ti.map_index] as [string, number]) : ti.task_id,

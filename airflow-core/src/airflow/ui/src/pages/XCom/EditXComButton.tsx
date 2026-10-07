@@ -21,7 +21,8 @@ import { useTranslation } from "react-i18next";
 import { FiEdit2 } from "react-icons/fi";
 
 import type { XComResponse } from "openapi/requests/types.gen";
-import { IconButton } from "src/components/ui";
+
+import { IconButton } from "src/system-components";
 
 import XComModal from "./XComModal";
 

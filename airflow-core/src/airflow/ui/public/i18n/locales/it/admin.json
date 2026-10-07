@@ -8,8 +8,7 @@
   "config": {
     "columns": {
       "section": "Sezione"
-    },
-    "title": "Configurazione di Airflow"
+    }
   },
   "connections": {
     "add": "Aggiungi Connessione",
@@ -39,7 +38,6 @@
       "connectionIdRequired": "L'ID della connessione è obbligatorio",
       "connectionIdRequirement": "L'ID della connessione non può contenere solo spazi",
       "connectionTypeRequired": "Il tipo di connessione è obbligatorio",
-      "extraFields": "Campi Extra",
       "extraFieldsJson": "Campi Extra JSON",
       "helperText": "Il tipo di connessione è mancante? Assicurati di aver installato il pacchetto corrispondente di Airflow Providers.",
       "helperTextForRedactedFields": "I campi redatti ('***') rimarranno invariati se non modificati.",

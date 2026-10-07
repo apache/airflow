@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -92,6 +92,7 @@ class Trigger(Base):
     """
 
     __tablename__ = "trigger"
+    __table_args__ = (Index("idx_trigger_triggerer_queue_id", "triggerer_id", "queue", "id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     classpath: Mapped[str] = mapped_column(String(1000), nullable=False)
@@ -200,7 +201,7 @@ class Trigger(Base):
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
-        return cls(classpath=classpath, kwargs=kwargs)
+        return cls(classpath=classpath, kwargs=kwargs, queue=trigger.queue)
 
     @classmethod
     @provide_session
@@ -369,6 +370,15 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
+    def fetch_assignments(
+        cls, ids: Iterable[int], *, session: Session = NEW_SESSION
+    ) -> dict[int, int | None]:
+        """Map each of ``ids`` that still has a trigger row to its current ``triggerer_id``."""
+        rows = session.execute(select(cls.id, cls.triggerer_id).where(cls.id.in_(ids)))
+        return {trigger_id: triggerer_id for trigger_id, triggerer_id in rows}
+
+    @classmethod
+    @provide_session
     def assign_unassigned(
         cls,
         triggerer_id,
@@ -452,6 +462,7 @@ class Trigger(Base):
             # Callback triggers
             select(cls.id)
             .join(Callback, isouter=False)
+            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(Callback.priority_weight.desc(), cls.created_date),
             # Task Instance triggers
             select(cls.id)
@@ -642,9 +653,6 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
     from airflow.utils.state import TaskInstanceState
 
-    # Prevent the task from resuming on a worker.
-    task_instance.trigger_id = None
-
     callback_type = event.task_instance_state
     should_retry = False
 
@@ -719,9 +727,10 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         task_instance.end_date = timezone.utcnow()
         task_instance.set_duration()
         task_instance.clear_next_method_args()
-        task_instance.prepare_db_for_next_try(session)
+        task_instance = task_instance.prepare_db_for_next_try(session)
         task_instance.state = TaskInstanceState.UP_FOR_RETRY
     else:
+        task_instance.trigger_id = None
         task_instance.set_state(event.task_instance_state, session=session)
 
     _push_xcoms_if_necessary()

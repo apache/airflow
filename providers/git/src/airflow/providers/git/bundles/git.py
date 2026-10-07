@@ -20,12 +20,13 @@ import os
 import shutil
 from contextlib import nullcontext
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import structlog
 from git import Repo
 from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
@@ -35,7 +36,29 @@ from airflow.providers.git.hooks.git import GitHook
 if AIRFLOW_V_3_3_PLUS:
     from airflow.dag_processing.bundles.base import BundleVersion
 
+if TYPE_CHECKING:
+    from tenacity import RetryCallState
+
 log = structlog.get_logger(__name__)
+
+# GitHub rejects a just-issued App installation token with "Repository not found" for a few seconds,
+# and a fresh GitHook mints one right before the bare clone. Only that auth path gets extra attempts
+# with a wait in between (2, 4, 8, 15 s); every other one keeps two immediate attempts, so a repository
+# that can never be cloned still fails fast.
+_CLONE_STOP = stop_after_attempt(2)
+_GITHUB_APP_CLONE_STOP = stop_after_attempt(5)
+_GITHUB_APP_CLONE_WAIT = wait_exponential(multiplier=2, max=15)
+
+
+def _bare_clone_stop(retry_state: RetryCallState) -> bool:
+    bundle: GitDagBundle = retry_state.args[0]
+    stop = _GITHUB_APP_CLONE_STOP if bundle._uses_github_app_auth() else _CLONE_STOP
+    return stop(retry_state)
+
+
+def _bare_clone_wait(retry_state: RetryCallState) -> float:
+    bundle: GitDagBundle = retry_state.args[0]
+    return _GITHUB_APP_CLONE_WAIT(retry_state) if bundle._uses_github_app_auth() else 0
 
 
 class GitDagBundle(BaseDagBundle):
@@ -45,7 +68,7 @@ class GitDagBundle(BaseDagBundle):
     Instead of cloning the repository every time, we clone the repository once into a bare repo from the source
     and then do a clone for each version from there.
 
-    :param tracking_ref: Branch or tag for this DAG bundle
+    :param tracking_ref: Branch, tag, or commit SHA for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
@@ -161,6 +184,7 @@ class GitDagBundle(BaseDagBundle):
                     repo_path=self.repo_path,
                     version=self.version,
                 )
+                self._sync_bare_repo_remote_url()
                 return
             if self._local_repo_has_version():
                 self._log.debug(
@@ -193,6 +217,7 @@ class GitDagBundle(BaseDagBundle):
                         # HEAD hexsha rather than the raw self.version (which may be a
                         # tag or short SHA).
                         self.repo = repo
+                    self._sync_bare_repo_remote_url()
                     return
 
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
@@ -212,6 +237,9 @@ class GitDagBundle(BaseDagBundle):
                 raise RuntimeError("Error cloning repository") from e
             except InvalidGitRepositoryError as e:
                 raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
+            # If tracking_ref was just repointed to a SHA that predates this working clone's
+            # last fetch, this checkout fails until the clone is fetched or storage is cleared;
+            # tracked at https://github.com/apache/airflow/issues/71388
             self.repo.git.checkout(self.tracking_ref)
             self._log.debug("bundle initialize", version=self.version)
             if self.version:
@@ -282,9 +310,13 @@ class GitDagBundle(BaseDagBundle):
                 shutil.rmtree(self.repo_path)
             raise
 
+    def _uses_github_app_auth(self) -> bool:
+        return self.hook is not None and self.hook.uses_github_app_auth
+
     @retry(
         retry=retry_if_exception_type((InvalidGitRepositoryError, GitCommandError)),
-        stop=stop_after_attempt(2),
+        stop=_bare_clone_stop,
+        wait=_bare_clone_wait,
         reraise=True,
     )
     def _clone_bare_repo_if_required(self) -> None:
@@ -301,6 +333,9 @@ class GitDagBundle(BaseDagBundle):
                     env=self.hook.env if self.hook else None,
                 )
             self.bare_repo = Repo(self.bare_repo_path)
+            # Not the best-effort wrapper: a GitCommandError from the rewrite must reach the
+            # handler below, which drops the bare repo and re-clones it credential-free.
+            self._rewrite_bare_repo_origin(self.bare_repo)
 
             # Fetch to ensure we have latest refs and validate repo integrity
             self._fetch_bare_repo()
@@ -313,6 +348,56 @@ class GitDagBundle(BaseDagBundle):
             if os.path.exists(self.bare_repo_path):
                 shutil.rmtree(self.bare_repo_path)
             raise
+
+    def _sync_bare_repo_remote_url(self) -> None:
+        """
+        Re-point the bare repo's origin at the current repo url.
+
+        Called standalone from the ``_initialize`` fast paths that skip cloning and never
+        reach ``_clone_bare_repo_if_required``, so a bundle that takes one would otherwise
+        keep a credentialed origin url in ``bare/config`` forever. This is best-effort: a
+        bundle that can still be served from disk must not fail to initialize because its
+        bare repo is unreadable.
+        """
+        try:
+            if not self.bare_repo_path.exists():
+                return
+            bare_repo = Repo(self.bare_repo_path)
+            try:
+                self._rewrite_bare_repo_origin(bare_repo)
+            finally:
+                bare_repo.close()
+        except Exception as e:
+            # Deliberately broad: opening the repo raises anything from ``configparser`` on a
+            # truncated config to ``GitError`` on an unsafe remote url, and the fast paths this
+            # runs ahead of never needed the bare repo at all.
+            self._log.warning(
+                "Could not rewrite the bare repository origin, a credential may remain in "
+                "cleartext in the bundle's bare/config",
+                bare_repo_path=self.bare_repo_path,
+                exc=e,
+            )
+
+    @staticmethod
+    def _carries_credentials(url: str) -> bool:
+        """Report whether an origin url has ``user[:password]@`` in its authority."""
+        if not url.startswith(("http://", "https://")):
+            return False
+        return "@" in url.partition("://")[2].partition("/")[0]
+
+    def _rewrite_bare_repo_origin(self, bare_repo: Repo) -> None:
+        if "origin" not in bare_repo.remotes:
+            return
+        origin = bare_repo.remotes.origin
+        # Bundles cloned before credentials moved to a credential helper embedded ``user:token``
+        # here, so the token sits in cleartext in ``<bundle>/bare/config`` where any Dag author
+        # on the Dag processor can read it. Rewriting origin is what removes it from those
+        # bundles. Only an origin holding one is rewritten: git resolves a local source to an
+        # absolute path when it clones, and replacing that with a relative repo url would leave
+        # an origin the bare repo cannot resolve.
+        if self._carries_credentials(origin.url):
+            self._log.info("Updating bare repository remote url", bare_repo_path=self.bare_repo_path)
+            origin.set_url(str(self.repo_url))
 
     def _ensure_version_in_bare_repo(self) -> None:
         if not self.version:

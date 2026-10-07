@@ -17,6 +17,12 @@
  * under the License.
  */
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import {
+  DEFAULT_TASK_INSTANCE_TAB_PATHS,
+  type DefaultTaskInstanceTab,
+  type TaskInstanceTabValue,
+} from "src/constants/tab";
 import { taskInstanceRoutes } from "src/router";
 
 export const getTaskInstanceLink = (
@@ -28,16 +34,21 @@ export const getTaskInstanceLink = (
         mapIndex?: number;
         taskId: string;
       },
+  tab?: TaskInstanceTabValue,
 ): string => {
+  const tabPath = tab === undefined ? "" : `/${tab}`;
+
   if ("dag_id" in tiOrParams) {
     return `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
       tiOrParams.map_index >= 0 ? `/mapped/${tiOrParams.map_index}` : ""
-    }`;
+    }${tabPath}`;
   }
 
   const { dagId, dagRunId, mapIndex = -1, taskId } = tiOrParams;
 
-  return `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${mapIndex >= 0 ? `/mapped/${mapIndex}` : ""}`;
+  return `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${
+    mapIndex >= 0 ? `/mapped/${mapIndex}` : ""
+  }${tabPath}`;
 };
 
 export const getRedirectPath = (targetPath: string): string => {
@@ -55,20 +66,7 @@ export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "sear
   `${location.pathname}${location.search}${location.hash}`;
 
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
-  const subRoutes = taskInstanceRoutes.flatMap((route) => {
-    if (route.path !== undefined) {
-      return [route.path];
-    }
-
-    // Include paths from children of pathless layout routes (e.g. StoragePage wrapping task-store and xcom)
-    if ("children" in route && Array.isArray(route.children)) {
-      return route.children
-        .filter((child) => "path" in child && typeof child.path === "string")
-        .map((child) => child.path);
-    }
-
-    return [];
-  });
+  const subRoutes = taskInstanceRoutes.flatMap((route) => (route.path === undefined ? [] : [route.path]));
   // Look for patterns like /tasks/{taskId}/mapped/{mapIndex}/{sub-route}
   const mappedRegex = /\/tasks\/[^/]+\/mapped\/[^/]+\/(?<subRoute>.+)$/u;
   const mappedMatch = mappedRegex.exec(pathname);
@@ -92,6 +90,13 @@ export const getTaskInstanceAdditionalPath = (pathname: string): string => {
 
   return "";
 };
+
+// Resolve a stored default-tab preference to a route path. Logs maps to "" (the index
+// route), and any unknown value falls back to "" so the index keeps rendering in place.
+export const getDefaultTaskInstanceTabPath = (value: unknown): string =>
+  typeof value === "string" && value in DEFAULT_TASK_INSTANCE_TAB_PATHS
+    ? DEFAULT_TASK_INSTANCE_TAB_PATHS[value as DefaultTaskInstanceTab]
+    : "";
 
 const SAFE_EXTERNAL_URL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
 
@@ -135,11 +140,7 @@ export const getSafeExternalUrl = (url: string): string | undefined => {
     return trimmed;
   }
 
-  if (SAFE_EXTERNAL_URL_SCHEMES.has(parsed.protocol)) {
-    return trimmed;
-  }
-
-  return undefined;
+  return SAFE_EXTERNAL_URL_SCHEMES.has(parsed.protocol) ? trimmed : undefined;
 };
 
 export const buildTaskInstanceUrl = (params: {

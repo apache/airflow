@@ -19,22 +19,21 @@
 
 package org.apache.airflow.example;
 
-import java.util.List;
 import org.apache.airflow.sdk.*;
-import org.jetbrains.annotations.NotNull;
 
-public class ExampleBundleBuilder implements BundleBuilder {
-  @NotNull
-  @Override
-  public Iterable<Dag> getDags() {
-    return List.of(
-        InterfaceExampleBuilder.build(),
-        AnnotationExampleBuilder.build(),
-        XComCastingExampleBuilder.build());
+// One bundle serves every surface: Dags built in Java, and the handler classes
+// whose Dags the Python file owns.
+public class ExampleBundleBuilder {
+  public static Bundle build() {
+    return new Bundle()
+        .register(InterfaceExampleBuilder.build())
+        .register(AnnotationExample.class)
+        .register(XComCastingExample.class)
+        .register(org.apache.airflow.example.nativedag.AnnotationExample.class)
+        .register(org.apache.airflow.example.nativedag.InterfaceExample.build());
   }
 
   public static void main(String[] args) {
-    var bundle = new ExampleBundleBuilder().build();
-    Server.create(args).serve(bundle);
+    Server.create(args).serve(build());
   }
 }
