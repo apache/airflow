@@ -35,6 +35,12 @@ test.describe("Verify task logs display", () => {
     const logItems = page.getByTestId(/^virtualized-item-/);
 
     await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
+
+    // Real task output, so changes to the API's log shape or timestamp format fail here.
+    await expect.soft(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, {
+      timeout: 30_000,
+    });
+    await expect.soft(virtualizedList).toContainText(/INFO|WARNING|ERROR|CRITICAL/);
   });
 
   test("Verify logs are getting downloaded fine", async ({ executedDagRun: _run, page }) => {

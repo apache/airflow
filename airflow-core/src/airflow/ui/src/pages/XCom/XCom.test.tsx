@@ -22,13 +22,17 @@ import { http, HttpResponse } from "msw";
 import { setupServer, type SetupServer } from "msw/node";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import type * as ColorMode from "src/context/colorMode";
 import { handlers } from "src/mocks/handlers";
 import { AppWrapper } from "src/utils/AppWrapper";
 
-vi.mock("src/components/RenderedJsonField", () => ({
-  default: ({ collapsed }: { readonly collapsed?: boolean }) => (
-    <div data-collapsed={collapsed} data-testid="rendered-json-field" />
-  ),
+vi.mock("src/components/MonacoEditor", () => ({
+  default: ({ value }: { readonly value?: string }) => <div data-testid="monaco-editor">{value}</div>,
+}));
+
+vi.mock("src/context/colorMode", async (importOriginal) => ({
+  ...(await importOriginal<typeof ColorMode>()),
+  useMonacoTheme: () => ({ beforeMount: vi.fn(), theme: "airflow-light" }),
 }));
 
 const xcomEntry = {
@@ -63,18 +67,14 @@ describe("XCom list expand/collapse", () => {
   it("expands and collapses XCom values via the expand/collapse all buttons", async () => {
     render(<AppWrapper initialEntries={["/xcoms"]} />);
 
-    await waitFor(() =>
-      expect(screen.getByTestId("rendered-json-field")).toHaveAttribute("data-collapsed", "true"),
-    );
+    await waitFor(() => expect(screen.getByTestId("expand-all-button")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/nested/u)).toBeInTheDocument());
+    expect(screen.queryByTestId("monaco-editor")).toBeNull();
 
     fireEvent.click(screen.getByTestId("expand-all-button"));
-    await waitFor(() =>
-      expect(screen.getByTestId("rendered-json-field")).toHaveAttribute("data-collapsed", "false"),
-    );
+    expect(await screen.findByTestId("monaco-editor")).toHaveTextContent(/"answer": 42/u);
 
     fireEvent.click(screen.getByTestId("collapse-all-button"));
-    await waitFor(() =>
-      expect(screen.getByTestId("rendered-json-field")).toHaveAttribute("data-collapsed", "true"),
-    );
+    await waitFor(() => expect(screen.queryByTestId("monaco-editor")).toBeNull());
   });
 });

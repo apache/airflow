@@ -22,11 +22,13 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class DagCodePage extends BasePage {
   public readonly editorContainer: Locator;
+  public readonly editorScrollable: Locator;
   public readonly viewLines: Locator;
 
   public constructor(page: Page) {
     super(page);
     this.editorContainer = page.locator('[role="code"]');
+    this.editorScrollable = page.locator(".monaco-scrollable-element");
     this.viewLines = page.locator(".monaco-editor .view-line");
   }
 
@@ -36,6 +38,16 @@ export class DagCodePage extends BasePage {
       await expect(this.editorContainer).toBeVisible();
     }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForCodeReady();
+  }
+
+  public async verifyCodeIsScrollable(): Promise<void> {
+    await this.waitForCodeReady();
+
+    const scrollable = this.editorScrollable.first();
+
+    await expect(scrollable).toBeVisible({ timeout: 30_000 });
+
+    await expect.poll(async () => scrollable.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   }
 
   public async verifySourceCodeDisplayed(): Promise<void> {

@@ -118,16 +118,16 @@ export class DagRunsTabPage extends BasePage {
 
     const runIdLink = firstRow.getByRole("link").first();
 
-    await expect.soft(runIdLink).toBeVisible();
-    await expect.soft(runIdLink).not.toBeEmpty();
+    await expect(runIdLink).toBeVisible();
+    await expect(runIdLink).not.toBeEmpty();
 
     const stateBadge = firstRow.getByTestId("state-badge");
 
-    await expect.soft(stateBadge).toBeVisible();
+    await expect(stateBadge).toBeVisible();
 
     const timeElements = firstRow.locator("time");
 
-    await expect.soft(timeElements.first()).toBeVisible();
+    await expect(timeElements.first()).toBeVisible();
   }
 
   public async verifySearchResults(pattern: string): Promise<void> {

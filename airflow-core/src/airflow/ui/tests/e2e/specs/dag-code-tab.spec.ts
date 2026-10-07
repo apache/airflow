@@ -31,4 +31,8 @@ test.describe("Dag Code Tab", () => {
   test("Verify Dag source code is displayed", async ({ dagCodePage }) => {
     await dagCodePage.verifySourceCodeDisplayed();
   });
+
+  test("Verify code is scrollable for long files", async ({ dagCodePage }) => {
+    await dagCodePage.verifyCodeIsScrollable();
+  });
 });
