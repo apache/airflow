@@ -75,7 +75,8 @@ class LlamaIndexHook(BaseHook):
         still fails on the model name, not on connectivity.
         ``get_embedding_model()`` raises immediately at construction;
         ``get_llm()`` defers the error until the first call that reads
-        ``.metadata`` (``.chat()`` / ``.complete()``).
+        ``.metadata`` (``.chat()`` / ``.complete()``); ``test_connection()``
+        reads it, so it reports such a model name as a failure.
 
     Connection fields:
 
@@ -115,9 +116,9 @@ class LlamaIndexHook(BaseHook):
         self,
         llm_conn_id: str | None = None,
         embed_conn_id: str | None = None,
-        embed_model: str | None = None,
-        llm_model: str | None = None,
         *,
+        llm_model: str | None = None,
+        embed_model: str | None = None,
         embedding_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -233,15 +234,16 @@ class LlamaIndexHook(BaseHook):
 
     def test_connection(self) -> tuple[bool, str]:
         """
-        Test connection by resolving the LLM.
+        Test connection by resolving the LLM and reading its metadata.
 
-        Validates that the model identifier is valid and the provider can be
-        instantiated with the supplied credentials. Does NOT make an LLM API
-        call -- that would be expensive and fail for reasons unrelated to
-        connectivity (quotas, billing, rate limits).
+        Reading ``.metadata`` makes LlamaIndex validate the model name against its
+        OpenAI-only allowlist, so an Ollama or vLLM model name fails here instead of at the
+        first ``.chat()`` call. Does NOT make an LLM API call -- that would be expensive and
+        fail for reasons unrelated to connectivity (quotas, billing, rate limits), so a
+        revoked API key or an unreachable **host** still passes.
         """
         try:
-            self.get_llm()
+            self.get_llm().metadata
             return True, "Model resolved successfully."
         except Exception as e:
             return False, str(e)
