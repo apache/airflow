@@ -56,22 +56,35 @@ private const val DRAIN_TIMEOUT_MILLIS = 2_000L
 
 /**
  * Finds the source file of a class by its `SourceFile` attribute: the class
- * file's package path plus that name, looked up in each source directory.
+ * file's package path plus that name, looked up in each source directory, or
+ * else the one source file of that name when the layout does not match the
+ * package.
  */
 internal class SourceLocator(
   private val classesDirs: Iterable<File>,
   private val sourceDirs: Iterable<File>,
 ) {
+  /** Every source file under the source dirs by file name, walked once and only if a lookup misses. */
+  private val pathsByName: Map<String, List<String>> by lazy {
+    sourceDirs
+      .flatMap { dir -> dir.walkTopDown().filter(File::isFile).map { it.relativeTo(dir).invariantSeparatorsPath } }
+      .groupBy { it.substringAfterLast('/') }
+  }
+
   /** Path of the source file relative to its source directory, or `null` if it cannot be found. */
   fun locate(className: String): String? {
-    val packagePath = className.substringBeforeLast('.', "").replace('.', '/')
     val classFile =
       classesDirs
         .map { File(it, className.replace('.', '/') + ".class") }
         .firstOrNull { it.isFile } ?: return null
-    val sourceFile = readSourceFile(classFile.readBytes())?.takeIf { it.isNotEmpty() && '/' !in it && '\\' !in it }
-    val relative = listOfNotNull(packagePath.ifEmpty { null }, sourceFile ?: return null).joinToString("/")
-    return relative.takeIf { path -> sourceDirs.any { File(it, path).isFile } }
+    val sourceFile =
+      readSourceFile(classFile.readBytes())?.takeIf { it.isNotEmpty() && '/' !in it && '\\' !in it } ?: return null
+    val packagePath = className.substringBeforeLast('.', "").replace('.', '/')
+    val byPackage = listOfNotNull(packagePath.ifEmpty { null }, sourceFile).joinToString("/")
+    if (sourceDirs.any { File(it, byPackage).isFile }) return byPackage
+    // Neither javac nor Kotlin requires the package to match the directory, so fall back to the
+    // file name when exactly one source tree holds it. An ambiguous name is left unresolved.
+    return pathsByName[sourceFile]?.distinct()?.singleOrNull()
   }
 
   fun file(relativePath: String): File = sourceDirs.map { File(it, relativePath) }.first { it.isFile }
@@ -133,6 +146,8 @@ abstract class PackDagSources : DefaultTask() {
 
   init {
     outputs.doNotCacheIf("the Dag describe run failed") { describeFailed }
+    // A failed run leaves describeFile missing, which Gradle would otherwise read as unchanged.
+    outputs.upToDateWhen { describeFile.get().asFile.isFile }
   }
 
   @TaskAction
@@ -148,11 +163,14 @@ abstract class PackDagSources : DefaultTask() {
     val locator = SourceLocator(classesDirs.files, sourceDirs.files)
 
     val entrypoint = locator.locate(main)
+    if (entrypoint == null) {
+      logger.warn("No source file found for entrypoint class {}; the Code view will show no source for this JAR", main)
+    }
     val dagPaths = linkedMapOf<String, String>()
     declaringClasses.forEach { (dagId, className) ->
       val path = locator.locate(className)
       if (path == null) {
-        logger.info("No source file found for class {} of Dag '{}'; it falls back to the entrypoint", className, dagId)
+        logger.warn("No source file found for class {} of Dag '{}'; it falls back to the entrypoint", className, dagId)
       } else {
         dagPaths[dagId] = path
       }
@@ -209,7 +227,7 @@ abstract class PackDagSources : DefaultTask() {
       }
     }
     describeFailed = true
-    val why = failure ?: "it wrote no valid --describe-sources file; does main call Server.serve?"
+    val why = failure ?: "it wrote no valid --describe-sources file; does main pass its args to Server.create?"
     val log = output.trim()
     logger.warn(
       "Could not read each Dag's source from '{}' ({}); only its entrypoint source is packed.{}",
