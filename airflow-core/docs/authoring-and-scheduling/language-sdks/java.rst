@@ -709,6 +709,38 @@ Durations and date-times are ISO-8601 strings in annotations (``retryDelay = "PT
 ``java.time.OffsetDateTime`` values in ``config`` calls.  An unknown key or a mismatched value type
 fails the build for an annotation, and the ``config`` call itself for an object.
 
+.. _java-sdk/task-state-store:
+
+Task state store
+~~~~~~~~~~~~~~~~
+
+``client.getTaskStateStore()`` gives a task key-value state that is scoped to the task instance and
+survives retry attempts within the same Dag run (see :doc:`/core-concepts/task-state-store`). Use it to
+remember things like an external job ID so a retried task can resume instead of starting over:
+
+.. code-block:: java
+
+    @Builder.Task(id = "submit")
+    public void submit(Client client) throws Exception {
+      var store = client.getTaskStateStore();
+      var jobId = (String) store.get("job_id");
+      if (jobId == null) {
+        jobId = submitJob();
+        store.set("job_id", jobId, Duration.ofHours(6));
+      }
+      waitForJob(jobId);
+      store.delete("job_id");
+    }
+
+``get`` returns ``null`` when the key is not set. ``set`` stores any JSON-serializable value. Pass a positive
+``java.time.Duration`` to expire the key after that long, ``TaskStateStore.NEVER_EXPIRE`` for a key that
+garbage collection skips, or omit the retention to use the deployment's ``[state_store] default_retention_days``
+(0 means never expire). The coordinator passes that setting to the JVM as
+``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``. A zero or negative retention is rejected. ``delete`` removes
+one key and ``clear`` removes every key for the task instance. The Java SDK does not use a
+``[workers] state_store_backend``: values always go to the metadata database as-is, so keys written by Python
+tasks through a custom backend are returned to Java as the raw reference marker rather than the stored value.
+
 .. _java-sdk/native-dag-parsing:
 
 Parsing native Java Dags

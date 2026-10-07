@@ -418,7 +418,9 @@ class TestGetAssets(TestAssets):
             "total_entries": 2,
         }
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
     def test_should_return_only_assets_the_caller_may_read(
         self, mock_get_authorized_assets, test_client, session
     ):
@@ -1018,7 +1020,9 @@ class TestGetAssetEventsPerDagScoping(TestAssets):
         # The count must be scoped too, so the existence of hidden events does not leak.
         assert body["total_entries"] == len(expected_ids)
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
     def test_endpoint_returns_only_events_of_assets_the_caller_may_read(
         self, mock_get_authorized_assets, test_client, session
     ):
