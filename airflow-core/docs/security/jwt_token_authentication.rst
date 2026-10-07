@@ -413,7 +413,7 @@ ensures long-running tasks do not lose API access without requiring the worker t
 re-authenticate.
 
 Task-token revocation (Execution API)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Task Execution API tokens are not subject to revocation. ``execution``-scoped tokens are short-lived
 (default 10 minutes) and automatically refreshed by the ``JWTReissueMiddleware``.
