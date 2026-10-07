@@ -1053,7 +1053,7 @@ class KubernetesPodOperator(BaseOperator):
                 connection_extras = conn.extra_dejson
                 self.log.info("Successfully resolved connection extras for deferral.")
 
-        trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
+        trigger_start_time = datetime.datetime.now(tz=datetime.UTC)
 
         # Translate ``execution_timeout`` into an absolute deadline plumbed to
         # the trigger via ``trigger_kwargs["_execution_deadline"]``. Anchoring
@@ -1321,7 +1321,7 @@ class KubernetesPodOperator(BaseOperator):
                 if isinstance(since_time, str):  # against interface spec but accept string as safeguard
                     since_time = pendulum.parse(since_time.replace("Z", "+00:00"))
                 since_seconds = math.ceil(
-                    (datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds()
+                    (datetime.datetime.now(tz=datetime.UTC) - since_time).total_seconds()
                 )
             except (TypeError, ValueError):
                 self.log.warning(
@@ -1784,7 +1784,7 @@ class KubernetesPodOperator(BaseOperator):
             pod_start_times: list[datetime.datetime] = [  # type: ignore[no-redef]
                 pod.to_dict()
                 .get("metadata", {})
-                .get("creation_timestamp", datetime.datetime.now(tz=datetime.timezone.utc))
+                .get("creation_timestamp", datetime.datetime.now(tz=datetime.UTC))
                 for pod in pod_list
             ]
         most_recent_start_time = max(pod_start_times)

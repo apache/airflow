@@ -76,14 +76,25 @@ type Registerable interface{ registerable() }
 //
 //	bundle.Register(reports.Handlers()...)
 //
-// Add every task to a Dag before registering the Dag. [DagRef.Task] panics once the Dag is
-// registered.
+// Add every task to a Dag before registering the Dag. [DagRef.Task], [DagRef.If],
+// [DagRef.Switch], [DagRef.TaskGroup], [IfRef.Then], [IfRef.Else], [SwitchRef.Case] and the
+// methods of [TaskGroupRef] panic once the Dag is registered.
+//
+// Register is where a Dag's task dependencies are checked for a cycle, over the whole graph at
+// once: [TaskRef.Before], [TaskRef.After] and [Inputs] each record an edge without walking the
+// graph, so building a Dag stays linear in its edges however many a task has. Register also turns
+// each edge to or from a task group, which [TaskGroupRef.Before] describes, into edges between
+// tasks. It expands those edges one at a time, in the order they were first declared, each
+// against every task, every edge declared between two tasks, and the task edges that earlier
+// group edges expanded into.
 //
 // Register panics if a task handler with the same dag_id and task_id is already registered,
 // if a Dag with the same dag_id is already registered, if a task handler and a Dag have the
-// same dag_id, or if [BundleRef.Serve] has already been called: registration closes when
-// serving starts. A task handler runs a task of a Python Dag, so its dag_id cannot also belong
-// to a Dag authored in Go.
+// same dag_id, if the task dependencies of a Dag contain a cycle, or if [BundleRef.Serve] has
+// already been called: registration closes when serving starts. A task handler runs a task of a
+// Python Dag, so its dag_id cannot also belong to a Dag authored in Go. Register also panics if a
+// Dag has a condition from [DagRef.If] without a task from [IfRef.Then], or a switch from
+// [DagRef.Switch] without a case from [SwitchRef.Case].
 func (b *BundleRef) Register(items ...Registerable) {
 	if b.closed.Load() {
 		panic(

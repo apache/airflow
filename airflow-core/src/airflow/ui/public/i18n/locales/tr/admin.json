@@ -33,7 +33,6 @@
       "connectionIdRequired": "Bağlantı Kimliği gerekli",
       "connectionIdRequirement": "Bağlantı Kimliği sadece boşluklardan oluşamaz",
       "connectionTypeRequired": "Bağlantı Tipi gerekli",
-      "extraFields": "Ek Alanlar",
       "extraFieldsJson": "Ek Alanlar JSON",
       "helperText": "Bağlantı tipi eksik mi? İlgili Airflow Providers paketini yüklediğinizden emin olun.",
       "helperTextForRedactedFields": "Gizlenmiş alanlar ('***') değiştirilmedikçe kaydedilmeyecektir.",

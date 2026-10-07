@@ -32,6 +32,7 @@ export enum TabName {
   Overview = "",
   Runs = "runs",
   Tasks = "tasks",
+  Versions = "versions",
 }
 
 /** Route path segments for the task-instance detail tabs. Single source of truth powering the router. */

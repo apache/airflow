@@ -93,11 +93,11 @@ const getColumns = (
     cell: ({ row }) => {
       const state = row.original.dag_run_state;
 
-      if (state === null || state === undefined) {
-        return <Text color="fg.muted">—</Text>;
-      }
-
-      return <StateBadge state={state}>{translate(`states.${state}`)}</StateBadge>;
+      return state === null || state === undefined ? (
+        <Text color="fg.muted">—</Text>
+      ) : (
+        <StateBadge state={state}>{translate(`states.${state}`)}</StateBadge>
+      );
     },
     enableSorting: false,
     header: translate("dagRunState"),
@@ -107,11 +107,11 @@ const getColumns = (
     cell: ({ row }) => {
       const reason = row.original.exception_reason;
 
-      if (reason === null || reason === "") {
-        return <Text color="fg.muted">—</Text>;
-      }
-
-      return <Text>{translateExceptionReason(reason, translate)}</Text>;
+      return reason === null || reason === "" ? (
+        <Text color="fg.muted">—</Text>
+      ) : (
+        <Text>{translateExceptionReason(reason, translate)}</Text>
+      );
     },
     enableSorting: false,
     header: translate("components:backfill.notCreatedReason"),
@@ -160,7 +160,7 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
     isLoading: isBackfillLoading,
   } = useBackfillServiceGetBackfill({ backfillId: backfillId ?? 0 }, undefined, {
     enabled: open && backfillId !== undefined,
-    refetchInterval: (query) => (query.state.data?.completed_at === null ? refetchInterval : false),
+    refetchInterval: (query) => query.state.data?.completed_at === null && refetchInterval,
   });
   const shouldPoll = backfill?.completed_at === null;
 

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
@@ -27,7 +27,13 @@ from sqlalchemy.orm import Session
 
 from airflow.models.referencemixin import ReferenceMixin
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
+from airflow.models.xcom import (
+    XCOM_RETURN_KEY,
+    XComModel,
+    build_xcom_read_query,
+    select_producers,
+    xcom_entity,
+)
 from airflow.serialization.definitions.mappedoperator import is_mapped
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 from airflow.utils.db import exists_query
@@ -41,6 +47,8 @@ __all__ = [
 ]
 
 if TYPE_CHECKING:
+    from sqlalchemy.sql.expression import Select
+
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.typing_compat import Self
@@ -156,6 +164,20 @@ class SchedulerZipXComArg(SchedulerXComArg):
             yield from arg.iter_references()
 
 
+def _select_return_values(keys: Collection[tuple[str, str]], run_id: str) -> Select[tuple[XComModel]]:
+    """Read the return values pushed in ``run_id`` by the ``(dag_id, task_id)`` tasks in ``keys``."""
+    # Each XCom store renders the producer filter again, and SQLAlchemy cannot expand one
+    # tuple IN parameter twice, so the exact pairs are matched once on the combined rows.
+    producers = select_producers(
+        run_id=run_id,
+        dag_ids=sorted({dag_id for dag_id, _ in keys}),
+        task_ids=sorted({task_id for _, task_id in keys}),
+    )
+    read = build_xcom_read_query(producer_ids=producers, key=XCOM_RETURN_KEY)
+    entity = xcom_entity(read)
+    return read.where(tuple_(entity.dag_id, entity.task_id).in_(sorted(keys)))
+
+
 def prefetch_map_lengths(
     xcom_args: Iterable[SchedulerXComArg], run_id: str, *, session: Session
 ) -> dict[tuple[str, str], int]:
@@ -180,12 +202,11 @@ def prefetch_map_lengths(
         # Not the argument keys: the SDK records the length of the whole return value,
         # never per key. A NULL length means the value cannot expand anything, which is
         # as unresolved as a missing row.
+        read = _select_return_values(unmapped, run_id)
+        entity = xcom_entity(read)
         rows = session.execute(
-            select(XComModel.dag_id, XComModel.task_id, XComModel.mapped_length).where(
-                XComModel.run_id == run_id,
-                XComModel.map_index == -1,
-                XComModel.key == XCOM_RETURN_KEY,
-                tuple_(XComModel.dag_id, XComModel.task_id).in_(sorted(unmapped)),
+            read.where(entity.map_index == -1).with_only_columns(
+                entity.dag_id, entity.task_id, entity.mapped_length
             )
         )
         lengths.update(((dag_id, task_id), length) for dag_id, task_id, length in rows if length is not None)
@@ -208,17 +229,14 @@ def prefetch_map_lengths(
             )
         )
         if finished := mapped - unfinished:
+            read = _select_return_values(finished, run_id)
+            entity = xcom_entity(read)
             counts = {
                 (dag_id, task_id): count
                 for dag_id, task_id, count in session.execute(
-                    select(XComModel.dag_id, XComModel.task_id, func.count(XComModel.map_index))
-                    .where(
-                        XComModel.run_id == run_id,
-                        XComModel.map_index >= 0,
-                        XComModel.key == XCOM_RETURN_KEY,
-                        tuple_(XComModel.dag_id, XComModel.task_id).in_(sorted(finished)),
-                    )
-                    .group_by(XComModel.dag_id, XComModel.task_id)
+                    read.where(entity.map_index >= 0)
+                    .with_only_columns(entity.dag_id, entity.task_id, func.count(entity.map_index))
+                    .group_by(entity.dag_id, entity.task_id)
                 )
             }
             # A finished mapped task that pushed nothing has no row to group, but its
@@ -247,6 +265,7 @@ def _(
 
     if is_mapped(xcom_arg.operator):
         unfinished_ti_exists = exists_query(
+            TaskInstance.working_set.is_(True),
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == run_id,
             TaskInstance.task_id == task_id,
@@ -261,26 +280,17 @@ def _(
         )
         if unfinished_ti_exists:
             return None  # Not all of the expanded tis are done yet.
+        read = XComModel.get_many(dag_ids=dag_id, run_id=run_id, task_ids=task_id, key=XCOM_RETURN_KEY)
+        entity = xcom_entity(read)
         return session.scalar(
-            select(func.count(XComModel.map_index)).where(
-                XComModel.dag_id == dag_id,
-                XComModel.run_id == run_id,
-                XComModel.task_id == task_id,
-                XComModel.map_index >= 0,
-                XComModel.key == XCOM_RETURN_KEY,
-            )
+            read.order_by(None).where(entity.map_index >= 0).with_only_columns(func.count(entity.map_index))
         )
 
-    # Not xcom_arg.key: the SDK records the length of the whole return value, never per key.
-    return session.scalar(
-        select(XComModel.mapped_length).where(
-            XComModel.dag_id == dag_id,
-            XComModel.run_id == run_id,
-            XComModel.task_id == task_id,
-            XComModel.map_index == -1,
-            XComModel.key == XCOM_RETURN_KEY,
-        )
+    read = XComModel.get_many(
+        dag_ids=dag_id, run_id=run_id, task_ids=task_id, map_indexes=-1, key=XCOM_RETURN_KEY
     )
+    entity = xcom_entity(read)
+    return session.scalar(read.with_only_columns(entity.mapped_length))
 
 
 @get_task_map_length.register

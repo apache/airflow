@@ -31,7 +31,20 @@
     "runStatePlaceholder": "Select run state…",
     "timetableType": "Timetable type"
   },
+  "folders": {
+    "all": "All Dags",
+    "empty": "No folders",
+    "hide": "Hide folders",
+    "show": "Show folders",
+    "title": "Folders"
+  },
   "ownerLink": "Owner link for {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Status of tasks from all running Dag runs or, if none is running, from the most recent run. You can turn this off in your user settings.",
+    "label": "Recent tasks",
+    "loading": "Loading recent task state counts",
+    "tooltip": "{{state}}: {{formattedCount}} — click to filter tasks"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No tasks found.",

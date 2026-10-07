@@ -27,7 +27,7 @@ and deployed to `airflow.apache.org/registry/`.
 
 ### Prerequisites
 
-- Python 3.10+ (for metadata extraction)
+- Python 3.11+ (for metadata extraction)
 - Node.js 20+ and pnpm 9+
 - `pyyaml` Python package (`uv pip install pyyaml`)
 

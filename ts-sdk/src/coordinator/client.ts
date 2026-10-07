@@ -30,6 +30,7 @@ import type {
   GetXCom,
   SetXCom,
   GetConnection,
+  SkipDownstreamTasks,
   ConnectionResult as WireConnectionResult,
 } from "./protocol.js";
 
@@ -82,6 +83,9 @@ export interface CoordinatorClient extends TaskClient {
    * output fails the task, while one that pushed null binds null.
    */
   getXComEntry(opts: GetXComOpts): Promise<XComEntry>;
+
+  /** Mark direct downstream tasks of the running task as skipped; none is a no-op. */
+  skipDownstreamTasks(taskIds: readonly string[]): Promise<void>;
 }
 
 export function createCoordinatorClient(
@@ -200,6 +204,14 @@ export function createCoordinatorClient(
         map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
+    },
+
+    // ---- Control flow ----
+
+    async skipDownstreamTasks(taskIds: readonly string[]): Promise<void> {
+      if (taskIds.length === 0) return;
+      const msg: SkipDownstreamTasks = { type: "SkipDownstreamTasks", tasks: [...taskIds] };
+      await rpc("SkipDownstreamTasks", null, msg, () => undefined, "throw");
     },
 
     // ---- Connections ----

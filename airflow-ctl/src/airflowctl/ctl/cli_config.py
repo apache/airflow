@@ -825,7 +825,7 @@ class CommandFactory:
             and "logical_date" in params
             and params["logical_date"] is None
         ):
-            params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
+            params["logical_date"] = datetime.datetime.now(datetime.UTC)
 
         # Handle ClearTaskInstancesBody: --task-ids arrives as a single string but the API expects
         # a list of task_id or [task_id, map_index]; accept comma-separated ids or a JSON list
@@ -1220,6 +1220,23 @@ TASK_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.task_command.failed_deps"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_MAP_INDEX,
+        ),
+    ),
+    ActionCommand(
+        name="state",
+        help="Get the state of a task instance",
+        description=(
+            "Get the state of a task instance. "
+            "Select the run with either run_id or --logical-date (pass exactly one). "
+            "Prints the state value, or None when the task instance has no state yet."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.state"),
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,

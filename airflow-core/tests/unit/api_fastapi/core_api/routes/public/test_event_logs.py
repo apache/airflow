@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
@@ -42,7 +42,7 @@ DAG_DISPLAY_NAME = "TEST_DAG_ID"
 DAG_RUN_ID = "TEST_DAG_RUN_ID"
 TASK_ID = "TEST_TASK_ID"
 TASK_DISPLAY_NAME = "TEST_TASK_ID"
-DAG_EXECUTION_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
+DAG_EXECUTION_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=UTC)
 OWNER = "TEST_OWNER"
 OWNER_DISPLAY_NAME = "Test Owner"
 OWNER_AIRFLOW = "airflow"

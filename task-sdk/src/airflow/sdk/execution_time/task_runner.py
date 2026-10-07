@@ -28,10 +28,10 @@ import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn, cast
 from urllib.parse import quote
 
 import attrs
@@ -60,6 +60,7 @@ from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
+from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import (
@@ -161,6 +162,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.retry_policy import RetryDecision
@@ -972,7 +974,7 @@ def _maybe_reschedule_startup_failure(
     reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
     if missing_dag_retries > 0 and reschedule_count < missing_dag_retries:
         raise AirflowRescheduleException(
-            reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=missing_dag_retry_delay)
+            reschedule_date=datetime.now(tz=UTC) + timedelta(seconds=missing_dag_retry_delay)
         )
 
     log.error(
@@ -1018,6 +1020,35 @@ def _register_deserialization_allowed_classes(dag, log: Logger) -> None:
                     )
 
 
+def _find_native_dag_importer(path: str, bundle_name: str) -> CoordinatorDagImporter | None:
+    """Return the coordinator Dag importer that claims *path*, so that a Lang-SDK runtime parses it."""
+    try:
+        return find_claiming_importer(path, bundle_name)
+    except Exception:
+        # Building the Dag bag reports a broken importer configuration.
+        return None
+
+
+def _fail_lang_sdk_task(what: StartupDetails, coordinator_classpath: str, log: Logger) -> NoReturn:
+    """Fail a task of a native Lang-SDK Dag without retries: running it again cannot help."""
+    log.error(
+        "This task belongs to a native Lang-SDK Dag and cannot run in Python. Give the Dag's tasks "
+        "their own queue and route it to a %s in [sdk] queue_to_coordinator",
+        coordinator_classpath.rsplit(".", 1)[-1],
+        dag_id=what.ti.dag_id,
+        task_id=what.ti.task_id,
+        queue=what.ti.queue,
+        path=what.dag_rel_path,
+    )
+    try:
+        SUPERVISOR_COMMS.send(TaskState(state=TaskInstanceState.FAILED, end_date=datetime.now(tz=UTC)))
+    except Exception:
+        log.exception("Failed to report terminal task state to supervisor", state=TaskInstanceState.FAILED)
+        sys.exit(1)
+    # The supervisor keeps the reported state only when the process exits with 0.
+    sys.exit(0)
+
+
 @detail_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
@@ -1030,6 +1061,9 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     bundle_prepare_ms = int((time.monotonic() - bundle_prepare_start) * 1000)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
+    if (importer := _find_native_dag_importer(dag_absolute_path, bundle_info.name)) is not None:
+        _fail_lang_sdk_task(what, importer.coordinator_classpath, log)
+
     dag_file_parse_start = time.monotonic()
     bag = BundleDagBag(
         dag_folder=dag_absolute_path,
@@ -1595,23 +1629,21 @@ def _run_task_and_map_outcome(
             log.info("Skipping task.", reason=e.args[0])
         msg = TaskState(
             state=TaskInstanceState.SKIPPED,
-            end_date=datetime.now(tz=timezone.utc),
+            end_date=datetime.now(tz=UTC),
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.SKIPPED
     except AirflowRescheduleException as reschedule:
         log.info("::group::Post Execute")
         log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
-        msg = RescheduleTask(
-            reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
-        )
+        msg = RescheduleTask(reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=UTC))
         state = TaskInstanceState.UP_FOR_RESCHEDULE
     except (AirflowFailException, AirflowSensorTimeout) as e:
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        ti.end_date = datetime.now(tz=timezone.utc)
+        ti.end_date = datetime.now(tz=UTC)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
@@ -1631,7 +1663,7 @@ def _run_task_and_map_outcome(
         # If these are thrown, we should mark the TI state as failed.
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        ti.end_date = datetime.now(tz=timezone.utc)
+        ti.end_date = datetime.now(tz=UTC)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
@@ -1724,7 +1756,7 @@ def _handle_current_task_success(
     context: Context,
     ti: RuntimeTaskInstance,
 ) -> tuple[SucceedTask, TaskInstanceState]:
-    end_date = datetime.now(tz=timezone.utc)
+    end_date = datetime.now(tz=UTC)
     ti.end_date = end_date
 
     # Record operator and task instance success metrics
@@ -1822,7 +1854,7 @@ def _handle_handler_failure(
 
 def _terminal_failure(ti: RuntimeTaskInstance) -> TaskState:
     """Build a plain FAILED terminal message, bypassing any retry decision."""
-    ti.end_date = datetime.now(tz=timezone.utc)
+    ti.end_date = datetime.now(tz=UTC)
     return TaskState(
         state=TaskInstanceState.FAILED,
         end_date=ti.end_date,
@@ -1849,7 +1881,7 @@ def _handle_current_task_failed(
 
     decision = _evaluate_retry_policy(ti, exception, log, context)
     if decision is not None and decision.action == RetryAction.FAIL:
-        ti.end_date = datetime.now(tz=timezone.utc)
+        ti.end_date = datetime.now(tz=UTC)
         return (
             TaskState(
                 state=TaskInstanceState.FAILED,
@@ -1880,7 +1912,7 @@ def _finalize_task_failure(
     ``FAILED`` ``TaskState``. This is the default path; retry-policy overrides
     are decided in :func:`_handle_current_task_failed` before this is called.
     """
-    end_date = datetime.now(tz=timezone.utc)
+    end_date = datetime.now(tz=UTC)
     ti.end_date = end_date
 
     # Record operator and task instance failed metrics. One failure is one increment even
@@ -1947,7 +1979,7 @@ def _handle_trigger_dag_run(
             )
             msg = TaskState(
                 state=TaskInstanceState.SKIPPED,
-                end_date=datetime.now(tz=timezone.utc),
+                end_date=datetime.now(tz=UTC),
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.SKIPPED
@@ -1955,7 +1987,7 @@ def _handle_trigger_dag_run(
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
             msg = TaskState(
                 state=TaskInstanceState.FAILED,
-                end_date=datetime.now(tz=timezone.utc),
+                end_date=datetime.now(tz=UTC),
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.FAILED
@@ -2415,7 +2447,7 @@ def main():
                 SUPERVISOR_COMMS.send(
                     msg=RescheduleTask(
                         reschedule_date=reschedule.reschedule_date,
-                        end_date=datetime.now(tz=timezone.utc),
+                        end_date=datetime.now(tz=UTC),
                     )
                 )
                 span.record_exception(reschedule)

@@ -77,6 +77,9 @@ function getColumnIndex(columnMap: Map<string, number>, name: string): number {
   return index;
 }
 
+// Columns getBackfillDetailsByDateRange reads; findBackfillRowByDateRange waits for all of them.
+const DETAIL_COLUMNS = ["From", "To", "Reprocess Behavior", "Created at", "Completed at"];
+
 export class BackfillPage extends BasePage {
   public readonly backfillDateError: Locator;
   public readonly backfillFromTrigger: Locator;
@@ -283,7 +286,14 @@ export class BackfillPage extends BasePage {
             const fromIndex = columnMap.get("From");
             const toIndex = columnMap.get("To");
 
-            if (fromIndex === undefined || toIndex === undefined) {
+            // Headers come from the "common" and "components" i18next namespaces, which load in
+            // parallel. With useSuspense: false a header renders its raw key (e.g.
+            // `backfill.reprocessBehavior`) until its namespace arrives.
+            if (
+              fromIndex === undefined ||
+              toIndex === undefined ||
+              !DETAIL_COLUMNS.every((column) => columnMap.has(column))
+            ) {
               return false;
             }
 
@@ -316,7 +326,7 @@ export class BackfillPage extends BasePage {
         },
         {
           intervals: [2000, 5000],
-          message: `Backfill row with dates ${expectedFrom} ~ ${expectedTo} not found in table`,
+          message: `Backfill row with dates ${expectedFrom} ~ ${expectedTo} not found (waiting for columns: ${DETAIL_COLUMNS.join(", ")})`,
           timeout,
         },
       )
@@ -385,12 +395,18 @@ export class BackfillPage extends BasePage {
   }
 
   public async openFilterMenu(): Promise<void> {
+    // After Escape the menu content stays mounted and visible with data-state="closed" until its exit
+    // animation ends, which a loaded WebKit can delay for many seconds. Focus returns to the trigger
+    // meanwhile, so its tooltip opens over the stale first item. Only an open menu counts, so the loop
+    // re-clicks the trigger (which also closes the tooltip) instead of probing the stale content.
+    const openMenu = this.page.locator('[role="menu"][data-state="open"]');
+
     await expect(async () => {
-      if (!(await this.page.getByRole("menu").isVisible())) {
+      if (!(await openMenu.isVisible())) {
         await this.getFilterButton().click();
       }
-      await expect(this.page.getByRole("menu")).toBeVisible({ timeout: 3000 });
-      await this.page.getByRole("menuitem").first().click({ timeout: 3000, trial: true });
+      await expect(openMenu).toBeVisible({ timeout: 3000 });
+      await openMenu.getByRole("menuitem").first().click({ timeout: 3000, trial: true });
     }).toPass({ intervals: [1000], timeout: 15_000 });
   }
 

@@ -83,6 +83,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.apache.kafka.triggers.await_message",
                     "airflow.providers.apache.kafka.triggers.msg_queue",
+                    "airflow.providers.apache.kafka.triggers.shared_stream",
                 ],
             }
         ],

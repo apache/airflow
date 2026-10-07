@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_file_analysis:
 
-Analyze files and images: ``LLMFileAnalysisOperator``
-=====================================================
+Analyze files and images: ``LLMFileAnalysisOperator`` and ``@task.llm_file_analysis``
+=====================================================================================
 
 .. note::
 
