@@ -69,13 +69,14 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
 import requests
 
+from airflow_e2e_tests.constants import LANG_SDK_STATE_STORE_RETENTION_DAYS
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
 if TYPE_CHECKING:
@@ -95,6 +96,8 @@ _XCOM_CASTING_DAG_ID = "java_xcom_casting_example"
 _SCALA_SPARK_DAG_ID = "scala_spark_example"
 _VARIABLE_WRITE_DAG_ID = "java_variable_write"
 _VARIABLE_WRITE_DESCRIPTION = "written by the Java SDK e2e test"
+_TASK_STATE_DAG_ID = "java_task_state"
+_TASK_STATE_TASK_ID = "roundtrip_task_state"
 
 
 @dataclass
@@ -127,6 +130,14 @@ class _CompletedRun:
             run_id=self.run_id,
             key=key,
         ).get("value")
+
+    def get_task_state_store(self, task_id: str, key: str) -> dict:
+        self._raise_if_failed()
+        if self.run_id is None:
+            raise RuntimeError(f"Dag {self.dag_id!r} did not produce a run ID")
+        return self.client.get_task_state_store(
+            dag_id=self.dag_id, run_id=self.run_id, task_id=task_id, key=key
+        )
 
     def wait_for_log_record(
         self, task_id: str, try_number: int, match: Callable[[dict], bool]
@@ -175,6 +186,10 @@ def _trigger_and_wait_for_dag(dag_id: str, timeout: int) -> _CompletedRun:
     )
 
 
+def _parse_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
 @pytest.fixture(scope="module")
 def annotation_example_run() -> _CompletedRun:
     """Trigger the annotation example once for all of its assertions."""
@@ -203,6 +218,12 @@ def scala_spark_example_run() -> _CompletedRun:
 def variable_write_run() -> _CompletedRun:
     """Trigger the variable write Dag once for all of its assertions."""
     return _trigger_and_wait_for_dag(_VARIABLE_WRITE_DAG_ID, _JAVA_TASK_TIMEOUT)
+
+
+@pytest.fixture(scope="module")
+def task_state_run() -> _CompletedRun:
+    """Trigger the task state Dag once for all of its assertions."""
+    return _trigger_and_wait_for_dag(_TASK_STATE_DAG_ID, _JAVA_TASK_TIMEOUT)
 
 
 class TestJavaSDKAnnotationExample:
@@ -479,4 +500,53 @@ class TestJavaSDKScalaSparkExample:
         load_xcom = scala_spark_example_run.get_xcom("spark_load")
         assert load_xcom == _SPARK_EXPECTED_TOTAL_REVENUE, (
             f"Expected spark_load to return total revenue {_SPARK_EXPECTED_TOTAL_REVENUE}, got {load_xcom!r}"
+        )
+
+
+class TestJavaSDKTaskStateStore:
+    """Verify a Java task can set, get and delete task state store keys.
+
+    The task lives in the java-test-bundle fixture project (served on the
+    dedicated "java-test" queue). It also reads its keys back and fails if a
+    value does not match, so ``success`` covers the get path. Assertions here
+    read the store through the REST API, so the data is proven to have reached
+    the database.
+    """
+
+    def _assert_task_succeeded(self, run: _CompletedRun) -> None:
+        ti = run.get_task_instance(_TASK_STATE_TASK_ID)
+        assert ti.get("state") == "success", (
+            f"Java {_TASK_STATE_TASK_ID!r} task did not succeed.\n"
+            f"  task state : {ti.get('state')!r}\n"
+            f"  dag state  : {run.state!r}\n"
+            f"  all tasks  : {run.ti_states}"
+        )
+
+    def test_never_expire_key_holds_run_id(self, task_state_run: _CompletedRun):
+        self._assert_task_succeeded(task_state_run)
+        entry = task_state_run.get_task_state_store(_TASK_STATE_TASK_ID, "java_e2e_run_id")
+        assert entry.get("value") == task_state_run.run_id, entry
+        assert entry.get("expires_at") is None, entry
+
+    def test_structured_value_roundtrips(self, task_state_run: _CompletedRun):
+        self._assert_task_succeeded(task_state_run)
+        entry = task_state_run.get_task_state_store(_TASK_STATE_TASK_ID, "java_e2e_counter")
+        assert entry.get("value") == {"processed": 3, "cursor": "abc-123"}, entry
+
+    def test_deleted_key_is_gone(self, task_state_run: _CompletedRun):
+        self._assert_task_succeeded(task_state_run)
+        with pytest.raises(requests.HTTPError) as excinfo:
+            task_state_run.get_task_state_store(_TASK_STATE_TASK_ID, "java_e2e_scratch")
+        assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND
+
+    def test_default_retention_applied(self, task_state_run: _CompletedRun):
+        self._assert_task_succeeded(task_state_run)
+        entry = task_state_run.get_task_state_store(_TASK_STATE_TASK_ID, "java_e2e_retained")
+        assert entry.get("expires_at") is not None, entry
+        gap = _parse_timestamp(entry["expires_at"]) - _parse_timestamp(entry["updated_at"])
+        expected = timedelta(days=LANG_SDK_STATE_STORE_RETENTION_DAYS)
+        assert abs(gap - expected) <= timedelta(minutes=5), (
+            f"expected ~{LANG_SDK_STATE_STORE_RETENTION_DAYS} days, got {gap / timedelta(days=1):.1f} days; "
+            "if ~30, the coordinator passed Airflow's config default, so the JVM did not see "
+            f"[state_store] default_retention_days. entry: {entry!r}"
         )

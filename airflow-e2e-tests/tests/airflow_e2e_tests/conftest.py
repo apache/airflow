@@ -45,7 +45,6 @@ from airflow_e2e_tests.constants import (
     GO_SDK_DAGS_PATH,
     GO_SDK_EXAMPLE_BUNDLE_PKG,
     GO_SDK_ROOT_PATH,
-    GO_SDK_STATE_STORE_RETENTION_DAYS,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
     JAVA_SDK_EXAMPLE_DAGS_PATH,
@@ -57,6 +56,7 @@ from airflow_e2e_tests.constants import (
     JAVA_TEST_BUNDLE_ROOT_PATH,
     KAFKA_DIR_PATH,
     LANG_SDK_NATIVE_TOOLCHAIN,
+    LANG_SDK_STATE_STORE_RETENTION_DAYS,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     NODE_IMAGE,
@@ -310,6 +310,14 @@ def _build_dag_bundle_config(artifact_bundles: dict[str, str]) -> str:
     return json.dumps(bundles)
 
 
+def _write_state_store_retention_config(tmp_dir):
+    # Config file, not an env var: the supervisor copies the worker environment into the
+    # language SDK subprocess, so an env var would reach it even without the propagation under test.
+    (tmp_dir / "config" / "airflow.cfg").write_text(
+        f"[state_store]\ndefault_retention_days = {LANG_SDK_STATE_STORE_RETENTION_DAYS}\n"
+    )
+
+
 def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=False):
     """Run the Java SDK Gradle wrapper natively or inside the pinned JDK container.
 
@@ -534,6 +542,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+    _write_state_store_retention_config(tmp_dir)
 
 
 def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
@@ -674,11 +683,7 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
-    # Config file, not an env var: the supervisor copies the worker environment into the Go
-    # subprocess, so an env var would reach Go even without the propagation under test.
-    (tmp_dir / "config" / "airflow.cfg").write_text(
-        f"[state_store]\ndefault_retention_days = {GO_SDK_STATE_STORE_RETENTION_DAYS}\n"
-    )
+    _write_state_store_retention_config(tmp_dir)
 
 
 def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):

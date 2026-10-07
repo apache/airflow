@@ -62,6 +62,9 @@ OPENLINEAGE_COMPAT_DB_COMPOSE_PATH = (
 # CI sets this (the same switch the lang-SDK k8s job uses) to build the lang-SDK
 # artifacts with the host toolchain instead of ephemeral toolchain containers.
 LANG_SDK_NATIVE_TOOLCHAIN = os.environ.get("LANG_SDK_NATIVE_TOOLCHAIN", "").lower() == "true"
+# Far from the supervisor's own 30-day config fallback, so the e2e test can tell a
+# propagated value from it.
+LANG_SDK_STATE_STORE_RETENTION_DAYS = 7
 
 # Java SDK E2E test paths
 JAVA_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "java-sdk"
@@ -95,9 +98,6 @@ GO_SDK_BUNDLE_NAME = "example_dags"
 # Where airflow-go-pack writes the packed bundle inside the repo (go-sdk/bin is gitignored).
 GO_SDK_BIN_PATH = GO_SDK_ROOT_PATH / "bin"
 GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
-# Far from the supervisor's own 30-day config fallback, so the e2e test can tell a
-# propagated value from it.
-GO_SDK_STATE_STORE_RETENTION_DAYS = 7
 # Go toolchain image used to build the bundle in the containerized path (i.e. unless
 # LANG_SDK_NATIVE_TOOLCHAIN is set); must satisfy go-sdk/go.mod's toolchain.
 # The Alpine variant is ~7x smaller than the Debian one and is safe here because the
