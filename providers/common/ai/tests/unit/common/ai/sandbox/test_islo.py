@@ -1051,12 +1051,13 @@ class TestCommandWrapper:
 
         assert not list(scratch_root.glob(pattern))
 
-    def test_keeps_the_tail_and_never_a_partial_leading_line(self):
+    def test_keeps_the_tail_and_drops_a_short_partial_leading_line(self):
         cap = 100
         result = _run_wrapper("i=1; while [ $i -le 1000 ]; do echo line$i; i=$((i+1)); done", cap)
 
         # The wrapper is asked for cap+1 bytes, so the backend can tell the
-        # stream was over budget; the first record must still be whole.
+        # stream was over budget. These records are a few bytes each, so the
+        # cut one is dropped and every record left is whole.
         assert len(result.stdout.encode()) == cap + 1
         payload, truncated = _bound_result_stream(result.stdout, cap, server_truncated=False)
         assert truncated
