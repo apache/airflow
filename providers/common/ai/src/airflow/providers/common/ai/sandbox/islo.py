@@ -22,7 +22,7 @@ import logging
 import math
 import shlex
 import time
-from contextlib import contextmanager, suppress
+from contextlib import closing, contextmanager, suppress
 from typing import TYPE_CHECKING, Any, Literal, NoReturn
 
 from airflow.providers.common.ai.sandbox.base import (
@@ -31,12 +31,15 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxExecResult,
     SandboxFileTooLargeError,
     SandboxTerminalError,
+    _check_export_deadline,
+    _export_deadline,
     _new_sandbox_name,
     _validate_positive_finite,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator, Iterator
+    from typing import BinaryIO
 
     from islo import Islo
 
@@ -534,12 +537,17 @@ class IsloSandboxBackend(SandboxBackend):
         except (SandboxError, ValueError):
             return None
 
-    def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
-        _validate_positive_finite(max_bytes, "max_bytes")
+    def _download(
+        self, sandbox: str, path: str, *, max_bytes: int, operation: str
+    ) -> Generator[bytes, None, None]:
+        """
+        Yield a sandbox file in chunks, raising a failed download through :meth:`_raise_file_op_error`.
+
+        A generator, so a failure in whatever the caller does with a chunk is raised in
+        the caller and never mistaken for a failed download.
+        """
         client = self._get_client()
         chunks = None
-        data = bytearray()
-        over_budget = False
         try:
             chunks = client.sandboxes.download_file(
                 sandbox,
@@ -548,19 +556,24 @@ class IsloSandboxBackend(SandboxBackend):
                     timeout=_FILE_OP_TIMEOUT, chunk_size=min(65536, max_bytes + 1)
                 ),
             )
-            for chunk in chunks:
-                data.extend(chunk[: max_bytes + 1 - len(data)])
-                if len(data) > max_bytes:
-                    over_budget = True
-                    break
+            yield from chunks
         except Exception as e:
-            self._raise_file_op_error(sandbox, path, e, operation="read")
+            self._raise_file_op_error(sandbox, path, e, operation=operation)
         finally:
             close = getattr(chunks, "close", None)
             if close is not None:
                 with suppress(Exception):
                     close()
-        if over_budget:
+
+    def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
+        _validate_positive_finite(max_bytes, "max_bytes")
+        data = bytearray()
+        with closing(self._download(sandbox, path, max_bytes=max_bytes, operation="read")) as chunks:
+            for chunk in chunks:
+                data.extend(chunk[: max_bytes + 1 - len(data)])
+                if len(data) > max_bytes:
+                    break
+        if len(data) > max_bytes:
             # The download API has no size endpoint, so the guest's own stat
             # supplies the number the model plans around. Without it, say only
             # what is known rather than report the budget back as the size.
@@ -572,6 +585,36 @@ class IsloSandboxBackend(SandboxBackend):
                 )
             raise SandboxFileTooLargeError(path, max(size, len(data)), max_bytes)
         return bytes(data)
+
+    def export_file(self, sandbox: str, path: str, dest: BinaryIO, *, max_bytes: int) -> int:
+        """
+        Override: stream the file through Islo's download API into ``dest``.
+
+        The default reads 4 MiB slices through ``run_command``, which here returns at
+        most 1 MiB per stream. The guest still runs the default's checks first, so a
+        refusal means what it does on every backend and the size it reports catches
+        a file that is still being written.
+        """
+        _validate_positive_finite(max_bytes, "max_bytes")
+        deadline = _export_deadline(max_bytes)
+        check = self.run_command(
+            sandbox,
+            f"{self._export_checks(shlex.quote(path), max_bytes)} {self._print_export_size()}",
+            timeout=_FILE_OP_TIMEOUT,
+            max_output_bytes=_HELPER_OUTPUT_CAP,
+        )
+        self._raise_for_export_status(path, check, max_bytes)
+        size = self._parse_export_size(check.stdout)
+        written = 0
+        with closing(self._download(sandbox, path, max_bytes=max_bytes, operation="export")) as chunks:
+            for chunk in chunks:
+                _check_export_deadline(path, deadline, max_bytes)
+                written += len(chunk)
+                if written > max_bytes:
+                    raise SandboxFileTooLargeError(path, written, max_bytes)
+                dest.write(chunk)
+        self._check_export_size(path, expected=size, written=written)
+        return written
 
     def write_file(self, sandbox: str, path: str, content: bytes) -> None:
         quoted = shlex.quote(path)

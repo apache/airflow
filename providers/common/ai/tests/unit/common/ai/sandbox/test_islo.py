@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import builtins
+import io
 import os
 import signal
 import subprocess
@@ -60,6 +61,11 @@ def _exec_result(status="completed", exit_code=0, stdout="", stderr="", truncate
 
 def _sandbox_info(name="box-1", status="running", deleted_at=None):
     return SimpleNamespace(name=name, status=status, deleted_at=deleted_at)
+
+
+def _export_check(size):
+    """What the guest's export check prints for a regular file of ``size`` bytes."""
+    return _exec_result(stdout=f"\nairflow-export-size:{size}\n")
 
 
 def _backend_with_client(**kwargs) -> tuple[IsloSandboxBackend, mock.MagicMock]:
@@ -787,6 +793,137 @@ class TestFileOperations:
 
         with pytest.raises(ValueError, match="max_bytes"):
             backend.read_file("box", "/w/a", max_bytes=0)
+
+
+class TestExportFile:
+    def test_streams_a_file_larger_than_a_command_can_return(self):
+        backend, client = _backend_with_client()
+        chunks = [bytes([n]) * (512 * 1024) for n in range(3)]
+        data = b"".join(chunks)
+        client.sandboxes.get_exec_result.return_value = _export_check(len(data))
+        client.sandboxes.download_file.return_value = iter(chunks)
+        dest = io.BytesIO()
+
+        written = backend.export_file("box", "/w/out.bin", dest, max_bytes=10 * 1024 * 1024)
+
+        # Over the 1 MiB the server returns per stream, which the default's
+        # base64 slices through run_command could never carry.
+        assert len(data) > _SERVER_STREAM_CAP
+        assert written == len(data)
+        assert dest.getvalue() == data
+        client.sandboxes.download_file.assert_called_once_with(
+            "box",
+            path="/w/out.bin",
+            request_options={"timeout_in_seconds": 120, "chunk_size": 65536},
+        )
+        client.sandboxes.exec_in_sandbox.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("exit_code", "stderr", "error", "message"),
+        [
+            (IsloSandboxBackend._MISSING_PATH_STATUS, "", SandboxError, "does not exist"),
+            (IsloSandboxBackend._IS_DIRECTORY_STATUS, "", SandboxError, "is a directory"),
+            (IsloSandboxBackend._NOT_REGULAR_FILE_STATUS, "", SandboxError, "is not a regular file"),
+            (
+                IsloSandboxBackend._TOO_LARGE_STATUS,
+                "\nairflow-export-size:5000\n",
+                SandboxFileTooLargeError,
+                "is 5000 bytes",
+            ),
+        ],
+        ids=["missing", "directory", "not-regular", "too-large"],
+    )
+    def test_the_guest_check_refuses_before_anything_is_downloaded(self, exit_code, stderr, error, message):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _exec_result(exit_code=exit_code, stderr=stderr)
+
+        with pytest.raises(error, match=message) as raised:
+            backend.export_file("box", "/w/a", io.BytesIO(), max_bytes=100)
+
+        assert not isinstance(raised.value, SandboxTerminalError)
+        client.sandboxes.download_file.assert_not_called()
+
+    def test_a_stream_longer_than_the_budget_is_stopped_and_closed(self):
+        backend, client = _backend_with_client()
+        closed: list[bool] = []
+
+        def chunks():
+            try:
+                yield b"x" * 6
+                yield b"x" * 6
+                raise AssertionError("the backend must stop once the budget is passed")
+            finally:
+                closed.append(True)
+
+        # Within budget when the guest checked it, then the file grew.
+        client.sandboxes.get_exec_result.return_value = _export_check(10)
+        client.sandboxes.download_file.return_value = chunks()
+        dest = io.BytesIO()
+
+        with pytest.raises(SandboxFileTooLargeError) as error:
+            backend.export_file("box", "/w/a", dest, max_bytes=10)
+
+        assert error.value.size_bytes == 12
+        assert dest.getvalue() == b"x" * 6
+        assert closed == [True]
+
+    def test_a_file_that_changed_size_while_exported_is_an_error(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _export_check(10)
+        client.sandboxes.download_file.return_value = iter([b"abcd"])
+
+        with pytest.raises(SandboxError, match="changed while it was exported"):
+            backend.export_file("box", "/w/a", io.BytesIO(), max_bytes=100)
+
+    @pytest.mark.parametrize(
+        ("error", "expected", "message"),
+        [
+            (NotFoundError({}), SandboxError, "does not exist"),
+            (ApiError(status_code=503), SandboxTerminalError, "export a sandbox file"),
+        ],
+        ids=["404", "503"],
+    )
+    def test_a_failed_download_is_classified_like_any_file_transfer(self, error, expected, message):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _export_check(10)
+        client.sandboxes.download_file.side_effect = error
+
+        with pytest.raises(SandboxError, match=message) as raised:
+            backend.export_file("box", "/w/a", io.BytesIO(), max_bytes=100)
+
+        assert type(raised.value) is expected
+
+    def test_a_failing_destination_is_not_reported_as_a_sandbox_error(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _export_check(4)
+        client.sandboxes.download_file.return_value = iter([b"abcd"])
+        dest = mock.create_autospec(io.BytesIO, instance=True)
+        dest.write.side_effect = OSError("object store unavailable")
+
+        with pytest.raises(OSError, match="object store unavailable"):
+            backend.export_file("box", "/w/a", dest, max_bytes=100)
+
+        client.sandboxes.get_sandbox.assert_not_called()
+
+    @mock.patch(f"{_MODULE}._export_deadline", autospec=True, return_value=0.0)
+    def test_an_export_past_its_deadline_is_ended(self, _export_deadline):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.return_value = _export_check(4)
+        client.sandboxes.download_file.return_value = iter([b"abcd"])
+        dest = io.BytesIO()
+
+        with pytest.raises(SandboxError, match="took longer than"):
+            backend.export_file("box", "/w/a", dest, max_bytes=100)
+
+        assert dest.getvalue() == b""
+
+    def test_rejects_an_invalid_budget(self):
+        backend, client = _backend_with_client()
+
+        with pytest.raises(ValueError, match="max_bytes"):
+            backend.export_file("box", "/w/a", io.BytesIO(), max_bytes=0)
+
+        client.sandboxes.exec_in_sandbox.assert_not_called()
 
 
 class TestDestroy:
