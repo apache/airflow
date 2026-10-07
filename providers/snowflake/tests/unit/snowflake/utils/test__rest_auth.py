@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 
 import jwt
@@ -134,7 +134,7 @@ class TestSnowflakeRestTokenProvider:
 
         assert second.token != first.token
         decoded = jwt.decode(second.token, options={"verify_signature": False})
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         assert decoded["exp"] > now.timestamp()
 
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
