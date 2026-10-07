@@ -21,7 +21,7 @@
 // Codegen for the Airflow supervisor wire schema.
 //
 // Reads the vendored supervisor schema (`schema/supervisor-schema.json`, kept in
-// sync with Airflow's Task SDK by the `sync-ts-sdk-supervisor-schema` prek hook)
+// sync with Airflow's Task SDK by the `sync-ts-sdk-schemas` prek hook)
 // and emits `src/generated/supervisor.ts`.
 //
 // The input file is Airflow's canonical supervisor JSON Schema.
