@@ -38,11 +38,11 @@ Misc
 
 * ``Require Python 3.11 in all distributions (#74157)``
 * ``[main] Upgrade important CI environment (#73629)``
-* ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
-* ``[main] Upgrade important CI environment (#73308)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
    * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
 
 0.3.1
