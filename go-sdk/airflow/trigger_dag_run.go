@@ -36,8 +36,8 @@ import (
 // leaves its parameter at the Python default. PokeInterval and Deferrable are pointers so that a
 // pointer to 0 or false can set that value instead of leaving the default.
 //
-// DagID, RunID, LogicalDate and the values in Conf are templated. They can hold Jinja such as
-// "{{ ds }}", which Airflow renders when the task runs.
+// The task does not render templates. DagID, RunID, Note and the values in Conf are sent as they
+// are, so a string such as "{{ ds }}" reaches the new Dag run unchanged.
 type TriggerDagRunSpec struct {
 	// DagID is the dag_id of the Dag to trigger. It is required.
 	DagID string
@@ -46,11 +46,10 @@ type TriggerDagRunSpec struct {
 	// Conf is the conf of the new Dag run. Each value must marshal to JSON, and each integer in
 	// Conf must fit in 64 bits.
 	Conf map[string]any
-	// LogicalDate is the logical date of the new Dag run, as an ISO 8601 string such as
-	// "2026-09-30T00:00:00+00:00" or a template such as "{{ ds }}". When LogicalDate is empty and
-	// RunAfter is the zero Time, the logical date is the time the task runs. When LogicalDate is
-	// empty and RunAfter is set, the new Dag run has no logical date.
-	LogicalDate string
+	// LogicalDate is the logical date of the new Dag run. When LogicalDate is the zero Time and
+	// RunAfter is also the zero Time, the logical date is the time the task runs. When LogicalDate
+	// is the zero Time and RunAfter is set, the new Dag run has no logical date.
+	LogicalDate time.Time
 	// RunAfter is the earliest time at which the new Dag run can start. When RunAfter is the zero
 	// Time, the new Dag run can start as soon as the task triggers it.
 	RunAfter time.Time
@@ -139,6 +138,9 @@ func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 		}
 	}
 	if err := checkTime("airflow.TriggerDagRunSpec.RunAfter", spec.RunAfter); err != nil {
+		return TriggerDagRunSpec{}, err
+	}
+	if err := checkTime("airflow.TriggerDagRunSpec.LogicalDate", spec.LogicalDate); err != nil {
 		return TriggerDagRunSpec{}, err
 	}
 	conf, err := copyConf(spec.Conf)

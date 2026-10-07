@@ -289,6 +289,12 @@ func conformanceTriggerDagRun(
 				key,
 			)
 		}
+		if moment, ok := target.(*time.Time); ok {
+			parsed, err := time.Parse(time.RFC3339, value.Value)
+			require.NoError(t, err, "%s: %s", label, key)
+			*moment = parsed
+			continue
+		}
 		require.NoError(t, value.Decode(target), "%s: %s", label, key)
 	}
 	return spec
