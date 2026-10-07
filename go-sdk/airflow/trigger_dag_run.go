@@ -98,10 +98,12 @@ type TriggerDagRunTask struct {
 //		airflow.TaskSpec{TaskID: "trigger_downstream"},
 //	)
 //
-// The task runs no Go code. Once [BundleRef.Serve] serves the Dags from [Dag], Airflow will run
-// the task as TriggerDagRunOperator on a Python worker. So the task does not take the Queue of the
-// [DagSpec], which routes the tasks that run Go code. A [TaskSpec] can set a Queue for the task,
-// to pick the Python workers that run it.
+// The task runs no Go code. Once [BundleRef.Serve] serves the Dags from [Dag], the Go runtime runs
+// the task as TriggerDagRunOperator does, so a Dag from [Dag] needs no Python worker for it. The
+// task takes the Queue of the [DagSpec], unless its [TaskSpec] sets one. The runtime reads the
+// settings it needs from its environment: [api] base_url for the link to the new Dag run, and
+// [operators] default_deferrable for a spec that leaves Deferrable nil. Set Deferrable to defer the
+// wait, which hands it to the Python triggerer as the DagStateTrigger of the standard provider.
 //
 // Because the task has no Go function to take a task_id from, DagRef.Task needs a [TaskSpec]
 // that sets TaskID. For the same reason, the task takes no [Inputs], and it returns no result

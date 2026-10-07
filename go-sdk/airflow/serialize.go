@@ -210,7 +210,7 @@ var dagSpecRules = specRules{
 	fields: dagSpecFields,
 	set:    map[string]bool{"Tags": true},
 	skip: map[string]bool{
-		// serializeTaskLocked writes Queue as the queue of each Go task whose TaskSpec sets no Queue.
+		// serializeTaskLocked writes Queue as the queue of each task whose TaskSpec sets no Queue.
 		"Queue": true,
 		// serializeTimetable writes Schedule as the timetable.
 		"Schedule": true,
@@ -436,9 +436,10 @@ func (d *DagRef) serializeTaskLocked(task *TaskRef) map[string]any {
 			// condition.
 			data["_can_skip_downstream"] = true
 		}
-		if spec.Queue == "" {
-			spec.Queue = d.spec.Queue
-		}
+	}
+	// A task from TriggerDagRun takes the queue of the Dag too, because the Go runtime runs it.
+	if spec.Queue == "" {
+		spec.Queue = d.spec.Queue
 	}
 	writeSpecFields(data, spec, taskSpecRules)
 	if len(task.downstreams) > 0 {
@@ -472,12 +473,12 @@ func serializeArgBindings(inputs []taskInput) []any {
 }
 
 // writeTriggerDagRun writes a task from TriggerDagRun as Python's serializer writes a
-// TriggerDagRunOperator, because a Python worker runs the task.
+// TriggerDagRunOperator, so that the Airflow UI and the Dag dependencies treat it as one.
 //
 // For a Python Dag, Python's serializer writes the template fields of the operator and leaves out
-// its other parameters. A Python worker gets those other parameters by parsing the Python Dag file
-// again. A Go Dag has no Python Dag file, so writeTriggerDagRun also writes each other parameter
-// that spec sets, under the name that TriggerDagRunOperator gives the parameter.
+// its other parameters. A Go Dag has no Python Dag file, so writeTriggerDagRun also writes each
+// other parameter that spec sets, under the name that TriggerDagRunOperator gives the parameter.
+// The Go runtime runs the task from its own copy of spec and reads none of this.
 func writeTriggerDagRun(data map[string]any, spec TriggerDagRunSpec) {
 	data["task_type"] = triggerDagRunTaskType
 	data["_task_module"] = triggerDagRunTaskModule
