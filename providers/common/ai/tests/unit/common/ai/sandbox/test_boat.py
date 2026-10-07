@@ -177,7 +177,7 @@ def test_constructor_rejects_invalid_values(kwargs, message):
         BoatSandboxBackend(**kwargs)
 
 
-def test_request_timeout_bounds_every_api_call():
+def test_request_timeout_bounds_every_api_call(clock):
     backend, api = _backend_with_api(request_timeout=12.5, ready_timeout=45)
     api.create.return_value = _created("bx_1")
     api.get_without_preload_content.return_value = _sandbox_info("ready")
@@ -349,12 +349,119 @@ class TestCreate:
 
         assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_created1"
 
-    def test_api_failure_is_terminal(self):
+    def test_a_refused_create_is_terminal_and_not_retried(self):
         backend, api = _backend_with_api()
-        api.create.side_effect = _api_error(503)
+        api.create.side_effect = _api_error(400)
 
-        with pytest.raises(SandboxTerminalError, match="HTTP 503"):
+        with pytest.raises(SandboxTerminalError, match="HTTP 400"):
             backend.create(spec=SandboxSpec(block_network=False))
+
+        api.create.assert_called_once()
+
+    def test_each_create_sends_its_own_idempotency_key(self):
+        backend, api = _backend_with_api()
+        api.create.side_effect = [_created("bx_created1"), _created("bx_created2")]
+        api.get_without_preload_content.return_value = _sandbox_info("ready")
+
+        backend.create(spec=SandboxSpec(block_network=False))
+        backend.create(spec=SandboxSpec(block_network=False))
+
+        first, second = (call.kwargs["idempotency_key"] for call in api.create.call_args_list)
+        assert first != second
+
+    @pytest.mark.parametrize(
+        "lost",
+        [
+            pytest.param(urllib3.exceptions.ReadTimeoutError(None, "/sandboxes", "timed out"), id="timeout"),
+            pytest.param(urllib3.exceptions.ProtocolError("Connection aborted."), id="transport"),
+            pytest.param(_api_error(502), id="server_error"),
+        ],
+    )
+    def test_a_lost_create_answer_is_retried_with_the_same_key(self, clock, lost):
+        backend, api = _backend_with_api()
+        # Boat answers a repeated key and body with the sandbox the first request created.
+        api.create.side_effect = [lost, _created("bx_created1")]
+        api.get_without_preload_content.return_value = _sandbox_info("ready")
+
+        assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_created1"
+
+        first, second = (call.kwargs for call in api.create.call_args_list)
+        assert first["idempotency_key"] == second["idempotency_key"]
+        assert first["create_sandbox_request"] == second["create_sandbox_request"]
+        api.get_without_preload_content.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "retry_error",
+        [
+            pytest.param(urllib3.exceptions.ReadTimeoutError(None, "/sandboxes", "timed out"), id="timeout"),
+            pytest.param(_api_error(503), id="server_error"),
+            pytest.param(
+                _api_error(409, json.dumps({"error": {"code": "idempotency_key_reused"}})), id="key_reused"
+            ),
+        ],
+    )
+    def test_a_create_whose_retry_also_fails_is_terminal(self, clock, retry_error):
+        backend, api = _backend_with_api()
+        api.create.side_effect = [_api_error(503), retry_error]
+
+        with pytest.raises(SandboxTerminalError, match="create a sandbox"):
+            backend.create(spec=SandboxSpec(block_network=False))
+
+        assert api.create.call_count == 2
+        api.get_without_preload_content.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("in_progress_answers", "ready_timeout", "created", "elapsed"),
+        [
+            pytest.param(2, 300, True, 4.0, id="then_created"),
+            pytest.param(99, 5, False, 5.0, id="until_the_deadline"),
+        ],
+    )
+    def test_a_retry_waits_while_boat_is_still_creating_under_the_key(
+        self, clock, in_progress_answers, ready_timeout, created, elapsed
+    ):
+        backend, api = _backend_with_api(ready_timeout=ready_timeout)
+        in_progress = _api_error(409, json.dumps({"error": {"code": "idempotency_in_progress"}}))
+        api.create.side_effect = [
+            _api_error(503),
+            *[in_progress] * in_progress_answers,
+            _created("bx_created1"),
+        ]
+        api.get_without_preload_content.return_value = _sandbox_info("ready")
+
+        if created:
+            assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_created1"
+        else:
+            with pytest.raises(SandboxTerminalError, match="idempotency_in_progress"):
+                backend.create(spec=SandboxSpec(block_network=False))
+
+        assert len({call.kwargs["idempotency_key"] for call in api.create.call_args_list}) == 1
+        assert clock[0] == elapsed
+
+    def test_provisioning_shares_one_ready_timeout_deadline(self, clock):
+        backend, api = _backend_with_api(ready_timeout=10, request_timeout=30)
+        answers = iter([urllib3.exceptions.ProtocolError("Connection aborted."), _created("bx_slow01")])
+
+        def slow_create(**_kwargs):
+            clock[0] += 3
+            answer = next(answers)
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+
+        api.create.side_effect = slow_create
+        api.get_without_preload_content.return_value = _sandbox_info("provisioning")
+
+        with pytest.raises(SandboxTerminalError, match="not ready within 10 seconds"):
+            backend.create(spec=SandboxSpec(block_network=False))
+
+        # The retry and the polls get what is left, so provisioning ends at ready_timeout;
+        # only an HTTP call that waits on Boat gets request_timeout on top.
+        assert [call.kwargs["_request_timeout"] for call in api.create.call_args_list] == [10 + 30, 7 + 30]
+        assert [
+            call.kwargs["_request_timeout"] for call in api.get_without_preload_content.call_args_list
+        ] == [4.0, 2.0]
+        assert clock[0] == 10.0
 
     def test_api_error_reason_is_surfaced(self):
         backend, api = _backend_with_api()
@@ -407,7 +514,7 @@ class TestCreate:
         ("operation", "match"),
         [
             pytest.param(
-                lambda backend: backend._wait_until_ready("bx_23456789"),
+                lambda backend: backend._wait_until_ready("bx_23456789", deadline=300.0),
                 "entered state 'cancelled' before it was ready",
                 id="waiting_for_ready",
             ),

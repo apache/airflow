@@ -25,6 +25,7 @@ import math
 import os
 import shlex
 import time
+import uuid
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
@@ -67,7 +68,21 @@ _MACHINE_TYPES = frozenset({"small", "default", "large"})
 _MAX_TTL_SECONDS = 2_592_000
 
 
-def _api_error_detail(body: Any) -> str:
+def _parse_api_error(body: str | None) -> dict[str, Any]:
+    """Return the error object of Boat's JSON error envelope, or ``{}`` when ``body`` is not one."""
+    if body is None:
+        return {}
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    error = payload.get("error")
+    return error if isinstance(error, dict) else payload
+
+
+def _api_error_detail(body: str | None) -> str:
     """
     Summarize the ``code``/``message`` pair Boat returns in a failed call's body.
 
@@ -75,20 +90,7 @@ def _api_error_detail(body: Any) -> str:
     account that has no Boat subscription yet. Returns an empty string when the
     body is missing or is not the documented JSON error envelope.
     """
-    if isinstance(body, bytes):
-        with suppress(UnicodeDecodeError):
-            body = body.decode("utf-8")
-    if not isinstance(body, str):
-        return ""
-    try:
-        payload = json.loads(body)
-    except ValueError:
-        return ""
-    if not isinstance(payload, dict):
-        return ""
-    error = payload.get("error")
-    if not isinstance(error, dict):
-        error = payload
+    error = _parse_api_error(body)
     parts = [
         value.strip()
         for key in ("code", "message")
@@ -98,6 +100,27 @@ def _api_error_detail(body: Any) -> str:
         del parts[1]
     detail = ": ".join(parts)
     return detail[:_MAX_ERROR_DETAIL]
+
+
+def _may_have_lost_response(error: Exception) -> bool:
+    """Whether a failed create may have reached Boat and only its answer was lost."""
+    from boat_sdk.exceptions import ApiException
+    from urllib3.exceptions import HTTPError
+
+    if isinstance(error, ApiException):
+        # boat-sdk reports a TLS failure as status 0.
+        return isinstance(error.status, int) and (error.status == 0 or error.status >= 500)
+    return isinstance(error, HTTPError)
+
+
+def _is_idempotency_in_progress(error: Exception) -> bool:
+    from boat_sdk.exceptions import ApiException
+
+    return (
+        isinstance(error, ApiException)
+        and error.status == 409
+        and _parse_api_error(error.body).get("code") == "idempotency_in_progress"
+    )
 
 
 @contextmanager
@@ -182,12 +205,14 @@ class BoatSandboxBackend(SandboxBackend):
         sandbox even if the worker never destroyed it: a whole number from 1 to
         2592000 (30 days). The sandbox is created without snapshots, so stopping
         it erases its disk. Default ``3600``.
-    :param ready_timeout: Seconds to wait for a newly created sandbox to become
-        ready. Default ``300``.
+    :param ready_timeout: Seconds allowed for provisioning, from the create request
+        until the sandbox is ready; a create whose answer may have been lost is
+        retried once with the same idempotency key within it. Default ``300``.
     :param request_timeout: HTTP timeout in seconds for a Boat API call that answers
         at once, such as a status check or a delete, and the time added to the
-        operation's own for a call that waits on one: a command's deadline, a
-        create's ``ready_timeout``, or 120 seconds for a file write. Default ``30``.
+        operation's own for a call that waits on one: a command's deadline, what
+        is left of ``ready_timeout`` for a create, or 120 seconds for a file
+        write. Default ``30``.
     """
 
     name = "boat"
@@ -255,10 +280,9 @@ class BoatSandboxBackend(SandboxBackend):
             raise ApiException.from_response(http_resp=response, body=None, data=None)
         return json.loads(response.data)["sandbox"]["state"]
 
-    def _wait_until_ready(self, sandbox_id: str) -> None:
+    def _wait_until_ready(self, sandbox_id: str, deadline: float) -> None:
         # Not boat_sdk.wait_until_ready: it polls with no HTTP timeout, so one stalled
         # response would hold create past ready_timeout indefinitely.
-        deadline = time.monotonic() + self._ready_timeout
         while (remaining := deadline - time.monotonic()) > 0:
             with _translate_boat_errors("wait for a sandbox to become ready"):
                 state = self._get_state(sandbox_id, timeout=min(self._request_timeout, remaining))
@@ -308,27 +332,11 @@ class BoatSandboxBackend(SandboxBackend):
     def create(self, *, spec: SandboxSpec | None = None) -> str:
         self._check_spec(spec)
         env = dict(spec.env) if spec is not None and spec.env else {}
-        api = self._get_api()
-        with _translate_boat_errors("create a sandbox"):
-            from boat_sdk.models.create_sandbox_request import CreateSandboxRequest
-
-            # The generated request models are typed by their wire aliases.
-            created = api.create(
-                create_sandbox_request=CreateSandboxRequest(
-                    type=self._machine_type,
-                    ttlSeconds=self._ttl_seconds,
-                    noEnv=True,
-                    # Nothing here resumes or forks a sandbox, so snapshots would only
-                    # cost CPU and memory and keep a stopped sandbox's disk.
-                    snapshots=False,
-                    env=env or None,
-                ),
-                _request_timeout=self._http_timeout(self._ready_timeout),
-            )
-            sandbox_id = created.sandbox.id
+        deadline = time.monotonic() + self._ready_timeout
+        sandbox_id = self._request_sandbox(env, deadline)
         try:
             self._name_sandbox(sandbox_id)
-            self._wait_until_ready(sandbox_id)
+            self._wait_until_ready(sandbox_id, deadline)
             self._sandbox_env[sandbox_id] = env
         except BaseException:
             # The id has not reached the toolset yet, so nothing else can tear
@@ -338,6 +346,49 @@ class BoatSandboxBackend(SandboxBackend):
                 self.destroy(sandbox_id)
             raise
         return sandbox_id
+
+    def _request_sandbox(self, env: dict[str, str], deadline: float) -> str:
+        """
+        Send the create request, retrying it once if its answer may have been lost.
+
+        Both attempts carry the same idempotency key and body, for which Boat
+        returns the sandbox the first one created rather than billing a second.
+        """
+        api = self._get_api()
+        with _translate_boat_errors("create a sandbox"):
+            from boat_sdk.models.create_sandbox_request import CreateSandboxRequest
+
+            # The generated request models are typed by their wire aliases.
+            request = CreateSandboxRequest(
+                type=self._machine_type,
+                ttlSeconds=self._ttl_seconds,
+                noEnv=True,
+                # Nothing here resumes or forks a sandbox, so snapshots would only
+                # cost CPU and memory and keep a stopped sandbox's disk.
+                snapshots=False,
+                env=env or None,
+            )
+        idempotency_key = uuid.uuid4().hex
+        retried = False
+        while True:
+            try:
+                return api.create(
+                    idempotency_key=idempotency_key,
+                    create_sandbox_request=request,
+                    _request_timeout=self._http_timeout(max(0.0, deadline - time.monotonic())),
+                ).sandbox.id
+            except Exception as e:
+                if retried:
+                    # Boat is still creating the first request's sandbox under this key.
+                    retry = _is_idempotency_in_progress(e)
+                    if retry:
+                        time.sleep(min(_READY_POLL_INTERVAL, max(0.0, deadline - time.monotonic())))
+                else:
+                    retry = _may_have_lost_response(e)
+                if not retry or time.monotonic() >= deadline:
+                    with _translate_boat_errors("create a sandbox"):
+                        raise
+                retried = True
 
     def _name_sandbox(self, sandbox_id: str) -> None:
         """
