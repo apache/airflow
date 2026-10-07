@@ -266,6 +266,33 @@ def test_in_process_shutdown_closes_connections_after_lifespan(in_process_db_app
     assert shutdown_loops == [opened[0][1]]
 
 
+def test_in_process_api_does_not_reuse_connections_from_other_loops(in_process_db_app):
+    app, opened, _ = in_process_db_app
+
+    async def query():
+        async with create_session_async() as session:
+            return (await session.execute(text("SELECT 1"))).scalar_one()
+
+    other_loop = asyncio.new_event_loop()
+    thread = threading.Thread(target=other_loop.run_forever, daemon=True)
+    thread.start()
+    try:
+        assert asyncio.run_coroutine_threadsafe(query(), other_loop).result() == 1
+        api = InProcessExecutionAPI(app)
+        with httpx.Client(transport=api.transport) as client:
+            assert client.get("http://localhost/").json() == 1
+        del client, api
+        gc.collect()
+    finally:
+        other_loop.call_soon_threadsafe(other_loop.stop)
+        thread.join(timeout=5)
+        other_loop.close()
+
+    assert len(opened) == 2
+    assert opened[0][1] is other_loop
+    assert opened[1][1] is not other_loop
+
+
 def test_session_factory_remains_usable_after_in_process_shutdown(in_process_db_app):
     app, opened, closed = in_process_db_app
     engine, factory = settings.async_engine, settings.AsyncSession

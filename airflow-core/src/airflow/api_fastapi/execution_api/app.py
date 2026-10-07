@@ -445,6 +445,10 @@ class InProcessExecutionAPI:
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
+            # Pooled async connections are bound to the event loop that opened them, and reusing one on
+            # this loop fails (e.g. aiomysql). Drop connections opened elsewhere without closing them here.
+            if settings.async_engine is not None:
+                await settings.async_engine.dispose(close=False)
             cm.push_async_callback(settings.dispose_async_engine)
             await cm.enter_async_context(app.router.lifespan_context(app))
 

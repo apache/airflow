@@ -35,7 +35,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import event, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -4029,6 +4029,7 @@ class TestGetCount:
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
         dag_maker.create_dagrun(session=session)
+        session.commit()
 
         response = client.get(
             "/execution/task-instances/count",
@@ -4615,6 +4616,7 @@ class TestGetTaskStates:
             with TaskGroup("group1"):
                 EmptyOperator(task_id="task1")
         dag_maker.create_dagrun(session=session)
+        session.commit()
 
         response = client.get(
             "/execution/task-instances/states",
@@ -4818,6 +4820,49 @@ class TestGetTaskStates:
         response = client.get("/execution/task-instances/states", params={"dag_id": dr.dag_id, **params})
         assert response.status_code == 200
         assert response.json() == {"task_states": {dr.run_id: expected}}
+
+    def test_get_task_states_does_not_load_task_instances(self, dag_maker, client, session):
+        with dag_maker(session=session, serialized=True) as dag:
+            EmptyOperator(task_id="task1")
+
+            with TaskGroup("group1"):
+
+                @dag.task()
+                def add_one(x):
+                    return [x + 1]
+
+                add_one.expand(x=[1, 2, 3])
+
+        dr = dag_maker.create_dagrun(session=session)
+        session.commit()
+        session.expunge_all()
+
+        loads = []
+
+        def on_load(target, context):
+            loads.append(target)
+
+        event.listen(TaskInstance, "load", on_load)
+        try:
+            response = client.get(
+                "/execution/task-instances/states",
+                params={"dag_id": dr.dag_id, "task_ids": ["task1"], "task_group_id": "group1"},
+            )
+        finally:
+            event.remove(TaskInstance, "load", on_load)
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_states": {
+                dr.run_id: {
+                    "task1": None,
+                    "group1.add_one_0": None,
+                    "group1.add_one_1": None,
+                    "group1.add_one_2": None,
+                },
+            },
+        }
+        assert loads == []
 
 
 class TestGetTaskInstanceBreadcrumbs:
