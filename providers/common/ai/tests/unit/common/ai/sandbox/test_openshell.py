@@ -44,6 +44,7 @@ from airflow.providers.common.ai.sandbox.openshell import (
     _EXEC_GRACE,
     _READ_WRITE_PATHS,
     _RUN_WRAPPER,
+    _STAGING_FAILED,
     OpenShellSandboxBackend,
 )
 
@@ -453,6 +454,19 @@ class TestRunCommand:
 
         assert result.timed_out is timed_out
 
+    def test_only_the_wrappers_own_staging_failure_is_an_error(self):
+        backend, client = _backend()
+        client._stub.ExecSandbox.side_effect = [
+            _result(125, err=b"docker: invalid reference format\n"),
+            _result(125, err=f"cat: write error: No space left on device\n{_STAGING_FAILED}\n".encode()),
+        ]
+
+        assert backend.run_command("box", "docker run x", timeout=5, max_output_bytes=100).exit_code == 125
+        with pytest.raises(SandboxError, match="No space left on device") as error:
+            backend.run_command("box", "make", timeout=5, max_output_bytes=100)
+
+        assert not isinstance(error.value, SandboxTerminalError)
+
     def test_each_stream_is_capped_and_flagged_on_its_own(self):
         backend, client = _backend()
         # The wrapper sends one byte past the cap for a stream it had to cut.
@@ -859,6 +873,23 @@ class TestRunWrapper:
         assert (result.returncode, result.stdout) == (0, b"started\n")
         assert time.monotonic() - started < 5
         assert survivors
+
+    def test_a_failure_to_stage_the_command_has_its_own_status(self):
+        # A directory on stdin fails the staging `cat` the way a full /tmp does.
+        stdin = os.open("/", os.O_RDONLY)
+        try:
+            result = subprocess.run(
+                ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", "5", "1000"],
+                stdin=stdin,
+                capture_output=True,
+                timeout=20,
+                check=False,
+            )
+        finally:
+            os.close(stdin)
+
+        assert result.returncode == 125
+        assert result.stderr.endswith(f"{_STAGING_FAILED}\n".encode())
 
     def test_each_stream_is_cut_to_one_byte_past_the_cap(self):
         result = self._run("head -c 5000 /dev/zero; head -c 10 /dev/zero >&2", cap=100)

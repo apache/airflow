@@ -107,6 +107,11 @@ _AGENT_POLICY_PROPOSALS = "agent_policy_proposals_enabled"
 # after its own timer fired, and the caller also checks the elapsed time, so a
 # command that exits 124 on its own inside the budget is not a timeout.
 _TIMEOUT_STATUS = 124
+# Wrapper-private exit status and stderr line for "the command could not be
+# staged in /tmp, so it did not run". The status alone is not enough, because a
+# command can exit 125 itself, as docker run, env and nohup do on their own errors.
+_STAGING_STATUS = 125
+_STAGING_FAILED = "airflow-exec: could not stage the command in /tmp"
 _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Runs one command for run_command. OpenShell's own exec timeout returns a
@@ -133,8 +138,7 @@ _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 # this one and is not killed on timeout.
 _RUN_WRAPPER = rf"""t=$1 c=$2 o=$PATH
 {_SYSTEM_PATH}
-d=$(mktemp -d /tmp/.airflow-exec.XXXXXX) || exit 125
-cat >"$d/c"
+d=$(mktemp -d /tmp/.airflow-exec.XXXXXX) && cat >"$d/c" || {{ rm -rf "$d"; echo "{_STAGING_FAILED}" >&2; exit {_STAGING_STATUS}; }}
 f=0
 trap f=1 ALRM
 trap f=2 HUP INT TERM
@@ -835,6 +839,12 @@ class OpenShellSandboxBackend(SandboxBackend):
         except _ExecHung:
             return self._abandon_command(sandbox, stdout, stderr, seconds=seconds)
         self._check_egress(sandbox)
+        if outcome.exit_code == _STAGING_STATUS and _STAGING_FAILED in stderr.get_text():
+            raise SandboxError(
+                "The command was not run: the sandbox could not stage it in /tmp "
+                f"({stderr.get_text().strip()}). If /tmp is full, overwrite a large file there with "
+                "empty content using write_file, then run the command again."
+            )
         return SandboxExecResult(
             exit_code=outcome.exit_code,
             stdout=stdout.get_text(),
