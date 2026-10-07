@@ -124,7 +124,7 @@ class TestNextRunAssets:
         }
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
     )
     def test_asset_expression_hides_assets_the_caller_may_not_read(
@@ -165,7 +165,7 @@ class TestNextRunAssets:
         assert "s3://bucket/hidden" not in redacted
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
     )
     def test_should_return_only_assets_the_caller_may_read(
@@ -191,7 +191,7 @@ class TestNextRunAssets:
         assert response.json()["scheduling_asset_count"] == 2
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
     )
     def test_scheduling_asset_count_is_unaffected_when_no_asset_is_readable(
@@ -216,7 +216,7 @@ class TestNextRunAssets:
         assert response.json()["scheduling_asset_count"] == 2
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
     )
     def test_partitioned_dag_should_hide_keys_of_assets_the_caller_may_not_read(
@@ -686,7 +686,9 @@ class TestGetAssetsUi:
         assert body["total_entries"] == 1
         assert body["assets"][0]["name"] == "ui_asset"
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
     def test_should_return_only_assets_the_caller_may_read(
         self, mock_get_authorized_assets, test_client, session
     ):

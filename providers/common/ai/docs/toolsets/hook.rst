@@ -107,11 +107,9 @@ the Dag author's decision, such as which bucket a storage hook reads, pin them:
     )
 
 A pinned argument is left out of the schema the model sees and passed to every allowed
-method. If the model supplies it anyway, the call is refused. For a method with named
-parameters, such as ``S3Hook.read_key``, argument validation refuses it as an extra
-input (see :ref:`hook-toolset-restricted`). A method that names the parameter and also
-takes ``**kwargs`` would accept it, so the toolset refuses it itself and tells the
-model the argument is fixed.
+method. If the model supplies it anyway, the call is refused while its arguments are
+validated, before an approval gate or the hook sees it. When the rest of the call is
+valid, the model is told the argument is fixed (see :ref:`hook-toolset-restricted`).
 
 A pin binds one parameter name, so every allowed method has to take it by that name.
 When one does not, the toolset raises ``ValueError`` when it is created: a method that
@@ -147,19 +145,7 @@ that bucket was refused before it reached S3, with this message to the model:
 
 .. code-block:: text
 
-    1 validation error:
-    ```json
-    [
-      {
-        "type": "extra_forbidden",
-        "loc": [
-          "bucket_name"
-        ],
-        "msg": "Extra inputs are not permitted",
-        "input": "acme-payroll"
-      }
-    ]
-    ```
+    bucket_name is fixed for this tool: call it again without it.
 
     Fix the errors and try again.
 
@@ -187,7 +173,7 @@ Parameters
 - ``pinned_arguments``: Arguments fixed by the Dag author rather than chosen by the
   model. See above.
 - ``max_retries``: How many times the model may correct a call with invalid arguments,
-  or one that changes a pinned argument. Default ``None``, the agent's ``retries``. See
+  or one that supplies a pinned argument. Default ``None``, the agent's ``retries``. See
   :ref:`toolset-retry-budget`.
 
 When to choose it
@@ -206,6 +192,9 @@ reflection-based adapter, so the work is choosing the method list.
   ``read_key`` is exposed, the agent picks the key within the pinned bucket; the
   :ref:`defense-layer table <toolset-defense-layers>` states this outright. Choose
   methods whose worst case you accept, not methods you intend to constrain later.
+  To expose a method that changes something and have a person approve the call
+  first, wrap the toolset with ``.approval_required()``. A task instance can pause
+  for approval once per Dag run; see :doc:`../tool_approval`.
 - Its calls act as barriers. The tools are registered with ``sequential=True``
   and each hook method runs in a worker thread, one blocking hook call at a time
   in the task process, so a slow call holds up every other tool the model emitted
