@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 from decimal import Decimal
 
 import pytest
+from pydantic import TypeAdapter
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.utils.usage_budget import (
@@ -31,6 +33,12 @@ from airflow.providers.common.ai.utils.usage_budget import (
 )
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+
+# Float measures such as ``audio_seconds``, added to RunUsage in pydantic-ai 2.50.
+_FLOAT_FIELDS = [field.name for field in dataclasses.fields(RunUsage) if field.type in (float, "float")]
+requires_float_field = pytest.mark.skipif(
+    not _FLOAT_FIELDS, reason="RunUsage has no float field before pydantic-ai 2.50"
+)
 
 
 class TestDumpLoadRunUsage:
@@ -79,6 +87,40 @@ class TestDumpLoadRunUsage:
     )
     def test_malformed_shapes_raise_valueerror_naming_the_key(self, raw, match):
         with pytest.raises(ValueError, match=match) as exc_info:
+            load_run_usage(raw, key=USAGE_BUDGET_KEY)
+        assert USAGE_BUDGET_KEY in str(exc_info.value)
+
+    def test_usage_validated_by_pydantic_round_trips(self):
+        """
+        The tool-approval resume path rebuilds usage with ``TypeAdapter(RunUsage)``, which
+        normalizes every field to its declared type, e.g. a float field's default ``0`` to
+        ``0.0``. Whatever shape that produces must survive the task state store round trip.
+        """
+        usage = TypeAdapter(RunUsage).validate_python(
+            dump_run_usage(RunUsage(requests=2, input_tokens=10, details={"reasoning": 3}))
+        )
+
+        assert copy_run_usage(usage) == usage
+        assert load_run_usage(dump_run_usage(usage), key=USAGE_BUDGET_KEY) == usage
+
+    @requires_float_field
+    @pytest.mark.parametrize("value", [0.0, 1.5, 2], ids=["zero", "fraction", "int"])
+    def test_float_fields_load_as_float(self, value):
+        raw = dump_run_usage(RunUsage(requests=1))
+        raw.update(dict.fromkeys(_FLOAT_FIELDS, value))
+
+        loaded = load_run_usage(raw, key=USAGE_BUDGET_KEY)
+
+        for name in _FLOAT_FIELDS:
+            assert getattr(loaded, name) == value
+            assert isinstance(getattr(loaded, name), float)
+
+    @requires_float_field
+    @pytest.mark.parametrize("value", ["1.5", True], ids=["string", "bool"])
+    def test_float_field_not_a_number_raises_valueerror_naming_the_key(self, value):
+        raw = {_FLOAT_FIELDS[0]: value}
+
+        with pytest.raises(ValueError, match="not a number") as exc_info:
             load_run_usage(raw, key=USAGE_BUDGET_KEY)
         assert USAGE_BUDGET_KEY in str(exc_info.value)
 

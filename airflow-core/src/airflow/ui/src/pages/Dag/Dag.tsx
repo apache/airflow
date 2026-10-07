@@ -77,17 +77,12 @@ export const Dag = () => {
     },
     undefined,
     {
-      refetchInterval: (query) => {
+      refetchInterval: (query) =>
         // Auto-refresh when there are active runs or pending runs
-        if (
-          query.state.data?.scheduling_state === "draining" ||
-          (hasPendingRuns ?? (query.state.data && (query.state.data.active_runs_count ?? 0) > 0))
-        ) {
-          return refetchInterval;
-        }
-
-        return false;
-      },
+        query.state.data?.scheduling_state === "draining" ||
+        (hasPendingRuns ?? (query.state.data && (query.state.data.active_runs_count ?? 0) > 0))
+          ? refetchInterval
+          : false,
     },
   );
 

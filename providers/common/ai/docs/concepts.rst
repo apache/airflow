@@ -49,7 +49,7 @@ generating SQL, comparing schemas, or submitting many prompts as one batch.
 
 The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools
 run in the Airflow worker by default, where they get retries, logging, and observability like
-any other task. The exception is :ref:`SandboxToolset <sandbox-limitations>`, which exists so
+any other task. The exception is :ref:`SandboxToolset <sandbox-placement>`, which exists so
 that code the *model* writes runs somewhere else.
 
 Toolsets give agents reach

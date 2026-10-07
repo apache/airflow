@@ -4693,6 +4693,10 @@
         "10.22.0": {
             "associated_airflow_version": "3.3.2",
             "date_released": "2026-09-14T14:49:07Z"
+        },
+        "10.23.0": {
+            "associated_airflow_version": "3.3.2",
+            "date_released": "2026-10-05T18:08:08Z"
         }
     },
     "cohere": {
@@ -6661,6 +6665,12 @@
         "4.6.0": {
             "associated_airflow_version": "3.3.2",
             "date_released": "2026-09-29T06:59:11Z"
+        }
+    },
+    "duckdb": {
+        "0.2.0": {
+            "associated_airflow_version": "3.3.2",
+            "date_released": "2026-10-05T18:08:08Z"
         }
     },
     "edge3": {

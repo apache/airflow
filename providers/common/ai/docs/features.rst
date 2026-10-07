@@ -28,8 +28,8 @@ you use. Each is a parameter on the operator or decorator.
 - :doc:`message_history`: ``message_history`` carries a conversation across agent runs.
 - :doc:`capabilities`: ``capabilities=`` adds pydantic-ai capabilities such as ``Thinking`` and
   ``WebSearch``, and ``pydantic-ai-shields`` guardrails, to an agent.
-- :doc:`code_mode`: ``code_mode=True`` lets the model call several tools from one Python
-  snippet instead of one round trip per call.
+- :doc:`code_mode`: the ``CodeMode`` capability lets the model call several tools from one
+  Python snippet instead of one round trip per call.
 - :doc:`approval_gates`: ``require_approval=True`` pauses an LLM operator until a person
   approves, edits or rejects the output.
 - :doc:`hitl_review`: ``enable_hitl_review=True`` opens an iterative review loop on an agent,

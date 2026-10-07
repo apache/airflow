@@ -45,14 +45,13 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -190,7 +189,7 @@ dev = [
     "apache-airflow-providers-amazon[aiobotocore]",
     "apache-airflow-providers-postgres",
     "aws_xray_sdk>=2.12.0",
-    "moto[cloudformation,glue]>=5.1.2",
+    "moto[cloudformation,glue]>=5.2.2",
     "mypy-boto3-appflow>=1.37.0",
     "mypy-boto3-rds>=1.34.90",
     "mypy-boto3-redshift-data>=1.34.0",

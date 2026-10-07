@@ -788,9 +788,7 @@ def test_parse_file_reports_definitions_source_codes_and_dag_warnings(mock_dag_w
     )
 
     assert result.parsed_definitions == ["dags.zip/member.py"]
-    assert result.dag_source_codes == {
-        os.fspath(tmp_path / "dags.zip" / "member.py"): DagSourceCode(source_code=source, language="python")
-    }
+    assert result.dag_source_codes == {"member": DagSourceCode(source_code=source, language="python")}
     assert result.warnings == [
         {"dag_id": "member", "warning_type": "test:deprecated_field", "message": "Deprecated field"}
     ]
@@ -2317,6 +2315,7 @@ class TestDagProcessingMessageTypes:
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
+            "SetExecutionTimeout",
             # AIP-103 task/asset store — Dag processor has no task execution context.
             "GetTaskStateStore",
             "SetTaskStateStore",

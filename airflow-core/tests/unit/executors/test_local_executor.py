@@ -900,7 +900,7 @@ class TestLocalExecutorBookkeeping:
 
     @pytest.mark.parametrize("start_method", ["fork", "spawn"])
     @pytest.mark.parametrize("kind", ["task", "callback", "connection"])
-    @pytest.mark.execution_timeout(30)
+    @pytest.mark.execution_timeout(60)
     def test_actual_worker_death_after_start_releases_slot(self, start_method, kind, mocker, tmp_path):
         ctx = multiprocessing.get_context(start_method)
         mocker.patch.object(
@@ -922,16 +922,23 @@ class TestLocalExecutorBookkeeping:
         executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
         try:
             executor.heartbeat()
-            deadline = time.monotonic() + 10
+            # Spawned workers re-import the airflow stack before dequeuing; ~10s observed on loaded CI runners.
+            timeout = 30
+            deadline = time.monotonic() + timeout
             while not marker.exists():
-                assert time.monotonic() < deadline
+                assert time.monotonic() < deadline, f"Worker process failed to start within {timeout}s"
+                assert any(proc.is_alive() for proc in executor.workers.values()), (
+                    "Worker died before entering workload: "
+                    f"{[proc.exitcode for proc in executor.workers.values()]}"
+                )
                 executor.sync()
                 time.sleep(0.01)
             executor.sync()
             pid, proc = next(iter(executor.workers.items()))
             assert executor._worker_tasks == {pid: key}
             proc.kill()
-            proc.join(timeout=1)
+            proc.join(timeout=5)
+            assert not proc.is_alive(), "Worker did not exit after being killed"
 
             executor.sync()
 
