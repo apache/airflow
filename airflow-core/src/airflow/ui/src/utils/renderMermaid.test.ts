@@ -16,16 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DagRunMutableStates, TaskInstanceState } from "openapi/requests/types.gen";
+import { describe, expect, it, vi } from "vitest";
 
-export const allowedStates: Array<DagRunMutableStates> = ["success", "failed"];
+import { renderMermaidDiagram } from "./renderMermaid";
 
-// Narrower than isStatePending: excludes states where the task has started or may start at any moment.
-const skippableTaskInstanceStates: Array<TaskInstanceState> = [
-  "scheduled",
-  "up_for_reschedule",
-  "up_for_retry",
-];
+const { initialize, render } = vi.hoisted(() => ({
+  initialize: vi.fn(),
+  render: vi.fn(),
+}));
 
-export const canMarkTaskInstanceAsSkipped = (state?: TaskInstanceState | null) =>
-  state === null || state === undefined || skippableTaskInstanceStates.includes(state);
+vi.mock("mermaid", () => ({ default: { initialize, render } }));
+
+describe("renderMermaidDiagram", () => {
+  it("keeps the dagre layout and classic look that predate mermaid 12", async () => {
+    render.mockResolvedValue({ svg: "<svg></svg>" });
+
+    await renderMermaidDiagram({ chart: "graph TD; A-->B", diagramId: "diagram", theme: "dark" });
+
+    expect(initialize).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: "dagre", look: "classic", theme: "dark" }),
+    );
+  });
+});

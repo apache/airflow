@@ -6603,6 +6603,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -9880,7 +9886,16 @@ paths:
       tags:
       - Task
       summary: Get Task
-      description: Get simplified representation of a task.
+      description: 'Get simplified representation of a task.
+
+
+        Pass ``version_number`` (e.g. a task instance''s ``dag_version.version_number``)
+        to get the task
+
+        as defined in that Dag version. Without it the latest version is used. Returns
+        404 if that
+
+        version of the Dag does not exist.'
       operationId: get_task
       security:
       - OAuth2PasswordBearer: []
@@ -9897,6 +9912,14 @@ paths:
         required: true
         schema:
           title: Task Id
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       responses:
         '200':
           description: Successful Response
@@ -16065,46 +16088,31 @@ components:
       title: PatchTaskInstanceBody
       description: Request body for patching task instance state.
     PluginAppliesToResponse:
-      properties:
-        dag_tags:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Dag Tags
-        dag_ids:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Dag Ids
-        task_ids:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Task Ids
-        operators:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Operators
-        operator_names:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Operator Names
-      additionalProperties: false
+      additionalProperties:
+        items:
+          type: string
+        type: array
       type: object
       title: PluginAppliesToResponse
-      description: Serializer for the optional Dag/task scoping criteria of a UI plugin.
+      description: 'Serializer for the optional scoping criteria of a UI plugin.
+
+
+        An open map of dotted field path to the values that path may take -- not a
+        closed set of
+
+        criteria. ``{"state": ["failed"], "dag.tags.name": ["ml"]}`` scopes to failed
+        entities of
+
+        ml-tagged Dags. An unqualified path is rooted at the entity the ``destination``
+        is about;
+
+        a path may instead name a related record (``dag``, ``dag_run``, ``task``,
+        ``task_instance``)
+
+        as its first segment. Matching is equality against the listed values, OR within
+        a path and
+
+        AND across paths, and is evaluated client-side.'
     PluginCollectionResponse:
       properties:
         plugins:
