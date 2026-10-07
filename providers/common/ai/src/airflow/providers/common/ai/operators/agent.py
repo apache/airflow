@@ -981,7 +981,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             # (pydantic-ai-harness SpendLimits, StepPersistence) would otherwise look up the
             # retry's id in the previous attempt's records. Attempts still differ in their
             # spans' task instance id and try number.
-            run_kwargs["run_id"] = self._durable_journal.run_id(default=run_kwargs["run_id"])
+            run_kwargs["run_id"] = self._durable_journal.get_run_id(default=run_kwargs["run_id"])
             if not history:
                 # Without a history to inherit one from, pydantic-ai starts a new conversation
                 # on every attempt; keep one for the durable run, for the same reason.

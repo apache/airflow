@@ -81,6 +81,10 @@ else:
     DURABLE_UNIT_TOOLSETS = (FunctionToolset, DynamicToolset, MCPToolset)
 """Leaf toolsets pydantic-ai's durable backend runs as durable units; each needs a unique ``id``."""
 
+# Why a recorded step that matched is run live anyway: it was written by a version whose
+# types have changed since, so replaying it would fail on every retry.
+_UNLOADABLE = "the recorded result no longer loads, so it was written by another version"
+
 _NO_CONFIG: RoleBasedOperationConfig[None] = RoleBasedOperationConfig(
     model=None, event=None, capability=None, tool=None
 )
@@ -263,7 +267,9 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
             case ModelRequestId(streaming=streaming):
                 return await self._model_request(active, name, body, cache_key, streaming=streaming)
             case ToolsetCallToolId():
-                step = _claim_tool_call(active, name, _tool_fingerprint(cache_key))
+                step = _claim_tool_call(
+                    active, name, _tool_fingerprint(cache_key), valid_payload=_is_recorded_tool_result
+                )
                 if step.replayed:
                     return step.payload
                 # The masking wrapper AgentOperator adds sits outside this durable unit, so mask
@@ -301,8 +307,10 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
         continuation = ledger.begin_model_request(messages)
         had_request_credit = ledger.settle()
         step = active.durable_run.claim(name, kind="model", fingerprint=fingerprint)
-        if step.replayed:
-            response = _model_response(step.payload, streaming=streaming)
+        response = _load_model_response(step.payload, streaming=streaming) if step.replayed else None
+        if step.replayed and response is None:
+            active.durable_run.reject(step, reason=_UNLOADABLE)
+        if response is not None:
             ledger.record_model_replay(response, continuation=continuation)
             ledger.track_chain(response, parameters)
             if response.state != "suspended":
@@ -310,7 +318,8 @@ class _AirflowOperationBackend(JournalCallableOperationBackend[None]):
             return step.payload
         ledger.record_live_model_request(had_request_credit=had_request_credit)
         payload = await step.run(body)
-        ledger.track_chain(_model_response(payload, streaming=streaming), parameters)
+        if (live := _load_model_response(payload, streaming=streaming)) is not None:
+            ledger.track_chain(live, parameters)
         return payload
 
     async def _fingerprint_model_request(
@@ -366,6 +375,7 @@ class _JournaledToolset(WrapperToolset[Any]):
             active,
             f"{self.durability.name}__airflow_toolset__{leaf.id or type(leaf).__name__}.call_tool:{name}",
             fingerprint_tool_call(name, tool_args, ctx.tool_call_id),
+            valid_payload=_is_journaled_tool_payload,
             # A toolset whose calls act on a system Airflow cannot observe, such as a managed
             # agent, runs them again on every attempt.
             replayable=leaf.replayable if isinstance(leaf, AirflowToolset) else True,
@@ -378,10 +388,17 @@ class _JournaledToolset(WrapperToolset[Any]):
 
 
 def _claim_tool_call(
-    active: _ActiveRun, name: str, fingerprint: str | None, *, replayable: bool = True
+    active: _ActiveRun,
+    name: str,
+    fingerprint: str | None,
+    *,
+    valid_payload: Callable[[Any], bool],
+    replayable: bool = True,
 ) -> JournalStep:
     """Claim a tool call's step and keep the ledger's count of tool calls in step with it."""
     step = active.durable_run.claim(name, kind="tool", fingerprint=fingerprint, replayable=replayable)
+    if step.replayed and not valid_payload(step.payload):
+        active.durable_run.reject(step, reason=_UNLOADABLE)
     if not step.replayed:
         active.ledger.record_live_tool_call(step.position)
     elif is_successful_tool_payload(step.payload):
@@ -441,10 +458,39 @@ def _decode_tool_payload(payload: Any) -> Any:
     raise DurableJournalError(f"durable execution found a tool result it cannot replay: {kind!r}")
 
 
-def _model_response(payload: object, *, streaming: bool) -> ModelResponse:
+def _load_model_response(payload: object, *, streaming: bool) -> ModelResponse | None:
+    """Decode a recorded model response, or return ``None`` when it no longer loads."""
     # A streamed request records the response together with the events it streamed.
-    raw = payload["response"] if streaming and isinstance(payload, dict) else payload
-    return JSON_CODEC.load(ModelResponse, raw)
+    raw = payload.get("response") if streaming and isinstance(payload, dict) else payload
+    try:
+        return JSON_CODEC.load(ModelResponse, raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_recorded_tool_result(payload: object) -> bool:
+    # pydantic-ai decodes what its own toolsets recorded with a type it keeps private, so only
+    # the field it dispatches on can be checked here.
+    return isinstance(payload, dict) and isinstance(payload.get("kind"), str)
+
+
+def _is_journaled_tool_payload(payload: object) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    match payload.get("kind"):
+        case "tool_return" if "tool_return" in payload:
+            try:
+                JSON_CODEC.load(ToolReturn, payload["tool_return"])
+            except (TypeError, ValueError):
+                return False
+            return True
+        case "tool_return":
+            return "result" in payload
+        case "model_retry" | "tool_failed":
+            return isinstance(payload.get("message"), str)
+        case "approval_required" | "call_deferred":
+            return True
+    return False
 
 
 def _tool_fingerprint(cache_key: tuple[object, ...]) -> str | None:

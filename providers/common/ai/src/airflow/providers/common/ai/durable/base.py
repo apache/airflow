@@ -39,8 +39,11 @@ def build_run_meta_key(run: str | int) -> str:
     return f"{DURABLE_KEY_PREFIX}run_{run}_meta"
 
 
-# Holds the id the task's agent run keeps on every attempt; see ``DurableJournal.run_id``.
+# Holds the id the task's agent run keeps on every attempt; see ``DurableJournal.get_run_id``.
 RUN_ID_KEY = f"{DURABLE_KEY_PREFIX}run_id"
+
+# Lists every agent run any attempt started, so cleanup reaches the ones this attempt did not.
+RUNS_KEY = f"{DURABLE_KEY_PREFIX}runs"
 
 
 @runtime_checkable
