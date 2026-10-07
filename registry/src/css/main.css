@@ -1071,7 +1071,8 @@ footer a:hover {
   white-space: nowrap;
 }
 
-.lifecycle-buttons {
+.lifecycle-buttons,
+.capability-buttons {
   display: flex;
   gap: var(--space-1);
   background: var(--color-gray-100);
@@ -1083,7 +1084,8 @@ footer a:hover {
   outline: none;
 }
 
-.lifecycle-btn {
+.lifecycle-btn,
+.capability-btn {
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
@@ -1096,17 +1098,20 @@ footer a:hover {
   cursor: pointer;
 }
 
-.lifecycle-btn:hover {
+.lifecycle-btn:hover,
+.capability-btn:hover {
   color: var(--text-primary);
   background: var(--bg-secondary);
 }
 
-.lifecycle-btn:focus-visible {
+.lifecycle-btn:focus-visible,
+.capability-btn:focus-visible {
   outline: 2px solid var(--color-cyan-500);
   outline-offset: 2px;
 }
 
-.lifecycle-btn.active {
+.lifecycle-btn.active,
+.capability-btn.active {
   background: var(--color-cyan-500);
   color: var(--color-navy-900);
   font-weight: var(--font-medium);
@@ -3322,6 +3327,20 @@ main {
   cursor: pointer;
 }
 
+.provider-detail-page .modules .all-durable {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.provider-detail-page .modules .all-durable a {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.provider-detail-page .modules .all-durable a:hover {
+  text-decoration: underline;
+}
+
 /* Modules */
 .provider-detail-page .modules {
   margin-bottom: var(--space-12);
@@ -3340,13 +3359,13 @@ main {
   gap: var(--space-3);
 }
 
-.provider-detail-page .modules .module {
+:is(.provider-detail-page, .durable-page) .modules .module {
   padding: var(--space-4);
   display: flex;
   gap: var(--space-3);
 }
 
-.provider-detail-page .modules .module .icon {
+:is(.provider-detail-page, .durable-page) .modules .module .icon {
   width: 2rem;
   height: 2rem;
   border-radius: var(--radius-lg);
@@ -3358,134 +3377,136 @@ main {
   flex-shrink: 0;
 }
 
-.provider-detail-page .modules .module .icon.operator {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.operator {
   background: rgb(from var(--color-operator) r g b / 0.2);
   color: var(--color-operator);
   border: 1px solid rgb(from var(--color-operator) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.hook {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.hook {
   background: rgb(from var(--color-hook) r g b / 0.2);
   color: var(--color-hook);
   border: 1px solid rgb(from var(--color-hook) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.sensor {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.sensor {
   background: rgb(from var(--color-sensor) r g b / 0.2);
   color: var(--color-sensor);
   border: 1px solid rgb(from var(--color-sensor) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.trigger {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.trigger {
   background: rgb(from var(--color-trigger) r g b / 0.2);
   color: var(--color-trigger);
   border: 1px solid rgb(from var(--color-trigger) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.transfer {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.transfer {
   background: rgb(from var(--color-transfer) r g b / 0.2);
   color: var(--color-transfer);
   border: 1px solid rgb(from var(--color-transfer) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.bundle {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.bundle {
   background: rgb(from var(--color-bundle) r g b / 0.2);
   color: var(--color-bundle);
   border: 1px solid rgb(from var(--color-bundle) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.notifier {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.notifier {
   background: rgb(from var(--color-notifier) r g b / 0.2);
   color: var(--color-notifier);
   border: 1px solid rgb(from var(--color-notifier) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.secret {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.secret {
   background: rgb(from var(--color-secret) r g b / 0.2);
   color: var(--color-secret);
   border: 1px solid rgb(from var(--color-secret) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.logging {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.logging {
   background: rgb(from var(--color-logging) r g b / 0.2);
   color: var(--color-logging);
   border: 1px solid rgb(from var(--color-logging) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.executor {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.executor {
   background: rgb(from var(--color-executor) r g b / 0.2);
   color: var(--color-executor);
   border: 1px solid rgb(from var(--color-executor) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.decorator {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.decorator {
   background: rgb(from var(--color-decorator) r g b / 0.2);
   color: var(--color-decorator);
   border: 1px solid rgb(from var(--color-decorator) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.toolset {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.toolset {
   background: rgb(from var(--color-toolset) r g b / 0.2);
   color: var(--color-toolset);
   border: 1px solid rgb(from var(--color-toolset) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.retry_policy {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.retry_policy {
   background: rgb(from var(--color-retry_policy) r g b / 0.2);
   color: var(--color-retry_policy);
   border: 1px solid rgb(from var(--color-retry_policy) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.extra_link {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.extra_link {
   background: rgb(from var(--color-extra_link) r g b / 0.2);
   color: var(--color-extra_link);
   border: 1px solid rgb(from var(--color-extra_link) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.queue {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.queue {
   background: rgb(from var(--color-queue) r g b / 0.2);
   color: var(--color-queue);
   border: 1px solid rgb(from var(--color-queue) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.plugin {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.plugin {
   background: rgb(from var(--color-plugin) r g b / 0.2);
   color: var(--color-plugin);
   border: 1px solid rgb(from var(--color-plugin) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.auth_manager {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.auth_manager {
   background: rgb(from var(--color-auth_manager) r g b / 0.2);
   color: var(--color-auth_manager);
   border: 1px solid rgb(from var(--color-auth_manager) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.db_manager {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.db_manager {
   background: rgb(from var(--color-db_manager) r g b / 0.2);
   color: var(--color-db_manager);
   border: 1px solid rgb(from var(--color-db_manager) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .icon.dialect {
+:is(.provider-detail-page, .durable-page) .modules .module .icon.dialect {
   background: rgb(from var(--color-dialect) r g b / 0.2);
   color: var(--color-dialect);
   border: 1px solid rgb(from var(--color-dialect) r g b / 0.3);
 }
 
-.provider-detail-page .modules .module .content {
+:is(.provider-detail-page, .durable-page) .modules .module .content {
   flex: 1;
   min-width: 0;
 }
 
-.provider-detail-page .modules .module .content h3 {
+:is(.provider-detail-page, .durable-page) .modules .module .content h3 {
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
   margin-bottom: var(--space-1);
 }
 
-.provider-detail-page .modules .module .content h3 .durable-badge,
-.provider-detail-page .modules .module .content h3 .deferrable-badge {
+:is(.provider-detail-page, .durable-page) .modules .module .content h3 .durable-badge,
+:is(.provider-detail-page, .durable-page) .modules .module .content h3 .deferrable-badge,
+.durable-page .capabilities .durable-badge,
+.durable-page .capabilities .deferrable-badge {
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
@@ -3496,19 +3517,21 @@ main {
   border-radius: var(--radius-lg);
 }
 
-.provider-detail-page .modules .module .content h3 .durable-badge {
+:is(.provider-detail-page, .durable-page) .modules .module .content h3 .durable-badge,
+.durable-page .capabilities .durable-badge {
   background: color-mix(in srgb, var(--color-teal-500) 15%, transparent);
   color: var(--color-teal-700);
   color: light-dark(var(--color-teal-700), var(--color-teal-400));
 }
 
-.provider-detail-page .modules .module .content h3 .deferrable-badge {
+:is(.provider-detail-page, .durable-page) .modules .module .content h3 .deferrable-badge,
+.durable-page .capabilities .deferrable-badge {
   background: color-mix(in srgb, var(--color-blue-500) 15%, transparent);
   color: var(--color-blue-700);
   color: light-dark(var(--color-blue-700), var(--color-blue-400));
 }
 
-.provider-detail-page .modules .module .content p {
+:is(.provider-detail-page, .durable-page) .modules .module .content p {
   font-size: var(--text-sm);
   color: var(--text-secondary);
   margin-bottom: var(--space-3);
@@ -3518,7 +3541,7 @@ main {
   overflow: hidden;
 }
 
-.provider-detail-page .modules .module .content .path {
+:is(.provider-detail-page, .durable-page) .modules .module .content .path {
   display: block;
   font-size: var(--text-xs);
   font-family: var(--font-mono);
@@ -3632,6 +3655,180 @@ main {
 .provider-detail-page .module.highlighted {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
+}
+
+/* Durable and Deferrable Operators Page */
+.durable-page {
+  padding: var(--space-16) 0;
+  background: var(--bg-primary);
+}
+
+.durable-page .page-header {
+  margin-bottom: var(--space-6);
+}
+
+.durable-page .page-header h1 {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.durable-page .page-header p {
+  max-width: 48rem;
+  color: var(--text-secondary);
+}
+
+.durable-page .capabilities {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+@media (min-width: 768px) {
+  .durable-page .capabilities {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.durable-page .capabilities > div {
+  padding: var(--space-4);
+  background: var(--color-card-bg);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+}
+
+.durable-page .capabilities dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+}
+
+.durable-page .capabilities dd {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.durable-page .capabilities .durable-badge,
+.durable-page .capabilities .deferrable-badge {
+  margin-left: 0;
+}
+
+.durable-page .capabilities code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.durable-page .filters {
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.durable-page .filters .search-wrapper {
+  min-width: 14rem;
+}
+
+/* Below the providers page's row breakpoint every label sits above its
+   control, so a wide control and a narrow one line up the same way. */
+@media (max-width: 767px) {
+  .durable-page .filters .filter-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .durable-page .filters select {
+    width: 100%;
+  }
+
+  .durable-page .capability-btn {
+    flex: 1;
+  }
+}
+
+.durable-page .result-count {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--space-6);
+}
+
+.durable-page .provider-group {
+  margin-bottom: var(--space-8);
+}
+
+.durable-page .provider-group h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+}
+
+.durable-page .provider-group h2 a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.durable-page .provider-group h2 a:hover {
+  color: var(--accent-primary);
+}
+
+.durable-page .provider-group h2 img {
+  width: 1.25rem;
+  height: 1.25rem;
+  object-fit: contain;
+}
+
+.durable-page .provider-group h2 .count {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+.durable-page .modules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--color-card-bg);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+}
+
+.durable-page .modules .module {
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.durable-page .modules .module + .module {
+  border-top: 1px solid var(--border-primary);
+}
+
+.durable-page .modules .module .content h3 {
+  margin-bottom: 0;
+}
+
+.durable-page .modules .module .content h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.durable-page .modules .module .content h3 a:hover {
+  color: var(--accent-primary);
+}
+
+.durable-page .modules .module .content p {
+  margin-bottom: 0;
+  -webkit-line-clamp: 1;
 }
 
 /* Technical */
