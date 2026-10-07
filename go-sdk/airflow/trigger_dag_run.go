@@ -27,6 +27,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // TriggerDagRunSpec holds the options of a task that triggers a Dag run. [TriggerDagRun] takes a
@@ -153,6 +155,36 @@ func copyTriggerDagRunSpec(spec TriggerDagRunSpec) (TriggerDagRunSpec, error) {
 	// inner map, so Conf is the copy that copyConf made.
 	copied.Conf = conf
 	return copied, nil
+}
+
+// triggerSpec returns the options of spec for the runtime, which cannot import this package. The
+// checked spec is a deep copy, but the runtime gets one of its own, so that nothing the runtime
+// does can change the task.
+func triggerSpec(spec TriggerDagRunSpec) bundle.TriggerSpec {
+	copied := copySpec(spec)
+	out := bundle.TriggerSpec{
+		DagID:                 copied.DagID,
+		RunID:                 copied.RunID,
+		Note:                  copied.Note,
+		LogicalDate:           copied.LogicalDate,
+		RunAfter:              copied.RunAfter,
+		ResetDagRun:           copied.ResetDagRun,
+		WaitForCompletion:     copied.WaitForCompletion,
+		SkipWhenAlreadyExists: copied.SkipWhenAlreadyExists,
+		FailWhenDagIsPaused:   copied.FailWhenDagIsPaused,
+		PokeInterval:          copied.PokeInterval,
+		Deferrable:            copied.Deferrable,
+	}
+	if copied.Conf != nil {
+		out.Conf = copyJSON(copied.Conf).(map[string]any)
+	}
+	if len(copied.AllowedStates) > 0 {
+		out.AllowedStates = dagRunStateNames(copied.AllowedStates)
+	}
+	if copied.FailedStates != nil {
+		out.FailedStates = dagRunStateNames(copied.FailedStates)
+	}
+	return out
 }
 
 // copyConf copies conf by way of JSON, so it also rejects a conf that JSON cannot hold.
