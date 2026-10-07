@@ -185,7 +185,7 @@ class HookToolset(AirflowToolset):
             # anyway is told it is fixed rather than given a generic extra-input or type error.
             args_schema = {
                 **json_schema,
-                "properties": {**json_schema["properties"], **dict.fromkeys(self._pinned, {})},
+                "properties": json_schema["properties"] | {name: {} for name in self._pinned},
             }
 
             # sequential=True keeps pydantic-ai from running these calls concurrently
