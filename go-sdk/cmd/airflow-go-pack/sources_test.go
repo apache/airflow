@@ -75,6 +75,20 @@ func writeModule(t *testing.T, modulePath string, files map[string]string) strin
 	return dir
 }
 
+func TestListModule_EntrypointAtModuleRoot(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not on PATH")
+	}
+	t.Setenv("GOWORK", "off")
+	dir := writeModule(t, "example.com/app", map[string]string{
+		"main.go": "package main\nfunc main() {}\n",
+	})
+
+	mod, err := listModule(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "example.com/app", mod.path)
+}
+
 func TestModulePath(t *testing.T) {
 	for _, tc := range []struct {
 		name string

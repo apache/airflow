@@ -86,7 +86,8 @@ func listModule(dir string) (goModule, error) {
 	lines := splitNonEmpty(stdout.String())
 	var best goModule
 	for i := 0; i+1 < len(lines); i += 2 {
-		if _, ok := relativeTo(lines[i], absDir); ok && len(lines[i]) > len(best.dir) {
+		_, inside := relativeTo(lines[i], absDir)
+		if (inside || lines[i] == absDir) && len(lines[i]) > len(best.dir) {
 			best = goModule{dir: lines[i], path: lines[i+1]}
 		}
 	}
