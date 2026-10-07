@@ -464,11 +464,19 @@ class TestCreate:
 
         assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_created1"
 
-    def test_a_refused_create_is_terminal_and_not_retried(self):
+    @pytest.mark.parametrize(
+        "status",
+        [
+            pytest.param(400, id="refused"),
+            # boat-sdk's status for a request it could not build, so none was sent.
+            pytest.param(0, id="never_sent"),
+        ],
+    )
+    def test_a_refused_create_is_terminal_and_not_retried(self, status):
         backend, api = _backend_with_api()
-        api.create.side_effect = _api_error(400)
+        api.create.side_effect = _api_error(status)
 
-        with pytest.raises(SandboxTerminalError, match="HTTP 400"):
+        with pytest.raises(SandboxTerminalError, match=f"HTTP {status}"):
             backend.create(spec=SandboxSpec(block_network=False))
 
         api.create.assert_called_once()
@@ -490,8 +498,13 @@ class TestCreate:
             pytest.param(_read_timeout(), id="timeout"),
             pytest.param(urllib3.exceptions.ProtocolError("Connection aborted."), id="transport"),
             pytest.param(_api_error(502), id="server_error"),
-            # How boat-sdk reports a TLS failure.
-            pytest.param(_api_error(0), id="tls_failure"),
+            # What a TLS failure raises under the client's Retry, before boat-sdk sees it.
+            pytest.param(
+                urllib3.exceptions.MaxRetryError(
+                    None, "/sandboxes", urllib3.exceptions.SSLError("EOF occurred in violation of protocol")
+                ),
+                id="tls_failure",
+            ),
         ],
     )
     def test_a_lost_create_answer_is_retried_with_the_same_key(self, clock, lost):

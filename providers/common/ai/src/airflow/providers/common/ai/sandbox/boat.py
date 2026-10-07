@@ -111,9 +111,9 @@ def _may_have_lost_response(error: Exception) -> bool:
     from urllib3.exceptions import HTTPError
 
     if isinstance(error, ApiException):
-        # boat-sdk reports a TLS failure as status 0, and also a request it could not
-        # build and never sent, which a retry only repeats.
-        return isinstance(error.status, int) and (error.status == 0 or error.status >= 500)
+        # Not status 0: with the client's Retry, a TLS failure arrives as urllib3's
+        # MaxRetryError, so boat-sdk's status 0 is only a request it could not build.
+        return isinstance(error.status, int) and error.status >= 500
     return isinstance(error, HTTPError)
 
 
