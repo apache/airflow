@@ -643,6 +643,17 @@ defines. A binary that only registers task handlers is parsed too: each parse ru
 a binary built with a Go SDK that cannot answer the Dag-parse request records an import error. Keep those
 out of the Dag processor with ``.airflowignore``, as described in :ref:`Quick start <go-sdk/quick-start>`.
 
+With one :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator`, it parses the binaries of every Dag
+bundle. With several, for example a second one for another ``task_handler_bundle_name``, map each Dag bundle that
+holds native Go Dags to one of them in ``[sdk] dag_bundle_to_coordinator``. A binary in a Dag bundle that has no
+entry, or whose entry names no :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator`, fails to parse
+with an import error:
+
+.. code-block:: ini
+
+    [sdk]
+    dag_bundle_to_coordinator = {"dags-folder": "go"}
+
 * The Code view shows each native Dag's own source file, taken from the sources the bundle embeds.
 * A task of a native Go Dag runs the bundle binary its Dag was parsed from.
 
