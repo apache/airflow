@@ -392,8 +392,7 @@ Python supervisor / task runner
 - When the first frame on the comm socket is a `DagFileParseRequest` from the Dag processor, the
   binary runs no task. It answers with one `DagFileParsingResult` that holds the Dags from
   `airflow.Dag` that the binary registered. The Dags are serialized as
-  [Serializing a native Dag](#serializing-a-native-dag) describes. The binary exits once the Dag
-  processor acknowledges the result.
+  [Serializing a native Dag](#serializing-a-native-dag) describes. The binary then exits.
 
 The Go side of the protocol is implemented in `pkg/execution/`. On the Python side it is the
 `ExecutableCoordinator` in `task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py`.

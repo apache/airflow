@@ -321,7 +321,8 @@ func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
 	b.Register(etl, TaskHandler("py_etl", "transform", record("transform")), reports)
 
 	supervisor, done := serveForSupervisor(t, b)
-	require.NoError(t, supervisor.SendRequest(0, map[string]any{
+	const requestID = 7
+	require.NoError(t, supervisor.SendRequest(requestID, map[string]any{
 		"type":        "DagFileParseRequest",
 		"file":        "/bundles/go/etl",
 		"bundle_path": "/bundles/go",
@@ -330,6 +331,7 @@ func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
 
 	frame, err := supervisor.ReadMessage()
 	require.NoError(t, err)
+	assert.EqualValues(t, requestID, frame.ID)
 	var result genmodels.DagFileParsingResult
 	require.NoError(t, msgpack.Unmarshal(frame.Body, &result))
 	assert.Equal(t, "DagFileParsingResult", result.Type)
@@ -340,7 +342,6 @@ func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
 		want := jsonOf(t, dag.serialize("/bundles/go/etl", "etl"))
 		assertJSON(t, want, result.SerializedDags[i].Data)
 	}
-	require.NoError(t, supervisor.SendRequest(frame.ID, nil))
 
 	select {
 	case err := <-done:

@@ -1390,13 +1390,11 @@ type parseBundle struct {
 	*serializedDags
 }
 
-// startDagParse runs Serve for dags and sends it a DagFileParseRequest. It returns the comm and
-// logs connections, the frame that Serve answers with, and the channel that gets what Serve
-// returns.
-func startDagParse(
-	t *testing.T,
-	dags *serializedDags,
-) (commConn, logsConn net.Conn, frame IncomingFrame, done <-chan error) {
+const dagParseRequestID = 7
+
+// startDagParse runs Serve for dags and sends it a DagFileParseRequest. It returns the frame that
+// Serve answers with and the channel that gets what Serve returns.
+func startDagParse(t *testing.T, dags *serializedDags) (frame IncomingFrame, done <-chan error) {
 	t.Helper()
 	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
 	t.Cleanup(cleanup)
@@ -1404,15 +1402,15 @@ func startDagParse(
 	served := make(chan error, 1)
 	go func() { served <- Serve(parseBundle{testBundle{}, dags}, commAddr, logsAddr) }()
 
-	commConn = <-commCh
+	commConn := <-commCh
 	t.Cleanup(func() { commConn.Close() })
-	logsConn = <-logsCh
+	logsConn := <-logsCh
 	t.Cleanup(func() { logsConn.Close() })
 	deadline := time.Now().Add(10 * time.Second)
 	require.NoError(t, commConn.SetDeadline(deadline))
 	require.NoError(t, logsConn.SetDeadline(deadline))
 
-	payload, err := encodeRequest(0, map[string]any{
+	payload, err := encodeRequest(dagParseRequestID, map[string]any{
 		"type":        "DagFileParseRequest",
 		"file":        "/bundles/go/etl",
 		"bundle_path": "/bundles/go",
@@ -1424,13 +1422,14 @@ func startDagParse(
 	frame, err = readFrame(commConn)
 	require.NoError(t, err)
 	require.True(t, isNilRaw(frame.Err))
-	return commConn, logsConn, frame, served
+	return frame, served
 }
 
 func TestServeDagFileParseRequestEndToEnd(t *testing.T) {
 	dags := &serializedDags{dags: []bundle.SerializedDag{serializedDag("etl")}}
-	commConn, _, frame, done := startDagParse(t, dags)
+	frame, done := startDagParse(t, dags)
 
+	assert.EqualValues(t, dagParseRequestID, frame.ID)
 	var result genmodels.DagFileParsingResult
 	require.NoError(t, decodeBody(frame.Body, &result))
 	assert.Equal(t, "DagFileParsingResult", result.Type)
@@ -1438,47 +1437,11 @@ func TestServeDagFileParseRequestEndToEnd(t *testing.T) {
 	require.Len(t, result.SerializedDags, 1)
 	assert.Equal(t, "etl", result.SerializedDags[0].Data["dag"].(map[string]any)["dag_id"])
 	assert.Equal(t, "etl", dags.relative)
-	require.NoError(t, writeFrame(commConn, encodeResponseFrame(t, frame.ID, nil, nil)))
 
 	select {
 	case err := <-done:
 		require.NoError(t, err)
 	case <-time.After(2 * time.Second):
-		t.Fatal("Serve did not return after the Dag processor acknowledged the result")
+		t.Fatal("Serve did not return after it sent the Dag parsing result")
 	}
-}
-
-func TestServeFailsWhenTheDagProcessorRejectsTheParseResult(t *testing.T) {
-	commConn, logsConn, frame, done := startDagParse(t, &serializedDags{})
-
-	rejection := map[string]any{
-		"type":   "ErrorResponse",
-		"error":  "generic_error",
-		"detail": map[string]any{"message": "A parse result was already received"},
-	}
-	require.NoError(t, writeFrame(commConn, encodeResponseFrame(t, frame.ID, nil, rejection)))
-
-	select {
-	case err := <-done:
-		require.ErrorContains(t, err, "sending Dag parsing result")
-		require.ErrorContains(t, err, "A parse result was already received")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Serve did not return after the Dag processor rejected the result")
-	}
-
-	// main's log.Fatal writes to the logs socket after Serve has closed that socket. The error
-	// therefore shows up only if Serve logs it first.
-	logs, err := io.ReadAll(logsConn)
-	require.NoError(t, err)
-	var failure map[string]any
-	for line := range bytes.Lines(logs) {
-		var record map[string]any
-		require.NoError(t, json.Unmarshal(line, &record))
-		if record["event"] == "Failed to send the Dag parsing result" {
-			failure = record
-		}
-	}
-	require.NotNil(t, failure, "Serve did not log why it failed: %s", logs)
-	assert.Equal(t, "error", failure["level"])
-	assert.Contains(t, failure["error"], "A parse result was already received")
 }
