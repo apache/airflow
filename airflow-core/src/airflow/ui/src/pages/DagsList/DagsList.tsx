@@ -46,7 +46,7 @@ import { useConfig } from "src/queries/useConfig";
 import { useDagFolders } from "src/queries/useDagFolders";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
-import { useRecentTaskStateCounts, type RecentTasks } from "src/queries/useRecentTaskStateCounts";
+import { useRecentTaskStateCounts } from "src/queries/useRecentTaskStateCounts";
 import { formatNumber, useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
@@ -55,7 +55,8 @@ import BulkUnpauseDagsButton from "./BulkUnpauseDagsButton";
 import { DagCard } from "./DagCard";
 import { DagFolderTree, type FolderSelection } from "./DagFolderTree";
 import { DagsFilters } from "./DagsFilters";
-import { createColumns, getRowKey, type RunStateCountsContext } from "./DagsListColumns";
+import { createColumns, getRowKey } from "./DagsListColumns";
+import { DagsListCountsProvider, useDagsListCounts, type RunStateCounts } from "./DagsListCountsContext";
 import { SortSelect } from "./SortSelect";
 
 const {
@@ -77,23 +78,29 @@ const {
   TIMETABLE_TYPE,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const createCardDef = (
-  runStateContext: RunStateCountsContext,
-  recentTasks: RecentTasks,
-): CardDef<DAGWithLatestDagRunsResponse> => ({
-  card: ({ row }) => (
+// Both the component and the CardDef holding it are module-level constants: `flexRender` renders
+// `card` as a component type, so rebuilding either per render would remount every card on each
+// auto-refresh tick. The counts it needs come from context instead — see `DagsListCountsContext`.
+const DagCardCell = ({ row }: { readonly row: DAGWithLatestDagRunsResponse }) => {
+  const { recentTasks, runStateCounts } = useDagsListCounts();
+
+  return (
     <DagCard
       dag={row}
       recentTasks={recentTasks}
-      runStateCounts={runStateContext.countsByDag[row.dag_id]}
-      runStateCountsLoading={runStateContext.isLoading}
-      stateCountLimit={runStateContext.stateCountLimit}
+      runStateCounts={runStateCounts.countsByDag[row.dag_id]}
+      runStateCountsLoading={runStateCounts.isLoading}
+      stateCountLimit={runStateCounts.stateCountLimit}
     />
-  ),
+  );
+};
+
+const CARD_DEF: CardDef<DAGWithLatestDagRunsResponse> = {
+  card: DagCardCell,
   meta: {
     customSkeleton: <Skeleton height="140px" width="100%" />,
   },
-});
+};
 
 export const DagsList = () => {
   const { i18n, t: translate } = useTranslation();
@@ -226,7 +233,7 @@ export const DagsList = () => {
     dagIds: data?.dags.map((dag) => dag.dag_id) ?? [],
     dags: data?.dags,
   });
-  const runStateContext: RunStateCountsContext = {
+  const runStateCounts: RunStateCounts = {
     countsByDag: Object.fromEntries(
       (runStateCountsData?.dags ?? []).map((entry) => [entry.dag_id, entry.state_counts]),
     ),
@@ -236,11 +243,10 @@ export const DagsList = () => {
 
   const recentTasks = useRecentTaskStateCounts(data?.dags);
 
-  const columns = createColumns(translate, runStateContext, {
+  const columns = createColumns(translate, {
     multiTeam: multiTeamEnabled,
-    recentTasks,
+    showRecentTasks: recentTasks.show,
   });
-  const cardDef = createCardDef(runStateContext, recentTasks);
 
   const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
@@ -286,81 +292,83 @@ export const DagsList = () => {
           </Box>
         ) : undefined}
         <Box flex={1} minWidth={0}>
-          <SelectionProvider
-            allRowsSelected={allRowsSelected}
-            onRowSelect={handleRowSelect}
-            onSelectAll={handleSelectAll}
-            selectedRows={selectedRows}
-          >
-            <DataTable
-              cardDef={cardDef}
-              columns={columns}
-              data={data?.dags ?? []}
-              displayMode={display}
-              enableMultiSort
-              errorMessage={<ErrorAlert error={error} />}
-              filterActions={
-                <VStack alignItems="flex-start" gap={2} w="100%">
-                  <SearchBar
-                    advancedSearch={advancedSearch}
-                    defaultValue={dagDisplayNamePattern}
-                    onChange={handleSearchChange}
-                    placeholder={translate("dags:search.dags")}
-                  />
-                  <DagsFilters />
-                </VStack>
-              }
-              headingExtra={<DagImportErrors iconOnly />}
-              initialState={tableURLState}
-              isFetching={isFetching}
-              isLoading={isLoading}
-              modelName="common:dag"
-              onDisplayToggleChange={handleDisplayToggleChange}
-              onStateChange={setTableURLState}
-              presentationActions={
-                hasFolderTree || display === "card" ? (
-                  <>
-                    {hasFolderTree ? (
-                      <Tooltip
-                        content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                        openDelay={200}
-                        portalled
-                      >
-                        <IconButton
-                          aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                          onClick={() => setShowFolders(!showFolders)}
-                          size="sm"
-                          variant={showFolders ? "solid" : "outline"}
-                        >
-                          <FiSidebar />
-                        </IconButton>
-                      </Tooltip>
-                    ) : undefined}
-                    {display === "card" ? (
-                      <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
-                    ) : undefined}
-                  </>
-                ) : undefined
-              }
-              showDisplayToggle
-              skeletonCount={display === "card" ? 5 : undefined}
-              total={totalEntries}
-            />
-            <ActionBar.Root
-              closeOnInteractOutside={false}
-              open={display === "table" && selectedRows.size > 0}
+          <DagsListCountsProvider recentTasks={recentTasks} runStateCounts={runStateCounts}>
+            <SelectionProvider
+              allRowsSelected={allRowsSelected}
+              onRowSelect={handleRowSelect}
+              onSelectAll={handleSelectAll}
+              selectedRows={selectedRows}
             >
-              <ActionBar.Content>
-                <ActionBar.SelectionTrigger>
-                  {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
-                </ActionBar.SelectionTrigger>
-                <ActionBar.Separator />
-                <BulkPauseDrainDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
-                <BulkUnpauseDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
-                <ActionBar.CloseTrigger onClick={clearSelections} />
-              </ActionBar.Content>
-            </ActionBar.Root>
-          </SelectionProvider>
+              <DataTable
+                cardDef={CARD_DEF}
+                columns={columns}
+                data={data?.dags ?? []}
+                displayMode={display}
+                enableMultiSort
+                errorMessage={<ErrorAlert error={error} />}
+                filterActions={
+                  <VStack alignItems="flex-start" gap={2} w="100%">
+                    <SearchBar
+                      advancedSearch={advancedSearch}
+                      defaultValue={dagDisplayNamePattern}
+                      onChange={handleSearchChange}
+                      placeholder={translate("dags:search.dags")}
+                    />
+                    <DagsFilters />
+                  </VStack>
+                }
+                headingExtra={<DagImportErrors iconOnly />}
+                initialState={tableURLState}
+                isFetching={isFetching}
+                isLoading={isLoading}
+                modelName="common:dag"
+                onDisplayToggleChange={handleDisplayToggleChange}
+                onStateChange={setTableURLState}
+                presentationActions={
+                  hasFolderTree || display === "card" ? (
+                    <>
+                      {hasFolderTree ? (
+                        <Tooltip
+                          content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                          openDelay={200}
+                          portalled
+                        >
+                          <IconButton
+                            aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                            onClick={() => setShowFolders(!showFolders)}
+                            size="sm"
+                            variant={showFolders ? "solid" : "outline"}
+                          >
+                            <FiSidebar />
+                          </IconButton>
+                        </Tooltip>
+                      ) : undefined}
+                      {display === "card" ? (
+                        <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
+                      ) : undefined}
+                    </>
+                  ) : undefined
+                }
+                showDisplayToggle
+                skeletonCount={display === "card" ? 5 : undefined}
+                total={totalEntries}
+              />
+              <ActionBar.Root
+                closeOnInteractOutside={false}
+                open={display === "table" && selectedRows.size > 0}
+              >
+                <ActionBar.Content>
+                  <ActionBar.SelectionTrigger>
+                    {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
+                  </ActionBar.SelectionTrigger>
+                  <ActionBar.Separator />
+                  <BulkPauseDrainDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
+                  <BulkUnpauseDagsButton deselectKeys={deselectKeys} selectedDags={selectedDags} />
+                  <ActionBar.CloseTrigger onClick={clearSelections} />
+                </ActionBar.Content>
+              </ActionBar.Root>
+            </SelectionProvider>
+          </DagsListCountsProvider>
         </Box>
       </Flex>
     </DagsLayout>
