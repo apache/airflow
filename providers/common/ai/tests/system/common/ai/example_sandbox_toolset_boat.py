@@ -137,6 +137,49 @@ def example_sandbox_toolset_boat():
             if "airflow_sandbox_e2e" not in str(returns[7]):
                 raise RuntimeError(f"Unexpected listing: {returns[7]!r}")
 
+            # The in-guest deadline stops a command without Boat having to delete the
+            # sandbox, so the toolset must not say the sandbox was replaced.
+            if len(returns) == 8:
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart(
+                            tool_name="run_command",
+                            args={"command": "sleep 30", "timeout_seconds": 2},
+                            tool_call_id="slow",
+                        )
+                    ]
+                )
+            timed_out = str(returns[8])
+            if "[timed out after 2s]" not in timed_out:
+                raise RuntimeError(f"Expected a timeout, got: {timed_out!r}")
+            if "sandbox was replaced" in timed_out:
+                raise RuntimeError("Boat should survive an in-guest timeout, but the sandbox was replaced")
+
+            # Which means the file from the first step is still there, and the sandbox
+            # still runs commands.
+            if len(returns) == 9:
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart(
+                            tool_name="read_file", args={"path": STATE_PATH}, tool_call_id="survived"
+                        )
+                    ]
+                )
+            if MARKER not in str(returns[9]):
+                raise RuntimeError(f"Files did not survive the timeout: {returns[9]!r}")
+            if len(returns) == 10:
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart(
+                            tool_name="run_command",
+                            args={"command": "echo after-timeout-ok"},
+                            tool_call_id="after-timeout",
+                        )
+                    ]
+                )
+            if "after-timeout-ok" not in str(returns[10]):
+                raise RuntimeError(f"The sandbox stopped running commands: {returns[10]!r}")
+
             return ModelResponse(parts=[TextPart(content="sandbox boundary e2e passed")])
 
         agent = Agent(
