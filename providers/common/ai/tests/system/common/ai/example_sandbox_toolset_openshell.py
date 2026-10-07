@@ -57,20 +57,24 @@ def example_sandbox_toolset_openshell():
         from airflow.providers.common.ai.sandbox import OpenShellSandboxBackend
         from airflow.providers.common.ai.toolsets import SandboxToolset
 
-        # Each step is a tool call and a check of what the previous one returned.
-        steps: list[tuple[str, dict, str]] = [
-            ("write_file", {"path": STATE_PATH, "content": MARKER}, "Wrote"),
-            ("run_command", {"command": f"cat {STATE_PATH} && python3 -c 'print(6 * 7)'"}, "42"),
-            ("read_file", {"path": STATE_PATH}, MARKER),
-            ("run_command", {"command": "echo to-stderr >&2; exit 3"}, "[exit code: 3]"),
-            ("list_directory", {"path": "/tmp"}, "airflow_sandbox_e2e"),
+        # Each step is a tool call and the text its result must contain.
+        steps: list[tuple[str, dict, tuple[str, ...]]] = [
+            ("write_file", {"path": STATE_PATH, "content": MARKER}, ("Wrote",)),
+            (
+                "run_command",
+                {"command": f"cat {STATE_PATH} && python3 -c 'print(6 * 7)'"},
+                (MARKER, "42"),
+            ),
+            ("read_file", {"path": STATE_PATH}, (MARKER,)),
+            ("run_command", {"command": "echo to-stderr >&2; exit 3"}, ("[exit code: 3]", "to-stderr")),
+            ("list_directory", {"path": "/tmp"}, ("airflow_sandbox_e2e",)),
             (
                 "run_command",
                 {"command": "sleep 300 & sleep 300", "timeout_seconds": 3},
-                "[timed out after 3s]",
+                ("[timed out after 3s]",),
             ),
-            ("run_command", {"command": COUNT_SLEEPERS}, "sleepers=0"),
-            ("run_command", {"command": CONNECT}, "egress=denied"),
+            ("run_command", {"command": COUNT_SLEEPERS}, ("sleepers=0",)),
+            ("run_command", {"command": CONNECT}, ("egress=denied",)),
         ]
 
         def model_function(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
@@ -81,8 +85,9 @@ def example_sandbox_toolset_openshell():
                 if part.part_kind == "tool-return"
             ]
             for (_, _, expected), returned in zip(steps, returns):
-                if expected not in str(returned):
-                    raise RuntimeError(f"Expected {expected!r} in {returned!r}")
+                missing = [text for text in expected if text not in str(returned)]
+                if missing:
+                    raise RuntimeError(f"Expected {missing!r} in {returned!r}")
             if len(returns) < len(steps):
                 tool_name, args, _ = steps[len(returns)]
                 return ModelResponse(
