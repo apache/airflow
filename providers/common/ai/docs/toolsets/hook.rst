@@ -107,8 +107,11 @@ the Dag author's decision, such as which bucket a storage hook reads, pin them:
     )
 
 A pinned argument is left out of the schema the model sees and passed to every allowed
-method. If the model supplies it anyway, the call is refused and the model is told the
-argument is fixed.
+method. If the model supplies it anyway, the call is refused. For a method with named
+parameters, such as ``S3Hook.read_key``, argument validation refuses it as an extra
+input (see :ref:`hook-toolset-restricted`). A method that names the parameter and also
+takes ``**kwargs`` would accept it, so the toolset refuses it itself and tells the
+model the argument is fixed.
 
 A pin binds one parameter name, so every allowed method has to take it by that name.
 When one does not, the toolset raises ``ValueError`` when it is created: a method that
@@ -122,6 +125,56 @@ the pin controls.
 Pinned values are passed as written: they are not rendered as templates, and they are not
 part of what ``AgentOperator(durable=True)`` fingerprints, so change one only between Dag
 runs, not between the tries of one.
+
+.. _hook-toolset-restricted:
+
+Restricting the agent
+---------------------
+
+``allowed_methods`` decides which hook methods become tools, and ``pinned_arguments``
+decides which of their arguments the model cannot set. This agent can list and read
+one bucket through ``S3Hook``, and nothing else:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_hook_toolset.py
+    :language: python
+    :start-after: [START howto_toolset_hook_restricted]
+    :end-before: [END howto_toolset_hook_restricted]
+
+The model is offered two tools: ``s3_read_key``, which takes only ``key``, and
+``s3_list_keys``, whose parameters include ``prefix`` but not ``bucket_name``. Run
+against an S3 endpoint that also holds an ``acme-payroll`` bucket, a call that names
+that bucket was refused before it reached S3, with this message to the model:
+
+.. code-block:: text
+
+    1 validation error:
+    ```json
+    [
+      {
+        "type": "extra_forbidden",
+        "loc": [
+          "bucket_name"
+        ],
+        "msg": "Extra inputs are not permitted",
+        "input": "acme-payroll"
+      }
+    ]
+    ```
+
+    Fix the errors and try again.
+
+A call to a method that is not listed, such as ``s3_delete_objects``, got
+``Unknown tool name: 's3_delete_objects'. Available tools: 's3_list_keys',
+'s3_read_key'``. The model can correct both kinds of call and carry on.
+
+An exception from the hook is different: it fails the run, and the task with it.
+Reading a key that does not exist ended the run with ``ClientError: An error occurred
+(404) when calling the HeadObject operation: Not Found``.
+
+The pin fixes the bucket and leaves every key in it to the model. Give
+``aws_reports_reader`` credentials that can read only that bucket, so the connection
+holds the same limit if a method you expose later reaches another bucket some other
+way.
 
 Parameters
 ----------

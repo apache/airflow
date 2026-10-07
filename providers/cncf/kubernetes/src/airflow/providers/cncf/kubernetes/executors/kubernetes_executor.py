@@ -52,6 +52,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
     TASK_INSTANCE_ID_ANNOTATION,
+    TASK_INSTANCE_ID_LABEL,
     FailureDetails,
     KubernetesJob,
     KubernetesResults,
@@ -489,14 +490,15 @@ class KubernetesExecutor(BaseExecutor):
             ti_id_python_type = str
         ti_id = ti_id_python_type(str(workload_ti.id))
 
-        ti = session.execute(
-            select(
-                TaskInstance.id,
-                TaskInstance.state,
-                TaskInstance.try_number,
-                TaskInstance.queued_by_job_id,
-            ).where(TaskInstance.id == ti_id)
-        ).one_or_none()
+        query = select(
+            TaskInstance.id,
+            TaskInstance.state,
+            TaskInstance.try_number,
+            TaskInstance.queued_by_job_id,
+        ).where(TaskInstance.id == ti_id)
+        if AIRFLOW_V_3_4_PLUS:
+            query = query.where(TaskInstance.working_set.is_(True))
+        ti = session.execute(query).one_or_none()
         if ti is None:
             self.log.info(
                 "Dropping stale Kubernetes workload for %s because task instance id %s no longer exists",
@@ -974,7 +976,10 @@ class KubernetesExecutor(BaseExecutor):
         )
         if filter_for_tis is None:
             return None
-        db_state = session.scalar(select(TaskInstance.state).where(filter_for_tis))
+        query = select(TaskInstance.state).where(filter_for_tis)
+        if AIRFLOW_V_3_4_PLUS:
+            query = query.where(TaskInstance.working_set.is_(True))
+        db_state = session.scalar(query)
         return TaskInstanceState(db_state) if db_state else None
 
     @staticmethod
@@ -1051,6 +1056,8 @@ class KubernetesExecutor(BaseExecutor):
                 run_id=ti.run_id,
                 airflow_worker=ti.queued_by_job_id,
             )
+            if self.supports_task_instance_uuid:
+                selector += f",{TASK_INSTANCE_ID_LABEL}={ti.id}"
             namespace = self._get_pod_namespace(ti)
             pod_list = client.list_namespaced_pod(
                 namespace=namespace,

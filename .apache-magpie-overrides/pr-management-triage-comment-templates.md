@@ -120,8 +120,8 @@ check or other violation. For this project, the bullet uses the
 This overrides the framework default. The triage comment must
 **not** enumerate the failing check names underneath the
 category (e.g. avoid `:x: **Kubernetes tests** — Failing:
-Kubernetes tests / K8S System:LocalExecutor-3.10-v1.30.13-false,
-Kubernetes tests / K8S System:KubernetesExecutor-3.10-...,
+Kubernetes tests / K8S System:LocalExecutor-3.11-v1.30.13-false,
+Kubernetes tests / K8S System:KubernetesExecutor-3.11-...,
 (+1 more). See docs.`).
 
 The same applies to the per-category remediation snippets the

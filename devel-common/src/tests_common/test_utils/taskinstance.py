@@ -18,9 +18,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 from typing import TYPE_CHECKING
 
+from airflow import settings
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.session import NEW_SESSION
 
@@ -105,6 +107,17 @@ def create_task_instance(
     )
 
 
+def _dispose_in_process_async_connections() -> None:
+    # The cached in-process API owns a long-lived loop; pooled async connections it opened are bound to that
+    # loop and fail when another loop checks them out of the shared engine.
+    if (dispose := getattr(settings, "dispose_async_engine", None)) is None:
+        return
+    from airflow.sdk.execution_time.supervisor import in_process_api_server
+
+    loop = in_process_api_server().transport.app.loop
+    asyncio.run_coroutine_threadsafe(dispose(), loop).result(timeout=5)
+
+
 def run_task_instance(
     ti: TaskInstance,
     task: SdkOperator,
@@ -142,6 +155,7 @@ def run_task_instance(
     )
     # Some tests don't even save the ti at all, in which case new_ti is None.
     taskrun_result = _run_task(ti=new_ti or ti, task=task)
+    _dispose_in_process_async_connections()
     ti.refresh_from_db(**session_kwargs)  # Some tests expect side effects.
     if not taskrun_result:
         raise RuntimeError("task failed to finish with a result")

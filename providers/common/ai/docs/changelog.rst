@@ -51,6 +51,16 @@ Changelog
   result or ``result["sample_columns"]`` on a summary. A summary carries no ``columns`` key, so
   ``result["columns"]`` raises ``KeyError`` on any table wide enough to be summarized.
 
+.. note::
+  ``AgentOperator`` no longer accepts ``code_mode``. Pass the pydantic-ai-harness capability
+  instead: replace ``code_mode=True`` with ``capabilities=[CodeMode()]``, using
+  ``from pydantic_ai_harness import CodeMode``. The capability takes its own arguments, such
+  as ``max_tool_calls``. If the task also passes ``agent_params={"capabilities": [...]}``,
+  move those into ``capabilities=`` too, since the two cannot be combined. The import runs
+  when the Dag file is parsed, so the ``code-mode`` extra is now needed by the Dag processor
+  as well as the workers. The extra's floor is now ``pydantic-ai-harness>=0.24.0``, the first
+  release with ``max_tool_calls``. See :doc:`code_mode`.
+
 0.10.0
 ......
 
