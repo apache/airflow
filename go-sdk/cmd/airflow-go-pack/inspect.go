@@ -82,7 +82,8 @@ func embeddedSources(region, manifest []byte) ([]embeddedSource, error) {
 	}
 	if len(index.Sources) == 0 && len(region) > 0 {
 		return nil, fmt.Errorf(
-			"the source region has %d bytes but the manifest lists no sources",
+			"the manifest lists no sources for the %d-byte source region; "+
+				"repack the bundle with this airflow-go-pack",
 			len(region),
 		)
 	}

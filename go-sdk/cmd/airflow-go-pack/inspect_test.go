@@ -108,7 +108,7 @@ func TestEmbeddedSources_RejectsIndexOutsideRegion(t *testing.T) {
 			name:     "region without an index",
 			region:   "abc",
 			manifest: "dags: {}\n",
-			wantErr:  "lists no sources",
+			wantErr:  "repack the bundle",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
