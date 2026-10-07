@@ -36,6 +36,7 @@ from airflow.api_fastapi.execution_api.security import _jwt_bearer
 from airflow.models.dagrun import DagRun
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -90,6 +91,23 @@ class TestGetTaskState:
 
         assert response.status_code == 200
         assert response.json() == {"value": "spark_001"}
+
+    @pytest.mark.parametrize("method", ["get", "put", "delete"])
+    def test_archived_attempt_returns_404(
+        self, client: TestClient, create_task_instance: CreateTaskInstance, session, method
+    ):
+        ti = create_task_instance(state=TaskInstanceState.RUNNING)
+        session.commit()
+        old_id = ti.id
+        ti.prepare_db_for_next_try(session)
+        session.commit()
+        client.headers["Airflow-API-Version"] = "2026-06-30"
+        kwargs = {"json": {"value": "stale"}} if method == "put" else {}
+
+        response = getattr(client, method)(_api_url(old_id, "job_id"), **kwargs)
+
+        assert response.status_code == 404
+        assert "Task instance" in response.json()["detail"]["message"]
 
 
 class TestPutTaskState:

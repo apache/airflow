@@ -49,7 +49,7 @@ router = VersionedAPIRouter(
 
 def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScope:
     ti = session.get(TI, task_instance_id)
-    if ti is None:
+    if ti is None or ti.working_set is not True:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={

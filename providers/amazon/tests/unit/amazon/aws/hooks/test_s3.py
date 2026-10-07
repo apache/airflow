@@ -22,7 +22,7 @@ import inspect
 import os
 import re
 from collections.abc import Iterator
-from datetime import datetime as std_datetime, timedelta, timezone as std_timezone
+from datetime import UTC, datetime as std_datetime, timedelta
 from pathlib import Path
 from unittest import mock, mock as async_mock
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -1171,7 +1171,7 @@ class TestAwsS3Hook:
     @pytest.mark.asyncio
     @mock.patch.object(S3Hook, "_list_keys_async", autospec=True)
     async def test_s3_key_hook_is_keys_unchanged_success_async(self, mock_list_keys, time_machine):
-        frozen_dt = std_datetime(2026, 1, 1, 12, 0, 5, tzinfo=std_timezone.utc)
+        frozen_dt = std_datetime(2026, 1, 1, 12, 0, 5, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
         mock_list_keys.return_value = ["test"]
 
@@ -1293,7 +1293,7 @@ class TestAwsS3Hook:
             previous_objects=set(),
             inactivity_seconds=0,
             allow_delete=False,
-            last_activity_time=std_datetime.now(std_timezone.utc),
+            last_activity_time=std_datetime.now(UTC),
         )
         assert response.get("status") == "pending"
 

@@ -18,9 +18,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Any, Self
 
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 

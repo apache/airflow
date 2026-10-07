@@ -25,7 +25,6 @@ requires = [
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
     "trove-classifiers==2026.9.21.13",
 ]
@@ -53,14 +52,13 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -104,14 +102,18 @@ dependencies = [
 "mcp" = ["pydantic-ai-slim[mcp]>=2.33.0"]
 # Modal-hosted sandboxes for SandboxToolset, the backend to use where the worker host
 # cannot run microVMs -- Kubernetes, most notably. Needs no host-level installation,
-# only Modal credentials.
-"modal" = ["modal>=1.5.2"]
+# only Modal credentials, which the Modal provider's `modal` connection supplies.
+"modal" = [
+    "apache-airflow-providers-modal",
+    "modal>=1.5.2",
+]
 "opensandbox" = ["opensandbox>=1.1.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
-# Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an
-# opt-in extra so its churn never breaks the base provider install.
-"code-mode" = ["pydantic-ai-harness[codemode]>=0.3.0"]
+# Provides the CodeMode capability for AgentOperator(capabilities=[CodeMode()]).
+# pydantic-ai-harness is pre-1.0; an opt-in extra so its churn never breaks the
+# base provider install.
+"code-mode" = ["pydantic-ai-harness[codemode]>=0.24.0"]
 # Shield capabilities such as InputGuard, OutputGuard, ToolGuard, and CostTracking.
 "shields" = ["pydantic-ai-shields>=0.3.4"]
 # Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset;
@@ -163,6 +165,7 @@ dev = [
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-git",
+    "apache-airflow-providers-modal",
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",

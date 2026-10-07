@@ -1869,15 +1869,21 @@ class TestKubernetesPodOperator:
         if AIRFLOW_V_3_0_PLUS:
             if AIRFLOW_V_3_1_PLUS:
                 with create_session() as session:
+                    pod_name_query = XCom.get_many(
+                        run_id=self.dag_run.run_id, task_ids="task", key="pod_name"
+                    )
                     pod_name = session.execute(
-                        XCom.get_many(
-                            run_id=self.dag_run.run_id, task_ids="task", key="pod_name"
-                        ).with_only_columns(XCom.value)
+                        pod_name_query.with_only_columns(
+                            pod_name_query.column_descriptions[0]["entity"].value
+                        )
                     ).first()
+                    pod_namespace_query = XCom.get_many(
+                        run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+                    )
                     pod_namespace = session.execute(
-                        XCom.get_many(
-                            run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
-                        ).with_only_columns(XCom.value)
+                        pod_namespace_query.with_only_columns(
+                            pod_namespace_query.column_descriptions[0]["entity"].value
+                        )
                     ).first()
             else:
                 pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
@@ -3218,7 +3224,7 @@ class TestKubernetesPodOperatorAsync:
         k.pod.metadata.namespace = TEST_NAMESPACE
 
         ti_mock = MagicMock()
-        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
         ti_mock.start_date = ti_start
         context = {"ti": ti_mock}
 
@@ -3269,7 +3275,7 @@ class TestKubernetesPodOperatorAsync:
         k.pod.metadata.namespace = TEST_NAMESPACE
 
         ti_mock = MagicMock()
-        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
         ti_mock.start_date = ti_start
         context = {"ti": ti_mock}
 
@@ -3312,7 +3318,7 @@ class TestKubernetesPodOperatorAsync:
         k.pod.metadata.namespace = TEST_NAMESPACE
 
         ti_mock = MagicMock()
-        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_start = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
         ti_mock.start_date = ti_start
         context = {"ti": ti_mock}
 
@@ -3353,7 +3359,7 @@ class TestKubernetesPodOperatorAsync:
         k.pod.metadata.namespace = TEST_NAMESPACE
 
         ti_mock = MagicMock()
-        ti_mock.start_date = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_mock.start_date = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
         context = {"ti": ti_mock}
 
         with (
@@ -3667,9 +3673,9 @@ class TestKubernetesPodOperatorAsync:
     def test_write_logs_with_valid_since_time(self, mocked_client):
         """Test that since_seconds is calculated correctly when since_time is a valid datetime."""
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
-        since_time = datetime.datetime(
-            2026, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
-        ) - datetime.timedelta(seconds=30)
+        since_time = datetime.datetime(2026, 1, 1, 0, 0, 0, tzinfo=datetime.UTC) - datetime.timedelta(
+            seconds=30
+        )
         k = KubernetesPodOperator(task_id="task", get_logs=True)
         k._write_logs(pod, since_time=since_time)
         _, call_kwargs = mocked_client.read_namespaced_pod_log.call_args

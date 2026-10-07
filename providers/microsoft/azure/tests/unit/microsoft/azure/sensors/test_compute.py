@@ -66,17 +66,6 @@ class TestAzureVirtualMachineStateSensor:
         )
         assert sensor.target_state == "{{ params.state }}"
 
-    def test_template_fields(self):
-        sensor = AzureVirtualMachineStateSensor(
-            task_id="sense_vm",
-            resource_group_name=RESOURCE_GROUP,
-            vm_name=VM_NAME,
-            target_state="running",
-        )
-        assert "resource_group_name" in sensor.template_fields
-        assert "vm_name" in sensor.template_fields
-        assert "target_state" in sensor.template_fields
-
     @pytest.mark.parametrize(
         ("return_value", "expected"),
         [

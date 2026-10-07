@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
@@ -27,7 +27,7 @@ from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-CHUNK_TIME = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+CHUNK_TIME = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 
 def _make_log_chunk(

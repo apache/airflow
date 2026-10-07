@@ -3204,6 +3204,7 @@ class DAGDetailsResponse(BaseModel):
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+    latest_dag_version: DagVersionResponse | None
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]
@@ -3215,9 +3216,6 @@ class DAGDetailsResponse(BaseModel):
             description="Return max_active_tasks as concurrency.\n\nDeprecated: Use max_active_tasks instead.",
             title="Concurrency",
         ),
-    ]
-    latest_dag_version: Annotated[
-        DagVersionResponse | None, Field(description="Return the latest DagVersion.")
     ]
 
 

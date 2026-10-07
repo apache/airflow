@@ -303,15 +303,16 @@ Bundle files are placed **as-is** in the Dag bundle named by the
 ``task_handler_bundle_name`` kwarg on the
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` entry
 under ``[sdk] coordinators`` (or, when it is unset, in the task's own Dag
-bundle). The scanner walks the Dag bundle **recursively** and considers only
-regular files whose **executable bit is set** for the invoking user; files
-without the executable bit are skipped without reading their trailer, so the
-Dag bundle must preserve it. For each candidate it reads the last 64 bytes and
-treats files whose magic matches ``"AFBNDL01"`` as bundles. Matched files are
-then SHA-256-verified per the reader algorithm; a mismatch demotes the file
-back to "ignored, with an error log." Files without the magic are silently
-ignored, so non-bundle files (READMEs, dotfiles) MAY share the Dag bundle
-without interfering with the scan.
+bundle). The scanner walks the Dag bundle **recursively** and considers every
+regular file. For each candidate it reads the last 64 bytes and treats files
+whose magic matches ``"AFBNDL01"`` as bundles. Matched files are then
+SHA-256-verified per the reader algorithm; a mismatch demotes the file back to
+"ignored, with an error log." Files without the magic are silently ignored, so
+non-bundle files (READMEs, dotfiles) MAY share the Dag bundle without
+interfering with the scan. A file that matches the selected bundle's
+``dag_id`` is marked executable before it is run, so an object-store Dag
+bundle (which has no concept of file permissions, and so cannot preserve the
+execute bit a build produced) works too.
 
 ::
 

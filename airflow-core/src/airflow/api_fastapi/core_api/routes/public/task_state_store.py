@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, Literal
 
 from fastapi import Depends, HTTPException, Query, status
@@ -136,7 +136,7 @@ def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> dat
                 detail=f"[state_store] default_retention_days must be >= 0, got {days}. "
                 "Set to 0 to disable expiry.",
             )
-        return None if days == 0 else datetime.now(tz=timezone.utc) + timedelta(days=days)
+        return None if days == 0 else datetime.now(tz=UTC) + timedelta(days=days)
     return expires_at
 
 

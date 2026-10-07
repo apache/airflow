@@ -60,19 +60,10 @@ export const CalendarTooltip = ({ cellData, viewMode = "total" }: Props) => {
 
   // In failed mode, only show failed runs; in total mode, show all non-zero states
   const states = Object.entries(counts)
-    .filter(([key, value]) => {
-      if (key === "total" || key === "backfill") {
-        return false;
-      }
-      if (value === 0) {
-        return false;
-      }
-      if (viewMode === "failed") {
-        return key === "failed";
-      }
-
-      return true;
-    })
+    .filter(
+      ([key, value]) =>
+        key !== "total" && key !== "backfill" && value !== 0 && (viewMode !== "failed" || key === "failed"),
+    )
     .map(([state, count]) => ({
       color: stateColorMap[state as keyof typeof stateColorMap] || "gray.500",
       count,

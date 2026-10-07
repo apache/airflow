@@ -70,18 +70,20 @@ def get_extra_links(
 ) -> ExtraLinkCollectionResponse:
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancehistory import TaskInstanceHistory
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
 
-    ti = session.scalar(
-        select(TaskInstance).where(
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == dag_run_id,
-            TaskInstance.task_id == task_id,
-            TaskInstance.map_index == map_index,
-        )
+    query = select(TaskInstance).where(
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.run_id == dag_run_id,
+        TaskInstance.task_id == task_id,
+        TaskInstance.map_index == map_index,
     )
+    if try_number is not None:
+        query = query.where(TaskInstance.try_number == try_number).execution_options(
+            include_all_attempts=True
+        )
+    ti = session.scalar(query)
 
     if not ti:
         raise HTTPException(
@@ -96,28 +98,6 @@ def get_extra_links(
     except TaskNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with ID = {task_id} not found")
 
-    # Resolve which object to use for link generation. For the current try we use
-    # the live TI; for past tries we fetch the immutable TaskInstanceHistory record,
-    # which also validates that the requested try_number actually exists.
-    if try_number is not None and try_number != ti.try_number:
-        tih = session.scalar(
-            select(TaskInstanceHistory).where(
-                TaskInstanceHistory.dag_id == dag_id,
-                TaskInstanceHistory.task_id == task_id,
-                TaskInstanceHistory.run_id == dag_run_id,
-                TaskInstanceHistory.map_index == map_index,
-                TaskInstanceHistory.try_number == try_number,
-            )
-        )
-        if not tih:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                f"TaskInstanceHistory not found for try_number={try_number}",
-            )
-        ti_for_links = tih
-    else:
-        ti_for_links = ti
-
     link_names: list[str] = task.extra_links
     if conf.getboolean("core", "multi_team"):
         dag_team_name = DagModel.get_team_name(dag_id)
@@ -130,7 +110,7 @@ def get_extra_links(
         ]
 
     all_extra_link_pairs = (
-        (link_name, task.get_extra_links(ti_for_links, link_name))
+        (link_name, task.get_extra_links(ti, link_name))
         for link_name in link_names  # type: ignore[arg-type]
     )
     all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}

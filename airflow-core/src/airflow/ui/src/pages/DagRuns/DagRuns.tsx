@@ -143,6 +143,11 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
     header: translate("dagRun.runAfter"),
   },
   {
+    accessorKey: "logical_date",
+    cell: ({ row: { original } }) => <Time datetime={original.logical_date} />,
+    header: translate("logicalDate"),
+  },
+  {
     accessorKey: "state",
     cell: ({
       row: {
@@ -253,6 +258,7 @@ export const DagRuns = () => {
     columnVisibility: {
       dag_version: false,
       end_date: false,
+      logical_date: false,
       partition_key: false,
     },
   });
