@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from airflow.providers.common.compat.sdk import dag as airflow_dag, task
 
@@ -33,7 +33,7 @@ STATE_PATH = "/tmp/airflow_sandbox_e2e"
 @airflow_dag(
     dag_id=DAG_ID,
     schedule="@once",
-    start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+    start_date=datetime(2024, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["common.ai", "sandbox", "islo", "system_test"],
 )
