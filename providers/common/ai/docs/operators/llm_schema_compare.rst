@@ -140,10 +140,6 @@ expire with the default ``on_approval_timeout="fail"``, fails the task:
     :start-after: [START howto_operator_llm_schema_compare_approval]
     :end-before: [END howto_operator_llm_schema_compare_approval]
 
-``require_approval=True`` requires a string prompt: a decorated callable
-returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
-call.
-
 ``approval_timeout``, ``on_approval_timeout``, ``allow_modifications``,
 ``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
 behaviour are inherited from

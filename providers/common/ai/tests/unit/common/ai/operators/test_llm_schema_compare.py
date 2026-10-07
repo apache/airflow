@@ -23,6 +23,7 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from pydantic_ai.messages import BinaryContent
 
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
@@ -700,13 +701,35 @@ class TestLLMSchemaCompareOperatorApproval:
         with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
             op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
-    def test_execute_rejects_sequence_prompt_with_require_approval(self):
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context"
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
+    )
+    @mock.patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @mock.patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    def test_execute_with_approval_reviews_a_sequence_prompt(
+        self,
+        mock_upsert,
+        mock_trigger_cls,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        make_mock_run_result,
+    ):
+        mock_build_schema_context.return_value = "schema_context"
+        mock_build_system_prompt.return_value = "system_prompt"
         op = LLMSchemaCompareOperator(
-            task_id="test_task",
-            prompt=["describe", b"bytes"],  # type: ignore[arg-type]
-            llm_conn_id="llm_conn",
+            **{**_BASE_KWARGS, "prompt": ["Compare", BinaryContent(data=b"\x89PNG", media_type="image/png")]},
             **self._APPROVAL_KWARGS,
         )
+        mock_agent = mock.Mock()
+        mock_agent.run_sync.return_value = make_mock_run_result(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        )
+        op.llm_hook = mock.Mock(create_agent=mock.Mock(return_value=mock_agent))
 
-        with pytest.raises(TypeError, match="require_approval=True"):
+        with pytest.raises(TaskAwaitingInput):
             op.execute(context=_make_context())
+
+        assert "Prompt: Compare\n[image/png, 4 bytes]" in mock_upsert.call_args.kwargs["body"]

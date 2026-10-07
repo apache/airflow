@@ -30,6 +30,7 @@ from uuid import uuid4
 
 from jinja2 import TemplateError
 from pydantic import BaseModel
+from pydantic_ai.messages import BinaryContent
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
@@ -282,10 +283,17 @@ class TestDeferForApproval:
         call_kwargs = mock_upsert.call_args[1]
         assert call_kwargs["params"] == {}
 
-    def test_raises_on_non_string_prompt(self, context):
-        op = FakeOperator(prompt=["Describe this:", object()])  # type: ignore[arg-type]
-        with pytest.raises(TypeError, match="non-string prompt"):
-            op.defer_for_approval(context, "output")
+    @patch(HITL_TRIGGER_PATH, autospec=True)
+    @patch(UPSERT_HITL_PATH)
+    def test_body_renders_a_sequence_prompt(self, mock_upsert, mock_trigger_cls, context):
+        op = FakeOperator(prompt=["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")])  # type: ignore[arg-type]
+
+        op.defer_for_approval(context, "output")
+
+        assert (
+            mock_upsert.call_args[1]["body"]
+            == "```\nPrompt: Describe this:\n[image/png, 4 bytes]\n\noutput\n```"
+        )
 
     @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
