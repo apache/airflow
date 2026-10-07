@@ -286,4 +286,6 @@ and request count at INFO level. At DEBUG level, the LLM output is also logged
 for details on the log format.
 
 The same request/token/cost counts are also pushed to XCom under the ``usage``
-key, the same shape ``AgentOperator`` uses.
+key, the same shape ``AgentOperator`` uses. It is pushed on a failed run too,
+so a downstream ``all_done`` task or failure callback can read what was spent
+before the run raised.
