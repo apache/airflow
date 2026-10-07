@@ -1248,7 +1248,7 @@ def test_decrypt_kwargs_roundtrips_datetime():
     so ``_decrypt_kwargs`` raised and the asset-watcher trigger could not be read back.
     """
     classpath = "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
-    moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+    moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.UTC)
 
     dag_kwargs = encode_trigger({"classpath": classpath, "kwargs": {"moment": moment}})["kwargs"]
     decrypted = Trigger._decrypt_kwargs(Trigger.encrypt_kwargs(dag_kwargs))

@@ -22,7 +22,7 @@ from pathlib import Path
 AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.11"
 DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
 DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 os.environ["AIRFLOW_UID"] = str(os.getuid())

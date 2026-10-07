@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -61,7 +61,7 @@ def test_compute_remaining_test_timeout(
 
 @time_machine.travel("2026-08-29 12:10:00+00:00", tick=False)
 def test_main_derives_the_budget_left_from_the_job_start_time(timeout_module, monkeypatch, capsys):
-    job_start_epoch = int(datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc).timestamp())
+    job_start_epoch = int(datetime(2026, 8, 29, 12, 0, tzinfo=UTC).timestamp())
     monkeypatch.setattr(
         sys,
         "argv",

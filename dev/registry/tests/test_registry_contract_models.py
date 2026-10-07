@@ -137,7 +137,7 @@ def test_validate_version_metadata_accepts_legacy_version_modules_without_ids():
         "provider_id": "test",
         "version": "0.9.0",
         "generated_at": "2026-02-18T00:00:00+00:00",
-        "requires_python": ">=3.10",
+        "requires_python": ">=3.11",
         "dependencies": [],
         "optional_extras": {},
         "connection_types": [{"conn_type": "test", "hook_class": "x.y.Hook"}],
