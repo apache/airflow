@@ -62,34 +62,39 @@ How it works
   attempts share one trace and appear as repeated task-run spans on it,
   distinguished by ``try number``. Only a manual clear or rerun regenerates the
   context and starts a new trace.
-* **Run join key.** For an ``AgentOperator`` run, the task-instance id (unique
-  per attempt, since Airflow regenerates it on each retry) is passed to
+* **Run join key.** For an ``AgentOperator`` or ``LLMOperator`` run (and their
+  ``@task.agent`` / ``@task.llm`` decorator equivalents), the task-instance id
+  (unique per attempt, since Airflow regenerates it on each retry) is passed to
   pydantic-ai as the run's ``run_id``. It surfaces on the run's GenAI spans as
   ``gen_ai.agent.call.id``, and the operator also exposes it, alongside the run's
   token usage, on XCom under the ``run_id`` and ``usage`` keys. ``usage`` is
-  this attempt's own usage -- not the cross-attempt cumulative total described
-  under ``usage_limits`` in :ref:`howto/operator:agent` -- and it is pushed on
-  a failed attempt too, so a downstream ``all_done`` task or failure callback
-  can read what the last attempt spent. With ``durable=True``, steps an
-  attempt replays from the cache are not part of it. XCom is cleared at the start of every
-  attempt, so only the most recent attempt's value survives, not each
+  this attempt's own usage -- for ``AgentOperator`` not the cross-attempt cumulative
+  total described under ``usage_limits`` in :ref:`howto/operator:agent` -- and it is
+  pushed on a failed attempt too, so a downstream ``all_done`` task or failure
+  callback can read what the last attempt spent. XCom is cleared at the start of
+  every attempt, so only the most recent attempt's value survives, not each
   historical attempt's. A downstream task can then reference the
-  run (``ti.xcom_pull(task_ids="my_agent", key="run_id")``) and a trace
+  run (``ti.xcom_pull(task_ids="my_task", key="run_id")``) and a trace
   backend can join a task's output to its agent trace without parsing logs.
-  With ``enable_hitl_review`` the ``run_id`` and ``usage`` reflect the initial
-  model run, not the human-feedback regenerations. A run that resumes after a
-  tool approval (see :doc:`tool_approval`) continues as
-  ``<task-instance id>-resumed``, which is the ``run_id`` the operator pushes;
-  ``usage`` covers both parts.
+  ``AgentOperator`` additionally: with ``durable=True``, steps an attempt replays
+  from the cache are not part of ``usage``; with ``enable_hitl_review`` the
+  ``run_id`` and ``usage`` reflect the initial model run, not the human-feedback
+  regenerations, and a run that resumes after a tool approval (see
+  :doc:`tool_approval`) continues as ``<task-instance id>-resumed``, which is the
+  ``run_id`` the operator pushes, with ``usage`` covering both parts.
+  ``LLMOperator`` has no durable caching, cross-attempt usage budget, or HITL
+  regeneration, so its ``run_id`` and ``usage`` always describe the one run the
+  attempt made.
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
   identity keys without ``airflow.task_instance.id``.
-* **Scope.** The ``run_id`` XCom and the ``airflow.*`` identity attributes come only from
-  ``AgentOperator`` and ``@task.agent``, apart from a Strands or ADK agent run inside
-  ``agent_framework_tracing`` (see below). ``LLMOperator`` / ``@task.llm`` also push a
-  ``usage`` XCom, but without a ``run_id`` to join it to a trace. The remaining LLM
-  operators still emit GenAI spans correlated to the task span by nesting, but without the
-  identity attributes, the run join key, or a ``usage`` XCom.
+* **Scope.** The ``run_id`` XCom, the ``usage`` XCom, and the ``airflow.*`` identity
+  attributes come from ``AgentOperator`` / ``@task.agent`` and ``LLMOperator`` /
+  ``@task.llm``, apart from a Strands or ADK agent run inside
+  ``agent_framework_tracing`` (see below). The remaining LLM operators (SQL / branch /
+  file-analysis / schema-compare) still emit GenAI spans correlated to the task span
+  by nesting, but without the identity attributes, the run join key, or a ``usage``
+  XCom.
 * **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
   task-instance page showing the resolved model name and the ``usage`` XCom above as a
   readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on

@@ -286,6 +286,9 @@ and request count at INFO level. At DEBUG level, the LLM output is also logged
 for details on the log format.
 
 The same request/token/cost counts are also pushed to XCom under the ``usage``
-key, the same shape ``AgentOperator`` uses. It is pushed on a failed run too,
-so a downstream ``all_done`` task or failure callback can read what was spent
-before the run raised.
+key, the same shape ``AgentOperator`` uses. Alongside it, the operator pushes a
+``run_id`` XCom and stamps the task's identity on the run's GenAI spans, the
+same way ``AgentOperator`` does -- see :doc:`../observability` for how the join
+key and identity attributes work. Both XComs are pushed on a failed run too, so
+a downstream ``all_done`` task or failure callback can read what was spent, and
+which run, before it raised.

@@ -29,6 +29,11 @@ from pydantic_ai.usage import RunUsage
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin, normalize_assigned_users
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
+from airflow.providers.common.ai.observability import (
+    build_run_identity_attributes,
+    make_task_instance_run_key,
+    stamp_identity_on_agent_spans,
+)
 from airflow.providers.common.ai.policies.decision import DecisionPolicy
 from airflow.providers.common.ai.utils.decision import (
     DECISION_XCOM_KEY,
@@ -92,12 +97,14 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
     The Pydantic class must be defined at module scope: classes nested inside
     a function or ``@dag``-decorated body cannot be deserialized from XCom.
 
-    Alongside the returned output, the run's token usage and cost are pushed
-    to XCom under the ``usage`` key, the same shape
+    Alongside the returned output, the run's ``run_id`` and token ``usage``
+    are pushed to XCom under the ``run_id`` and ``usage`` keys, the same shape
     :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` uses,
-    so a downstream task can reference what the run cost. It is pushed on a
-    failed run too, so a downstream ``all_done`` task or failure callback can
-    read what was spent before the run raised.
+    so a downstream task can reference the run and what it cost. Both are
+    pushed on a failed run too, so a downstream ``all_done`` task or failure
+    callback can read what was spent, and which run, before it raised. The
+    ``run_id`` also ties the task to its GenAI trace (see the provider's
+    observability docs).
 
     :param prompt: The prompt to send to the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
@@ -314,9 +321,21 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
         agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
         )
+
+        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on each
+        # retry; dag/run/task/map/try on Airflow 2) ties this run to its GenAI trace, the same
+        # join key AgentOperator uses -- see the provider's observability docs. ``ti`` is None
+        # only for a hand-built context with no task instance (e.g. a bare dict in a unit
+        # test), in which case the run proceeds untracked, same as ``_push_xcom``'s fallback.
+        ti = self._resolve_task_instance(context)
+        run_kwargs: dict[str, Any] = {"usage_limits": usage_limits}
+        if ti is not None:
+            stamp_identity_on_agent_spans(agent, build_run_identity_attributes(ti))
+            run_kwargs["run_id"] = make_task_instance_run_key(ti)
+
         run_usage = RunUsage()
         try:
-            result = self.run_agent_sync(agent, self.prompt, usage=run_usage, usage_limits=usage_limits)
+            result = self.run_agent_sync(agent, self.prompt, usage=run_usage, **run_kwargs)
         except BaseException:
             # Passing `usage=run_usage` means pydantic-ai keeps it updated as the run
             # progresses, so a run that raises partway through (e.g. a cost_limit-triggered
@@ -326,11 +345,18 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
                 self._push_xcom(context, "usage", format_usage_for_xcom(run_usage))
             except Exception:
                 self.log.warning("Failed to push usage XCom for the failed run", exc_info=True)
+            if ti is not None:
+                try:
+                    self._push_xcom(context, "run_id", make_task_instance_run_key(ti))
+                except Exception:
+                    self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
             raise
         log_run_summary(self.log, result)
         output = result.output
 
         self._push_xcom(context, "usage", format_usage_for_xcom(run_usage))
+        if ti is not None:
+            self._push_xcom(context, "run_id", result.run_id)
         model_confidence = ModelConfidence.from_result(result)
         if model_confidence.model is not None:
             self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
@@ -425,21 +451,33 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin):
                 self._push_decision(context, timed_out_record(decision))
             raise
 
+    def _resolve_task_instance(self, context: Context) -> Any:
+        """
+        Return ``context["task_instance"]`` if it looks like a real task instance, else ``None``.
+
+        A hand-built context (old tests, custom runners) may carry no task instance, ``None``,
+        or a dict stand-in -- none of those expose ``xcom_push``, the same duck-type check this
+        uses to decide whether the value is usable at all, so callers that read identity
+        attributes off it (``build_run_identity_attributes``, ``make_task_instance_run_key``)
+        don't crash on a plain dict's missing ``.dag_id``.
+        """
+        try:
+            ti = context["task_instance"]
+        except (KeyError, TypeError):
+            return None
+        return ti if callable(getattr(ti, "xcom_push", None)) else None
+
     def _push_xcom(self, context: Context, key: str, value: Any) -> None:
         """Push ``value`` under ``key`` on XCom, honoring ``do_xcom_push`` and a missing task instance."""
         if not self.do_xcom_push:
             return
-        try:
-            ti = context["task_instance"]
-        except (KeyError, TypeError):
-            ti = None
-        push = getattr(ti, "xcom_push", None)
-        if not callable(push):
+        ti = self._resolve_task_instance(context)
+        if ti is None:
             # A hand-built context (a dict, or no task instance at all) has nowhere to push to; the
             # value is inspection output, so the run goes on without it.
             self.log.warning("No task instance in the context; %r was not pushed to XCom.", key)
             return
-        push(key=key, value=value)
+        ti.xcom_push(key=key, value=value)
 
     def _push_decision(self, context: Context, record: dict[str, Any]) -> None:
         """Expose what the model proposed, its confidence, and what the gate decided, on XCom."""

@@ -115,7 +115,7 @@ class TestLLMOperator:
         checking it at ``__init__`` would raise on a still-templated string before
         it is ever rendered (the ``validate-operators-init`` hook forbids exactly
         that: value-dependent validation of a template field before render)."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", usage_limits=bad)
@@ -126,16 +126,20 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_returns_string_output(self, mock_hook_cls, make_mock_run_result):
         """Default output_type=str returns the LLM string directly."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("Paris is the capital of France.")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(task_id="test", prompt="What is the capital of France?", llm_conn_id="my_llm")
-        result = op.execute(context=MagicMock())
+        result = op.execute(context=_make_context(ti_id="ti-1"))
 
         assert result == "Paris is the capital of France."
         mock_agent.run_sync.assert_called_once_with(
-            "What is the capital of France?", usage=ANY, usage_limits=None, cancellation_token=ANY
+            "What is the capital of France?",
+            usage=ANY,
+            usage_limits=None,
+            run_id="ti-1",
+            cancellation_token=ANY,
         )
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=str, instructions=""
@@ -147,7 +151,7 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_forwards_usage_limits_to_run_sync(self, mock_hook_cls, make_mock_run_result):
         """``usage_limits`` is forwarded verbatim to ``agent.run_sync``."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -158,16 +162,49 @@ class TestLLMOperator:
             llm_conn_id="my_llm",
             usage_limits=limits,
         )
-        op.execute(context=MagicMock())
+        op.execute(context=_make_context(ti_id="ti-1"))
 
         mock_agent.run_sync.assert_called_once_with(
-            "Summarize", usage=ANY, usage_limits=limits, cancellation_token=ANY
+            "Summarize", usage=ANY, usage_limits=limits, run_id="ti-1", cancellation_token=ANY
         )
+
+    @patch("airflow.providers.common.ai.operators.llm.stamp_identity_on_agent_spans", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_stamps_identity_on_agent_spans(self, mock_hook_cls, mock_stamp, make_mock_run_result):
+        """execute() derives the identity from the task instance and stamps it on the agent's spans."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="test", prompt="p", llm_conn_id="my_llm")
+        op.execute(context=_make_context(ti_id="ti-9"))
+
+        mock_stamp.assert_called_once()
+        agent_arg, attrs = mock_stamp.call_args.args
+        assert agent_arg is mock_agent
+        assert attrs["airflow.task_instance.id"] == "ti-9"
+
+    @patch("airflow.providers.common.ai.operators.llm.stamp_identity_on_agent_spans", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_without_task_instance_skips_identity_and_run_id(
+        self, mock_hook_cls, mock_stamp, make_mock_run_result
+    ):
+        """A hand-built context with no task instance runs untracked: no identity stamp, no run_id."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="test", prompt="p", llm_conn_id="my_llm")
+        result = op.execute(context={})
+
+        assert result == "ok"
+        mock_stamp.assert_not_called()
+        mock_agent.run_sync.assert_called_once_with("p", usage=ANY, usage_limits=None, cancellation_token=ANY)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):
         """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -198,7 +235,7 @@ class TestLLMOperator:
         the dict's string leaf (still a string -- Jinja never converts type), then
         ``execute`` coerces it to the field's real type. @amoghrajesh's review asked
         whether *every* field can be templated, not just ``cost_limit``."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -261,7 +298,7 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_raises_valueerror_for_unparsable_usage_limits_value(self, mock_hook_cls):
         """An unparsable templated ``usage_limits`` value surfaces as ``ValueError`` before any model call."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(
@@ -276,7 +313,7 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_structured_output_with_all_params(self, mock_hook_cls, make_mock_run_result):
         """Structured output returns the Pydantic instance unchanged so downstream tasks keep the type."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(Entities(names=["Alice", "Bob"]))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -306,7 +343,7 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_forwards_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
         """``fallback_conn_ids`` on the operator overrides the connection's own extra field."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -325,7 +362,7 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_forwards_empty_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
         """An explicit ``[]`` disables a chain configured on the connection, not just an override."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -352,7 +389,7 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_serialize_output_returns_dict(self, mock_hook_cls, make_mock_run_result):
         """serialize_output=True dumps the BaseModel to a dict on the wire."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(Entities(names=["A", "B"]))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -397,7 +434,7 @@ class TestLLMOperatorConfidenceGate:
         self, mock_hook_cls, make_mock_run_result, context, caplog
     ):
         """A dict-shaped or missing task instance (old tests, custom runners) must not fail the run."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = self._result(make_mock_run_result, Summary(text="t"), None)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
@@ -410,22 +447,33 @@ class TestLLMOperatorConfidenceGate:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_resolved_model_name_and_usage_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
-        """The model that actually answered, and the run's token usage/cost, are both exposed on XCom."""
+        """The model that actually answered, the run id, and the run's usage/cost are exposed on XCom."""
         cost = Decimal("0.0042")
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         result = self._result(make_mock_run_result, Summary(text="t"), None, cost=cost)
+        result.run_id = "ti-9"
 
         def _run_sync(*args, **kwargs):
             # Mirrors what a real pydantic-ai run does to the ``usage=`` object it was
             # called with, so the usage pushed to XCom (read from that object, not from
-            # the mock result's own ``.usage``) reflects the ``cost=`` configured here.
-            kwargs["usage"].incr(RunUsage(requests=1, cost=cost))
+            # the mock result's own ``.usage``) reflects the values configured here.
+            kwargs["usage"].incr(
+                RunUsage(
+                    requests=1,
+                    input_tokens=120,
+                    output_tokens=45,
+                    tool_calls=2,
+                    cache_read_tokens=5,
+                    cache_write_tokens=3,
+                    cost=cost,
+                )
+            )
             return result
 
         mock_agent.run_sync.side_effect = _run_sync
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
-        context = MagicMock(spec=dict)
+        context = _make_context(ti_id="ti-9")
 
         op.execute(context)
 
@@ -433,21 +481,22 @@ class TestLLMOperatorConfidenceGate:
             c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
         }
         assert pushes[MODEL_NAME_XCOM_KEY] == "jev-1.13.0"
+        assert pushes["run_id"] == "ti-9"
         assert pushes["usage"] == {
             "requests": 1,
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "total_tokens": 0,
-            "tool_calls": 0,
-            "cache_read_tokens": 0,
-            "cache_write_tokens": 0,
+            "input_tokens": 120,
+            "output_tokens": 45,
+            "total_tokens": 165,
+            "tool_calls": 2,
+            "cache_read_tokens": 5,
+            "cache_write_tokens": 3,
             "cost": str(cost),
         }
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_failure_pushes_partial_usage_to_xcom(self, mock_hook_cls):
-        """A run that raises before finishing (e.g. a cost_limit) still reports the usage incurred."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        """A run that raises before finishing (e.g. a cost_limit) still reports the run id and usage incurred."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
 
         def _run_sync(*args, **kwargs):
             kwargs["usage"].incr(RunUsage(requests=1, input_tokens=10, cost=Decimal("0.1")))
@@ -457,13 +506,14 @@ class TestLLMOperatorConfidenceGate:
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
-        context = _make_context()
+        context = _make_context(ti_id="ti-1")
         with pytest.raises(UsageLimitExceeded):
             op.execute(context)
 
         pushes = {
             c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
         }
+        assert pushes["run_id"] == "ti-1"
         assert pushes["usage"] == {
             "requests": 1,
             "input_tokens": 10,
@@ -482,7 +532,7 @@ class TestLLMOperatorConfidenceGate:
     def test_confident_output_returns_and_records_per_field_confidence(
         self, mock_hook_cls, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = self._result(
             make_mock_run_result,
             Summary(text="t"),
@@ -521,7 +571,7 @@ class TestLLMOperatorConfidenceGate:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """The least confident of the fields that reported a confidence is what the bar is compared against."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = self._result(
             make_mock_run_result,
             Assessment(category="billing", score=0.3),
@@ -561,7 +611,7 @@ class TestLLMOperatorConfidenceGate:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_a_field_that_reports_no_confidence_is_not_gated(self, mock_hook_cls, make_mock_run_result):
         """A bounded float field reports no confidence (the probability is the answer); only reported fields count."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = self._result(
             make_mock_run_result,
             Assessment(category="billing", score=0.3),
@@ -587,7 +637,7 @@ class TestLLMOperatorConfidenceGate:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_nan_confidence_counts_as_not_reported(self, mock_hook_cls, make_mock_run_result):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = self._result(
             make_mock_run_result,
             Summary(text="t"),
@@ -721,7 +771,7 @@ class TestLLMOperatorConfidenceGate:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_no_bar_keeps_todays_behaviour_and_still_records(self, mock_hook_cls, make_mock_run_result):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("plain text")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
@@ -746,7 +796,7 @@ class TestLLMOperatorConfidenceGate:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_text_model_with_a_bar_can_fail(self, mock_hook_cls, make_mock_run_result):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("plain text")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMOperator(
@@ -945,7 +995,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """When require_approval=True, execute() defers instead of returning output."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("LLM response")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -972,7 +1022,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """On Airflow versions < 3.3 (flag pinned), execute() falls back to deferring to HITLTrigger."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("LLM response")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -998,7 +1048,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """allow_modifications=True passes an editable 'output' param."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("draft output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1024,7 +1074,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """approval_timeout is passed to the trigger."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1053,7 +1103,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """Structured (BaseModel) output is serialized before deferring."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(Summary(text="hello"))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1074,7 +1124,7 @@ class TestLLMOperatorApproval:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_without_approval_returns_normally(self, mock_hook_cls, make_mock_run_result):
         """When require_approval=False, execute() returns output directly."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("plain output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1164,7 +1214,7 @@ class TestLLMOperatorMultimodalPromptGuard:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(
