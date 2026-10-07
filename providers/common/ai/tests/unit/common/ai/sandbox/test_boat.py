@@ -77,8 +77,6 @@ def _backend_with_api(**kwargs) -> tuple[BoatSandboxBackend, mock.MagicMock]:
         spec=["create", "update", "get", "command", "read_file", "write_file", "delete_sandbox"]
     )
     backend._boat_api = api
-    backend._request_timeout = 30.0
-    backend._no_env = True
     return backend, api
 
 
@@ -132,12 +130,11 @@ class TestCredentials:
             {"BOAT_API_KEY": " env-key ", "BOAT_BASE_URL": "https://custom.example/api/v1/"},
             clear=False,
         ):
-            backend = BoatSandboxBackend(request_timeout=12.5, no_env=False)
+            backend = BoatSandboxBackend(request_timeout=12.5)
             backend._get_api()
 
         configuration.assert_called_once_with(host="https://custom.example/api/v1", access_token="env-key")
         boat_api.assert_called_once()
-        assert backend._no_env is False
         assert backend._request_timeout == 12.5
 
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
@@ -186,9 +183,12 @@ class TestCreate:
         with pytest.raises(SandboxTerminalError, match="CIDR egress allowlist"):
             backend.create(spec=SandboxSpec(block_network=False, allow_egress_to_cidrs=["203.0.113.0/24"]))
 
+    @pytest.mark.parametrize("no_env", [True, False])
     @mock.patch("boat_sdk.wait_until_ready", autospec=True)
-    def test_spec_and_sizing_are_passed_at_creation(self, wait_ready):
-        backend, api = _backend_with_api(machine_type="small", ttl_seconds=120, ready_timeout=45, no_env=True)
+    def test_spec_and_sizing_are_passed_at_creation(self, wait_ready, no_env):
+        backend, api = _backend_with_api(
+            machine_type="small", ttl_seconds=120, ready_timeout=45, no_env=no_env
+        )
         api.create.return_value = _created("bx_created1")
 
         sandbox_id = backend.create(spec=SandboxSpec(block_network=False, env={"TOKEN": "value"}))
@@ -197,9 +197,11 @@ class TestCreate:
         request = api.create.call_args.kwargs["create_sandbox_request"]
         assert request.type == "small"
         assert request.ttl_seconds == 120
-        assert request.no_env is True
+        assert request.no_env is no_env
         assert request.env == {"TOKEN": "value"}
-        wait_ready.assert_called_once()
+        wait_ready.assert_called_once_with(
+            mock.ANY, "bx_created1", timeout_seconds=45, poll_interval_seconds=2.0
+        )
         assert api.update.called
 
     @mock.patch("boat_sdk.wait_until_ready", autospec=True)
@@ -424,6 +426,54 @@ class TestFiles:
         assert write_request.path == "/tmp/dir/file.bin"
         assert write_request.encoding == "base64"
         assert base64.b64decode(write_request.content) == b"\x00\x01"
+
+    def test_write_file_stops_when_the_parent_directory_cannot_be_made(self):
+        backend, api = _backend_with_api()
+        api.command.return_value = _command_response(
+            exit_code=1, stderr="mkdir: cannot create directory '/opt/app': Permission denied\n"
+        )
+
+        with pytest.raises(SandboxError, match="Permission denied") as raised:
+            backend.write_file("bx_1", "/opt/app/main.py", b"x")
+
+        assert not isinstance(raised.value, SandboxTerminalError)
+        api.write_file.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("error", "sandbox_gone", "expected", "match"),
+        [
+            pytest.param(
+                _api_error(404), False, SandboxError, "Could not write", id="missing_in_live_sandbox"
+            ),
+            pytest.param(_api_error(404), True, SandboxTerminalError, "HTTP 404", id="sandbox_gone"),
+            pytest.param(
+                _api_error(
+                    400,
+                    json.dumps(
+                        {"error": {"code": "invalid_path", "message": "must be under /home/user or /tmp"}}
+                    ),
+                ),
+                False,
+                SandboxError,
+                r"HTTP 400\)\. invalid_path: must be under",
+                id="refused_path",
+            ),
+            pytest.param(_api_error(500), False, SandboxTerminalError, "HTTP 500", id="server_error"),
+        ],
+    )
+    def test_write_file_maps_api_errors(self, error, sandbox_gone, expected, match):
+        backend, api = _backend_with_api()
+        api.command.return_value = _command_response()
+        api.write_file.side_effect = error
+        if sandbox_gone:
+            api.get.side_effect = _api_error(404)
+        else:
+            api.get.return_value = SimpleNamespace(sandbox=SimpleNamespace(id="bx_1", state="idle"))
+
+        with pytest.raises(SandboxError, match=match) as raised:
+            backend.write_file("bx_1", "/opt/app/main.py", b"x")
+
+        assert type(raised.value) is expected
 
 
 class TestDestroy:
