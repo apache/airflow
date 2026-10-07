@@ -283,25 +283,51 @@ Boat provider.
 Constructor parameters:
 
 - ``machine_type``: ``"small"``, ``"default"`` or ``"large"``.
-- ``ttl_seconds``: server-side archive TTL. Default ``3600``.
+- ``ttl_seconds``: server-side archive TTL, a whole number of seconds up to
+  ``2592000`` (30 days). Default ``3600``.
 - ``ready_timeout``: provisioning deadline. Default ``300``.
-- ``request_timeout``: HTTP request timeout in seconds. Default ``30``.
-- ``no_env``: withhold account-stored secrets. Default ``True``.
+- ``request_timeout``: HTTP timeout in seconds for an API call that answers at
+  once, such as a status check or a delete, and the time added to the
+  operation's own for a call that waits on one: a command's deadline, a
+  create's ``ready_timeout``, or 120 seconds for a file write. Default ``30``.
+- ``no_env``: Default ``True``, which gives the sandbox none of your Boat
+  account's stored environment variables, secret files or credentials, and
+  confines it so it cannot act on your account or your other sandboxes.
 
-``SandboxSpec.env`` is passed when the sandbox is created. **Boat cannot enforce
-a deny-all network policy, a per-domain egress allowlist, or a CIDR egress
-allowlist**, so the backend refuses ``block_network=True``, ``allow_egress_to``,
-and ``allow_egress_to_cidrs`` rather than silently provisioning something weaker
-than the spec asked for. Since ``block_network`` defaults to ``True``, that
-includes a bare ``SandboxSpec()``: pass ``SandboxSpec(block_network=False)`` to
-state that open egress is acceptable, or use Modal when it is not.
+.. warning::
 
-Writes use Boat's native file API. Reads deliberately keep the inherited bounded
+   ``no_env=False`` attaches your account's default Boat environment and lifts
+   that confinement: its secrets reach the sandbox without ``SandboxSpec.env``
+   naming them, and model-written code can act on your Boat account and its
+   other sandboxes. Keep the default for an agent's sandbox.
+
+``SandboxSpec.env`` is passed when the sandbox is created and also exported at
+the start of every command, so each value is sent again with every command
+request. **Boat cannot enforce a deny-all network policy, a per-domain egress
+allowlist, or a CIDR egress allowlist**, so the backend refuses
+``block_network=True``, ``allow_egress_to``, and ``allow_egress_to_cidrs``
+rather than silently provisioning something weaker than the spec asked for.
+Since ``block_network`` defaults to ``True``, that includes a bare
+``SandboxSpec()``: pass ``SandboxSpec(block_network=False)`` to state that open
+egress is acceptable, or use Modal when it is not.
+
+Writes use Boat's native file API, which accepts only paths that resolve under
+``/home/user`` (where relative paths land) or ``/tmp``. A ``write_file``
+anywhere else is refused, and the model gets Boat's ``invalid_path`` error back
+as a tool error it can retry. Reads deliberately keep the inherited bounded
 shell implementation, so ``max_bytes`` is enforced inside the guest before file
-contents reach worker memory. Command timeouts are capped at 600 seconds; a
-sandbox whose command times out, or that never becomes ready, is torn down
-immediately. If the worker dies first, the server-side TTL archives the sandbox
-rather than deleting it, preserving its snapshot until an operator removes it.
+contents reach worker memory.
+
+Command timeouts are capped at 600 seconds. The deadline is enforced inside the
+sandbox by GNU coreutils ``timeout``, which sends ``SIGTERM`` and then
+``SIGKILL`` five seconds later, so a command that runs out of time returns what
+it printed, and the sandbox and its files survive. Boat's own deadline is set
+15 seconds past the requested one and cannot exceed 600 seconds, so a command
+that asks for more than 585 seconds gets 585, and the result reports that
+deadline. Only when Boat's own deadline ends the call, because the one in the
+guest did not, is the sandbox torn down, as is a sandbox that never becomes
+ready. If the worker dies first, the server-side TTL archives the sandbox rather
+than deleting it, preserving its snapshot until an operator removes it.
 
 .. _sandbox-backend-sbx:
 
@@ -367,12 +393,13 @@ behaves identically everywhere:
   ``dns+nft`` mode required for CIDR enforcement. Boat has no form of egress control
   at all and refuses every network restriction rather than provisioning something
   weaker.
-- **Command timeouts.** A timeout destroys an ``sbx`` or Boat sandbox and its files;
-  Modal and a server-enforced OpenSandbox timeout preserve the sandbox and files.
-  OpenSandbox destroys it only if the command event stream itself stalls past the
-  client-side grace period.
+- **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files;
+  Modal, Boat and a server-enforced OpenSandbox timeout preserve the sandbox and
+  files. OpenSandbox destroys it only if the command event stream itself stalls
+  past the client-side grace period, and Boat only if its own deadline, set past
+  the one in the guest, ends the call.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  replaces it on Modal, OpenSandbox and Boat.
+  replaces it on Modal and OpenSandbox.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an
   agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
   that created it and cannot be reached from another task, and OpenSandbox and Boat

@@ -164,10 +164,12 @@ class BoatSandboxBackend(SandboxBackend):
     :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset`) when
     open egress is acceptable.
 
-    Writes use Boat's native file API; reads use the inherited shell
-    implementation, because the native read API takes no size parameter and
-    would land a whole file in worker memory before ``max_bytes`` could reject
-    it.
+    Writes use Boat's native file API, which accepts only paths that resolve
+    under ``/home/user`` (where relative paths land) or ``/tmp``; a write
+    anywhere else reaches the model as a recoverable error carrying Boat's
+    ``invalid_path`` code. Reads use the inherited shell implementation, because
+    the native read API takes no size parameter and would land a whole file in
+    worker memory before ``max_bytes`` could reject it.
 
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
         Default ``"default"``.
@@ -180,8 +182,12 @@ class BoatSandboxBackend(SandboxBackend):
         at once, such as a status check or a delete, and the time added to the
         operation's own for a call that waits on one: a command's deadline, a
         create's ``ready_timeout``, or 120 seconds for a file write. Default ``30``.
-    :param no_env: When ``True`` (default), create a no-env sandbox that receives
-        none of the account's stored secrets.
+    :param no_env: When ``True`` (default), create a no-env sandbox: none of the
+        account's stored environment variables, secret files or credentials
+        reach it, and it is confined so it cannot act on the account or its
+        other sandboxes. ``False`` attaches the account's default Boat
+        environment and lifts that confinement, so secrets ``SandboxSpec.env``
+        never named reach model-written code, which can then act on the account.
     """
 
     name = "boat"
