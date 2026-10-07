@@ -14,21 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""ObjectStorage-backed durable storage for pydantic-ai agent step caching."""
+"""ObjectStorage-backed storage for the durable execution journal (Airflow < 3.3)."""
 
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import json
+from collections.abc import Iterable
 from functools import lru_cache
 from typing import Any
 
-from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse
-
-# Sentinel to distinguish "cached None" from "no cache entry" for tool results.
-# Shared with the task state store backend so the envelope shape cannot drift.
-from airflow.providers.common.ai.durable.base import TOOL_RESULT_SENTINEL as _SENTINEL
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 log = get_task_logger()
@@ -51,15 +46,16 @@ def _get_base_path():
 
 class DurableStorage:
     """
-    Stores step-level caches in a single JSON file on ObjectStorage.
+    Stores the durable journal in a single JSON file on ObjectStorage.
 
-    All step caches (model responses and tool results) are stored as entries
+    All journal steps are stored as entries
     in a single JSON blob, written to ``{base_path}/{cache_id}.json`` where
     ``cache_id`` is a hash of the task instance's identity (dag, task, run,
     map index) so distinct task instances never share a file.
 
     The file survives Airflow task retries since it lives outside the
-    XCom system.  It is deleted on successful task completion.
+    XCom system. :meth:`delete_steps` removes the steps of a run that succeeded, and
+    the file once nothing is left in it.
 
     :param dag_id: DAG ID of the running task.
     :param task_id: Task ID of the running task.
@@ -101,109 +97,49 @@ class DurableStorage:
 
         return self._cache
 
-    def _save_cache(self) -> None:
-        """Persist the in-memory cache blob to storage."""
+    def _write(self, text: str) -> None:
+        """Persist the encoded journal to storage."""
         path = self._get_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self._cache))
+        path.write_text(text)
 
-    def save_model_response(self, key: str, response: ModelResponse, *, fingerprint: str | None) -> bool:
+    def save_step(self, key: str, entry: dict[str, Any]) -> bool:
         """
-        Serialize and store a ModelResponse with the request fingerprint that produced it.
+        Store one journal step and rewrite the journal file.
 
-        :return: Always ``True``. Unlike the task state store, this backend never skips a model response.
-        """
-        cache = self._load_cache()
-        # Store the dumped messages as native JSON-compatible objects, not a
-        # pre-encoded string: the whole cache is JSON-encoded once in
-        # ``_save_cache``, so embedding a string here would double-encode the
-        # (large) response payload.
-        cache[key] = {
-            "fingerprint": fingerprint,
-            "data": ModelMessagesTypeAdapter.dump_python([response], mode="json"),
-        }
-        self._save_cache()
-        return True
-
-    def load_model_response(self, key: str) -> tuple[ModelResponse | None, str | None]:
-        """
-        Load a cached ModelResponse and its stored request fingerprint.
-
-        Returns ``(None, None)`` if not cached. Entries written before
-        fingerprints existed load with a ``None`` fingerprint.
+        :return: ``True`` if the entry was written, ``False`` if it could not be encoded.
         """
         cache = self._load_cache()
-        raw = cache.get(key)
-        if raw is None:
-            return None, None
+        cache[key] = entry
         try:
-            if isinstance(raw, dict):
-                messages = ModelMessagesTypeAdapter.validate_python(raw["data"])
-                fingerprint = raw.get("fingerprint")
-            else:
-                # Legacy entry: the adapter JSON (a list) was stored directly as a string.
-                messages = ModelMessagesTypeAdapter.validate_json(raw)
-                fingerprint = None
-        except (KeyError, IndexError, ValueError):
-            # A torn or malformed entry degrades to a miss (the step re-runs),
-            # never a task crash -- the cache is best-effort.
-            log.warning("Durable: ignoring malformed cached model response", key=key)
-            return None, None
-        if not messages:
-            return None, None
-        return messages[0], fingerprint  # type: ignore[return-value]
-
-    def save_tool_result(self, key: str, result: Any, *, fingerprint: str | None) -> bool:
-        """
-        Store a tool call result with the call fingerprint that produced it.
-
-        Non-serializable results (e.g. BinaryContent from MCP tools) are
-        skipped with a warning -- the tool call still succeeds, but won't
-        be replayed on retry.
-
-        :return: ``True`` if the entry was written, ``False`` if it was skipped.
-        """
-        cache = self._load_cache()
-        try:
-            # Probe serializability before mutating the shared cache: a
-            # non-serializable result must skip only this entry, not break the
-            # whole-file ``_save_cache``. TypeError covers unsupported types;
-            # ValueError covers circular references.
-            json.dumps(result)
+            text = json.dumps(cache)
         except (TypeError, ValueError):
-            log.warning(
-                "Durable: skipping cache for non-serializable tool result",
-                key=key,
-                type=type(result).__name__,
-            )
+            # Only this entry is skipped; the rest of the journal is still written.
+            del cache[key]
+            log.warning("Durable: could not store step", key=key, exc_info=True)
             return False
-        cache[key] = {_SENTINEL: True, "value": result, "fingerprint": fingerprint}
-        self._save_cache()
+        self._write(text)
         return True
 
-    def load_tool_result(self, key: str) -> tuple[bool, Any, str | None]:
-        """
-        Load a cached tool result and its stored call fingerprint.
+    def load_step(self, key: str) -> dict[str, Any] | None:
+        """Load one journal step, or ``None`` when there is none or it is not a journal entry."""
+        raw = self._load_cache().get(key)
+        return raw if isinstance(raw, dict) else None
 
-        Returns a (found, value, fingerprint) tuple since the cached value
-        itself could be None. Entries written before fingerprints existed
-        load with a ``None`` fingerprint.
-        """
+    def delete_steps(self, keys: Iterable[str]) -> None:
+        """Remove these steps, and the journal file once nothing is left in it."""
         cache = self._load_cache()
-        raw = cache.get(key)
-        if raw is None:
-            return False, None, None
-        # Legacy entries were stored as a JSON string; new entries are native dicts.
-        if isinstance(raw, str):
-            raw = json.loads(raw)
-        if not isinstance(raw, dict) or _SENTINEL not in raw:
-            return False, None, None
-        return True, raw["value"], raw.get("fingerprint")
-
-    def cleanup(self) -> None:
-        """Delete the cache file after successful execution."""
-        # Best-effort cleanup
-        with contextlib.suppress(FileNotFoundError, OSError):
-            self._get_path().unlink()
-        self._cache = None
-        log.debug("Durable cache cleaned up")
+        for key in keys:
+            cache.pop(key, None)
+        # Runs after the run has already succeeded, so it must never raise; a file left
+        # behind holds only steps a retry of this run would replay.
+        try:
+            if cache:
+                self._write(json.dumps(cache))
+            else:
+                self._get_path().unlink()
+                self._cache = None
+        except FileNotFoundError:
+            self._cache = None
+        except Exception:
+            log.warning("Durable: could not clean up the journal file", exc_info=True)

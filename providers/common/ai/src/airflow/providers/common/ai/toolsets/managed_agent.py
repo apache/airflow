@@ -96,9 +96,9 @@ class BaseManagedAgentToolset(AirflowToolset):
         rejects a request. ``0`` turns the first rejection into a hard error.
     """
 
-    #: Whether ``durable=True`` may replay a completed invocation from its cache instead of
+    #: Whether ``durable=True`` may replay a completed invocation from its journal instead of
     #: re-invoking. Off by default because a managed agent may act on systems Airflow cannot
-    #: observe, so replaying a cached answer could skip a side effect. Read-only agents may
+    #: observe, so replaying a recorded answer could skip a side effect. Read-only agents may
     #: opt in.
     replayable: bool = False
 
@@ -288,7 +288,7 @@ class ManagedAgentToolset(BaseManagedAgentToolset):
         ``None`` means whatever the vendor client defaults to, which for Agent Engine is no
         deadline at all.
     :param max_retries: See :class:`BaseManagedAgentToolset`.
-    :param replayable: Whether the durable cache may replay a completed call. Only set it
+    :param replayable: Whether durable execution may replay a completed call. Only set it
         for an agent that is read-only.
     :param vendor_options: Sent with every request as ``ManagedAgentRequest.vendor_options``,
         for per-agent settings the vendor hook accepts there (Agent Engine's ``class_method``,

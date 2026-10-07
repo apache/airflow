@@ -92,7 +92,7 @@ you need it inside the capability list, for example to order it against a guardr
 With durable execution
 ----------------------
 
-With ``durable=True``, a retry replays completed steps from the cache instead of running them
+With ``durable=True``, a retry replays completed steps from the journal instead of running them
 again. Whether a capability's work is replayed depends on where it runs:
 
 .. list-table::
@@ -102,21 +102,19 @@ again. Whether a capability's work is replayed depends on where it runs:
       - On retry
     * - ``Thinking``, and ``WebSearch``, ``WebFetch`` or ``ImageGeneration`` when the model's
         provider runs the tool natively
-      - Replayed with the cached model response.
+      - Replayed with the recorded model response.
     * - ``WebSearch``, ``WebFetch`` or ``ImageGeneration`` falling back to a local tool, for a
-        provider without the native one
-      - The local tool runs again.
-    * - ``Toolset`` holding a toolset
-      - Tool results are replayed.
-    * - ``MCP``, ``PrefixTools``, ``CombinedCapability``, a ``Toolset`` built from a function,
-        and capabilities from an agent spec file
-      - Tools run again. Pass tools you need replayed in ``toolsets=`` instead.
+        provider without the native one; ``Toolset``, ``MCP``, ``PrefixTools``,
+        ``CombinedCapability``, and capabilities from an agent spec file
+      - Tool results are replayed. Each toolset they contribute needs an ``id``; pydantic-ai
+        names one without it when the agent is built. An ``id`` on a ``Toolset`` capability
+        does not reach the toolset inside it, so set it on that toolset.
     * - pydantic-ai-harness ``CodeMode``
       - Not allowed: the operator raises ``ValueError``. This includes a ``CodeMode`` inside a
         ``CombinedCapability`` or a wrapper such as ``PrefixTools``, but not one a capability
         function builds when the run starts.
 
-See :doc:`durable_execution` for how the cache works.
+See :doc:`durable_execution` for how replay works.
 
 Serialization
 -------------

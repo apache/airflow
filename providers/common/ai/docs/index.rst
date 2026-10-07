@@ -180,7 +180,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``apache-airflow-providers-standard``       ``>=1.20.0``
-``pydantic-ai-slim``                        ``>=2.33.0``
+``pydantic-ai-slim``                        ``>=2.36.0``
 ``structlog``                               ``>=24.2.0``
 ==========================================  ==================
 
@@ -219,12 +219,12 @@ Install them when installing from PyPI. For example:
 ===============  =======================================================================================================================================
 Extra            Dependencies
 ===============  =======================================================================================================================================
-``anthropic``    ``pydantic-ai-slim[anthropic]>=2.33.0``, ``anthropic>=1.0.0``
-``bedrock``      ``pydantic-ai-slim[bedrock]>=2.33.0``
-``google``       ``pydantic-ai-slim[google]>=2.33.0``
-``openai``       ``pydantic-ai-slim[openai]>=2.33.0``, ``openai>=2.47.0``
+``anthropic``    ``pydantic-ai-slim[anthropic]>=2.36.0``, ``anthropic>=1.0.0``
+``bedrock``      ``pydantic-ai-slim[bedrock]>=2.36.0``
+``google``       ``pydantic-ai-slim[google]>=2.36.0``
+``openai``       ``pydantic-ai-slim[openai]>=2.36.0``, ``openai>=2.47.0``
 ``typesafe``     ``typesafe-sdk>=0.6.0``
-``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
+``mcp``          ``pydantic-ai-slim[mcp]>=2.36.0``
 ``modal``        ``apache-airflow-providers-modal``, ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.24.0``
