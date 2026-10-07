@@ -45,7 +45,7 @@ if S3Hook is not None:
                     # Fix the bucket: the model never sees the argument and cannot set it.
                     pinned_arguments={"bucket_name": "acme-reports"},
                     # Name the tools s3_list_keys and s3_read_key.
-                    tool_name_prefix="s3_",
+                    tool_prefix="s3_",
                     # Let the model correct an invalid call up to 2 times.
                     max_retries=2,
                 )
