@@ -157,9 +157,6 @@ class LLMSQLQueryOperator(LLMOperator):
         return hook
 
     def execute(self, context: Context) -> str:
-        if self.require_approval:
-            self.validate_approval_prompt()  # type: ignore[misc]
-
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
