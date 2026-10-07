@@ -144,7 +144,7 @@ export const Deadlines = () => {
   const missedFilter =
     filteredMissed === "true" || filteredMissed === "false" ? filteredMissed === "true" : undefined;
 
-  const { data, error, isFetching, isLoading } = useDeadlinesServiceGetDeadlines({
+  const { data, error, isLoading } = useDeadlinesServiceGetDeadlines({
     dagId: filteredDagId !== null && filteredDagId !== "" ? filteredDagId : "~",
     dagRunId: "~",
     deadlineTimeGte: deadlineTimeGte ?? undefined,
@@ -170,7 +170,6 @@ export const Deadlines = () => {
           />
         }
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="browse:deadlines.deadline"
         onStateChange={setTableURLState}

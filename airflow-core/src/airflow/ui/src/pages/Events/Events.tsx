@@ -246,7 +246,7 @@ export const Events = () => {
     value: taskIdFilter,
   });
 
-  const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
+  const { data, error, isLoading } = useEventLogServiceGetEventLogs(
     {
       after: afterDate,
       before: beforeDate,
@@ -282,7 +282,6 @@ export const Events = () => {
         displayMode="table"
         filterActions={<EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:event"
         onStateChange={setTableURLState}

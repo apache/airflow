@@ -165,7 +165,7 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
   });
   const shouldPoll = backfill?.completed_at === null;
 
-  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillDagRuns(
+  const { data, error, isLoading } = useBackfillServiceListBackfillDagRuns(
     {
       backfillId: backfillId ?? 0,
       limit: pageSize,
@@ -207,7 +207,6 @@ export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: Backf
         columns={getColumns(isPartitioned, translate)}
         data={data?.backfill_dag_runs ?? []}
         initialState={tableState}
-        isFetching={isFetching}
         isLoading={isBackfillLoading || isLoading}
         modelName="common:slot"
         onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}

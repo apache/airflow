@@ -264,14 +264,6 @@ describe("DataTable", () => {
     expect(screen.getByRole("heading")).toHaveTextContent(/^task_other$/u);
   });
 
-  it("keeps the row count heading while refetching", () => {
-    render(<DataTable columns={columns} data={data} isFetching modelName="task" total={2} />, {
-      wrapper: ChakraWrapper,
-    });
-
-    expect(screen.getByRole("heading")).toHaveTextContent("2 task");
-  });
-
   it("renders a capped row count heading when total reaches totalEntriesLimit", () => {
     render(
       <DataTable

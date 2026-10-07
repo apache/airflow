@@ -206,7 +206,7 @@ export const DagsList = () => {
     pendingHitl = false;
   }
 
-  const { data, error, isFetching, isLoading } = useDags({
+  const { data, error, isLoading } = useDags({
     advancedSearch: advancedSearch.enabled,
     bundleName: selectedBundle,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
@@ -319,7 +319,6 @@ export const DagsList = () => {
                 }
                 headingExtra={<DagImportErrors iconOnly />}
                 initialState={tableURLState}
-                isFetching={isFetching}
                 isLoading={isLoading}
                 modelName="common:dag"
                 onDisplayToggleChange={handleDisplayToggleChange}
