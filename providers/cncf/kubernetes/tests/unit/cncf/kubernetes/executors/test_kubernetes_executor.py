@@ -23,16 +23,20 @@ import time
 from datetime import datetime, timedelta
 from queue import Queue
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 import yaml
 from aiohttp import ClientConnectionError
-from kubernetes.client import models as k8s
+from kubernetes.client import ApiClient, CoreV1Api, models as k8s
 from kubernetes.client.rest import ApiException
+from kubernetes.dynamic.resource import ResourceInstance
 from sqlalchemy import inspect
+from sqlalchemy.orm import Session
 from urllib3 import HTTPConnectionPool, HTTPResponse
 from urllib3.exceptions import MaxRetryError, ProtocolError
 
+from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs.job import Job
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.cncf.kubernetes import pod_generator
@@ -43,6 +47,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
+    TASK_INSTANCE_ID_LABEL,
     KubernetesJob,
     KubernetesResults,
     KubernetesWatch,
@@ -84,6 +89,8 @@ except ImportError:
     _executor_name_tag_key = "name"
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.executors.workloads import BundleInfo, ExecuteTask, TaskInstance as WorkloadTaskInstance
+
     LOGICAL_DATE_KEY = "logical_date"
 else:
     LOGICAL_DATE_KEY = "execution_date"
@@ -655,11 +662,16 @@ class TestAirflowKubernetesScheduler:
                 KubernetesExecutor()
 
 
+@pytest.mark.usefixtures("coordinate_key_contract")
 class TestKubernetesExecutor:
     """
     Tests if an ApiException from the Kube Client will cause the task to
     be rescheduled.
     """
+
+    @pytest.fixture
+    def coordinate_key_contract(self, monkeypatch):
+        monkeypatch.setattr(KubernetesExecutor, "supports_task_instance_uuid", False)
 
     def setup_method(self) -> None:
         self.kubernetes_executor = KubernetesExecutor()
@@ -1708,37 +1720,56 @@ class TestKubernetesExecutor:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     @mock.patch(
-        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.execute_async"
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.execute_async",
+        autospec=True,
     )
-    def test_process_workloads(self, mock_execute_async):
+    @pytest.mark.parametrize("native_uuid", [False, True])
+    def test_process_workloads(self, mock_execute_async, monkeypatch, native_uuid):
         """Test that _process_workloads dequeues an ExecuteTask and hands it to execute_async."""
-        from airflow.executors.workloads import ExecuteTask
-
         executor = self.kubernetes_executor
-        key = TaskInstanceKey("dag", "task", "run_id", 1, -1)
-        workload = mock.Mock(spec=ExecuteTask)
-        workload.ti = mock.Mock()
-        workload.ti.key = key
-        workload.ti.queue = "default"
-        workload.ti.executor_config = None
+        native_uuid = native_uuid and hasattr(executor, "get_task_key")
+        monkeypatch.setattr(KubernetesExecutor, "supports_task_instance_uuid", native_uuid)
+        workload = ExecuteTask(
+            ti=WorkloadTaskInstance(
+                id=uuid4(),
+                dag_version_id=uuid4(),
+                dag_id="dag",
+                task_id="task",
+                run_id="run_id",
+                try_number=1,
+                map_index=-1,
+                pool_slots=1,
+                priority_weight=1,
+                queue="default",
+            ),
+            dag_rel_path="dag.py",
+            bundle_info=BundleInfo(name="bundle"),
+            token="",
+            log_path=None,
+        )
+        key = executor.get_task_key(workload.ti) if native_uuid else workload.ti.key
 
         if AIRFLOW_V_3_4_PLUS:
             from airflow.executors.workloads.base import WorkloadType
 
-            workload.type = WorkloadType.EXECUTE_TASK
-            workload.key = key
             task_queue = executor.executor_queues[WorkloadType.EXECUTE_TASK]
         else:
             task_queue = executor.queued_tasks
-        task_queue[key] = workload
+        if AIRFLOW_V_3_1_PLUS:
+            executor.queue_workload(workload, session=None)
+        else:
+            executor.queue_command(workload.ti, [workload], workload.ti.priority_weight, workload.ti.queue)
 
         executor._process_workloads([workload])
 
         assert len(task_queue) == 0
         assert key in executor.running
         mock_execute_async.assert_called_once_with(
-            key=key, command=[workload], queue="default", executor_config={}
+            executor, key=key, command=[workload], queue="default", executor_config={}
         )
+        executor.success(key)
+        assert key not in executor.running
+        assert executor.get_event_buffer() == {key: (TaskInstanceState.SUCCESS, None)}
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     def test_queue_workload_queues_execute_task(self):
@@ -3218,6 +3249,8 @@ class TestKubernetesExecutor:
         executor.kube_client = mock_kube_client
         executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
+        if hasattr(executor, "_register_task"):
+            executor._register_task(ti)
         executor.running.add(ti.key)  # so we can verify it gets removed after revoke
         assert executor.has_task(task_instance=ti)
         executor.revoke_task(ti=ti)

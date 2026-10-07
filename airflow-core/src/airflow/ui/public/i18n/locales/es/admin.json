@@ -35,7 +35,6 @@
       "connectionIdRequired": "El ID de la conexión es requerido",
       "connectionIdRequirement": "El ID de la conexión no puede contener solo espacios",
       "connectionTypeRequired": "El Tipo de Conexión es requerido",
-      "extraFields": "Campos Extra",
       "extraFieldsJson": "Campos Extra (tipo JSON)",
       "helperText": "¿Falta el Tipo de conexión? Asegúrate de haber instalado el paquete de proveedores de Airflow correspondiente.",
       "helperTextForRedactedFields": "Los campos redactados ('***') permanecerán sin cambios si no se modifican.",

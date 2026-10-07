@@ -9,7 +9,10 @@
   "config": {
     "columns": {
       "section": "Section"
-    }
+    },
+    "config_many": "Configurations",
+    "config_one": "Configuration",
+    "config_other": "Configurations"
   },
   "connections": {
     "add": "Ajouter une connexion",
@@ -36,7 +39,6 @@
       "connectionIdRequired": "L'ID de la connexion est requis",
       "connectionIdRequirement": "L'ID de la connexion ne peut pas contenir uniquement des espaces",
       "connectionTypeRequired": "Le type de la connexion est requis",
-      "extraFields": "Champs Supplémentaires",
       "extraFieldsJson": "Champs Supplémentaires JSON",
       "helperText": "Le type de la connexion est manquant ? Assurez-vous d'avoir installé le package Airflow Providers correspondant.",
       "helperTextForRedactedFields": "Les champs masqués ('***') resteront inchangés s'ils ne sont pas modifiés.",
@@ -98,7 +100,10 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_many": "Jobs",
+    "job_one": "Job",
+    "job_other": "Jobs"
   },
   "plugins": {
     "columns": {
@@ -107,6 +112,9 @@
     "importError_many": "Erreurs d'importation de plugin",
     "importError_one": "Erreur d'importation de plugin",
     "importError_other": "Erreurs d'importation de plugins",
+    "plugin_many": "Plugins",
+    "plugin_one": "Plugin",
+    "plugin_other": "Plugins",
     "searchPlaceholder": "Rechercher par fichier"
   },
   "pools": {
@@ -141,7 +149,10 @@
     "columns": {
       "packageName": "Nom du paquet",
       "version": "Version"
-    }
+    },
+    "provider_many": "Providers",
+    "provider_one": "Provider",
+    "provider_other": "Providers"
   },
   "variables": {
     "add": "Ajouter une variable",

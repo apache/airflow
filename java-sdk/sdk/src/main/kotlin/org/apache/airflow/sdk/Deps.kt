@@ -19,25 +19,30 @@
 
 package org.apache.airflow.sdk
 
-/** Vocabulary for declaring a Dag's task graph in Java. */
+/**
+ * Vocabulary for declaring a Dag's task graph in Java, and the base of every
+ * generated `<Dag>Deps` wiring view.
+ *
+ * A [Builder.Deps] class inherits [lit] and [Flow] by simple name, so it needs
+ * no import and `Flow` does not collide with `java.util.concurrent.Flow`.
+ */
 interface Deps {
   /**
    * A point in the task graph: one task, or a set of them.
    *
-   * [Flow] is Java's spelling of Python's `>>` and `<<`, for a dependency
-   * where nothing flows but the ordering. An edge that carries a value is
-   * declared by passing the upstream's handle instead.
+   * [Flow] declares a dependency where nothing flows but the ordering. An
+   * edge that carries a value is declared by passing the upstream's handle
+   * instead.
    */
   interface Flow {
     /** The tasks at this point in the flow. */
     fun nodes(): List<TaskDef>
 
     /**
-     * Runs the tasks here before each of [next], carrying no value — Java's
-     * spelling of Python's `>>`.
+     * Runs the tasks here before each of [next], carrying no value.
      *
      * ```java
-     * loaded.before(cleaned, notified); // load >> [cleanup, notify]
+     * loaded.before(cleaned, notified); // cleanup and notify both wait for load
      * ```
      *
      * Variadic, so one call fans out, and it returns its own receiver: a
@@ -54,11 +59,10 @@ interface Deps {
     }
 
     /**
-     * Runs the tasks here after each of [previous], carrying no value —
-     * Python's `<<`.
+     * Runs the tasks here after each of [previous], carrying no value.
      *
      * ```java
-     * cleaned.after(loaded, transformed); // [load, transform] >> cleanup
+     * cleaned.after(loaded, transformed); // cleanup waits for load and transform
      * ```
      *
      * @param previous Tasks that run before the ones here.
@@ -76,13 +80,22 @@ interface Deps {
        * every edge between two sets:
        *
        * ```java
-       * Flow.of(a, b).before(c, d); // [a, b] >> [c, d]
+       * Flow.of(a, b).before(c, d); // c and d both wait for a and b
        * ```
        */
       @JvmStatic
       fun of(vararg flows: Flow): Flow = FlowSet(flows.flatMap { it.nodes() })
     }
   }
+
+  /**
+   * Wraps an inline constant as a task argument, as in
+   * `transform(extract(), lit(0.9))`. It is passed to the task as a constant
+   * and creates no dependency edge.
+   *
+   * @param value Constant to bind; may be null for a nullable parameter.
+   */
+  fun <T> lit(value: T?): Arg<T> = Arg.lit(value)
 }
 
 /** Several tasks as one point in the flow, which no single [TaskRef] can represent. */

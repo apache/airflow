@@ -32,6 +32,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 
 import { useBulkDeleteDagRuns } from "src/queries/useBulkDeleteDagRuns";
+import { formatNumber } from "src/utils";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -62,7 +63,7 @@ const getColumns = (translate: TFunction): Array<ColumnDef<DAGRunResponse>> => [
 ];
 
 const BulkDeleteDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
-  const { t: translate } = useTranslation(["common", "dags"]);
+  const { i18n, t: translate } = useTranslation(["common", "dags"]);
   const { onClose, onOpen, open } = useDisclosure();
   const { bulkAction, data, error, isPending } = useBulkDeleteDagRuns({
     deselectKeys,
@@ -135,7 +136,7 @@ const BulkDeleteDagRunsButton = ({ deselectKeys, selectedDagRuns }: Props) => {
                     <Text fontSize="sm" fontWeight="semibold">
                       {translate("dagId")}: {dagId}{" "}
                       <Text as="span" color="fg.subtle" fontWeight="normal">
-                        ({dagRuns.length})
+                        ({formatNumber(dagRuns.length, i18n.language)})
                       </Text>
                     </Text>
                   </Accordion.ItemTrigger>

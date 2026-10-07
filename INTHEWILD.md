@@ -548,6 +548,7 @@ Currently, **officially** using Airflow:
 1. [Twine Labs](https://www.twinelabs.com/) [[@ivorpeles](https://github.com/ivorpeles)]
 1. [Twitter](https://www.twitter.com/) [[@aoen](https://github.com/aoen)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]
+1. [UBM](https://ubm.se/)
 1. [Udacity](https://www.udacity.com/) [[@dandikunited](https://github.com/DandikUnited), [@simon-uc](https://github.com/simon-uc)]
 1. [Uh!ive](https://uh.live/) [[@merwan](https://github.com/merwan/)]
 1. [Umami Collective](https://umamicollective.com) [[@juanuicich](https://github.com/juanuicich)]

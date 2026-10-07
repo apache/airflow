@@ -25,6 +25,7 @@ from functools import partial, reduce
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, call
+from uuid import UUID
 
 import pendulum
 import pytest
@@ -35,6 +36,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
+    event,
     func,
     inspect as sa_inspect,
     select,
@@ -53,12 +55,11 @@ from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs
+from airflow.models.dagrun import DagRun, DagRunNote, clear_partition_runs, get_or_create_dagrun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
@@ -95,6 +96,7 @@ from tests_common.test_utils.mapping import expand_mapped_task, push_mapped_leng
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
+from unit.plugins.priority_weight_strategy import DecreasingPriorityStrategy, TestPriorityWeightStrategyPlugin
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -616,7 +618,8 @@ class TestDagRun:
             "test_state_succeeded2": TaskInstanceState.SUCCESS,
         }
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+        dag_maker.dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_maker.dag), bundle_name="dag_maker")
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -663,7 +666,8 @@ class TestDagRun:
             "test_state_failed2": TaskInstanceState.FAILED,
         }
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+        dag_maker.dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag_maker.dag), bundle_name="dag_maker")
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -990,12 +994,9 @@ class TestDagRun:
             run_type=DagRunType.SCHEDULED,
         )
 
-        prev_ti = TI(task, run_id=dag_run_1.run_id, dag_version_id=dag_run_1.created_dag_version_id)
-        prev_ti.refresh_from_db(session=session)
+        prev_ti = dag_run_1.get_task_instance(task.task_id, session=session)
         prev_ti.set_state(prev_ti_state, session=session)
         session.flush()
-        ti = TI(task, run_id=dag_run_2.run_id, dag_version_id=dag_run_1.created_dag_version_id)
-        ti.refresh_from_db(session=session)
 
         decision = dag_run_2.task_instance_scheduling_decisions(session=session)
         schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]
@@ -1364,6 +1365,34 @@ class TestDagRun:
 
         dm = session.scalar(select(DagModel).options(joinedload(DagModel.dag_versions)))
         assert dag_run.dag_versions[0].id == dm.dag_versions[0].id
+
+    def test_archived_task_instance_version_relationship_and_indexed_lookup(self, dag_maker, session):
+        with dag_maker("archived_version_lookup", session=session):
+            EmptyOperator(task_id="task")
+        dag_run = dag_maker.create_dagrun()
+        ti = session.merge(dag_run.get_task_instance("task"))
+        version_id = ti.dag_version_id
+        ti.state = TaskInstanceState.SUCCESS
+        ti.archive(reason="retry", session=session)
+        session.expire(ti, ["dag_version"])
+        assert ti.dag_version.id == version_id
+
+        statements = []
+
+        def capture_sql(connection, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(session.bind, "before_cursor_execute", capture_sql)
+        try:
+            assert dag_run.check_version_id_exists_in_dr(version_id, session=session) == version_id
+            assert dag_run.check_version_id_exists_in_dr(UUID(int=0), session=session) is None
+        finally:
+            event.remove(session.bind, "before_cursor_execute", capture_sql)
+        assert len(statements) == 2
+        assert all(
+            "dag_version_id" in statement and "coalesce" not in statement.lower() for statement in statements
+        )
+        assert all("LIMIT" in statement.upper() for statement in statements)
 
     def test_dag_run_version_number(self, dag_maker, session):
         with dag_maker(
@@ -2142,23 +2171,27 @@ def test_restoring_removed_task_allocates_attempt_once(dag_maker, session, try_n
         session.flush()
 
     history = session.scalar(
-        select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+        select(TaskInstance)
+        .where(TaskInstance.working_set.is_(None))
+        .where(TaskInstance.id == old_id)
+        .execution_options(include_all_attempts=True)
     )
-    assert ti.state is None
+    current = dr.get_task_instance("task", map_index=0 if mapped else -1, session=session)
+    assert current.state is None
     if try_number:
-        assert ti.id != old_id
-        assert ti.try_number == try_number + 1
+        assert current.id != old_id
+        assert current.try_number == try_number + 1
         assert history.try_number == try_number
         assert history.state == TaskInstanceState.REMOVED
     else:
-        assert ti.id == old_id
-        assert ti.try_number == 0
+        assert current.id == old_id
+        assert current.try_number == 0
         assert history is None
 
-    ti.task = dag_maker.serialized_dag.get_task("task")
-    assert dr.schedule_tis([ti], session=session) == 1
-    session.refresh(ti)
-    assert ti.try_number == try_number + 1
+    current.task = dag_maker.serialized_dag.get_task("task")
+    assert dr.schedule_tis([current], session=session) == 1
+    session.refresh(current)
+    assert current.try_number == try_number + 1
 
 
 def test_verifying_removed_map_index_does_not_allocate_attempt(dag_maker, session):
@@ -2183,7 +2216,12 @@ def test_verifying_removed_map_index_does_not_allocate_attempt(dag_maker, sessio
     assert ti.id == old_id
     assert ti.try_number == 2
     assert (
-        session.scalar(select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id))
+        session.scalar(
+            select(TaskInstance)
+            .where(TaskInstance.working_set.is_(None))
+            .where(TaskInstance.id == old_id)
+            .execution_options(include_all_attempts=True)
+        )
         is None
     )
 
@@ -2830,6 +2868,73 @@ def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker,
     )
     assert refreshed_ti.state == TaskInstanceState.SCHEDULED
     assert refreshed_ti.try_number == 3
+
+
+@pytest.mark.mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin])
+def test_schedule_tis_refreshes_task_instance_only_on_retry(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        for task_id in ("first_attempt", "retry", "reschedule"):
+            BashOperator(task_id=task_id, bash_command="echo 1", weight_rule=DecreasingPriorityStrategy())
+
+    dr = dag_maker.create_dagrun(session=session)
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    for task_id, state, try_number in (
+        ("first_attempt", None, 0),
+        ("retry", TaskInstanceState.UP_FOR_RETRY, 2),
+        ("reschedule", TaskInstanceState.UP_FOR_RESCHEDULE, 3),
+    ):
+        tis[task_id].refresh_from_task(dag.get_task(task_id))
+        tis[task_id].state = state
+        tis[task_id].try_number = try_number
+    session.commit()
+
+    hook_calls = []
+
+    def route_to_retry_queue(task_instance, dag_run=None):
+        hook_calls.append((task_instance.task_id, task_instance.try_number, dag_run))
+        task_instance.queue = "retry_queue"
+
+    with _registered_mutation_hook(route_to_retry_queue):
+        assert dr.schedule_tis(tis.values(), session=session) == 3
+    session.commit()
+
+    assert hook_calls == [("retry", 2, dr)]
+    session.expire_all()
+    retry_ti = dr.get_task_instance("retry", session=session)
+    assert retry_ti.state == TaskInstanceState.SCHEDULED
+    assert retry_ti.try_number == 2
+    assert retry_ti.queue == "retry_queue"
+    assert retry_ti.priority_weight == 2
+
+
+def test_schedule_tis_refreshes_a_retry_that_defers_from_trigger(dag_maker, session):
+    with dag_maker(session=session):
+        task = MockOperator(task_id="task")
+        task.start_from_trigger = True
+        task.start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            next_method="execute_complete",
+        )
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dag_maker.create_ti("task", dag_run=dr)
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.try_number = 2
+    session.commit()
+
+    hook_calls = []
+
+    def route_to_retry_queue(task_instance, dag_run=None):
+        hook_calls.append((task_instance.task_id, task_instance.try_number))
+        task_instance.queue = "retry_queue"
+
+    with _registered_mutation_hook(route_to_retry_queue):
+        dr.schedule_tis((ti,), session=session)
+    session.commit()
+
+    assert hook_calls == [("task", 2)]
+    session.expire_all()
+    assert (ti.state, ti.queue) == (TaskInstanceState.DEFERRED, "retry_queue")
 
 
 def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
@@ -5375,3 +5480,42 @@ class TestApplyPartitionDateWindowSubDay:
             session=session,
         )
         assert cleared == 3
+
+
+class TestGetOrCreateDagrun:
+    @pytest.fixture(autouse=True)
+    def _clean_db(self):
+        clear_db_runs()
+        clear_db_dags()
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_none_logical_date_keeps_unrelated_runs(self, dag_maker, session):
+        with dag_maker("test_get_or_create_dagrun", serialized=True):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(run_id="manual__existing", logical_date=None, state=DagRunState.SUCCESS)
+        now = timezone.utcnow()
+
+        created = get_or_create_dagrun(
+            dag=dag_maker.serialized_dag,
+            run_id="__airflow_temporary_run_x",
+            logical_date=None,
+            data_interval=None,
+            run_after=now,
+            conf=None,
+            triggered_by=DagRunTriggeredByType.CLI,
+            triggering_user_name=None,
+            start_date=now,
+            session=session,
+        )
+
+        assert created.run_id == "__airflow_temporary_run_x"
+        run_ids = set(
+            session.scalars(select(DagRun.run_id).where(DagRun.dag_id == "test_get_or_create_dagrun"))
+        )
+        assert run_ids == {"manual__existing", "__airflow_temporary_run_x"}
+        existing_ti_count = session.scalar(
+            select(func.count()).select_from(TaskInstance).where(TaskInstance.run_id == "manual__existing")
+        )
+        assert existing_ti_count == 1

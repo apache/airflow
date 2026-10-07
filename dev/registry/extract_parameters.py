@@ -50,7 +50,7 @@ import textwrap
 import typing
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -1233,7 +1233,7 @@ def main():
     for p in providers_data.get("providers", []):
         provider_versions[p["id"]] = p["version"]
 
-    generated_at = datetime.now(timezone.utc).isoformat()
+    generated_at = datetime.now(UTC).isoformat()
     _main_discover(
         provider_versions,
         generated_at,

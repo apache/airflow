@@ -19,8 +19,8 @@
 import type { ChangeEventHandler } from "react";
 
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -28,6 +28,7 @@ import RunBackfillForm from "./RunBackfillForm";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, opts?: { count?: number; dag_display_name?: string }) => {
       const map: Record<string, string> = {
@@ -55,6 +56,8 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("openapi/queries", () => ({
+  useBackfillServiceListBackfillsUi: vi.fn(() => ({ data: undefined })),
+  useDagRunServiceGetDagRuns: vi.fn(() => ({ data: undefined })),
   useDagServiceGetDagDetails: vi.fn(() => ({ data: undefined })),
 }));
 
@@ -66,12 +69,17 @@ vi.mock("src/queries/useCreateBackfillDryRun", () => ({
   })),
 }));
 
+const createBackfillMock = vi.hoisted(() => vi.fn());
+const resetErrorMock = vi.hoisted(() => vi.fn());
+const togglePauseMock = vi.hoisted(() => vi.fn());
+
 vi.mock("src/queries/useCreateBackfill", () => ({
   useCreateBackfill: vi.fn(() => ({
-    createBackfill: vi.fn(),
+    createBackfill: createBackfillMock,
     dateValidationError: undefined,
     error: undefined,
     isPending: false,
+    resetError: resetErrorMock,
   })),
 }));
 
@@ -84,7 +92,7 @@ vi.mock("src/queries/useParamStore", () => ({
 }));
 
 vi.mock("src/queries/useTogglePause", () => ({
-  useTogglePause: vi.fn(() => ({ mutate: vi.fn() })),
+  useTogglePause: vi.fn(() => ({ mutate: togglePauseMock })),
 }));
 
 vi.mock("src/components/Clear/useRerunWithLatestVersion", () => ({
@@ -115,8 +123,89 @@ const baseDag = {
 
 const { useDagServiceGetDagDetails } = await import("openapi/queries");
 const { useCreateBackfillDryRun } = await import("src/queries/useCreateBackfillDryRun");
+const { useCreateBackfill } = await import("src/queries/useCreateBackfill");
 
 describe("RunBackfillForm", () => {
+  beforeEach(() => {
+    createBackfillMock.mockClear();
+    togglePauseMock.mockClear();
+    resetErrorMock.mockClear();
+  });
+
+  it.each([
+    { action: undefined, drainDag: false, unpauses: true },
+    { action: "pausedDag.drain", drainDag: true, unpauses: false },
+    { action: "pausedDag.keepPaused", drainDag: false, unpauses: false },
+  ])(
+    "creates a backfill on a paused Dag with drain_dag=$drainDag when choosing $action",
+    async ({ action, drainDag, unpauses }) => {
+      const pausedDag = { ...baseDag, is_paused: true };
+
+      vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+        data: pausedDag,
+      } as ReturnType<typeof useDagServiceGetDagDetails>);
+      vi.mocked(useCreateBackfillDryRun).mockReturnValue({
+        data: {
+          backfills: [{ logical_date: "2024-01-01T00:00:00Z", partition_date: null, partition_key: null }],
+          total_entries: 1,
+        },
+        error: undefined,
+        isPending: false,
+      } as ReturnType<typeof useCreateBackfillDryRun>);
+
+      render(<RunBackfillForm dag={pausedDag as never} onClose={vi.fn()} />, { wrapper: Wrapper });
+
+      if (action !== undefined) {
+        fireEvent.click(screen.getByText(action));
+        await waitFor(() => expect(screen.getByRole("radio", { name: action })).toBeChecked());
+      }
+      fireEvent.click(screen.getByText("Run Backfill"));
+
+      await waitFor(() =>
+        expect(createBackfillMock).toHaveBeenCalledWith({
+          requestBody: expect.objectContaining({ drain_dag: drainDag }) as unknown,
+        }),
+      );
+      if (unpauses) {
+        expect(togglePauseMock).toHaveBeenCalledWith({
+          dagId: "test_dag",
+          requestBody: { is_paused: false },
+        });
+      } else {
+        expect(togglePauseMock).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("clears a failed backfill request when the paused Dag choice changes", async () => {
+    vi.mocked(useCreateBackfill).mockReturnValue({
+      createBackfill: createBackfillMock,
+      dateValidationError: undefined,
+      error: { status: 403 },
+      isPending: false,
+      resetError: resetErrorMock,
+    });
+    render(<RunBackfillForm dag={{ ...baseDag, is_paused: true } as never} onClose={vi.fn()} />, {
+      wrapper: Wrapper,
+    });
+    fireEvent.click(screen.getByText("pausedDag.keepPaused"));
+    await waitFor(() => expect(resetErrorMock).toHaveBeenCalledOnce());
+  });
+
+  it("does not submit or unpause while the Dag is being refreshed", () => {
+    vi.mocked(useCreateBackfillDryRun).mockReturnValue({
+      data: { backfills: [{ logical_date: "2024-01-01T00:00:00Z" }], total_entries: 1 },
+      isPending: false,
+    } as ReturnType<typeof useCreateBackfillDryRun>);
+    render(<RunBackfillForm dag={{ ...baseDag, is_paused: true } as never} disabled onClose={vi.fn()} />, {
+      wrapper: Wrapper,
+    });
+    expect(screen.getByText("Run Backfill")).toBeDisabled();
+    fireEvent.click(screen.getByText("Run Backfill"));
+    expect(createBackfillMock).not.toHaveBeenCalled();
+    expect(togglePauseMock).not.toHaveBeenCalled();
+  });
+
   it("shows 'Date Range' label for non-partitioned Dags", () => {
     vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
       data: { ...baseDag, timetable_partitioned: false },

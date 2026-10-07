@@ -22,7 +22,7 @@ from pathlib import Path
 AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.11"
 DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
 DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 os.environ["AIRFLOW_UID"] = str(os.getuid())
@@ -95,6 +95,9 @@ GO_SDK_BUNDLE_NAME = "example_dags"
 # Where airflow-go-pack writes the packed bundle inside the repo (go-sdk/bin is gitignored).
 GO_SDK_BIN_PATH = GO_SDK_ROOT_PATH / "bin"
 GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
+# Far from the supervisor's own 30-day config fallback, so the e2e test can tell a
+# propagated value from it.
+GO_SDK_STATE_STORE_RETENTION_DAYS = 7
 # Go toolchain image used to build the bundle in the containerized path (i.e. unless
 # LANG_SDK_NATIVE_TOOLCHAIN is set); must satisfy go-sdk/go.mod's toolchain.
 # The Alpine variant is ~7x smaller than the Debian one and is safe here because the

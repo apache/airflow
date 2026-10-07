@@ -25,9 +25,5 @@ import { useDefaultLandingPage } from "src/hooks/useUserSettings";
 export const LandingPage = () => {
   const [defaultLandingPage] = useDefaultLandingPage();
 
-  if (defaultLandingPage === "dags") {
-    return <Navigate replace to="/dags" />;
-  }
-
-  return <Dashboard />;
+  return defaultLandingPage === "dags" ? <Navigate replace to="/dags" /> : <Dashboard />;
 };

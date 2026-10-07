@@ -74,7 +74,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
@@ -2493,6 +2493,9 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
         }
     }
     assert task_instance.next_kwargs == expected_event
+    session.expire_all()
+    assert XComModelV2.get_for_attempt(task_instance.id, "test_set_xcom", session=session).value == "set_xcom"
+    assert XComModelV2.get_for_attempt(task_instance.id, "test_delete_xcom", session=session) is None
 
 
 class CustomTriggerDagRun(BaseTrigger):
@@ -3071,6 +3074,7 @@ class TestTriggererMessageTypes:
             "SetTaskStateStore",
             "DeleteTaskStateStore",
             "ClearTaskStateStore",
+            "UpdateDagRunNote",
         }
 
         in_task_but_not_in_trigger_runner = {

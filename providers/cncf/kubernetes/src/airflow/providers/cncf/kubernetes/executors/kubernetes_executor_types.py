@@ -16,13 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypedDict
+from uuid import UUID
+
+from airflow.executors.base_executor import BaseExecutor
+
+if hasattr(BaseExecutor, "get_task_key"):
+    from airflow.executors.workloads.types import TaskInstanceUuid  # noqa: TC001
 
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS  # noqa: TC001
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import TypeAlias
+
+    from kubernetes.client import models as k8s
 
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.state import TaskInstanceState

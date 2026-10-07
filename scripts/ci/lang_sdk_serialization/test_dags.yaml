@@ -1,0 +1,329 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+# The Dags compare.py checks a language SDK's serializer on. serialize_python.py and the SDK's own
+# serializer each build every Dag here with their SDK's authoring API, and the two serializations
+# have to agree.
+#
+# `spec` keys are the serialized Dag schema's snake_case names, which each side maps onto
+# its authoring API. A task is called with the tasks named in its `upstream`, which come
+# before it. Task and group ids are fully qualified, and a group comes after its parent.
+# `order_edges` are `[upstream, downstream]` pairs of task or group ids.
+#
+# `!datetime` takes an ISO 8601 timestamp, and `!timedelta` a number of seconds.
+#
+# A Dag needs a feature of the SDK when its `requires` lists one, as `requires: [branch]` on a
+# single line. compare.py hands an SDK only the Dags whose features the SDK says it `--supports`, so
+# a Dag without `requires` is checked for every SDK. The features are named in compare.py. The keys
+# below belong to the feature that gates the Dag that uses them:
+#
+# - branch, switch: a task's `branch` makes it a decider. `then` and optional `else` name the tasks
+#   of a condition, and `cases` lists the tasks of a switch. The decider also takes its `upstream`.
+#   Each named task runs after the decider, so the case needs no `order_edges` entry for them.
+# - edge_labels: an `order_edges` entry may have a third item, the label of the edge.
+# - group_options: an entry of `groups` may be `{id: <group id>, spec: {...}}`, where `spec` sets
+#   the options of the group by their serialized names.
+# - trigger_dag_run: a task's `trigger_dag_run` makes it a task that triggers another Dag, and its
+#   keys are the template fields of Airflow's TriggerDagRunOperator.
+# - literal_inputs: a task's `literals` are values that follow the results of its `upstream` tasks
+#   as the arguments of the task. They add no edge. compare.py does not compare how a task takes its
+#   arguments, so the Dag shows only that no edge comes of a literal and that Airflow loads it.
+dags:
+  # No schedule and no options: NullTimetable plus the fields Python always emits.
+  - dag_id: conformance_minimal
+    tasks:
+      - task_id: solo
+
+  # A cron schedule with every Dag option set, and one fully configured task followed by
+  # one left entirely at its schema defaults.
+  - dag_id: conformance_cron
+    spec:
+      schedule: "0 3 * * *"
+      description: a Dag that sets everything
+      dag_display_name: Conformance Cron
+      doc_md: "# notes"
+      tags: [gamma, alpha, gamma]
+      start_date: !datetime 2026-01-01T00:00:00+00:00
+      end_date: !datetime 2026-12-31T23:30:15+00:00
+      dagrun_timeout: !timedelta 300
+      catchup: true
+      render_template_as_native_obj: true
+      disable_bundle_versioning: true
+      is_paused_upon_creation: true
+      max_active_tasks: 8
+      max_active_runs: 3
+      max_consecutive_failed_dag_runs: 2
+    tasks:
+      - task_id: extract
+        spec:
+          owner: data-team
+          start_date: !datetime 2026-02-01T00:00:00+00:00
+          end_date: !datetime 2026-11-30T00:00:00+00:00
+          trigger_rule: all_done
+          depends_on_past: true
+          ignore_first_depends_on_past: true
+          wait_for_past_depends_before_skipping: true
+          wait_for_downstream: true
+          retries: 2
+          queue: typescript
+          pool: tiny
+          pool_slots: 2
+          execution_timeout: !timedelta 120
+          retry_delay: !timedelta 600
+          retry_exponential_backoff: 2
+          max_retry_delay: !timedelta 900
+          priority_weight: 5
+          weight_rule: upstream
+          executor: LocalExecutor
+          do_xcom_push: false
+          email_on_failure: false
+          email_on_retry: false
+          doc_md: extracts things
+          map_index_template: "{{ task.task_id }}"
+          max_active_tis_per_dag: 3
+          max_active_tis_per_dagrun: 4
+      # Every value explicitly at its schema default, so all of them are omitted.
+      - task_id: transform
+        upstream: [extract]
+        spec:
+          owner: airflow
+          trigger_rule: all_success
+          depends_on_past: false
+          ignore_first_depends_on_past: false
+          wait_for_past_depends_before_skipping: false
+          wait_for_downstream: false
+          retries: 0
+          queue: default
+          pool: default_pool
+          pool_slots: 1
+          retry_delay: !timedelta 300
+          retry_exponential_backoff: 0
+          priority_weight: 1
+          weight_rule: downstream
+          do_xcom_push: true
+          email_on_failure: true
+          email_on_retry: true
+
+  # The @once preset, fail_fast, and a task feeding two downstreams. fail_fast is set here
+  # rather than on conformance_cron, since Airflow only allows it when every task uses the
+  # all_success trigger rule.
+  - dag_id: conformance_once
+    spec:
+      schedule: "@once"
+      fail_fast: true
+    tasks:
+      - task_id: seed
+      - task_id: beta
+        upstream: [seed]
+      - task_id: alpha
+        upstream: [seed]
+
+  # The @continuous preset. Airflow caps a continuous Dag at one active run, so
+  # max_active_runs is set rather than left at the default of 16.
+  - dag_id: conformance_continuous
+    spec:
+      schedule: "@continuous"
+      max_active_runs: 1
+    tasks:
+      - task_id: watch
+
+  # Fan-out and fan-in, so downstream_task_ids has to be sorted rather than kept in wiring
+  # order. The schedule is not written "@daily" because Python expands a preset before
+  # serializing it, which serde.test.ts covers separately.
+  - dag_id: conformance_diamond
+    spec:
+      schedule: "0 0 * * *"
+    tasks:
+      - task_id: root
+      - task_id: right
+        upstream: [root]
+      - task_id: left
+        upstream: [root]
+      - task_id: join
+        upstream: [right, left]
+
+  # Nested task groups and order-only edges. A group edge is recorded on the group, and is
+  # also expanded onto the task graph, where it reaches the group's roots and leaves
+  # rather than every task it holds: staging.stage feeds staging.checks.nulls, so only
+  # the latter is a leaf. Both sides have to agree on that expansion, and on the local
+  # _group_id a nested group carries.
+  - dag_id: conformance_groups
+    spec:
+      schedule: "@once"
+    groups: [staging, staging.checks, publish]
+    tasks:
+      - task_id: extract
+      - task_id: stage
+        group: staging
+      - task_id: nulls
+        group: staging.checks
+        upstream: [staging.stage]
+      - task_id: push
+        group: publish
+      - task_id: load
+      - task_id: notify
+    order_edges:
+      - [extract, staging]
+      - [staging, publish]
+      - [publish, load]
+      - [load, notify]
+
+  # Group edges whose ends sit inside another group, which is where the two ways of resolving a
+  # group's endpoints part company. Each edge has to be expanded against the task edges the ones
+  # before it left behind, as Python does at every `>>`:
+  #
+  # - outer.inner before outer.t makes outer.inner.i the only root of outer, so the edge from
+  #   extract into outer reaches it alone rather than both tasks.
+  # - outer.spare holds nothing, so an edge out of it stands for the group holding it, and leaves
+  #   from outer's leaf, which is outer.t by then. Python's find_leaves walks up to the parent;
+  #   stopping at the group's own edges would draw no edge at all.
+  - dag_id: conformance_nested_group_edges
+    spec:
+      schedule: "@once"
+    groups: [outer, outer.inner, outer.spare]
+    tasks:
+      - task_id: extract
+      - task_id: t
+        group: outer
+      - task_id: i
+        group: outer.inner
+      - task_id: load
+    order_edges:
+      - [outer.inner, outer.t]
+      - [extract, outer]
+      - [outer.spare, load]
+
+  # A 6-field cron expression, where the sixth field gives the seconds.
+  - dag_id: conformance_cron_seconds
+    spec:
+      schedule: "30 3 * * MON-FRI 15"
+    tasks:
+      - task_id: tick
+
+  # A condition. The decider runs after read, and skips whichever of load and report_empty it does
+  # not choose, so Python writes _can_skip_downstream for it. join needs a trigger rule that runs it
+  # after one skipped side.
+  - dag_id: conformance_branch
+    requires: [branch]
+    spec:
+      schedule: "@once"
+    tasks:
+      - task_id: read
+      - task_id: gate
+        upstream: [read]
+        branch: {then: load, else: report_empty}
+      - task_id: load
+      - task_id: report_empty
+      - task_id: lonely_gate
+        branch: {then: lonely_load}
+      - task_id: lonely_load
+      - task_id: join
+        spec:
+          trigger_rule: none_failed_min_one_success
+    order_edges:
+      - [load, join]
+      - [report_empty, join]
+
+  # A switch, which can choose any number of its cases.
+  - dag_id: conformance_switch
+    requires: [switch]
+    spec:
+      schedule: "@once"
+    tasks:
+      - task_id: read
+      - task_id: pick
+        upstream: [read]
+        branch: {cases: [short, long]}
+      - task_id: short
+      - task_id: long
+
+  # Labelled edges between two tasks, a task and a group, two groups, and a group and a task.
+  - dag_id: conformance_edge_labels
+    requires: [edge_labels]
+    spec:
+      schedule: "@once"
+    groups: [transform, publish]
+    tasks:
+      - task_id: extract
+      - task_id: clean
+        group: transform
+      - task_id: push
+        group: publish
+      - task_id: load
+      - task_id: notify
+    order_edges:
+      - [extract, load, rows]
+      - [extract, transform, to transform]
+      - [transform, publish, to publish]
+      - [publish, notify, to notify]
+
+  # Every option of a task group. checks leaves its tasks unprefixed, so the id of nulls is just
+  # nulls, but a task is still named by its group and its own id everywhere in this file.
+  - dag_id: conformance_group_options
+    requires: [group_options]
+    spec:
+      schedule: "@once"
+    groups:
+      - id: transform
+        spec:
+          doc_md: "# transform"
+          group_display_name: Transform
+          tooltip: cleans the rows
+          ui_color: "#f0f0f0"
+          ui_fgcolor: "#101010"
+      - id: checks
+        spec:
+          prefix_group_id: false
+    tasks:
+      - task_id: clean
+        group: transform
+      - task_id: nulls
+        group: checks
+
+  # Tasks that trigger other Dags, one with every template field set and one with the defaults.
+  - dag_id: conformance_trigger_dag_run
+    requires: [trigger_dag_run]
+    spec:
+      schedule: "@once"
+    tasks:
+      - task_id: trigger_all
+        trigger_dag_run:
+          trigger_dag_id: conformance_minimal
+          trigger_run_id: "triggered_{{ run_id }}"
+          conf: {rows: 2, ratio: 0.5, nested: {tags: [a, b]}}
+          logical_date: "{{ ds }}"
+          wait_for_completion: true
+          skip_when_already_exists: true
+      - task_id: trigger_default
+        trigger_dag_run:
+          trigger_dag_id: conformance_once
+
+  # Literal arguments next to the result of a task. Only the result adds an edge.
+  - dag_id: conformance_literal_inputs
+    requires: [literal_inputs]
+    spec:
+      schedule: "@once"
+    tasks:
+      - task_id: extract
+      - task_id: only_literals
+        literals: ["s3://bucket/out", 3]
+      - task_id: load
+        upstream: [extract]
+        literals:
+          - s3://bucket/out
+          - {limit: 10, ratio: 0.5, tags: [a, null], nested: {enabled: true}}
+          - null

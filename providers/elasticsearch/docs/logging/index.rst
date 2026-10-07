@@ -294,6 +294,11 @@ The following fields are recognized and displayed by the Airflow UI when present
    * - ``host``
      - The hostname of the worker that produced the log. Used to group log lines by source.
      - Field name can be customized with the ``host_field`` handler parameter.
+   * - ``ti_id``
+     - UUID of the task try that produced the log line.
+     - Written by the Airflow 3 task process, so a log shipper forwards it from the task's JSON output
+       without extra configuration. From Airflow 3.4 logs are read by this field, falling back to
+       ``log_id`` for documents that lack it.
 
 **Field mappings**
 

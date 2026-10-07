@@ -40,12 +40,13 @@ import {
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
+import { TeamName } from "src/components/TeamName";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
-import { useDocumentTitle } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
@@ -110,6 +111,9 @@ const getColumns = ({
       ? [
           {
             accessorKey: "team_name",
+            cell: ({ row: { original } }: { row: { original: ConnectionResponse } }) => (
+              <TeamName teamName={original.team_name} />
+            ),
             header: translate("columns.team"),
           },
         ]
@@ -135,7 +139,7 @@ const getColumns = ({
 };
 
 export const Connections = () => {
-  const { t: translate } = useTranslation(["admin", "common"]);
+  const { i18n, t: translate } = useTranslation(["admin", "common"]);
 
   useDocumentTitle(translate("common:admin.Connections"));
 
@@ -217,7 +221,7 @@ export const Connections = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("deleteActions.selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content={translate("deleteActions.tooltip")}>

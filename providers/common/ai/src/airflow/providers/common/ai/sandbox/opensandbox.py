@@ -22,7 +22,7 @@ import logging
 import posixpath
 import threading
 import time
-from contextlib import contextmanager, suppress
+from contextlib import closing, contextmanager, suppress
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -32,13 +32,16 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxExecResult,
     SandboxFileTooLargeError,
     SandboxTerminalError,
+    _check_export_deadline,
+    _export_deadline,
     _new_sandbox_name,
     _validate_positive_finite,
 )
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Generator, Iterator
+    from typing import BinaryIO
 
     from opensandbox import SandboxSync
     from opensandbox.config import ConnectionConfigSync
@@ -158,6 +161,11 @@ def _parse_bool(value: Any, name: str) -> bool:
 class OpenSandboxBackend(SandboxBackend):
     """
     Run sandbox tools through an OpenSandbox server.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     OpenSandbox supports Docker and Kubernetes runtimes behind the same API.
     Airflow workers need only network access to that API; the OpenSandbox
@@ -454,21 +462,68 @@ class OpenSandboxBackend(SandboxBackend):
     def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
         _validate_positive_finite(max_bytes, "max_bytes")
         sandbox_client = self._get_sandbox(sandbox)
-        chunks = None
         data = bytearray()
+        with closing(self._download(sandbox_client, path, max_bytes=max_bytes)) as chunks:
+            for chunk in chunks:
+                data.extend(chunk[: max_bytes + 1 - len(data)])
+                if len(data) > max_bytes:
+                    size = self._get_file_size(sandbox_client, path, at_least=len(data))
+                    raise SandboxFileTooLargeError(path, size, max_bytes)
+        return bytes(data)
+
+    def export_file(self, sandbox: str, path: str, dest: BinaryIO, *, max_bytes: int) -> int:
+        """Override: stream the file through the SDK's ranged download, one chunk at a time."""
+        _validate_positive_finite(max_bytes, "max_bytes")
+        sandbox_client = self._get_sandbox(sandbox)
+        try:
+            info = sandbox_client.files.get_file_info([path])
+            entry = info.get(path) or next(iter(info.values()))
+        except Exception as e:
+            if _get_status_code(e) == 404 or isinstance(e, StopIteration):
+                self._confirm_sandbox_exists(sandbox_client)
+                raise SandboxError(f"{path!r} does not exist in the sandbox, or is not readable.") from e
+            with _translate_opensandbox_errors(
+                "inspect a sandbox file", recoverable_statuses=frozenset({400})
+            ):
+                raise
+        if entry.entry_type == "directory":
+            raise SandboxError(f"{path!r} is a directory; only a regular file can be exported.")
+        if entry.entry_type == "other":
+            raise SandboxError(f"{path!r} is not a regular file; only a regular file can be exported.")
+        if entry.size > max_bytes:
+            raise SandboxFileTooLargeError(path, entry.size, max_bytes)
+        deadline = _export_deadline(max_bytes)
+        written = 0
+        with closing(self._download(sandbox_client, path, max_bytes=max_bytes)) as chunks:
+            for chunk in chunks:
+                _check_export_deadline(path, deadline, max_bytes)
+                written += len(chunk)
+                if written > max_bytes:
+                    raise SandboxFileTooLargeError(path, written, max_bytes)
+                dest.write(chunk)
+        if entry.entry_type == "file":
+            # A symlink reports the link's own size, not its target's, so there is
+            # nothing to compare against for one.
+            self._check_export_size(path, expected=entry.size, written=written)
+        return written
+
+    def _download(
+        self, sandbox_client: SandboxSync, path: str, *, max_bytes: int
+    ) -> Generator[bytes, None, None]:
+        """
+        Yield the first ``max_bytes + 1`` bytes of a sandbox file, with the SDK's errors translated.
+
+        A generator, so a failure in whatever the caller does with a chunk is raised in
+        the caller and never mistaken for a failed download.
+        """
+        chunks = None
         try:
             chunks = sandbox_client.files.read_bytes_stream(
                 path,
                 chunk_size=min(65536, max_bytes + 1),
                 range_header=f"bytes=0-{max_bytes}",
             )
-            for chunk in chunks:
-                data.extend(chunk[: max_bytes + 1 - len(data)])
-                if len(data) > max_bytes:
-                    size = self._get_file_size(sandbox_client, path, at_least=len(data))
-                    raise SandboxFileTooLargeError(path, size, max_bytes)
-        except SandboxFileTooLargeError:
-            raise
+            yield from chunks
         except Exception as e:
             if _get_status_code(e) == 404:
                 self._confirm_sandbox_exists(sandbox_client)
@@ -480,7 +535,6 @@ class OpenSandboxBackend(SandboxBackend):
             if close is not None:
                 with suppress(Exception):
                     close()
-        return bytes(data)
 
     def write_file(self, sandbox: str, path: str, content: bytes) -> None:
         sandbox_client = self._get_sandbox(sandbox)
