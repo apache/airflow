@@ -196,12 +196,14 @@ class _VerifiedBundle:
 
 
 @contextlib.contextmanager
-def _open_verified_bundle(path: pathlib.Path) -> Iterator[_VerifiedBundle | None]:
+def _open_checked_bundle(path: pathlib.Path) -> Iterator[_VerifiedBundle]:
     """
-    Open *path* and yield it as a verified bundle, or ``None`` when it is not a usable one.
+    Open *path* and yield it as a verified bundle.
 
     The file stays open for the ``with`` block, so a caller can read more regions from the
     bundle it verified.
+
+    :raises ValueError: with the reason *path* is not a usable bundle.
     """
     # One open per bundle: trailer-parse, hash (on cache miss), and
     # metadata-read all share the same fd, and the stat that keys the
@@ -211,65 +213,60 @@ def _open_verified_bundle(path: pathlib.Path) -> Iterator[_VerifiedBundle | None
     try:
         f = open(path, "rb")
     except OSError as exc:
-        log.debug("Cannot open bundle file; skipping", path=str(path), error=str(exc))
-        yield None
-        return
+        raise ValueError(f"Cannot open bundle file {path}: {exc}") from exc
 
     with f:
         try:
             st = os.fstat(f.fileno())
         except OSError as exc:
-            log.debug("Cannot stat bundle file; skipping", path=str(path), error=str(exc))
-            yield None
-            return
+            raise ValueError(f"Cannot stat bundle file {path}: {exc}") from exc
 
         try:
             footer = _Footer.read(f, path, st.st_size)
-        except (OSError, ValueError) as exc:
-            log.debug("Invalid bundle trailer; skipping", path=str(path), error=str(exc))
-            yield None
-            return
+        except OSError as exc:
+            raise ValueError(f"Cannot read bundle trailer of {path}: {exc}") from exc
         if footer is None:
-            yield None
-            return
+            raise ValueError(f"{path} has no bundle trailer")
 
         cache_key: _DigestKey = (str(path), footer.source_start, st.st_ino, st.st_mtime_ns, st.st_size)
         actual_digest = _digest_cache.get(cache_key)
         if actual_digest is None:
             try:
                 actual_digest = _hash_open_file(f, footer.source_start, path)
-            except (OSError, ValueError) as exc:
-                log.debug("Failed to hash bundle binary region", path=str(path), error=str(exc))
-                yield None
-                return
+            except OSError as exc:
+                raise ValueError(f"Cannot hash the binary region of {path}: {exc}") from exc
             _digest_cache.put(cache_key, actual_digest)
 
         if actual_digest != footer.binary_sha256:
-            log.debug(
-                "Bundle binary_sha256 mismatch; skipping",
-                path=str(path),
-                expected=footer.binary_sha256.hex(),
-                actual=actual_digest.hex(),
+            raise ValueError(
+                f"{path} binary SHA-256 does not match its trailer; "
+                "was it changed after packing, for example by strip or codesign?"
             )
-            yield None
-            return
 
         try:
             f.seek(footer.metadata_start)
             metadata_bytes = f.read(footer.metadata_len)
         except OSError as exc:
-            log.debug("Cannot read bundle metadata; skipping", path=str(path), error=str(exc))
-            yield None
-            return
+            raise ValueError(f"Cannot read the metadata of {path}: {exc}") from exc
 
         try:
             metadata = parse_metadata_mapping(metadata_bytes, source="bundle metadata")
         except ValueError as exc:
-            log.debug("Cannot decode bundle metadata; skipping", path=str(path), error=str(exc))
-            yield None
-            return
+            raise ValueError(f"Cannot decode the metadata of {path}: {exc}") from exc
 
         yield _VerifiedBundle(file=f, footer=footer, metadata=metadata)
+
+
+@contextlib.contextmanager
+def _open_verified_bundle(path: pathlib.Path) -> Iterator[_VerifiedBundle | None]:
+    """Like :func:`_open_checked_bundle`, but yield ``None`` instead of raising for an unusable bundle."""
+    with contextlib.ExitStack() as stack:
+        try:
+            bundle = stack.enter_context(_open_checked_bundle(path))
+        except ValueError as exc:
+            log.debug("Not a usable bundle; skipping", path=str(path), error=str(exc))
+            bundle = None
+        yield bundle
 
 
 def _read_bundle_metadata(path: pathlib.Path) -> dict[str, Any] | None:
@@ -416,8 +413,11 @@ class ExecutableCoordinator(SubprocessCoordinator):
 
     def _build_bundle_command(self, path: pathlib.Path) -> tuple[list[str], str | None]:
         """Return the command that runs the verified bundle at *path*, and its supervisor schema version."""
-        if (metadata := _read_bundle_metadata(path)) is None:
-            raise ValueError(f"{path} is not a valid executable bundle")
+        try:
+            with _open_checked_bundle(path) as checked:
+                metadata = checked.metadata
+        except ValueError as exc:
+            raise ValueError(f"{path} is not a valid executable bundle: {exc}") from exc
         try:
             bundle = _Bundle(path=path.resolve(), schema_version=extract_supervisor_schema_version(metadata))
         except (TypeError, ValueError) as exc:

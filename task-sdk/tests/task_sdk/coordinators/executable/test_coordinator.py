@@ -338,12 +338,7 @@ class TestBundleFind:
             with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
                 _Bundle.find([tmp_path], "tutorial_dag")
 
-        mock_log.debug.assert_any_call(
-            "Bundle binary_sha256 mismatch; skipping",
-            path=str(bundle_path),
-            expected=mock.ANY,
-            actual=mock.ANY,
-        )
+        mock_log.debug.assert_any_call("Not a usable bundle; skipping", path=str(bundle_path), error=mock.ANY)
 
     def test_captures_schema_version_from_metadata(self, tmp_path):
         _build_bundle(tmp_path / "with_schema", dag_ids=["tutorial_dag"])
@@ -412,7 +407,7 @@ class TestBundleFind:
                 _Bundle.find([tmp_path], "tutorial_dag")
 
         mock_log.debug.assert_any_call(
-            "Cannot decode bundle metadata; skipping",
+            "Not a usable bundle; skipping",
             path=str(bundle_path),
             error=mock.ANY,
         )
@@ -429,7 +424,7 @@ class TestBundleFind:
                 _Bundle.find([tmp_path], "tutorial_dag")
 
         mock_log.debug.assert_any_call(
-            "Cannot decode bundle metadata; skipping",
+            "Not a usable bundle; skipping",
             path=str(bundle_path),
             error=mock.ANY,
         )
@@ -485,7 +480,13 @@ class TestBuildParseDagCommand:
         binary.write_bytes(bytes(data))
         _digest_cache.clear()
 
-        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+        with pytest.raises(ValueError, match="SHA-256 does not match"):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+    def test_raises_with_the_reason_for_an_unknown_footer_version(self, tmp_path):
+        binary = _build_bundle(tmp_path / "future", footer_ver=2)
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle: .*footer_ver=2"):
             ExecutableCoordinator()._build_parse_dag_command(path=binary)
 
     def test_raises_when_the_bundle_omits_the_schema_version(self, tmp_path):
