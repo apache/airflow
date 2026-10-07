@@ -260,6 +260,7 @@ class BoatSandboxBackend(SandboxBackend):
         with _translate_boat_errors("initialize its client"):
             from boat_sdk import ApiClient, Configuration
             from boat_sdk.api.boat_api import BoatApi
+            from urllib3.util import Retry
 
             if self._boat_conn_id is None:
                 api_key = (os.environ.get("BOAT_API_KEY") or "").strip()
@@ -274,8 +275,12 @@ class BoatSandboxBackend(SandboxBackend):
                         f"Connection {self._boat_conn_id!r} has no password; set it to the Boat API key."
                     )
                 base_url = conn.host or _DEFAULT_BASE_URL
+            # urllib3 would otherwise resend a request that stalled or failed up to three
+            # times, each with the call's whole timeout, so one call could outlast the
+            # deadline it was given. Unlike retries=False, this still follows redirects.
+            retries = Retry.DEFAULT.new(connect=0, read=0, other=0)
             self._boat_api = BoatApi(
-                ApiClient(Configuration(host=base_url.rstrip("/"), access_token=api_key))
+                ApiClient(Configuration(host=base_url.rstrip("/"), access_token=api_key, retries=retries))
             )
             return self._boat_api
 

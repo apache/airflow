@@ -20,7 +20,9 @@ import base64
 import builtins
 import json
 import os
+import socket
 import subprocess
+from contextlib import suppress
 from types import SimpleNamespace
 from unittest import mock
 
@@ -203,6 +205,29 @@ def test_request_timeout_bounds_every_api_call(clock):
     assert sent(api.delete_sandbox) == [12.5]
 
 
+def test_a_stalled_api_call_is_sent_once():
+    """Each call gets one attempt, so its HTTP timeout bounds it and the deadline it was given holds."""
+    with socket.create_server(("127.0.0.1", 0), backlog=8) as server:
+        with mock.patch.dict(
+            "os.environ",
+            {"BOAT_API_KEY": "k", "BOAT_BASE_URL": f"http://127.0.0.1:{server.getsockname()[1]}"},
+            clear=False,
+        ):
+            backend = BoatSandboxBackend(request_timeout=0.2)
+            # The server accepts the connection but never answers.
+            with pytest.raises(SandboxTerminalError, match="confirm that a sandbox still exists"):
+                backend._confirm_sandbox_exists("bx_1")
+        server.setblocking(False)
+        connections = []
+        with suppress(BlockingIOError):
+            while True:
+                connections.append(server.accept()[0])
+    for connection in connections:
+        connection.close()
+
+    assert len(connections) == 1
+
+
 class TestCredentials:
     @mock.patch(_BASE_HOOK, autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)
@@ -226,7 +251,9 @@ class TestCredentials:
         ):
             BoatSandboxBackend()._get_api()
 
-        configuration.assert_called_once_with(host="https://custom.example/api/v1", access_token="env-key")
+        configuration.assert_called_once_with(
+            host="https://custom.example/api/v1", access_token="env-key", retries=mock.ANY
+        )
         boat_api.assert_called_once()
         hook.get_connection.assert_not_called()
 
@@ -252,7 +279,7 @@ class TestCredentials:
             BoatSandboxBackend(boat_conn_id="my_boat")._get_api()
 
         hook.get_connection.assert_called_once_with("my_boat")
-        configuration.assert_called_once_with(host=base_url, access_token="conn-key")
+        configuration.assert_called_once_with(host=base_url, access_token="conn-key", retries=mock.ANY)
 
     @pytest.mark.parametrize("password", [None, ""])
     @mock.patch(_BASE_HOOK, autospec=True)
@@ -271,7 +298,9 @@ class TestCredentials:
             backend._get_api()
             backend._get_api()
 
-        configuration.assert_called_once_with(host="https://boat.dev/api/v1", access_token="env-key")
+        configuration.assert_called_once_with(
+            host="https://boat.dev/api/v1", access_token="env-key", retries=mock.ANY
+        )
 
     def test_missing_api_key_is_terminal(self):
         with mock.patch.dict("os.environ", {"BOAT_API_KEY": ""}, clear=False):
