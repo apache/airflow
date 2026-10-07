@@ -25,13 +25,37 @@ from airflow.executors.base_executor import BaseExecutor
 if hasattr(BaseExecutor, "get_task_key"):
     from airflow.executors.workloads.types import TaskInstanceUuid  # noqa: TC001
 
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS  # noqa: TC001
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import TypeAlias
 
     from kubernetes.client import models as k8s
 
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.state import TaskInstanceState
+
+    # On Airflow 3.3+ a workload key/state may also be a callback (or connection
+    # test) key/state, not just a task one.  Widen the executor NamedTuple fields
+    # accordingly while falling back to the task-only types on older Airflow.
+    if AIRFLOW_V_3_3_PLUS:
+        from airflow.executors.workloads import ExecuteCallback, ExecuteTask
+        from airflow.executors.workloads.types import (
+            WorkloadKey as _WorkloadKey,
+            WorkloadState as _WorkloadState,
+        )
+
+        WorkloadKey: TypeAlias = _WorkloadKey
+        WorkloadState: TypeAlias = _WorkloadState
+        # KubernetesJob.command carries either the legacy Airflow-2 argv
+        # (Sequence[str]) or, on Airflow 3, a single-element list wrapping the
+        # workload object (ExecuteTask or ExecuteCallback).
+        WorkloadCommand: TypeAlias = Sequence[str] | Sequence[ExecuteTask] | Sequence[ExecuteCallback]
+    else:
+        WorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
+        WorkloadState: TypeAlias = TaskInstanceState  # type: ignore[no-redef, misc]
+        WorkloadCommand: TypeAlias = Sequence[str]  # type: ignore[no-redef, misc]
 
 
 ADOPTED = "adopted"
@@ -52,10 +76,10 @@ class FailureDetails(TypedDict, total=False):
 
 
 class KubernetesResults(NamedTuple):
-    """Results from Kubernetes task execution."""
+    """Results from Kubernetes workload execution."""
 
-    key: TaskInstanceUuid | TaskInstanceKey
-    state: TaskInstanceState | str | None
+    key: WorkloadKey
+    state: WorkloadState | str | None
     pod_name: str
     namespace: str
     resource_version: str
@@ -67,7 +91,7 @@ class KubernetesWatch(NamedTuple):
 
     pod_name: str
     namespace: str
-    state: TaskInstanceState | str | None
+    state: WorkloadState | str | None
     annotations: dict[str, str]
     resource_version: str
     failure_details: FailureDetails | None
@@ -80,8 +104,8 @@ CommandType = "Sequence[str]"
 class KubernetesJob(NamedTuple):
     """Job definition for Kubernetes execution."""
 
-    key: TaskInstanceUuid | TaskInstanceKey
-    command: Sequence[str]
+    key: WorkloadKey
+    command: WorkloadCommand
     kube_executor_config: Any
     pod_template_file: str | None
     kube_image: str | None = None
@@ -100,33 +124,16 @@ So we want events on a revoked pod to be ignored.
 :meta private:
 """
 
+CALLBACK_WORKLOAD_TYPE_KEY = "airflow-workload-type"
+"""Label key used to mark callback pods.
 
-TASK_INSTANCE_ID_ANNOTATION = "task_instance_id"
-TASK_INSTANCE_ID_LABEL = "ti_id"
+Callback pods carry ``CALLBACK_WORKLOAD_TYPE_KEY=callback`` so the watcher
+can distinguish them from task pods and route annotations correctly.
+"""
 
+CALLBACK_POD_ANNOTATION_KEY = "callback_id"
+"""Annotation key that stores the callback UUID on callback pods.
 
-def task_instance_id_from_pod(pod: k8s.V1Pod) -> UUID | None:
-    """
-    Read immutable identity from an annotation or a pre-upgrade workload command.
-
-    Pod templates can split the workload invocation between ``command`` and ``args``.
-    An invalid annotation is authoritative; falling back could attach a stale pod to another attempt.
-    """
-    task_id = (pod.metadata.annotations or {}).get(TASK_INSTANCE_ID_ANNOTATION)
-    if task_id is not None:
-        try:
-            return UUID(task_id)
-        except ValueError:
-            return None
-    if pod.spec is None:
-        return None
-    for container in pod.spec.containers:
-        args = [*(container.command or []), *(container.args or [])]
-        if "airflow.sdk.execution_time.execute_workload" not in args or "--json-string" not in args:
-            continue
-        try:
-            payload = json.loads(args[args.index("--json-string") + 1])
-            return UUID(payload["ti"]["id"])
-        except (IndexError, KeyError, TypeError, ValueError):
-            return None
-    return None
+The watcher reads this annotation to reconstruct a ``CallbackKey`` instead of
+a ``TaskInstanceKey``.
+"""

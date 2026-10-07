@@ -4067,787 +4067,779 @@ class TestKubernetesExecutorMultiTeam:
             executor.end()
 
 
-@pytest.fixture
-def kubernetes_scheduler_factory(mocker):
-    mocker.patch("multiprocessing.Manager", autospec=True)
-    mocker.patch.object(AirflowKubernetesScheduler, "_make_kube_watchers", autospec=True, return_value={})
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteCallback requires Airflow 3.3+")
+class TestKubernetesExecutorCallbackSupport:
+    """Tests for ExecuteCallback support in the Kubernetes executor."""
 
-    def make_scheduler(*, supports_task_instance_uuid=None):
-        executor = KubernetesExecutor()
-        if supports_task_instance_uuid is None:
-            supports_task_instance_uuid = executor.supports_task_instance_uuid
-        return AirflowKubernetesScheduler(
-            kube_config=executor.kube_config,
-            result_queue=Queue(),
-            kube_client=mocker.create_autospec(CoreV1Api, instance=True),
-            scheduler_job_id="5",
-            supports_task_instance_uuid=supports_task_instance_uuid,
-        )
+    _CALLBACK_ID = "12345678-1234-5678-1234-567812345678"
+    _LOG_PATH = f"executor_callbacks/my_dag/run_id_1/{_CALLBACK_ID}"
 
-    return make_scheduler
+    def setup_method(self) -> None:
+        self.executor = KubernetesExecutor()
+        self.executor.job_id = 5
+        self.executor._last_completed_pod_adoption = time.monotonic()
 
+    @classmethod
+    def _make_callback_workload(cls):
+        from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import BundleInfo
+        from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
 
-@pytest.fixture
-def uuid_workload():
-    return ExecuteTask(
-        ti=WorkloadTaskInstance(
-            id=uuid4(),
-            dag_version_id=uuid4(),
-            dag_id="uuid_dag",
-            task_id="task",
-            run_id="run",
-            try_number=1,
-            map_index=-1,
-            pool_slots=1,
-            priority_weight=1,
-            queue="default",
-        ),
-        dag_rel_path="dag.py",
-        bundle_info=BundleInfo(name="bundle"),
-        token="",
-        log_path=None,
-    )
-
-
-if hasattr(BaseExecutor, "get_task_key"):
-    from airflow.executors.workloads.types import TaskInstanceUuid
-
-
-@pytest.mark.skipif(not hasattr(BaseExecutor, "get_task_key"), reason="Requires executor UUID support")
-class TestKubernetesExecutorUuid:
-    def test_submission_keeps_distinct_uuids_with_identical_coordinates(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        executor.task_queue = Queue()
-        executor.scheduler_job_id = "5"
-        mocker.patch.object(executor, "_coordinator_extra", autospec=True, return_value=None)
-        second = uuid_workload.model_copy(update={"ti": uuid_workload.ti.model_copy(update={"id": uuid4()})})
-        executor.queue_workload(uuid_workload, session=None)
-        executor.queue_workload(second, session=None)
-
-        executor._process_workloads([uuid_workload, second])
-
-        jobs = [executor.task_queue.get_nowait(), executor.task_queue.get_nowait()]
-        assert [job.key for job in jobs] == [
-            TaskInstanceUuid(uuid_workload.ti.id),
-            TaskInstanceUuid(second.ti.id),
-        ]
-        assert executor.running == {TaskInstanceUuid(uuid_workload.ti.id), TaskInstanceUuid(second.ti.id)}
-        assert executor.get_event_buffer() == {
-            TaskInstanceUuid(uuid_workload.ti.id): (State.QUEUED, "5"),
-            TaskInstanceUuid(second.ti.id): (State.QUEUED, "5"),
-        }
-
-    @pytest.mark.parametrize("state", [State.FAILED, None, ADOPTED])
-    def test_watcher_result_preserves_uuid_annotation(
-        self, uuid_workload, state, kubernetes_scheduler_factory
-    ):
-        scheduler = kubernetes_scheduler_factory()
-        annotations = {
-            "dag_id": "uuid_dag",
-            "task_id": "task",
-            "run_id": "run",
-            "try_number": "1",
-            "task_instance_id": str(uuid_workload.ti.id),
-        }
-
-        scheduler.process_watcher_task(KubernetesWatch("pod", "ns", state, annotations, "1", None))
-
-        result = scheduler.result_queue.get_nowait()
-        assert result.key == TaskInstanceUuid(uuid_workload.ti.id)
-        assert result.state == state
-
-    @pytest.mark.parametrize("annotated", [False, True])
-    def test_adoption_uses_pod_identity_and_patches_uuid(self, uuid_workload, mocker, annotated):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        annotations = {
-            "dag_id": "uuid_dag",
-            "task_id": "task",
-            "run_id": "run",
-            "try_number": "1",
-        }
-        if annotated:
-            annotations["task_instance_id"] = str(uuid_workload.ti.id)
-        pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name="old-pod", namespace="ns", annotations=annotations),
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(name="base", args=pod_generator.workload_to_command_args(uuid_workload))
-                ]
+        return ExecuteCallback(
+            callback=CallbackDTO(
+                id=cls._CALLBACK_ID,
+                fetch_method=CallbackFetchMethod.IMPORT_PATH,
+                data={"path": "my_dag.deadline_alert", "kwargs": {}},
             ),
+            dag_rel_path="my_dag.py",
+            bundle_info=BundleInfo(name="default", version="1"),
+            token="test_token",
+            log_path=cls._LOG_PATH,
         )
-        kube_client = mocker.create_autospec(CoreV1Api)
-        kube_client.read_namespaced_pod.return_value = pod
-        candidates = {uuid_workload.ti.key: uuid_workload.ti}
 
-        metadata = k8s.V1Pod(metadata=pod.metadata)
-        executor.adopt_launched_task(kube_client, metadata, candidates)
-
-        if annotated:
-            kube_client.read_namespaced_pod.assert_not_called()
-        else:
-            kube_client.read_namespaced_pod.assert_called_once_with(name="old-pod", namespace="ns")
-        assert executor.running == {TaskInstanceUuid(uuid_workload.ti.id)}
-        assert candidates == {}
-        patch = kube_client.patch_namespaced_pod.call_args.kwargs["body"]
-        assert patch["metadata"]["annotations"]["task_instance_id"] == str(uuid_workload.ti.id)
-
-    @pytest.mark.parametrize("identity", ["valid", "missing", "malformed"])
-    def test_adoption_reads_identity_from_dynamic_list_item(self, uuid_workload, mocker, identity):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        annotations = {"dag_id": "uuid_dag", "task_id": "task", "run_id": "run", "try_number": "1"}
-        if identity != "missing":
-            annotations["task_instance_id"] = str(uuid_workload.ti.id) if identity == "valid" else "invalid"
-        pod = ResourceInstance(
-            None,
-            {
-                "apiVersion": "v1",
-                "kind": "PodList",
-                "items": [{"metadata": {"name": "old-pod", "namespace": "ns", "annotations": annotations}}],
-            },
-        ).items[0]
-        kube_client = mocker.create_autospec(CoreV1Api, instance=True)
-        kube_client.read_namespaced_pod.return_value = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name="old-pod", namespace="ns"),
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(name="base", args=pod_generator.workload_to_command_args(uuid_workload))
-                ]
+    @pytest.fixture(autouse=True)
+    def _patch_k8s_clients(self):
+        with (
+            mock.patch(
+                "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher"
             ),
-        )
-        candidates = {uuid_workload.ti.key: uuid_workload.ti}
+            mock.patch(
+                "airflow.providers.cncf.kubernetes.kube_client.get_kube_client"
+            ) as mock_get_kube_client,
+        ):
+            self._mock_get_kube_client = mock_get_kube_client
+            yield
 
-        executor.adopt_launched_task(kube_client, pod, candidates)
+    @staticmethod
+    def _make_task_workload():
+        from airflow.executors import workloads
 
-        if identity == "missing":
-            kube_client.read_namespaced_pod.assert_called_once_with(name="old-pod", namespace="ns")
-        else:
-            kube_client.read_namespaced_pod.assert_not_called()
-        if identity == "malformed":
-            assert candidates == {uuid_workload.ti.key: uuid_workload.ti}
-            assert not executor.running
-            kube_client.patch_namespaced_pod.assert_not_called()
-        else:
-            assert candidates == {}
-            assert executor.running == {executor.get_task_key(uuid_workload.ti)}
-            kube_client.patch_namespaced_pod.assert_called_once()
-
-    @pytest.mark.parametrize("status", [429, 503])
-    def test_adoption_continues_after_candidate_pod_get_failure(self, uuid_workload, mocker, status):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        executor.kube_client = mocker.create_autospec(CoreV1Api, instance=True)
-        first = uuid_workload.ti.model_copy(update={"queued_by_job_id": 4})
-        second = first.model_copy(update={"id": uuid4(), "task_id": "second"})
-        pods = ResourceInstance(
-            None,
-            {
-                "apiVersion": "v1",
-                "kind": "PodList",
-                "items": [
-                    {
-                        "metadata": {
-                            "name": ti.task_id,
-                            "namespace": "ns",
-                            "annotations": {
-                                "dag_id": ti.dag_id,
-                                "task_id": ti.task_id,
-                                "run_id": ti.run_id,
-                                "try_number": str(ti.try_number),
-                            },
-                        }
-                    }
-                    for ti in (first, second)
-                ],
-            },
-        ).items
-        executor.kube_client.read_namespaced_pod.side_effect = [
-            ApiException(status=status),
-            k8s.V1Pod(metadata=k8s.V1ObjectMeta(annotations={"task_instance_id": str(second.id)})),
-        ]
-        mocker.patch.object(executor, "_list_pods", autospec=True, return_value=pods)
-        mocker.patch.object(executor, "_adopt_completed_pods", autospec=True)
-
-        not_adopted = executor.try_adopt_task_instances([first, second])
-
-        assert not_adopted == [first]
-        assert executor.running == {executor.get_task_key(second)}
-        assert executor.kube_client.read_namespaced_pod.call_args_list == [
-            mock.call(name="task", namespace="ns"),
-            mock.call(name="second", namespace="ns"),
-        ]
-        executor.kube_client.patch_namespaced_pod.assert_called_once_with(
-            name="second",
-            namespace="ns",
-            body={
-                "metadata": {
-                    "labels": {"airflow-worker": "5"},
-                    "annotations": {"task_instance_id": str(second.id)},
-                }
-            },
-        )
-
-    @pytest.mark.parametrize("status", [429, 503])
-    def test_revoke_continues_after_candidate_pod_get_failure(self, uuid_workload, mocker, status):
-        executor = KubernetesExecutor()
-        executor.kube_client = mocker.create_autospec(CoreV1Api, instance=True)
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        pods = ResourceInstance(
-            None,
-            {
-                "apiVersion": "v1",
-                "kind": "PodList",
-                "items": [
-                    {"metadata": {"name": name, "namespace": "ns", "annotations": {}}}
-                    for name in ("unavailable", "matching")
-                ],
-            },
-        ).items
-        executor.kube_client.read_namespaced_pod.side_effect = [
-            ApiException(status=status),
-            k8s.V1Pod(metadata=k8s.V1ObjectMeta(annotations={"task_instance_id": str(uuid_workload.ti.id)})),
-        ]
-        mocker.patch.object(executor, "_list_pods", autospec=True, return_value=pods)
-
-        executor.revoke_task(ti=uuid_workload.ti)
-
-        assert executor.kube_client.read_namespaced_pod.call_args_list == [
-            mock.call(name="unavailable", namespace="ns"),
-            mock.call(name="matching", namespace="ns"),
-        ]
-        executor.kube_scheduler.patch_pod_revoked.assert_called_once_with(pod_name="matching", namespace="ns")
-        executor.kube_scheduler.delete_pod.assert_called_once_with(pod_name="matching", namespace="ns")
-
-    def test_adoption_does_not_bind_old_pod_to_successor(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        old_id = uuid_workload.ti.id
-        pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name="old-pod",
-                namespace="ns",
-                annotations={
-                    "dag_id": "uuid_dag",
-                    "task_id": "task",
-                    "run_id": "run",
-                    "try_number": "1",
-                    "task_instance_id": str(old_id),
-                },
+        return workloads.ExecuteTask(
+            ti=workloads.TaskInstance(
+                id="00000000-0000-0000-0000-000000000001",
+                dag_version_id="00000000-0000-0000-0000-000000000002",
+                task_id="test_task",
+                dag_id="test_dag",
+                run_id="test_run",
+                try_number=1,
+                map_index=-1,
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
             ),
-        )
-        successor = uuid_workload.ti.model_copy(update={"id": uuid4()})
-        candidates = {successor.key: successor}
-        kube_client = mocker.create_autospec(CoreV1Api)
-        kube_client.read_namespaced_pod.return_value = pod
-
-        executor.adopt_launched_task(kube_client, pod, candidates)
-
-        assert candidates == {successor.key: successor}
-        assert not executor.running
-        kube_client.patch_namespaced_pod.assert_not_called()
-
-    def test_pod_request_carries_uuid_independently_of_coordinates(
-        self, uuid_workload, mocker, kubernetes_scheduler_factory
-    ):
-        scheduler = kubernetes_scheduler_factory()
-        assert scheduler.supports_task_instance_uuid is KubernetesExecutor.supports_task_instance_uuid
-        base = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name="template", annotations={"task_instance_id": str(uuid4())}),
-            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base", image="airflow")]),
-        )
-        mocker.patch(
-            "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_base_pod_from_template",
-            autospec=True,
-            return_value=base,
+            dag_rel_path="test_dag.py",
+            bundle_info=workloads.BundleInfo(name="test-bundle", version=None),
+            token="test-token",
+            log_path="test.log",
         )
 
-        pod = scheduler._build_pod_request(
-            KubernetesJob(TaskInstanceUuid(uuid_workload.ti.id), [uuid_workload], None, None)
-        )
+    def test_supports_callbacks_attribute(self):
+        assert self.executor.supports_callbacks is True
 
-        assert pod.metadata.annotations["task_instance_id"] == str(uuid_workload.ti.id)
-        assert pod.metadata.labels[TASK_INSTANCE_ID_LABEL] == str(uuid_workload.ti.id)
-        assert pod.metadata.annotations["dag_id"] == "uuid_dag"
-        assert pod.metadata.annotations["try_number"] == "1"
+    def test_queue_callback_workload(self):
+        from airflow.models.callback import CallbackKey
 
-    def test_stale_pod_result_does_not_remove_successor(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        successor_id = TaskInstanceUuid(uuid4())
-        executor.running.add(successor_id)
+        workload = self._make_callback_workload()
+        expected_key = CallbackKey(id=self._CALLBACK_ID)
 
-        executor._change_state(
-            KubernetesResults(
-                TaskInstanceUuid(uuid_workload.ti.id), State.FAILED, "old-pod", "ns", "1", None
-            ),
-            session=mocker.create_autospec(Session, instance=True),
-        )
-
-        assert executor.running == {successor_id}
-        assert executor.event_buffer == {}
-
-    def test_state_lookup_queries_exact_uuid(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        session = mocker.create_autospec(Session, instance=True)
-        session.scalar.return_value = State.RESTARTING
-
-        state = executor._get_task_instance_state(TaskInstanceUuid(uuid_workload.ti.id), session=session)
-
-        statement = session.scalar.call_args.args[0]
-        assert statement.compile().params == {"id_1": uuid_workload.ti.id}
-        assert state == State.RESTARTING
-
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_get_streaming_task_log_selects_pod_by_attempt_uuid_label(self, mock_get_kube_client):
-        ti_id = uuid4()
-        mock_kube_client = mock_get_kube_client.return_value
-        mock_kube_client.list_namespaced_pod.return_value.items = [
-            k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="current"))
-        ]
-        mock_kube_client.read_namespaced_pod_log.return_value = [b"a_"]
-        ti = mock.MagicMock(
-            id=ti_id,
-            try_number=2,
-            dag_id="test_k8s_log_dag",
-            task_id="test_task",
-            map_index=-1,
-            run_id="test_run",
-            queued_by_job_id=None,
-            hostname="",
-            executor_config={},
-        )
-
-        messages, _ = KubernetesExecutor().get_streaming_task_log(ti=ti, try_number=2)
-
-        assert messages[-1] == "Found logs through kube API"
-        label_selector = mock_kube_client.list_namespaced_pod.call_args.kwargs["label_selector"]
-        assert f"{TASK_INSTANCE_ID_LABEL}={ti_id}" in label_selector.split(",")
-        assert mock_kube_client.read_namespaced_pod_log.call_args.kwargs["name"] == "current"
-
-    def test_revoke_selects_uuid_among_pods_with_reused_coordinates(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        successor_id = TaskInstanceUuid(uuid4())
-        executor.running.update([TaskInstanceUuid(uuid_workload.ti.id), successor_id])
-        pods = [
-            k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(
-                    name=name,
-                    namespace="ns",
-                    annotations={"task_instance_id": str(task_id)},
-                )
-            )
-            for name, task_id in [("old", TaskInstanceUuid(uuid_workload.ti.id)), ("new", successor_id)]
-        ]
-        mocker.patch.object(executor, "_list_pods", autospec=True, return_value=pods)
-
-        executor.revoke_task(ti=uuid_workload.ti)
-
-        assert executor.running == {successor_id}
-        executor.kube_scheduler.delete_pod.assert_called_once_with(pod_name="old", namespace="ns")
-
-    @pytest.mark.parametrize("identity", [None, "invalid"])
-    def test_adoption_rejects_pods_without_immutable_identity(self, uuid_workload, mocker, identity):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        annotations = {"dag_id": "uuid_dag", "task_id": "task", "run_id": "run", "try_number": "1"}
-        if identity is not None:
-            annotations["task_instance_id"] = identity
-        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="old", namespace="ns", annotations=annotations))
-        candidates = {uuid_workload.ti.key: uuid_workload.ti}
-        kube_client = mocker.create_autospec(CoreV1Api)
-        kube_client.read_namespaced_pod.return_value = pod
-
-        executor.adopt_launched_task(kube_client, pod, candidates)
-
-        assert candidates == {uuid_workload.ti.key: uuid_workload.ti}
-        assert not executor.running
-        kube_client.patch_namespaced_pod.assert_not_called()
-
-    @pytest.mark.parametrize("command_length", [0, 3, 4, 5])
-    @pytest.mark.parametrize("pod_state", ["Failed", "Succeeded"])
-    def test_watcher_recovers_pre_upgrade_uuid_from_pod_command(
-        self, uuid_workload, mocker, kubernetes_scheduler_factory, command_length, pod_state
-    ):
-        executor = KubernetesExecutor()
-        watcher = KubernetesJobWatcher("ns", Queue(), "0", "5", executor.kube_config, True)
-        command = pod_generator.workload_to_command_args(uuid_workload)
-        pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name="old",
-                namespace="ns",
-                resource_version="1",
-                labels={},
-                annotations={"dag_id": "uuid_dag", "task_id": "task", "run_id": "run", "try_number": "1"},
-            ),
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(
-                        name="base", command=command[:command_length], args=command[command_length:]
-                    )
-                ]
-            ),
-            status=k8s.V1PodStatus(phase=pod_state),
-        )
-        mocker.patch.object(
-            watcher, "_pod_events", autospec=True, return_value=[{"type": "MODIFIED", "object": pod}]
-        )
-        scheduler = kubernetes_scheduler_factory()
-
-        watcher._run(mocker.create_autospec(CoreV1Api), "0", "5", executor.kube_config)
-        scheduler.process_watcher_task(watcher.watcher_queue.get_nowait())
-
-        assert scheduler.result_queue.get_nowait().key == TaskInstanceUuid(uuid_workload.ti.id)
-
-    @pytest.mark.parametrize("command_length", [0, 3, 4, 5])
-    @pytest.mark.parametrize("matching_identity", [False, True])
-    def test_adoption_recovers_and_persists_pre_upgrade_uuid(
-        self, uuid_workload, mocker, command_length, matching_identity
-    ):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        client = mocker.create_autospec(CoreV1Api, instance=True)
-        workload = (
-            uuid_workload
-            if matching_identity
-            else uuid_workload.model_copy(update={"ti": uuid_workload.ti.model_copy(update={"id": uuid4()})})
-        )
-        command = pod_generator.workload_to_command_args(workload)
-        metadata = k8s.V1ObjectMeta(
-            name="old",
-            namespace="ns",
-            annotations={"dag_id": "uuid_dag", "task_id": "task", "run_id": "run", "try_number": "1"},
-        )
-        pod = k8s.V1Pod(metadata=metadata)
-        client.read_namespaced_pod.return_value = k8s.V1Pod(
-            metadata=metadata,
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(
-                        name="base", command=command[:command_length], args=command[command_length:]
-                    )
-                ]
-            ),
-        )
-        candidates = {uuid_workload.ti.key: uuid_workload.ti}
-
-        executor.adopt_launched_task(client, pod, candidates)
-
-        client.read_namespaced_pod.assert_called_once_with(name="old", namespace="ns")
-        if matching_identity:
-            client.patch_namespaced_pod.assert_called_once_with(
-                name="old",
-                namespace="ns",
-                body={
-                    "metadata": {
-                        "labels": {"airflow-worker": "5"},
-                        "annotations": {"task_instance_id": str(uuid_workload.ti.id)},
-                    }
-                },
-            )
-            assert not candidates
-            assert executor.running == {TaskInstanceUuid(uuid_workload.ti.id)}
-        else:
-            client.patch_namespaced_pod.assert_not_called()
-            assert candidates == {uuid_workload.ti.key: uuid_workload.ti}
-            assert not executor.running
-
-    def test_watcher_ignores_uuid_annotation_in_coordinate_mode(
-        self, uuid_workload, kubernetes_scheduler_factory
-    ):
-        scheduler = kubernetes_scheduler_factory(supports_task_instance_uuid=False)
-        annotations = {
-            "dag_id": "uuid_dag",
-            "task_id": "task",
-            "run_id": "run",
-            "try_number": "1",
-            "task_instance_id": str(uuid_workload.ti.id),
-        }
-
-        scheduler.process_watcher_task(KubernetesWatch("pod", "ns", State.FAILED, annotations, "1", None))
-
-        assert scheduler.result_queue.get_nowait().key == uuid_workload.ti.key
-
-    def test_watcher_discards_malformed_uuid_annotation(self, kubernetes_scheduler_factory):
-        scheduler = kubernetes_scheduler_factory()
-        annotations = {
-            "dag_id": "uuid_dag",
-            "task_id": "task",
-            "run_id": "run",
-            "try_number": "1",
-            "task_instance_id": "invalid",
-        }
-
-        scheduler.process_watcher_task(KubernetesWatch("pod", "ns", State.FAILED, annotations, "1", None))
-
-        assert scheduler.result_queue.empty()
-
-    @pytest.mark.parametrize("pod_state", [None, State.FAILED, ADOPTED, State.RUNNING])
-    def test_current_uuid_result_leaves_other_attempt_running(self, uuid_workload, mocker, pod_state):
-        executor = KubernetesExecutor()
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        successor_id = TaskInstanceUuid(uuid4())
-        executor.running.update([TaskInstanceUuid(uuid_workload.ti.id), successor_id])
-        session = mocker.create_autospec(Session, instance=True)
-        session.scalar.return_value = State.SUCCESS
-
-        executor._change_state(
-            KubernetesResults(TaskInstanceUuid(uuid_workload.ti.id), pod_state, "pod", "ns", "1", None),
-            session=session,
-        )
-
-        assert successor_id in executor.running
-        if pod_state == ADOPTED:
-            assert executor.event_buffer == {}
-        else:
-            expected_state = State.SUCCESS if pod_state is None else pod_state
-            assert executor.event_buffer == {TaskInstanceUuid(uuid_workload.ti.id): (expected_state, None)}
-        assert (TaskInstanceUuid(uuid_workload.ti.id) in executor.running) == (pod_state == State.RUNNING)
-        if pod_state is not None:
-            session.scalar.assert_not_called()
-
-    def test_unidentified_coordinate_result_never_queries_current_task(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        executor.running.add(TaskInstanceUuid(uuid_workload.ti.id))
-        session = mocker.create_autospec(Session, instance=True)
-
-        executor._change_state(
-            KubernetesResults(uuid_workload.ti.key, None, "pod", "ns", "1", None),
-            session=session,
-        )
-
-        assert executor.running == {TaskInstanceUuid(uuid_workload.ti.id)}
-        assert executor.event_buffer == {}
-        session.scalar.assert_not_called()
-
-    @pytest.mark.parametrize("status", [404, 403, 500])
-    @pytest.mark.parametrize("operation", ["adopt", "revoke"])
-    def test_metadata_pod_get_failure_declines_only_that_pod(self, uuid_workload, mocker, status, operation):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        executor.kube_client = mocker.create_autospec(CoreV1Api, instance=True)
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        executor.kube_client.read_namespaced_pod.side_effect = ApiException(status=status)
-        pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name="old",
-                namespace="ns",
-                annotations={"dag_id": "uuid_dag", "task_id": "task", "run_id": "run", "try_number": "1"},
-            )
-        )
-        candidates = {uuid_workload.ti.key: uuid_workload.ti}
-        mocker.patch.object(executor, "_list_pods", autospec=True, return_value=[pod])
-
-        def act():
-            if operation == "adopt":
-                executor.adopt_launched_task(executor.kube_client, pod, candidates)
-            else:
-                executor.revoke_task(ti=uuid_workload.ti)
-
-        act()
-        assert candidates == {uuid_workload.ti.key: uuid_workload.ti}
-        executor.kube_client.patch_namespaced_pod.assert_not_called()
-        executor.kube_scheduler.delete_pod.assert_not_called()
-
-    @pytest.mark.parametrize("operation", ["adopt", "revoke"])
-    def test_metadata_pod_get_propagates_unexpected_failure(self, uuid_workload, mocker, operation):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        executor.kube_client = mocker.create_autospec(CoreV1Api, instance=True)
-        executor.kube_client.read_namespaced_pod.side_effect = RuntimeError("unexpected failure")
-        pod = ResourceInstance(
-            None,
-            {
-                "apiVersion": "v1",
-                "kind": "PodList",
-                "items": [
-                    {
-                        "metadata": {
-                            "name": "old",
-                            "namespace": "ns",
-                            "annotations": {
-                                "dag_id": "uuid_dag",
-                                "task_id": "task",
-                                "run_id": "run",
-                                "try_number": "1",
-                            },
-                        }
-                    }
-                ],
-            },
-        ).items[0]
-        mocker.patch.object(executor, "_list_pods", autospec=True, return_value=[pod])
-
-        def act():
-            if operation == "adopt":
-                executor.adopt_launched_task(
-                    executor.kube_client, pod, {uuid_workload.ti.key: uuid_workload.ti}
-                )
-            else:
-                executor.revoke_task(ti=uuid_workload.ti)
-
-        with pytest.raises(RuntimeError, match="unexpected failure"):
-            act()
-
-    def test_adoption_filters_coordinates_before_reading_full_pod(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        client = mocker.create_autospec(CoreV1Api, instance=True)
-        pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name="unrelated",
-                namespace="ns",
-                annotations={"dag_id": "other", "task_id": "task", "run_id": "run", "try_number": "1"},
-            )
-        )
-
-        executor.adopt_launched_task(client, pod, {uuid_workload.ti.key: uuid_workload.ti})
-
-        client.read_namespaced_pod.assert_not_called()
-        client.patch_namespaced_pod.assert_not_called()
-
-    @pytest.mark.parametrize("identity", ["invalid", "mismatch"])
-    def test_revoke_rejects_bad_annotation_without_reading_pod(self, uuid_workload, mocker, identity):
-        executor = KubernetesExecutor()
-        executor.kube_client = mocker.create_autospec(CoreV1Api, instance=True)
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name="old",
-                namespace="ns",
-                annotations={"task_instance_id": str(uuid4()) if identity == "mismatch" else identity},
-            )
-        )
-        mocker.patch.object(executor, "_list_pods", autospec=True, return_value=[pod])
-
-        executor.revoke_task(ti=uuid_workload.ti)
-
-        executor.kube_client.read_namespaced_pod.assert_not_called()
-        executor.kube_scheduler.delete_pod.assert_not_called()
-
-    def test_revoke_recovers_workload_identity_and_preserves_get_options(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        executor.kube_config.kube_client_request_args = {"_request_timeout": (3, 9)}
-        executor.kube_client = mocker.create_autospec(CoreV1Api, instance=True)
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        metadata = k8s.V1ObjectMeta(name="old", namespace="ns", annotations={})
-        executor.kube_client.read_namespaced_pod.return_value = k8s.V1Pod(
-            metadata=metadata,
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(name="base", args=pod_generator.workload_to_command_args(uuid_workload))
-                ]
-            ),
-        )
-        mocker.patch.object(
-            executor, "_list_pods", autospec=True, return_value=[k8s.V1Pod(metadata=metadata)]
-        )
-
-        executor.revoke_task(ti=uuid_workload.ti)
-
-        executor.kube_client.read_namespaced_pod.assert_called_once_with(
-            name="old", namespace="ns", _request_timeout=(3, 9)
-        )
-        executor.kube_scheduler.patch_pod_revoked.assert_called_once_with(pod_name="old", namespace="ns")
-        executor.kube_scheduler.delete_pod.assert_called_once_with(pod_name="old", namespace="ns")
-
-    def test_list_pods_preserves_configured_request_options(self, mocker):
-        executor = KubernetesExecutor()
-        executor.kube_client = mocker.create_autospec(CoreV1Api, instance=True)
-        executor.kube_client.api_client = mocker.create_autospec(ApiClient, instance=True)
-        executor.kube_config.kube_client_request_args = {"_request_timeout": (3, 9)}
-        dynamic = mocker.patch(
-            "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient", autospec=True
-        ).return_value
-        dynamic.get.return_value.items = []
-
-        assert executor._list_pods({"label_selector": "airflow-worker=5"}) == []
-
-        assert dynamic.get.call_args.kwargs["_request_timeout"] == (3, 9)
-        assert dynamic.get.call_args.kwargs["label_selector"] == "airflow-worker=5"
-        assert "PartialObjectMetadataList" in dynamic.get.call_args.kwargs["header_params"]["Accept"]
-
-    def test_retrying_adoption_does_not_flush_already_running_uuid(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        ti = uuid_workload.ti.model_copy(update={"queued_by_job_id": 4})
-        executor.running.add(executor.get_task_key(ti))
-        mocker.patch.object(executor, "_list_pods", autospec=True, return_value=[])
-        mocker.patch.object(executor, "_adopt_completed_pods", autospec=True)
-
-        assert executor.try_adopt_task_instances([ti]) == []
-
-    @pytest.mark.parametrize("annotated", [False, True])
-    def test_completed_pod_adoption_cleans_pod_without_task_event(self, uuid_workload, mocker, annotated):
-        executor = KubernetesExecutor()
-        executor.scheduler_job_id = "5"
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        executor.kube_config.delete_worker_pods = True
-        client = mocker.create_autospec(CoreV1Api, instance=True)
-        annotations = {"dag_id": "uuid_dag", "task_id": "task", "run_id": "run", "try_number": "1"}
-        if annotated:
-            annotations["task_instance_id"] = str(uuid_workload.ti.id)
-        pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name="done", namespace="ns", annotations=annotations, resource_version="1"
-            )
-        )
-        mocker.patch.object(executor, "_alive_other_scheduler_job_ids", autospec=True, return_value=set())
-        mocker.patch.object(executor, "_list_pods", autospec=True, return_value=[pod])
-        session = mocker.create_autospec(Session, instance=True)
-
-        executor._adopt_completed_pods(client)
-        result = executor.completed[("ns", "done")]
-        executor._change_state(result, session=session)
-
-        assert result.key == (executor.get_task_key(uuid_workload.ti) if annotated else uuid_workload.ti.key)
-        executor.kube_scheduler.delete_pod.assert_called_once_with(pod_name="done", namespace="ns")
-        assert executor.event_buffer == {}
-        session.scalar.assert_not_called()
-        client.read_namespaced_pod.assert_not_called()
-
-    def test_cleanup_stuck_queued_tasks_fails_uuid_and_preserves_other_attempt(self, uuid_workload, mocker):
-        executor = KubernetesExecutor()
-        executor.kube_scheduler = mocker.create_autospec(AirflowKubernetesScheduler, instance=True)
-        key = executor.get_task_key(uuid_workload.ti)
-        successor = TaskInstanceUuid(uuid4())
-        executor.running.update([key, successor])
-        mocker.patch.object(executor, "_list_pods", autospec=True, return_value=[])
-
-        with pytest.warns(DeprecationWarning, match="cleanup_stuck_queued_tasks"):
-            executor.cleanup_stuck_queued_tasks([uuid_workload.ti])
-
-        assert executor.running == {successor}
-        assert executor.event_buffer == {key: (State.FAILED, None)}
-
-    @pytest.mark.parametrize("native", [False, True])
-    def test_executor_start_passes_selected_identity_mode_to_scheduler(self, mocker, monkeypatch, native):
-        monkeypatch.setattr(KubernetesExecutor, "supports_task_instance_uuid", native)
-        executor = KubernetesExecutor()
-        executor.job_id = 5
-        mocker.patch("multiprocessing.Manager", autospec=True)
-        mocker.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client", autospec=True)
-        scheduler = mocker.patch(
-            "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler",
-            autospec=True,
-        )
-
+        executor = self.executor
         executor.start()
+        try:
+            executor.queue_workload(workload, session=None)
+            assert expected_key in executor.queued_callbacks
+            assert executor.queued_callbacks[expected_key] is workload
+            assert len(executor.queued_tasks) == 0
+        finally:
+            executor.end()
 
-        assert scheduler.call_args.kwargs["supports_task_instance_uuid"] is native
+    def test_queue_task_and_callback_are_independent(self):
+        from airflow.models.callback import CallbackKey
 
-    @pytest.mark.parametrize("native", [False, True])
-    def test_scheduler_passes_selected_identity_mode_to_watcher(
-        self, mocker, native, kubernetes_scheduler_factory
-    ):
-        scheduler = kubernetes_scheduler_factory(supports_task_instance_uuid=native)
-        watcher = mocker.patch(
-            "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher",
-            autospec=True,
+        callback_workload = self._make_callback_workload()
+        callback_key = CallbackKey(id=self._CALLBACK_ID)
+        task_key = TaskInstanceKey("dag", "task", "run_id", 1)
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queued_tasks[task_key] = mock.MagicMock()
+            executor.queue_workload(callback_workload, session=None)
+            assert len(executor.queued_tasks) == 1
+            assert len(executor.queued_callbacks) == 1
+            assert callback_key in executor.queued_callbacks
+        finally:
+            executor.end()
+
+    def test_process_workloads_callback(self):
+        from airflow.models.callback import CallbackKey
+
+        workload = self._make_callback_workload()
+        callback_key = CallbackKey(id=self._CALLBACK_ID)
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queued_callbacks[callback_key] = workload
+            with mock.patch.object(executor, "execute_async") as mock_execute_async:
+                executor._process_workloads([workload])
+            mock_execute_async.assert_called_once_with(
+                key=callback_key, command=[workload], queue=None, executor_config=None
+            )
+            assert callback_key not in executor.queued_callbacks
+            assert callback_key in executor.running
+        finally:
+            executor.end()
+
+    def test_process_workloads_mixed(self):
+        """A task and a callback processed together both reach execute_async and running."""
+        from airflow.models.callback import CallbackKey
+
+        task_workload = self._make_task_workload()
+        callback_workload = self._make_callback_workload()
+        task_key = task_workload.ti.key
+        callback_key = CallbackKey(id=self._CALLBACK_ID)
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queued_tasks[task_key] = task_workload
+            executor.queued_callbacks[callback_key] = callback_workload
+            with mock.patch.object(executor, "execute_async") as mock_execute_async:
+                executor._process_workloads([task_workload, callback_workload])
+            assert mock_execute_async.call_count == 2
+            assert task_key in executor.running
+            assert callback_key in executor.running
+            assert executor.queued_tasks == {}
+            assert callback_key not in executor.queued_callbacks
+        finally:
+            executor.end()
+
+    def test_execute_async_callback_command(self):
+        """execute_async enqueues the callback workload as a KubernetesJob on the task_queue.
+
+        Note: in the v3 path the *workload* (not the rendered command args) is what
+        travels on the queue; the command-args translation happens later in run_next.
+        """
+        from airflow.models.callback import CallbackKey
+
+        workload = self._make_callback_workload()
+        key = CallbackKey(id=self._CALLBACK_ID)
+
+        executor = self.executor
+        executor.task_queue = mock.MagicMock()
+        executor.execute_async(key=key, command=[workload], queue=None, executor_config=None)
+
+        executor.task_queue.put.assert_called_once()
+        job = executor.task_queue.put.call_args[0][0]
+        assert job.key == key
+        assert job.command == [workload]
+        assert job.command[0].callback.id == self._CALLBACK_ID
+
+    def test_queue_non_callback_non_task_raises(self):
+        executor = self.executor
+        with pytest.raises(RuntimeError, match="cannot handle workloads"):
+            executor.queue_workload(mock.MagicMock(), session=None)
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_success_explicit_state(self, mock_delete_pod):
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, CallbackState.SUCCESS, "pod_name", "default", "rv", None)
+            executor._change_state(results)
+            assert executor.event_buffer[key][0] == CallbackState.SUCCESS
+            assert key not in executor.running
+            mock_delete_pod.assert_called_once_with(pod_name="pod_name", namespace="default")
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_success_state_none(self, _mock_delete_pod):
+        """state=None (pod Succeeded) must resolve to CallbackState.SUCCESS without a DB lookup."""
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, None, "pod_name", "default", "rv", None)
+
+            with mock.patch("airflow.models.taskinstance.TaskInstance.filter_for_tis") as mock_filter:
+                executor._change_state(results)
+                mock_filter.assert_not_called()
+
+            assert executor.event_buffer[key][0] == CallbackState.SUCCESS
+            assert key not in executor.running
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_failed(self, mock_delete_pod):
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.kube_config.delete_worker_pods_on_failure = True
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, CallbackState.FAILED, "pod_name", "default", "rv", None)
+            executor._change_state(results)
+            assert executor.event_buffer[key][0] == CallbackState.FAILED
+            assert key not in executor.running
+            mock_delete_pod.assert_called_once()
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_failed_with_pod_launch_attempt(self, mock_delete_pod):
+        """
+        A failed callback pod with a tracked launch attempt must not crash.
+
+        Regression test: the pre-execution-failure retry path looked up TI state via
+        ``TaskInstance.filter_for_tis``, which assumes a ``TaskInstanceKey`` and raises
+        ``AttributeError`` on a ``CallbackKey`` (no dag_id/task_id). Reproduces the
+        production crash loop where every callback-pod-failure event hit this branch
+        and got endlessly requeued.
+        """
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.kube_config.delete_worker_pods_on_failure = True
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            job = KubernetesJob(key, ["airflow"], None, None)
+            executor.running = {key}
+            executor.pod_launch_attempts = {key: _PodLaunchAttempt(job=job)}
+            results = KubernetesResults(
+                key,
+                CallbackState.FAILED,
+                "pod_name",
+                "default",
+                "rv",
+                {"container_reason": "Error", "exit_code": 1},
+            )
+
+            with mock.patch("airflow.models.taskinstance.TaskInstance.filter_for_tis") as mock_filter:
+                executor._change_state(results)
+                mock_filter.assert_not_called()
+
+            assert executor.event_buffer[key][0] == CallbackState.FAILED
+            assert key not in executor.running
+            mock_delete_pod.assert_called_once()
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.patch_pod_executor_done"
+    )
+    def test_change_state_callback_pod_not_deleted_if_keep_pods(self, mock_patch_pod):
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.kube_config.delete_worker_pods = False
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, CallbackState.SUCCESS, "pod_name", "default", "rv", None)
+            executor._change_state(results)
+            mock_patch_pod.assert_called_once_with(pod_name="pod_name", namespace="default")
+            assert key not in executor.running
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_sync_drains_callback_results(self, _mock_delete_pod):
+        """sync() drains a callback KubernetesResults from result_queue and updates event_buffer."""
+        from queue import Empty
+
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            executor.running = {key}
+            results = KubernetesResults(key, CallbackState.SUCCESS, "pod_name", "default", "rv", None)
+
+            executor.result_queue = mock.MagicMock()
+            executor.result_queue.get_nowait.side_effect = [results, Empty()]
+            executor.sync()
+
+            assert executor.event_buffer[key][0] == CallbackState.SUCCESS
+            assert key not in executor.running
+        finally:
+            executor.end()
+
+    def _run_next_callback_and_get_pod(self, data_file):
+        """Helper: start executor, run a callback job, and return the pod passed to run_pod_async."""
+        from airflow.models.callback import CallbackKey
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import KubernetesJob
+
+        workload = self._make_callback_workload()
+        callback_key = CallbackKey(id=self._CALLBACK_ID)
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        mock_kube_client = mock.MagicMock()
+        self._mock_get_kube_client.return_value = mock_kube_client
+
+        with conf_vars({("kubernetes_executor", "pod_template_file"): template_file}):
+            executor = self.executor
+            executor.start()
+            try:
+                with mock.patch.object(executor.kube_scheduler, "run_pod_async") as mock_run_pod:
+                    job = KubernetesJob(callback_key, [workload], None, None)
+                    executor.kube_scheduler.run_next(job)
+                    assert mock_run_pod.called, "run_pod_async should have been called"
+                    return mock_run_pod.call_args[0][0]
+            finally:
+                executor.end()
+
+    def test_run_next_callback_creates_pod(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        assert pod is not None
+
+    def test_callback_pod_has_callback_id_annotation(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        assert pod.metadata.annotations.get("callback_id") == self._CALLBACK_ID
+
+    def test_callback_pod_has_workload_type_label(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        assert pod.metadata.labels.get("airflow-workload-type") == "callback"
+
+    def test_callback_pod_has_only_callback_workload_metadata(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        annotations = pod.metadata.annotations
+        assert annotations["callback_id"] == self._CALLBACK_ID
+        assert "dag_id" not in annotations
+        assert "run_id" not in annotations
+
+    def test_callback_pod_does_not_have_task_annotations(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        annotations = pod.metadata.annotations
+        assert "task_id" not in annotations
+        assert "try_number" not in annotations
+        assert "map_index" not in annotations
+
+    def test_callback_pod_command_is_execute_workload(self, data_file):
+        from airflow.executors.workloads import ExecuteCallback
+
+        pod = self._run_next_callback_and_get_pod(data_file)
+        args = pod.spec.containers[0].args
+        assert "airflow.sdk.execution_time.execute_workload" in args
+        assert "--json-string" in args
+
+        json_str = args[args.index("--json-string") + 1]
+        restored = ExecuteCallback.model_validate_json(json_str)
+        assert restored.callback.id == self._CALLBACK_ID
+
+    def test_callback_pod_uses_configured_kube_image(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        assert pod.spec.containers[0].image == self.executor.kube_config.kube_image
+
+    def test_adopt_active_callback_not_tracked_when_patch_fails(self):
+        from kubernetes.client.rest import ApiException
+
+        executor = self.executor
+        executor.scheduler_job_id = "5"
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                namespace="default",
+                annotations={"callback_id": self._CALLBACK_ID},
+            )
+        )
+        kube_client = mock.MagicMock()
+        kube_client.patch_namespaced_pod.side_effect = ApiException(status=409)
+
+        executor.adopt_launched_task(kube_client, pod, {})
+
+        assert not executor.running
+
+    def test_callback_pod_name_does_not_collide_with_task_pod(self, data_file):
+        pod = self._run_next_callback_and_get_pod(data_file)
+        # Callback pods use a dedicated "callback-" prefix, distinct from the
+        # dag/task slug a task pod sharing the same dag would get.
+        assert pod.metadata.name.startswith("callback-")
+        assert not pod.metadata.name.startswith("my-dag")
+
+    def test_run_next_batch_callback_uses_shared_submission_path(self, data_file):
+        from airflow.models.callback import CallbackKey
+
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        workload = self._make_callback_workload()
+        job = KubernetesJob(CallbackKey(id=self._CALLBACK_ID), [workload], None, None)
+
+        with conf_vars({("kubernetes_executor", "pod_template_file"): template_file}):
+            executor = self.executor
+            executor.start()
+            try:
+                with mock.patch.object(
+                    executor.kube_scheduler, "_run_pods_async", return_value=[None]
+                ) as mock_run:
+                    assert executor.kube_scheduler.run_next_batch([job]) == [(job, None)]
+
+                submitted_job, pod = mock_run.call_args.args[0][0]
+                assert submitted_job == job
+                assert pod.metadata.annotations["callback_id"] == self._CALLBACK_ID
+            finally:
+                executor.end()
+
+    def test_adopt_completed_callback_tracks_callback_key(self):
+        from airflow.models.callback import CallbackKey
+
+        executor = self.executor
+        executor.scheduler_job_id = "5"
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                namespace="default",
+                annotations={"callback_id": self._CALLBACK_ID},
+                resource_version="42",
+            )
+        )
+        executor._list_pods = mock.MagicMock(return_value=[pod])
+
+        with mock.patch.object(executor, "_alive_other_scheduler_job_ids", return_value=set()):
+            executor._adopt_completed_pods(mock.MagicMock())
+
+        key = CallbackKey(id=self._CALLBACK_ID)
+        assert key in executor.running
+        assert executor.completed[("default", "callback-pod")].key == key
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("state", ["success", "failed"])
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_adopt_active_callback_processes_terminal_state(self, mock_delete_pod, state):
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        executor = self.executor
+        executor.scheduler_job_id = "5"
+        executor.start()
+        try:
+            pod = k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name="callback-pod",
+                    namespace="default",
+                    annotations={"callback_id": self._CALLBACK_ID},
+                )
+            )
+            kube_client = mock.MagicMock()
+            executor.adopt_launched_task(kube_client, pod, {})
+
+            key = CallbackKey(id=self._CALLBACK_ID)
+            result = KubernetesResults(
+                key,
+                CallbackState(state),
+                pod.metadata.name,
+                pod.metadata.namespace,
+                "42",
+                None,
+            )
+            executor._change_state(result)
+
+            kube_client.patch_namespaced_pod.assert_called_once()
+            assert executor.event_buffer[key][0] == CallbackState(state)
+            if state == "success":
+                mock_delete_pod.assert_called_once_with(
+                    pod_name=pod.metadata.name, namespace=pod.metadata.namespace
+                )
+            else:
+                mock_delete_pod.assert_not_called()
+        finally:
+            executor.end()
+
+    def test_process_watcher_task_callback_succeeded(self):
+        from airflow.models.callback import CallbackKey
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
         )
 
-        scheduler._make_kube_watcher("ns")
+        result_queue = mock.MagicMock()
+        scheduler = AirflowKubernetesScheduler(
+            kube_config=mock.MagicMock(),
+            result_queue=result_queue,
+            kube_client=mock.MagicMock(),
+            scheduler_job_id="sched-1",
+        )
+        task = KubernetesWatch(
+            pod_name="callback-pod",
+            namespace="default",
+            state=None,
+            annotations={CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID},
+            resource_version="1",
+            failure_details=None,
+        )
+        scheduler.process_watcher_task(task)
+        result_queue.put.assert_called_once()
+        result = result_queue.put.call_args[0][0]
+        assert isinstance(result.key, CallbackKey)
+        assert result.key.id == self._CALLBACK_ID
+        assert result.state is None
 
-        assert watcher.call_args.kwargs["supports_task_instance_uuid"] is native
-        watcher.return_value.start.assert_called_once_with()
+    def test_process_watcher_task_callback_failed(self):
+        from airflow.models.callback import CallbackKey
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+        )
+
+        result_queue = mock.MagicMock()
+        scheduler = AirflowKubernetesScheduler(
+            kube_config=mock.MagicMock(),
+            result_queue=result_queue,
+            kube_client=mock.MagicMock(),
+            scheduler_job_id="sched-1",
+        )
+        task = KubernetesWatch(
+            pod_name="callback-pod",
+            namespace="default",
+            state=TaskInstanceState.FAILED,
+            annotations={CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID},
+            resource_version="1",
+            failure_details=None,
+        )
+        scheduler.process_watcher_task(task)
+        result = result_queue.put.call_args[0][0]
+        assert isinstance(result.key, CallbackKey)
+        assert result.state == TaskInstanceState.FAILED
+
+    def test_process_watcher_task_task_still_uses_task_key(self):
+        result_queue = mock.MagicMock()
+        scheduler = AirflowKubernetesScheduler(
+            kube_config=mock.MagicMock(),
+            result_queue=result_queue,
+            kube_client=mock.MagicMock(),
+            scheduler_job_id="sched-1",
+        )
+        task = KubernetesWatch(
+            pod_name="task-pod",
+            namespace="default",
+            state=None,
+            annotations={
+                "dag_id": "my_dag",
+                "task_id": "my_task",
+                "run_id": "run_id_1",
+                "try_number": "1",
+                LOGICAL_DATE_KEY: None,
+            },
+            resource_version="1",
+            failure_details=None,
+        )
+        scheduler.process_watcher_task(task)
+        result = result_queue.put.call_args[0][0]
+        assert isinstance(result.key, TaskInstanceKey)
+
+    def test_process_watcher_task_unknown_annotations_dropped(self):
+        """Watch event with neither callback_id nor task annotations is silently dropped."""
+        result_queue = mock.MagicMock()
+        scheduler = AirflowKubernetesScheduler(
+            kube_config=mock.MagicMock(),
+            result_queue=result_queue,
+            kube_client=mock.MagicMock(),
+            scheduler_job_id="sched-1",
+        )
+        task = KubernetesWatch(
+            pod_name="unknown-pod",
+            namespace="default",
+            state=None,
+            annotations={},
+            resource_version="1",
+            failure_details=None,
+        )
+        scheduler.process_watcher_task(task)
+        result_queue.put.assert_not_called()
+
+    def test_process_status_callback_pod_succeeded(self):
+        """Watcher.process_status() puts the correct KubernetesWatch for a succeeded callback pod."""
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+        )
+
+        watcher = KubernetesJobWatcher(
+            namespace="default",
+            watcher_queue=mock.MagicMock(),
+            resource_version="0",
+            scheduler_job_id="123",
+            kube_config=mock.MagicMock(),
+        )
+
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                annotations={
+                    CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID,
+                    "dag_id": "my_dag",
+                    "run_id": "r1",
+                },
+                labels={},
+                resource_version="42",
+                namespace="default",
+            ),
+            status=k8s.V1PodStatus(phase="Succeeded"),
+        )
+        event = {"type": "MODIFIED", "object": pod, "raw_object": {"status": {"phase": "Succeeded"}}}
+        watcher.process_status("callback-pod", "default", "Succeeded", pod.metadata.annotations, "42", event)
+
+        watcher.watcher_queue.put.assert_called_once()
+        watch_event = watcher.watcher_queue.put.call_args[0][0]
+        assert watch_event.state is None
+        assert watch_event.annotations[CALLBACK_POD_ANNOTATION_KEY] == self._CALLBACK_ID
+
+    def test_process_status_callback_pod_running_not_queued(self):
+        """Running+MODIFIED (no deletion) does not enqueue a watcher event — same as task pods."""
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+        )
+
+        watcher = KubernetesJobWatcher(
+            namespace="default",
+            watcher_queue=mock.MagicMock(),
+            resource_version="0",
+            scheduler_job_id="123",
+            kube_config=mock.MagicMock(),
+        )
+
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                annotations={CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID},
+                labels={},
+                resource_version="42",
+                namespace="default",
+            ),
+            status=k8s.V1PodStatus(phase="Running"),
+        )
+        event = {"type": "MODIFIED", "object": pod, "raw_object": {}}
+        watcher.process_status("callback-pod", "default", "Running", pod.metadata.annotations, "42", event)
+        watcher.watcher_queue.put.assert_not_called()
+
+    def test_process_status_callback_pod_failed(self):
+        """Phase Failed enqueues a FAILED KubernetesWatch carrying failure details."""
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+        )
+
+        watcher = KubernetesJobWatcher(
+            namespace="default",
+            watcher_queue=mock.MagicMock(),
+            resource_version="0",
+            scheduler_job_id="123",
+            kube_config=mock.MagicMock(),
+        )
+
+        annotations = {CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID, "dag_id": "my_dag", "run_id": "r1"}
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                annotations=annotations,
+                labels={},
+                resource_version="42",
+                namespace="default",
+            ),
+            status=k8s.V1PodStatus(phase="Failed"),
+        )
+        event = {"type": "MODIFIED", "object": pod, "raw_object": {"status": {"phase": "Failed"}}}
+        watcher.process_status("callback-pod", "default", "Failed", annotations, "42", event)
+
+        watcher.watcher_queue.put.assert_called_once()
+        watch_event = watcher.watcher_queue.put.call_args[0][0]
+        from airflow.utils.state import CallbackState
+
+        assert watch_event.state == CallbackState.FAILED
+        assert watch_event.annotations[CALLBACK_POD_ANNOTATION_KEY] == self._CALLBACK_ID
+        assert watch_event.failure_details is not None
+        assert watch_event.failure_details["pod_status"] == "Failed"
+
+    def test_process_status_callback_pod_revoked_label_skipped(self):
+        """A revoked pod is skipped even when it carries a callback_id annotation."""
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+            CALLBACK_POD_ANNOTATION_KEY,
+            POD_REVOKED_KEY,
+        )
+
+        watcher = KubernetesJobWatcher(
+            namespace="default",
+            watcher_queue=mock.MagicMock(),
+            resource_version="0",
+            scheduler_job_id="123",
+            kube_config=mock.MagicMock(),
+        )
+
+        annotations = {CALLBACK_POD_ANNOTATION_KEY: self._CALLBACK_ID}
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                annotations=annotations,
+                labels={POD_REVOKED_KEY: "True"},
+                resource_version="42",
+                namespace="default",
+            ),
+            status=k8s.V1PodStatus(phase="Succeeded"),
+        )
+        event = {"type": "MODIFIED", "object": pod, "raw_object": {"status": {"phase": "Succeeded"}}}
+        watcher.process_status("callback-pod", "default", "Succeeded", annotations, "42", event)
+        watcher.watcher_queue.put.assert_not_called()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.AIRFLOW_V_3_3_PLUS", False)
+    def test_task_execution_unaffected_on_older_airflow(self):
+        """With AIRFLOW_V_3_3_PLUS False, an ExecuteTask still flows through without callback code."""
+        task_workload = self._make_task_workload()
+        task_key = task_workload.ti.key
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queued_tasks[task_key] = task_workload
+            with mock.patch.object(executor, "execute_async") as mock_execute_async:
+                executor._process_workloads([task_workload])
+            mock_execute_async.assert_called_once()
+            assert task_key in executor.running
+            assert task_key not in executor.queued_tasks
+        finally:
+            executor.end()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.AIRFLOW_V_3_3_PLUS", False)
+    def test_supports_callbacks_does_not_break_old_airflow(self):
+        """queue_workload(ExecuteTask) still stores in queued_tasks when callbacks are gated off."""
+        task_workload = self._make_task_workload()
+        task_key = task_workload.ti.key
+
+        executor = self.executor
+        executor.start()
+        try:
+            executor.queue_workload(task_workload, session=None)
+            assert task_key in executor.queued_tasks
+            assert len(executor.queued_callbacks) == 0
+        finally:
+            executor.end()
