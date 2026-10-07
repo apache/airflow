@@ -4,6 +4,7 @@ airflow_login.py
 dbinit.py
 initdb.py
 secrets.py
+/CONTEXT.md
 
 # Airflow sqlite databases
 airflow.db
@@ -145,6 +146,7 @@ ENV/
 !.claude/skills/airflow-translations
 !.claude/skills/prepare-providers-documentation
 !.claude/skills/upgrade-fab-provider
+!.claude/skills/python-version-support
 
 # Claude Code write-tracking scratch dirs. Created next to whatever
 # directory a tool call ran in, so they turn up anywhere in the tree —

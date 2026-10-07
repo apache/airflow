@@ -176,6 +176,7 @@ repos:
           ^scripts/ci/license-templates/
       - id: insert-license
         name: Add short license for agentic Markdown files
+        types: [markdown]
         args:
           - --comment-style
           - "||"
