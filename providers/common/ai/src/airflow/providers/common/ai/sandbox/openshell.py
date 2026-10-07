@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import errno
 import logging
 import math
 import os
@@ -247,13 +248,19 @@ def _describe_error(error: BaseException) -> str:
     return f"{status}: {text}" if text else status
 
 
+_READ_ONLY_ERRNOS = frozenset({errno.EACCES, errno.EPERM, errno.EROFS})
+
+
 def _is_token_write_back_failure(error: BaseException) -> bool:
     # A stale OIDC token is refreshed inside the call's auth interceptor, which
     # writes the new one next to the registration through a ".oidc_token.*" temp
     # file (openshell 0.1.2 _OidcRefresher._write_to_disk) and raises its OSError.
+    # Only a permission error says the registration is read-only; a full disk or a used-up
+    # quota on a writable one fails the same temp file with ENOSPC or EDQUOT.
     filename = getattr(error, "filename", None)
     return (
         isinstance(error, OSError)
+        and error.errno in _READ_ONLY_ERRNOS
         and isinstance(filename, str)
         and os.path.basename(filename).startswith(".oidc_token.")
     )

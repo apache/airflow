@@ -291,6 +291,8 @@ class TestClient:
                 id="the-token-file-itself",
             ),
             pytest.param(OSError(errno.ENOSPC, "No space left on device"), id="no-file-named"),
+            pytest.param(OSError(errno.ENOSPC, "No space left on device", _TOKEN_TEMP_FILE), id="disk-full"),
+            pytest.param(OSError(errno.EDQUOT, "Disk quota exceeded", _TOKEN_TEMP_FILE), id="quota-used-up"),
         ],
     )
     def test_other_os_errors_are_not_reported_as_a_read_only_registration(self, error):
