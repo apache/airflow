@@ -29,12 +29,14 @@ import httpx
 import pytest
 import time_machine
 from httpx import URL
+from tenacity import stop_after_attempt, wait_none
 
 from airflowctl.api.client import (
     Client,
     ClientKind,
     Credentials,
     _bounded_get_new_password,
+    _should_retry_api_request,
     get_client,
     get_json_error,
 )
@@ -184,6 +186,62 @@ class TestClient:
         client = Client(base_url="", token="", mounts={})
         client.refresh_base_url(base_url=base_url, kind=client_kind)
         assert client.base_url == URL(expected_base_url)
+
+
+class TestRequestRetries:
+    @pytest.fixture(autouse=True)
+    def configure_retries(self, monkeypatch):
+        monkeypatch.setattr(Client.request.retry, "wait", wait_none())
+        monkeypatch.setattr(Client.request.retry, "stop", stop_after_attempt(3))
+
+    @pytest.mark.parametrize("method", ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE", "TRACE"])
+    @pytest.mark.parametrize("status_code", [500, 503])
+    @pytest.mark.parametrize("json_response", [True, False])
+    def test_server_errors_only_replay_safe_methods(self, method, status_code, json_response):
+        requests = []
+
+        def handle_request(request):
+            requests.append(request)
+            if json_response:
+                return httpx.Response(status_code, json={"detail": "boom"})
+            return httpx.Response(status_code, text="boom")
+
+        with Client(base_url="http://localhost", transport=httpx.MockTransport(handle_request)) as client:
+            with pytest.raises(httpx.HTTPStatusError):
+                client.request(method, "/operation")
+
+        assert len(requests) == (3 if method in {"GET", "HEAD", "OPTIONS"} else 1)
+
+    @pytest.mark.parametrize("method", ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE", "TRACE"])
+    @pytest.mark.parametrize(
+        ("error_type", "before_send"),
+        [
+            (httpx.ConnectError, True),
+            (httpx.ConnectTimeout, True),
+            (httpx.PoolTimeout, True),
+            (httpx.ReadTimeout, False),
+            (httpx.WriteTimeout, False),
+            (httpx.ReadError, False),
+            (httpx.WriteError, False),
+            (httpx.RemoteProtocolError, False),
+        ],
+    )
+    def test_transport_errors_only_replay_safe_requests(self, method, error_type, before_send):
+        requests = []
+
+        def handle_request(request):
+            requests.append(request)
+            raise error_type("connection failed", request=request)
+
+        with Client(base_url="http://localhost", transport=httpx.MockTransport(handle_request)) as client:
+            with pytest.raises(error_type):
+                client.request(method, "/operation")
+
+        assert len(requests) == (3 if before_send or method in {"GET", "HEAD", "OPTIONS"} else 1)
+
+    @pytest.mark.parametrize("error", [httpx.ReadTimeout("timed out"), httpx.ReadError("disconnected")])
+    def test_missing_request_does_not_allow_replay(self, error):
+        assert not _should_retry_api_request(error)
 
 
 class TestCredentials:

@@ -66,6 +66,25 @@ def lazy_load_command(import_path: str) -> Callable:
     return command
 
 
+_WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _warn_if_write_may_have_applied(error: httpx.HTTPError) -> None:
+    """Warn that a failed write is not retried because the server may already have applied it."""
+    if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
+        return
+    try:
+        method = error.request.method
+    except RuntimeError:
+        return
+    if method in _WRITE_METHODS:
+        rich.print(
+            f"[yellow]The {method} request failed, but it may already have been applied on the server. "
+            "Check the server state before retrying.[/yellow]",
+            file=sys.stderr,
+        )
+
+
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
         rich.print(
@@ -91,11 +110,13 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 f"[red]Server response error: {e}. "
                 "Please check if the server is running and the API URL is correct.[/red]"
             )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except httpx.ReadTimeout as e:
         rich.print(f"[red]Read timeout error: {e}[/red]")
         if "timed out" in str(e):
             rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except ServerResponseError as e:
         rich.print(f"Server response error: {e}")
@@ -105,6 +126,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "Please check the command and its parameters. "
                 "If you need help, run the command with --help."
             )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     # Must stay below ``ServerResponseError``, which subclasses it. Responses the client could not
     # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
@@ -116,6 +138,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "[red]The server answered with a redirect, which airflowctl does not follow. "
                 "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
             )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
 
 

@@ -67,6 +67,11 @@ Environment Variables
     only used if you are using the Airflow API and have not set up
     authentication using a different method. The default value is 3.
 
+    Only read-only calls (``GET``, ``HEAD`` and ``OPTIONS``) are retried after a server error or
+    a lost response. Calls that change state, such as ``POST``, ``PUT``, ``PATCH`` and ``DELETE``,
+    are retried only when the connection to the server could not be established, so that a
+    change the server may already have applied is not sent twice.
+
 .. envvar:: AIRFLOW_CLI_API_RETRY_WAIT_MIN
 
     The minimum amount of time to wait between API retries in seconds.
