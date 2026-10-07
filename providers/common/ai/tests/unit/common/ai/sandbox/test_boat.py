@@ -882,16 +882,19 @@ class TestFiles:
 
         assert type(raised.value) is expected
 
-    def test_write_file_uses_base64_and_creates_parents(self):
+    def test_write_file_uses_base64_and_creates_only_the_parents(self, tmp_path):
         backend, api = _backend_with_api()
         api.command.return_value = _command_response()
+        path = tmp_path / "it's a dir" / "nested" / "file.bin"
 
-        backend.write_file("bx_1", "/tmp/dir/file.bin", b"\x00\x01")
+        backend.write_file("bx_1", str(path), b"\x00\x01")
+        mkdir = _run_like_boat(api.command.call_args.args[1].command, home=tmp_path, timeout=10)
 
-        mkdir_request = api.command.call_args.args[1]
-        assert "mkdir -p" in mkdir_request.command
+        assert (mkdir.returncode, mkdir.stderr) == (0, "")
+        assert path.parent.is_dir()
+        assert not path.exists()
         write_request = api.write_file.call_args.args[1]
-        assert write_request.path == "/tmp/dir/file.bin"
+        assert write_request.path == str(path)
         assert write_request.encoding == "base64"
         assert base64.b64decode(write_request.content) == b"\x00\x01"
 
