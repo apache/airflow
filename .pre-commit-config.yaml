@@ -548,7 +548,7 @@ repos:
           ^scripts/ci/prek/upgrade_dependency_floors\.py$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['packaging>=25', 'requests>=2.31.0', 'rich>=13.6.0', 'tomli>=2.0.1']
+        additional_dependencies: ['packaging>=25', 'requests>=2.31.0', 'rich>=13.6.0']
   - repo: https://github.com/adamchainz/blacken-docs
     rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:
@@ -556,7 +556,6 @@ repos:
         name: Run black on docs
         args:
           - --line-length=110
-          - --target-version=py310
           - --target-version=py311
           - --target-version=py312
           - --target-version=py313
@@ -1290,7 +1289,7 @@ repos:
           ^providers/.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['packaging>=25', 'pyyaml', 'tomli>=2.0.1', 'rich>=13.6.0']
+        additional_dependencies: ['packaging>=25', 'pyyaml', 'rich>=13.6.0']
       - id: check-provider-config-fallback-defaults
         name: Check provider_config_fallback_defaults.cfg is in sync with provider.yaml files
         language: python
@@ -1309,7 +1308,7 @@ repos:
         entry: ./scripts/ci/prek/check_dependency_lower_bounds.py
         files: (^|/)pyproject\.toml$
         require_serial: true
-        additional_dependencies: ['packaging>=25', 'tomli>=2.0.1', 'rich>=13.6.0']
+        additional_dependencies: ['packaging>=25', 'rich>=13.6.0']
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python

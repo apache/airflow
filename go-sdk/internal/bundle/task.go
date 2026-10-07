@@ -57,6 +57,20 @@ type EnumerableBundle interface {
 	ListTaskHandlers() []TaskHandlerInfo
 }
 
+// SerializedDag is one Dag from airflow.Dag, serialized for the Dag processor. Data is nil when
+// Err is set.
+type SerializedDag struct {
+	DagID string
+	Data  map[string]any
+	Err   error
+}
+
+// DagSerializer serializes the Dags from airflow.Dag that a bundle registered, in registration
+// order.
+type DagSerializer interface {
+	SerializeDags(fileloc, relativeFileloc string) []SerializedDag
+}
+
 type taskFunction struct {
 	fn       reflect.Value
 	fullName string

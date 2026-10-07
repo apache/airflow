@@ -21,7 +21,7 @@ import copy
 import json
 import traceback
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
 
 from airflow.providers.common.compat.openlineage.facet import (
@@ -227,7 +227,7 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         if value is None:
             return None
         try:
-            return datetime.fromtimestamp(float(value) / 1000, tz=timezone.utc)
+            return datetime.fromtimestamp(float(value) / 1000, tz=UTC)
         except (TypeError, ValueError, OverflowError):
             return None
 
@@ -239,7 +239,7 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         return (
             # None is not comparable with datetime, so a missing startTime maps to
             # datetime.max to sort those children last instead of crashing the sort.
-            start_time or datetime.max.replace(tzinfo=timezone.utc),
+            start_time or datetime.max.replace(tzinfo=UTC),
             get_from_nullable_chain(properties, ["jobReference", "jobId"]) or "",
         )
 

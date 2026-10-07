@@ -28,9 +28,7 @@ import os
 import sys
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
-
-from typing_extensions import NotRequired
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
     if sys.version_info >= (3, 12):

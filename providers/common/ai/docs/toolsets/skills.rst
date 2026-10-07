@@ -82,6 +82,44 @@ need strict isolation.
     ``branch`` to a trusted ref, and treat skill contents as code that runs in
     your environment.
 
+.. _agent-skills-restricted:
+
+Restricting the agent
+---------------------
+
+This agent can read skills but cannot run any script a skill ships, and files that
+match the ``exclude_resources`` patterns stay out of its reach. The example skills ship
+no scripts, so the exclusion matters once a skill adds one:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_skills.py
+    :language: python
+    :start-after: [START howto_operator_agent_skills_restricted]
+    :end-before: [END howto_operator_agent_skills_restricted]
+
+The model is offered ``list_skills``, ``load_skill`` and ``read_skill_resource``. A
+call to the excluded tool got ``Unknown tool name: 'run_skill_script'. Available
+tools: 'list_skills', 'load_skill', 'read_skill_resource'``.
+
+The example skills contain no file the patterns match, so the next run used a copy of
+them with ``warehouse.env``, ``secrets/token.txt`` and ``reference.md`` added to
+``sql-reporting``. ``load_skill`` listed only ``reference.md`` as a resource, and
+reading an excluded file got:
+
+.. code-block:: text
+
+    Resource 'warehouse.env' not found in skill 'sql-reporting'. Available resources: ['reference.md']. Use the exact name from load_skill output.
+
+The skills tools allow the model one correction each, and the agent's ``retries``
+does not change that. A second refused read in a row failed the run with
+``UnexpectedModelBehavior``, even with ``retries`` set to ``{"tools": 3}``:
+
+.. code-block:: text
+
+    Tool 'read_skill_resource' exceeded max retries count of 1. Consider raising the retry limit, or see the docs on tool retries: https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/#tool-retries
+
+``exclude_resources`` hides files from the resource tools only. A skill's scripts can
+still read them, which is why the example excludes ``run_skill_script`` as well.
+
 Parameters
 ----------
 

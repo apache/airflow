@@ -825,7 +825,7 @@ class CommandFactory:
             and "logical_date" in params
             and params["logical_date"] is None
         ):
-            params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
+            params["logical_date"] = datetime.datetime.now(datetime.UTC)
 
         # Handle ClearTaskInstancesBody: --task-ids arrives as a single string but the API expects
         # a list of task_id or [task_id, map_index]; accept comma-separated ids or a JSON list

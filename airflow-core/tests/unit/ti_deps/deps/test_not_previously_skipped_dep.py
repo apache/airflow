@@ -537,7 +537,7 @@ def test_mapped_task_group_skip_decisions_read_once_per_pass(session, dag_maker)
     dep_context = DepContext(finished_tis=dr.get_task_instances(state=State.finished, session=session))
 
     dep = NotPreviouslySkippedDep()
-    with capture_orm_selects("xcom") as statements:
+    with capture_orm_selects("xcom_v2") as statements:
         met = {
             (task_id, map_index): dep.is_met(tis[(task_id, map_index)], dep_context, session=session)
             for task_id in downstream
@@ -565,7 +565,7 @@ def test_mapped_task_group_without_skipmixin_reads_no_xcom(session, dag_maker):
     dep_context = DepContext(finished_tis=dr.get_task_instances(state=State.finished, session=session))
 
     dep = NotPreviouslySkippedDep()
-    with capture_orm_selects("xcom") as statements:
+    with capture_orm_selects("xcom_v2") as statements:
         assert all(dep.is_met(tis[("group.b", i)], dep_context, session=session) for i in range(3))
 
     assert statements == []

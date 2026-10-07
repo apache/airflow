@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, NonCallableMagicMock
 
 import jinja2
@@ -328,6 +328,6 @@ def test_private_access(env):
     ),
 )
 def test_filters(env, name, expected):
-    when = datetime(2012, 7, 24, 3, 4, 52, tzinfo=timezone.utc)
+    when = datetime(2012, 7, 24, 3, 4, 52, tzinfo=UTC)
     result = env.from_string("{{ date |" + name + " }}").render(date=when)
     assert result == expected
