@@ -27,7 +27,7 @@ import time
 import uuid
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from airflow.providers.common.ai.sandbox.base import (
     _FILE_OP_OUTPUT_CAP,
@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
 
     from openshell import SandboxClient
+    from openshell._proto import datamodel_pb2, openshell_pb2, sandbox_pb2
 
     from airflow.providers.common.ai.sandbox.base import SandboxSpec
 
@@ -376,7 +377,7 @@ class _EgressPolicy:
         )
 
     @classmethod
-    def effective(cls, config: Any) -> _EgressPolicy:
+    def effective(cls, config: sandbox_pb2.GetSandboxConfigResponse) -> _EgressPolicy:
         """Read the egress a ``GetSandboxConfigResponse`` says is in force."""
         from openshell._proto import sandbox_pb2
 
@@ -539,7 +540,7 @@ class OpenShellSandboxBackend(SandboxBackend):
                     )
             return self._client
 
-    def _workspace_scope(self) -> Any:
+    def _workspace_scope(self) -> datamodel_pb2.WorkspaceSelector:
         from openshell._proto import datamodel_pb2
 
         return datamodel_pb2.WorkspaceSelector(workspace=self._workspace)
@@ -605,7 +606,7 @@ class OpenShellSandboxBackend(SandboxBackend):
             env[key] = value
         return hosts, env
 
-    def _build_spec(self, hosts: Sequence[str], env: Mapping[str, str]) -> Any:
+    def _build_spec(self, hosts: Sequence[str], env: Mapping[str, str]) -> openshell_pb2.SandboxSpec:
         from google.protobuf import struct_pb2
         from openshell._proto import openshell_pb2, sandbox_pb2
 
@@ -666,7 +667,7 @@ class OpenShellSandboxBackend(SandboxBackend):
         self._egress[name] = wanted
         return name
 
-    def _get_sandbox(self, name: str) -> Any:
+    def _get_sandbox(self, name: str) -> openshell_pb2.Sandbox:
         from openshell._proto import openshell_pb2
 
         return (
