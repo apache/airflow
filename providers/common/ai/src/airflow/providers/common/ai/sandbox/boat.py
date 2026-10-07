@@ -62,7 +62,7 @@ _SERVER_TIMEOUT_GRACE = 10
 _IN_GUEST_TIMEOUT_EXITS = frozenset({124, 137})
 _MAX_ERROR_DETAIL = 300
 _READY_STATES = frozenset({"ready", "idle", "running"})
-_TERMINAL_STATES = frozenset({"archiving", "archived", "error"})
+_TERMINAL_STATES = frozenset({"archiving", "archived", "error", "cancelled"})
 _READY_POLL_INTERVAL = 2.0
 _MACHINE_TYPES = frozenset({"small", "default", "large"})
 # CreateSandboxRequest's bound on ttlSeconds: 30 days.

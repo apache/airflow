@@ -269,6 +269,12 @@ class TestCreate:
                 "entered state 'error' before it was ready",
                 id="failed_while_starting",
             ),
+            pytest.param(
+                # Boat reports a cancelled create once, then answers 404 for it.
+                [_sandbox_info("starting"), _sandbox_info("cancelled"), _api_error(404)],
+                "entered state 'cancelled' before it was ready",
+                id="cancelled_while_starting",
+            ),
         ],
     )
     def test_a_sandbox_that_never_becomes_ready_is_destroyed(self, clock, polls, match):
