@@ -1850,14 +1850,17 @@ export type PatchTaskInstanceBody = {
 };
 
 /**
- * Serializer for the optional Dag/task scoping criteria of a UI plugin.
+ * Serializer for the optional scoping criteria of a UI plugin.
+ *
+ * An open map of dotted field path to the values that path may take -- not a closed set of
+ * criteria. ``{"state": ["failed"], "dag.tags.name": ["ml"]}`` scopes to failed entities of
+ * ml-tagged Dags. An unqualified path is rooted at the entity the ``destination`` is about;
+ * a path may instead name a related record (``dag``, ``dag_run``, ``task``, ``task_instance``)
+ * as its first segment. Matching is equality against the listed values, OR within a path and
+ * AND across paths, and is evaluated client-side.
  */
 export type PluginAppliesToResponse = {
-    dag_tags?: Array<(string)> | null;
-    dag_ids?: Array<(string)> | null;
-    task_ids?: Array<(string)> | null;
-    operators?: Array<(string)> | null;
-    operator_names?: Array<(string)> | null;
+    [key: string]: Array<(string)>;
 };
 
 /**
@@ -5030,6 +5033,7 @@ export type GetTasksResponse = TaskCollectionResponse;
 export type GetTaskData = {
     dagId: string;
     taskId: unknown;
+    versionNumber?: number | null;
 };
 
 export type GetTaskResponse = TaskResponse;
@@ -8593,6 +8597,10 @@ export type $OpenApiTs = {
                  */
                 204: void;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -9450,6 +9458,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
