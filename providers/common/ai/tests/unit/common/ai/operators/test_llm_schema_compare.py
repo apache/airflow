@@ -23,12 +23,18 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
     SchemaMismatch,
 )
+from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, TaskDeferred
 from airflow.providers.common.sql.config import DataSourceConfig
 from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
@@ -298,7 +304,11 @@ class TestLLMSchemaCompareOperator:
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
     )
     def test_execute_coerces_usage_limits_dict_before_run_sync(
-        self, mock_build_system_prompt, mock_build_schema_context, make_mock_run_result
+        self,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        make_mock_run_result,
+        usage_budget_context,
     ):
         """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         mock_build_schema_context.return_value = "schema_context"
@@ -321,7 +331,7 @@ class TestLLMSchemaCompareOperator:
         mock_llm_hook.create_agent.return_value = mock_agent
         op.llm_hook = mock_llm_hook
 
-        op.execute(context={})
+        op.execute(context=usage_budget_context)
 
         _, kwargs = mock_agent.run_sync.call_args
         assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
@@ -604,6 +614,121 @@ class TestLLMSchemaCompareOperator:
 
         with pytest.raises(AirflowOptionalProviderFeatureException):
             op._introspect_schema_from_datafusion(ds)
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+class TestLLMSchemaCompareOperatorUsageBudget:
+    @staticmethod
+    def _make_operator(**kwargs):
+        return LLMSchemaCompareOperator(
+            **_BASE_KWARGS,
+            db_conn_ids=["postgres_default", "snowflake_default"],
+            table_names=["orders"],
+            usage_limits=UsageLimits(request_limit=2),
+            **kwargs,
+        )
+
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context",
+        return_value="schema_context",
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt",
+        return_value="system_prompt",
+    )
+    def test_earlier_attempts_usage_counts_against_the_limit(
+        self,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=2)
+        calls = []
+
+        def respond(messages, info):
+            calls.append(messages)
+            return ModelResponse(parts=[TextPart(content="unused")])
+
+        op = self._make_operator()
+        op.llm_hook = mock.Mock(create_agent=lambda **kw: Agent(FunctionModel(respond), **kw))
+
+        with pytest.raises(UsageLimitExceeded, match="request_limit"):
+            op.execute(usage_budget_context)
+
+        assert calls == []
+
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context",
+        return_value="schema_context",
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt",
+        return_value="system_prompt",
+    )
+    def test_successful_run_clears_the_budget(
+        self,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        make_mock_run_result,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        mock_agent = mock.Mock()
+        mock_agent.run_sync.return_value = make_mock_run_result(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        )
+        op = self._make_operator()
+        op.llm_hook = mock.Mock(create_agent=mock.Mock(return_value=mock_agent))
+
+        op.execute(usage_budget_context)
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is None
+
+    @staticmethod
+    def _make_reviewed_event(output):
+        return {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "admin"},
+            "params_input": {"output": output},
+        }
+
+    def test_execute_complete_keeps_the_budget_when_the_reviewed_output_is_invalid(
+        self, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        op = self._make_operator(require_approval=True, allow_modifications=True)
+
+        with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
+            op.execute_complete(
+                usage_budget_context,
+                generated_output="{}",
+                event=self._make_reviewed_event("looks fine to me"),
+            )
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is not None
+
+    def test_execute_complete_clears_the_budget_once_the_reviewed_output_is_valid(
+        self, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        op = self._make_operator(require_approval=True, allow_modifications=True)
+        reviewed = SchemaCompareResult(compatible=True, mismatches=[], summary="ok")
+
+        result = op.execute_complete(
+            usage_budget_context,
+            generated_output="{}",
+            event=self._make_reviewed_event(reviewed.model_dump_json()),
+        )
+
+        assert result == reviewed.model_dump()
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is None
 
 
 @pytest.mark.skipif(

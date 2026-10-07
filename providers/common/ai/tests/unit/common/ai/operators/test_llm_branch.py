@@ -23,13 +23,20 @@ from uuid import uuid4
 import pytest
 from pydantic import TypeAdapter, ValidationError
 from pydantic_ai import Agent
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import BranchOption, DecisionPolicy, LLMBranchOperator
-from airflow.providers.common.compat.sdk import Param, ParamValidationError, TaskDeferred
+from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
+from airflow.providers.common.compat.sdk import (
+    Param,
+    ParamValidationError,
+    TaskDeferred,
+)
 from airflow.providers.standard.exceptions import HITLRejectException
 from airflow.providers.standard.operators.empty import EmptyOperator
 
@@ -39,7 +46,7 @@ if AIRFLOW_V_3_3_PLUS:
     # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer to
     # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
     # against whichever pause signal the running Airflow version uses.
-    from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
+    from airflow.sdk.exceptions import DownstreamTasksSkipped, TaskAwaitingInput as ApprovalPauseSignal
 else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
 
@@ -89,7 +96,7 @@ class TestLLMBranchOperator:
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(
-        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result, usage_budget_context
     ):
         """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
 
@@ -106,7 +113,7 @@ class TestLLMBranchOperator:
         )
         op.downstream_task_ids = {"task_a", "task_b"}
 
-        op.execute(MagicMock(spec=dict))
+        op.execute(context=usage_budget_context)
 
         _, kwargs = mock_agent.run_sync.call_args
         assert kwargs["usage_limits"].cost_limit == Decimal("0.5")
@@ -500,6 +507,112 @@ def _make_context(ti_id=None):
     ti = MagicMock()
     ti.id = ti_id
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+class TestLLMBranchOperatorUsageBudget:
+    @staticmethod
+    def _make_operator(**kwargs):
+        op = LLMBranchOperator(
+            task_id="t", prompt="p", llm_conn_id="c", usage_limits=UsageLimits(request_limit=2), **kwargs
+        )
+        op.downstream_task_ids = {"task_a", "task_b"}
+        return op
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_earlier_attempts_usage_counts_against_the_limit(
+        self, mock_hook_cls, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=2)
+        calls = []
+
+        def respond(messages, info):
+            calls.append(messages)
+            return ModelResponse(
+                parts=[ToolCallPart(tool_name=info.output_tools[0].name, args={"response": "task_a"})]
+            )
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+
+        with pytest.raises(UsageLimitExceeded, match="request_limit"):
+            self._make_operator().execute(usage_budget_context)
+
+        assert calls == []
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_budget_is_cleared_before_do_branch_raises_the_skip(
+        self,
+        mock_hook_cls,
+        mock_do_branch,
+        make_mock_run_result,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("task_a")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        key_present_in_do_branch = []
+
+        def do_branch(context, branches):
+            key_present_in_do_branch.append(task_state_store_accessor.get(USAGE_BUDGET_KEY) is not None)
+            raise DownstreamTasksSkipped(tasks=[("task_b", -1)])
+
+        mock_do_branch.side_effect = do_branch
+
+        with pytest.raises(DownstreamTasksSkipped):
+            self._make_operator().execute(usage_budget_context)
+
+        assert key_present_in_do_branch == [False]
+
+    @patch.object(LLMBranchOperator, "skip")
+    def test_budget_is_cleared_before_a_rejection_skips_downstream(
+        self, mock_skip, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        key_present_in_skip = []
+
+        def skip(**kwargs):
+            key_present_in_skip.append(task_state_store_accessor.get(USAGE_BUDGET_KEY) is not None)
+            raise DownstreamTasksSkipped(tasks=[("task_b", -1)])
+
+        mock_skip.side_effect = skip
+        op = self._make_operator(require_approval=True, fail_on_reject=False)
+        ctx = {**usage_budget_context, "task": MagicMock(), "ti": MagicMock()}
+        event = {"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}}
+
+        with pytest.raises(DownstreamTasksSkipped):
+            op.execute_complete(ctx, generated_output="task_a", event=event)
+
+        assert key_present_in_skip == [False]
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    def test_budget_is_cleared_before_an_approval_branches(
+        self, mock_do_branch, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        key_present_in_do_branch = []
+
+        def do_branch(context, branches):
+            key_present_in_do_branch.append(task_state_store_accessor.get(USAGE_BUDGET_KEY) is not None)
+            raise DownstreamTasksSkipped(tasks=[("task_b", -1)])
+
+        mock_do_branch.side_effect = do_branch
+        op = self._make_operator(require_approval=True, allow_modifications=True)
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "admin"},
+            "params_input": {"output": "task_a"},
+        }
+
+        with pytest.raises(DownstreamTasksSkipped):
+            op.execute_complete(usage_budget_context, generated_output="task_a", event=event)
+
+        assert key_present_in_do_branch == [False]
 
 
 class TestLLMBranchOperatorConfidenceGate:

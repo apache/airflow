@@ -37,7 +37,6 @@ from airflow.providers.common.ai.utils.decision import (
     review_reason,
     threshold_for,
 )
-from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.standard.exceptions import HITLRejectException
 from airflow.providers.standard.operators.branch import BranchMixIn
@@ -235,8 +234,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             instructions=self.system_prompt,
             **self.agent_params,
         )
-        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
         # The output type validated the pick, so it is a task ID (or IDs) in either encoding.
@@ -300,6 +298,8 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 context, branches, body=body, modification_schema=modification_schema, decision=record
             )
 
+        # do_branch may signal success by raising DownstreamTasksSkipped, so clear before it.
+        self._clear_usage_budget(context)
         return self.do_branch(context, branches)
 
     def execute_complete(
@@ -321,6 +321,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             self.log.info("Rejected by %s. Skipping downstream tasks...", self._describe_responder(event))
             # The record was finalized before the exception; skip() hands the skip to the supervisor
             # by raising, so nothing after it runs.
+            self._clear_usage_budget(context)
             task = context["task"]
             tasks = (
                 task.get_flat_relatives(upstream=False)
@@ -338,6 +339,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 f"{self.task_id!r}. Valid choices: {sorted(self.downstream_task_ids)}."
             )
         self._finalize_decision(context, event, decision, action=branches)
+        self._clear_usage_budget(context)
         return self.do_branch(context, branches)
 
     def _parse_reviewed_branches(self, output: str) -> str | list[str]:

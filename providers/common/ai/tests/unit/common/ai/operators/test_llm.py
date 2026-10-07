@@ -28,7 +28,7 @@ from pydantic_ai import Agent
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
-from pydantic_ai.usage import RequestUsage, UsageLimits
+from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
@@ -36,6 +36,7 @@ from airflow.providers.common.ai.mixins.approval import (
 from airflow.providers.common.ai.operators import llm as llm_module
 from airflow.providers.common.ai.operators.llm import DecisionPolicy, LLMOperator
 from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
+from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -145,7 +146,9 @@ class TestLLMOperator:
         )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_forwards_usage_limits_to_run_sync(self, mock_hook_cls, make_mock_run_result):
+    def test_execute_forwards_usage_limits_to_run_sync(
+        self, mock_hook_cls, make_mock_run_result, usage_budget_context
+    ):
         """``usage_limits`` is forwarded verbatim to ``agent.run_sync``."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
@@ -158,12 +161,18 @@ class TestLLMOperator:
             llm_conn_id="my_llm",
             usage_limits=limits,
         )
-        op.execute(context=MagicMock())
+        op.execute(context=usage_budget_context)
 
-        mock_agent.run_sync.assert_called_once_with("Summarize", usage_limits=limits, cancellation_token=ANY)
+        # ``usage=`` is the cross-attempt usage budget, which only exists on Airflow >= 3.3.
+        expected_usage = {"usage": ANY} if AIRFLOW_V_3_3_PLUS else {}
+        mock_agent.run_sync.assert_called_once_with(
+            "Summarize", usage_limits=limits, cancellation_token=ANY, **expected_usage
+        )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_coerces_usage_limits_dict_before_run_sync(self, mock_hook_cls, make_mock_run_result):
+    def test_execute_coerces_usage_limits_dict_before_run_sync(
+        self, mock_hook_cls, make_mock_run_result, usage_budget_context
+    ):
         """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
@@ -175,7 +184,7 @@ class TestLLMOperator:
             llm_conn_id="my_llm",
             usage_limits={"cost_limit": "0.5"},
         )
-        op.execute(context=MagicMock())
+        op.execute(context=usage_budget_context)
 
         _, kwargs = mock_agent.run_sync.call_args
         assert kwargs["usage_limits"] == UsageLimits(cost_limit=Decimal("0.5"))
@@ -190,7 +199,7 @@ class TestLLMOperator:
     )
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_renders_templated_usage_limits_dict_then_coerces(
-        self, mock_hook_cls, field, rendered, expected, make_mock_run_result
+        self, mock_hook_cls, field, rendered, expected, make_mock_run_result, usage_budget_context
     ):
         """The template chain end to end, for each ``_COERCERS`` type: Jinja renders
         the dict's string leaf (still a string -- Jinja never converts type), then
@@ -209,7 +218,7 @@ class TestLLMOperator:
         op.render_template_fields({"params": {"value": rendered}})
         assert op.usage_limits == {field: rendered}
 
-        op.execute(context=MagicMock())
+        op.execute(context=usage_budget_context)
 
         _, kwargs = mock_agent.run_sync.call_args
         assert getattr(kwargs["usage_limits"], field) == expected
@@ -230,7 +239,7 @@ class TestLLMOperator:
         ],
     )
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_raises_when_cost_cap_exceeded(self, mock_hook_cls, cap_kwargs):
+    def test_execute_raises_when_cost_cap_exceeded(self, mock_hook_cls, cap_kwargs, usage_budget_context):
         """A real run whose cost exceeds the configured cap raises ``UsageLimitExceeded``."""
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(_build_priced_response), **kw
@@ -238,10 +247,10 @@ class TestLLMOperator:
 
         op = LLMOperator(task_id="test", prompt="Summarize", llm_conn_id="my_llm", **cap_kwargs)
         with pytest.raises(UsageLimitExceeded, match=r"cost_limit.*0\.05"):
-            op.execute(context=MagicMock())
+            op.execute(context=usage_budget_context)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_completes_when_cost_stays_under_cap(self, mock_hook_cls):
+    def test_execute_completes_when_cost_stays_under_cap(self, mock_hook_cls, usage_budget_context):
         """A real run costing less than the configured ``cost_limit`` completes and returns the model output."""
         mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
             FunctionModel(_build_priced_response), **kw
@@ -254,7 +263,7 @@ class TestLLMOperator:
             usage_limits={"cost_limit": str(PRICED_COST * 2)},
         )
 
-        assert op.execute(context=MagicMock()) == "the answer"
+        assert op.execute(context=usage_budget_context) == "the answer"
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_raises_valueerror_for_unparsable_usage_limits_value(self, mock_hook_cls):
@@ -372,6 +381,134 @@ def _make_context(ti_id=None):
     ti = MagicMock()
     ti.id = ti_id
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+
+
+class TestLLMOperatorUsageBudget:
+    """``usage_limits`` bounds every attempt of a task instance, not each attempt separately."""
+
+    @staticmethod
+    def _make_operator(**kwargs):
+        return LLMOperator(task_id="t", prompt="p", llm_conn_id="c", **kwargs)
+
+    @staticmethod
+    def _stub_agent(mock_hook_cls, make_mock_run_result, *, requests_used=0, error=None):
+        def run_sync(prompt, **kwargs):
+            if "usage" in kwargs:
+                kwargs["usage"].incr(RunUsage(requests=requests_used, input_tokens=10 * requests_used))
+            if error is not None:
+                raise error
+            return make_mock_run_result("ok")
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.side_effect = run_sync
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        return mock_agent
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_no_usage_limits_leaves_the_task_state_store_alone(
+        self, mock_hook_cls, make_mock_run_result, task_state_store_accessor, usage_budget_context
+    ):
+        mock_agent = self._stub_agent(mock_hook_cls, make_mock_run_result)
+
+        self._make_operator().execute(context=usage_budget_context)
+
+        mock_agent.run_sync.assert_called_once_with("p", usage_limits=None, cancellation_token=ANY)
+        task_state_store_accessor.get.assert_not_called()
+        task_state_store_accessor.set.assert_not_called()
+        task_state_store_accessor.delete.assert_not_called()
+
+    @patch("airflow.providers.common.ai.mixins.usage_budget.AIRFLOW_V_3_3_PLUS", False)
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_below_airflow_3_3_does_not_touch_the_task_state_store(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = self._stub_agent(mock_hook_cls, make_mock_run_result)
+
+        self._make_operator(usage_limits=UsageLimits(request_limit=5)).execute(
+            context={"task_instance": MagicMock()}
+        )
+
+        _, kwargs = mock_agent.run_sync.call_args
+        assert "usage" not in kwargs
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_earlier_attempts_usage_counts_against_the_limit(
+        self, mock_hook_cls, task_state_store_accessor, seed_usage_budget, usage_budget_context
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=2)
+        calls = []
+
+        def respond(messages, info):
+            calls.append(messages)
+            return ModelResponse(parts=[TextPart(content="the answer")])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+        op = self._make_operator(usage_limits=UsageLimits(request_limit=2))
+
+        with pytest.raises(UsageLimitExceeded, match="request_limit"):
+            op.execute(context=usage_budget_context)
+
+        assert calls == []
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failed_attempt_persists_its_usage(
+        self,
+        mock_hook_cls,
+        make_mock_run_result,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        self._stub_agent(mock_hook_cls, make_mock_run_result, requests_used=1, error=RuntimeError("boom"))
+        op = self._make_operator(usage_limits=UsageLimits(request_limit=10))
+
+        with pytest.raises(RuntimeError, match="boom"):
+            op.execute(context=usage_budget_context)
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY)["usage"]["requests"] == 2
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_successful_run_clears_the_budget(
+        self,
+        mock_hook_cls,
+        make_mock_run_result,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=1)
+        self._stub_agent(mock_hook_cls, make_mock_run_result, requests_used=1)
+        op = self._make_operator(usage_limits=UsageLimits(request_limit=10))
+
+        assert op.execute(context=usage_budget_context) == "ok"
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is None
+        task_state_store_accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+    @patch("airflow.providers.common.ai.operators.llm.log_run_summary", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_run_summary_reports_this_attempts_usage_not_the_total(
+        self,
+        mock_hook_cls,
+        mock_log_run_summary,
+        make_mock_run_result,
+        task_state_store_accessor,
+        seed_usage_budget,
+        usage_budget_context,
+    ):
+        seed_usage_budget(task_state_store_accessor, requests=3)
+        self._stub_agent(mock_hook_cls, make_mock_run_result, requests_used=1)
+        op = self._make_operator(usage_limits=UsageLimits(request_limit=10))
+
+        op.execute(context=usage_budget_context)
+
+        attempt_usage = mock_log_run_summary.call_args.kwargs["usage"]
+        assert (attempt_usage.requests, attempt_usage.input_tokens) == (1, 10)
 
 
 class TestLLMOperatorConfidenceGate:
@@ -1046,6 +1183,73 @@ class TestLLMOperatorApproval:
 
         with pytest.raises(HITLRejectException):
             op.execute_complete({}, generated_output="output", event=event)
+
+    @staticmethod
+    def _make_budget_operator():
+        return LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            require_approval=True,
+            usage_limits=UsageLimits(request_limit=10),
+        )
+
+    @staticmethod
+    def _pause_for_approval(mock_hook_cls, make_mock_run_result, context):
+        """Run the first attempt up to the approval pause, one request spent."""
+
+        def run_sync(prompt, **kwargs):
+            kwargs["usage"].incr(RunUsage(requests=1))
+            return make_mock_run_result("draft")
+
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.side_effect = run_sync
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        with pytest.raises(ApprovalPauseSignal):
+            TestLLMOperatorApproval._make_budget_operator().execute(context=context)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_approval_clears_the_usage_budget_kept_through_the_pause(
+        self,
+        mock_hook_cls,
+        mock_upsert,
+        make_mock_run_result,
+        task_state_store_accessor,
+        usage_budget_context,
+    ):
+        self._pause_for_approval(mock_hook_cls, make_mock_run_result, usage_budget_context)
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY)["usage"]["requests"] == 1
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
+
+        resumed = self._make_budget_operator().execute_complete(
+            usage_budget_context, generated_output="draft", event=event
+        )
+
+        assert resumed == "draft"
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY) is None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_rejection_keeps_the_usage_budget_for_the_retry(
+        self,
+        mock_hook_cls,
+        mock_upsert,
+        make_mock_run_result,
+        task_state_store_accessor,
+        usage_budget_context,
+    ):
+        self._pause_for_approval(mock_hook_cls, make_mock_run_result, usage_budget_context)
+        event = {"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}}
+
+        with pytest.raises(HITLRejectException):
+            self._make_budget_operator().execute_complete(
+                usage_budget_context, generated_output="draft", event=event
+            )
+
+        assert task_state_store_accessor.get(USAGE_BUDGET_KEY)["usage"]["requests"] == 1
 
     def test_execute_complete_with_error(self):
         """execute_complete raises HITLTriggerEventError on error event."""
