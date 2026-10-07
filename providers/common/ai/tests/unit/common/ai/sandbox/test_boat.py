@@ -420,7 +420,7 @@ class TestCreate:
         ],
     )
     @mock.patch.object(RESTClientObject, "request", autospec=True)
-    def test_a_cancelled_sandbox_is_read_through_the_real_client(self, request, operation, match):
+    def test_a_cancelled_sandbox_is_read_through_the_real_client(self, request, clock, operation, match):
         # Boat's cancelled body leaves out fields the SDK's Sandbox model requires, so only
         # a real client shows that the state is read without that model rejecting it.
         request.return_value = RESTResponse(_sandbox_info("cancelled"))
@@ -565,18 +565,24 @@ class TestRunCommand:
         assert result.applied_timeout == applied
 
     @pytest.mark.parametrize(
-        ("exit_code", "elapsed", "timed_out"),
+        ("exit_code", "elapsed", "oom_killed", "timed_out"),
         [
-            pytest.param(124, 10.2, True, id="sigterm_at_the_deadline"),
-            pytest.param(137, 15.1, True, id="sigkill_after_the_deadline"),
-            pytest.param(124, 0.5, False, id="124_from_the_command_itself"),
-            pytest.param(137, 0.5, False, id="killed_before_the_deadline"),
-            pytest.param(1, 12.0, False, id="other_exit"),
+            pytest.param(124, 10.2, None, True, id="sigterm_at_the_deadline"),
+            pytest.param(137, 15.1, None, True, id="sigkill_after_the_escalation"),
+            pytest.param(124, 0.5, None, False, id="124_from_the_command_itself"),
+            pytest.param(137, 0.5, None, False, id="killed_before_the_deadline"),
+            pytest.param(137, 12.0, None, False, id="137_before_timeout_could_escalate"),
+            pytest.param(137, 15.1, True, False, id="oom_kill_after_the_deadline"),
+            pytest.param(1, 12.0, None, False, id="other_exit"),
         ],
     )
-    def test_the_in_guest_deadline_keeps_the_sandbox_and_output(self, exit_code, elapsed, timed_out):
+    def test_the_in_guest_deadline_keeps_the_sandbox_and_output(
+        self, exit_code, elapsed, oom_killed, timed_out
+    ):
         backend, api = _backend_with_api()
-        api.command.return_value = _command_response(exit_code=exit_code, stdout="partial\n", stderr="err\n")
+        api.command.return_value = _command_response(
+            exit_code=exit_code, stdout="partial\n", stderr="err\n", oom_killed=oom_killed
+        )
 
         with mock.patch(_MONOTONIC, autospec=True, side_effect=[0.0, elapsed]):
             result = backend.run_command("bx_1", "sleep 99", timeout=10, max_output_bytes=1024)

@@ -296,8 +296,8 @@ Constructor parameters:
 
 .. warning::
 
-   ``no_env=False`` attaches your account's default Boat environment and lifts
-   that confinement: its secrets reach the sandbox without ``SandboxSpec.env``
+   ``no_env=False`` attaches your account's ``base`` Boat environment, which
+   boat-sdk names on every create, and lifts that confinement: its secrets reach the sandbox without ``SandboxSpec.env``
    naming them, and model-written code can act on your Boat account and its
    other sandboxes. Keep the default for an agent's sandbox.
 

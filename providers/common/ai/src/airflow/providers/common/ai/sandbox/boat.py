@@ -57,9 +57,6 @@ _MAX_COMMAND_TIMEOUT = 600
 # ends the call first, that output is lost and the sandbox has to be destroyed.
 _KILL_AFTER = 5
 _SERVER_TIMEOUT_GRACE = 10
-# What ``timeout`` exits with when it stopped the command: 124 after SIGTERM, 137 when
-# it had to escalate to SIGKILL.
-_IN_GUEST_TIMEOUT_EXITS = frozenset({124, 137})
 _MAX_ERROR_DETAIL = 300
 _READY_STATES = frozenset({"ready", "idle", "running"})
 _TERMINAL_STATES = frozenset({"archiving", "archived", "error", "cancelled"})
@@ -188,8 +185,8 @@ class BoatSandboxBackend(SandboxBackend):
     :param no_env: When ``True`` (default), create a no-env sandbox: none of the
         account's stored environment variables, secret files or credentials
         reach it, and it is confined so it cannot act on the account or its
-        other sandboxes. ``False`` attaches the account's default Boat
-        environment and lifts that confinement, so secrets ``SandboxSpec.env``
+        other sandboxes. ``False`` attaches the account's ``base`` Boat
+        environment, which boat-sdk names on every create, and lifts that confinement, so secrets ``SandboxSpec.env``
         never named reach model-written code, which can then act on the account.
     """
 
@@ -479,9 +476,14 @@ class BoatSandboxBackend(SandboxBackend):
             exit_code=exit_code,
             stdout=stdout,
             stderr=stderr,
-            # 124 and 137 are also ordinary exits (an OOM kill is 137), so only one at or
-            # past the deadline is timeout's.
-            timed_out=exit_code in _IN_GUEST_TIMEOUT_EXITS and elapsed >= timeout_seconds,
+            # timeout exits 124 after its SIGTERM and 137 once it escalates to SIGKILL,
+            # _KILL_AFTER later. Both are also ordinary exits, and an OOM kill is 137, so
+            # only one that late, and not one Boat reports as an OOM kill, is timeout's.
+            timed_out=not result.oom_killed
+            and (
+                (exit_code == 124 and elapsed >= timeout_seconds)
+                or (exit_code == 137 and elapsed >= timeout_seconds + _KILL_AFTER)
+            ),
             stdout_truncated=out_truncated,
             stderr_truncated=err_truncated,
             applied_timeout=float(timeout_seconds),
