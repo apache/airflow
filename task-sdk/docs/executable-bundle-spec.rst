@@ -165,10 +165,10 @@ Reader algorithm:
    triggers re-verification.
 7. Read ``metadata_len`` bytes from ``metadata_start`` for the manifest.
 8. Read the source files through the manifest's ``sources`` list. For each entry, check that
-   ``offset`` and ``length`` are non-negative integers and that ``offset + length <= source_len``,
-   read ``length`` bytes from ``source_start + offset``, and compare their SHA-256 to ``sha256``. A
-   duplicate ``path`` or a digest mismatch is an error. Without a ``sources`` key, no source is
-   embedded; the UI displays "(source not available)".
+   ``offset`` and ``length`` are non-negative integers and that ``offset + length <= source_len``.
+   To read a file, read ``length`` bytes from ``source_start + offset`` and compare their SHA-256 to
+   ``sha256``. A duplicate ``path`` or a digest mismatch is an error. Without a ``sources`` key, no
+   source is embedded; the UI displays "(source not available)".
 
    A Dag's source file is the ``dag_source_paths`` entry for its ``dag_id``. A Dag with no entry,
    such as one built dynamically, shows ``entrypoint_path``. A Dag owned by another language, such as

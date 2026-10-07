@@ -23,6 +23,7 @@ import pytest
 from task_sdk.coordinators.executable._bundle_test_utils import ENTRYPOINT_PATH, write_bundle
 
 from airflow.sdk.coordinators.executable._bundle_reader import (
+    _load_index,
     read_bundle_entrypoint_source,
     read_bundle_language,
     read_bundle_source,
@@ -42,8 +43,9 @@ TWO_FILES = {ENTRYPOINT_PATH: ORDERS, REPORTS_PATH: REPORTS}
 
 
 @pytest.fixture(autouse=True)
-def _clear_digest_cache():
+def _clear_caches():
     _digest_cache.clear()
+    _load_index.cache_clear()
 
 
 def _entry(source_path: str, content: bytes, offset: int = 0, **overrides) -> dict:
@@ -95,6 +97,28 @@ class TestReadBundleSource:
 
         assert read_bundle_entrypoint_source(bundle) == "// café\n"
 
+    def test_rereads_a_replaced_bundle(self, tmp_path):
+        path = tmp_path / "b"
+        write_bundle(path, "orders", sources={ENTRYPOINT_PATH: ORDERS})
+        assert read_bundle_entrypoint_source(path) == ORDERS.decode()
+
+        write_bundle(path, "orders", sources={ENTRYPOINT_PATH: REPORTS + b"// more\n"})
+
+        assert read_bundle_entrypoint_source(path) == (REPORTS + b"// more\n").decode()
+
+    def test_only_the_requested_source_is_hashed(self, tmp_path):
+        bundle = write_bundle(
+            tmp_path / "b",
+            "orders",
+            sources=TWO_FILES,
+            dag_source_paths={"orders": ENTRYPOINT_PATH, "reports": REPORTS_PATH},
+            source_region=ORDERS + bytes(len(REPORTS)),
+        )
+
+        assert read_bundle_entrypoint_source(bundle) == ORDERS.decode()
+        with pytest.raises(ValueError, match="SHA-256 mismatch"):
+            read_bundle_source(bundle, "reports")
+
 
 class TestReadBundleEntrypointSource:
     def test_returns_the_entrypoint_not_a_dag_file(self, tmp_path):
@@ -115,14 +139,24 @@ class TestReadBundleLanguage:
     def test_returns_none_without_one(self, tmp_path):
         assert read_bundle_language(write_bundle(tmp_path / "b", "orders", language=None)) is None
 
+    def test_returns_none_for_a_file_that_is_not_a_bundle(self, tmp_path):
+        path = tmp_path / "plain"
+        path.write_bytes(b"not a bundle")
+
+        assert read_bundle_language(path) is None
+
 
 class TestInvalidSources:
     def test_rejects_a_file_that_is_not_a_bundle(self, tmp_path):
         path = tmp_path / "plain"
         path.write_bytes(b"not a bundle")
 
-        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+        with pytest.raises(ValueError, match="has no bundle trailer"):
             read_bundle_entrypoint_source(path)
+
+    def test_rejects_a_missing_file(self, tmp_path):
+        with pytest.raises(ValueError, match="Cannot stat bundle file"):
+            read_bundle_entrypoint_source(tmp_path / "gone")
 
     def test_rejects_duplicate_paths(self, tmp_path):
         index = [_entry(ENTRYPOINT_PATH, MAIN), _entry(ENTRYPOINT_PATH, MAIN)]
@@ -153,20 +187,6 @@ class TestInvalidSources:
     def test_rejects_a_digest_mismatch(self, tmp_path):
         bundle = write_bundle(
             tmp_path / "b", "orders", index=[_entry(ENTRYPOINT_PATH, MAIN, sha256="0" * 64)]
-        )
-
-        with pytest.raises(ValueError, match="SHA-256 mismatch"):
-            read_bundle_entrypoint_source(bundle)
-
-    def test_rejects_a_digest_mismatch_in_a_file_that_is_not_read(self, tmp_path):
-        bundle = write_bundle(
-            tmp_path / "b",
-            "orders",
-            sources=TWO_FILES,
-            index=[
-                _entry(ENTRYPOINT_PATH, ORDERS),
-                _entry(REPORTS_PATH, REPORTS, len(ORDERS), sha256="0" * 64),
-            ],
         )
 
         with pytest.raises(ValueError, match="SHA-256 mismatch"):

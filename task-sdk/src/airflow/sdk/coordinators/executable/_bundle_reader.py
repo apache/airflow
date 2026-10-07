@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import pathlib
 import re
@@ -28,8 +29,8 @@ import attrs
 
 from airflow.sdk.coordinators._bundle_metadata import resolve_source_path
 from airflow.sdk.coordinators.executable.coordinator import (
-    _open_verified_bundle,
-    _read_bundle_metadata,
+    _VERIFY_CACHE_MAXSIZE,
+    _open_checked_bundle,
     _VerifiedBundle,
 )
 
@@ -44,6 +45,19 @@ class _SourceRegion:
     offset: int
     length: int
     sha256: str
+
+
+@attrs.define(frozen=True)
+class _BundleIndex:
+    """
+    A verified bundle's manifest and source index, shared by every read of the same file.
+
+    The mappings are shared between callers, so they MUST NOT be mutated.
+    """
+
+    metadata: dict[str, Any]
+    source_start: int
+    regions: dict[str, _SourceRegion] | None
 
 
 def read_bundle_source(bundle_path: pathlib.Path, dag_id: str | None = None) -> str | None:
@@ -73,24 +87,39 @@ def read_bundle_entrypoint_source(bundle_path: pathlib.Path) -> str | None:
 
 def read_bundle_language(bundle_path: pathlib.Path) -> str | None:
     """Return the ``sdk.language`` of the bundle's metadata, or ``None`` when it has none."""
-    sdk = (_read_bundle_metadata(bundle_path) or {}).get("sdk")
+    try:
+        sdk = _read_index(bundle_path).metadata.get("sdk")
+    except ValueError:
+        return None
     language = sdk.get("language") if isinstance(sdk, dict) else None
     return language if isinstance(language, str) and language else None
 
 
-def _read_source(bundle_path: pathlib.Path, dag_id: str | None) -> str | None:
-    with _open_verified_bundle(bundle_path) as bundle:
-        if bundle is None:
-            raise ValueError(f"{bundle_path} is not a valid executable bundle")
-        regions = _parse_source_regions(bundle)
-        if regions is None:
-            return None
-        payloads = _read_verified_payloads(bundle, bundle_path, regions)
+def _read_index(bundle_path: pathlib.Path) -> _BundleIndex:
+    try:
+        st = bundle_path.stat()
+    except OSError as exc:
+        raise ValueError(f"Cannot stat bundle file {bundle_path}: {exc}") from exc
+    return _load_index(str(bundle_path), st.st_ino, st.st_mtime_ns, st.st_size)
 
-    source_path = resolve_source_path(bundle.metadata, dag_id)
+
+@functools.lru_cache(maxsize=_VERIFY_CACHE_MAXSIZE)
+def _load_index(path: str, ino: int, mtime_ns: int, size: int) -> _BundleIndex:
+    # The file identity is part of the key, so a replaced bundle misses the cache and is read again.
+    with _open_checked_bundle(pathlib.Path(path)) as bundle:
+        return _BundleIndex(bundle.metadata, bundle.footer.source_start, _parse_source_regions(bundle))
+
+
+def _read_source(bundle_path: pathlib.Path, dag_id: str | None) -> str | None:
+    index = _read_index(bundle_path)
+    if index.regions is None:
+        return None
+    source_path = resolve_source_path(index.metadata, dag_id)
     if source_path is None:
         return None
-    return _decode_source(payloads[source_path], source_path)
+    return _decode_source(
+        _read_region(bundle_path, index.source_start, index.regions[source_path]), source_path
+    )
 
 
 def _parse_source_regions(bundle: _VerifiedBundle) -> dict[str, _SourceRegion] | None:
@@ -145,19 +174,18 @@ def _non_negative_int(value: Any, source_path: str, name: str) -> int:
     return value
 
 
-def _read_verified_payloads(
-    bundle: _VerifiedBundle, bundle_path: pathlib.Path, regions: dict[str, _SourceRegion]
-) -> dict[str, bytes]:
-    payloads: dict[str, bytes] = {}
-    for region in regions.values():
-        bundle.file.seek(bundle.footer.source_start + region.offset)
-        payload = bundle.file.read(region.length)
-        if len(payload) != region.length:
-            raise ValueError(f"{bundle_path.name} was truncated while reading source {region.path!r}")
-        if hashlib.sha256(payload).hexdigest() != region.sha256:
-            raise ValueError(f"{bundle_path.name} source {region.path!r} SHA-256 mismatch")
-        payloads[region.path] = payload
-    return payloads
+def _read_region(bundle_path: pathlib.Path, source_start: int, region: _SourceRegion) -> bytes:
+    try:
+        with open(bundle_path, "rb") as f:
+            f.seek(source_start + region.offset)
+            payload = f.read(region.length)
+    except OSError as exc:
+        raise ValueError(f"Cannot read source {region.path!r} of {bundle_path}: {exc}") from exc
+    if len(payload) != region.length:
+        raise ValueError(f"{bundle_path.name} was truncated while reading source {region.path!r}")
+    if hashlib.sha256(payload).hexdigest() != region.sha256:
+        raise ValueError(f"{bundle_path.name} source {region.path!r} SHA-256 mismatch")
+    return payload
 
 
 def _decode_source(payload: bytes, source_path: str) -> str:

@@ -20,11 +20,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 from task_sdk.coordinators.executable._bundle_test_utils import ENTRYPOINT_PATH, write_bundle
 
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
+from airflow.sdk.coordinators.executable._bundle_reader import _load_index, _open_checked_bundle
 from airflow.sdk.coordinators.executable._dag_importer import ExecutableDagImporter
 from airflow.sdk.coordinators.executable.coordinator import ExecutableCoordinator, _digest_cache
 from airflow.sdk.importers import (
@@ -50,6 +52,7 @@ COORDINATORS = {("sdk", "coordinators"): json.dumps({"go": {"classpath": EXECUTA
 @pytest.fixture(autouse=True)
 def _clean_state():
     _digest_cache.clear()
+    _load_index.cache_clear()
     reset_importer_registry()
     yield
     reset_importer_registry()
@@ -165,6 +168,16 @@ class TestGetSourceCode:
 
     def test_returns_the_entrypoint_for_an_unmapped_dag(self, importer, bundle):
         assert importer.get_source_code(bundle, "dynamic") == DagSourceCode(ORDERS.decode(), "go")
+
+    @mock.patch(
+        "airflow.sdk.coordinators.executable._bundle_reader._open_checked_bundle",
+        wraps=_open_checked_bundle,
+    )
+    def test_reads_the_bundle_index_once_for_many_dags(self, mock_open, importer, bundle):
+        for dag_id in ("orders", "reports", "dynamic"):
+            importer.get_source_code(bundle, dag_id)
+
+        mock_open.assert_called_once()
 
     def test_returns_a_notice_when_the_bundle_embeds_no_source(self, importer, tmp_path):
         path = write_bundle(tmp_path / "bundle", "orders", omit_sources=True)
