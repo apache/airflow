@@ -24,10 +24,13 @@ import logging
 import math
 import os
 import shlex
+import time
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.sandbox.base import (
+    _FILE_OP_OUTPUT_CAP,
+    _FILE_OP_TIMEOUT,
     SandboxBackend,
     SandboxError,
     SandboxExecResult,
@@ -47,9 +50,16 @@ log = logging.getLogger(__name__)
 
 _DEFAULT_BASE_URL = "https://boat.dev/api/v1"
 _MAX_COMMAND_TIMEOUT = 600
+# The deadline is enforced inside the guest by GNU ``timeout``, which sends SIGTERM and
+# then SIGKILL this many seconds later. Boat's own deadline sits _SERVER_TIMEOUT_GRACE
+# past that SIGKILL so the wrapper can still print what the command wrote: when Boat
+# ends the call first, that output is lost and the sandbox has to be destroyed.
+_KILL_AFTER = 5
+_SERVER_TIMEOUT_GRACE = 10
+# What ``timeout`` exits with when it stopped the command: 124 after SIGTERM, 137 when
+# it had to escalate to SIGKILL.
+_IN_GUEST_TIMEOUT_EXITS = frozenset({124, 137})
 _MAX_ERROR_DETAIL = 300
-_FILE_OP_TIMEOUT = 120.0
-_HELPER_OUTPUT_CAP = 1024 * 1024
 _READY_STATES = frozenset({"ready", "idle", "running"})
 _MACHINE_TYPES = frozenset({"small", "default", "large"})
 
@@ -328,7 +338,12 @@ class BoatSandboxBackend(SandboxBackend):
                 f"Boat commands are capped at {_MAX_COMMAND_TIMEOUT} seconds; got timeout={timeout}. "
                 "Ask for a shorter timeout."
             )
-        timeout_seconds = max(1, math.ceil(timeout))
+        # GNU timeout reads 0 as "no timeout", so round up; a command near the API cap is
+        # shortened so Boat's own deadline still fits above it.
+        timeout_seconds = min(
+            max(1, math.ceil(timeout)), _MAX_COMMAND_TIMEOUT - _KILL_AFTER - _SERVER_TIMEOUT_GRACE
+        )
+        server_timeout = timeout_seconds + _KILL_AFTER + _SERVER_TIMEOUT_GRACE
         api = self._get_api()
         env = self._sandbox_env.get(sandbox, {})
         if env:
@@ -336,22 +351,27 @@ class BoatSandboxBackend(SandboxBackend):
                 f"export {shlex.quote(key)}={shlex.quote(value)}" for key, value in env.items()
             )
             command = f"{exports}; {command}"
+        # wait's stderr is dropped because bash reports a SIGKILLed job there, quoting
+        # the whole command line, exports included.
         command = (
             "tmp_dir=$(mktemp -d); trap 'rm -rf \"$tmp_dir\"' EXIT; "
-            f'(\n{command}\n) >"$tmp_dir/stdout" 2>"$tmp_dir/stderr" & '
-            'command_pid=$!; wait "$command_pid"; command_status=$?; '
+            f"timeout --kill-after={_KILL_AFTER} {timeout_seconds} bash -c {shlex.quote(command)} "
+            '>"$tmp_dir/stdout" 2>"$tmp_dir/stderr" & '
+            'command_pid=$!; wait "$command_pid" 2>/dev/null; command_status=$?; '
             'cat "$tmp_dir/stdout"; cat "$tmp_dir/stderr" >&2; exit "$command_status"'
         )
+        started = time.monotonic()
         with _translate_boat_errors("run a sandbox command"):
             from boat_sdk.models.command_request import CommandRequest
             from boat_sdk.models.command_response import CommandResponse
 
             response = api.command(
                 sandbox,
-                CommandRequest(command=command, timeoutSeconds=timeout_seconds),
-                _request_timeout=self._http_timeout(timeout),
+                CommandRequest(command=command, timeoutSeconds=server_timeout),
+                _request_timeout=self._http_timeout(server_timeout),
             )
             result = response.actual_instance
+        elapsed = time.monotonic() - started
         # The endpoint answers with a oneOf whose other branch is a detached
         # command, which this backend never asks for.
         if not isinstance(result, CommandResponse):
@@ -368,6 +388,8 @@ class BoatSandboxBackend(SandboxBackend):
             already_truncated=bool(result.stderr_truncated),
         )
         if result.timed_out:
+            # Boat's deadline means the in-guest one did not stop the command, so it
+            # may still be running.
             self._destroy_after_timeout(sandbox)
             return SandboxExecResult(
                 exit_code=-1,
@@ -379,24 +401,18 @@ class BoatSandboxBackend(SandboxBackend):
                 sandbox_terminated=True,
                 applied_timeout=float(timeout_seconds),
             )
+        exit_code = result.exit_code if result.exit_code is not None else -1
         return SandboxExecResult(
-            exit_code=result.exit_code if result.exit_code is not None else -1,
+            exit_code=exit_code,
             stdout=stdout,
             stderr=stderr,
+            # 124 and 137 are also ordinary exits (an OOM kill is 137), so only one at or
+            # past the deadline is timeout's.
+            timed_out=exit_code in _IN_GUEST_TIMEOUT_EXITS and elapsed >= timeout_seconds,
             stdout_truncated=out_truncated,
             stderr_truncated=err_truncated,
             applied_timeout=float(timeout_seconds),
         )
-
-    def _run_helper(self, sandbox: str, script: str, *, operation: str) -> str:
-        result = self.run_command(
-            sandbox, script, timeout=_FILE_OP_TIMEOUT, max_output_bytes=_HELPER_OUTPUT_CAP
-        )
-        if result.timed_out or result.sandbox_terminated:
-            raise SandboxTerminalError(f"The sandbox was destroyed after it timed out while {operation}.")
-        if result.exit_code:
-            raise SandboxError(result.stderr.strip() or f"Could not {operation}.")
-        return result.stdout
 
     def _confirm_sandbox_exists(self, sandbox: str) -> None:
         with _translate_boat_errors("confirm that a sandbox still exists"):
@@ -407,11 +423,20 @@ class BoatSandboxBackend(SandboxBackend):
 
     def write_file(self, sandbox: str, path: str, content: bytes) -> None:
         quoted = shlex.quote(path)
-        self._run_helper(
+        result = self.run_command(
             sandbox,
             f'mkdir -p -- "$(dirname -- {quoted})"',
-            operation=f"create the parent directory for {path!r}",
+            timeout=_FILE_OP_TIMEOUT,
+            max_output_bytes=_FILE_OP_OUTPUT_CAP,
         )
+        if result.sandbox_terminated:
+            raise SandboxTerminalError(
+                f"The sandbox ended while the parent directory for {path!r} was being created."
+            )
+        if result.exit_code:
+            raise SandboxError(
+                result.stderr.strip() or f"Could not create the parent directory for {path!r}."
+            )
         api = self._get_api()
         try:
             from boat_sdk.models.file_write_request import FileWriteRequest
@@ -433,22 +458,6 @@ class BoatSandboxBackend(SandboxBackend):
                 raise SandboxError(f"Could not write {path!r} in the sandbox.") from e
             with _translate_boat_errors("write a sandbox file", recoverable_statuses=frozenset({400})):
                 raise
-
-    def list_directory(self, sandbox: str, path: str) -> list[tuple[str, bool]]:
-        quoted = shlex.quote(path)
-        listing = self._run_helper(
-            sandbox,
-            f"find -- {quoted} -maxdepth 1 -mindepth 1 -printf '%y %f\\0'",
-            operation=f"list {path!r}",
-        )
-        entries: list[tuple[str, bool]] = []
-        for record in listing.split("\0"):
-            if not record:
-                continue
-            kind, _, name = record.partition(" ")
-            if name:
-                entries.append((name, kind == "d"))
-        return entries
 
     def destroy(self, sandbox: str) -> None:
         """

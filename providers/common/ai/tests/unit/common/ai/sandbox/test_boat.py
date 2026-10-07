@@ -38,6 +38,8 @@ from airflow.providers.common.ai.sandbox.base import (
 )
 from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
 
+_MONOTONIC = "airflow.providers.common.ai.sandbox.boat.time.monotonic"
+
 
 def _api_error(status: int, body: str | None = None) -> ApiException:
     return ApiException(status=status, body=body)
@@ -298,6 +300,7 @@ class TestRunCommand:
             ("cat <<'EOF'\nheredoc-ok\nEOF", "heredoc-ok\n", "", 0),
             ("echo failure >&2; exit 3", "", "failure\n", 3),
             ('printf "%s" "$SPEC_MARKER"', "kept", "", 0),
+            ("sleep 20 & echo background-ok", "background-ok\n", "", 0),
         ],
     )
     def test_wrapper_preserves_shell_syntax_and_results(self, command, stdout, stderr, exit_code):
@@ -313,6 +316,31 @@ class TestRunCommand:
 
         assert (result.stdout, result.stderr, result.returncode) == (stdout, stderr, exit_code)
 
+    @pytest.mark.parametrize(
+        ("command", "exit_code"),
+        [
+            pytest.param("echo partial; echo err-partial >&2; sleep 30", 124, id="stopped_by_sigterm"),
+            pytest.param(
+                "trap '' TERM; echo partial; echo err-partial >&2; sleep 30",
+                137,
+                id="killed_after_ignoring_it",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.common.ai.sandbox.boat._KILL_AFTER", 1)
+    def test_wrapper_returns_what_a_command_printed_before_its_deadline(self, command, exit_code):
+        backend, api = _backend_with_api()
+        backend._sandbox_env["bx_1"] = {"SPEC_MARKER": "kept"}
+        api.command.return_value = _command_response()
+
+        backend.run_command("bx_1", command, timeout=1, max_output_bytes=1024)
+        wrapped = api.command.call_args.args[1].command
+        result = subprocess.run(
+            ["bash", "-c", wrapped], capture_output=True, text=True, timeout=10, check=False
+        )
+
+        assert (result.stdout, result.stderr, result.returncode) == ("partial\n", "err-partial\n", exit_code)
+
     def test_forwards_command_and_bounds_output(self):
         backend, api = _backend_with_api()
         api.command.return_value = _command_response(
@@ -322,11 +350,12 @@ class TestRunCommand:
         result = backend.run_command("bx_1", "echo hi", timeout=5, max_output_bytes=8)
 
         request = api.command.call_args.args[1]
-        assert "echo hi" in request.command
+        assert "timeout --kill-after=5 5 bash -c 'echo hi' " in request.command
         assert "mktemp -d" in request.command
         assert '>"$tmp_dir/stdout" 2>"$tmp_dir/stderr"' in request.command
         assert 'command_pid=$!; wait "$command_pid"' in request.command
-        assert request.timeout_seconds == 5
+        # Boat's own deadline sits past the in-guest SIGTERM and SIGKILL.
+        assert request.timeout_seconds == 5 + 5 + 10
         assert result.stdout == "0" * 8
         assert result.stdout_truncated
         assert result.stderr == "err"
@@ -361,25 +390,62 @@ class TestRunCommand:
         assert not isinstance(error.value, SandboxTerminalError)
         api.command.assert_not_called()
 
-    @pytest.mark.parametrize("timed_out", [False, True], ids=["finished", "timed_out"])
-    def test_the_whole_second_deadline_the_command_got_is_reported(self, timed_out):
+    @pytest.mark.parametrize(
+        ("timeout", "applied", "boat_timeout"),
+        [(2.2, 3.0, 18), (600, 585.0, 600)],
+        ids=["rounded_up", "shortened_under_the_api_cap"],
+    )
+    @pytest.mark.parametrize("timed_out", [False, True], ids=["finished", "boat_deadline"])
+    def test_the_deadline_the_command_got_is_reported(self, timed_out, timeout, applied, boat_timeout):
         backend, api = _backend_with_api()
         api.command.return_value = _command_response(exit_code=-1 if timed_out else 0, timed_out=timed_out)
 
         with mock.patch.object(backend, "destroy", autospec=True):
-            result = backend.run_command("bx_1", "true", timeout=2.2, max_output_bytes=1024)
+            result = backend.run_command("bx_1", "true", timeout=timeout, max_output_bytes=1024)
 
-        assert result.applied_timeout == 3.0
+        assert api.command.call_args.args[1].timeout_seconds == boat_timeout
+        assert result.applied_timeout == applied
 
-    def test_timeout_destroys_sandbox(self):
+    @pytest.mark.parametrize(
+        ("exit_code", "elapsed", "timed_out"),
+        [
+            pytest.param(124, 10.2, True, id="sigterm_at_the_deadline"),
+            pytest.param(137, 15.1, True, id="sigkill_after_the_deadline"),
+            pytest.param(124, 0.5, False, id="124_from_the_command_itself"),
+            pytest.param(137, 0.5, False, id="killed_before_the_deadline"),
+            pytest.param(1, 12.0, False, id="other_exit"),
+        ],
+    )
+    def test_the_in_guest_deadline_keeps_the_sandbox_and_output(self, exit_code, elapsed, timed_out):
         backend, api = _backend_with_api()
-        api.command.return_value = _command_response(exit_code=-1, timed_out=True, stdout="partial")
+        api.command.return_value = _command_response(exit_code=exit_code, stdout="partial\n", stderr="err\n")
+
+        with mock.patch(_MONOTONIC, side_effect=[0.0, elapsed]):
+            result = backend.run_command("bx_1", "sleep 99", timeout=10, max_output_bytes=1024)
+
+        assert result.timed_out is timed_out
+        assert result.exit_code == exit_code
+        assert (result.stdout, result.stderr) == ("partial\n", "err\n")
+        assert not result.sandbox_terminated
+        api.delete_sandbox.assert_not_called()
+
+    def test_boats_own_deadline_destroys_the_sandbox(self):
+        backend, api = _backend_with_api()
+        api.command.return_value = _command_response(exit_code=None, timed_out=True)
 
         result = backend.run_command("bx_1", "sleep 99", timeout=1, max_output_bytes=1024)
 
         assert result.timed_out
         assert result.sandbox_terminated
         api.delete_sandbox.assert_called_once_with("bx_1", "bx_1", _request_timeout=mock.ANY)
+
+    def test_boats_own_deadline_with_a_failed_delete_is_terminal(self):
+        backend, api = _backend_with_api()
+        api.command.return_value = _command_response(exit_code=None, timed_out=True)
+        api.delete_sandbox.side_effect = _api_error(500)
+
+        with pytest.raises(SandboxTerminalError, match="deletion of its sandbox could not be confirmed"):
+            backend.run_command("bx_1", "sleep 99", timeout=1, max_output_bytes=1024)
 
 
 class TestFiles:
@@ -414,6 +480,21 @@ class TestFiles:
         with pytest.raises(SandboxError, match="does not exist"):
             backend.read_file("bx_1", "/tmp/missing", max_bytes=10)
 
+    def test_a_read_stopped_at_its_deadline_is_recoverable(self):
+        # A FIFO passes the stat check and then blocks head -c until the deadline.
+        backend, api = _backend_with_api()
+        api.command.return_value = _command_response(exit_code=124)
+
+        with mock.patch(_MONOTONIC, side_effect=[0.0, 120.5]):
+            with pytest.raises(SandboxError) as raised:
+                backend.read_file("bx_1", "/tmp/fifo", max_bytes=10)
+
+        assert not isinstance(raised.value, SandboxTerminalError)
+        request = api.command.call_args.args[1]
+        assert "timeout --kill-after=5 120 bash -c " in request.command
+        assert request.timeout_seconds == 120 + 5 + 10
+        api.delete_sandbox.assert_not_called()
+
     def test_write_file_uses_base64_and_creates_parents(self):
         backend, api = _backend_with_api()
         api.command.return_value = _command_response()
@@ -438,6 +519,16 @@ class TestFiles:
 
         assert not isinstance(raised.value, SandboxTerminalError)
         api.write_file.assert_not_called()
+
+    def test_write_file_is_terminal_when_boats_deadline_ends_the_mkdir(self):
+        backend, api = _backend_with_api()
+        api.command.return_value = _command_response(exit_code=None, timed_out=True)
+
+        with pytest.raises(SandboxTerminalError, match="ended while the parent directory"):
+            backend.write_file("bx_1", "/tmp/dir/file.bin", b"x")
+
+        api.write_file.assert_not_called()
+        api.delete_sandbox.assert_called_once_with("bx_1", "bx_1", _request_timeout=mock.ANY)
 
     @pytest.mark.parametrize(
         ("error", "sandbox_gone", "expected", "match"),
