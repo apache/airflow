@@ -46,7 +46,6 @@ from airflow.providers.common.ai.sandbox.openshell import (
     _EXEC_GRACE,
     _NO_SETSID,
     _NO_SETSID_STATUS,
-    _READ_WRITE_PATHS,
     _RUN_WRAPPER,
     _STAGING_FAILED,
     _SYSTEM_PATH,
@@ -327,8 +326,17 @@ class TestCreate:
         assert dict(spec.template.resources)["limits"] == {"cpu": "2", "memory": "4Gi"}
         assert len(spec.policy.network_policies) == 0
         assert spec.policy.landlock.compatibility == "hard_requirement"
-        assert tuple(spec.policy.filesystem.read_write) == _READ_WRITE_PATHS
-        assert "/dev/shm" in spec.policy.filesystem.read_write
+        assert spec.policy.filesystem.include_workdir is True
+        assert list(spec.policy.filesystem.read_only) == [
+            "/bin",
+            "/usr",
+            "/lib",
+            "/proc",
+            "/dev/urandom",
+            "/etc",
+            "/var/log",
+        ]
+        assert list(spec.policy.filesystem.read_write) == ["/tmp", "/dev/null", "/dev/shm"]
         client.delete.assert_not_called()
 
     def test_none_spec_still_gets_an_explicit_deny_all_policy(self):
@@ -714,6 +722,7 @@ class TestRunCommand:
             backend.run_command("box", "cmd", timeout=5, max_output_bytes=100)
 
         assert isinstance(error.value, SandboxTerminalError) is terminal
+        assert client._stub.ExecSandbox.call_count == 1
 
     def test_egress_widened_before_the_command_is_terminal_and_nothing_runs(self):
         backend, client = _backend()
