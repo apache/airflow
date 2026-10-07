@@ -45,7 +45,7 @@ from kubernetes.client.rest import ApiException
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -275,9 +275,18 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
             AirflowKubernetesScheduler,
         )
-        from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
+        from airflow.providers.cncf.kubernetes.kube_client import _get_executor_kube_client
 
-        self.kube_client = get_kube_client()
+        if (
+            self.kube_config.async_pod_creation
+            and self.conf.get("kubernetes_executor", "client_factory", fallback=None)
+            and not self.conf.get("kubernetes_executor", "async_client_factory", fallback=None)
+        ):
+            raise AirflowConfigException(
+                "In the [kubernetes_executor] Airflow config, async_client_factory is required "
+                "when client_factory is set and async_pod_creation is enabled."
+            )
+        self.kube_client = _get_executor_kube_client(team_name=self.team_name)
         self.kube_scheduler = AirflowKubernetesScheduler(
             kube_config=self.kube_config,
             result_queue=self.result_queue,
@@ -1032,10 +1041,10 @@ class KubernetesExecutor(BaseExecutor):
         log_streams: list[RawLogStream] = []
 
         try:
-            from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
+            from airflow.providers.cncf.kubernetes.kube_client import _get_executor_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
-            client = get_kube_client()
+            client = _get_executor_kube_client(team_name=self.team_name)
 
             hostname_desc = f" {ti.hostname}" if ti.hostname else ""
             messages.append(f"Attempting to fetch logs from pod{hostname_desc} through kube API")
