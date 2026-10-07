@@ -875,6 +875,10 @@ _HAS_PROC_AND_SETSID = sys.platform.startswith("linux") and os.path.isdir("/proc
 class TestRunWrapper:
     """Run the guest wrapper under the local /bin/sh, the way the sandbox runs it."""
 
+    @pytest.fixture(autouse=True)
+    def _no_sleep(self):
+        """Keep the real time.sleep: the module's fixture patches it everywhere, not only in the backend."""
+
     @staticmethod
     def _run(command: str, seconds: int = 5, cap: int = 1000) -> subprocess.CompletedProcess[bytes]:
         return subprocess.run(
