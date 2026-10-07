@@ -643,3 +643,65 @@ def test_backslash_in_a_posix_file_name_survives_publish_and_validation(tmp_path
 
     assert recorded_path == "dags/weird\\name.py"
     assert validate_bundle_relative_path(recorded_path) == Path(recorded_path)
+
+
+def test_manifest_records_backend_file_version_ids(tmp_path):
+    source = tmp_path / "source"
+    _write_file(source, "dags/a.py", "print('a')")
+    _write_file(source, "dags/b.py", "print('b')")
+
+    manifest = _build_manifest(
+        bundle_name="manifest-s3",
+        root=source,
+        backend_type="s3",
+        file_version_ids={"dags/a.py": "3HL4kqtJlcpXroDTDmJ+rm", "dags/b.py": "nspShmM1rXMPGZ4qkCwTPw"},
+    )
+
+    assert [file_info["version_id"] for file_info in manifest["files"]] == [
+        "3HL4kqtJlcpXroDTDmJ+rm",
+        "nspShmM1rXMPGZ4qkCwTPw",
+    ]
+
+
+def test_manifest_omits_version_id_when_the_backend_supplies_none(tmp_path):
+    source = tmp_path / "source"
+    _write_file(source, "dags/example.py", "print('dag')")
+
+    manifest = _build_manifest(bundle_name="manifest-local", root=source, backend_type="local")
+
+    assert "version_id" not in manifest["files"][0]
+
+
+def test_bundle_version_ignores_backend_file_version_ids(tmp_path):
+    source = tmp_path / "source"
+    _write_file(source, "dags/example.py", "print('dag')")
+    kwargs = {"bundle_name": "manifest-s3", "root": source, "backend_type": "s3"}
+
+    without = _build_manifest(**kwargs)
+    first = _build_manifest(**kwargs, file_version_ids={"dags/example.py": "objver-one"})
+    second = _build_manifest(**kwargs, file_version_ids={"dags/example.py": "objver-two"})
+
+    assert without["version"] == first["version"] == second["version"]
+    assert first["files"][0]["version_id"] != second["files"][0]["version_id"]
+
+
+@pytest.mark.parametrize(
+    ("file_version_ids", "expected_message"),
+    [
+        ({}, "File version ids do not match"),
+        ({"other.py": "objver"}, "File version ids do not match"),
+        ({"dags/example.py": ""}, "File version id is invalid"),
+        ({"dags/example.py": 1}, "File version id is invalid"),
+    ],
+)
+def test_manifest_rejects_invalid_file_version_ids(tmp_path, file_version_ids, expected_message):
+    source = tmp_path / "source"
+    _write_file(source, "dags/example.py", "print('dag')")
+
+    with pytest.raises(BundleManifestError, match=expected_message):
+        _build_manifest(
+            bundle_name="manifest-s3",
+            root=source,
+            backend_type="s3",
+            file_version_ids=file_version_ids,
+        )

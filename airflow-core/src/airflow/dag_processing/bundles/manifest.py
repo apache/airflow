@@ -354,8 +354,17 @@ def build_bundle_version_manifest(
     backend_type: str,
     source_snapshot: BundleSourceSnapshot | None = None,
     precomputed_file_sha256: Mapping[str, str] | None = None,
+    file_version_ids: Mapping[str, str] | None = None,
 ) -> BundleVersionManifest:
-    """Build a deterministic content manifest for a materialized Dag bundle root."""
+    """
+    Build a deterministic content manifest for a materialized Dag bundle root.
+
+    ``file_version_ids`` records the backend's own identifier for each stored object, such
+    as an S3 ``VersionId``, so a consumer can fetch the exact object a release was built
+    from rather than whatever currently sits at the key. It is backend bookkeeping, not
+    content, so it stays out of ``compute_bundle_version`` -- republishing identical files
+    to a versioned bucket mints new object versions and must still yield one bundle version.
+    """
     source_snapshot = source_snapshot or collect_bundle_source_snapshot(root)
     root = _validate_bundle_root(root)
     if source_snapshot.root != root:
@@ -363,6 +372,8 @@ def build_bundle_version_manifest(
     expected_paths = {source_file.relative_path for source_file in source_snapshot.files}
     if precomputed_file_sha256 is not None and set(precomputed_file_sha256) != expected_paths:
         raise BundleManifestError("Precomputed file hashes do not match the bundle source snapshot")
+    if file_version_ids is not None and set(file_version_ids) != expected_paths:
+        raise BundleManifestError("File version ids do not match the bundle source snapshot")
 
     files: list[dict[str, Any]] = []
     total_size = 0
@@ -381,14 +392,18 @@ def build_bundle_version_manifest(
                     f"Precomputed file hash is invalid for {source_file.relative_path!r}"
                 )
         _ensure_source_file_unchanged(source_file)
-        files.append(
-            {
-                "path": source_file.relative_path,
-                "sha256": file_digest,
-                "size": source_file.size,
-                "executable": bool(source_file.mode & 0o111),
-            }
-        )
+        file_info = {
+            "path": source_file.relative_path,
+            "sha256": file_digest,
+            "size": source_file.size,
+            "executable": bool(source_file.mode & 0o111),
+        }
+        if file_version_ids is not None:
+            version_id = file_version_ids[source_file.relative_path]
+            if not isinstance(version_id, str) or not version_id:
+                raise BundleManifestError(f"File version id is invalid for {source_file.relative_path!r}")
+            file_info["version_id"] = version_id
+        files.append(file_info)
         total_size += source_file.size
 
     version = compute_bundle_version(files)
