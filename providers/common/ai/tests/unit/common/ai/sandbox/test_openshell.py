@@ -54,8 +54,9 @@ from airflow.providers.common.ai.sandbox.openshell import (
 
 _MODULE = "airflow.providers.common.ai.sandbox.openshell"
 _MONOTONIC_PATH = f"{_MODULE}.time.monotonic"
+_GATEWAY_DIR = "/home/airflow/.config/openshell/gateways/prod"
 # The temp file the SDK writes a refreshed OIDC token through, next to the registration.
-_TOKEN_TEMP_FILE = "/home/airflow/.config/openshell/gateways/prod/.oidc_token.k2x9w1qz.tmp"
+_TOKEN_TEMP_FILE = f"{_GATEWAY_DIR}/.oidc_token.k2x9w1qz.tmp"
 
 
 class _RpcError(grpc.RpcError):
@@ -261,6 +262,31 @@ class TestClient:
             backend.run_command("box", "true", timeout=5, max_output_bytes=100)
 
         client._stub.ExecSandbox.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(
+                PermissionError(errno.EACCES, "Permission denied", f"{_GATEWAY_DIR}/mtls/tls.key"),
+                id="an-unreadable-mtls-key",
+            ),
+            pytest.param(
+                PermissionError(errno.EACCES, "Permission denied", f"{_GATEWAY_DIR}/oidc_token.json"),
+                id="the-token-file-itself",
+            ),
+            pytest.param(OSError(errno.ENOSPC, "No space left on device"), id="no-file-named"),
+        ],
+    )
+    def test_other_os_errors_are_not_reported_as_a_read_only_registration(self, error):
+        backend, client = _backend()
+        client._stub.GetSandboxConfig.side_effect = error
+
+        with pytest.raises(SandboxTerminalError) as raised:
+            backend.run_command("box", "true", timeout=5, max_output_bytes=100)
+
+        assert str(raised.value) == (
+            f"OpenShell could not read the network policy of sandbox box ({type(error).__name__}: {error})."
+        )
 
 
 class TestSpecRefusals:
