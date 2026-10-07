@@ -311,7 +311,9 @@ key, and Boat answers with the sandbox the first request created rather than
 starting a second one. The retry gets what is left of ``ready_timeout`` plus
 ``request_timeout``, so provisioning takes at most their sum, and a sandbox the
 retry finds too late to become ready in time is deleted rather than left running
-until its TTL.
+until its TTL. If Boat is still creating that sandbox when ``ready_timeout`` runs
+out, the backend never receives its id, so it keeps a server-assigned name and
+runs until Boat stops it at ``ttl_seconds``.
 
 Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of your Boat
 account's stored environment variables, secret files or credentials, and cannot
