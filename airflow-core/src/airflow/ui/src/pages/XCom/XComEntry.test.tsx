@@ -34,7 +34,7 @@ const entryProps = { dagId: "test_dag", mapIndex: -1, runId: "test_run", taskId:
 // i18n resources are not loaded in unit tests, so translated text renders as its key.
 const errorTitle = "error.title";
 
-beforeAll(() => server.listen({ onUnhandledRequest: "bypass" }));
+beforeAll(() => server.listen({ onUnhandledFrame: "bypass" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -211,6 +211,6 @@ describe("XComEntry", () => {
 
     const dialog = await screen.findByRole("dialog", { name: errorTitle });
 
-    expect(within(dialog).getByTestId("error-alert")).toHaveTextContent("Network Error");
+    expect(within(dialog).getByTestId("error-alert")).toHaveTextContent(/network error/iu);
   });
 });

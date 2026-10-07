@@ -26,6 +26,7 @@ import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse, ReprocessBehavior } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
@@ -70,7 +71,7 @@ const getColumns = ({
   formatElapsed,
   onSelectBackfill,
   translate,
-}: ColumnProps): Array<ColumnDef<BackfillResponse>> => [
+}: ColumnProps): Array<ColumnDef<DataTableFeatures, BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
