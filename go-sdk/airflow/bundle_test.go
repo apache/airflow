@@ -412,3 +412,45 @@ func TestRegisterableRejectsForeignTypes(t *testing.T) {
 	assert.Contains(t, string(out), "foreignItem does not implement airflow.Registerable")
 	assert.Contains(t, string(out), "unexported method registerable")
 }
+
+func TestSerializeDagsKeepsTheOtherDagsWhenADagCannotBeSerialized(t *testing.T) {
+	b := Bundle()
+	etl := Dag("etl")
+	etl.Task(noop)
+	b.Register(etl)
+	// Register checks and expands every Dag it takes. A Dag that skipped Register therefore stands
+	// in for a Dag that the serializer fails on.
+	broken := Dag("broken")
+	b.dags.dags["broken"] = broken
+	b.dags.order = append(b.dags.order, broken)
+	reports := Dag("reports")
+	reports.Task(noop)
+	b.Register(reports)
+
+	serialized := coordinatorBundle{b}.SerializeDags("/bundles/go/etl", "etl")
+
+	require.Len(t, serialized, 3)
+	assert.Equal(t, bundle.SerializedDag{
+		DagID: "etl",
+		Data:  etl.serialize("/bundles/go/etl", "etl"),
+	}, serialized[0])
+	assert.Equal(t, "broken", serialized[1].DagID)
+	assert.Nil(t, serialized[1].Data)
+	assert.ErrorContains(t, serialized[1].Err, `Dag "broken" is not registered`)
+	assert.Equal(t, bundle.SerializedDag{
+		DagID: "reports",
+		Data:  reports.serialize("/bundles/go/etl", "etl"),
+	}, serialized[2])
+}
+
+func TestSerializeDagsLeavesOutADagThatRegisterRejected(t *testing.T) {
+	b := Bundle()
+	cyclic := Dag("cyclic")
+	extracted := orderedTask(t, cyclic, "extract")
+	loaded := orderedTask(t, cyclic, "load")
+	extracted.Before(loaded)
+	loaded.Before(extracted)
+	require.Panics(t, func() { b.Register(cyclic) })
+
+	assert.Empty(t, coordinatorBundle{b}.SerializeDags("/bundles/go/etl", "etl"))
+}

@@ -57,8 +57,10 @@ const (
 // The command-line flags of the executable decide what Serve does.
 // With --airflow-metadata it prints the bundle's manifest and returns, which is how
 // airflow-go-pack reads the Dag and task ids of the registered task handlers.
-// With --comm and --logs, which the Airflow supervisor passes, it runs one task over the
-// coordinator protocol.
+// Airflow starts the executable with --comm and --logs. With these flags, Serve speaks the
+// coordinator protocol. It either runs one task or answers the Dag processor's request to parse
+// the bundle. To answer a parse request, Serve sends the Dags from [Dag] that the bundle registered
+// and runs no task.
 //
 // main must exit with a non-zero status when Serve returns an error, because the exit status
 // is how the supervisor learns that the task failed:
@@ -141,7 +143,7 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 		}
 		return execution.DumpAirflowMetadata(stdout, &b.taskHandlers, format)
 	case modeCoordinator:
-		return execution.Serve(&b.taskHandlers, *commAddr, *logsAddr)
+		return execution.Serve(coordinatorBundle{b}, *commAddr, *logsAddr)
 	case modeCoordinatorUsageError:
 		return errCoordinatorFlagsRequired
 	}

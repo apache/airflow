@@ -15,8 +15,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Package bundle defines what the coordinator runtime needs from a bundle:
-// the tasks it looks up and runs, and the Dag and task ids it lists in the manifest.
+// Package bundle defines what the coordinator runtime needs from a bundle. The
+// runtime needs the tasks to look up and run, and the Dag and task ids to list
+// in the manifest. It also needs the serialized Dags to send in answer to a Dag
+// parse request.
 //
-// Package airflow builds both from the task handlers a bundle registers.
+// Package airflow builds the tasks, the ids, and the serialized Dags from the
+// task handlers and the Dags that a bundle registers.
 package bundle

@@ -23,6 +23,7 @@ import os
 import selectors
 import signal
 import time
+from collections import deque
 from contextlib import suppress
 from pathlib import Path
 from socket import socket
@@ -46,6 +47,7 @@ from airflow.dag_processing.processor import (
 )
 from airflow.exceptions import DeserializationError
 from airflow.models.pool import Pool
+from airflow.sdk._shared.secrets_masker import redact  # noqa: SDK001
 from airflow.sdk.coordinators._subprocess import _is_connection_from_pid, _start_server
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import CommsDecoder, ErrorResponse, _RequestFrame
@@ -74,6 +76,15 @@ _EXIT_GRACE_PERIOD = 5.0
 
 _IMPORT_TIMEOUT_SETTING = "[core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
 _PROCESSOR_TIMEOUT_SETTING = "[dag_processor] dag_file_processor_timeout"
+
+# When a runtime exits without a parse result, its import error shows the first and the last lines
+# that the runtime wrote to stderr. A Go panic and a Java exception print their message on the first
+# line, and a Python traceback prints its message on the last line. Each line is cut to a maximum
+# length. Node writes the whole source line that threw an error to stderr, and in a minified
+# JavaScript bundle one source line can hold the whole bundle.
+_STDERR_HEAD_LINES = 5
+_STDERR_TAIL_LINES = 15
+_STDERR_LINE_LENGTH = 1000
 
 
 # StartLangSDKRuntime and LangSDKRuntimeSchemaVersion pass only between the manager and its forked
@@ -155,6 +166,48 @@ def _start_runtime_entrypoint() -> None:
 _Channel = Literal["comm", "logs"]
 
 
+@attrs.define
+class _StderrExcerpt:
+    """Keeps the first and the last lines of the runtime's stderr for the import error."""
+
+    head: list[str] = attrs.field(factory=list)
+    tail: deque[str] = attrs.field(factory=functools.partial(deque, maxlen=_STDERR_TAIL_LINES))
+    omitted: int = 0
+
+    def add(self, line: bytes | bytearray) -> None:
+        # The masker finds a secret only when the whole secret is in the text, so mask the line before
+        # cutting it.
+        text = cast("str", redact(line.rstrip().decode("utf-8", errors="replace")))
+        # Postgres cannot store a NUL character in a text column.
+        text = text.replace("\x00", "\N{REPLACEMENT CHARACTER}")
+        if len(text) > _STDERR_LINE_LENGTH:
+            text = text[:_STDERR_LINE_LENGTH] + "\N{HORIZONTAL ELLIPSIS}"
+        if len(self.head) < _STDERR_HEAD_LINES:
+            self.head.append(text)
+            return
+        if len(self.tail) == _STDERR_TAIL_LINES:
+            self.omitted += 1
+        self.tail.append(text)
+
+    def render(self) -> str:
+        lines = "line" if self.omitted == 1 else "lines"
+        omitted = [f"... {self.omitted} {lines} omitted ..."] if self.omitted else []
+        # The runtime can ask the Dag processor to mask a secret after printing the secret. A secret
+        # can also span several lines.
+        return cast("str", redact("\n".join([*self.head, *omitted, *self.tail]).strip("\n")))
+
+
+def _record_lines(
+    lines: Generator[None, bytes | bytearray, None], excerpt: _StderrExcerpt
+) -> Generator[None, bytes | bytearray, None]:
+    """Pass each line on to *lines* and add the line to *excerpt*."""
+    next(lines)
+    while True:
+        line = yield
+        excerpt.add(line)
+        lines.send(line)
+
+
 @attrs.define(kw_only=True)
 class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
     """
@@ -177,6 +230,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
     _parsing_result_monotonic: float | None = attrs.field(default=None, init=False)
     _unverified_connections: list[tuple[socket, _Channel]] = attrs.field(factory=list, init=False)
     _group_killed: bool = attrs.field(default=False, init=False)
+    _stderr_excerpt: _StderrExcerpt = attrs.field(factory=_StderrExcerpt, init=False)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -394,6 +448,12 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             ),
         )
 
+    def _create_line_forwarder(
+        self, loggers: tuple[FilteringBoundLogger, ...], name: str, level: int
+    ) -> Generator[None, bytes | bytearray, None]:
+        lines = super()._create_line_forwarder(loggers, name, level)
+        return _record_lines(lines, self._stderr_excerpt) if name.endswith(".stderr") else lines
+
     def _set_import_error(self, message: str) -> None:
         self.parsing_result = DagFileParsingResult(
             fileloc=self._parse_request.file,
@@ -538,9 +598,10 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         if not super().is_ready:
             return False
         if self.parsing_result is None:
-            self._set_import_error(
-                f"The Lang-SDK runtime exited with code {self._exit_code} without a parse result"
-            )
+            message = f"The Lang-SDK runtime exited with code {self._exit_code} without a parse result"
+            if stderr := self._stderr_excerpt.render():
+                message += f". Its stderr output:\n{stderr}"
+            self._set_import_error(message)
         return True
 
     def _time_out(self, timeout: float, setting: str) -> None:

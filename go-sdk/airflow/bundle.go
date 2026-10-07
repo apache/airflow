@@ -193,10 +193,11 @@ func (m *taskHandlerMap) ListTaskHandlers() []bundle.TaskHandlerInfo {
 	return slices.Clone(m.order)
 }
 
-// dagMap holds the registered Dags by dag_id.
+// dagMap holds the registered Dags by dag_id and keeps the order in which they were registered.
 type dagMap struct {
-	mu   sync.Mutex
-	dags map[string]*DagRef
+	mu    sync.Mutex
+	dags  map[string]*DagRef
+	order []*DagRef
 }
 
 func (m *dagMap) add(dag *DagRef) {
@@ -211,6 +212,47 @@ func (m *dagMap) add(dag *DagRef) {
 		m.dags = make(map[string]*DagRef)
 	}
 	m.dags[dag.dagID] = dag
+	m.order = append(m.order, dag)
+}
+
+// serialize serializes the registered Dags in the order they were registered. If serializing a Dag
+// panics, the panic becomes the error of that Dag instead of ending the parse. The import error of
+// the parse then names the Dag.
+func (m *dagMap) serialize(fileloc, relativeFileloc string) []bundle.SerializedDag {
+	m.mu.Lock()
+	dags := slices.Clone(m.order)
+	m.mu.Unlock()
+
+	serialized := make([]bundle.SerializedDag, len(dags))
+	for i, dag := range dags {
+		serialized[i] = serializeRecovering(dag, fileloc, relativeFileloc)
+	}
+	return serialized
+}
+
+func serializeRecovering(dag *DagRef, fileloc, relativeFileloc string) (s bundle.SerializedDag) {
+	s.DagID = dag.dagID
+	defer func() {
+		if r := recover(); r != nil {
+			s.Data, s.Err = nil, fmt.Errorf("%v", r)
+		}
+	}()
+	s.Data = dag.serialize(fileloc, relativeFileloc)
+	return s
+}
+
+// coordinatorBundle is what Serve passes to execution.Serve. It holds the task handlers that a task
+// run looks up and the Dags that a Dag parse serializes.
+type coordinatorBundle struct{ b *BundleRef }
+
+var _ bundle.Registry = coordinatorBundle{}
+
+func (c coordinatorBundle) LookupTask(dagID, taskID string) (bundle.Task, bool) {
+	return c.b.taskHandlers.LookupTask(dagID, taskID)
+}
+
+func (c coordinatorBundle) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
+	return c.b.dags.serialize(fileloc, relativeFileloc)
 }
 
 func (m *dagMap) has(dagID string) bool {

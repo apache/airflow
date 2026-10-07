@@ -20,8 +20,11 @@
 // the Airflow supervisor (Python ExecutableCoordinator), the Serve method of
 // airflow.BundleRef dispatches here.
 //
-// The first inbound frame on the comm socket is a StartupDetails message
-// that drives multi-round task execution.
+// The first frame that the runtime reads on the comm socket decides what the
+// runtime does. After a StartupDetails message, the runtime runs a task over
+// several rounds of messages. After a DagFileParseRequest from the Dag
+// processor, the runtime runs no task. It answers with one DagFileParsingResult
+// that holds the Dags from airflow.Dag that the bundle registered.
 //
 // See go-sdk/adr/0003-coordinator-protocol-msgpack-ipc.md.
 package execution
@@ -52,17 +55,21 @@ const dialTimeout = 30 * time.Second
 // half-open connection (the supervisor gone without a clean close) could
 // otherwise wedge the runtime on a blocked write; the deadline turns that
 // into a fast failure -- and thus a non-zero exit -- instead of a hang.
+// terminalSendTimeout also bounds the write of a DagFileParsingResult.
 const terminalSendTimeout = 30 * time.Second
 
 // Serve runs the bundle binary in coordinator mode. It dials the supervisor's
 // comm and logs sockets, installs an slog handler that writes JSON-line
 // records to the logs connection, and dispatches on the first frame.
 //
-// Serve returns nil on a clean shutdown: the task ran and its terminal
-// TaskState/SucceedTask frame was delivered, and the caller should exit 0. A
-// non-nil error indicates a protocol-level failure (connection loss,
-// malformed frames, unknown first message type) that happens before or
-// instead of delivering a terminal frame.
+// Serve returns nil on a clean shutdown, and the caller should then exit 0. A
+// clean shutdown means one of two things. Either the task ran and its terminal
+// TaskState/SucceedTask frame was delivered, or the DagFileParsingResult was
+// delivered and the Dag processor acknowledged it. A non-nil error indicates a
+// protocol-level failure (connection loss, malformed frames, unknown first
+// message type). In a task run, the failure happens before or instead of the
+// delivery of a terminal frame. In a Dag parse, the failure happens before the
+// Dag processor acknowledges the DagFileParsingResult.
 //
 // Failure-signaling contract: the caller (main) must turn a non-nil error
 // into a non-zero process exit. The supervisor derives the task's final state
@@ -73,7 +80,7 @@ const terminalSendTimeout = 30 * time.Second
 // fails closed without needing to send a frame; the post-connect paths below
 // log the reason at Error first so it still reaches the supervisor's log
 // stream over the already-connected logs socket.
-func Serve(b bundle.Bundle, commAddr, logsAddr string) error {
+func Serve(b bundle.Registry, commAddr, logsAddr string) error {
 	if commAddr == "" {
 		return fmt.Errorf("missing --comm=host:port argument")
 	}
@@ -166,6 +173,29 @@ func Serve(b bundle.Bundle, commAddr, logsAddr string) error {
 			return fmt.Errorf("sending task result: %w", err)
 		}
 		logger.Debug("Task execution complete")
+
+	case *genmodels.DagFileParseRequest:
+		logger.Debug("Dag parsing mode", "file", msg.File)
+		result := parseDags(b, msg, logger)
+		// The Dag processor reads from a connection only after it checks that the connection
+		// belongs to this process. The Dag processor cannot make that check after this process
+		// exits. So a process that exits right after it sends the result often loses the logs of
+		// its parse. Waiting for the acknowledgement keeps this process running until the Dag
+		// processor has read the result. The wait also gives the Dag processor time to check the
+		// logs connection.
+		//
+		// The write has a deadline. The wait for the acknowledgement has no deadline. The Dag
+		// processor validates the Dags in the result before it sends the acknowledgement. A larger
+		// Dag takes longer to validate. So a deadline on the wait could expire while the
+		// validation is still running. Even without a deadline, the wait cannot hang. The Dag
+		// processor kills a runtime that keeps running too long after the Dag processor receives
+		// the parse result from that runtime.
+		_ = commConn.SetWriteDeadline(time.Now().Add(terminalSendTimeout))
+		if _, err := comm.Communicate(ctx, result); err != nil {
+			logger.Error("Failed to send the Dag parsing result", "error", err)
+			return fmt.Errorf("sending Dag parsing result: %w", err)
+		}
+		logger.Debug("Dag parsing complete", "dags", len(result.SerializedDags))
 
 	default:
 		logger.Error("Unexpected initial message type", "type", fmt.Sprintf("%T", body))
