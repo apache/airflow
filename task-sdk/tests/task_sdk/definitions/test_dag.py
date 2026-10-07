@@ -33,8 +33,10 @@ from airflow.sdk import (
     Param,
     PartitionedAtRuntime,
     TaskGroup,
+    TriggerRule,
     dag as dag_decorator,
     task,
+    task_group,
 )
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
@@ -961,6 +963,40 @@ def _make_two_cycles_dag():
     return dag
 
 
+def _make_setup_teardown_dag(*, work_in_group: bool):
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("cluster") as cluster:
+            create = DoNothingOperator(task_id="create")
+            delete = DoNothingOperator(task_id="delete")
+        work = DoNothingOperator(task_id="work", task_group=cluster if work_in_group else None)
+        create >> work >> delete.as_teardown(setups=create)
+    return dag
+
+
+def _make_group_with_bridge_inside_dag():
+    with DAG("dag", schedule=None) as dag:
+        with TaskGroup("group"):
+            a = DoNothingOperator(task_id="a")
+            b = DoNothingOperator(task_id="b")
+            a >> DoNothingOperator(task_id="bridge") >> b
+    return dag
+
+
+def _make_mapped_group_with_always_task_dag():
+    with DAG("dag", schedule=None) as dag:
+
+        @task(trigger_rule=TriggerRule.ALWAYS)
+        def work(value):
+            return value
+
+        @task_group
+        def group(value):
+            work(value)
+
+        group.expand(value=[1, 2, 3])
+    return dag
+
+
 class TestCycleTester:
     def test_cycle_empty(self):
         # test empty
@@ -1123,6 +1159,11 @@ class TestCycleTester:
                 "group1 and group2; outer.group1 and outer.group2",
                 id="root-and-nested-cycles",
             ),
+            pytest.param(
+                lambda: _make_setup_teardown_dag(work_in_group=False),
+                "cluster and work",
+                id="setup-teardown-around-outside-task",
+            ),
         ],
     )
     def test_task_group_cycle_warns(self, make_dag, expected_cycles):
@@ -1135,6 +1176,21 @@ class TestCycleTester:
         assert str(record[0].message).startswith(
             f"Dag 'dag': {expected_cycles} depend on each other in a cycle. "
         )
+
+    @pytest.mark.parametrize(
+        "make_dag",
+        [
+            pytest.param(_make_group_with_bridge_inside_dag, id="bridge-inside-group"),
+            pytest.param(lambda: _make_setup_teardown_dag(work_in_group=True), id="setup-teardown-in-group"),
+            pytest.param(_make_mapped_group_with_always_task_dag, id="mapped-group-with-always-task"),
+        ],
+    )
+    def test_acyclic_task_groups_do_not_warn(self, make_dag):
+        dag = make_dag()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", TaskGroupCycleDeprecationWarning)
+            dag.check_cycle()
 
 
 class TestDagGetItem:

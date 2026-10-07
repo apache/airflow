@@ -703,8 +703,11 @@ class TaskGroup(TaskGroupMixin, DAGNode):
     def _get_unit_upstream_ids(child: DAGNode) -> Collection[str]:
         if not isinstance(child, TaskGroup):
             return child._topological_upstream_ids
-        upstream_ids = set(child._topological_upstream_ids)
-        upstream_ids.update(edge_id for task in child for edge_id in task.upstream_task_ids)
+        # Not _topological_upstream_ids or iter(child): MappedTaskGroup.__iter__ raises for a
+        # trigger_rule="always" child, which would turn an acyclic Dag into an import error.
+        upstream_ids = set(child.upstream_task_ids)
+        upstream_ids.update(group_id for group_id in child.upstream_group_ids if group_id is not None)
+        upstream_ids.update(edge_id for task in child.iter_tasks() for edge_id in task.upstream_task_ids)
         return upstream_ids
 
     @staticmethod
