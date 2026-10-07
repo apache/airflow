@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import os
 from base64 import b64encode
 from pathlib import Path
@@ -76,13 +77,10 @@ class TestGetEksKubeClient:
     def test_bearer_prefix_resolves_through_kubernetes_client_36_auth_settings(self, mock_aws):
         configuration = _get_eks_kube_client().api_client.configuration
 
-        # kubernetes-client >= 36's generated auth_settings() resolves the token through this
-        # exact identifier/alias pair; only setting api_key_prefix["authorization"] leaves this
-        # call returning the raw token with no "Bearer " prefix, which the API server rejects.
-        assert (
-            configuration.get_api_key_with_prefix("BearerToken", alias="authorization")
-            == "Bearer k8s-aws-v1.token-1"
-        )
+        # kubernetes-client >= 36's auth_settings() resolves the token under "BearerToken" with an
+        # "authorization" alias; only setting api_key_prefix["authorization"] leaves the header
+        # as the raw token with no "Bearer " prefix, which the API server rejects.
+        assert configuration.auth_settings()["BearerToken"]["value"] == "Bearer k8s-aws-v1.token-1"
         os.unlink(configuration.ssl_ca_cert)
 
     @conf_vars({("aws_eks_executor", "cluster_name"): CLUSTER_NAME})
@@ -133,7 +131,10 @@ class TestGetEksAsyncKubeClient:
         configuration = core_v1.api_client.configuration
         assert configuration.host == CLUSTER_ENDPOINT
         mock_aws["fetch_token"].return_value = "k8s-aws-v1.token-2"
-        auth = await configuration.auth_settings()
+        auth = configuration.auth_settings()
+        # auth_settings() became a coroutine in kubernetes_asyncio 36.
+        if inspect.isawaitable(auth):
+            auth = await auth
         assert auth["BearerToken"]["value"] == "Bearer k8s-aws-v1.token-2"
         await core_v1.api_client.close()
 
