@@ -1621,7 +1621,7 @@
               "ratio": 0.5,
               "rows": 2
             },
-            "logical_date": "{{ ds }}",
+            "logical_date": "2026-09-30 00:00:00+00:00",
             "skip_when_already_exists": true,
             "task_id": "trigger_all",
             "task_type": "TriggerDagRunOperator",

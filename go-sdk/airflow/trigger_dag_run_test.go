@@ -35,7 +35,7 @@ func TestTriggerDagRunIsATask(t *testing.T) {
 		DagID:                 "downstream_etl",
 		RunID:                 "{{ run_id }}_downstream",
 		Conf:                  map[string]any{"source": "etl"},
-		LogicalDate:           "{{ ds }}",
+		LogicalDate:           time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC),
 		RunAfter:              time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC),
 		ResetDagRun:           true,
 		WaitForCompletion:     true,
@@ -156,6 +156,14 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 				DagID: "downstream_etl", RunAfter: time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC),
 			}),
 			want: "airflow.TriggerDagRunSpec.RunAfter is 10000-01-01T00:00:00Z in UTC; " +
+				"Airflow takes a time only from year 1 to year 9999",
+		},
+		{
+			name: "LogicalDate before year 1 in UTC",
+			trigger: TriggerDagRun(TriggerDagRunSpec{
+				DagID: "downstream_etl", LogicalDate: time.Date(0, 12, 31, 0, 0, 0, 0, time.UTC),
+			}),
+			want: "airflow.TriggerDagRunSpec.LogicalDate is 0000-12-31T00:00:00Z in UTC; " +
 				"Airflow takes a time only from year 1 to year 9999",
 		},
 		{

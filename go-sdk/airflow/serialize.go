@@ -330,6 +330,17 @@ func jsonNumber(value any) (float64, bool) {
 // to the microsecond. A Python datetime holds nothing finer than a microsecond.
 func encodeTime(t time.Time) float64 { return float64(t.UnixMicro()) / 1e6 }
 
+// pythonStr returns t as Python's str(datetime) writes it in UTC, such as
+// "2026-09-30 00:00:00+00:00". It writes the microseconds, six digits, only when they are not zero.
+func pythonStr(t time.Time) string {
+	t = t.UTC()
+	layout := "2006-01-02 15:04:05"
+	if t.Nanosecond()/1000 != 0 {
+		layout += ".000000"
+	}
+	return t.Format(layout) + "+00:00"
+}
+
 // checkTime returns an error for a time that a Python datetime cannot hold, which is a time whose
 // year in UTC is not from 1 to 9999. Airflow would reject a serialized Dag with such a time when it
 // loads the Dag. field names the field that holds t. The zero Time passes, because it means that
@@ -481,8 +492,12 @@ func writeTriggerDagRun(data map[string]any, spec TriggerDagRunSpec) {
 	}
 	// Python leaves out a template field that is None, but the default logical_date is NOTSET, a
 	// sentinel that lets TriggerDagRunOperator pick the logical date. Python writes the sentinel as
-	// the string NOTSET, and Airflow loads the string as it is.
-	data["logical_date"] = cmp.Or(spec.LogicalDate, "NOTSET")
+	// the string NOTSET, and Airflow loads the string as it is. Python writes a datetime in a
+	// template field as str(datetime), not as a {"__type": "datetime"} object.
+	data["logical_date"] = "NOTSET"
+	if !spec.LogicalDate.IsZero() {
+		data["logical_date"] = pythonStr(spec.LogicalDate)
+	}
 	if spec.Conf != nil {
 		data["conf"] = copyJSON(spec.Conf)
 	}
