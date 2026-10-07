@@ -112,7 +112,11 @@ No single layer is sufficient on its own. They work together.
        (``DESCRIBE``/``SHOW``) statements pass; INSERT, UPDATE, DELETE, DROP,
        and writes hidden behind ``EXPLAIN`` are rejected.
      - Does not prevent the agent from reading sensitive data that the
-       database user has SELECT access to.
+       database user has SELECT access to. Without ``allowed_tables`` the check is
+       statement-level only: a side-effecting function inside a SELECT
+       (``nextval``, ``pg_terminate_backend``, ``dblink_exec``) is not blocked. Use a
+       least-privilege role, or a read-only transaction where the database supports
+       one.
    * - **DataFusionToolset: read-only by default**
      - ``allow_writes=False`` (default) validates every SQL query through
        ``validate_sql()`` and rejects CREATE TABLE, CREATE VIEW, INSERT
