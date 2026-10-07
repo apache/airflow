@@ -204,9 +204,9 @@ class BoatSandboxBackend(SandboxBackend):
 
     :param boat_conn_id: Generic Airflow connection ID. Its ``password`` is the
         Boat API key and is required; its ``host``, when set, is the full API base
-        URL with its scheme, such as ``https://boat.dev/api/v1``. ``None`` (default) reads
-        ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL`` from the worker
-        environment instead.
+        URL with its scheme, such as ``https://boat.dev/api/v1``. ``None``
+        (default) reads ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL`` from the
+        worker environment instead.
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
         Default ``"default"``.
     :param ttl_seconds: Server-side TTL in seconds after which Boat stops the
@@ -288,9 +288,10 @@ class BoatSandboxBackend(SandboxBackend):
                         "or leave it empty for that default."
                     )
             # urllib3 would otherwise resend a request that stalled or failed up to three
-            # times, each with the call's whole timeout, so one call could outlast the
-            # deadline it was given. Unlike retries=False, this still follows redirects.
-            retries = Retry.DEFAULT.new(connect=0, read=0, other=0)
+            # times, each with the call's whole timeout, and sleep out a 413/429/503's
+            # Retry-After between sends, so one call could outlast the deadline it was given.
+            # Unlike retries=False, this still follows redirects.
+            retries = Retry.DEFAULT.new(connect=0, read=0, other=0, respect_retry_after_header=False)
             self._boat_api = BoatApi(
                 ApiClient(Configuration(host=base_url.rstrip("/"), access_token=api_key, retries=retries))
             )

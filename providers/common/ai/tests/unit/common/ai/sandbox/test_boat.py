@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import base64
 import builtins
+import http.server
 import json
 import os
 import socket
 import subprocess
+import threading
+import time
 from contextlib import suppress
 from types import SimpleNamespace
 from unittest import mock
@@ -250,6 +253,40 @@ def test_a_stalled_api_call_is_sent_once():
         connection.close()
 
     assert len(connections) == 1
+
+
+@pytest.mark.parametrize("status", [413, 429, 503])
+def test_a_retry_after_answer_is_not_slept_on_and_resent(status):
+    """A Retry-After answer comes back to the backend at once instead of being slept out and resent."""
+    hits = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(status)
+            self.send_header("Retry-After", "2")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    with http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        with mock.patch.dict(
+            "os.environ",
+            {"BOAT_API_KEY": "k", "BOAT_BASE_URL": f"http://127.0.0.1:{server.server_address[1]}"},
+            clear=False,
+        ):
+            backend = BoatSandboxBackend(request_timeout=5)
+            started = time.monotonic()
+            with pytest.raises(SandboxTerminalError):
+                backend._confirm_sandbox_exists("bx_1")
+            elapsed = time.monotonic() - started
+        server.shutdown()
+
+    assert len(hits) == 1
+    assert elapsed < 2
 
 
 class TestCredentials:

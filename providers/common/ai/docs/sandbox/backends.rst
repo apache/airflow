@@ -289,9 +289,9 @@ The connection ``password`` is the Boat API key and is required. ``host``, when
 set, is the full API base URL, such as ``https://boat.dev/api/v1``, which is also
 the default. It must start with ``https://`` or ``http://``: a bare domain such as
 ``boat.dev``, which is what Airflow's connection URI form leaves in ``host``, is
-refused, since the API key would otherwise be sent to it over plain HTTP. With ``boat_conn_id=None``, the default, the backend reads
-``BOAT_API_KEY`` (required) and optional ``BOAT_BASE_URL`` from the worker
-environment instead.
+refused, since the API key would otherwise be sent to it over plain HTTP. With
+``boat_conn_id=None``, the default, the backend reads ``BOAT_API_KEY`` (required)
+and optional ``BOAT_BASE_URL`` from the worker environment instead.
 
 Constructor parameters:
 
@@ -311,9 +311,10 @@ key, and Boat answers with the sandbox the first request created rather than
 starting a second one. The retry gets what is left of ``ready_timeout`` plus
 ``request_timeout``, so provisioning takes at most their sum, and a sandbox the
 retry finds too late to become ready in time is deleted rather than left running
-until its TTL. If Boat is still creating that sandbox when ``ready_timeout`` runs
-out, the backend never receives its id, so it keeps a server-assigned name and
-runs until Boat stops it at ``ttl_seconds``.
+until its TTL. If that retry fails too, or Boat is still creating the sandbox when
+``ready_timeout`` runs out, the backend never receives the sandbox's id, so any
+sandbox the first request started keeps a server-assigned name and runs until
+Boat stops it at ``ttl_seconds``.
 
 Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of your Boat
 account's stored environment variables, secret files or credentials, and cannot
