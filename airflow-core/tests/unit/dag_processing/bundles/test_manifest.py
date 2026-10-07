@@ -383,18 +383,36 @@ def test_ref_payload_is_compact_and_points_to_manifest(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("source_name", "source_factory", "expected_exception"),
+    ("source_name", "source_factory", "expected_message"),
     [
-        ("missing", lambda path: None, FileNotFoundError),
-        ("file", lambda path: path.write_text("not a directory"), NotADirectoryError),
+        ("missing", lambda path: None, "does not exist"),
+        ("file", lambda path: path.write_text("not a directory"), "is not a directory"),
     ],
 )
-def test_manifest_rejects_invalid_source_roots(tmp_path, source_name, source_factory, expected_exception):
+def test_manifest_rejects_invalid_source_roots(tmp_path, source_name, source_factory, expected_message):
     source = tmp_path / source_name
     source_factory(source)
 
-    with pytest.raises(expected_exception):
+    with pytest.raises(BundleManifestError, match=expected_message) as excinfo:
         collect_bundle_source_snapshot(source)
+
+    # A configured root that is wrong is a standing fault, never a concurrent edit.
+    assert type(excinfo.value) is BundleManifestError
+
+
+def test_manifest_rejects_an_unreadable_source_root(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    _write_file(source, "dags/example.py", "print('dag')")
+
+    def unreadable(self, *args, **kwargs):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(Path, "stat", unreadable)
+
+    with pytest.raises(BundleManifestError, match="is unreadable") as excinfo:
+        collect_bundle_source_snapshot(source)
+
+    assert type(excinfo.value) is BundleManifestError
 
 
 def test_manifest_rejects_snapshot_from_another_root(tmp_path):
@@ -705,3 +723,26 @@ def test_manifest_rejects_invalid_file_version_ids(tmp_path, file_version_ids, e
             backend_type="s3",
             file_version_ids=file_version_ids,
         )
+
+
+def test_manifest_rejects_bad_file_version_ids_before_reading_the_tree(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    for index in range(3):
+        _write_file(source, f"dags/f{index}.py", "print('dag')")
+    hashed: list[str] = []
+
+    def recording_sha256(path):
+        hashed.append(path.name)
+        raise AssertionError("invalid file version ids must be rejected before hashing")
+
+    monkeypatch.setattr(manifest_module, "compute_file_sha256", recording_sha256)
+
+    with pytest.raises(BundleManifestError, match="File version id is invalid for 'dags/f2.py'"):
+        _build_manifest(
+            bundle_name="manifest-s3",
+            root=source,
+            backend_type="s3",
+            file_version_ids={"dags/f0.py": "ok", "dags/f1.py": "ok", "dags/f2.py": ""},
+        )
+
+    assert hashed == []

@@ -21,7 +21,7 @@ import hashlib
 import json
 import os
 import stat
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, NoReturn
@@ -181,7 +181,7 @@ def compute_file_sha256(path: Path) -> tuple[str, int]:
     return digest.hexdigest(), size
 
 
-def compute_bundle_version(files: list[dict[str, Any]]) -> str:
+def compute_bundle_version(files: Sequence[dict[str, Any]]) -> str:
     """
     Compute the content-addressed bundle version from manifest file entries.
 
@@ -264,11 +264,18 @@ def serialize_bundle_version_manifest(manifest: dict[str, Any]) -> bytes:
 
 
 def _validate_bundle_root(root: Path) -> Path:
+    # Unlike a file vanishing mid-walk, a root we never saw is a configured path rather
+    # than a concurrent edit, so none of these are reported as a changed source: a typo
+    # in the configuration must not look like something worth quietly retrying.
     root = Path(root)
-    if not root.exists():
-        raise FileNotFoundError(f"Bundle source path does not exist: {root}")
-    if not root.is_dir():
-        raise NotADirectoryError(f"Bundle source path is not a directory: {root}")
+    try:
+        root_stat = root.stat()
+    except FileNotFoundError as e:
+        raise BundleManifestError(f"Bundle source path does not exist: {root}") from e
+    except OSError as e:
+        raise BundleManifestError(f"Bundle source path is unreadable: {root}") from e
+    if not stat.S_ISDIR(root_stat.st_mode):
+        raise BundleManifestError(f"Bundle source path is not a directory: {root}")
     return root
 
 
@@ -372,8 +379,12 @@ def build_bundle_version_manifest(
     expected_paths = {source_file.relative_path for source_file in source_snapshot.files}
     if precomputed_file_sha256 is not None and set(precomputed_file_sha256) != expected_paths:
         raise BundleManifestError("Precomputed file hashes do not match the bundle source snapshot")
-    if file_version_ids is not None and set(file_version_ids) != expected_paths:
-        raise BundleManifestError("File version ids do not match the bundle source snapshot")
+    if file_version_ids is not None:
+        if set(file_version_ids) != expected_paths:
+            raise BundleManifestError("File version ids do not match the bundle source snapshot")
+        for relative_path, version_id in sorted(file_version_ids.items()):
+            if not isinstance(version_id, str) or not version_id:
+                raise BundleManifestError(f"File version id is invalid for {relative_path!r}")
 
     files: list[dict[str, Any]] = []
     total_size = 0
@@ -399,10 +410,7 @@ def build_bundle_version_manifest(
             "executable": bool(source_file.mode & 0o111),
         }
         if file_version_ids is not None:
-            version_id = file_version_ids[source_file.relative_path]
-            if not isinstance(version_id, str) or not version_id:
-                raise BundleManifestError(f"File version id is invalid for {source_file.relative_path!r}")
-            file_info["version_id"] = version_id
+            file_info["version_id"] = file_version_ids[source_file.relative_path]
         files.append(file_info)
         total_size += source_file.size
 
