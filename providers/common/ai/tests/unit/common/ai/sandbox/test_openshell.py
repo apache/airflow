@@ -471,18 +471,56 @@ class TestRunCommand:
 
         assert result.timed_out is timed_out
 
-    def test_only_the_wrappers_own_staging_failure_is_an_error(self):
+    @pytest.mark.parametrize(
+        ("exit_code", "stderr"),
+        [
+            pytest.param(125, b"docker: invalid reference format\n", id="a-command-exiting-125"),
+            pytest.param(1, f"{_STAGING_FAILED}\n".encode(), id="the-staging-line-with-another-status"),
+        ],
+    )
+    def test_the_status_or_the_staging_line_alone_is_the_commands_own_result(self, exit_code, stderr):
         backend, client = _backend()
-        client._stub.ExecSandbox.side_effect = [
-            _result(125, err=b"docker: invalid reference format\n"),
-            _result(125, err=f"cat: write error: No space left on device\n{_STAGING_FAILED}\n".encode()),
-        ]
+        client._stub.ExecSandbox.return_value = _result(exit_code, err=stderr)
 
-        assert backend.run_command("box", "docker run x", timeout=5, max_output_bytes=100).exit_code == 125
-        with pytest.raises(SandboxError, match="No space left on device") as error:
-            backend.run_command("box", "make", timeout=5, max_output_bytes=100)
+        result = backend.run_command("box", "cmd", timeout=5, max_output_bytes=100)
 
+        assert (result.exit_code, result.stderr) == (exit_code, stderr.decode())
+
+    @pytest.mark.parametrize(
+        ("max_output_bytes", "message"),
+        [
+            pytest.param(
+                100,
+                "The command was not run: the sandbox could not write it to /tmp "
+                "(cat: write error: No space left on device).",
+                id="with-the-cause",
+            ),
+            pytest.param(
+                10,
+                "The command was not run: the sandbox could not write it to /tmp.",
+                id="under-a-cap-shorter-than-the-staging-line",
+            ),
+        ],
+    )
+    def test_the_wrappers_own_staging_failure_is_a_recoverable_error(self, max_output_bytes, message):
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _result(
+            125, err=f"cat: write error: No space left on device\n{_STAGING_FAILED}\n".encode()
+        )
+
+        with pytest.raises(SandboxError) as error:
+            backend.run_command("box", "make", timeout=5, max_output_bytes=max_output_bytes)
+
+        assert str(error.value) == message
         assert not isinstance(error.value, SandboxTerminalError)
+
+    def test_stderr_stays_capped_below_the_length_of_the_staging_line(self):
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _result(1, err=b"0123456789" * 3)
+
+        result = backend.run_command("box", "cmd", timeout=5, max_output_bytes=20)
+
+        assert (result.stderr, result.stderr_truncated) == ("0123456789" * 2, True)
 
     def test_each_stream_is_capped_and_flagged_on_its_own(self):
         backend, client = _backend()

@@ -112,6 +112,7 @@ _TIMEOUT_STATUS = 124
 # command can exit 125 itself, as docker run, env and nohup do on their own errors.
 _STAGING_STATUS = 125
 _STAGING_FAILED = "airflow-exec: could not stage the command in /tmp"
+_STAGING_LINE = f"{_STAGING_FAILED}\n".encode()
 _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Runs one command for run_command. OpenShell's own exec timeout returns a
@@ -266,25 +267,34 @@ def _is_hostname(value: object) -> bool:
 
 
 class _BoundedTail:
-    """The last ``max_bytes`` of a stream, and how many bytes the stream carried in total."""
+    """
+    The last ``max_bytes`` of a stream, and how many bytes the stream carried in total.
 
-    def __init__(self, max_bytes: int) -> None:
+    ``min_window`` keeps that many trailing bytes even under a smaller ``max_bytes``,
+    for :meth:`ends_with` only; the text and the truncation flag still follow ``max_bytes``.
+    """
+
+    def __init__(self, max_bytes: int, *, min_window: int = 0) -> None:
         self._max_bytes = max_bytes
+        self._window = max(max_bytes, min_window)
         self._data = bytearray()
         self.received = 0
 
     def add(self, chunk: bytes) -> None:
         self.received += len(chunk)
         self._data.extend(chunk)
-        if len(self._data) > self._max_bytes:
-            del self._data[: len(self._data) - self._max_bytes]
+        if len(self._data) > self._window:
+            del self._data[: len(self._data) - self._window]
 
     @property
     def truncated(self) -> bool:
         return self.received > self._max_bytes
 
+    def ends_with(self, suffix: bytes) -> bool:
+        return self._data.endswith(suffix)
+
     def get_text(self) -> str:
-        data = bytes(self._data)
+        data = bytes(self._data[max(0, len(self._data) - self._max_bytes) :])
         if self.truncated:
             # Drop the leading partial line so no fragment reads as a whole record, unless that
             # would throw away most of the window: one line longer than the cap has its newline
@@ -833,7 +843,7 @@ class OpenShellSandboxBackend(SandboxBackend):
             )
         self._check_egress(sandbox)
         stdout = _BoundedTail(int(max_output_bytes))
-        stderr = _BoundedTail(int(max_output_bytes))
+        stderr = _BoundedTail(int(max_output_bytes), min_window=len(_STAGING_LINE))
         try:
             outcome = self._exec_with_recovery(
                 sandbox,
@@ -846,11 +856,11 @@ class OpenShellSandboxBackend(SandboxBackend):
         except _ExecHung:
             return self._abandon_command(sandbox, stdout, stderr, seconds=seconds)
         self._check_egress(sandbox)
-        if outcome.exit_code == _STAGING_STATUS and _STAGING_FAILED in stderr.get_text():
+        if outcome.exit_code == _STAGING_STATUS and stderr.ends_with(_STAGING_LINE):
+            cause = stderr.get_text().rpartition(_STAGING_FAILED)[0].strip()
             raise SandboxError(
-                "The command was not run: the sandbox could not stage it in /tmp "
-                f"({stderr.get_text().strip()}). If /tmp is full, overwrite a large file there with "
-                "empty content using write_file, then run the command again."
+                "The command was not run: the sandbox could not write it to /tmp"
+                + (f" ({cause})." if cause else ".")
             )
         return SandboxExecResult(
             exit_code=outcome.exit_code,
