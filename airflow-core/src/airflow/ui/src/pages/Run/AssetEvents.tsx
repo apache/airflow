@@ -23,6 +23,7 @@ import { useDagRunServiceGetDagRun, useDagRunServiceGetUpstreamAssetEvents } fro
 import { AssetEvents as AssetEventsTable } from "src/components/Assets/AssetEvents";
 
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { canHaveUpstreamAssetEvents } from "src/utils/assetEvents";
 
 export const AssetEvents = () => {
   const { dagId = "", runId = "" } = useParams();
@@ -39,7 +40,7 @@ export const AssetEvents = () => {
   );
 
   const { data, isLoading } = useDagRunServiceGetUpstreamAssetEvents({ dagId, dagRunId: runId }, undefined, {
-    enabled: dagRun?.run_type === "asset_triggered",
+    enabled: dagRun !== undefined && canHaveUpstreamAssetEvents(dagRun),
     refetchInterval: () => isStatePending(dagRun?.state) && refetchInterval,
   });
 

@@ -26,6 +26,8 @@ import { useDagRunServiceGetDagRun } from "openapi/queries";
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
+import { DagRunTab } from "src/constants/tab";
+import { useDagRunTabs } from "src/hooks/useDagRunTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
@@ -42,7 +44,7 @@ export const Run = () => {
 
   const tabs = [
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
-    { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
+    { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: DagRunTab.AssetEvents },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
     { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
@@ -66,9 +68,11 @@ export const Run = () => {
     },
   );
 
+  const { tabs: displayTabs } = useDagRunTabs(dagRun, tabs);
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={tabs}>
+      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
       </DetailsLayout>
     </ReactFlowProvider>

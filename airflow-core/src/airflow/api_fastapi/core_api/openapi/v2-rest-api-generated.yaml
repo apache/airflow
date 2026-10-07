@@ -9880,7 +9880,16 @@ paths:
       tags:
       - Task
       summary: Get Task
-      description: Get simplified representation of a task.
+      description: 'Get simplified representation of a task.
+
+
+        Pass ``version_number`` (e.g. a task instance''s ``dag_version.version_number``)
+        to get the task
+
+        as defined in that Dag version. Without it the latest version is used. Returns
+        404 if that
+
+        version of the Dag does not exist.'
       operationId: get_task
       security:
       - OAuth2PasswordBearer: []
@@ -9897,6 +9906,14 @@ paths:
         required: true
         schema:
           title: Task Id
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       responses:
         '200':
           description: Successful Response
@@ -17476,6 +17493,12 @@ components:
           - type: boolean
           - type: 'null'
           title: Is Mapped
+        has_outlets:
+          type: boolean
+          title: Has Outlets
+          description: Whether the task declares any ``outlets``, i.e. whether running
+            it can produce asset events.
+          default: false
         extra_links:
           items:
             type: string
