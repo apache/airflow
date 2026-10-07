@@ -207,7 +207,7 @@ def _resolve_ti_callback_bundle_info(ti: TaskInstance) -> tuple[str, str | None,
     bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
     # A code-only update can advance the DagVersion's bundle while the run stays pinned.
     bundle_version = ti.dag_run.bundle_version
-    version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+    version_data = _resolve_version_data(ti.dag_run.created_dag_version, ti.dag_run.bundle_version)
     return bundle_name, bundle_version, version_data
 
 
@@ -3809,6 +3809,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
             .options(alias_loader)
+            .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(selectinload(TI.dag_version))
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)

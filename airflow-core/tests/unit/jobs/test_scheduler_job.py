@@ -10020,6 +10020,56 @@ class TestSchedulerJob:
         assert isinstance(request, request_type)
         assert request.bundle_version == expected_bv
 
+    @pytest.mark.parametrize("request_type", [TaskCallbackRequest, EmailRequest])
+    def test_external_kill_callback_version_data_follows_dag_run(self, dag_maker, session, request_type):
+        """
+        The callback must ship the manifest of the run's pinned Dag version, matching
+        bundle_version, even when the TI was moved to a newer Dag version mid-run.
+        """
+        with dag_maker(dag_id="ext_kill_version_data", fileloc="/test_path1/"):
+            EmptyOperator(
+                task_id="t1",
+                on_failure_callback=(lambda ctx: None) if request_type is TaskCallbackRequest else None,
+                email="test@example.com" if request_type is EmailRequest else None,
+                email_on_failure=True,
+            )
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        run_manifest = {"files": {"dags/my_dag.py": "v1-object-id"}}
+        run_dag_version = dr.created_dag_version
+        run_dag_version.bundle_version = "v1-sha"
+        run_dag_version.version_data = run_manifest
+        newer_dag_version = DagVersion(
+            dag_id=dr.dag_id,
+            version_number=run_dag_version.version_number + 1,
+            bundle_name=run_dag_version.bundle_name,
+            bundle_version="v2-sha",
+            version_data={"files": {"dags/my_dag.py": "v2-object-id"}},
+        )
+        session.add(newer_dag_version)
+        session.flush()
+        dr.bundle_version = "v1-sha"
+        ti = dr.get_task_instance(task_id="t1", session=session)
+        ti.dag_version_id = newer_dag_version.id
+        ti.state = State.QUEUED
+        session.merge(run_dag_version)
+        session.merge(dr)
+        session.merge(ti)
+        session.commit()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        executor.event_buffer[TaskInstanceUuid(ti.id)] = State.FAILED, None
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        self.job_runner.executor.callback_sink.send.assert_called_once()
+        request = self.job_runner.executor.callback_sink.send.call_args[0][0]
+        assert isinstance(request, request_type)
+        assert request.bundle_version == "v1-sha"
+        assert request.version_data == run_manifest
+
     @pytest.mark.parametrize("bundle_version", [None, "old-sha"])
     @time_machine.travel(DEFAULT_DATE, tick=False)
     def test_heartbeat_timeout_callback_bundle_version_follows_dag_run(
