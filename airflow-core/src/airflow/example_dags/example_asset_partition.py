@@ -91,7 +91,6 @@ with DAG(
     dag_id="clean_and_combine_player_stats",
     schedule=PartitionedAssetTimetable(
         assets=team_a_player_stats & team_b_player_stats & team_c_player_stats,
-        batch_asset_events=True,
         default_partition_mapper=StartOfHourMapper(),
     ),
     catchup=False,
@@ -135,7 +134,6 @@ with DAG(
     dag_id="player_odds_quality_check_wont_ever_to_trigger",
     schedule=PartitionedAssetTimetable(
         assets=(combined_player_stats & team_a_player_stats & Asset.ref(name="team_b_player_stats")),
-        batch_asset_events=True,
         partition_mapper_config={
             combined_player_stats: StartOfYearMapper(),  # incompatible on purpose
             team_a_player_stats: StartOfHourMapper(),
@@ -316,7 +314,6 @@ with DAG(
     dag_id="daily_team_a_rollup",
     schedule=PartitionedAssetTimetable(
         assets=team_a_player_stats,
-        batch_asset_events=True,
         default_partition_mapper=RollupMapper(
             upstream_mapper=StartOfDayMapper(),
             window=DayWindow(),
@@ -352,7 +349,6 @@ with DAG(
     dag_id="monthly_team_a_rollup",
     schedule=PartitionedAssetTimetable(
         assets=daily_team_a,
-        batch_asset_events=True,
         # The upstream (``daily_team_a``) emits day-formatted partition keys
         # (``%Y-%m-%d``), so the upstream mapper here must accept that format.
         default_partition_mapper=RollupMapper(
@@ -480,7 +476,6 @@ with DAG(
     dag_id="segment_region_stats_rollup",
     schedule=PartitionedAssetTimetable(
         assets=Asset.ref(name="multi_region_player_stats"),
-        batch_asset_events=True,
         default_partition_mapper=RollupMapper(
             upstream_mapper=FixedKeyMapper("all_regions"),
             window=SegmentWindow(["us", "eu", "apac"]),
@@ -519,7 +514,6 @@ with DAG(
     dag_id="segment_region_stats_early_rollup",
     schedule=PartitionedAssetTimetable(
         assets=Asset.ref(name="multi_region_player_stats"),
-        batch_asset_events=True,
         default_partition_mapper=RollupMapper(
             upstream_mapper=FixedKeyMapper("all_regions"),
             window=SegmentWindow(["us", "eu", "apac"]),

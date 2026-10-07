@@ -20,10 +20,16 @@ from __future__ import annotations
 import typing
 from collections.abc import Collection
 
+import attrs
+
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetBase
 from airflow.timetables.base import Timetable
-from airflow.timetables.simple import AssetTriggeredTimetable
+from airflow.timetables.simple import (
+    AssetTriggeredTimetable,
+    _coerce_asset_condition,
+    _get_default_batch_asset_events,
+)
 from airflow.utils.types import DagRunType
 
 if typing.TYPE_CHECKING:
@@ -39,22 +45,21 @@ def _validate_asset_time_schedule(*, timetable: Timetable, asset_condition: Seri
         raise AirflowTimetableInvalid("All elements in 'assets' must be assets")
 
 
+@attrs.define(eq=False, repr=False, kw_only=True, slots=False)
 class AssetOrTimeSchedule(AssetTriggeredTimetable):
     """Combine time-based scheduling with event-based scheduling."""
 
-    def __init__(
-        self,
-        *,
-        timetable: Timetable,
-        assets: Collection[SerializedAsset] | SerializedAssetBase,
-        batch_asset_events: bool | None = None,
-    ) -> None:
-        super().__init__(assets, batch_asset_events=batch_asset_events)
-        self.timetable = timetable
-        self.description = f"Triggered by assets or {timetable.description}"
-        self.periodic = timetable.periodic
-        self.can_be_scheduled = timetable.can_be_scheduled
-        self.active_runs_limit = timetable.active_runs_limit
+    asset_condition: SerializedAssetBase = attrs.field(alias="assets", converter=_coerce_asset_condition)
+    timetable: Timetable
+    batch_asset_events: bool = attrs.field(
+        default=attrs.Factory(_get_default_batch_asset_events, takes_self=True)
+    )
+
+    def __attrs_post_init__(self) -> None:
+        self.description = f"Triggered by assets or {self.timetable.description}"
+        self.periodic = self.timetable.periodic
+        self.can_be_scheduled = self.timetable.can_be_scheduled
+        self.active_runs_limit = self.timetable.active_runs_limit
 
     @classmethod
     def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:

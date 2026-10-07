@@ -292,9 +292,7 @@ Here's an example of a Dag using ``AssetOrTimeSchedule``:
 
     @dag(
         schedule=AssetOrTimeSchedule(
-            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"),
-            assets=(dag1_asset & dag2_asset),
-            batch_asset_events=True,
+            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), assets=(dag1_asset & dag2_asset)
         ),
         ...,
     )

@@ -1070,8 +1070,8 @@ class TestGetPendingPartitionedDagRun:
             return
         assert resp.status_code == 200
         body = resp.json()
-        assert body["id"] == (later_pdr.id if selection == "newest" else next_pdr.id)
-        assert body["total_received"] == (0 if selection == "newest" else 1)
+        assert body["id"] == (next_pdr.id if selection == "oldest" else later_pdr.id)
+        assert body["total_received"] == (1 if selection == "oldest" else 0)
 
     def test_non_rollup_many_to_one_received_capped_at_one(self, test_client, dag_maker, session):
         """

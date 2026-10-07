@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 import attrs
 
 from airflow.sdk.bases.timetable import BaseTimetable
-from airflow.sdk.definitions.asset import AssetAll, AssetBooleanCondition, BaseAsset
+from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.exceptions import AirflowTimetableInvalid
 
@@ -33,10 +33,13 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 
-def _get_default_batch_asset_events() -> bool:
+def _get_default_batch_asset_events(timetable: AssetTriggeredTimetable) -> bool:
     from airflow.sdk.configuration import conf
 
-    return conf.getboolean("scheduler", "batch_asset_events", fallback=False)
+    return (
+        conf.getboolean("scheduler", "batch_asset_events", fallback=False)
+        or timetable.get_batching_requirement() is not None
+    )
 
 
 @attrs.define
@@ -53,23 +56,14 @@ class AssetTriggeredTimetable(BaseTimetable):
 
     asset_triggered = True
     asset_condition: BaseAsset = attrs.field(alias="assets")
-    batch_asset_events: bool | None = attrs.field(default=None, kw_only=True)
-
-    def __attrs_post_init__(self) -> None:
-        if self.batch_asset_events is None:
-            self.batch_asset_events = (
-                _get_default_batch_asset_events() or self.get_batching_requirement() is not None
-            )
+    batch_asset_events: bool = attrs.field(
+        default=attrs.Factory(_get_default_batch_asset_events, takes_self=True), kw_only=True
+    )
 
     def get_batching_requirement(self) -> str | None:
         """Return why this timetable cannot run without event batching, or ``None``."""
-        pending = [self.asset_condition]
-        while pending:
-            condition = pending.pop()
-            if isinstance(condition, AssetAll) and len(condition.objects) > 1:
-                return "Asset AND conditions require batch_asset_events=True"
-            if isinstance(condition, AssetBooleanCondition):
-                pending.extend(condition.objects)
+        if self.asset_condition.requires_batching:
+            return "Asset AND conditions require batch_asset_events=True"
         return None
 
     def validate(self) -> None:
@@ -83,6 +77,11 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
     partition_mapper_config: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
     default_partition_mapper: PartitionMapper = IdentityMapper()
+
+    # The factory needs the partition mappers to be initialized first.
+    batch_asset_events: bool = attrs.field(
+        default=attrs.Factory(_get_default_batch_asset_events, takes_self=True), kw_only=True
+    )
 
     def get_batching_requirement(self) -> str | None:
         if any(
@@ -120,8 +119,11 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
     asset_condition: BaseAsset = attrs.field(alias="assets", converter=_coerce_assets)
     timetable: BaseTimetable
 
+    batch_asset_events: bool = attrs.field(
+        default=attrs.Factory(_get_default_batch_asset_events, takes_self=True), kw_only=True
+    )
+
     def __attrs_post_init__(self) -> None:
-        super().__attrs_post_init__()
         self.active_runs_limit = self.timetable.active_runs_limit
         self.can_be_scheduled = self.timetable.can_be_scheduled
 

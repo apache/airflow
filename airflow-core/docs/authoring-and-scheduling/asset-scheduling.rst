@@ -75,20 +75,18 @@ You can find a listing of the relationships between assets and Dags in the :ref:
 Multiple assets
 -----------------
 
-Dags can require multiple assets by combining them with ``&``; such Dags batch events by default.
-Airflow schedules a Dag after **all** assets the Dag consumes have been updated at least
-once since the last time the Dag ran:
+Because the ``schedule`` parameter is a list, Dags can require multiple assets. Airflow schedules a Dag after **all** assets
+the Dag consumes have been updated at least once since the last time the Dag ran:
 
 .. code-block:: python
 
-    from airflow.sdk import AssetTriggeredTimetable
-
     with DAG(
         dag_id="multiple_assets_example",
-        schedule=AssetTriggeredTimetable(
-            assets=example_asset_1 & example_asset_2 & example_asset_3,
-            batch_asset_events=True,
-        ),
+        schedule=[
+            example_asset_1,
+            example_asset_2,
+            example_asset_3,
+        ],
         ...,
     ):
         ...
@@ -239,11 +237,7 @@ When your DAG is triggered by multiple assets, you can iterate through them in y
 
 .. code-block:: python
 
-    with DAG(
-        dag_id="process_assets",
-        schedule=AssetTriggeredTimetable(assets=asset1 & asset2, batch_asset_events=True),
-        ...,
-    ):
+    with DAG(dag_id="process_assets", schedule=[asset1, asset2], ...):
         BashOperator(
             task_id="process",
             bash_command="""
@@ -311,7 +305,7 @@ These records are called *queued asset events*.
 
     with DAG(
         dag_id="waiting_for_asset_1_and_2",
-        schedule=AssetTriggeredTimetable(assets=Asset("asset-1") & Asset("asset-2"), batch_asset_events=True),
+        schedule=[Asset("asset-1"), Asset("asset-2")],
         ...,
     ):
         ...
@@ -362,8 +356,7 @@ Example Use
 
 **Scheduling based on multiple asset updates**
 
-To schedule a Dag to run only when two specific assets have both been updated, use the
-AND operator (``&``) with ``batch_asset_events=True``:
+To schedule a Dag to run only when two specific assets have both been updated, use the AND operator (``&``):
 
 .. code-block:: python
 
@@ -372,7 +365,7 @@ AND operator (``&``) with ``batch_asset_events=True``:
 
     with DAG(
         # Consume asset 1 and 2 with asset expressions
-        schedule=AssetTriggeredTimetable(assets=dag1_asset & dag2_asset, batch_asset_events=True),
+        schedule=(dag1_asset & dag2_asset),
         ...,
     ):
         ...
@@ -400,7 +393,7 @@ For scenarios requiring more intricate conditions, such as triggering a Dag when
 
     with DAG(
         # Consume asset 1 or both 2 and 3 with asset expressions
-        schedule=AssetTriggeredTimetable(assets=dag1_asset | (dag2_asset & dag3_asset), batch_asset_events=True),
+        schedule=(dag1_asset | (dag2_asset & dag3_asset)),
         ...,
     ):
         ...
@@ -495,14 +488,14 @@ remain queued for subsequent scheduler passes.
     ):
         ...
 
-To preserve a schedule that waits for two assets, opt into batching explicitly:
+To consume several queued updates to an asset in one run, enable batching:
 
 .. code-block:: python
 
     with DAG(
         dag_id="combined-consumer",
         schedule=AssetTriggeredTimetable(
-            assets=Asset("s3://bucket/orders") & Asset("s3://bucket/customers"),
+            assets=Asset("s3://bucket/orders"),
             batch_asset_events=True,
         ),
     ):

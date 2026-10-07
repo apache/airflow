@@ -55,6 +55,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_apdr,
@@ -632,19 +633,21 @@ class TestAssetManager:
         session.add_all([asset, dag])
         session.flush()
 
-        apdrs = [
-            AssetManager._get_or_create_apdr(
-                target_key="key-1",
-                target_partition_date=None,
-                target_dag=dag,
-                rollup_fingerprint={},
-                asset_id=asset.id,
-                allow_reuse=allow_reuse,
-                session=session,
-            )
-            for _ in range(2)
-        ]
+        with capture_orm_selects("asset_partition_dag_run") as lookups:
+            apdrs = [
+                AssetManager._get_or_create_apdr(
+                    target_key="key-1",
+                    target_partition_date=None,
+                    target_dag=dag,
+                    rollup_fingerprint={},
+                    asset_id=asset.id,
+                    allow_reuse=allow_reuse,
+                    session=session,
+                )
+                for _ in range(2)
+            ]
 
+        assert len(lookups) == (2 if allow_reuse else 0)
         expected_count = 1 if allow_reuse else 2
         assert len({apdr.id for apdr in apdrs}) == expected_count
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == expected_count

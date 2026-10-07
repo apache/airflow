@@ -142,3 +142,25 @@ def test_rollup_defaults_to_batching(use_default_mapper):
 def test_or_condition_can_disable_batching():
     timetable = AssetTriggeredTimetable(assets=Asset("a") | Asset("b"), batch_asset_events=False)
     timetable.validate()
+
+
+def test_asset_or_time_schedule_list_defaults_to_batching():
+    timetable = AssetOrTimeSchedule(assets=[Asset("a"), Asset("b")], timetable=NullTimetable())
+    assert timetable.batch_asset_events is True
+    timetable.validate()
+
+
+def test_custom_asset_condition_requires_batching():
+    class CustomAsset(Asset):
+        @property
+        def requires_batching(self):
+            return True
+
+    condition = Asset("a") | CustomAsset("b")
+    with conf_vars({("scheduler", "batch_asset_events"): "False"}):
+        timetable = AssetTriggeredTimetable(condition)
+    assert timetable.batch_asset_events is True
+    timetable.validate()
+
+    with pytest.raises(AirflowTimetableInvalid, match="batch_asset_events=True"):
+        AssetTriggeredTimetable(condition, batch_asset_events=False).validate()
