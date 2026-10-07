@@ -52,7 +52,6 @@
   },
   "close": "إغلاق",
   "configForm": {
-    "advancedOptions": "خيارات متقدمة",
     "configJson": "تكوين JSON",
     "invalidJson": "تنسيق JSON غير صالح: {{errorMessage}}"
   },

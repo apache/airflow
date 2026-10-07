@@ -52,7 +52,6 @@
   },
   "close": "닫기",
   "configForm": {
-    "advancedOptions": "고급 옵션",
     "configJson": "구성 JSON",
     "invalidJson": "잘못된 JSON 형식: {{errorMessage}}"
   },
