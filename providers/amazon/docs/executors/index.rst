@@ -26,4 +26,5 @@ Amazon Executors
 
     ECS Executor <ecs-executor>
     Batch Executor <batch-executor>
+    EKS Executor <eks-executor>
     Lambda Executor (experimental) <lambda-executor>
