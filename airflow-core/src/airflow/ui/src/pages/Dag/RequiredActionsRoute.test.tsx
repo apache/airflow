@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer, type SetupServer } from "msw/node";
@@ -38,7 +38,7 @@ beforeAll(() => {
       return HttpResponse.json({ hitl_details: [], total_entries: 0 });
     }),
   );
-  server.listen({ onUnhandledRequest: "bypass" });
+  server.listen({ onUnhandledFrame: "bypass" });
 });
 afterAll(() => server.close());
 

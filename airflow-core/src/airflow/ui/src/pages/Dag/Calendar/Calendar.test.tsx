@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import dayjs from "dayjs";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
