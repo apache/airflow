@@ -40,8 +40,8 @@ principal's client ID in ``login``, its client secret in ``password``, and
 permission to use the deployed app. Databricks Apps requires OAuth; personal
 access tokens are not supported. Supply the app's HTTPS base URL as ``app_url``.
 
-Invocation
-----------
+Invoke an agent
+---------------
 
 .. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_agent.py
     :language: python
@@ -61,41 +61,6 @@ The timeout limits the wait after submission; it does not cancel the remote run.
     :language: python
     :start-after: [START howto_operator_databricks_agent_invoke_deferrable]
     :end-before: [END howto_operator_databricks_agent_invoke_deferrable]
-
-System test agent
------------------
-
-The system test bundles a deterministic agent in
-``tests/system/databricks/resources/agent_server/``. It uses the real
-``DurableAgentServer`` and returns a fixed greeting, the received input and the
-session ID. It needs no model endpoint or external tools. The short delay in its
-handler exercises background invocation and polling.
-
-Upload the directory to your workspace and deploy it as a Databricks App:
-
-.. code-block:: bash
-
-    databricks workspace import-dir \
-        providers/databricks/tests/system/databricks/resources/agent_server \
-        /Workspace/Shared/airflow-system-tests/agent-server --profile YOUR_PROFILE
-    databricks apps create airflow-system-test-agent --profile YOUR_PROFILE
-    databricks apps deploy airflow-system-test-agent \
-        --source-code-path /Workspace/Shared/airflow-system-tests/agent-server \
-        --profile YOUR_PROFILE
-
-Configure ``DATABRICKS_AGENT_APP_URL`` with the app's URL and the
-``databricks_oauth`` connection as described above. Set
-``DATABRICKS_AGENT_CONN_ID`` to use a different connection ID. For ``Dag.test``,
-``DATABRICKS_AGENT_CONN_FILE`` can point to a local JSON connections file.
-The service principal must have workspace access and ``CAN_USE`` on the app.
-The system test invokes the app in both normal and deferrable mode and checks
-the returned output.
-It uses an existing app and does not create or delete the deployment itself.
-Delete the test app after use with ``databricks apps delete``.
-
-This minimal app uses the server's default in-process Runtime Store. Run it on
-one app instance; it does not test persistence or recovery across app restarts.
-For managed durable storage, deploy through the Agent Bricks CLI instead.
 
 Retries and results
 -------------------
