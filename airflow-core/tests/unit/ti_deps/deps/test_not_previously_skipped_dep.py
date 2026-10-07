@@ -439,7 +439,11 @@ def test_mapped_task_group_ignores_decision_of_other_run(session, dag_maker):
     """A skip decision recorded in one Dag run must not skip the same map index in another run."""
     dr, tis = _short_circuit_chain_in_mapped_group(dag_maker, session, "test_mapped_group_other_run_dag")
     _finish_with_skip_decisions(
-        dr, tis, "group.gate", {1: {XCOM_SKIPMIXIN_SKIPPED: ["group.a", "group.b", "group.c"]}}, session=session
+        dr,
+        tis,
+        "group.gate",
+        {1: {XCOM_SKIPMIXIN_SKIPPED: ["group.a", "group.b", "group.c"]}},
+        session=session,
     )
     other_dr = dag_maker.create_dagrun(
         run_id="other_run",
