@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { createModelApi } from "src/model-api";
 import type { UsageInfo } from "src/types/model";
@@ -27,7 +27,11 @@ interface UseModelInfoReturn {
   usage: UsageInfo | null;
   loading: boolean;
   error: string | null;
-  refetch: () => Promise<void>;
+}
+
+function describeFailure(result: PromiseSettledResult<unknown>): string | null {
+  if (result.status === "fulfilled") return null;
+  return result.reason instanceof Error ? result.reason.message : String(result.reason);
 }
 
 export function useModelInfo(
@@ -40,28 +44,24 @@ export function useModelInfo(
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const apiRef = useRef(createModelApi(dagId, runId, taskId, mapIndex));
 
+  // Built fresh on every call (not memoized via a ref) so a switch to another task or map
+  // index -- which changes these props without remounting the panel -- is reflected here too.
   const fetchInfo = useCallback(async () => {
     setLoading(true);
-    try {
-      const [name, usageData] = await Promise.all([
-        apiRef.current.fetchModelName(),
-        apiRef.current.fetchUsage(),
-      ]);
-      setModelName(name);
-      setUsage(usageData);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    const api = createModelApi(dagId, runId, taskId, mapIndex);
+    // allSettled, not all: one XCom missing or erroring must not hide a model name or usage
+    // the other call did resolve.
+    const [nameResult, usageResult] = await Promise.allSettled([api.fetchModelName(), api.fetchUsage()]);
+    setModelName(nameResult.status === "fulfilled" ? nameResult.value : null);
+    setUsage(usageResult.status === "fulfilled" ? usageResult.value : null);
+    setError(describeFailure(nameResult) ?? describeFailure(usageResult));
+    setLoading(false);
+  }, [dagId, runId, taskId, mapIndex]);
 
   useEffect(() => {
     void fetchInfo();
   }, [fetchInfo]);
 
-  return { modelName, usage, loading, error, refetch: fetchInfo };
+  return { modelName, usage, loading, error };
 }

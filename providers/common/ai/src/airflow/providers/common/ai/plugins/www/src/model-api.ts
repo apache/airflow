@@ -52,8 +52,11 @@ async function fetchXComValue<T>(
   if (res.status === 404) return null;
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const detail = (body as { detail?: string }).detail;
-    throw new Error(detail ?? res.statusText);
+    const detail = (body as { detail?: unknown }).detail;
+    // `statusText` is always empty over HTTP/2, and a 422's `detail` is an array of
+    // validation errors (which would print as "[object Object]") rather than a string --
+    // fall back to the status code so the error is never a blank or useless message.
+    throw new Error(typeof detail === "string" && detail.length > 0 ? detail : `HTTP ${res.status}`);
   }
   const data = (await res.json()) as { value: T };
   return data.value;

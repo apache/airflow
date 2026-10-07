@@ -22,7 +22,6 @@ import type { FC } from "react";
 
 import { ModelPanel } from "src/components/ModelPanel";
 import { NoModelInfo } from "src/components/NoModelInfo";
-import { Toaster } from "src/toaster";
 
 import { localSystem } from "./theme";
 
@@ -67,7 +66,6 @@ const WrappedPluginComponent: FC<PluginComponentProps> = (props) => {
       <Box height="100%" minHeight={0}>
         <PluginComponent {...props} />
       </Box>
-      <Toaster />
     </ChakraProvider>
   );
 };

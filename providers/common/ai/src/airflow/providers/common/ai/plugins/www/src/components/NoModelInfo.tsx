@@ -45,8 +45,9 @@ export const NoModelInfo: FC<NoModelInfoProps> = ({ error }) => {
         <Text color="fg.muted" fontSize="sm" lineHeight="tall">
           {error ?? (
             <>
-              This task did not publish a <Code fontSize="xs">model_name</Code> or{" "}
-              <Code fontSize="xs">usage</Code> XCom. The Model tab shows data for tasks run with{" "}
+              This task hasn't published a <Code fontSize="xs">model_name</Code> or{" "}
+              <Code fontSize="xs">usage</Code> XCom yet -- if it's still running, check back after
+              it finishes. The Model tab shows data for tasks run with{" "}
               <Code fontSize="xs">LLMOperator</Code> or <Code fontSize="xs">AgentOperator</Code>.
             </>
           )}

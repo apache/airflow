@@ -37,7 +37,6 @@ from airflow.models.xcom import XComModel
 from airflow.providers.common.ai.plugins.hitl_review import (
     HITLReviewPlugin,
     _build_session_response,
-    _get_base_url_path,
     _get_map_index,
     _is_task_completed,
     _read_xcom,
@@ -613,16 +612,6 @@ class TestWriteXcom:
         )
         assert result == expected
         _clear_db()
-
-
-class TestGetBaseUrlPath:
-    def test_default_base_url(self):
-        with conf_vars({("api", "base_url"): "/"}):
-            assert _get_base_url_path("/hitl-review") == "/hitl-review"
-
-    def test_http_base_url_extracts_path(self):
-        with conf_vars({("api", "base_url"): "http://example.com/airflow/"}):
-            assert _get_base_url_path("/hitl-review") == "/airflow/hitl-review"
 
 
 class TestIsTaskCompleted:

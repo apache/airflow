@@ -40,9 +40,14 @@ const COST_TOOLTIP =
   "billing -- best-effort, and may be stale or unavailable for some models/providers.";
 
 // The XCom keeps full precision (see utils/logging.py's format_usage_for_xcom) so a very
-// cheap run doesn't look free in the logs; round to cents here for a readable display.
-function formatCost(cost: string | null): string {
-  return cost === null ? "—" : `$${Number(cost).toFixed(2)}`;
+// cheap run doesn't look free in the logs; round to cents here for a readable display. A
+// non-zero sub-cent cost is called out explicitly rather than rounded down to "$0.00",
+// which would read as free.
+function formatCost(cost: string | null | undefined): string {
+  if (cost === null || cost === undefined) return "—";
+  const value = Number(cost);
+  if (value > 0 && value < 0.01) return "< $0.01";
+  return `$${value.toFixed(2)}`;
 }
 
 const StatBox: FC<{ label: string; tooltip?: ReactNode; value: number | string }> = ({

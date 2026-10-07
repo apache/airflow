@@ -89,6 +89,14 @@ How it works
   ADK agent run inside ``agent_framework_tracing`` (see below). The other LLM
   operators still emit GenAI spans correlated to the task span by nesting, but
   without the identity attributes or the run join key.
+* **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
+  task-instance page showing the resolved model name and the ``usage`` XCom above as a
+  readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on
+  the ``applies_to`` operator scoping core added in that version to show up only for
+  ``LLMOperator`` / ``AgentOperator`` runs (and their ``@task.llm`` / ``@task.agent``
+  decorator forms) -- the match is on the exact operator name, so a subclass of either does
+  not get the tab automatically. Like the span-level cost above, the tab's number is a
+  best-effort ``genai-prices`` estimate, not provider-reported billing.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).
