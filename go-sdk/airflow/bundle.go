@@ -19,6 +19,8 @@ package airflow
 
 import (
 	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -193,10 +195,11 @@ func (m *taskHandlerMap) ListTaskHandlers() []bundle.TaskHandlerInfo {
 	return slices.Clone(m.order)
 }
 
-// dagMap holds the registered Dags by dag_id.
+// dagMap holds the registered Dags by dag_id, in registration order.
 type dagMap struct {
-	mu   sync.Mutex
-	dags map[string]*DagRef
+	mu    sync.Mutex
+	dags  map[string]*DagRef
+	order []*DagRef
 }
 
 func (m *dagMap) add(dag *DagRef) {
@@ -211,6 +214,7 @@ func (m *dagMap) add(dag *DagRef) {
 		m.dags = make(map[string]*DagRef)
 	}
 	m.dags[dag.dagID] = dag
+	m.order = append(m.order, dag)
 }
 
 func (m *dagMap) has(dagID string) bool {
@@ -219,4 +223,49 @@ func (m *dagMap) has(dagID string) bool {
 
 	_, exists := m.dags[dagID]
 	return exists
+}
+
+// serialize serializes the Dags in registration order. If a Dag panics, the panic becomes that
+// Dag's Err.
+func (m *dagMap) serialize(fileloc, relativeFileloc string) []bundle.SerializedDag {
+	m.mu.Lock()
+	dags := slices.Clone(m.order)
+	m.mu.Unlock()
+
+	serialized := make([]bundle.SerializedDag, len(dags))
+	for i, dag := range dags {
+		serialized[i] = serializeRecovering(dag, fileloc, relativeFileloc)
+	}
+	return serialized
+}
+
+func serializeRecovering(dag *DagRef, fileloc, relativeFileloc string) (s bundle.SerializedDag) {
+	s.DagID = dag.dagID
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error(
+				"Dag serialization panicked",
+				"dag_id", dag.dagID, "panic", r, "stack", string(debug.Stack()),
+			)
+			s.Data, s.Err = nil, fmt.Errorf("%v", r)
+		}
+	}()
+	s.Data = dag.serialize(fileloc, relativeFileloc)
+	return s
+}
+
+// coordinatorSource is what Serve hands to execution.Serve: the task handlers and the Dags of one
+// bundle.
+type coordinatorSource struct {
+	*taskHandlerMap
+	dags *dagMap
+}
+
+var (
+	_ bundle.Bundle        = coordinatorSource{}
+	_ bundle.DagSerializer = coordinatorSource{}
+)
+
+func (s coordinatorSource) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
+	return s.dags.serialize(fileloc, relativeFileloc)
 }

@@ -49,16 +49,18 @@ import {
   asMsgFromSupervisor,
   SUPERVISOR_API_VERSION,
   type RuntimeDagFileParsingResult,
+  type RuntimeDeferTask,
   type RuntimeRetryTask,
   type RuntimeSucceedTask,
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
 import { getArgNames } from "../sdk/arg-names.js";
-import { bundleDags, bundleDagTaskIds, type Bundle } from "../sdk/bundle.js";
+import { bundleDags, bundleDagTaskIds, getBundleTrigger, type Bundle } from "../sdk/bundle.js";
 import { finalizeDag } from "../sdk/dag.js";
 import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
 import { computeRelativeFileloc, serializeDag } from "./serde.js";
+import { runTriggerDagRun } from "./trigger-runner.js";
 import { runInTaskScope, type TaskContext } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
@@ -195,6 +197,8 @@ export async function startCoordinator(
       await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
       if (response.type === "SucceedTask") {
         runtimeLogs.info("Task succeeded", { task_id: body.ti.task_id });
+      } else if (response.type === "DeferTask") {
+        runtimeLogs.info("Task deferred", { task_id: body.ti.task_id });
       }
     } else {
       const errMsg = `First frame must be DagFileParseRequest or StartupDetails, got ${body.type}`;
@@ -338,8 +342,22 @@ async function handleTask(
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
-): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
+): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState | RuntimeDeferTask> {
   const ti = details.ti;
+  const trigger = getBundleTrigger(bundle, ti.dag_id, ti.task_id);
+  if (trigger) {
+    const ctx = buildContext(details, signal);
+    const client = createCoordinatorClient(comm, ctx, clientLogs);
+    const fail = (message: string) => {
+      logs.error("Task failed", { task_id: ctx.taskId, error: message });
+      return buildFailureResponse(details, message);
+    };
+    try {
+      return await runTriggerDagRun(details, trigger, client, logs, ctx.signal, fail);
+    } catch (err) {
+      return fail((err as Error).message ?? String(err));
+    }
+  }
   const handler = bundle.getTaskHandler(ti.dag_id, ti.task_id);
 
   if (!handler) {

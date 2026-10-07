@@ -30,7 +30,7 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -138,6 +138,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskStateStore,
@@ -1561,6 +1562,153 @@ class TestWatchedSubprocess:
             mock_kill.assert_not_called()
             mock_logger.warning.assert_not_called()
 
+    def test_server_terminated_task_gets_killed_task_cleanup_time(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 42.0)
+        mocker.patch("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        client = mocker.Mock()
+        client.task_instances.heartbeat.side_effect = ServerResponseError.from_response(
+            httpx.Response(
+                409,
+                request=httpx.Request("PUT", "http://server/heartbeat"),
+                json={"detail": {"reason": "not_running", "current_state": "failed"}},
+            )
+        )
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=client,
+        )
+
+        proc._send_heartbeat_if_needed()
+
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=42.0)
+
+    def test_execution_timeout_kills_task_that_does_not_stop(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+
+        monotonic.return_value += 34
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_not_called()
+
+        monotonic.return_value += 1
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
+        proc.process_log.error.assert_called_once_with(
+            "Task did not stop before execution_timeout elapsed; terminating process",
+            timeout_seconds=30,
+            grace_period_seconds=5.0,
+        )
+
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("terminal_state", "exit_code"),
+        [
+            pytest.param(TaskInstanceState.FAILED, None, id="terminal_state_reported"),
+            pytest.param(None, 0, id="process_exited"),
+        ],
+    )
+    def test_execution_timeout_not_enforced_once_task_is_over(self, mocker, terminal_state, exit_code):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+        proc._terminal_state = terminal_state
+        proc._exit_code = exit_code
+
+        monotonic.return_value += 100
+        proc._handle_execution_timeout_if_needed()
+
+        mock_kill.assert_not_called()
+        proc.process_log.error.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("stops_on_sigterm", "expected_exit_code"),
+        [
+            pytest.param(True, 0, id="task_reports_state_on_sigterm"),
+            pytest.param(False, -signal.SIGKILL, id="task_ignores_sigterm"),
+        ],
+    )
+    def test_execution_timeout_enforced_by_supervisor(
+        self, stops_on_sigterm, expected_exit_code, mocker, captured_logs, client_with_ti_start
+    ):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 0.3)
+        # Far longer than the test may take: the monitor loop has to wake up for the timeout on its own
+        mocker.patch("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 30)
+
+        def subprocess_main():
+            import signal
+
+            comms = CommsDecoder()
+            comms._get_response()
+
+            def _on_term(signum, frame):
+                if stops_on_sigterm:
+                    comms.send(TaskState(state=TaskInstanceState.FAILED, end_date=timezone.utcnow()))
+                    exit(0)
+                print("Ignoring SIGTERM", file=sys.stderr)
+
+            signal.signal(signal.SIGTERM, _on_term)
+            comms.send(SetExecutionTimeout(timeout_seconds=0.1))
+            sleep(30)
+            exit(5)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=TI_ID,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+
+        started = time.monotonic()
+        assert proc.wait() == expected_exit_code
+        assert time.monotonic() - started < 10
+        assert proc.final_state == TaskInstanceState.FAILED
+
+        assert {
+            "event": "Task did not stop before execution_timeout elapsed; terminating process",
+            "level": "error",
+            "timeout_seconds": 0.1,
+            "grace_period_seconds": 0.3,
+            "logger": "task",
+            "timestamp": mocker.ANY,
+            "loc": mocker.ANY,
+        } in captured_logs
+
     @pytest.mark.parametrize(
         ("signal_to_raise", "log_pattern", "level"),
         (
@@ -2450,6 +2598,10 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="set_rtif",
+    ),
+    RequestTestCase(
+        message=SetExecutionTimeout(timeout_seconds=30.0),
+        test_id="set_execution_timeout",
     ),
     RequestTestCase(
         message=SetRenderedMapIndex(rendered_map_index="Label: task_1"),
@@ -3562,7 +3714,7 @@ REQUEST_TEST_CASES = [
             "relative_fileloc": "dags/example.py",
             "owners": "owner_1",
             "tags": ["a_tag", "z_tag"],
-            "next_dagrun": datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            "next_dagrun": datetime(2026, 4, 13, tzinfo=UTC),
             "type": "DagResult",
         },
         client_mock=ClientMock(
@@ -3578,7 +3730,7 @@ REQUEST_TEST_CASES = [
                 relative_fileloc="dags/example.py",
                 owners="owner_1",
                 tags=["a_tag", "z_tag"],
-                next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+                next_dagrun=datetime(2026, 4, 13, tzinfo=UTC),
             ),
         ),
         test_id="get_dag",
@@ -3598,13 +3750,13 @@ REQUEST_TEST_CASES = [
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
-            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC),
         ),
         test_id="set_task_store",
         client_mock=ClientMock(
             method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
-            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
@@ -3614,13 +3766,13 @@ REQUEST_TEST_CASES = [
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
-            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
+            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC),
         ),
         test_id="set_task_store_with_expires_at",
         client_mock=ClientMock(
             method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
-            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
@@ -3820,7 +3972,7 @@ class TestHandleRequest:
         )
         observed_at_kill = []
 
-        def terminate(self, signal_to_send, force):
+        def terminate(self, signal_to_send, force, escalation_delay):
             observed_at_kill.append((self._terminal_state, self._pending_terminal_state_msg))
             if arrival == "during_kill":
                 self._handle_request(msg, structlog.get_logger(), req_id=2)

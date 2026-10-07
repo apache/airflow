@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Annotated
 from unittest import mock
@@ -611,7 +611,7 @@ class TestDatetimeRangeFilterFactory:
 
     def test_lower_bound_does_not_include_now(self):
         """NULL branch on lower bounds passes unconditionally — no now() call."""
-        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
         rf = _make_datetime_filter("start_date", lower_bound_gte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "is null" in sql
@@ -620,7 +620,7 @@ class TestDatetimeRangeFilterFactory:
 
     def test_upper_bound_includes_now_for_running_tasks(self):
         """NULL branch on upper bounds uses now() to proxy the in-progress task's current time."""
-        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
         rf = _make_datetime_filter("end_date", upper_bound_lte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "is null" in sql
@@ -628,7 +628,7 @@ class TestDatetimeRangeFilterFactory:
         assert "coalesce" not in sql
 
     def test_no_coalesce_for_start_date(self):
-        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
         rf = _make_datetime_filter("start_date", upper_bound_lte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "coalesce" not in sql

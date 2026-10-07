@@ -116,7 +116,7 @@ def _process_data_from_api(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Convert timestamp fields to UTC datetime objects."""
     for row in data:
         for key in ("query_start_time_ms", "query_end_time_ms"):
-            row[key] = datetime.datetime.fromtimestamp(row[key] / 1000, tz=datetime.timezone.utc)
+            row[key] = datetime.datetime.fromtimestamp(row[key] / 1000, tz=datetime.UTC)
 
     return data
 
