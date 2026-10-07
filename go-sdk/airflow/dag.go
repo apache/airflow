@@ -77,8 +77,8 @@ type DagRef struct {
 // The bundle embeds the source file that calls Dag, so call it from the file that declares the Dag.
 // A Dag built in a factory function belongs to the file of the factory.
 //
-// [BundleRef.Serve] sends the registered Dags to the Dag processor, but does not yet list them in
-// the --airflow-metadata manifest or run their tasks.
+// [BundleRef.Serve] sends the registered Dags to the Dag processor and runs their tasks, but does
+// not list them in the dags of the --airflow-metadata manifest.
 //
 // Dag panics if it gets more than one DagSpec, or if the DagSpec has a value that Python rejects
 // when it builds or validates a Dag:

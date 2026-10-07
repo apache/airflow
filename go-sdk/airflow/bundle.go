@@ -229,6 +229,25 @@ func (m *dagMap) ListDagSourceFiles() map[string]string {
 	return files
 }
 
+// lookupTask returns the Go function of a task of a registered Dag. A task from TriggerDagRun has
+// none, because a Python worker runs it.
+func (m *dagMap) lookupTask(dagID, taskID string) (bundle.Task, bool) {
+	m.mu.Lock()
+	dag, ok := m.dags[dagID]
+	m.mu.Unlock()
+	if !ok {
+		return nil, false
+	}
+
+	dag.mu.Lock()
+	defer dag.mu.Unlock()
+	ref, ok := dag.tasksByID[taskID]
+	if !ok || ref.task == nil {
+		return nil, false
+	}
+	return ref.task, true
+}
+
 func (m *dagMap) has(dagID string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -285,4 +304,13 @@ func (s coordinatorSource) SerializeDags(fileloc, relativeFileloc string) []bund
 
 func (s coordinatorSource) ListDagSourceFiles() map[string]string {
 	return s.dags.ListDagSourceFiles()
+}
+
+// LookupTask finds a task of a Dag from airflow.Dag, then a task handler. A dag_id belongs to only
+// one of the two, as Register checks.
+func (s coordinatorSource) LookupTask(dagID, taskID string) (bundle.Task, bool) {
+	if task, ok := s.dags.lookupTask(dagID, taskID); ok {
+		return task, true
+	}
+	return s.taskHandlerMap.LookupTask(dagID, taskID)
 }
