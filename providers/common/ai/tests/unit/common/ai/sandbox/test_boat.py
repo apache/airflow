@@ -523,7 +523,7 @@ class TestRunCommand:
         backend, api = _backend_with_api()
         api.command.return_value = _command_response(exit_code=exit_code, stdout="partial\n", stderr="err\n")
 
-        with mock.patch(_MONOTONIC, side_effect=[0.0, elapsed]):
+        with mock.patch(_MONOTONIC, autospec=True, side_effect=[0.0, elapsed]):
             result = backend.run_command("bx_1", "sleep 99", timeout=10, max_output_bytes=1024)
 
         assert result.timed_out is timed_out
@@ -613,14 +613,14 @@ class TestFiles:
         with pytest.raises(SandboxError, match="does not exist"):
             backend.read_file("bx_1", "/tmp/missing", max_bytes=10)
 
-    def test_a_read_stopped_at_its_deadline_is_recoverable(self):
+    @mock.patch(_MONOTONIC, autospec=True, side_effect=[0.0, 120.5])
+    def test_a_read_stopped_at_its_deadline_is_recoverable(self, _monotonic):
         # A FIFO passes the stat check and then blocks head -c until the deadline.
         backend, api = _backend_with_api()
         api.command.return_value = _command_response(exit_code=124)
 
-        with mock.patch(_MONOTONIC, side_effect=[0.0, 120.5]):
-            with pytest.raises(SandboxError) as raised:
-                backend.read_file("bx_1", "/tmp/fifo", max_bytes=10)
+        with pytest.raises(SandboxError) as raised:
+            backend.read_file("bx_1", "/tmp/fifo", max_bytes=10)
 
         assert not isinstance(raised.value, SandboxTerminalError)
         request = api.command.call_args.args[1]
