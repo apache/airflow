@@ -35,10 +35,11 @@ from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import JsonValue, ValidationError
-from sqlalchemy import and_, func, or_, tuple_, update
+from sqlalchemy import Text, and_, cast as sa_cast, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import contains_eager, defer, joinedload, selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import select
 from sqlalchemy.sql.dml import Update
 from structlog.contextvars import bind_contextvars
@@ -279,17 +280,21 @@ def ti_run(
         result = session.execute(query)
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
 
-        dr = (
-            session.scalars(
-                select(DR)
+        dr_row = (
+            session.execute(
+                select(DR, sa_cast(DR.conf, Text).label("serialized_conf"))
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
-                .options(joinedload(DR.consumed_asset_events), *eager_load_teams(DR.dag_model))
+                .options(
+                    defer(DR.conf),
+                    selectinload(DR.consumed_asset_events),
+                    *eager_load_teams(DR.dag_model),
+                )
             )
             .unique()
             .one_or_none()
         )
 
-        if not dr:
+        if not dr_row:
             log.error("DagRun not found", dag_id=ti.dag_id, run_id=ti.run_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -298,6 +303,8 @@ def ti_run(
                     "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found",
                 },
             )
+        dr, serialized_conf = dr_row
+        set_committed_value(dr, "conf", None)
 
         # Send the keys to the SDK so that the client requests to clear those XComs from the server.
         # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
@@ -319,6 +326,7 @@ def ti_run(
 
         context = TIRunContext(
             dag_run=dr,
+            dag_run_conf_json=None if serialized_conf == "null" else serialized_conf,
             task_reschedule_count=task_reschedule_count,
             max_tries=ti.max_tries,
             # TODO: Add variables and connections that are needed (and has perms) for the task

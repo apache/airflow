@@ -414,6 +414,9 @@ class TIRunContext(BaseModel):
     dag_run: DagRun
     """DAG run information for the task instance."""
 
+    dag_run_conf_json: str | None = None
+    """Compact DagRun configuration JSON transported only during task startup."""
+
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""
 

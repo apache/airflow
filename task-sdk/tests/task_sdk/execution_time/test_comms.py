@@ -99,6 +99,7 @@ class TestCommsDecoder:
                     "consumed_asset_events": [],
                     "partition_key": None,
                 },
+                "dag_run_conf_json": '{"records":[{"id":1,"value":"one"},{"id":2,"value":"two"}]}',
                 "max_tries": 0,
                 "should_retry": False,
                 "variables": None,
@@ -123,6 +124,9 @@ class TestCommsDecoder:
         assert msg.dag_rel_path == "/dev/null"
         assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")
         assert msg.start_date == timezone.datetime(2024, 12, 1, 1)
+        assert msg.ti_context.dag_run.conf is None
+        assert msg.ti_context.dag_run_conf_json is not None
+        assert '"records"' in msg.ti_context.dag_run_conf_json
 
     def test_huge_payload(self, socket_pair):
         r, w = socket_pair

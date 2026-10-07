@@ -424,6 +424,7 @@ class TestRealBundleArgBindingsDowngrade:
                     consumed_asset_events=[],
                     partition_key=None,
                 ),
+                dag_run_conf_json='{"records":[{"id":1,"value":"one"},{"id":2,"value":"two"}]}',
                 max_tries=1,
                 arg_bindings=[
                     # No value_schema: the unconstrained ("any") case rides through the migrator too.
@@ -453,6 +454,10 @@ class TestRealBundleArgBindingsDowngrade:
     def test_downgrade_strips_arg_bindings_for_previous_version(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
         assert "arg_bindings" not in out["ti_context"]
+        assert "dag_run_conf_json" not in out["ti_context"]
+        assert out["ti_context"]["dag_run"]["conf"] == {
+            "records": [{"id": 1, "value": "one"}, {"id": 2, "value": "two"}]
+        }
 
     def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
         from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding

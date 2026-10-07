@@ -26,11 +26,13 @@ require a ``VersionChange`` entry below.
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+import json
+
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import TIRunContext
-from airflow.sdk.execution_time.comms import TaskState
+from airflow.sdk.execution_time.comms import StartupDetails, TaskState
 
 
 class AddArgBindingsToSupervisorTIRunContext(VersionChange):
@@ -45,6 +47,28 @@ class AddArgBindingsToSupervisorTIRunContext(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
+
+
+class AddDagRunConfJsonToSupervisorTIRunContext(VersionChange):
+    """Add compact DagRun configuration JSON to the supervisor task context."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("dag_run_conf_json").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(StartupDetails)  # type: ignore[arg-type]
+    def deserialize_conf_for_previous_versions(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Preserve the dictionary contract for older language SDK clients."""
+        ti_context = response.body.get("ti_context")
+        if not isinstance(ti_context, dict):
+            return
+        dag_run = ti_context.get("dag_run")
+        if not isinstance(dag_run, dict):
+            return
+        dag_run_conf_json = ti_context.pop("dag_run_conf_json", None)
+        if isinstance(dag_run_conf_json, str):
+            dag_run["conf"] = json.loads(dag_run_conf_json)
 
 
 class AddRetryReasonToTaskState(VersionChange):
