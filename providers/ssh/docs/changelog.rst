@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
 .. warning::
   The ``no_host_key_check`` connection extra now defaults to ``false``. A connection to a host that has
   no entry in the known hosts file is refused unless host key verification is disabled explicitly or a
@@ -41,6 +44,30 @@ Changelog
   The previously undocumented ``ignore_hostkey_verification`` extra is now honoured as a deprecated alias
   for ``no_host_key_check`` and emits a ``DeprecationWarning``. It had no effect before: connections that
   set it were relying on the old permissive default rather than on the setting itself.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Verify SSH host keys by default in SSH and SFTP hooks (#73419)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SSH commands failing when the task holds over 1024 file descriptors (#74211)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 6.1.0
 .....

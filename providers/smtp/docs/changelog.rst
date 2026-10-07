@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.0
 .....
 

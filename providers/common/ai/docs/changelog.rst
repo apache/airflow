@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+0.11.0
+......
+
 .. note::
   On Airflow >= 3.3, ``AgentOperator``'s ``usage_limits`` counts usage across every
   attempt of the task instance combined -- initial run, every retry, and every HITL
@@ -60,6 +63,84 @@ Changelog
   when the Dag file is parsed, so the ``code-mode`` extra is now needed by the Dag processor
   as well as the workers. The extra's floor is now ``pydantic-ai-harness>=0.24.0``, the first
   release with ``max_tool_calls``. See :doc:`code_mode`.
+
+Features
+~~~~~~~~
+
+* ``Add 'max_retries' to 'AgentSkillsToolset' (#74381)``
+* ``Add 'include_traceback' to model-backed retry policies (#74308)``
+* ``Let the Modal sandbox backend read credentials from a modal connection (#74302)``
+* ``Include prompt cache token counts in AgentOperator's usage XCom (#74277)``
+* ``Bound get_schema results for very wide tables in the SQL toolsets (#74017)``
+* ``Support Airflow 2.11 in the Common AI provider (#73991)``
+* ``Cache repeated agent prompts by default in AgentOperator (#73994)``
+* ``Add a vendor-neutral managed-agent hook contract to Common AI (#73532)``
+* ``Export files an agent built in a sandbox to object storage (#73990)``
+* ``Add first-class 'capabilities' to Common AI 'AgentOperator' (#73984)``
+* ``Let Common AI toolsets use the agent's tool retry budget (#73957)``
+* ``Add embedding kwargs to common AI hooks and operators (#72002)``
+* ``Tell the model how many rows a Parquet or Avro file holds (#73925)``
+* ``Count and trace tool calls made by native agent frameworks (#73901)``
+* ``Let HookToolset pin arguments the model must not choose (#73900)``
+* ``Add 'ObjectStorageToolset' for reading files on object storage (#73899)``
+* ``Rework common.ai Strands support into a plugin and add Google ADK (#73898)``
+* ``Name the tools a durable agent retry will run again (#73873)``
+* ``Return an approved agent answer as 'output_type' after human review (#73904)``
+* ``Let the sandbox toolset attach to a sandbox another task provisioned (#73559)``
+* ``Add Strands Agents support for 'common.ai' toolsets (#73587)``
+* ``Add Modal provider with 'ModalHook' and connection type (#73418)``
+* ``Add OpenSandbox backend for sandbox tools (#71676)``
+* ``Let a person approve an agent's tool calls before they run (#73586)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Tell the model a pinned hook argument is fixed for every allowed method (#74380)``
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+* ``Fix Common AI durable retries not replaying tools from a capability without an id (#74314)``
+* ``Fix Common AI durable retries and tool-approval resumes on pydantic-ai 2.50+ (#74313)``
+* ``Mask secrets in tool results before they reach the model (#73897)``
+* ``Account for AgentOperator spend on failed runs and across retries (#73706)``
+* ``Stop 'DataFusionToolset' from materializing full results for a capped query (#73384)``
+* ``Fix mypy error in common.ai decision helper with pydantic-ai 2.46 (#73652)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``Remove Python 3.10 compatibility shims (#74153)``
+* ``Remove 'code_mode' from 'AgentOperator' in favor of the 'CodeMode' capability (#74312)``
+* ``Make 'execute_tool' the public method 'AirflowToolset' subclasses implement (#73938)``
+* ``Mark experimental 'common.ai' features ahead of 1.0 (#73896)``
+* ``Require 'common.sql' 2.2.0 for common.ai's SQL extras (#73867)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add toolset overview and MCP tool filtering example to 'common.ai' docs (#74378)``
+* ``Add restricted-agent examples to common.ai toolset guides (#74379)``
+* ``Link registry modules to the guide section that documents them (#71477)``
+* ``Support PAT and key-pair auth in the Snowflake Cortex Agent hook (#73932)``
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Lead the 'common.ai' sandbox docs with when to use it and where each piece runs (#74297)``
+* ``Correct usage_limits=None docstring on AgentOperator and LLMOperator (#74307)``
+* ``Document decision models served over the System One API in common.ai (#74266)``
+* ``Add Azure Blob Storage support to the DataFusion object storage layer (#73374)``
+* ``Render the HITL review workflow as a Mermaid diagram (#74024)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+* ``Document running your own Pydantic AI agent, and sandboxes in other frameworks (#73902)``
+* ``Surface the retry policy decision on task instances page (#73030)``
+* ``Update changelog to clarify new LLMBranchOperator "branches" feature (#73850)``
+* ``Add connections and agent-security entries to the common.ai sidebar (#73837)``
+* ``Persist 'retry_reason' not just for retries but even when a task fails (#73027)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``Add AIP-85 to the AIP progress tracker registry (#74304)``
+   * ``Fix flaky AgentOperator durable usage budget tests (#73996)``
+   * ``[main] Upgrade important CI environment (#73629)``
 
 0.10.0
 ......

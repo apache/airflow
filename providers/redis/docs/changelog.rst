@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+4.7.1
+.....
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
 4.7.0
 .....
 

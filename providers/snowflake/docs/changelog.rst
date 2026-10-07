@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+6.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support PAT and key-pair auth in the Snowflake Cortex Agent hook (#73932)``
+* ``Add create and update support to Snowflake Cortex Agent hook (#70703)``
+* ``Add key-pair JWT authentication to Snowflake Cortex Agent hook (#73815)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Snowflake SQL API wait_for_query timing out on finished queries (#73761)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Snowflake UTC usage in TestSnowflakeRestTokenProvider (#74393)``
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+
 6.18.0
 ......
 

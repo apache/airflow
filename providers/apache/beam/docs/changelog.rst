@@ -26,6 +26,23 @@
 Changelog
 ---------
 
+6.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Beam async hook launching pipelines through a shell (#72510)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.3.0
 .....
 

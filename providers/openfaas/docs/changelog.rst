@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+3.9.6
+.....
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
 3.9.5
 .....
 

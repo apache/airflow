@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+15.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Read the msgraph connection extra with get_async_extra_dejson (#74161)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``Cap microsoft-kiota-http below 1.13 in the Microsoft Azure provider (#74090)``
+* ``Support azure-datalake-store 1.x in AzureDataLakeHook (#73819)``
+* ``[main] Upgrade important CI environment (#73629)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Fix connection screenshots missing from the msgraph and IBM MQ docs (#74287)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+
 15.2.0
 ......
 

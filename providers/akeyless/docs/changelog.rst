@@ -25,6 +25,26 @@ Changelog
   under, so it could name a team's secret. Set ``global_secrets_path`` to give secrets used outside any
   team a namespace of their own, in which nested ids keep working.
 
+0.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refuse nested secret ids looked up with no team in multi-team mode (#73789)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+* ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+* ``[main] Upgrade important CI environment (#73308)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
 0.3.1
 .....
 

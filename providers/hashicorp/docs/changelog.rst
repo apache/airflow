@@ -34,6 +34,28 @@ Changelog
   team's secret. Store secrets used outside any team under ids without ``/``, or set
   ``use_team_secrets_path=False`` if the deployment does not use team-scoped Vault paths.
 
+4.8.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refuse nested secret ids looked up with no team in multi-team mode (#73789)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.8.2
 .....
 

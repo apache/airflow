@@ -30,15 +30,21 @@ Changelog
 5.0.0
 .....
 
+.. note::
+    Edge task attempts now use UUIDs as their identity in the worker API and stored
+    job state. Upgrade API servers before schedulers, and ensure workers advertise
+    UUID support before scheduling tasks that use the new identity.
+
 .. warning::
   ``EdgeExecutor`` now counts the tasks and callbacks it has queued against ``[core] parallelism``, as the
   other executors do. Until now that limit had no effect on Edge. If a scheduler keeps more than
-  ``parallelism`` (default 32) workloads in flight on Edge, raise ``[core] parallelism``. Otherwise the
-  scheduler leaves the rest in ``scheduled`` state until slots free up.
+  ``parallelism`` (default 32) workloads in flight on Edge, raise ``[core] parallelism``. Otherwise
+  the scheduler leaves the rest in ``scheduled`` state until slots free up.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
+* ``Isolate Edge job state by task attempt UUID (#73918)``
 * ``Make EdgeExecutor respect [core] parallelism (#72048)``
 
 Features
@@ -49,12 +55,15 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
 * ``Fix scheduler crash on restart with queued or running Edge tasks (#73832)``
 * ``Fix airflow edge list-workers always showing null concurrency (#72959)``
 
 Misc
 ~~~~
 
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``Bump '@tanstack/react-query' to 5.104.0, 'react-router-dom' to 7.18.4, '@types/node' to 26.6.3, '@typescript-eslint/eslint-plugin', '@typescript-eslint/parser', and '@typescript-eslint/utils' to 8.70.1, 'eslint' to 10.11.0, 'eslint-plugin-perfectionist' to 5.12.1, 'prettier' to 3.9.9, 'typescript-eslint' to 8.70.1, 'vite' to 8.3.1, and 'vite-plugin-dts' to 5.1.1 (#74107)``
 * ``Unify executor workload queues (#63491)``
 * ``Bump the Edge UI packages: react and react-dom to 19.3.0, the @typescript-eslint packages to 8.70.0, eslint to 10.10.0, @types/node to 26.5.1, @types/react and @types/react-dom to 19.3.0, eslint-plugin-react-refresh to 0.5.7 and happy-dom to 20.14.5 (#73342)``
 * ``Bump the Edge UI packages: the @typescript-eslint packages to 8.69.0, @eslint/compat to 2.1.1, @rolldown/plugin-babel to 0.2.4, @types/node to 26.5.0, @types/react-dom to 19.2.7, eslint-plugin-react-refresh to 0.5.6, globals to 17.12.0, happy-dom to 20.14.0 and vite-plugin-dts to 5.1.0 (#72998)``
@@ -63,11 +72,15 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
 * ``Render the database ERD as a searchable Mermaid diagram instead of an image (#72006)``
 * ``Clarify that AccessView.JOBS is the Edge worker management permission (#72627)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Make Edge executor adoption test immune to executor_loader reloads (#74122)``
+   * ``Prepare ad-hoc providers release 2026-10-02 (#74097)``
    * ``[main] Upgrade important CI environment (#73629)``
    * ``Prepare providers release 2026-09-22 (#73506)``
    * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``

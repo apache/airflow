@@ -25,6 +25,33 @@
 Changelog
 ---------
 
+1.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+* ``Add get_async_extra_dejson to the common.compat connection helpers (#74147)``
+* ``Support Airflow 2.11 in the Common AI provider (#73991)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Persist 'retry_reason' not just for retries but even when a task fails (#73027)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Test get_async_extra_dejson against the real supervisor comms (#74166)``
+   * ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+
 1.20.0
 ......
 

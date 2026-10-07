@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+2.20.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Skip creating an empty hook lineage collector for OpenLineage events (#74190)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Fix invalid cron expression in OpenLineage system test Dag (#74187)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 2.20.2
 ......
 

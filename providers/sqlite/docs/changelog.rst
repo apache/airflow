@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+4.3.4
+.....
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+* ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+* ``[main] Upgrade important CI environment (#73308)``
+* ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-07-22 (#70256)``
+
 4.3.3
 .....
 

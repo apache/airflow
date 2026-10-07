@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+* ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+* ``[main] Upgrade important CI environment (#73308)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+
 1.0.0
 .....
 

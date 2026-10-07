@@ -28,6 +28,32 @@
 Changelog
 ---------
 
+6.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'SparkSubmitHook': Mask '_mask_cmd' secrets in linear time (#71711)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Prepare providers release 2026-09-09 (#72834)``
+
 6.3.2
 .....
 

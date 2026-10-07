@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+10.24.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Allow a custom Kubernetes client factory for KubernetesExecutor (#73014)``
+* ``Carry task attempt UUIDs through remote executor providers (#73917)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+* ``Look up task logs by task try UUID (#74204)``
+* ``Honor the polling interval for deferred Kubernetes jobs (#74143)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+
 10.23.0
 .......
 

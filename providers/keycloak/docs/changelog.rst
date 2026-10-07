@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+0.11.1
+......
+
 .. note::
     In multi-team mode, the views covering records that are not tied to a Dag or a team -- audit log
     entries not tied to a Dag, import errors for files with no registered Dag and reparsing such
@@ -34,6 +37,26 @@ Changelog
     Run ``airflow keycloak-auth-manager create-team <team>`` again for an existing team to create the
     resource and the ``AdminViewAccess`` permission and grant it to ``SuperAdmin``. Deployments
     without ``[core] multi_team`` are not affected.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop Keycloak middleware from reissuing a JWT revoked during the request (#73695)``
+* ``Check admin-only views against a dedicated Keycloak resource in multi-team mode (#73696)``
+
+Misc
+~~~~
+
+* ``Require Python 3.11 in all distributions (#74157)``
+* ``[main] Upgrade important CI environment (#73629)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 0.11.0
 ......
