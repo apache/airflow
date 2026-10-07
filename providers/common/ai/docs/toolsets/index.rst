@@ -239,6 +239,8 @@ the call. What counts differs by toolset:
 - ``ObjectStorageToolset`` counts invalid arguments only. A path that does not exist or
   cannot be read goes back to the model as a failed result without using the budget;
   bound repeated failed reads with ``usage_limits``.
+- ``AgentSkillsToolset`` counts a failed call to a skills tool, such as a resource name
+  that does not exist.
 
 These toolsets allow as many corrections as the agent's tool retry budget, pydantic-ai's
 ``retries`` (one by default), the same way pydantic-ai's own toolsets do. Pass

@@ -109,13 +109,17 @@ reading an excluded file got:
 
     Resource 'warehouse.env' not found in skill 'sql-reporting'. Available resources: ['reference.md']. Use the exact name from load_skill output.
 
-The skills tools allow the model one correction each, and the agent's ``retries``
-does not change that. A second refused read in a row failed the run with
-``UnexpectedModelBehavior``, even with ``retries`` set to ``{"tools": 3}``:
+Without ``max_retries``, each skills tool allows as many corrections as the agent's
+``retries``, one by default, and a successful call to that tool resets the count. With
+the default, a second refused read in a row failed the run with
+``UnexpectedModelBehavior``:
 
 .. code-block:: text
 
     Tool 'read_skill_resource' exceeded max retries count of 1. Consider raising the retry limit, or see the docs on tool retries: https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/#tool-retries
+
+With the example's ``max_retries=3``, the same two refused reads went back to the model,
+which then read ``reference.md`` and finished the run.
 
 ``exclude_resources`` hides files from the resource tools only. A skill's scripts can
 still read them, which is why the example excludes ``run_skill_script`` as well.
@@ -137,6 +141,9 @@ Parameters
   it does not stop a skill's ``run_skill_script`` from reading them off disk, so
   pair it with ``exclude_tools={"run_skill_script"}`` when the files are
   genuinely sensitive.
+- ``max_retries``: How many times the model may correct failed calls to one skills tool
+  before the run fails; a successful call to that tool resets the count. Default
+  ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
 Using Agent Skills with other frameworks
 ----------------------------------------
