@@ -24,6 +24,7 @@ import contextlib
 import functools
 import io
 import logging
+import math
 import os
 import pkgutil
 import selectors
@@ -1627,8 +1628,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
     _execution_timeout_seconds: float | None = attrs.field(default=None, init=False)
     _execution_timeout_enforce_at: float | None = attrs.field(default=None, init=False)
-    """Monotonic time at which the supervisor sends ``_execution_timeout_next_signal``."""
-    _execution_timeout_next_signal: signal.Signals | None = attrs.field(default=None, init=False)
+    """Monotonic time at which the supervisor stops a task that has not reported a terminal state."""
 
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
@@ -1890,10 +1890,9 @@ class ActivitySubprocess(WatchedSubprocess):
                     # Ensure we heartbeat _at most_ 75% through the task instance heartbeat timeout time
                     HEARTBEAT_TIMEOUT - last_heartbeat_ago * 0.75,
                     MIN_HEARTBEAT_INTERVAL,
+                    self._execution_timeout_due_in(),
                 ),
             )
-            if self._exit_code is None and (due_in := self._execution_timeout_due_in()) is not None:
-                max_wait_time = max(0, min(max_wait_time, due_in))
             # Block until events are ready or the timeout is reached
             # This listens for activity (e.g., subprocess output) on registered file objects
             alive = self._service_subprocess(max_wait_time=max_wait_time) is None
@@ -1934,15 +1933,10 @@ class ActivitySubprocess(WatchedSubprocess):
             )
             self.kill(signal.SIGTERM, force=True)
 
-    def _execution_timeout_due_in(self) -> float | None:
-        """Seconds until the supervisor must act on an overrunning task, or None if there is nothing to enforce."""
-        if (
-            self._execution_timeout_next_signal is None
-            or self._execution_timeout_enforce_at is None
-            or self._terminal_state
-            or self._pending_terminal_state_msg is not None
-        ):
-            return None
+    def _execution_timeout_due_in(self) -> float:
+        """Seconds until the supervisor must stop an overrunning task, or infinity if there is nothing to enforce."""
+        if self._execution_timeout_enforce_at is None or self._terminal_state or self._exit_code is not None:
+            return math.inf
         return self._execution_timeout_enforce_at - time.monotonic()
 
     def _handle_execution_timeout_if_needed(self):
@@ -1957,37 +1951,15 @@ class ActivitySubprocess(WatchedSubprocess):
         The deadline is armed by ``SetExecutionTimeout``, which the task process sends right before
         ``execute()``. Anything before that (bundle load, Dag parsing) is not covered here.
         """
-        due_in = self._execution_timeout_due_in()
-        if due_in is None or due_in > 0:
+        if self._execution_timeout_due_in() > 0:
             return
-
-        next_signal = self._execution_timeout_next_signal
-        if next_signal == signal.SIGTERM:
-            self.process_log.error(
-                "Task did not stop after execution_timeout elapsed; terminating process",
-                timeout_seconds=self._execution_timeout_seconds,
-                grace_period_seconds=KILLED_TASK_CLEANUP_TIME,
-            )
-            try:
-                self._signal_subprocess(signal.SIGTERM)
-            except self._process.ProcessNotFound:
-                self._execution_timeout_next_signal = None
-                self._execution_timeout_enforce_at = None
-                return
-            self._execution_timeout_next_signal = signal.SIGKILL
-            self._execution_timeout_enforce_at = time.monotonic() + KILLED_TASK_CLEANUP_TIME
-            return
-
-        if next_signal != signal.SIGKILL:
-            return
-
-        self.process_log.error(
-            "Task process did not exit after SIGTERM; killing it",
-            timeout_seconds=self._execution_timeout_seconds,
-        )
-        self._execution_timeout_next_signal = None
         self._execution_timeout_enforce_at = None
-        self.kill(signal.SIGKILL)
+        self.process_log.error(
+            "Task did not stop before execution_timeout elapsed; terminating process",
+            timeout_seconds=self._execution_timeout_seconds,
+            grace_period_seconds=KILLED_TASK_CLEANUP_TIME,
+        )
+        self.kill(signal.SIGTERM, force=True, escalation_delay=KILLED_TASK_CLEANUP_TIME)
 
     def _send_heartbeat_if_needed(self):
         """Send a heartbeat to the client if heartbeat interval has passed."""
@@ -2125,7 +2097,6 @@ class ActivitySubprocess(WatchedSubprocess):
         self, msg: SetExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
         self._execution_timeout_seconds = msg.timeout_seconds
-        self._execution_timeout_next_signal = signal.SIGTERM
         self._execution_timeout_enforce_at = time.monotonic() + msg.timeout_seconds + KILLED_TASK_CLEANUP_TIME
         return None, {}
 

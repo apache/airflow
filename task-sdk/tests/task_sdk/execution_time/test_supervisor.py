@@ -1331,9 +1331,10 @@ class TestWatchedSubprocess:
 
         mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=42.0)
 
-    def test_set_execution_timeout_schedules_enforcement(self, mocker, monkeypatch):
-        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
-        mocker.patch("time.monotonic", return_value=100.0)
+    def test_execution_timeout_kills_task_that_does_not_stop(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
             id=TI_ID,
@@ -1345,40 +1346,33 @@ class TestWatchedSubprocess:
 
         proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
 
-        assert proc._execution_timeout_seconds == 30
-        assert proc._execution_timeout_enforce_at == 135.0
-        assert proc._execution_timeout_next_signal == signal.SIGTERM
-        assert proc._execution_timeout_due_in() == 35.0
+        monotonic.return_value += 34
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_not_called()
+
+        monotonic.return_value += 1
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
+        proc.process_log.error.assert_called_once_with(
+            "Task did not stop before execution_timeout elapsed; terminating process",
+            timeout_seconds=30,
+            grace_period_seconds=5.0,
+        )
+
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once()
 
     @pytest.mark.parametrize(
-        ("enforce_at", "next_signal", "terminal_state", "pending_terminal_msg", "expected_action"),
+        ("terminal_state", "exit_code"),
         [
-            pytest.param(None, None, None, False, None, id="no_timeout_set"),
-            pytest.param(25.0, signal.SIGTERM, None, False, None, id="not_due_yet"),
-            pytest.param(20.0, signal.SIGTERM, None, False, "sigterm", id="due_sends_sigterm"),
-            pytest.param(20.0, signal.SIGKILL, None, False, "sigkill", id="due_again_sends_sigkill"),
-            pytest.param(
-                15.0, signal.SIGTERM, TaskInstanceState.FAILED, False, None, id="terminal_state_reported"
-            ),
-            pytest.param(15.0, signal.SIGTERM, None, True, None, id="terminal_state_pending_api_retry"),
+            pytest.param(TaskInstanceState.FAILED, None, id="terminal_state_reported"),
+            pytest.param(None, 0, id="process_exited"),
         ],
     )
-    def test_execution_timeout_enforcement(
-        self,
-        mocker,
-        monkeypatch,
-        enforce_at,
-        next_signal,
-        terminal_state,
-        pending_terminal_msg,
-        expected_action,
-    ):
-        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
-        mocker.patch("time.monotonic", return_value=20.0)
+    def test_execution_timeout_not_enforced_once_task_is_over(self, mocker, terminal_state, exit_code):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
-        mock_signal = mocker.patch(
-            "airflow.sdk.execution_time.supervisor.WatchedSubprocess._signal_subprocess"
-        )
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
             id=TI_ID,
@@ -1387,66 +1381,15 @@ class TestWatchedSubprocess:
             process=mocker.Mock(),
             client=mocker.Mock(),
         )
-        proc._execution_timeout_seconds = 30.0
-        proc._execution_timeout_enforce_at = enforce_at
-        proc._execution_timeout_next_signal = next_signal
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
         proc._terminal_state = terminal_state
-        if pending_terminal_msg:
-            proc._pending_terminal_state_msg = SucceedTask(end_date=timezone.utcnow())
+        proc._exit_code = exit_code
 
+        monotonic.return_value += 100
         proc._handle_execution_timeout_if_needed()
 
-        if expected_action == "sigterm":
-            mock_signal.assert_called_once_with(signal.SIGTERM)
-            mock_kill.assert_not_called()
-            assert proc._execution_timeout_next_signal == signal.SIGKILL
-            assert proc._execution_timeout_enforce_at == 25.0
-            proc.process_log.error.assert_called_once_with(
-                "Task did not stop after execution_timeout elapsed; terminating process",
-                timeout_seconds=30.0,
-                grace_period_seconds=5.0,
-            )
-        elif expected_action == "sigkill":
-            mock_kill.assert_called_once_with(signal.SIGKILL)
-            mock_signal.assert_not_called()
-            assert proc._execution_timeout_next_signal is None
-            assert proc._execution_timeout_enforce_at is None
-            proc.process_log.error.assert_called_once_with(
-                "Task process did not exit after SIGTERM; killing it", timeout_seconds=30.0
-            )
-        else:
-            mock_signal.assert_not_called()
-            mock_kill.assert_not_called()
-            proc.process_log.error.assert_not_called()
-
-    def test_execution_timeout_clears_escalation_if_process_is_gone(self, mocker):
-        process = mocker.Mock()
-        process.ProcessNotFound = type("ProcessNotFound", (Exception,), {})
-        mocker.patch("time.monotonic", return_value=20.0)
-        mock_signal = mocker.patch(
-            "airflow.sdk.execution_time.supervisor.WatchedSubprocess._signal_subprocess",
-            side_effect=process.ProcessNotFound(),
-        )
-        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
-        proc = ActivitySubprocess(
-            process_log=mocker.MagicMock(),
-            id=TI_ID,
-            pid=12345,
-            stdin=mocker.Mock(),
-            process=process,
-            client=mocker.Mock(),
-        )
-        proc._execution_timeout_seconds = 30.0
-        proc._execution_timeout_enforce_at = 20.0
-        proc._execution_timeout_next_signal = signal.SIGTERM
-
-        proc._handle_execution_timeout_if_needed()
-
-        mock_signal.assert_called_once_with(signal.SIGTERM)
         mock_kill.assert_not_called()
-        assert proc._execution_timeout_next_signal is None
-        assert proc._execution_timeout_enforce_at is None
-        assert proc._execution_timeout_due_in() is None
+        proc.process_log.error.assert_not_called()
 
     @pytest.mark.parametrize(
         ("stops_on_sigterm", "expected_exit_code"),
@@ -1456,11 +1399,11 @@ class TestWatchedSubprocess:
         ],
     )
     def test_execution_timeout_enforced_by_supervisor(
-        self, stops_on_sigterm, expected_exit_code, monkeypatch, captured_logs, client_with_ti_start
+        self, stops_on_sigterm, expected_exit_code, mocker, captured_logs, client_with_ti_start
     ):
-        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 0.3)
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 0.3)
         # Far longer than the test may take: the monitor loop has to wake up for the timeout on its own
-        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 30)
+        mocker.patch("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 30)
 
         def subprocess_main():
             import signal
@@ -1500,9 +1443,15 @@ class TestWatchedSubprocess:
         assert time.monotonic() - started < 10
         assert proc.final_state == TaskInstanceState.FAILED
 
-        events = [m["event"] for m in captured_logs]
-        assert "Task did not stop after execution_timeout elapsed; terminating process" in events
-        assert ("Task process did not exit after SIGTERM; killing it" in events) is not stops_on_sigterm
+        assert {
+            "event": "Task did not stop before execution_timeout elapsed; terminating process",
+            "level": "error",
+            "timeout_seconds": 0.1,
+            "grace_period_seconds": 0.3,
+            "logger": "task",
+            "timestamp": mocker.ANY,
+            "loc": mocker.ANY,
+        } in captured_logs
 
     @pytest.mark.parametrize(
         ("signal_to_raise", "log_pattern", "level"),
