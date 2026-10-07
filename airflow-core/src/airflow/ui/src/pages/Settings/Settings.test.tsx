@@ -25,7 +25,9 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
+  DAGS_LIST_SHOW_RECENT_TASKS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_MATCH_ANYWHERE_KEY,
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
@@ -52,6 +54,10 @@ beforeAll(async () => {
               taskSelection: { helper: "helper", label: "Default task clear selection" },
               title: "Clearing",
             },
+            dagsList: {
+              recentTasks: { helper: "helper", label: "Show recent tasks" },
+              title: "Dags List",
+            },
             description: "browser only",
             general: {
               landingPage: {
@@ -69,6 +75,10 @@ beforeAll(async () => {
             marking: {
               taskSelection: { helper: "helper", label: "Default mark selection" },
               title: "Marking",
+            },
+            search: {
+              matchAnywhere: { helper: "helper", label: "Match anywhere by default" },
+              title: "Search",
             },
             taskInstance: {
               defaultTab: { helper: "helper", label: "Default task instance tab" },
@@ -176,5 +186,31 @@ describe("task group setting", () => {
     unmount();
     render(<Settings />, { wrapper: BaseWrapper });
     expect(screen.getByTestId("default-task-groups-expanded")).toHaveAttribute("data-state", "checked");
+  });
+});
+
+describe("match anywhere setting", () => {
+  it("defaults to off and persists the preference", async () => {
+    const { unmount } = render(<Settings />, { wrapper: BaseWrapper });
+
+    expect(screen.getByTestId("default-match-anywhere")).toHaveAttribute("data-state", "unchecked");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Match anywhere by default" }));
+    await waitFor(() => expect(localStorage.getItem(DEFAULT_MATCH_ANYWHERE_KEY)).toBe("true"));
+    unmount();
+    render(<Settings />, { wrapper: BaseWrapper });
+    expect(screen.getByTestId("default-match-anywhere")).toHaveAttribute("data-state", "checked");
+  });
+});
+
+describe("Dags list recent tasks setting", () => {
+  it("defaults to shown and persists turning it off", async () => {
+    const { unmount } = render(<Settings />, { wrapper: BaseWrapper });
+
+    expect(screen.getByTestId("dags-list-show-recent-tasks")).toHaveAttribute("data-state", "checked");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show recent tasks" }));
+    await waitFor(() => expect(localStorage.getItem(DAGS_LIST_SHOW_RECENT_TASKS_KEY)).toBe("false"));
+    unmount();
+    render(<Settings />, { wrapper: BaseWrapper });
+    expect(screen.getByTestId("dags-list-show-recent-tasks")).toHaveAttribute("data-state", "unchecked");
   });
 });

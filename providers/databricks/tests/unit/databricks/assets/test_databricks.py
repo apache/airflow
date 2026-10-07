@@ -23,6 +23,7 @@ import pytest
 
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.databricks.assets.databricks import (
+    UnityTableIdentity,
     convert_asset_to_openlineage,
     create_asset,
     sanitize_uri,
@@ -75,3 +76,57 @@ def test_convert_asset_to_openlineage() -> None:
     ol_dataset = convert_asset_to_openlineage(asset=asset, lineage_context=None)
     assert ol_dataset.namespace == "databricks://my-workspace.cloud.databricks.com"
     assert ol_dataset.name == "main.default.users"
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        pytest.param("my-workspace.cloud.databricks.com", id="hostname"),
+        pytest.param("https://my-workspace.cloud.databricks.com", id="url"),
+        pytest.param("https://my-workspace.cloud.databricks.com/", id="url-trailing-slash"),
+    ],
+)
+def test_unity_table_identity_to_asset(host: str) -> None:
+    identity = UnityTableIdentity(host=host, catalog="main", schema="default", table="users")
+    assert identity.to_asset() == Asset(
+        uri="databricks://my-workspace.cloud.databricks.com/main/default/users"
+    )
+
+
+@pytest.mark.parametrize(
+    ("fields", "match"),
+    [
+        pytest.param({"host": ""}, "host must not be empty", id="empty-host"),
+        pytest.param({"catalog": ""}, "catalog must not be empty", id="empty-catalog"),
+        pytest.param({"schema": ""}, "schema must not be empty", id="empty-schema"),
+        pytest.param({"table": ""}, "table must not be empty", id="empty-table"),
+        pytest.param({"host": "{{ conn.host }}"}, "host must be static", id="jinja-host"),
+        pytest.param({"table": "{{ params.table }}"}, "table must be static", id="jinja-table"),
+        pytest.param({"schema": "{% if x %}a{% endif %}"}, "schema must be static", id="jinja-block"),
+    ],
+)
+def test_unity_table_identity_rejects_invalid_fields(fields: dict[str, str], match: str) -> None:
+    valid = {
+        "host": "my-workspace.cloud.databricks.com",
+        "catalog": "main",
+        "schema": "default",
+        "table": "users",
+    }
+    with pytest.raises(ValueError, match=match):
+        UnityTableIdentity(**{**valid, **fields})
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "My-Workspace.cloud.Databricks.com",
+        "https://My-Workspace.cloud.Databricks.com/",
+    ],
+)
+def test_unity_table_identity_normalizes_case(host: str) -> None:
+    identity = UnityTableIdentity(host=host, catalog="Main", schema="Default", table="Users")
+    canonical = UnityTableIdentity(
+        host="my-workspace.cloud.databricks.com", catalog="main", schema="default", table="users"
+    )
+    assert identity == canonical
+    assert identity.to_asset() == canonical.to_asset()

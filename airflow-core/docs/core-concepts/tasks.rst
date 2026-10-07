@@ -254,19 +254,30 @@ Define a policy once and share it across DAGs via ``default_args`` or a shared m
 Mapped tasks
 ~~~~~~~~~~~~
 
-Policies work with dynamic task mapping via ``.partial()``. The policy applies
-per mapped task instance -- if instance 2 of 10 hits FAIL, the other 9 continue
-independently:
+Policies work with dynamic task mapping. The policy applies per mapped task
+instance -- if instance 2 of 10 hits FAIL, the other 9 continue independently:
 
 .. code-block:: python
 
-    @task.partial(retry_policy=my_policy).expand(input=[1, 2, 3])
+    @task(retry_policy=my_policy)
     def my_mapped_task(input): ...
 
-The policy is set at the task level via ``.partial()``; all mapped instances
-share one policy. Per-index variation is not supported on ``.expand()``, but the
-policy's ``evaluate()`` method receives the exception, ``try_number``, and full
-context, so per-index branching can be done inside the policy if needed.
+
+    my_mapped_task.expand(input=[1, 2, 3])
+
+For a classic operator, pass the policy to ``.partial()``:
+
+.. code-block:: python
+
+    BashOperator.partial(task_id="run", retry_policy=my_policy).expand(
+        bash_command=["echo 1", "echo 2", "echo 3"],
+    )
+
+The policy is set once on the task, in ``@task(...)`` or ``.partial()``; all
+mapped instances share one policy. Per-index variation is not supported on
+``.expand()``, but the policy's ``evaluate()`` method receives the exception,
+``try_number``, and full context, so per-index branching can be done inside the
+policy if needed.
 
 Chaining policies
 ~~~~~~~~~~~~~~~~~

@@ -41,7 +41,7 @@ AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.11"
 
 # Maps a platform string (as declared in ``provider.yaml`` under ``excluded-platforms``)
 # to the ``platform_machine`` values Python reports there. The two ARM spellings are not
@@ -600,24 +600,24 @@ def validate_cmd_result(cmd_result, include_ci_env_check=False):
                     "run this command:[/]\n"
                 )
                 console.print(
-                    "[magenta]breeze ci-image build --python 3.10 --upgrade-to-newer-dependencies[/]\n"
+                    "[magenta]breeze ci-image build --python 3.11 --upgrade-to-newer-dependencies[/]\n"
                 )
             else:
                 print(
                     "\nIf you see strange stacktraces above, especially about missing imports "
-                    "run this command:\nbreeze ci-image build --python 3.10 --upgrade-to-newer-dependencies\n"
+                    "run this command:\nbreeze ci-image build --python 3.11 --upgrade-to-newer-dependencies\n"
                 )
 
     elif cmd_result.returncode != 0:
         if console:
             console.print(
                 "[warning]\nIf you see strange stacktraces above, "
-                "run `breeze ci-image build --python 3.10` and try again."
+                "run `breeze ci-image build --python 3.11` and try again."
             )
         else:
             print(
                 "\nIf you see strange stacktraces above, "
-                "run `breeze ci-image build --python 3.10` and try again."
+                "run `breeze ci-image build --python 3.11` and try again."
             )
     sys.exit(cmd_result.returncode)
 
@@ -899,6 +899,27 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
                 imports.append(fullname)
 
     return imports
+
+
+GIT_REPO_OVERRIDE_VARIABLES = (
+    "GIT_INDEX_FILE",
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_PREFIX",
+    "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+)
+
+
+def git_env_without_repo_overrides() -> dict[str, str]:
+    """
+    Return an environment for git commands that must not act on the repo being committed.
+
+    ``git commit`` exports ``GIT_INDEX_FILE`` (and friends) to hooks; a child ``git worktree add``
+    would otherwise check out into the committing repo's index instead of its own.
+    """
+    return {k: v for k, v in os.environ.items() if k not in GIT_REPO_OVERRIDE_VARIABLES}
 
 
 def get_remote_for_main() -> str:

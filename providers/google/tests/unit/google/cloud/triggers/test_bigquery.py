@@ -757,6 +757,99 @@ class TestBigQueryIntervalCheckTrigger:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("first_status", "second_status"),
+        [
+            pytest.param("running", "success", id="first-running"),
+            pytest.param("success", "running", id="second-running"),
+            pytest.param("running", "running", id="both-running"),
+        ],
+    )
+    @mock.patch("asyncio.sleep", new_callable=AsyncMock)
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.interval_check")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_sync_hook")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    async def test_interval_check_trigger_keeps_polling_while_a_job_is_running(
+        self,
+        mock_job_status,
+        mock_sync_hook,
+        mock_get_job_output,
+        mock_get_records,
+        mock_interval_check,
+        mock_sleep,
+        first_status,
+        second_status,
+        interval_check_trigger,
+    ):
+        """A job that is still running is polled again instead of failing the check (#73981)."""
+        mock_job_status.side_effect = [
+            {"status": first_status, "message": f"Job {first_status}"},
+            {"status": second_status, "message": f"Job {second_status}"},
+            {"status": "success", "message": "Job completed"},
+            {"status": "success", "message": "Job completed"},
+        ]
+        mock_sync_hook.return_value.is_default_universe.return_value = True
+        mock_get_records.side_effect = lambda *_, **__: [[100]]
+
+        actual = await interval_check_trigger.run().asend(None)
+
+        assert actual == TriggerEvent(
+            {
+                "status": "success",
+                "message": "Job completed",
+                "first_row_data": [100],
+                "second_row_data": [100],
+            }
+        )
+        mock_sleep.assert_awaited_once_with(INTERVAL_CHECK_POLLING_PERIOD_SECONDS)
+        mock_interval_check.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("first_response", "second_response", "expected_message"),
+        [
+            pytest.param(
+                {"status": "error", "message": "first failed"},
+                {"status": "success", "message": "Job completed"},
+                "first failed",
+                id="first-failed-second-succeeded",
+            ),
+            pytest.param(
+                {"status": "success", "message": "Job completed"},
+                {"status": "error", "message": "second failed"},
+                "second failed",
+                id="second-failed",
+            ),
+            pytest.param(
+                {"status": "error", "message": "first failed"},
+                {"status": "running", "message": "Job running"},
+                "first failed",
+                id="first-failed-second-still-running",
+            ),
+        ],
+    )
+    @mock.patch("asyncio.sleep", new_callable=AsyncMock)
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    async def test_interval_check_trigger_reports_the_failed_job(
+        self,
+        mock_job_status,
+        mock_sleep,
+        first_response,
+        second_response,
+        expected_message,
+        interval_check_trigger,
+    ):
+        """The error event carries the message of the job that failed, without waiting for the other one."""
+        mock_job_status.side_effect = [first_response, second_response]
+
+        actual = await interval_check_trigger.run().asend(None)
+
+        assert actual == TriggerEvent({"status": "error", "message": expected_message, "data": None})
+        mock_sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_interval_check_trigger_exception(self, mock_job_status, caplog, interval_check_trigger):
         """Tests that the BigQueryIntervalCheckTrigger fires the correct event in case of an error."""
@@ -832,6 +925,34 @@ class TestBigQueryValueCheckTrigger:
 
         # Prevents error when task is destroyed while in "pending" state
         asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=AsyncMock)
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.value_check")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
+    async def test_value_check_op_trigger_keeps_polling_while_job_is_running(
+        self,
+        mock_job_status,
+        mock_get_job_output,
+        mock_get_records,
+        mock_value_check,
+        mock_sleep,
+        value_check_trigger,
+    ):
+        """A job that is still running is polled again instead of failing the check (#73981)."""
+        mock_job_status.side_effect = [
+            {"status": "running", "message": "Job running"},
+            {"status": "success", "message": "Job completed"},
+        ]
+        mock_get_records.side_effect = lambda *_, **__: [[4]]
+
+        actual = await value_check_trigger.run().asend(None)
+
+        assert actual == TriggerEvent({"status": "success", "message": "Job completed", "records": [4]})
+        mock_sleep.assert_awaited_once_with(POLLING_PERIOD_SECONDS)
+        mock_value_check.assert_called_once()
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")

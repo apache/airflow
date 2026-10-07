@@ -498,7 +498,10 @@ doing it immediately in the code they can add a comment ``# use next version``
 to the line of ``pyproject.toml`` file of the provider that refers to the provider, which next version
 should be used. This comment will be picked up by the``update-providers-next-version`` command and the
 version of the dependent provider will be updated to the next version and comment will be
-removed.
+removed. Pins of a provider whose current version already has a final release tag are left untouched,
+because the "next version" of that provider is then a future release. When only release candidate
+tags exist the pin is still updated with a warning: revert that update if the provider is in vote
+rather than re-cut in this release.
 
 ```shell script
 breeze release-management update-providers-next-version
@@ -1646,7 +1649,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 You can use any Airflow 3.X.Y version, like 3.2.0, to install specific version for testing, using breeze.
 
 ```shell
-breeze start-airflow --use-airflow-version 3.1.3 --python 3.10 --backend postgres \
+breeze start-airflow --use-airflow-version 3.1.3 --python 3.11 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 
@@ -1713,9 +1716,20 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 > binding `+1` votes from PMC members are already present in the vote thread — the email reports a
 > decision the PMC has already made, it does not make that decision.
 
-In both subject and message update DATE OF RELEASE, FIRST/LAST NAMES and numbers). In case
-some providers were  excluded, explain why they were excluded and what is the plan for them
-(otherwise remove the optional part of the message). There are two options for releasing
+In both subject and message update DATE OF RELEASE, FIRST/LAST NAMES and numbers. List the
+voters as follows:
+
+* Binding `+1` votes are listed by name only. The heading already says they are binding, so do not
+  add `(binding)` after each name.
+* Non-binding `+1` votes for specific providers go in a separate list, with the providers in
+  brackets after the voter's name. A vote counts for specific providers only when its vote line
+  names them, for example `+1 (non-binding) for amazon and google`. A plain `+1` goes in the main
+  non-binding list, even when the voter adds that they only tested their own changes.
+* For every excluded provider, tally its `-1` votes, both binding and non-binding, with the voters'
+  names. Leave out a part whose count is zero.
+
+Remove each optional part of the message that does not apply. In case some providers were excluded,
+explain why they were excluded and what is the plan for them. There are two options for releasing
 the next RC candidates:
 
 * They will be released as an ad-hoc release with accelerated vote
@@ -1743,13 +1757,20 @@ Hello,
 Apache Airflow Providers prepared on ${RELEASE_DATE} have been accepted.
 
 3 "+1" binding votes received:
-- FIRST LAST NAME (binding)
-- FIRST LAST NAME (binding)
-- FIRST LAST NAME (binding)
+- FIRST LAST NAME
+- FIRST LAST NAME
+- FIRST LAST NAME
 
 2 "+1" non-binding votes received:
 - FIRST LAST NAME
 - FIRST LAST NAME
+
+[optional] 1 "+1" non-binding vote received for specific providers:
+- FIRST LAST NAME (PROVIDER, PROVIDER)
+
+[optional] "-1" votes received for specific providers:
+- PROVIDER: 1 binding (FIRST LAST NAME), 1 non-binding (FIRST LAST NAME)
+- PROVIDER: 1 binding (FIRST LAST NAME)
 
 [optional] The providers PROVIDER, PROVIDER have been excluded from the release.
 This is due to REASON HERE.

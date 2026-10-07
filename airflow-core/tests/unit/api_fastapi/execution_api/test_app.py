@@ -30,7 +30,7 @@ from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
-from sqlalchemy import event, text
+from sqlalchemy import event, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow import settings
@@ -43,6 +43,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.models.xcom import XComModel
 from airflow.utils.session import create_session_async
 
 from tests_common.test_utils.config import conf_vars
@@ -165,6 +166,21 @@ def test_in_process_execution_api_runs_without_jwt_secret():
     with httpx.Client(transport=api.transport) as client:
         response = client.get("http://localhost/health")
     assert response.status_code == 200
+
+
+def test_in_process_task_xcom_write_uses_its_attempt_id(create_task_instance, session):
+    ti = create_task_instance()
+    session.commit()
+    path = f"/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/return_value"
+
+    with TestClient(InProcessExecutionAPI().app) as client:
+        wrong = client.post(path, json="wrong", headers={"X-Airflow-In-Process-Attempt-Id": str(UUID(int=1))})
+        correct = client.post(path, json="correct", headers={"X-Airflow-In-Process-Attempt-Id": str(ti.id)})
+
+    assert wrong.status_code == 404
+    assert correct.status_code == 201
+    stored = session.scalar(select(XComModel).where(XComModel.task_instance_id == ti.id))
+    assert stored.value == "correct"
 
 
 def test_in_process_execution_api_transport_lifecycle():

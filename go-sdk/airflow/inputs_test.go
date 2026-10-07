@@ -19,6 +19,8 @@ package airflow
 
 import (
 	"context"
+	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -55,11 +57,22 @@ func keepAnything(Context, any) error                  { return nil }
 func keepNames(Context, names) error                   { return nil }
 func ping(Context) error                               { return nil }
 
+// inputRefs returns the tasks among the inputs of task, in order.
+func inputRefs(task *TaskRef) []*TaskRef {
+	var refs []*TaskRef
+	for _, input := range task.inputs {
+		if !input.literal {
+			refs = append(refs, input.ref)
+		}
+	}
+	return refs
+}
+
 func assertInputs(t *testing.T, task *TaskRef, want ...*TaskRef) {
 	t.Helper()
 	require.Len(t, task.inputs, len(want))
 	for i := range want {
-		assert.Same(t, want[i], task.inputs[i], "input %d", i)
+		assert.Same(t, want[i], task.inputs[i].ref, "input %d", i)
 	}
 }
 
@@ -79,7 +92,7 @@ func TestInputsRecordTheUpstreamTasks(t *testing.T) {
 func TestTaskCopiesTheInputs(t *testing.T) {
 	dag := Dag("etl")
 	read := dag.Task(readRows)
-	tasks := []*TaskRef{read}
+	tasks := []Input{read}
 	counted := dag.Task(countRows, Inputs(tasks...))
 
 	tasks[0] = counted
@@ -109,7 +122,7 @@ func runWithInputs(t *testing.T, task *TaskRef, results map[string]any, argNames
 	require.Len(t, argNames, len(task.inputs))
 	args := make([]binding.Arg, len(task.inputs))
 	for i, upstream := range task.inputs {
-		args[i] = binding.XComArg{Kind: "xcom", Name: argNames[i], TaskID: upstream.taskID}
+		args[i] = binding.XComArg{Kind: "xcom", Name: argNames[i], TaskID: upstream.ref.taskID}
 	}
 	ti := sdk.TaskInstance{DagID: "etl", RunID: "run1", TaskID: task.taskID}
 	ctx := context.WithValue(
@@ -186,25 +199,25 @@ func TestTaskPanicsWhenInputsDoNotMatchTheParameterCount(t *testing.T) {
 			name: "no Inputs",
 			add:  func() { dag.Task(report) },
 			want: `task "report" of Dag "etl" has 1 parameter(s) after airflow.Context, ` +
-				`but airflow.Inputs passes no task`,
+				`but airflow.Inputs passes no input`,
 		},
 		{
 			name: "empty Inputs",
 			add:  func() { dag.Task(report, Inputs()) },
 			want: `task "report" of Dag "etl" has 1 parameter(s) after airflow.Context, ` +
-				`but airflow.Inputs passes no task`,
+				`but airflow.Inputs passes no input`,
 		},
 		{
 			name: "more tasks than parameters",
 			add:  func() { dag.Task(report, Inputs(counted, read)) },
 			want: `task "report" of Dag "etl" has 1 parameter(s) after airflow.Context, ` +
-				`but airflow.Inputs passes 2 task(s): "countRows", "readRows"`,
+				`but airflow.Inputs passes 2 input(s): "countRows", "readRows"`,
 		},
 		{
 			name: "no parameter to fill",
 			add:  func() { dag.Task(ping, Inputs(read)) },
 			want: `task "ping" of Dag "etl" has 0 parameter(s) after airflow.Context, ` +
-				`but airflow.Inputs passes 1 task(s): "readRows"`,
+				`but airflow.Inputs passes 1 input(s): "readRows"`,
 		},
 	}
 	for _, tt := range tests {
@@ -343,19 +356,25 @@ func TestTaskPanicsOnAnInputFromOutsideTheDag(t *testing.T) {
 			name:   "nil",
 			inputs: Inputs(read, nil),
 			want: `task "mergeRows" of Dag "etl": ` +
+				`airflow.Inputs got a nil input at index 1`,
+		},
+		{
+			name:   "nil TaskRef",
+			inputs: Inputs(read, (*TaskRef)(nil)),
+			want: `task "mergeRows" of Dag "etl": ` +
 				`airflow.Inputs got a nil *airflow.TaskRef at index 1`,
 		},
 		{
 			name:   "zero TaskRef",
 			inputs: Inputs(read, &TaskRef{}),
 			want: `task "mergeRows" of Dag "etl": airflow.Inputs got a *airflow.TaskRef ` +
-				`at index 1 that DagRef.Task did not return`,
+				`at index 1 that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name:   "copy of a task of the Dag",
 			inputs: Inputs(&readCopy),
 			want: `task "mergeRows" of Dag "etl": airflow.Inputs got a *airflow.TaskRef ` +
-				`at index 0 that DagRef.Task did not return`,
+				`at index 0 that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name:   "task of another Dag",
@@ -383,10 +402,302 @@ func TestTaskPanicsOnAnInputFromOutsideTheDag(t *testing.T) {
 func TestTaskRejectsASecondInputs(t *testing.T) {
 	dag := Dag("etl")
 	read := dag.Task(readRows)
+	literal := func(Context, rowSet) (int, error) { return 0, nil }
 
-	assert.PanicsWithValue(t,
-		`airflow.DagRef.Task: task "countRows" of Dag "etl" got 2 airflow.Inputs values; `+
-			`pass all of the task's inputs to one airflow.Inputs`,
-		func() { dag.Task(countRows, Inputs(read), Inputs()) },
+	tests := []struct {
+		name string
+		fn   any
+		opts []TaskOption
+		// task is a regexp for how the panic message names the task.
+		task string
+	}{
+		{
+			name: "second Inputs is empty",
+			fn:   countRows,
+			opts: []TaskOption{Inputs(read), Inputs()},
+			task: `countRows`,
+		},
+		{
+			name: "first Inputs is empty",
+			fn:   countRows,
+			opts: []TaskOption{Inputs(), Inputs(read)},
+			task: `countRows`,
+		},
+		{
+			name: "TaskID in a TaskSpec after the Inputs",
+			fn:   countRows,
+			opts: []TaskOption{Inputs(read), Inputs(read), TaskSpec{TaskID: "count_rows"}},
+			task: `count_rows`,
+		},
+		{
+			name: "nil option after the second Inputs",
+			fn:   countRows,
+			opts: []TaskOption{Inputs(read), Inputs(read), nil},
+			task: `countRows`,
+		},
+		{
+			name: "no TaskID and no function name",
+			fn:   literal,
+			opts: []TaskOption{Inputs(read), Inputs(read)},
+			task: `github\.com/apache/airflow/go-sdk/airflow\.` +
+				`TestTaskRejectsASecondInputs\.func\d+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := panicMessage(t, func() { dag.Task(tt.fn, tt.opts...) })
+			assert.Regexp(t,
+				`^airflow\.DagRef\.Task: task "`+tt.task+`" of Dag "etl": got more than one `+
+					`airflow\.Inputs; pass all of the task's inputs to one airflow\.Inputs$`,
+				msg,
+			)
+		})
+	}
+}
+
+func keepString(Context, string) error           { return nil }
+func keepStringPointer(Context, *string) error   { return nil }
+func keepRowSet(Context, rowSet) error           { return nil }
+func loadInto(Context, int, string) error        { return nil }
+func keepCount(Context, int) error               { return nil }
+func keepSmallCount(Context, int8) error         { return nil }
+func keepRowSetByPointer(Context, *rowSet) error { return nil }
+
+func TestInputsTakeALiteralNextToATask(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(countRows, Inputs(dag.Task(readRows)))
+	loaded := dag.Task(loadInto, Inputs(read, Literal("s3://bucket/out")))
+
+	require.Len(t, loaded.inputs, 2)
+	assert.Same(t, read, loaded.inputs[0].ref)
+	assert.False(t, loaded.inputs[0].literal)
+	assert.True(t, loaded.inputs[1].literal)
+	assert.Equal(t, "s3://bucket/out", loaded.inputs[1].value)
+}
+
+func TestALiteralAddsNoEdge(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(readRows)
+	alone := dag.Task(keepString, Inputs(Literal("x")))
+	mixed := dag.Task(loadInto, Inputs(dag.Task(countRows, Inputs(read)), Literal("x")))
+	Bundle().Register(dag)
+
+	assert.Empty(t, alone.upstreams)
+	assertTasks(t, mixed.upstreams, dag.tasksByID["countRows"])
+	assertTasks(t, read.downstreams, dag.tasksByID["countRows"])
+}
+
+func TestALiteralTakesTheTypeOfItsParameter(t *testing.T) {
+	dag := Dag("etl")
+
+	assert.NotPanics(t, func() { dag.Task(keepString, Inputs(Literal("x"))) })
+	assert.NotPanics(t, func() { dag.Task(keepStringPointer, Inputs(Literal(nil))) })
+	assert.NotPanics(t, func() { dag.Task(keepAnything, Inputs(Literal(nil))) })
+	assert.NotPanics(t, func() { dag.Task(keepCount, Inputs(Literal(3))) })
+	assert.NotPanics(
+		t,
+		func() { dag.Task(average, Inputs(Literal(3))) },
+		"a whole number fills a float64",
 	)
+	assert.NotPanics(t, func() {
+		dag.Task(keepRowSet, Inputs(Literal(map[string]any{"rows": []string{"a"}})))
+	}, "a map fills a struct")
+	assert.NotPanics(t, func() {
+		dag.Task(keepRowSetByPointer, Inputs(Literal(rowSet{Rows: []string{"a"}})))
+	}, "a struct fills a pointer to a struct")
+	assert.NotPanics(t, func() { dag.Task(keepCounts, Inputs(Literal(map[string]int{"a": 1}))) })
+}
+
+func TestTaskPanicsWhenALiteralDoesNotDecodeIntoItsParameter(t *testing.T) {
+	dag := Dag("etl")
+
+	tests := []struct {
+		name string
+		task string
+		fn   any
+		in   Input
+		want string
+	}{
+		{
+			name: "string into int",
+			task: "keepCount",
+			fn:   keepCount,
+			in:   Literal("x"),
+			want: `the airflow.Literal for parameter 1 cannot be decoded into int: ` +
+				`json: cannot unmarshal string into Go value of type int`,
+		},
+		{
+			name: "null into a parameter that is not nilable",
+			task: "keepString",
+			fn:   keepString,
+			in:   Literal(nil),
+			want: `the airflow.Literal for parameter 1 cannot be decoded into string: ` +
+				`value is null but the parameter type string is not nilable`,
+		},
+		{
+			name: "a number out of range for the parameter",
+			task: "keepSmallCount",
+			fn:   keepSmallCount,
+			in:   Literal(300),
+			want: `the airflow.Literal for parameter 1 cannot be decoded into int8: ` +
+				`json: cannot unmarshal number 300 into Go value of type int8`,
+		},
+		{
+			name: "a key the struct does not have",
+			task: "keepRowSet",
+			fn:   keepRowSet,
+			in:   Literal(map[string]any{"other": 1}),
+			want: `the airflow.Literal for parameter 1 cannot be decoded into airflow.rowSet: ` +
+				`json: unknown field "other"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.PanicsWithValue(t,
+				`airflow.DagRef.Task: task "`+tt.task+`" of Dag "etl": `+tt.want,
+				func() { dag.Task(tt.fn, Inputs(tt.in)) },
+			)
+		})
+	}
+}
+
+func TestTaskPanicsOnALiteralThatJSONCannotHold(t *testing.T) {
+	dag := Dag("etl")
+	tooBig := json.Number("18446744073709551616")
+
+	tests := []struct {
+		name string
+		in   Input
+		want string
+	}{
+		{
+			name: "a channel",
+			in:   Literal(make(chan int)),
+			want: "json: unsupported type: chan int",
+		},
+		{
+			name: "NaN",
+			in:   Literal(math.NaN()),
+			want: "json: unsupported value: NaN",
+		},
+		{
+			name: "an integer that does not fit in 64 bits",
+			in:   Literal(map[string]any{"rows": []any{1, tooBig}}),
+			want: `the integer at value["rows"][1] is 18446744073709551616, ` +
+				`which does not fit in 64 bits`,
+		},
+		{
+			name: "a number past the range of a float64",
+			in:   Literal(json.Number("1e400")),
+			want: "the number at value is 1e400, which is past the range of a float64",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.PanicsWithValue(t,
+				`airflow.DagRef.Task: task "keepAnything" of Dag "etl": `+
+					`the airflow.Literal for parameter 1 is not valid: `+tt.want,
+				func() { dag.Task(keepAnything, Inputs(tt.in)) },
+			)
+		})
+	}
+}
+
+func TestTaskPanicsOnATaskRefInALiteral(t *testing.T) {
+	dag := Dag("etl")
+	read := dag.Task(readRows)
+	type holder struct{ Upstream *TaskRef }
+
+	tests := []struct {
+		name string
+		in   Input
+		path string
+	}{
+		{"at the top level", Literal(read), "value"},
+		{"a TaskRef value", Literal(*read), "value"},
+		{"in a map", Literal(map[string]any{"a": read}), "value[a]"},
+		{"in a slice", Literal([]any{1, []any{read}}), "value[1][0]"},
+		{"in a struct", Literal(holder{Upstream: read}), "value.Upstream"},
+		{"behind a pointer", Literal(&holder{Upstream: read}), "value.Upstream"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.PanicsWithValue(t,
+				`airflow.DagRef.Task: task "keepAnything" of Dag "etl": `+
+					`the airflow.Literal for parameter 1 is not valid: `+tt.path+
+					` is a *airflow.TaskRef, which is an edge and not data; `+
+					`pass the TaskRef to airflow.Inputs itself`,
+				func() { dag.Task(keepAnything, Inputs(tt.in)) },
+			)
+		})
+	}
+	assert.Empty(t, read.downstreams)
+}
+
+func TestALiteralMayHoldAValueThatPointsAtItself(t *testing.T) {
+	type node struct {
+		Name string `json:"name"`
+		Next *node  `json:"-"`
+	}
+	loop := &node{Name: "a"}
+	loop.Next = loop
+
+	assert.NotPanics(t, func() { Dag("etl").Task(keepAnything, Inputs(Literal(loop))) })
+}
+
+func TestLiteralCopiesTheValue(t *testing.T) {
+	dag := Dag("etl")
+	value := map[string]any{"rows": []any{"a"}}
+	copied := Literal(value)
+
+	value["rows"].([]any)[0] = "changed"
+	value["added"] = true
+	task := dag.Task(keepAnything, Inputs(copied))
+
+	assert.Equal(t, map[string]any{"rows": []any{"a"}}, task.inputs[0].value)
+}
+
+func TestLiteralKeepsAnIntegerAnInteger(t *testing.T) {
+	task := Dag("etl").Task(keepAnything, Inputs(Literal(map[string]any{
+		"small": 1, "big": int64(9007199254740993), "fraction": 1.5,
+	})))
+
+	assert.Equal(t,
+		map[string]any{"small": int64(1), "big": int64(9007199254740993), "fraction": 1.5},
+		task.inputs[0].value,
+	)
+}
+
+func TestLiteralValuesReachTheTaskFunction(t *testing.T) {
+	var got struct {
+		anything any
+		count    int
+	}
+	dag := Dag("etl")
+	task := dag.Task(
+		func(_ Context, anything any, count int) error {
+			got.anything, got.count = anything, count
+			return nil
+		},
+		Inputs(Literal(map[string]any{"a": []any{1, "x"}}), Literal(7)),
+		TaskSpec{TaskID: "keep"},
+	)
+	args := make([]binding.Arg, len(task.inputs))
+	for i, input := range task.inputs {
+		args[i] = binding.LiteralArg{
+			Kind:  "literal",
+			Name:  "arg" + string(rune('0'+i)),
+			Value: input.value,
+		}
+	}
+
+	ctx := context.WithValue(
+		context.Background(),
+		sdkcontext.SdkClientContextKey,
+		sdk.Client(resultsByTask{}),
+	)
+	require.NoError(t, task.task.Execute(ctx, discardLogger(), args))
+
+	assert.Equal(t, map[string]any{"a": []any{float64(1), "x"}}, got.anything)
+	assert.Equal(t, 7, got.count)
 }

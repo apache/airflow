@@ -26,7 +26,7 @@ Files with DataFusion: ``DataFusionToolset``
 Curated toolset wrapping
 :class:`~airflow.providers.common.sql.datafusion.engine.DataFusionEngine`
 with three tools (``list_tables``, ``get_schema``, and ``query``) for
-querying files on object stores (S3, GCS, local filesystem, Iceberg) via Apache DataFusion.
+querying files on object stores (S3, GCS, Azure Blob Storage, local filesystem, Iceberg) via Apache DataFusion.
 
 .. list-table::
    :header-rows: 1
@@ -74,6 +74,56 @@ configs can be registered so that SQL queries can join across tables.
 The ``DataFusionEngine`` is created lazily on the first tool call. This
 toolset requires the ``datafusion`` extra of
 ``apache-airflow-providers-common-sql``.
+
+.. _datafusion-toolset-restricted:
+
+Restricting the agent
+---------------------
+
+With ``allow_writes=False`` (the default), the tables you register are the only ones
+the agent can query; there is no separate allow-list. This agent can query two tables,
+cannot write, and gets bounded results:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_datafusion_toolset.py
+    :language: python
+    :start-after: [START howto_toolset_datafusion_restricted]
+    :end-before: [END howto_toolset_datafusion_restricted]
+
+Run against an S3 endpoint where an ``acme-payroll`` bucket sits beside the reports,
+these queries were refused, and the model got the error back to correct:
+
+``SELECT * FROM payroll``
+    ``error: Error while executing query: DataFusion error: Diagnostic(Diagnostic {
+    kind: Error, message: "table 'payroll' not found", ...``
+
+``SELECT * FROM 's3://acme-payroll/salaries.csv'``
+    ``error: Error while executing query: DataFusion error: Diagnostic(Diagnostic {
+    kind: Error, message: "table 's3://acme-payroll/salaries.csv' not found", ...``
+
+``CREATE TABLE copy AS SELECT * FROM sales``
+    ``error: Statement type 'Create' is not allowed. Allowed types: Select, Union,
+    Intersect, Except. Only read-only SELECT-family queries are allowed unless
+    allow_writes is enabled; check the SQL syntax and statement type, then try
+    again.``
+
+The second query shows that a URL in the SQL is looked up as a table name, not read
+as a file. A query over the registered tables runs:
+
+.. code-block:: sql
+
+    SELECT s.region, CAST(sum(r.amount) AS DOUBLE) / sum(s.amount) AS return_rate
+    FROM sales s JOIN returns r ON r.region = s.region
+    GROUP BY s.region ORDER BY return_rate DESC
+
+It returns:
+
+.. code-block:: json
+
+    {"columns":["region","return_rate"],"rows":[["AMER",0.5],["EMEA",0.2]],"row_count":2}
+
+The object store is created for the whole bucket, not the prefix each
+``DataSourceConfig`` registers, so give ``aws_reports_reader`` credentials that can
+read only those prefixes.
 
 Parameters
 ----------

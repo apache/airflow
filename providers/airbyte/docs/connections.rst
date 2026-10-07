@@ -57,8 +57,12 @@ Client Secret (optional)
     Leave blank for Airbyte OSS deployments without auth enabled.
 
 Extra (optional)
-    Specify the ``proxies`` key in JSON format to route traffic through an HTTP proxy.
+    Specify extra parameters as JSON. The following keys are supported:
 
-    * ``proxies``
+    * ``proxies`` - Route traffic through an HTTP proxy.
+    * ``timeout`` - Request timeout, in seconds, for each call to the Airbyte API.
+      When not set, the underlying HTTP client's default of 5 seconds applies.
+      Can also be set programmatically via the ``timeout`` parameter of
+      ``AirbyteHook``, which takes precedence over this extra.
 
-    Example: ``{"proxies": {"http": "http://proxy.example.com:8080", "https": "http://proxy.example.com:8080"}}``
+    Example: ``{"proxies": {"http": "http://proxy.example.com:8080", "https": "http://proxy.example.com:8080"}, "timeout": 60}``

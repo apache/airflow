@@ -50,7 +50,7 @@ Create Date: 2026-08-03 12:00:00.000000
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from textwrap import dedent
 
 import sqlalchemy as sa
@@ -116,7 +116,7 @@ def upgrade():
         op.execute("DELETE FROM asset_dag_run_queue")
     else:
         conn = op.get_bind()
-        floor_min = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        floor_min = datetime(1970, 1, 1, tzinfo=UTC)
         conn.execute(sa.text(_STAGE_SQL), {"floor_min": floor_min})
         conn.execute(sa.text("DELETE FROM asset_dag_run_queue"))
 
@@ -136,7 +136,7 @@ def upgrade():
     # 4. Repopulate the per-event rows from staging.
     if not context.is_offline_mode():
         conn = op.get_bind()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         conn.execute(
             sa.text(
                 f"""

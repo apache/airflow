@@ -28,9 +28,7 @@ import os
 import sys
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
-
-from typing_extensions import NotRequired
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
     if sys.version_info >= (3, 12):
@@ -38,6 +36,7 @@ if TYPE_CHECKING:
     else:
         import importlib_metadata as metadata
     from collections.abc import Callable, Generator
+    from importlib.metadata import Distribution
     from types import ModuleType
 
     from ..listeners.listener import ListenerManager
@@ -251,7 +250,9 @@ def is_valid_plugin(plugin_obj) -> bool:
     return False
 
 
-def _load_entrypoint_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
+def _load_entrypoint_plugins(
+    incompatibility_reason: Callable[[Distribution], str | None] | None = None,
+) -> tuple[list[AirflowPlugin], dict[str, str]]:
     """
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
 
@@ -265,6 +266,10 @@ def _load_entrypoint_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     import_errors: dict[str, str] = {}
     for entry_point, dist in entry_points_with_dist("airflow.plugins"):
         log.debug("Importing entry_point plugin %s", entry_point.name)
+        if incompatibility_reason and dist.metadata and (reason := incompatibility_reason(dist)):
+            log.warning(reason)
+            import_errors[entry_point.module] = reason
+            continue
         try:
             plugin_class = entry_point.load()
             if not is_valid_plugin(plugin_class):
