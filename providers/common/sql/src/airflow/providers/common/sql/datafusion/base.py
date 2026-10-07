@@ -55,6 +55,15 @@ class ObjectStorageProvider(LoggingMixin, ABC):
                 return scheme
         raise ValueError(f"{uri!r} does not match any known scheme: {self.SCHEMES}")
 
+    def normalize_uri(self, uri: str) -> str:
+        """
+        Return the canonical ``uri`` to register under.
+
+        Default is identity; a provider overrides this when its URI shape doesn't match
+        DataFusion's (schema, host) registry key.
+        """
+        return uri
+
     def get_bucket(self, path: str) -> str | None:
         """Extract the bucket name from the given path."""
         for scheme in self.SCHEMES:

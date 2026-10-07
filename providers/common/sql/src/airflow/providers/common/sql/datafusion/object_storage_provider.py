@@ -106,7 +106,7 @@ class GCSObjectStorageProvider(ObjectStorageProvider):
 
 # Host suffix matched loosely (not pinned to dfs.core.windows.net) to also cover sovereign
 # clouds, consistent with DataFusionEngine._resolve_wasb_account's AZURE_STORAGE_ENDPOINT tolerance.
-_ABFS_URI_RE = re.compile(r"^abfss?://(?P<container>[^@/]+)@(?P<account>[^./]+)\.[^/]+(?:/.*)?$")
+_ABFS_URI_RE = re.compile(r"^abfss?://(?P<container>[^@/]+)@(?P<account>[^./]+)\.[^/]+(?P<path>/.*)?$")
 _ABFS_SCHEMES = ("abfs://", "abfss://")
 
 
@@ -135,6 +135,20 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
         match = _ABFS_URI_RE.match(path)
         return match.group("account") if match else None
 
+    def normalize_uri(self, path: str) -> str:
+        """
+        Rewrite ``abfs(s)://<container>@<account>.<host>/<path>`` to ``az://<account>.<container>/<path>``.
+
+        DataFusion's registry keys on (schema, host) alone, so container-only would collide for
+        two different accounts sharing a container name. Account and container names never
+        contain a dot, so joining on one is unambiguous. ``az://`` passes through unchanged --
+        it never carried an account, so that collision is a pre-existing limit of the scheme
+        itself, not something this normalization can resolve.
+        """
+        if match := _ABFS_URI_RE.match(path):
+            return f"az://{match.group('account')}.{match.group('container')}{match.group('path') or ''}"
+        return path
+
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create an Azure object store using DataFusion's MicrosoftAzure."""
         if connection_config is None:
@@ -153,6 +167,10 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
                     "the URI and the connection at the same account, or omit the account from one of "
                     "them."
                 )
+            if uri_account and not resolved_account:
+                # Without this, MicrosoftAzure falls back to AZURE_STORAGE_ACCOUNT_NAME, which can
+                # silently point at a different account than the one named in the URI.
+                credentials = {**credentials, "account": uri_account}
 
             azure_store = MicrosoftAzure(container_name=container, **credentials)
             self.log.info("Created Azure object store for container %s", container)
@@ -177,6 +195,15 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create a Local object store."""
         return LocalFileSystem()
+
+    def get_scheme(self, uri: str) -> str:
+        """
+        Return "file://" regardless of ``uri``.
+
+        A bare path with no prefix is only reachable via an explicit
+        ``storage_type=StorageType.LOCAL``, so matching against ``uri`` won't work.
+        """
+        return "file://"
 
 
 def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvider:
