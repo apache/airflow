@@ -199,17 +199,10 @@ discoverable. See :ref:`agent-skills` for the layout.
   that clone once per run. A local directory is read in place and
   costs nothing.
 
-**A real example.** ``example_agent_skills.py`` loads skills from a local
-directory:
-
-.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_skills.py
-    :language: python
-    :start-after: [START howto_operator_agent_skills_local]
-    :end-before: [END howto_operator_agent_skills_local]
-
-The two skills it ships, ``aip-tracker`` and ``sql-reporting``, are procedural by
-nature: neither adds an endpoint the agent could not already reach. That is the
-signal you are on the right route.
+**A real example.** The local-directory example at the top of this page comes
+from ``example_agent_skills.py``. The two skills it ships, ``aip-tracker`` and
+``sql-reporting``, are procedural by nature: neither adds an endpoint the agent
+could not already reach. That is the signal you are on the right route.
 
 **Credentials and where it runs.** A local directory needs no credential. A
 private repository goes through
