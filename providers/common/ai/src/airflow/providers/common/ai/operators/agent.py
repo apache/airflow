@@ -1019,14 +1019,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin):
             raise
 
     def execute(self, context: Context) -> Any:
-        if self.enable_hitl_review and not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: enable_hitl_review=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                f"The HITL session model requires a string prompt. Return a str "
-                f"prompt, or disable enable_hitl_review."
-            )
-
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 

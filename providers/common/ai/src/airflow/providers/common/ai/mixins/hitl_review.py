@@ -32,6 +32,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanActionData,
     SessionStatus,
 )
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ log = logging.getLogger(__name__)
 _MAX_CONSECUTIVE_XCOM_PULL_FAILURES = 10
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from airflow.sdk import Context
 
 
@@ -49,7 +52,7 @@ class HITLReviewProtocol(Protocol):
     max_hitl_iterations: int
     hitl_timeout: timedelta | None
     hitl_poll_interval: float
-    prompt: str
+    prompt: str | Sequence[Any]
     task_id: str
     log: Any
 
@@ -88,7 +91,7 @@ class HITLReviewMixin:
     - ``enable_hitl_review`` (``bool``)
     - ``hitl_timeout`` (``timedelta | None``)
     - ``hitl_poll_interval`` (``float``, seconds)
-    - ``prompt`` (``str``)
+    - ``prompt`` (``str`` or ``Sequence[UserContent]``)
 
     And must implement: meth:`regenerate_with_feedback`.
     """
@@ -122,7 +125,7 @@ class HITLReviewMixin:
             status=SessionStatus.PENDING_REVIEW,
             iteration=1,
             max_iterations=self.max_hitl_iterations,
-            prompt=self.prompt,
+            prompt=describe_prompt(self.prompt),
             current_output=output_str,
         )
 
@@ -239,7 +242,7 @@ class HITLReviewMixin:
                         status=SessionStatus.MAX_ITERATIONS_EXCEEDED,
                         iteration=session.iteration,
                         max_iterations=self.max_hitl_iterations,
-                        prompt=self.prompt,
+                        prompt=session.prompt,
                         current_output=session.current_output,
                     )
                     ti.xcom_push(key=XCOM_AGENT_SESSION, value=_session_max.model_dump(mode="json"))
@@ -262,7 +265,7 @@ class HITLReviewMixin:
                     status=SessionStatus.PENDING_REVIEW,
                     iteration=new_iteration,
                     max_iterations=self.max_hitl_iterations,
-                    prompt=self.prompt,
+                    prompt=session.prompt,
                     current_output=new_output,
                 )
 
