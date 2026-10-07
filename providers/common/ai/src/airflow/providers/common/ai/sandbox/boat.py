@@ -400,11 +400,13 @@ class BoatSandboxBackend(SandboxBackend):
                 f"export {shlex.quote(key)}={shlex.quote(value)}" for key, value in env.items()
             )
             command = f"{exports}; {command}"
-        # wait's stderr is dropped because bash reports a SIGKILLed job there, quoting
-        # the whole command line, exports included.
+        # A login shell, like the one Boat runs this wrapper in, so the functions and
+        # unexported variables the guest's profile sets still reach the command, with
+        # the exports applied after them. wait's stderr is dropped because bash reports
+        # a SIGKILLed job there, quoting the whole command line, exports included.
         command = (
             "tmp_dir=$(mktemp -d); trap 'rm -rf \"$tmp_dir\"' EXIT; "
-            f"timeout --kill-after={_KILL_AFTER} {timeout_seconds} bash -c {shlex.quote(command)} "
+            f"timeout --kill-after={_KILL_AFTER} {timeout_seconds} bash -lc {shlex.quote(command)} "
             '>"$tmp_dir/stdout" 2>"$tmp_dir/stderr" & '
             'command_pid=$!; wait "$command_pid" 2>/dev/null; command_status=$?; '
             'cat "$tmp_dir/stdout"; cat "$tmp_dir/stderr" >&2; exit "$command_status"'

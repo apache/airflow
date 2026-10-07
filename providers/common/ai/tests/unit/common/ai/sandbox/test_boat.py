@@ -19,6 +19,7 @@ from __future__ import annotations
 import base64
 import builtins
 import json
+import os
 import subprocess
 from types import SimpleNamespace
 from unittest import mock
@@ -80,6 +81,18 @@ def _created(sandbox_id: str):
 
 def _sandbox_info(state: str):
     return SimpleNamespace(sandbox=SimpleNamespace(id="bx_1", state=state))
+
+
+def _run_like_boat(wrapped: str, *, home, timeout: float) -> subprocess.CompletedProcess[str]:
+    """Run a wrapped command in a login shell, as Boat does, with ``home`` keeping the host's profile out."""
+    return subprocess.run(
+        ["bash", "-lc", wrapped],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+        env={"HOME": str(home), "PATH": os.environ["PATH"]},
+    )
 
 
 def _backend_with_api(**kwargs) -> tuple[BoatSandboxBackend, mock.MagicMock]:
@@ -376,16 +389,13 @@ class TestRunCommand:
             ("sleep 20 & echo background-ok", "background-ok\n", "", 0),
         ],
     )
-    def test_wrapper_preserves_shell_syntax_and_results(self, command, stdout, stderr, exit_code):
+    def test_wrapper_preserves_shell_syntax_and_results(self, tmp_path, command, stdout, stderr, exit_code):
         backend, api = _backend_with_api()
         backend._sandbox_env["bx_1"] = {"SPEC_MARKER": "kept"}
         api.command.return_value = _command_response()
 
         backend.run_command("bx_1", command, timeout=5, max_output_bytes=1024)
-        wrapped = api.command.call_args.args[1].command
-        result = subprocess.run(
-            ["bash", "-c", wrapped], capture_output=True, text=True, timeout=5, check=False
-        )
+        result = _run_like_boat(api.command.call_args.args[1].command, home=tmp_path, timeout=5)
 
         assert (result.stdout, result.stderr, result.returncode) == (stdout, stderr, exit_code)
 
@@ -401,18 +411,38 @@ class TestRunCommand:
         ],
     )
     @mock.patch("airflow.providers.common.ai.sandbox.boat._KILL_AFTER", 1)
-    def test_wrapper_returns_what_a_command_printed_before_its_deadline(self, command, exit_code):
+    def test_wrapper_returns_what_a_command_printed_before_its_deadline(self, tmp_path, command, exit_code):
         backend, api = _backend_with_api()
         backend._sandbox_env["bx_1"] = {"SPEC_MARKER": "kept"}
         api.command.return_value = _command_response()
 
         backend.run_command("bx_1", command, timeout=1, max_output_bytes=1024)
-        wrapped = api.command.call_args.args[1].command
-        result = subprocess.run(
-            ["bash", "-c", wrapped], capture_output=True, text=True, timeout=10, check=False
-        )
+        result = _run_like_boat(api.command.call_args.args[1].command, home=tmp_path, timeout=10)
 
         assert (result.stdout, result.stderr, result.returncode) == ("partial\n", "err-partial\n", exit_code)
+
+    @pytest.mark.parametrize(
+        ("command", "expected"),
+        [
+            pytest.param('printf "%s" "$PROFILE_ONLY"', "from-profile", id="unexported_variable"),
+            pytest.param("profile_function", "from-function", id="function"),
+            pytest.param('printf "%s" "$SPEC_MARKER"', "kept", id="spec_env_applied_after_it"),
+        ],
+    )
+    def test_the_command_runs_with_the_guests_login_profile(self, tmp_path, command, expected):
+        (tmp_path / ".bash_profile").write_text(
+            "PROFILE_ONLY=from-profile\n"
+            "profile_function() { printf from-function; }\n"
+            "export SPEC_MARKER=from-profile\n"
+        )
+        backend, api = _backend_with_api()
+        backend._sandbox_env["bx_1"] = {"SPEC_MARKER": "kept"}
+        api.command.return_value = _command_response()
+
+        backend.run_command("bx_1", command, timeout=5, max_output_bytes=1024)
+        result = _run_like_boat(api.command.call_args.args[1].command, home=tmp_path, timeout=10)
+
+        assert (result.stdout, result.stderr, result.returncode) == (expected, "", 0)
 
     def test_forwards_command_and_bounds_output(self):
         backend, api = _backend_with_api()
@@ -423,7 +453,7 @@ class TestRunCommand:
         result = backend.run_command("bx_1", "echo hi", timeout=5, max_output_bytes=8)
 
         request = api.command.call_args.args[1]
-        assert "timeout --kill-after=5 5 bash -c 'echo hi' " in request.command
+        assert "timeout --kill-after=5 5 bash -lc 'echo hi' " in request.command
         assert "mktemp -d" in request.command
         assert '>"$tmp_dir/stdout" 2>"$tmp_dir/stderr"' in request.command
         assert 'command_pid=$!; wait "$command_pid"' in request.command
@@ -594,7 +624,7 @@ class TestFiles:
 
         assert not isinstance(raised.value, SandboxTerminalError)
         request = api.command.call_args.args[1]
-        assert "timeout --kill-after=5 120 bash -c " in request.command
+        assert "timeout --kill-after=5 120 bash -lc " in request.command
         assert request.timeout_seconds == 120 + 5 + 10
         api.delete_sandbox.assert_not_called()
 
