@@ -16,19 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { HITLReviewModal } from "tests/e2e/components/HITLReviewModal";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class DagRunPage extends BasePage {
   public readonly hitlReviewModal: HITLReviewModal;
-  public readonly requiredActionsButton: Locator;
 
   public constructor(page: Page) {
     super(page);
     this.hitlReviewModal = new HITLReviewModal(page);
-    this.requiredActionsButton = page.getByRole("button", { name: "Required Actions" });
   }
 
   public static getDagRunRequiredActionsUrl(dagId: string, dagRunId: string): string {
