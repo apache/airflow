@@ -109,8 +109,12 @@ def _answer_creates(clock, *answers, seconds: float = 0.0):
     return create
 
 
+# The pool the urllib3 errors name; it never opens a connection.
+_POOL = urllib3.HTTPConnectionPool("boat.invalid")
+
+
 def _read_timeout() -> urllib3.exceptions.ReadTimeoutError:
-    return urllib3.exceptions.ReadTimeoutError(None, "/sandboxes", "timed out")
+    return urllib3.exceptions.ReadTimeoutError(_POOL, "/sandboxes", "timed out")
 
 
 def _http_response(status: int, payload: dict) -> urllib3.HTTPResponse:
@@ -538,7 +542,7 @@ class TestCreate:
             # What a TLS failure raises under the client's Retry, before boat-sdk sees it.
             pytest.param(
                 urllib3.exceptions.MaxRetryError(
-                    None, "/sandboxes", urllib3.exceptions.SSLError("EOF occurred in violation of protocol")
+                    _POOL, "/sandboxes", urllib3.exceptions.SSLError("EOF occurred in violation of protocol")
                 ),
                 id="tls_failure",
             ),
