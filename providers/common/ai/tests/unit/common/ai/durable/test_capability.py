@@ -31,7 +31,14 @@ import pytest
 from pydantic_ai import Agent, CancellationToken, RunContext
 from pydantic_ai.capabilities import AbstractCapability, durable_operation
 from pydantic_ai.exceptions import ModelRetry
-from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelResponse,
+    RetryPromptPart,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+)
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
@@ -307,6 +314,69 @@ class TestCancellation:
         assert result.output == "answer: 3 rows"
 
 
+class TestUnloadableRecords:
+    """A recorded result written by another version runs live instead of failing every retry."""
+
+    @staticmethod
+    def build(calls: Calls, toolset) -> Agent[None, str]:
+        return Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[toolset],
+            capabilities=[AirflowDurability()],
+        )
+
+    @staticmethod
+    def function_toolset(calls: Calls) -> FunctionToolset:
+        toolset = FunctionToolset(id="db")
+
+        @toolset.tool_plain
+        def query(sql: str) -> str:
+            calls.bump("query")
+            return "3 rows"
+
+        return toolset
+
+    @pytest.mark.parametrize(
+        ("kind", "expected_calls"),
+        [
+            # Every step from the first model request on runs again.
+            pytest.param("model", {"model": 4, "query": 2}, id="model response"),
+            # The first model request replays; the tool call and the final request run again.
+            pytest.param("tool", {"model": 3, "query": 2}, id="tool result"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_recorded_step_that_no_longer_loads_runs_live(self, memory_storage, kind, expected_calls):
+        calls = Calls()
+        await attempt(memory_storage, self.build(calls, self.function_toolset(calls)))
+        for entry in memory_storage.steps():
+            if entry["kind"] == kind:
+                entry["payload"] = "written by another version"
+
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            result = await self.build(calls, self.function_toolset(calls)).run("go")
+
+        assert result.output == "answer: 3 rows"
+        assert calls.counts == expected_calls
+        # Counted as run live in the attempt's summary, not as replayed.
+        assert journal.stats.replayed[kind] == 0
+
+    @pytest.mark.asyncio
+    async def test_an_airflow_toolset_record_that_no_longer_loads_runs_live(self, memory_storage):
+        calls = Calls()
+        await attempt(memory_storage, self.build(calls, _WarehouseToolset(calls)))
+        for entry in memory_storage.steps():
+            if entry["kind"] == "tool":
+                entry["payload"] = {"kind": "renamed_in_a_later_version"}
+
+        result = await attempt(memory_storage, self.build(calls, _WarehouseToolset(calls)))
+
+        assert result.output == "answer: 3 rows"
+        assert calls["query"] == 2
+
+
 class TestAirflowToolsets:
     """Airflow's own toolsets are not durable units of pydantic-ai's backend; the capability journals them."""
 
@@ -341,7 +411,9 @@ class TestAirflowToolsets:
                 return ModelResponse(parts=[ToolCallPart("query", {"sql": "select nope"})])
             if fail_final[0]:
                 raise RuntimeError("worker died")
-            return ModelResponse(parts=[TextPart(f"retry said: {messages[-1].parts[0].content}")])
+            retry = messages[-1].parts[0]
+            assert isinstance(retry, RetryPromptPart)
+            return ModelResponse(parts=[TextPart(f"retry said: {retry.content}")])
 
         def build() -> Agent[None, str]:
             return Agent(
@@ -424,11 +496,7 @@ class _Ledger(AbstractCapability[Any]):
 
     def __init__(self, calls: Calls, id: str | None = "ledger") -> None:
         self._calls = calls
-        self._id = id
-
-    @property
-    def id(self) -> str | None:
-        return self._id
+        self.id = id
 
     async def after_model_request(
         self, ctx: RunContext[Any], *, request_context: Any, response: ModelResponse

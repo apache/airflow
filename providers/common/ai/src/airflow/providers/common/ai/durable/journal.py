@@ -56,7 +56,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from airflow.providers.common.ai.durable.base import RUN_ID_KEY, build_run_meta_key, build_step_key
+from airflow.providers.common.ai.durable.base import RUN_ID_KEY, RUNS_KEY, build_run_meta_key, build_step_key
 from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.observability import make_task_instance_run_key
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
@@ -334,6 +334,22 @@ class DurableRun:
             end += 1
         keys = [build_step_key(self.key, position) for position in range(end)]
         self.journal.storage.delete_steps([*keys, build_run_meta_key(self.key)])
+        self.journal._forget_run(self.key)
+
+    def reject(self, step: JournalStep, *, reason: str) -> None:
+        """
+        Run a step that was going to replay live instead, and every step after it.
+
+        For an adapter that finds the recorded payload unusable after :meth:`claim`
+        matched it, such as one written by a version whose types have changed since.
+        """
+        if not step.replayed:
+            return
+        step.replayed = False
+        step.payload = None
+        self._previous_replayed = False
+        self.journal.stats.replayed[step.kind] -= 1
+        self._diverge(step.position, step.name, reason=reason)
 
     def _diverge(self, position: int, name: str, *, reason: str) -> None:
         self.diverged = True
@@ -364,8 +380,12 @@ class DurableJournal:
         self._runs: list[DurableRun] = []
         self._top_level_runs = 0
         self._run_id: str | None = None
+        # Keys of every run any attempt started, read on first use. Cleanup walks it, so a run
+        # an earlier attempt started that this one never reaches (an agent called from a tool
+        # that now replays) is still deleted.
+        self._known_runs: list[str] | None = None
 
-    def run_id(self, *, default: str) -> str:
+    def get_run_id(self, *, default: str) -> str:
         """
         Return the id that names the task's agent run on every attempt.
 
@@ -404,15 +424,36 @@ class DurableJournal:
             self._top_level_runs += 1
         durable_run = DurableRun(self, key)
         self._runs.append(durable_run)
+        known = self._load_known_runs()
+        if key not in known:
+            known.append(key)
+            self.storage.save_step(RUNS_KEY, {"runs": known})
         return durable_run
+
+    def _load_known_runs(self) -> list[str]:
+        if self._known_runs is None:
+            entry = self.storage.load_step(RUNS_KEY) or {}
+            runs = entry.get("runs")
+            self._known_runs = [key for key in runs if isinstance(key, str)] if isinstance(runs, list) else []
+        return self._known_runs
 
     def cleanup(self) -> None:
         """Delete the steps of every run in this attempt. Call only once the task's work has succeeded."""
-        for durable_run in self._runs:
-            durable_run.cleanup()
-        if self._run_id is not None:
-            self.storage.delete_steps([RUN_ID_KEY])
+        started = {durable_run.key: durable_run for durable_run in self._runs}
+        for key in dict.fromkeys([*self._load_known_runs(), *started]):
+            (started.get(key) or DurableRun(self, key)).cleanup()
+        self.storage.delete_steps([RUN_ID_KEY])
         log.debug("Durable journal cleaned up")
+
+    def _forget_run(self, key: str) -> None:
+        known = self._load_known_runs()
+        if key not in known:
+            return
+        known.remove(key)
+        if known:
+            self.storage.save_step(RUNS_KEY, {"runs": known})
+        else:
+            self.storage.delete_steps([RUNS_KEY])
 
     def log_summary(self, logger: logging.Logger | Any) -> None:
         """Log what this attempt replayed and recorded, and which steps a retry would run again."""

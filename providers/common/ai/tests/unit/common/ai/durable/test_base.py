@@ -21,6 +21,7 @@ import pytest
 from airflow.providers.common.ai.durable.base import (
     DURABLE_KEY_PREFIX,
     RUN_ID_KEY,
+    RUNS_KEY,
     DurableStorageProtocol,
     build_step_key,
 )
@@ -36,9 +37,9 @@ def test_key_prefix_is_a_single_path_segment():
 
 
 def test_keys_are_reserved_and_distinct_per_run_and_position():
-    keys = {build_step_key(0, 1), build_step_key(1, 0), build_step_key(0, 10), RUN_ID_KEY}
+    keys = {build_step_key(0, 1), build_step_key(1, 0), build_step_key(0, 10), RUN_ID_KEY, RUNS_KEY}
 
-    assert len(keys) == 4
+    assert len(keys) == 5
     assert all(key.startswith(DURABLE_KEY_PREFIX) and "/" not in key for key in keys)
 
 

@@ -220,6 +220,22 @@ class TestFailures:
         assert summary == "summary of v2"
 
 
+class TestReject:
+    @pytest.mark.asyncio
+    async def test_a_rejected_step_and_every_step_after_it_run_live(self, memory_storage):
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("a", kind="model", fingerprint="a", body=lambda: ok("old a"))
+        await first.run("b", kind="tool", fingerprint="b", body=lambda: ok("old b"))
+
+        retry = DurableJournal(memory_storage).start_run()
+        step = retry.claim("a", kind="model", fingerprint="a")
+        retry.reject(step, reason="the recorded result no longer loads")
+        b = await retry.run("b", kind="tool", fingerprint="b", body=lambda: ok("live b"))
+
+        assert (step.replayed, step.payload, b) == (False, None, "live b")
+        assert retry.journal.stats.replayed.total() == 0
+
+
 class TestFailuresDuringReplay:
     @pytest.mark.asyncio
     async def test_an_attempt_killed_while_replaying_leaves_the_earlier_steps_replayable(
@@ -241,6 +257,28 @@ class TestFailuresDuringReplay:
 
 
 class TestCleanup:
+    @pytest.mark.asyncio
+    async def test_cleanup_reaches_a_run_started_by_a_step_that_now_replays(self, memory_storage):
+        """The nested run never starts again on the retry, but its steps are still deleted."""
+        first_journal = DurableJournal(memory_storage)
+        first = first_journal.start_run()
+
+        async def tool_that_runs_an_agent():
+            await first_journal.start_run().run("inner", kind="tool", fingerprint="i", body=lambda: ok(1))
+            return "done"
+
+        await first.run("tool", kind="tool", fingerprint="t", body=tool_that_runs_an_agent)
+        first.fail(RuntimeError("worker died"))
+        retry_journal = DurableJournal(memory_storage)
+        replayed = await retry_journal.start_run().run(
+            "tool", kind="tool", fingerprint="t", body=tool_that_runs_an_agent
+        )
+
+        retry_journal.cleanup()
+
+        assert replayed == "done"
+        assert memory_storage.entries == {}
+
     @pytest.mark.asyncio
     async def test_cleanup_deletes_what_an_earlier_attempt_recorded_beyond_this_one(self, memory_storage):
         """Left behind, those steps would replay into a run started by clearing the task."""
@@ -296,21 +334,21 @@ class TestRuns:
         assert journal.start_run().key == "1"
 
     def test_the_run_id_is_the_first_attempts_on_every_retry(self, memory_storage):
-        first = DurableJournal(memory_storage).run_id(default="ti-try-1")
-        retry = DurableJournal(memory_storage).run_id(default="ti-try-2")
+        first = DurableJournal(memory_storage).get_run_id(default="ti-try-1")
+        retry = DurableJournal(memory_storage).get_run_id(default="ti-try-2")
 
         assert (first, retry) == ("ti-try-1", "ti-try-1")
 
     @pytest.mark.asyncio
     async def test_cleanup_deletes_the_steps_and_the_run_id(self, memory_storage):
         journal = DurableJournal(memory_storage)
-        journal.run_id(default="ti-try-1")
+        journal.get_run_id(default="ti-try-1")
         await journal.start_run().run("a", kind="other", fingerprint=None, body=lambda: ok(1))
 
         journal.cleanup()
 
         assert memory_storage.entries == {}
-        assert DurableJournal(memory_storage).run_id(default="ti-try-2") == "ti-try-2"
+        assert DurableJournal(memory_storage).get_run_id(default="ti-try-2") == "ti-try-2"
 
     @pytest.mark.asyncio
     async def test_cleanup_deletes_replayed_steps_too(self, memory_storage):
