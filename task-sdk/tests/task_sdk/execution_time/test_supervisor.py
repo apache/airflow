@@ -1306,9 +1306,9 @@ class TestWatchedSubprocess:
             mock_kill.assert_not_called()
             mock_logger.warning.assert_not_called()
 
-    def test_server_terminated_task_gets_killed_task_cleanup_time(self, mocker, monkeypatch):
-        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 42.0)
-        monkeypatch.setattr("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 0)
+    def test_server_terminated_task_gets_killed_task_cleanup_time(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 42.0)
+        mocker.patch("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 0)
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         client = mocker.Mock()
         client.task_instances.heartbeat.side_effect = ServerResponseError.from_response(
