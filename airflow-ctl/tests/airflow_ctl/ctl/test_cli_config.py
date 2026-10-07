@@ -28,8 +28,18 @@ import httpx
 import pytest
 
 from airflowctl.api.client import Client
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, ConnectionTestResponse
-from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
+from airflowctl.api.datamodels.generated import (
+    ClearTaskInstancesBody,
+    ConnectionTestResponse,
+    DAGPatchBody,
+    DagSchedulingState,
+)
+from airflowctl.api.operations import (
+    ConnectionsOperations,
+    DagRunOperations,
+    DagsOperations,
+    ServerResponseError,
+)
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
@@ -988,3 +998,26 @@ class TestCliConfigMethods:
         args.func(args, api_client=mock.MagicMock(spec=Client))
 
         assert mocked_print_as.call_args.kwargs["output"] == "json"
+
+    @pytest.mark.parametrize(
+        ("extra_argv", "expected_body"),
+        [
+            pytest.param([], DAGPatchBody(), id="omitted-flag-does-not-unpause"),
+            pytest.param(
+                ["--scheduling-state", "paused"],
+                DAGPatchBody(scheduling_state=DagSchedulingState.PAUSED),
+                id="scheduling-state-alone",
+            ),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(DagsOperations, "update", autospec=True)
+    def test_dags_update_omitted_is_paused_stays_unset(
+        self, mocked_update, mocked_print_as, extra_argv, expected_body
+    ):
+        """Omitting ``--is-paused``/``--no-is-paused`` must not send ``is_paused=False`` and unpause the Dag."""
+        args = cli_parser.get_parser().parse_args(["dags", "update", "my_dag", *extra_argv])
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_update.call_args.kwargs["dag_body"] == expected_body
