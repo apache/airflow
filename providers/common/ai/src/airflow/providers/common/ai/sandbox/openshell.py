@@ -117,10 +117,12 @@ _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 # * The command arrives on stdin, which avoids the gateway's 32 KiB per-argument
 #   cap, and runs in its own session via setsid, with stdout and stderr going to
 #   files, so a background child holds a file rather than the exec stream.
-# * A polling timer signals the wrapper when the budget is spent. The wrapper
-#   then SIGKILLs every process in the command's session, rescanning /proc until
-#   a pass finds none left, so children forked mid-sweep are caught too. A
-#   negative-pid kill of the group is blocked by the sandbox's seccomp filter.
+# * A timer reading the monotonic /proc/uptime signals the wrapper when the
+#   budget is spent; counting its own one-second sleeps instead drifts late on a
+#   CPU-starved sandbox, past _EXEC_GRACE. The wrapper then SIGKILLs every
+#   process in the command's session, rescanning /proc until a pass finds none
+#   left, so children forked mid-sweep are caught too. A negative-pid kill of
+#   the group is blocked by the sandbox's seccomp filter.
 # * The exit status is the wrapper's own process status, which the supervisor
 #   reports out of band, so nothing the command prints can change it; a command
 #   that signals the wrapper only ends its own run early. Output is sent last as
@@ -140,11 +142,12 @@ z=$(command -v setsid) || {{ echo "setsid is not installed in the sandbox image"
 PATH=$o "$z" /bin/sh "$d/c" </dev/null >"$d/o" 2>"$d/e" &
 p=$!
 (
-  i=0
-  while [ "$i" -lt "$t" ]; do
+  read u _ </proc/uptime
+  e=$((${{u%.*}}${{u#*.}} + t * 100))
+  while [ "${{u%.*}}${{u#*.}}" -lt "$e" ]; do
     sleep 1
     [ -d "/proc/$$" ] || exit 0
-    i=$((i + 1))
+    read u _ </proc/uptime
   done
   kill -ALRM $$
 ) </dev/null >/dev/null 2>&1 &
@@ -809,7 +812,7 @@ class OpenShellSandboxBackend(SandboxBackend):
     ) -> SandboxExecResult:
         _validate_positive_finite(timeout, "timeout")
         _validate_positive_finite(max_output_bytes, "max_output_bytes")
-        # Whole seconds, at least one: the wrapper's timer counts seconds.
+        # Whole seconds, at least one: the wrapper takes its budget as an integer.
         seconds = max(1, math.ceil(timeout))
         payload = command.encode("utf-8")
         if len(payload) > _MAX_STDIN_BYTES:

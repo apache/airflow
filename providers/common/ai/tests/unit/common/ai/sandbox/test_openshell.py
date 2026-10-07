@@ -822,6 +822,33 @@ class TestRunWrapper:
         time.sleep(0.5)
         assert not any(self._pids(f"sleep {n}") for n in (301, 302, 303))
 
+    def test_a_timer_starved_of_cpu_fires_on_elapsed_time(self):
+        # Stopping the wrapper's process group, which the setsid'd command has left, stands in for
+        # CPU contention; a timer counting its own one-second sleeps would fire two seconds late.
+        stdin, writer = os.pipe()
+        os.write(writer, b"sleep 306")
+        os.close(writer)
+        with subprocess.Popen(
+            ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", "3", "1000"],
+            stdin=stdin,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        ) as wrapper:
+            os.close(stdin)
+            for _ in range(100):
+                if self._pids("sleep 306"):
+                    break
+                time.sleep(0.05)
+            time.sleep(0.3)
+            os.killpg(wrapper.pid, signal.SIGSTOP)
+            time.sleep(3)
+            os.killpg(wrapper.pid, signal.SIGCONT)
+            resumed = time.monotonic()
+
+            assert wrapper.wait(timeout=10) == 124
+        assert time.monotonic() - resumed < 1.5
+
     def test_a_background_child_does_not_hold_the_call(self):
         started = time.monotonic()
         result = self._run("sleep 304 & echo started", seconds=30)
