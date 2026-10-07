@@ -40,6 +40,7 @@ from airflow.providers.common.ai.sandbox.base import (
     _validate_positive_finite,
 )
 from airflow.providers.common.ai.sandbox.output import _tail_bytes
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -171,11 +172,10 @@ class BoatSandboxBackend(SandboxBackend):
     needs only network access and an API key, with no local daemon or host
     virtualization.
 
-    **Credentials are ambient.** On first use the backend reads ``BOAT_API_KEY``
-    (required) and optional ``BOAT_BASE_URL`` from the worker environment. Modal
-    reads a ``modal`` connection first, but that connection type is owned by the
-    Modal provider; a ``boat`` connection type belongs in a future Boat provider,
-    not in this one.
+    Credentials come from a generic Airflow connection, resolved on first use:
+    its ``password`` is the Boat API key, and its ``host``, when set, the API
+    base URL. Without a connection, the backend reads ``BOAT_API_KEY`` (required)
+    and optional ``BOAT_BASE_URL`` from the worker environment on first use.
 
     Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of the
     account's stored environment variables, secret files or credentials, and
@@ -200,6 +200,11 @@ class BoatSandboxBackend(SandboxBackend):
     read API takes no size parameter and would land a whole file in worker
     memory before ``max_bytes`` could reject it.
 
+    :param boat_conn_id: Generic Airflow connection ID. Its ``password`` is the
+        Boat API key and is required; its ``host``, when set, is the full API base
+        URL, such as ``https://boat.dev/api/v1``. ``None`` (default) reads
+        ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL`` from the worker
+        environment instead.
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
         Default ``"default"``.
     :param ttl_seconds: Server-side TTL in seconds after which Boat stops the
@@ -221,6 +226,7 @@ class BoatSandboxBackend(SandboxBackend):
     def __init__(
         self,
         *,
+        boat_conn_id: str | None = None,
         machine_type: str = "default",
         ttl_seconds: int = 3600,
         ready_timeout: float = 300.0,
@@ -239,6 +245,7 @@ class BoatSandboxBackend(SandboxBackend):
             )
         _validate_positive_finite(ready_timeout, "ready_timeout")
         _validate_positive_finite(request_timeout, "request_timeout")
+        self._boat_conn_id = boat_conn_id
         self._machine_type = machine_type
         self._ttl_seconds = int(ttl_seconds)
         self._ready_timeout = ready_timeout
@@ -254,11 +261,22 @@ class BoatSandboxBackend(SandboxBackend):
             from boat_sdk import ApiClient, Configuration
             from boat_sdk.api.boat_api import BoatApi
 
-            api_key = (os.environ.get("BOAT_API_KEY") or "").strip()
-            if not api_key:
-                raise SandboxTerminalError("BOAT_API_KEY is not set.")
-            base_url = (os.environ.get("BOAT_BASE_URL") or _DEFAULT_BASE_URL).rstrip("/")
-            self._boat_api = BoatApi(ApiClient(Configuration(host=base_url, access_token=api_key)))
+            if self._boat_conn_id is None:
+                api_key = (os.environ.get("BOAT_API_KEY") or "").strip()
+                if not api_key:
+                    raise SandboxTerminalError("BOAT_API_KEY is not set.")
+                base_url = os.environ.get("BOAT_BASE_URL") or _DEFAULT_BASE_URL
+            else:
+                conn = BaseHook.get_connection(self._boat_conn_id)
+                api_key = (conn.password or "").strip()
+                if not api_key:
+                    raise SandboxTerminalError(
+                        f"Connection {self._boat_conn_id!r} has no password; set it to the Boat API key."
+                    )
+                base_url = conn.host or _DEFAULT_BASE_URL
+            self._boat_api = BoatApi(
+                ApiClient(Configuration(host=base_url.rstrip("/"), access_token=api_key))
+            )
             return self._boat_api
 
     def _http_timeout(self, seconds: float) -> float:

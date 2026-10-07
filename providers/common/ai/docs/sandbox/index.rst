@@ -93,7 +93,7 @@ cannot run inside an unprivileged pod, so that combination needs Modal, OpenSand
 
 The credential that provisions the sandbox depends on the backend: a ``modal``
 connection (``modal_conn_id``; see the :ref:`Modal connection page <howto/connection:modal>`)
-for Modal; ``BOAT_API_KEY`` (and optional ``BOAT_BASE_URL``) for Boat;
+for Modal; ``boat_conn_id``, or ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL``, for Boat;
 ``opensandbox_conn_id``, or ``OPEN_SANDBOX_DOMAIN`` and ``OPEN_SANDBOX_API_KEY``,
 for OpenSandbox; and the host's ``sbx login`` for ``sbx``.
 

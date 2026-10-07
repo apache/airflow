@@ -43,6 +43,7 @@ from airflow.providers.common.ai.sandbox.base import (
 )
 from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
 
+_BASE_HOOK = "airflow.providers.common.ai.sandbox.boat.BaseHook"
 _MONOTONIC = "airflow.providers.common.ai.sandbox.boat.time.monotonic"
 _SLEEP = "airflow.providers.common.ai.sandbox.boat.time.sleep"
 
@@ -203,17 +204,21 @@ def test_request_timeout_bounds_every_api_call(clock):
 
 
 class TestCredentials:
+    @mock.patch(_BASE_HOOK, autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)
-    def test_construction_reads_no_credentials_and_opens_no_client(self, api_client):
+    def test_construction_reads_no_credentials_and_opens_no_client(self, api_client, hook):
         with mock.patch.dict("os.environ", {}, clear=True):
             BoatSandboxBackend()
+            BoatSandboxBackend(boat_conn_id="my_boat")
 
+        hook.get_connection.assert_not_called()
         api_client.assert_not_called()
 
+    @mock.patch(_BASE_HOOK, autospec=True)
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)
     @mock.patch("boat_sdk.Configuration", autospec=True)
-    def test_environment_key_and_base_url_are_read(self, configuration, _client, boat_api):
+    def test_environment_key_and_base_url_are_read(self, configuration, _client, boat_api, hook):
         with mock.patch.dict(
             "os.environ",
             {"BOAT_API_KEY": " env-key ", "BOAT_BASE_URL": "https://custom.example/api/v1/"},
@@ -223,6 +228,39 @@ class TestCredentials:
 
         configuration.assert_called_once_with(host="https://custom.example/api/v1", access_token="env-key")
         boat_api.assert_called_once()
+        hook.get_connection.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("host", "base_url"),
+        [
+            pytest.param("https://custom.example/api/v1/", "https://custom.example/api/v1", id="host"),
+            pytest.param(None, "https://boat.dev/api/v1", id="no_host"),
+            pytest.param("", "https://boat.dev/api/v1", id="empty_host"),
+        ],
+    )
+    @mock.patch(_BASE_HOOK, autospec=True)
+    @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
+    @mock.patch("boat_sdk.ApiClient", autospec=True)
+    @mock.patch("boat_sdk.Configuration", autospec=True)
+    def test_connection_password_and_host_are_used(
+        self, configuration, _client, _boat_api, hook, host, base_url
+    ):
+        hook.get_connection.return_value = SimpleNamespace(password=" conn-key ", host=host)
+        with mock.patch.dict(
+            "os.environ", {"BOAT_API_KEY": "env-key", "BOAT_BASE_URL": "https://env.example"}, clear=False
+        ):
+            BoatSandboxBackend(boat_conn_id="my_boat")._get_api()
+
+        hook.get_connection.assert_called_once_with("my_boat")
+        configuration.assert_called_once_with(host=base_url, access_token="conn-key")
+
+    @pytest.mark.parametrize("password", [None, ""])
+    @mock.patch(_BASE_HOOK, autospec=True)
+    def test_connection_without_password_is_terminal(self, hook, password):
+        hook.get_connection.return_value = SimpleNamespace(password=password, host=None)
+
+        with pytest.raises(SandboxTerminalError, match="'my_boat' has no password"):
+            BoatSandboxBackend(boat_conn_id="my_boat")._get_api()
 
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)

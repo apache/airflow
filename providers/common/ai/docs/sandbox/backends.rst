@@ -275,10 +275,21 @@ Install the SDK extra:
         spec=SandboxSpec(block_network=False),
     )
 
-Credentials are ambient. On first use the backend reads ``BOAT_API_KEY`` (required)
-and optional ``BOAT_BASE_URL`` from the worker environment. Modal's ``modal``
-connection comes from the Modal provider; a ``boat`` connection type waits for a
-Boat provider.
+Credentials can come from a generic Airflow connection, resolved lazily on first
+use:
+
+.. code-block:: python
+
+    SandboxToolset(
+        BoatSandboxBackend(boat_conn_id="boat_default"),
+        spec=SandboxSpec(block_network=False),
+    )
+
+The connection ``password`` is the Boat API key and is required. ``host``, when
+set, is the full API base URL, such as ``https://boat.dev/api/v1``, which is also
+the default. With ``boat_conn_id=None``, the default, the backend reads
+``BOAT_API_KEY`` (required) and optional ``BOAT_BASE_URL`` from the worker
+environment instead.
 
 Constructor parameters:
 
