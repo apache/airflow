@@ -27,6 +27,10 @@ import { Modal } from "src/system-components";
 import { ErrorAlert } from "./ErrorAlert";
 import { WarningAlert } from "./WarningAlert";
 
+/** The modal lists the page error as one more item next to the warnings, so the button count does too. */
+export const countDagWarnings = (warningsTotal: number | undefined, error: unknown): number =>
+  (warningsTotal ?? 0) + Number(Boolean(error));
+
 type ImportDAGErrorModalProps = {
   readonly error?: unknown;
   readonly onClose: () => void;

@@ -42,11 +42,15 @@ import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay"
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 
+import { formatNumber } from "src/utils";
+
 type DataTableProps<TData> = {
   readonly cardDef?: CardDef<TData>;
   readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
+  /** Lets shift-click on a column header add it as a secondary sort; the page must send every sort to its endpoint. */
+  readonly enableMultiSort?: boolean;
   readonly errorMessage?: ReactNode | string;
   /**
    * Controls that change *which* rows the table returns — a `SearchBar`, a `FilterBar`, or both
@@ -110,6 +114,7 @@ export const DataTable = <TData,>({
   columns,
   data,
   displayMode = "table",
+  enableMultiSort = false,
   errorMessage,
   filterActions,
   headingExtra,
@@ -157,10 +162,13 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
-  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
+  const [storedColumnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
     `dataTable:${modelName}:columnVisibility`,
     initialState?.columnVisibility ?? {},
   );
+  // Stored visibility only covers columns that existed when it was saved, so columns added
+  // later still need their default visibility.
+  const columnVisibility = { ...initialState?.columnVisibility, ...storedColumnVisibility };
 
   // An absent total means the endpoint gives no count (e.g. cursor pagination), which the heading
   // reflects by naming the model without a number. Everything else still needs a real number.
@@ -174,6 +182,7 @@ export const DataTable = <TData,>({
     columns,
     data,
     enableHiding: true,
+    enableMultiSort,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
@@ -227,7 +236,7 @@ export const DataTable = <TData,>({
   const headingNode = Boolean(hideRowCountHeading) ? undefined : (
     <Heading py={1} size="md">
       {hasRowCount
-        ? `${total.toLocaleString(i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`
+        ? `${formatNumber(total, i18n.language)}${isCapped ? "+" : ""} ${translateModelName(total)}`
         : pluralModelName}
     </Heading>
   );

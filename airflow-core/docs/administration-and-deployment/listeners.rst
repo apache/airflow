@@ -34,7 +34,7 @@ Lifecycle Events
 - ``on_starting``
 - ``before_stopping``
 
-Lifecycle events allow you to react to start and stop events for an Airflow ``Job``, like  ``SchedulerJob``.
+Lifecycle events allow you to react to start and stop events for an Airflow ``Job``, like ``SchedulerJob``.
 
 DagRun State Change Events
 --------------------------
@@ -119,7 +119,7 @@ Dag Import Error Events
 - ``on_new_dag_import_error``
 - ``on_existing_dag_import_error``
 
-Dag import error events occur when Dag processor finds import error in the Dag code and update the metadata database table.
+Dag import error events occur when Dag processor finds an import error in the Dag code and updates the metadata database table.
 
 
 |experimental|

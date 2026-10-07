@@ -43,6 +43,18 @@ class TestVariableInterval:
 
         assert interval.resolve() == expected
 
+    def test_resolve_forwards_session(self, mocker):
+        """The scheduler resolves intervals while holding an open transaction, so the caller's
+        session has to reach ``Variable.get`` rather than open a new session."""
+        expected_seconds = 42
+        mock_get = mocker.patch.object(Variable, "get", return_value=str(expected_seconds))
+        session = mocker.MagicMock()
+
+        interval = SerializedVariableInterval(key="test_interval")
+
+        assert interval.resolve(session=session) == timedelta(seconds=expected_seconds)
+        mock_get.assert_called_once_with("test_interval", session=session)
+
     @pytest.mark.parametrize(
         ("value", "raise_missing", "match"),
         [

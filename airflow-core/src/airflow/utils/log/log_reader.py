@@ -20,7 +20,7 @@ import logging
 import os
 import time
 from collections.abc import Generator, Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -33,7 +33,6 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.utils.log.file_task_handler import LogHandlerOutputStream, LogMetadata
 
 LogReaderOutputStream: TypeAlias = Generator[str, None, None]
@@ -51,7 +50,7 @@ class TaskLogReader:
     """Number of empty loop iterations before stopping the stream"""
 
     @staticmethod
-    def get_no_log_state_message(ti: TaskInstance | TaskInstanceHistory) -> Iterator[StructuredLogMessage]:
+    def get_no_log_state_message(ti: TaskInstance) -> Iterator[StructuredLogMessage]:
         """Yield standardized no-log messages for a given TI state."""
         if ti.state == TaskInstanceState.SKIPPED:
             msg = "Task was skipped — no logs available."
@@ -63,13 +62,13 @@ class TaskLogReader:
         yield StructuredLogMessage(timestamp=None, event="::group::Log message source details")
         yield StructuredLogMessage(timestamp=None, event="::endgroup::")
         yield StructuredLogMessage(
-            timestamp=ti.updated_at or datetime.now(timezone.utc),
+            timestamp=ti.updated_at or datetime.now(UTC),
             event=msg,
         )
 
     def read_log_chunks(
         self,
-        ti: TaskInstance | TaskInstanceHistory,
+        ti: TaskInstance,
         try_number: int | None,
         metadata: LogMetadata,
     ) -> tuple[LogHandlerOutputStream, LogMetadata]:
@@ -100,7 +99,7 @@ class TaskLogReader:
 
     def read_log_stream(
         self,
-        ti: TaskInstance | TaskInstanceHistory,
+        ti: TaskInstance,
         try_number: int | None,
         metadata: LogMetadata,
     ) -> Iterator[str]:

@@ -18,10 +18,15 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
 
+    // The codegen scripts are plain ESM. Including them lets their tests infer
+    // real signatures rather than import an untyped module; tsconfig.build.json
+    // narrows `include` back to src, so none of this reaches the package.
+    "allowJs": true,
+
     "noEmit": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.mjs"]
 }

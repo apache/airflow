@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``22.4.0``
+Release: ``22.6.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.6.0/>`_.
 
 Installation
 ------------
@@ -52,7 +52,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-google``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -73,7 +73,7 @@ PIP package                                 Version required
 ``google-ads``                              ``>=26.0.0,!=28.0.0.post2``
 ``google-analytics-admin``                  ``>=0.9.0``
 ``google-api-core``                         ``>=2.30.3``
-``google-api-python-client``                ``>=2.0.2``
+``google-api-python-client``                ``>=2.193.0``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-genai``                            ``>=2.8.0``
@@ -81,48 +81,48 @@ PIP package                                 Version required
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
-``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
-``google-cloud-bigquery-storage``           ``>=2.33.0; python_version >= "3.13"``
-``google-cloud-alloydb``                    ``>=0.4.0``
-``google-cloud-automl``                     ``>=2.12.0``
-``google-cloud-bigquery``                   ``>=3.24.0``
-``google-cloud-bigquery-datatransfer``      ``>=3.13.0``
-``google-cloud-bigtable``                   ``>=2.17.0``
-``google-cloud-build``                      ``>=3.31.0``
-``google-cloud-compute``                    ``>=1.10.0``
-``google-cloud-container``                  ``>=2.52.0``
-``google-cloud-datacatalog``                ``>=3.23.0``
-``google-cloud-dataflow-client``            ``>=0.8.6``
-``google-cloud-dataform``                   ``>=0.5.0``
-``google-cloud-dataplex``                   ``>=2.6.0``
+``google-cloud-bigquery-storage``           ``>=2.37.0; python_version < "3.13"``
+``google-cloud-bigquery-storage``           ``>=2.37.0; python_version >= "3.13"``
+``google-cloud-alloydb``                    ``>=0.9.0``
+``google-cloud-automl``                     ``>=2.19.0``
+``google-cloud-bigquery``                   ``>=3.41.0``
+``google-cloud-bigquery-datatransfer``      ``>=3.22.0``
+``google-cloud-bigtable``                   ``>=2.35.0``
+``google-cloud-build``                      ``>=3.36.0``
+``google-cloud-compute``                    ``>=1.47.0``
+``google-cloud-container``                  ``>=2.64.0``
+``google-cloud-datacatalog``                ``>=3.30.0``
+``google-cloud-dataflow-client``            ``>=0.12.0``
+``google-cloud-dataform``                   ``>=0.10.0``
+``google-cloud-dataplex``                   ``>=2.18.0``
 ``google-cloud-dataproc``                   ``>=5.27.0``
-``google-cloud-dataproc-metastore``         ``>=1.12.0``
-``google-cloud-dlp``                        ``>=3.12.0``
-``google-cloud-kms``                        ``>=2.15.0``
-``google-cloud-language``                   ``>=2.9.0``
-``google-cloud-logging``                    ``>=3.5.0``
-``google-cloud-managedkafka``               ``>=0.1.6``
-``google-cloud-memcache``                   ``>=1.7.0``
-``google-cloud-monitoring``                 ``>=2.18.0``
-``google-cloud-orchestration-airflow``      ``>=1.10.0``
-``google-cloud-os-login``                   ``>=2.9.1``
-``google-cloud-pubsub``                     ``>=2.24.0``
-``google-cloud-redis``                      ``>=2.12.0``
-``google-cloud-secret-manager``             ``>=2.16.0``
-``google-cloud-spanner``                    ``>=3.50.0``
-``google-cloud-speech``                     ``>=2.18.0``
-``google-cloud-storage``                    ``>=2.9.0``
-``google-cloud-storage-transfer``           ``>=1.13.0``
-``google-cloud-tasks``                      ``>=2.13.0``
-``google-cloud-texttospeech``               ``>=2.14.1``
-``google-cloud-translate``                  ``>=3.16.0``
-``google-cloud-videointelligence``          ``>=2.11.0``
-``google-cloud-vision``                     ``>=3.4.0``
-``google-cloud-workflows``                  ``>=1.10.0``
-``google-cloud-run``                        ``>=0.10.0``
-``google-cloud-batch``                      ``>=0.13.0``
+``google-cloud-dataproc-metastore``         ``>=1.22.0``
+``google-cloud-dlp``                        ``>=3.35.0``
+``google-cloud-kms``                        ``>=3.12.0``
+``google-cloud-language``                   ``>=2.20.0``
+``google-cloud-logging``                    ``>=3.15.0``
+``google-cloud-managedkafka``               ``>=0.4.0``
+``google-cloud-memcache``                   ``>=1.15.0``
+``google-cloud-monitoring``                 ``>=2.30.0``
+``google-cloud-orchestration-airflow``      ``>=1.20.0``
+``google-cloud-os-login``                   ``>=2.20.0``
+``google-cloud-pubsub``                     ``>=2.36.0``
+``google-cloud-redis``                      ``>=2.21.0``
+``google-cloud-secret-manager``             ``>=2.27.0``
+``google-cloud-spanner``                    ``>=3.63.0``
+``google-cloud-speech``                     ``>=2.38.0``
+``google-cloud-storage``                    ``>=3.10.1``
+``google-cloud-storage-transfer``           ``>=1.20.0``
+``google-cloud-tasks``                      ``>=2.22.0``
+``google-cloud-texttospeech``               ``>=2.35.0``
+``google-cloud-translate``                  ``>=3.25.0``
+``google-cloud-videointelligence``          ``>=2.19.0``
+``google-cloud-vision``                     ``>=3.13.0``
+``google-cloud-workflows``                  ``>=1.21.0``
+``google-cloud-run``                        ``>=0.16.0``
+``google-cloud-batch``                      ``>=0.21.0``
 ``grpcio-gcp``                              ``>=0.2.2``
-``httpx``                                   ``>=0.25.0``
+``httpx2``                                  ``>=2.0.0``
 ``looker-sdk``                              ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                              ``>=0.7.0``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
@@ -157,6 +157,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                         Extra
 ========================================================================================================================  ====================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
+`apache-airflow-providers-apache-beam <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam>`_            ``apache.beam``
 `apache-airflow-providers-apache-cassandra <https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra>`_  ``apache.cassandra``
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_    ``cncf.kubernetes``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
@@ -183,6 +184,7 @@ Optional dependencies
 ====================  ====================================================
 Extra                 Dependencies
 ====================  ====================================================
+``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.1.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
@@ -207,4 +209,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.6.0/changelog.html>`_.

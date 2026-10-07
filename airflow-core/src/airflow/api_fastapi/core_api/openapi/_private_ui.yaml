@@ -209,6 +209,16 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: has_events
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter assets that have events
+          title: Has Events
+        description: Filter assets that have events
       - name: only_active
         in: query
         required: false
@@ -304,6 +314,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NextRunAssetsResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -403,6 +419,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunCollectionResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -439,6 +461,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PartitionedDagRunDetailResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -635,6 +663,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: scheduling_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagSchedulingState'
+          - type: 'null'
+          title: Scheduling State
       - name: has_import_errors
         in: query
         required: false
@@ -665,6 +701,20 @@ paths:
           description: Filter Dags that have any DagRun in the given state.
           title: Dag Run State
         description: Filter Dags that have any DagRun in the given state.
+      - name: dag_run_state_within_hours
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            maximum: 878400
+            exclusiveMinimum: 0
+          - type: 'null'
+          description: Only match DagRuns whose run_after falls within the last given
+            hours. Ignored unless dag_run_state is set.
+          title: Dag Run State Within Hours
+        description: Only match DagRuns whose run_after falls within the last given
+          hours. Ignored unless dag_run_state is set.
       - name: bundle_name
         in: query
         required: false
@@ -681,6 +731,18 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: relative_fileloc_prefix
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter Dags by the folder (directory of ``relative_fileloc``)
+            they live in. Matches the given folder and all of its subfolders.
+          title: Relative Fileloc Prefix
+        description: Filter Dags by the folder (directory of ``relative_fileloc``)
+          they live in. Matches the given folder and all of its subfolders.
       - name: order_by
         in: query
         required: false
@@ -806,6 +868,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/folders:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Folders
+      description: 'Get the distinct folders the readable Dags live in, scoped to
+        their bundle.
+
+
+        A folder is the directory part of a Dag''s ``relative_fileloc`` (relative
+        to its
+
+        bundle root). Because ``relative_fileloc`` is relative to each bundle, the
+        same
+
+        path can exist in several bundles, so every folder is paired with its bundle
+
+        name to keep them apart. Dags located directly at the bundle root have no
+        folder
+
+        and are not represented here. The result powers the folder navigation tree
+        in
+
+        the UI, which reconstructs the hierarchy by splitting each path on ``/`` and
+
+        groups it under its bundle when more than one bundle is present.
+
+
+        Stale Dags are left out to match the Dag list, which hides them by default:
+        keeping
+
+        them would surface folders (or whole bundles, once they stop being parsed)
+        that
+
+        select down to an empty list.'
+      operationId: get_dag_folders
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagFolderCollectionResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/dags/{dag_id}/latest_run:
     get:
       tags:
@@ -880,6 +988,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGsRunStateCountsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/recent_task_instance_state_counts:
+    get:
+      tags:
+      - DAG
+      summary: Get Recent Task Instance State Counts
+      description: 'Return recent task-instance state counts for the Dags of the given
+        runs, for the Dag list page.
+
+
+        Like the Airflow 2 "Recent Tasks" column, a Dag''s counts cover all of its
+        running Dag
+
+        runs, or its latest run when none is running.
+
+
+        The Dag list response already carries the latest run of each Dag, so the caller
+        passes
+
+        those run ids straight in. Deriving the latest run again here would mean an
+
+        ``ORDER BY run_after DESC LIMIT 1`` per Dag, which has no supporting index
+        and degrades
+
+        badly once a Dag has many runs. Runs the caller may not read are dropped.'
+      operationId: get_recent_task_instance_state_counts_ui
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_run_ids
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+          maxItems: 100
+          title: Dag Run Ids
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGsRecentTaskInstanceStateCountsCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -1350,6 +1510,222 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: from_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Gte
+      - name: from_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Gt
+      - name: from_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Lte
+      - name: from_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: From Date Lt
+      - name: to_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Gte
+      - name: to_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Gt
+      - name: to_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Lte
+      - name: to_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: To Date Lt
+      - name: created_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gte
+      - name: created_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Gt
+      - name: created_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lte
+      - name: created_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At Lt
+      - name: completed_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Gte
+      - name: completed_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Gt
+      - name: completed_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Lte
+      - name: completed_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At Lt
+      - name: max_active_runs_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Gte
+      - name: max_active_runs_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Gt
+      - name: max_active_runs_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Lte
+      - name: max_active_runs_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs Lt
+      - name: duration_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gte
+      - name: duration_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Gt
+      - name: duration_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lte
+      - name: duration_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Lt
+      - name: reprocess_behavior
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ReprocessBehavior'
+          - type: 'null'
+          title: Reprocess Behavior
       - name: order_by
         in: query
         required: false
@@ -2138,6 +2514,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TeamCollectionResponse'
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:
@@ -2252,10 +2634,14 @@ components:
     AssetExpressionAssetInfo:
       properties:
         uri:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Uri
         name:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Name
         group:
           type: string
@@ -2265,6 +2651,10 @@ components:
           - type: integer
           - type: 'null'
           title: Id
+        hidden:
+          type: boolean
+          title: Hidden
+          default: false
       type: object
       required:
       - uri
@@ -2283,7 +2673,16 @@ components:
         optional so a row persisted before id-enrichment (or migrated from the pre-3.0
         dataset format)
 
-        degrades gracefully instead of failing response validation.'
+        degrades gracefully instead of failing response validation.
+
+
+        A leaf the caller is not authorized to read is served with ``hidden`` set
+        and ``uri``, ``name``
+
+        and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``),
+        so the shape of the
+
+        schedule stays visible without revealing which asset it waits on.'
     AssetExpressionRef:
       properties:
         asset_ref:
@@ -2636,6 +3035,10 @@ components:
         count:
           type: integer
           title: Count
+        is_backfill:
+          type: boolean
+          title: Is Backfill
+          default: false
       type: object
       required:
       - date
@@ -2779,6 +3182,36 @@ components:
         that
 
         the API server/Web UI can use this data to render connection form UI.'
+    DAGRecentTaskInstanceStateCountsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        run_ids:
+          items:
+            type: string
+          type: array
+          title: Run Ids
+        state_counts:
+          additionalProperties:
+            type: integer
+          type: object
+          title: State Counts
+      type: object
+      required:
+      - dag_id
+      - run_ids
+      - state_counts
+      title: DAGRecentTaskInstanceStateCountsResponse
+      description: 'Task-instance state counts for a Dag''s recent runs.
+
+
+        The counts cover every running Dag run, or the latest run when none is running;
+
+        ``run_ids`` lists those runs. ``state_counts`` only carries states present
+        in them;
+
+        task instances without a state yet are keyed as ``no_status``.'
     DAGRunLightResponse:
       properties:
         id:
@@ -2900,6 +3333,9 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+        scheduling_state:
+          $ref: '#/components/schemas/DagSchedulingState'
+          default: active
         is_stale:
           type: boolean
           title: Is Stale
@@ -3034,6 +3470,9 @@ components:
             $ref: '#/components/schemas/DAGRunLightResponse'
           type: array
           title: Latest Dag Runs
+        has_unfinished_runs:
+          type: boolean
+          title: Has Unfinished Runs
         pending_actions:
           items:
             $ref: '#/components/schemas/HITLDetail'
@@ -3089,12 +3528,26 @@ components:
       - owners
       - asset_expression
       - latest_dag_runs
+      - has_unfinished_runs
       - pending_actions
       - is_favorite
       - is_backfillable
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
+    DAGsRecentTaskInstanceStateCountsCollectionResponse:
+      properties:
+        dags:
+          items:
+            $ref: '#/components/schemas/DAGRecentTaskInstanceStateCountsResponse'
+          type: array
+          title: Dags
+      type: object
+      required:
+      - dags
+      title: DAGsRecentTaskInstanceStateCountsCollectionResponse
+      description: Collection of per-Dag recent task-instance state counts for the
+        Dag list page.
     DAGsRunStateCountsCollectionResponse:
       properties:
         dags:
@@ -3111,6 +3564,38 @@ components:
       - state_count_limit
       title: DAGsRunStateCountsCollectionResponse
       description: Collection of per-Dag DagRun-state counts for the Dag list page.
+    DagFolderCollectionResponse:
+      properties:
+        folders:
+          items:
+            $ref: '#/components/schemas/DagFolderResponse'
+          type: array
+          title: Folders
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - folders
+      - total_entries
+      title: DagFolderCollectionResponse
+      description: Collection of distinct Dag folders, each scoped to the bundle it
+        belongs to.
+    DagFolderResponse:
+      properties:
+        bundle_name:
+          type: string
+          title: Bundle Name
+        folder:
+          type: string
+          title: Folder
+      type: object
+      required:
+      - bundle_name
+      - folder
+      title: DagFolderResponse
+      description: A distinct Dag folder (directory of ``relative_fileloc``) within
+        a bundle.
     DagRunState:
       type: string
       enum:
@@ -3175,6 +3660,14 @@ components:
       - updated_at
       title: DagScheduleAssetReference
       description: Dag schedule reference serializer for assets.
+    DagSchedulingState:
+      type: string
+      enum:
+      - active
+      - draining
+      - paused
+      title: DagSchedulingState
+      description: States controlling whether a Dag can create and schedule work.
     DagTagResponse:
       properties:
         name:
@@ -3877,11 +4370,11 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
-        team_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
+        team_names:
+          items:
+            type: string
+          type: array
+          title: Team Names
         bundle_names:
           anyOf:
           - items:
@@ -3985,6 +4478,7 @@ components:
       - Config
       - Connections
       - Dags
+      - Dag Bundles
       - Deadlines
       - Docs
       - Jobs
@@ -4086,6 +4580,10 @@ components:
             $ref: '#/components/schemas/NextRunAssetEventResponse'
           type: array
           title: Events
+        scheduling_asset_count:
+          type: integer
+          title: Scheduling Asset Count
+          default: 0
         pending_partition_count:
           anyOf:
           - type: integer
@@ -4606,6 +5104,15 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        state_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State Reason
+          description: 'The reason the task instance reached its current state, as
+            recorded by a retry policy. May describe a previous attempt: it is cleared
+            only when the task next starts running, so a task waiting to be retried
+            or re-run can still carry the reason its last attempt ended.'
       type: object
       required:
       - id

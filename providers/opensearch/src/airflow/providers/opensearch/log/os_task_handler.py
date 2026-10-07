@@ -43,14 +43,17 @@ import airflow.logging_config as alc
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, TaskInstanceState, conf
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
-from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from airflow.providers.opensearch.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -186,6 +189,11 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 def get_os_kwargs_from_config() -> dict[str, Any]:
     open_search_config = conf.getsection("opensearch_configs")
     kwargs_dict = {key: value for key, value in open_search_config.items()} if open_search_config else {}
+    # ``ca_certs`` defaults to an empty string, which means "not configured". opensearch-py only uses its
+    # default CA bundle when the argument is left out entirely. Passing an empty string instead makes it
+    # raise ImproperlyConfigured when both ``use_ssl`` and ``verify_certs`` are enabled.
+    if not kwargs_dict.get("ca_certs"):
+        kwargs_dict.pop("ca_certs", None)
     return kwargs_dict
 
 
@@ -216,9 +224,13 @@ def _create_opensearch_client(
 ) -> OpenSearch:
     parsed_url = urlparse(_format_url(host))
     resolved_port = port if port is not None else (parsed_url.port or 9200)
+    connection_kwargs: dict[str, Any] = {
+        "hosts": [{"host": parsed_url.hostname, "port": resolved_port, "scheme": parsed_url.scheme}]
+    }
+    if username or password:
+        connection_kwargs["http_auth"] = (username, password)
     return OpenSearch(
-        hosts=[{"host": parsed_url.hostname, "port": resolved_port, "scheme": parsed_url.scheme}],
-        http_auth=(username, password),
+        **connection_kwargs,
         **os_kwargs,
     )
 
@@ -255,6 +267,31 @@ def _render_log_id(
         try_number=try_number,
         map_index=getattr(ti, "map_index", ""),
     )
+
+
+def _get_ti_id_fields(ti: TaskInstance | RuntimeTI) -> dict[str, str]:
+    # Before 3.4 a try can reuse the previous try's id, so only log_id identifies it.
+    if not AIRFLOW_V_3_4_PLUS:
+        return {}
+    return {"ti_id": str(ti.id)}
+
+
+def _build_log_query(log_id: str, ti: TaskInstance | RuntimeTI) -> list[dict[str, Any]]:
+    log_id_match = {"match_phrase": {"log_id": log_id}}
+    # Before 3.4 a cleared task instance gets a new id, which can differ from the id its logs were written under.
+    if not AIRFLOW_V_3_4_PLUS:
+        return [log_id_match]
+    return [
+        {
+            "bool": {
+                "should": [
+                    {"match_phrase": {"ti_id": str(ti.id)}},
+                    {"bool": {"must": [log_id_match], "must_not": {"exists": {"field": "ti_id"}}}},
+                ],
+                "minimum_should_match": 1,
+            }
+        }
+    ]
 
 
 def _resolve_nested(hit: dict[Any, Any], parent_class=None) -> type[Hit]:
@@ -684,7 +721,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             "query": {
                 "bool": {
                     "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
-                    "must": [{"match_phrase": {"log_id": log_id}}],
+                    "must": _build_log_query(log_id, ti),
                 }
             }
         }
@@ -937,7 +974,7 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         if self.write_stdout or self.write_to_opensearch:
-            log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
+            log_lines = self._parse_raw_log(local_loc.read_text(), log_id, _get_ti_id_fields(ti))  # type: ignore[arg-type]
 
             if self.write_stdout:
                 for line in log_lines:
@@ -957,7 +994,9 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
                             parent.rmdir()
                         parent = parent.parent
 
-    def _parse_raw_log(self, log: str, log_id: str) -> list[dict[str, Any]]:
+    def _parse_raw_log(
+        self, log: str, log_id: str, extra_fields: dict[str, str] | None = None
+    ) -> list[dict[str, Any]]:
         parsed_logs = []
         offset = 1
         for line in log.split("\n"):
@@ -968,7 +1007,7 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
             except json.JSONDecodeError:
                 self.log.warning("Skipping non-JSON log line: %r", line)
                 log_dict = {"event": line}
-            log_dict.update({"log_id": log_id, self.offset_field: offset})
+            log_dict.update({"log_id": log_id, **(extra_fields or {}), self.offset_field: offset})
             offset += 1
             parsed_logs.append(log_dict)
         return parsed_logs
@@ -995,9 +1034,27 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
     def read(self, _relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         self.log.info("Reading log %s from Opensearch", log_id)
-        response = self._os_read(log_id, 0, ti)
-        if response is not None and response.hits:
-            logs_by_host = self._group_logs_by_host(response)
+        responses = []
+        offset = 0
+
+        while True:
+            response = self._os_read(log_id, offset, ti)
+            if response is None or not response.hits:
+                break
+
+            responses.append(response)
+
+            next_offset = attrgetter(self.offset_field)(response[-1])
+            if next_offset == offset:
+                break
+            offset = next_offset
+
+        if responses:
+            grouped_logs = defaultdict(list)
+            for response in responses:
+                for host, hits in self._group_logs_by_host(response).items():
+                    grouped_logs[host].extend(hits)
+            logs_by_host = grouped_logs
         else:
             logs_by_host = None
 
@@ -1022,7 +1079,7 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
             "query": {
                 "bool": {
                     "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
-                    "must": [{"match_phrase": {"log_id": log_id}}],
+                    "must": _build_log_query(log_id, ti),
                 }
             }
         }

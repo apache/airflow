@@ -20,17 +20,26 @@ import logging
 import os
 import re
 import traceback
+import warnings
 from collections import Counter
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import event
+from sqlalchemy.dialects import mysql, postgresql, sqlite
+from sqlalchemy.exc import SAWarning
+from sqlalchemy.orm import Session
+from sqlalchemy.sql import Select
+from sqlalchemy.sql.compiler import COLLECT_CARTESIAN_PRODUCTS, WARN_LINTING
+from sqlalchemy.sql.expression import AliasedReturnsRows, TableClause
 
 # Long import to not create a copy of the reference, but to refer to one place.
 import airflow.settings
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
+    from collections.abc import Generator
+
+    from sqlalchemy.orm import ORMExecuteState
 
 log = logging.getLogger(__name__)
 
@@ -177,3 +186,99 @@ def assert_queries_count(
             message += f"\n\t{location}:\t{count}"
 
         raise AssertionError(message)
+
+
+@contextmanager
+def capture_orm_selects(table: str) -> Generator[list[str], None, None]:
+    """
+    Collect the ORM ``SELECT`` statements issued against ``table`` while the context is active.
+
+    Each statement is rendered with SQLAlchemy's default dialect and with its bound values inlined,
+    so assertions about the shape of a query (``LIMIT 1``, ``OFFSET`` ...) read the same on every
+    backend. The raw text seen by ``before_cursor_execute`` is not enough for ``LIMIT``: SQLite,
+    Postgres and MySQL all emit a ``LIMIT`` of some sort for an offset-only query.
+
+    The listener is attached to the ``Session`` class, so statements executed by sessions the code
+    under test opens itself (for example inside an API request handler) are captured too.
+
+    :param table: Name of the table the captured statements must select from.
+    """
+    statements: list[str] = []
+    selects_from_table = re.compile(rf"\b(?:FROM|JOIN) {re.escape(table)}\b")
+
+    def capture(orm_execute_state: ORMExecuteState) -> None:
+        statement = orm_execute_state.statement
+        if not isinstance(statement, Select):
+            return
+        if not selects_from_table.search(" ".join(str(statement).split())):
+            return
+        rendered = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        statements.append(" ".join(rendered.split()))
+
+    event.listen(Session, "do_orm_execute", capture)
+    try:
+        yield statements
+    finally:
+        event.remove(Session, "do_orm_execute", capture)
+
+
+def _unclone(element):
+    """Follow a clone back to the element it was copied from, which is how the FROM linter keys elements."""
+    while element._is_clone_of is not None:
+        element = element._is_clone_of
+    return element
+
+
+@contextmanager
+def assert_no_cartesian_products() -> Generator[list[Select], None, None]:
+    """
+    Fail if an ORM ``SELECT`` issued in the context joins FROM elements that nothing connects.
+
+    A cartesian product returns wrong rows, or far too many, without raising on the backend a test happens
+    to run on. Each captured statement is therefore compiled for SQLite, PostgreSQL and MySQL with
+    SQLAlchemy's FROM linting enabled, because the join shape the ORM renders (and so what the linter can
+    see) differs between dialects.
+
+    The listener is attached to the ``Session`` class, so statements executed by sessions the code under
+    test opens itself, such as inside an API request handler, are checked too.
+    """
+    statements: list[Select] = []
+
+    def capture(orm_execute_state: ORMExecuteState) -> None:
+        if isinstance(orm_execute_state.statement, Select):
+            statements.append(orm_execute_state.statement)
+
+    event.listen(Session, "do_orm_execute", capture)
+    try:
+        yield statements
+    finally:
+        event.remove(Session, "do_orm_execute", capture)
+
+    assert statements, "No ORM SELECT was executed, so nothing was checked for cartesian products"
+    problems: list[str] = []
+    for statement in statements:
+        for dialect in (sqlite.dialect(), postgresql.dialect(), mysql.dialect()):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always", SAWarning)
+                compiled = statement.compile(
+                    dialect=dialect, linting=COLLECT_CARTESIAN_PRODUCTS | WARN_LINTING
+                )
+            problems.extend(
+                f"[{dialect.name}] {warning.message}"
+                for warning in caught
+                if issubclass(warning.category, SAWarning) and "cartesian product" in str(warning.message)
+            )
+            linter = compiled.from_linter
+            if linter is None:
+                continue
+            joined = {
+                _unclone(element)
+                for edge in linter.edges
+                for element in edge
+                if isinstance(element, (AliasedReturnsRows, TableClause))
+            }
+            problems.extend(
+                f"[{dialect.name}] a join condition refers to {element.name!r}, which is not in the FROM clause"
+                for element in joined - set(linter.froms)
+            )
+    assert not problems, "Cartesian product in generated SQL:\n" + "\n".join(sorted(set(problems)))

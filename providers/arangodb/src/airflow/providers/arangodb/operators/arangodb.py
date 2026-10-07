@@ -41,7 +41,10 @@ class AQLOperator(BaseOperator):
     :param arangodb_conn_id: Reference to :ref:`ArangoDB connection id <howto/connection:arangodb>`.
     """
 
-    template_fields: Sequence[str] = ("query",)
+    template_fields: Sequence[str] = (
+        "query",
+        "arangodb_conn_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
 
@@ -78,6 +81,8 @@ class ArangoDBCollectionOperator(BaseOperator):
     :param documents_to_delete: A list of python dictionaries to delete from the collection.
     :param delete_collection: If True, the specified collection will be deleted.
     """
+
+    template_fields: Sequence[str] = ("arangodb_conn_id",)
 
     def __init__(
         self,

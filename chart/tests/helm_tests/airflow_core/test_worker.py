@@ -924,6 +924,25 @@ class TestWorker:
             "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "test-release"]}}}
 
+    @pytest.mark.parametrize("readonly_cache", [False, True])
+    def test_kerberos_readonly_cache(self, readonly_cache: bool):
+        docs = render_chart(
+            name="test-release",
+            values={
+                "workers": {"celery": {"readonlyKerberosCache": readonly_cache}},
+                "kerberos": {"enabled": True},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[?name=='worker'] | [0].volumeMounts[?name=='kerberos-ccache'] | [0].readOnly",
+                docs[0],
+            )
+            == readonly_cache
+        )
+
     def test_default_command_and_args_airflow_version(self):
         docs = render_chart(
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -1551,6 +1570,24 @@ class TestWorker:
         assert jmespath.search("spec.template.spec.containers[0].ports[:-1]", docs[0]) == [
             {"name": "test-extra-port", "containerPort": 10}
         ]
+
+    def test_worker_service_name_matches_service(self):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "workers": {"celery": {"persistence": {"enabled": True}}}},
+            show_only=["templates/workers/worker-deployment.yaml", "templates/workers/worker-service.yaml"],
+        )
+
+        assert jmespath.search("spec.serviceName", docs[0]) == jmespath.search("metadata.name", docs[1])
+
+    def test_worker_subdomain_matches_service(self):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "workers": {"celery": {"persistence": {"enabled": False}}}},
+            show_only=["templates/workers/worker-deployment.yaml", "templates/workers/worker-service.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.subdomain", docs[0]) == jmespath.search(
+            "metadata.name", docs[1]
+        )
 
 
 class TestWorkerCeleryLogGroomer(LogGroomerTestBase):

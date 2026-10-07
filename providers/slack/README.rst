@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-slack``
 
-Release: ``9.10.2``
+Release: ``9.11.0``
 
 
 `Slack <https://slack.com/>`__ services integration including:
@@ -39,7 +39,7 @@ This is a provider package for ``slack`` provider. All classes for this provider
 are in ``airflow.providers.slack`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.10.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.11.0/>`_.
 
 Installation
 ------------
@@ -48,7 +48,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-slack``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -66,4 +66,4 @@ PIP package                                 Version required
 ==========================================  ======================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.10.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.11.0/changelog.html>`_.

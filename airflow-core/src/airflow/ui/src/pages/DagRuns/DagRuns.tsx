@@ -38,6 +38,7 @@ import {
   type GetColumnsParams,
 } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
@@ -52,7 +53,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { renderDuration, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
+import { formatNumber, useAutoRefresh, hasDagRunConfig, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -86,6 +87,8 @@ const {
   START_DATE_GTE: START_DATE_GTE_PARAM,
   START_DATE_LTE: START_DATE_LTE_PARAM,
   STATE: STATE_PARAM,
+  TAGS: TAGS_PARAM,
+  TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
   TEAMS: TEAMS_PARAM,
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -140,6 +143,11 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
     header: translate("dagRun.runAfter"),
   },
   {
+    accessorKey: "logical_date",
+    cell: ({ row: { original } }) => <Time datetime={original.logical_date} />,
+    header: translate("logicalDate"),
+  },
+  {
     accessorKey: "state",
     cell: ({
       row: {
@@ -187,7 +195,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
   },
   {
     accessorKey: "duration",
-    cell: ({ row: { original } }) => renderDuration(original.duration),
+    cell: ({ row: { original } }) => <DurationCell duration={original.duration} />,
     header: translate("duration"),
   },
   {
@@ -212,7 +220,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
   {
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
-      original.conf && Object.keys(original.conf).length > 0 ? (
+      hasDagRunConfig(original.conf) ? (
         <RenderedJsonField collapsed={!open} content={original.conf} />
       ) : undefined,
     header: translate("dagRun.conf"),
@@ -236,7 +244,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
 ];
 
 export const DagRuns = () => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { dagId } = useParams();
 
   // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
@@ -250,6 +258,7 @@ export const DagRuns = () => {
     columnVisibility: {
       dag_version: false,
       end_date: false,
+      logical_date: false,
       partition_key: false,
     },
   });
@@ -278,6 +287,8 @@ export const DagRuns = () => {
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
+  const tags = searchParams.getAll(TAGS_PARAM);
+  const tagsMatchMode = searchParams.get(TAGS_MATCH_MODE_PARAM) === "all" ? "all" : "any";
   const teams = searchParams.getAll(TEAMS_PARAM);
 
   const refetchInterval = useAutoRefresh({});
@@ -333,6 +344,8 @@ export const DagRuns = () => {
       startDateGte: startDateGte ?? undefined,
       startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
+      tags: tags.length > 0 ? tags : undefined,
+      tagsMatchMode: tags.length > 0 ? tagsMatchMode : undefined,
       teams: teams.length > 0 ? teams : undefined,
       ...triggeringUserArg,
     },
@@ -398,7 +411,7 @@ export const DagRuns = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />
