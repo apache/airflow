@@ -98,6 +98,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.deadline import Deadline, ReferenceModels
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 
@@ -296,7 +297,6 @@ def _get_new_task_ids(
     :param session: SQLAlchemy session
     :return: List of task IDs for newly added tasks
     """
-    from airflow.models.dagbag import DBDagBag
     from airflow.models.dagrun import DagRun
 
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=run_id))
@@ -338,7 +338,6 @@ def _update_dagrun_to_latest_version(
     :param run_id: The run_id for the DAG run
     :param session: SQLAlchemy session
     """
-    from airflow.models.dagbag import DBDagBag
     from airflow.models.dagrun import DagRun
 
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=run_id))
@@ -414,7 +413,6 @@ def clear_task_instances(
     :meta private:
     """
     from airflow.exceptions import AirflowClearRunningTaskException
-    from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
     latest_dag_versions: dict[str, DagVersion | None] = {}
@@ -437,12 +435,6 @@ def clear_task_instances(
                 # Prevents the task from re-running and clearing when prevent_running_task from the frontend and the tas is running is True.
 
             ti.state = TaskInstanceState.RESTARTING
-            # It is retried from this same row, so leaving it on the old version would silently
-            # re-run the code the Dag run started with.
-            if run_on_latest_version:
-                latest_dag_version = get_cached_latest_dag_version(ti.dag_id)
-                if latest_dag_version is not None:
-                    ti.dag_version_id = latest_dag_version.id
         # If a task is cleared when running and the prevent_running_task is false,
         # set its state to RESTARTING so that
         # the task is terminated and becomes eligible for retry.
@@ -536,11 +528,8 @@ def clear_task_instances(
                     dr.state = dag_run_state
                     dr.start_date = timezone.utcnow()
 
-            # The run is moved to the latest version whatever its state and whether or not its own state
-            # is being reset — the cleared TIs are pinned to that version above, so leaving the run behind
-            # would have the scheduler resolve the run from one version while its tasks run another.
-            # An unchanged serialized dag on a newer bundle refreshes the latest DagVersion row in place
-            # instead of adding one, so a matching version id does not mean the bundle is current either.
+            # The run selects the code for cleared tasks, including successors of restarting attempts.
+            # Refresh the bundle even if an unchanged serialized Dag reused its version row.
             use_latest_version = run_on_latest_version or dr.created_dag_version_id is None
             if use_latest_version:
                 dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
@@ -553,7 +542,6 @@ def clear_task_instances(
                     dr.created_dag_version = dag_version
                     dr.dag = dr_dag
                     dr.verify_integrity(session=session, dag_version_id=dag_version.id)
-                    # Only cleared TIs get latest dag_version_id above; do not rewrite others.
                     dr.bundle_version = (
                         None if dr_dag.disable_bundle_versioning else dr.dag_model.bundle_version
                     )
@@ -1251,6 +1239,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if self.state != TaskInstanceState.RESTARTING or self.working_set is not True:
             raise ValueError("Only a current restarting task instance can complete a restart")
         successor = self.prepare_db_for_next_try(session)
+        # Keep the terminated attempt's version; the successor follows the run's current code.
+        if dag_version_id := DBDagBag._version_from_dag_run(self.dag_run, session=session):
+            successor.dag_version_id = dag_version_id
         if self.task is not None:
             successor.max_tries = self.try_number + self.task.retries
         else:

@@ -32,6 +32,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.sdk import task
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -1225,6 +1226,7 @@ class TestClearTasks:
 
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.state = TaskInstanceState.RUNNING
+        ti0.try_number = 1
         ti1.state = TaskInstanceState.SUCCESS
         session.merge(ti0)
         session.merge(ti1)
@@ -1251,11 +1253,78 @@ class TestClearTasks:
         tis = {ti.task_id: ti for ti in dr.task_instances}
         assert tis["0"].state == TaskInstanceState.RESTARTING
         expected_version = new_dag_version if run_on_latest_version else old_dag_version
-        assert tis["0"].dag_version_id == expected_version.id
+        assert tis["0"].dag_version_id == old_dag_version.id
         assert tis["1"].dag_version_id == expected_version.id
         assert dr.created_dag_version_id == expected_version.id
         assert dr.bundle_version == expected_version.bundle_version
         assert ("2" in tis) is run_on_latest_version
+
+        attempt_id = tis["0"].id
+        old_version_id, expected_version_id = old_dag_version.id, expected_version.id
+        session.expunge_all()
+        attempt = session.get(TI, attempt_id)
+        successor = attempt.complete_restart(session=session)
+        session.flush()
+
+        assert attempt.working_set is None
+        assert attempt.dag_version_id == old_version_id
+        assert successor.dag_version_id == expected_version_id
+        assert successor.try_number == 2
+
+    @pytest.mark.parametrize("state", [TaskInstanceState.FAILED, TaskInstanceState.RUNNING])
+    @pytest.mark.parametrize("mapped_count", [0, 2])
+    def test_clear_latest_keeps_unmapped_task_available_for_expansion(
+        self, dag_maker, session, state, mapped_count
+    ):
+        @task
+        def work(arg): ...
+
+        with dag_maker("test_clear_plain_to_mapped", bundle_version="v1", session=session):
+            work(1)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        attempt = dr.get_task_instance("work", session=session)
+        attempt.state = state
+        attempt.try_number = 1
+        old_version_id = attempt.dag_version_id
+        session.flush()
+
+        with dag_maker("test_clear_plain_to_mapped", bundle_version="v2", session=session):
+            work.expand(arg=list(range(mapped_count)))
+        new_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+
+        (cleared,) = clear_task_instances([attempt], session, run_on_latest_version=True)
+        if state == TaskInstanceState.RUNNING:
+            assert cleared.state == TaskInstanceState.RESTARTING
+            cleared.complete_restart(session=session)
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        assert sorted(ti.map_index for ti in decision.schedulable_tis) == list(range(mapped_count))
+        current_tis = dr.get_task_instances(session=session)
+        assert {ti.dag_version_id for ti in current_tis} == {new_version_id}
+        assert {ti.state for ti in current_tis} == ({None} if mapped_count else {TaskInstanceState.SKIPPED})
+        assert attempt.working_set is None
+        assert attempt.dag_version_id == old_version_id
+
+    def test_complete_restart_uses_latest_version_for_unpinned_run(self, dag_maker, session):
+        with dag_maker("test_restart_unpinned", session=session):
+            EmptyOperator(task_id="work")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        attempt = dr.get_task_instance("work", session=session)
+        attempt.state = TaskInstanceState.RUNNING
+        old_version_id = attempt.dag_version_id
+        session.flush()
+
+        clear_task_instances([attempt], session)
+        with dag_maker("test_restart_unpinned", session=session):
+            EmptyOperator(task_id="work", retries=2)
+        new_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+
+        successor = attempt.complete_restart(session=session)
+
+        assert successor.dag_version_id == new_version_id
+        assert attempt.dag_version_id == old_version_id
+        assert old_version_id != new_version_id
 
     @pytest.mark.parametrize("dr_state", [DagRunState.SUCCESS, DagRunState.RUNNING])
     def test_clear_run_on_latest_version_without_resetting_dag_run(self, dr_state, dag_maker, session):
