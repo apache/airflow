@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl, urlsplit
 
@@ -64,14 +65,15 @@ class DataFusionEngine(LoggingMixin):
             else:
                 connection_config = self._get_connection_config(datasource_config.conn_id)
 
-            self._register_object_store(datasource_config, connection_config)
+            canonical_uri = self._register_object_store(datasource_config, connection_config)
+            datasource_config = replace(datasource_config, uri=canonical_uri)
 
         self._register_data_source_format(datasource_config)
 
     def _register_object_store(
         self, datasource_config: DataSourceConfig, connection_config: ConnectionConfig | None
-    ):
-        """Register object stores."""
+    ) -> str:
+        """Register the object store and return the canonical URI to register the table under."""
         if TYPE_CHECKING:
             assert datasource_config.storage_type is not None
 
@@ -80,13 +82,15 @@ class DataFusionEngine(LoggingMixin):
             object_store = storage_provider.create_object_store(
                 datasource_config.uri, connection_config=connection_config
             )
-            schema = storage_provider.get_scheme(datasource_config.uri)
-            # DataFusion's object-store registry keys on (schema, host); omitting host only
-            # matches URIs with an empty authority (e.g. file:///path), so a bucket/container
-            # URI's netloc must be passed explicitly or lookup fails at query time.
-            host = urlsplit(datasource_config.uri).netloc
+            canonical_uri = storage_provider.normalize_uri(datasource_config.uri)
+            schema = storage_provider.get_scheme(canonical_uri)
+            # abfs(s) folds account+container into one host token that never equals the store's
+            # own container name, so DataFusion's omitted-host default can't match; host is
+            # required here, not just a uniform convenience for the other schemes.
+            host = urlsplit(canonical_uri).netloc
             self.session_context.register_object_store(schema=schema, store=object_store, host=host)
             self.log.info("Registered object store for schema: %s host: %s", schema, host)
+            return canonical_uri
         except Exception as e:
             raise ObjectStoreCreationException(
                 f"Error while creating object store for {datasource_config.storage_type}: {e}"
