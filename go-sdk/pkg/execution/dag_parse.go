@@ -27,19 +27,11 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
-// parseDags answers a DagFileParseRequest with the Dags from airflow.Dag that the bundle
-// registered. The answer does not include the Dag of a task handler, because the Python Dag file
-// that declares that Dag is parsed separately.
-//
-// If a Dag cannot be serialized, parseDags turns the failure into an import error that names the
-// Dag. parseDags still sends the other Dags, and the Dag processor stores them. But while the
-// bundle binary has an import error, the Dag processor deactivates every Dag of the bundle binary.
-// The Dag processor treats a Python Dag file with an import error in the same way. The Dag
-// processor stores each import error under the path of the file relative to its Dag bundle, and it
-// keeps only one import error for each file. So the messages for all the Dags that cannot be
-// serialized share one import error.
+// parseDags answers a DagFileParseRequest with the bundle's Dags from airflow.Dag. A Dag that
+// cannot be serialized adds a line to the import error of the file, and the other Dags are still
+// sent.
 func parseDags(
-	b bundle.DagSerializer,
+	s bundle.DagSerializer,
 	req *genmodels.DagFileParseRequest,
 	logger *slog.Logger,
 ) genmodels.DagFileParsingResult {
@@ -49,20 +41,29 @@ func parseDags(
 		Fileloc:        req.File,
 		SerializedDags: []genmodels.LazyDeserializedDAG{},
 	}
-	var failures []string
-	for _, dag := range b.SerializeDags(req.File, relative) {
-		if dag.Err != nil {
-			logger.Error("Dag could not be serialized", "dag_id", dag.DagID, "error", dag.Err)
-			failures = append(failures, fmt.Sprintf("Dag %q: %v", dag.DagID, dag.Err))
-			continue
+	var dagIDs, failures []string
+	if s != nil {
+		for _, dag := range s.SerializeDags(req.File, relative) {
+			dagIDs = append(dagIDs, dag.DagID)
+			if dag.Err != nil {
+				logger.Error("Dag could not be serialized", "dag_id", dag.DagID, "error", dag.Err)
+				failures = append(failures, fmt.Sprintf("Dag %q: %v", dag.DagID, dag.Err))
+				continue
+			}
+			result.SerializedDags = append(
+				result.SerializedDags, genmodels.LazyDeserializedDAG{Data: dag.Data},
+			)
 		}
-		result.SerializedDags = append(
-			result.SerializedDags, genmodels.LazyDeserializedDAG{Data: dag.Data},
-		)
 	}
 	if len(failures) > 0 {
 		result.ImportErrors = &genmodels.ImportErrors{relative: strings.Join(failures, "\n")}
 	}
+	logger.Info("Parse-mode response",
+		"fileloc", req.File,
+		"dag_ids", dagIDs,
+		"serialized", len(result.SerializedDags),
+		"import_errors", len(failures),
+	)
 	return result
 }
 

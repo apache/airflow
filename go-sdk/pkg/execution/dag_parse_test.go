@@ -40,8 +40,6 @@ type serializedDags struct {
 	fileloc, relative string
 }
 
-func (s *serializedDags) LookupTask(string, string) (bundle.Task, bool) { return nil, false }
-
 func (s *serializedDags) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
 	s.fileloc, s.relative = fileloc, relativeFileloc
 	return s.dags
@@ -99,6 +97,14 @@ func TestParseDagsAnswersWithTheSerializedDags(t *testing.T) {
 	}`, wireJSON(t, result))
 }
 
+func TestParseDagsAnswersWithNoDagsWhenTheBundleHasNoSerializer(t *testing.T) {
+	result := parseDags(nil, etlParseRequest, discardLogger())
+
+	assert.NotNil(t, result.SerializedDags)
+	assert.Empty(t, result.SerializedDags)
+	assert.Nil(t, result.ImportErrors)
+}
+
 func TestParseDagsSendsAnEmptyListForABundleWithoutDags(t *testing.T) {
 	result := parseDags(&serializedDags{}, etlParseRequest, discardLogger())
 
@@ -139,11 +145,15 @@ func TestParseDagsReportsEachDagThatCannotBeSerialized(t *testing.T) {
 		require.NoError(t, json.Unmarshal(line, &record))
 		logged = append(logged, record)
 	}
-	require.Len(t, logged, 2)
+	require.Len(t, logged, 3)
 	for i, dagID := range []string{"reports", "audit"} {
 		assert.Equal(t, "ERROR", logged[i]["level"])
 		assert.Equal(t, dagID, logged[i]["dag_id"])
 	}
+	assert.Equal(t, "INFO", logged[2]["level"])
+	assert.Equal(t, []any{"etl", "reports", "cleanup", "audit"}, logged[2]["dag_ids"])
+	assert.EqualValues(t, 2, logged[2]["serialized"])
+	assert.EqualValues(t, 2, logged[2]["import_errors"])
 }
 
 func TestComputeRelativeFileloc(t *testing.T) {

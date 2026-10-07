@@ -80,7 +80,7 @@ const terminalSendTimeout = 30 * time.Second
 // fails closed without needing to send a frame; the post-connect paths below
 // log the reason at Error first so it still reaches the supervisor's log
 // stream over the already-connected logs socket.
-func Serve(b bundle.Registry, commAddr, logsAddr string) error {
+func Serve(b bundle.Bundle, commAddr, logsAddr string) error {
 	if commAddr == "" {
 		return fmt.Errorf("missing --comm=host:port argument")
 	}
@@ -175,8 +175,9 @@ func Serve(b bundle.Registry, commAddr, logsAddr string) error {
 		logger.Debug("Task execution complete")
 
 	case *genmodels.DagFileParseRequest:
-		logger.Debug("Dag parsing mode", "file", msg.File)
-		result := parseDags(b, msg, logger)
+		logger.Info("Received Dag parse request", "file", msg.File, "bundle_path", msg.BundlePath)
+		serializer, _ := b.(bundle.DagSerializer)
+		result := parseDags(serializer, msg, logger)
 		// The Dag processor reads from a connection only after it checks that the connection
 		// belongs to this process. The Dag processor cannot make that check after this process
 		// exits. So a process that exits right after it sends the result often loses the logs of

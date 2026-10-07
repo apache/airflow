@@ -427,7 +427,7 @@ func TestSerializeDagsKeepsTheOtherDagsWhenADagCannotBeSerialized(t *testing.T) 
 	reports.Task(noop)
 	b.Register(reports)
 
-	serialized := coordinatorBundle{b}.SerializeDags("/bundles/go/etl", "etl")
+	serialized := b.dags.serialize("/bundles/go/etl", "etl")
 
 	require.Len(t, serialized, 3)
 	assert.Equal(t, bundle.SerializedDag{
@@ -452,5 +452,5 @@ func TestSerializeDagsLeavesOutADagThatRegisterRejected(t *testing.T) {
 	loaded.Before(extracted)
 	require.Panics(t, func() { b.Register(cyclic) })
 
-	assert.Empty(t, coordinatorBundle{b}.SerializeDags("/bundles/go/etl", "etl"))
+	assert.Empty(t, b.dags.serialize("/bundles/go/etl", "etl"))
 }

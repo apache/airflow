@@ -57,28 +57,18 @@ type EnumerableBundle interface {
 	ListTaskHandlers() []TaskHandlerInfo
 }
 
-// SerializedDag is a Dag authored with airflow.Dag, serialized for the Dag processor.
+// SerializedDag is one Dag from airflow.Dag, serialized for the Dag processor. Data is nil when
+// Err is set.
 type SerializedDag struct {
 	DagID string
-	// Data is the serialized Dag that Airflow stores. It is nil when Err is set.
-	Data map[string]any
-	// Err says why the Dag could not be serialized.
-	Err error
+	Data  map[string]any
+	Err   error
 }
 
-// DagSerializer serializes the Dags from airflow.Dag that a bundle registered, in the order they
-// were registered. The coordinator runtime answers a DagFileParseRequest with the serialized Dags.
-// fileloc is the path of the bundle binary, and relativeFileloc is that path relative to the root
-// of its Dag bundle.
+// DagSerializer serializes the Dags from airflow.Dag that a bundle registered, in registration
+// order.
 type DagSerializer interface {
 	SerializeDags(fileloc, relativeFileloc string) []SerializedDag
-}
-
-// Registry is what a bundle binary serves. A task run looks up its task in the Registry, and a Dag
-// parse serializes the Dags that the Registry holds.
-type Registry interface {
-	Bundle
-	DagSerializer
 }
 
 type taskFunction struct {

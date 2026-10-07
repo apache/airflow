@@ -143,7 +143,7 @@ func (b *BundleRef) serve(args []string, stdout io.Writer) error {
 		}
 		return execution.DumpAirflowMetadata(stdout, &b.taskHandlers, format)
 	case modeCoordinator:
-		return execution.Serve(coordinatorBundle{b}, *commAddr, *logsAddr)
+		return execution.Serve(coordinatorSource{&b.taskHandlers, &b.dags}, *commAddr, *logsAddr)
 	case modeCoordinatorUsageError:
 		return errCoordinatorFlagsRequired
 	}

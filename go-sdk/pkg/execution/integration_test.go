@@ -103,11 +103,7 @@ func (b testBundle) LookupTask(dagID, taskID string) (bundle.Task, bool) {
 	return task, ok
 }
 
-// SerializeDags serializes nothing because the Dags of a testBundle only hold tasks to run. The Dag
-// parse tests use serializedDags instead.
-func (b testBundle) SerializeDags(string, string) []bundle.SerializedDag { return nil }
-
-func buildBundle(t *testing.T, register func(testBundle)) bundle.Registry {
+func buildBundle(t *testing.T, register func(testBundle)) bundle.Bundle {
 	t.Helper()
 	b := testBundle{}
 	register(b)
@@ -1388,19 +1384,25 @@ func TestServeFailureAfterConnectClosesComm(t *testing.T) {
 	require.Error(t, err)
 }
 
+// parseBundle is a bundle that serializes Dags and has no task to run.
+type parseBundle struct {
+	testBundle
+	*serializedDags
+}
+
 // startDagParse runs Serve for dags and sends it a DagFileParseRequest. It returns the comm and
 // logs connections, the frame that Serve answers with, and the channel that gets what Serve
 // returns.
 func startDagParse(
 	t *testing.T,
-	dags bundle.Registry,
+	dags *serializedDags,
 ) (commConn, logsConn net.Conn, frame IncomingFrame, done <-chan error) {
 	t.Helper()
 	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
 	t.Cleanup(cleanup)
 
 	served := make(chan error, 1)
-	go func() { served <- Serve(dags, commAddr, logsAddr) }()
+	go func() { served <- Serve(parseBundle{testBundle{}, dags}, commAddr, logsAddr) }()
 
 	commConn = <-commCh
 	t.Cleanup(func() { commConn.Close() })

@@ -215,6 +215,14 @@ func (m *dagMap) add(dag *DagRef) {
 	m.order = append(m.order, dag)
 }
 
+func (m *dagMap) has(dagID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	_, exists := m.dags[dagID]
+	return exists
+}
+
 // serialize serializes the registered Dags in the order they were registered. If serializing a Dag
 // panics, the panic becomes the error of that Dag instead of ending the parse. The import error of
 // the parse then names the Dag.
@@ -241,24 +249,18 @@ func serializeRecovering(dag *DagRef, fileloc, relativeFileloc string) (s bundle
 	return s
 }
 
-// coordinatorBundle is what Serve passes to execution.Serve. It holds the task handlers that a task
-// run looks up and the Dags that a Dag parse serializes.
-type coordinatorBundle struct{ b *BundleRef }
-
-var _ bundle.Registry = coordinatorBundle{}
-
-func (c coordinatorBundle) LookupTask(dagID, taskID string) (bundle.Task, bool) {
-	return c.b.taskHandlers.LookupTask(dagID, taskID)
+// coordinatorSource is what Serve hands to execution.Serve: the task handlers and the Dags of one
+// bundle.
+type coordinatorSource struct {
+	*taskHandlerMap
+	dags *dagMap
 }
 
-func (c coordinatorBundle) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
-	return c.b.dags.serialize(fileloc, relativeFileloc)
-}
+var (
+	_ bundle.Bundle        = coordinatorSource{}
+	_ bundle.DagSerializer = coordinatorSource{}
+)
 
-func (m *dagMap) has(dagID string) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	_, exists := m.dags[dagID]
-	return exists
+func (s coordinatorSource) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
+	return s.dags.serialize(fileloc, relativeFileloc)
 }
