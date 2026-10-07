@@ -356,10 +356,11 @@ reported to the model as having an unknown outcome rather than retried.
 **Files.** ``write_file`` sends content on stdin in chunks of 768 KiB, since the
 gateway limits one command argument to 32 KiB and one request to 1 MiB; a larger
 write is not atomic, and it follows a symlink like a shell redirect. ``read_file``
-transfers raw bytes, capped inside the guest. The image needs ``setsid`` and GNU
-coreutils and findutils, which ``python:*-slim`` and other Debian or Ubuntu based
-images have; the gateway's own default image has no ``python3``, which is why the
-backend defaults to ``python:3.12-slim``.
+transfers raw bytes, capped inside the guest. The image needs ``setsid`` (from
+util-linux) and GNU coreutils and findutils, which ``python:*-slim`` and other
+Debian or Ubuntu based images have; an image without ``setsid`` fails the task at
+its first command. The gateway's own default image has no ``python3``, which is
+why the backend defaults to ``python:3.12-slim``.
 
 **Cleanup.** OpenShell has no server-side sandbox lifetime. ``destroy`` deletes
 the sandbox, but one whose worker died is kept until someone deletes it, even

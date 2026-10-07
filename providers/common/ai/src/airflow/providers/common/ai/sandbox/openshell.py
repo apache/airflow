@@ -113,6 +113,10 @@ _TIMEOUT_STATUS = 124
 _STAGING_STATUS = 125
 _STAGING_FAILED = "airflow-exec: could not stage the command in /tmp"
 _STAGING_LINE = f"{_STAGING_FAILED}\n".encode()
+# The same for "the image has no setsid", which no command can fix from inside.
+_NO_SETSID_STATUS = 127
+_NO_SETSID = "airflow-exec: setsid is not installed in the sandbox image"
+_NO_SETSID_LINE = f"{_NO_SETSID}\n".encode()
 _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Runs one command for run_command. OpenShell's own exec timeout returns a
@@ -149,7 +153,7 @@ d=$(mktemp -d /tmp/.airflow-exec.XXXXXX) && cat >"$d/c" || {{ rm -rf "$d"; echo 
 f=0
 trap f=1 ALRM
 trap f=2 HUP INT TERM
-z=$(command -v setsid) || {{ echo "setsid is not installed in the sandbox image" >&2; rm -rf "$d"; exit 125; }}
+z=$(command -v setsid) || {{ rm -rf "$d"; echo "{_NO_SETSID}" >&2; exit {_NO_SETSID_STATUS}; }}
 PATH=$o "$z" /bin/sh "$d/c" </dev/null >"$d/o" 2>"$d/e" &
 p=$!
 (
@@ -843,7 +847,7 @@ class OpenShellSandboxBackend(SandboxBackend):
             )
         self._check_egress(sandbox)
         stdout = _BoundedTail(int(max_output_bytes))
-        stderr = _BoundedTail(int(max_output_bytes), min_window=len(_STAGING_LINE))
+        stderr = _BoundedTail(int(max_output_bytes), min_window=max(len(_STAGING_LINE), len(_NO_SETSID_LINE)))
         try:
             outcome = self._exec_with_recovery(
                 sandbox,
@@ -856,6 +860,12 @@ class OpenShellSandboxBackend(SandboxBackend):
         except _ExecHung:
             return self._abandon_command(sandbox, stdout, stderr, seconds=seconds)
         self._check_egress(sandbox)
+        if outcome.exit_code == _NO_SETSID_STATUS and stderr.ends_with(_NO_SETSID_LINE):
+            raise SandboxTerminalError(
+                f"OpenShell sandbox {sandbox} cannot run commands: its image has no setsid, which the "
+                "backend runs every command under. Use an image with setsid from util-linux; "
+                "python:*-slim has it."
+            )
         if outcome.exit_code == _STAGING_STATUS and stderr.ends_with(_STAGING_LINE):
             cause = stderr.get_text().rpartition(_STAGING_FAILED)[0].strip()
             raise SandboxError(

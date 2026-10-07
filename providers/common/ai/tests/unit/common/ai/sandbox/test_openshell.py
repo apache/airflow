@@ -43,9 +43,12 @@ from airflow.providers.common.ai.sandbox.base import (
 )
 from airflow.providers.common.ai.sandbox.openshell import (
     _EXEC_GRACE,
+    _NO_SETSID,
+    _NO_SETSID_STATUS,
     _READ_WRITE_PATHS,
     _RUN_WRAPPER,
     _STAGING_FAILED,
+    _SYSTEM_PATH,
     OpenShellSandboxBackend,
 )
 
@@ -477,9 +480,12 @@ class TestRunCommand:
             pytest.param(125, b"docker: invalid reference format\n", id="a-command-exiting-125"),
             pytest.param(1, f"{_STAGING_FAILED}\n".encode(), id="the-staging-line-with-another-status"),
             pytest.param(125, f"{_STAGING_FAILED}\nmore\n".encode(), id="the-staging-line-not-last"),
+            pytest.param(127, b"sh: 1: setsid: not found\n", id="a-command-exiting-127"),
+            pytest.param(1, f"{_NO_SETSID}\n".encode(), id="the-setsid-line-with-another-status"),
+            pytest.param(127, f"{_NO_SETSID}\nmore\n".encode(), id="the-setsid-line-not-last"),
         ],
     )
-    def test_a_result_unlike_the_wrappers_staging_failure_is_the_commands_own(self, exit_code, stderr):
+    def test_a_result_unlike_a_wrapper_failure_is_the_commands_own(self, exit_code, stderr):
         backend, client = _backend()
         client._stub.ExecSandbox.return_value = _result(exit_code, err=stderr)
 
@@ -514,6 +520,14 @@ class TestRunCommand:
 
         assert str(error.value) == message
         assert not isinstance(error.value, SandboxTerminalError)
+
+    def test_an_image_without_setsid_is_terminal(self):
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _result(_NO_SETSID_STATUS, err=f"{_NO_SETSID}\n".encode())
+
+        # A cap shorter than the line, so the line is still recognised past it.
+        with pytest.raises(SandboxTerminalError, match="no setsid.*util-linux"):
+            backend.run_command("box", "true", timeout=5, max_output_bytes=10)
 
     def test_stderr_stays_capped_below_the_length_of_the_staging_line(self):
         backend, client = _backend()
@@ -989,6 +1003,26 @@ class TestRunWrapper:
 
         assert result.returncode == 125
         assert result.stderr.endswith(f"{_STAGING_FAILED}\n".encode())
+
+    def test_a_missing_setsid_has_its_own_status(self, tmp_path):
+        for tool in ("mktemp", "cat", "rm"):
+            (tmp_path / tool).symlink_to(shutil.which(tool))
+        wrapper = _RUN_WRAPPER.replace(_SYSTEM_PATH, f"PATH={tmp_path}")
+        assert wrapper != _RUN_WRAPPER
+
+        result = subprocess.run(
+            ["/bin/sh", "-c", wrapper, "airflow-exec", "5", "1000"],
+            input=b"echo ran",
+            capture_output=True,
+            timeout=20,
+            check=False,
+        )
+
+        assert (result.returncode, result.stdout, result.stderr) == (
+            _NO_SETSID_STATUS,
+            b"",
+            f"{_NO_SETSID}\n".encode(),
+        )
 
     def test_each_stream_is_cut_to_one_byte_past_the_cap(self):
         result = self._run("head -c 5000 /dev/zero; head -c 10 /dev/zero >&2", cap=100)
