@@ -514,13 +514,34 @@ class TestRunCommand:
         # Nothing was heard from the command, so claiming it timed out would be a guess.
         client.sandboxes.delete_sandbox.assert_not_called()
 
-    def test_the_last_poll_keeps_a_minimum_http_budget(self):
+    @pytest.mark.parametrize("request_name", ["exec_in_sandbox", "get_exec_result"])
+    def test_the_start_and_the_last_poll_keep_a_minimum_http_budget(self, request_name):
         backend, client = _backend_with_client()
 
         backend.run_command("box", "x", timeout=1, max_output_bytes=1024)
 
-        options = client.sandboxes.get_exec_result.call_args.kwargs["request_options"]
+        options = getattr(client.sandboxes, request_name).call_args.kwargs["request_options"]
         assert options["timeout_in_seconds"] == 5
+
+    def test_a_slow_start_leaves_the_command_its_whole_budget(self, monkeypatch):
+        backend, client = _backend_with_client()
+        clock = [1000.0]
+        monkeypatch.setattr(f"{_MODULE}.time.monotonic", lambda: clock[0])
+
+        def slow_start(*args, **kwargs):
+            # Longer than the command's whole budget, as the first call after an
+            # auto-resume can be.
+            clock[0] += 10
+            return SimpleNamespace(exec_id="exec-1")
+
+        client.sandboxes.exec_in_sandbox.side_effect = slow_start
+        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="hi\n")
+
+        result = backend.run_command("box", "echo hi", timeout=1, max_output_bytes=1024)
+
+        assert result.stdout == "hi\n"
+        assert not result.timed_out
+        client.sandboxes.delete_sandbox.assert_not_called()
 
     @pytest.mark.parametrize(
         ("timeout", "max_bytes", "message"), [(0, 1, "timeout"), (1, 0, "max_output_bytes")]

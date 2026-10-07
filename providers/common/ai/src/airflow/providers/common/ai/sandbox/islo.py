@@ -58,9 +58,10 @@ _AUTO_RESUME_POLICIES = frozenset({"never", "on_activity"})
 _POLL_INITIAL = 0.2
 _POLL_MAX = 2.0
 _POLL_BACKOFF = 1.5
-# A poll request's HTTP timeout never drops below this: the last poll before
-# the deadline must not get a one-second budget that a slow API turns into a
-# task failure instead of the timeout result.
+# The HTTP timeout of the requests that start and poll a command never drops
+# below this: a small command budget, or the last poll before the deadline, must
+# not become a one-second request budget that a slow API -- the first call after
+# an auto-resume, say -- turns into a task failure instead of a command result.
 _POLL_HTTP_TIMEOUT_MIN = 5.0
 _FILE_OP_TIMEOUT = 120.0
 # File-transfer responses that say nothing the model can act on: bad credentials,
@@ -422,7 +423,6 @@ class IsloSandboxBackend(SandboxBackend):
         # The server returns at most _SERVER_STREAM_CAP bytes per stream, so a
         # larger budget cannot be honoured and is clamped below it.
         budget = min(max_output_bytes, _SERVER_STREAM_CAP - 1)
-        deadline = time.monotonic() + timeout
         with _translate_islo_errors("start a sandbox command"):
             response = client.sandboxes.exec_in_sandbox(
                 sandbox,
@@ -437,8 +437,11 @@ class IsloSandboxBackend(SandboxBackend):
                     str(budget + 1),
                 ],
                 timeout_secs=max(1, math.ceil(timeout)),
-                request_options=self._request_options(timeout=timeout),
+                request_options=self._request_options(timeout=max(_POLL_HTTP_TIMEOUT_MIN, timeout)),
             )
+        # Timed from the start's answer, so a slow start cannot spend the
+        # command's budget and leave it destroyed without a single poll.
+        deadline = time.monotonic() + timeout
         result = self._await_exec(sandbox, response.exec_id, deadline=deadline)
         if result is None:
             self._destroy_after_timeout(sandbox)
