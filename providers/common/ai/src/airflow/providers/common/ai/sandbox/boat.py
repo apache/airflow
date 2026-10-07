@@ -38,6 +38,7 @@ from airflow.providers.common.ai.sandbox.base import (
     _new_sandbox_name,
     _validate_positive_finite,
 )
+from airflow.providers.common.ai.sandbox.output import _tail_bytes
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -128,10 +129,9 @@ def _translate_boat_errors(
 
 
 def _bound_text(text: str, max_bytes: int, *, already_truncated: bool = False) -> tuple[str, bool]:
-    encoded = text.encode("utf-8")
-    if len(encoded) <= max_bytes:
+    if len(text.encode("utf-8")) <= max_bytes:
         return text, already_truncated
-    return encoded[-max_bytes:].decode("utf-8", errors="ignore"), True
+    return _tail_bytes(text, max_bytes), True
 
 
 class BoatSandboxBackend(SandboxBackend):
@@ -417,12 +417,17 @@ class BoatSandboxBackend(SandboxBackend):
         # unexported variables the guest's profile sets still reach the command, with
         # the exports applied after them. wait's stderr is dropped because bash reports
         # a SIGKILLed job there, quoting the whole command line, exports included.
+        # Only the tail of each spool is replayed: a command can spool gigabytes before
+        # its deadline, and replaying all of it can outlast Boat's own deadline, which
+        # deletes the sandbox. The extra byte is how _bound_text sees that bytes were cut.
+        replay_bytes = max_output_bytes + 1
         command = (
             "tmp_dir=$(mktemp -d); trap 'rm -rf \"$tmp_dir\"' EXIT; "
             f"timeout --kill-after={_KILL_AFTER} {timeout_seconds} bash -lc {shlex.quote(command)} "
             '>"$tmp_dir/stdout" 2>"$tmp_dir/stderr" & '
             'command_pid=$!; wait "$command_pid" 2>/dev/null; command_status=$?; '
-            'cat "$tmp_dir/stdout"; cat "$tmp_dir/stderr" >&2; exit "$command_status"'
+            f'tail -c {replay_bytes} "$tmp_dir/stdout"; tail -c {replay_bytes} "$tmp_dir/stderr" >&2; '
+            'exit "$command_status"'
         )
         started = time.monotonic()
         with _translate_boat_errors("run a sandbox command"):

@@ -499,25 +499,49 @@ class TestRunCommand:
 
         assert (result.stdout, result.stderr, result.returncode) == (expected, "", 0)
 
-    def test_forwards_command_and_bounds_output(self):
+    def test_wrapper_replays_only_the_tail_of_a_large_spool(self, tmp_path):
+        # Replaying a whole spool is what let a print loop outlast Boat's own deadline.
         backend, api = _backend_with_api()
-        api.command.return_value = _command_response(
-            stdout="0" * 20, stderr="err", stdout_truncated=True, stderr_truncated=False
+        replayed_sizes = []
+
+        def run_in_a_local_shell(_sandbox, request, **_kwargs):
+            done = _run_like_boat(request.command, home=tmp_path, timeout=10)
+            replayed_sizes.append((len(done.stdout), len(done.stderr)))
+            return _command_response(exit_code=done.returncode, stdout=done.stdout, stderr=done.stderr)
+
+        api.command.side_effect = run_in_a_local_shell
+        spool = "head -c 1000000 /dev/zero | tr '\\0' x"
+
+        result = backend.run_command(
+            "bx_1",
+            f"{spool}; printf out-end; {{ {spool}; printf err-end; }} >&2",
+            timeout=5,
+            max_output_bytes=7,
         )
+
+        assert replayed_sizes == [(8, 8)]
+        assert (result.stdout, result.stdout_truncated) == ("out-end", True)
+        assert (result.stderr, result.stderr_truncated) == ("err-end", True)
+
+    @pytest.mark.parametrize("stream", ["stdout", "stderr"])
+    @pytest.mark.parametrize(
+        ("text", "boat_truncated", "expected", "truncated"),
+        [
+            pytest.param("head-0123456789-tail", False, "789-tail", True, id="over_the_limit"),
+            pytest.param("short", True, "short", True, id="cut_by_boat"),
+            pytest.param("short", False, "short", False, id="whole"),
+        ],
+    )
+    def test_output_keeps_its_tail_and_boats_truncation_flag(
+        self, stream, text, boat_truncated, expected, truncated
+    ):
+        backend, api = _backend_with_api()
+        api.command.return_value = _command_response(**{stream: text, f"{stream}_truncated": boat_truncated})
 
         result = backend.run_command("bx_1", "echo hi", timeout=5, max_output_bytes=8)
 
-        request = api.command.call_args.args[1]
-        assert "timeout --kill-after=5 5 bash -lc 'echo hi' " in request.command
-        assert "mktemp -d" in request.command
-        assert '>"$tmp_dir/stdout" 2>"$tmp_dir/stderr"' in request.command
-        assert 'command_pid=$!; wait "$command_pid"' in request.command
-        # Boat's own deadline sits past the in-guest SIGTERM and SIGKILL.
-        assert request.timeout_seconds == 5 + 5 + 10
-        assert result.stdout == "0" * 8
-        assert result.stdout_truncated
-        assert result.stderr == "err"
-        assert result.exit_code == 0
+        assert getattr(result, stream) == expected
+        assert getattr(result, f"{stream}_truncated") is truncated
 
     def test_spec_environment_is_exported_after_shell_profile(self):
         backend, api = _backend_with_api()
@@ -528,9 +552,7 @@ class TestRunCommand:
         backend.create(spec=SandboxSpec(block_network=False, env={"SPEC_MARKER": "kept"}))
         backend.run_command("bx_env01", "printf '%s' \"$SPEC_MARKER\"", timeout=5, max_output_bytes=1024)
 
-        command = api.command.call_args.args[1].command
-        assert "export SPEC_MARKER=kept" in command
-        assert "mktemp -d" in command
+        assert "export SPEC_MARKER=kept" in api.command.call_args.args[1].command
 
     def test_a_detached_command_response_is_terminal(self):
         backend, api = _backend_with_api()
