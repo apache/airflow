@@ -355,7 +355,7 @@ func TestSerializeWritesTimesAndDurationsToTheMicrosecond(t *testing.T) {
 	assert.NotContains(t, got, "end_date")
 }
 
-func TestSerializeGivesEachGoTaskTheQueueOfTheDag(t *testing.T) {
+func TestSerializeGivesEachTaskTheQueueOfTheDag(t *testing.T) {
 	dag := Dag("etl", DagSpec{Queue: "golang"})
 	dag.Task(extract)
 	dag.Task(ping, TaskSpec{Queue: "golang_large"})
@@ -371,9 +371,13 @@ func TestSerializeGivesEachGoTaskTheQueueOfTheDag(t *testing.T) {
 	assert.Equal(t, "golang", serializedTask(t, got, "extract")["queue"])
 	assert.Equal(t, "golang_large", serializedTask(t, got, "ping")["queue"])
 	assert.Equal(t, "golang", serializedTask(t, got, "hasRows")["queue"])
-	// A task from TriggerDagRun runs on a Python worker.
-	assert.NotContains(t, serializedTask(t, got, "trigger"), "queue")
+	// The Go runtime runs a task from TriggerDagRun, so it takes the queue as a Go task does.
+	assert.Equal(t, "golang", serializedTask(t, got, "trigger")["queue"])
 	assert.Equal(t, "python", serializedTask(t, got, "trigger_on_python")["queue"])
+
+	noQueue := Dag("etl")
+	noQueue.Task(TriggerDagRun(TriggerDagRunSpec{DagID: "reports"}), TaskSpec{TaskID: "trigger"})
+	assert.NotContains(t, serializedTask(t, serializedDag(t, noQueue), "trigger"), "queue")
 }
 
 func TestSerializeWritesTheTimetableOfTheSchedule(t *testing.T) {
@@ -947,6 +951,7 @@ func TestSerializeWritesATriggerDagRunAsATriggerDagRunOperator(t *testing.T) {
 		"fail_when_dag_is_paused": true,
 		"note": "from etl",
 		"deferrable": false,
+		"queue": "golang",
 		"retries": 1
 	}`, got)
 }
