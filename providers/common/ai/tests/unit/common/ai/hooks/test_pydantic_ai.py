@@ -1392,6 +1392,20 @@ class TestPydanticAIHookCreateAgentInstrumentation:
         mock_settings.assert_not_called()
 
 
+class _RejectsKwargsProvider:
+    """Stand-in for a provider class whose constructor takes none of the connection's fields."""
+
+    def __init__(self):
+        pass
+
+
+def _call_provider_factory(model_name, provider_factory=None):
+    """Stand-in for ``infer_model`` that, like the real one, builds the provider eagerly."""
+    if provider_factory is not None:
+        provider_factory(model_name.split(":", 1)[0])
+    return MagicMock(spec=Model)
+
+
 class TestPydanticAIHookTestConnection:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_successful_connection(self, mock_infer_model):
@@ -1440,6 +1454,43 @@ class TestPydanticAIHookTestConnection:
 
         assert success is False
         assert "No model specified" in message
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_reports_credentials_dropped_by_env_var_retry(
+        self, mock_infer_model, mock_infer_provider_class, mock_infer_provider, registry
+    ):
+        """A provider class rejecting the connection's kwargs is retried from env vars; the
+        success message must name the ignored fields instead of reporting a clean pass."""
+        mock_infer_provider_class.return_value = _RejectsKwargsProvider
+        mock_infer_model.side_effect = _call_provider_factory
+        registry.add("primary", password="sk-key", extra={"model": "openai:gpt-5.6-sol"})
+
+        success, message = PydanticAIHook(llm_conn_id="primary").test_connection()
+
+        assert success is True
+        assert "environment-variable auth is used instead" in message
+        assert "openai (ignored: api_key)" in message
+        mock_infer_provider.assert_called_once_with("openai")
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_provider_class", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    def test_reports_credentials_dropped_in_a_fallback_connection(
+        self, mock_infer_model, mock_infer_provider_class, mock_infer_provider, registry
+    ):
+        mock_infer_provider_class.return_value = _RejectsKwargsProvider
+        mock_infer_model.side_effect = _call_provider_factory
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", password="sk-key", extra={"model": "openai:gpt-5.6-sol"})
+
+        success, message = PydanticAIHook(
+            llm_conn_id="primary", fallback_conn_ids=["second"]
+        ).test_connection()
+
+        assert success is True
+        assert "second: openai (ignored: api_key)" in message
 
 
 # ---------------------------------------------------------------------------

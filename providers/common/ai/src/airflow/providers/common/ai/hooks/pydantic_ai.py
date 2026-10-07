@@ -157,6 +157,9 @@ class PydanticAIHook(BaseHook):
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
+        # Providers that rejected this connection's credentials and were rebuilt from env
+        # vars instead, as ``"<provider> (ignored: <field>, ...)"``; surfaced by test_connection.
+        self._env_auth_fallbacks: list[str] = []
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None):
@@ -412,6 +415,7 @@ class PydanticAIHook(BaseHook):
                         pname,
                         list(_kwargs),
                     )
+                    self._env_auth_fallbacks.append(f"{pname} (ignored: {', '.join(_kwargs)})")
                     return infer_provider(pname)
 
             return infer_model(model_name, provider_factory=_provider_factory)
@@ -512,6 +516,7 @@ class PydanticAIHook(BaseHook):
                     forwarded_model_provider=self.model_provider,
                 )
             )
+            self._env_auth_fallbacks.extend(f"{conn_id}: {entry}" for entry in hook._env_auth_fallbacks)
 
         return models
 
@@ -625,10 +630,12 @@ class PydanticAIHook(BaseHook):
         Test connection by resolving the model.
 
         A success here can come from this connection's own credentials, or -- when a
-        provider class rejects them with a ``TypeError`` -- from a silent retry against
-        the standard environment variables, which ignores those credentials entirely.
-        See :doc:`/provider_fallback`'s *Verifying a chain* section for how to tell the
-        two apart. Does NOT make an LLM API call — that would be expensive and fail for
+        provider class rejects them with a ``TypeError`` -- from a retry against the
+        standard environment variables, which ignores those credentials entirely. In the
+        second case the returned message names the provider and the ignored fields.
+        See :doc:`/provider_fallback`'s *Verifying a chain* section.
+
+        Does NOT make an LLM API call — that would be expensive and fail for
         reasons unrelated to connectivity (quotas, billing, rate limits).
 
         Every connection in ``fallback_conn_ids`` is resolved too, so a
@@ -637,9 +644,14 @@ class PydanticAIHook(BaseHook):
         """
         try:
             self.get_conn()
-            return True, "Model resolved successfully."
         except Exception as e:
             return False, str(e)
+        if self._env_auth_fallbacks:
+            return True, (
+                "Model resolved successfully, but the configured credentials were rejected and "
+                f"environment-variable auth is used instead: {'; '.join(self._env_auth_fallbacks)}."
+            )
+        return True, "Model resolved successfully."
 
 
 class PydanticAIAzureHook(PydanticAIHook):

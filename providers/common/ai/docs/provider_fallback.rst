@@ -198,12 +198,11 @@ there rather than discovered mid-incident. Credential fields a provider class re
 ``TypeError`` are caught by the hook, which retries with the env-var-based provider
 constructor and logs a warning either way; if the required env var is also missing, that
 retry raises ``pydantic_ai.exceptions.UserError``, which ``test_connection`` does surface
-since it wraps the whole resolution in a broad exception handler. What it cannot show is the
-opposite case: the env var *is* set on the worker, the retry quietly succeeds, and
-``test_connection`` reports success even though the credentials you configured on the
-connection were silently ignored -- check the logs for that warning rather than relying on
-``test_connection`` alone. It also does not call the provider, so a well-formed but revoked
-key still passes -- that is what the drill below is for.
+since it wraps the whole resolution in a broad exception handler. In the opposite case --
+the env var *is* set on the worker and the retry succeeds -- ``test_connection`` still
+reports success, but its message names the provider and the connection fields that were
+ignored. It does not call the provider, so a well-formed but revoked key still passes --
+that is what the drill below is for.
 
 *Drill it.* Point the primary at an endpoint nothing listens on and run the Dag. The task
 should still succeed, and the run summary in its log names the model that answered:

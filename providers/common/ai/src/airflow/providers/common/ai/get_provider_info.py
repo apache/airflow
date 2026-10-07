@@ -304,7 +304,7 @@ def get_provider_info():
                     },
                     "vertexai": {
                         "label": "Force Vertex AI Mode",
-                        "description": "Ignored (kept for compatibility); mode is now selected via the Model field's prefix.",
+                        "description": "Deprecated and ignored; the Model field's prefix selects the mode.",
                         "schema": {"type": ["boolean", "null"]},
                     },
                     "api_key": {
