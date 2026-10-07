@@ -28,8 +28,12 @@ import pytest
 
 pytest.importorskip("boat_sdk")
 
+import urllib3
+from boat_sdk import ApiClient, Configuration
+from boat_sdk.api.boat_api import BoatApi
 from boat_sdk.exceptions import ApiException
 from boat_sdk.models.command_response import CommandResponse
+from boat_sdk.rest import RESTClientObject, RESTResponse
 
 from airflow.providers.common.ai.sandbox.base import (
     SandboxError,
@@ -79,8 +83,21 @@ def _created(sandbox_id: str):
     return SimpleNamespace(sandbox=SimpleNamespace(id=sandbox_id))
 
 
-def _sandbox_info(state: str):
-    return SimpleNamespace(sandbox=SimpleNamespace(id="bx_1", state=state))
+def _http_response(status: int, payload: dict) -> urllib3.HTTPResponse:
+    return urllib3.HTTPResponse(
+        body=json.dumps(payload).encode(), status=status, headers={"content-type": "application/json"}
+    )
+
+
+def _sandbox_info(state: str) -> urllib3.HTTPResponse:
+    """A sandbox GET with only the fields Boat sends for a cancelled sandbox: all the backend reads."""
+    return _http_response(
+        200, {"ok": True, "type": "sandbox", "sandbox": {"id": "bx_23456789", "state": state, "error": None}}
+    )
+
+
+def _sandbox_not_found() -> urllib3.HTTPResponse:
+    return _http_response(404, {"error": {"code": "not_found", "message": "Sandbox not found"}})
 
 
 def _run_like_boat(wrapped: str, *, home, timeout: float) -> subprocess.CompletedProcess[str]:
@@ -98,7 +115,15 @@ def _run_like_boat(wrapped: str, *, home, timeout: float) -> subprocess.Complete
 def _backend_with_api(**kwargs) -> tuple[BoatSandboxBackend, mock.MagicMock]:
     backend = BoatSandboxBackend(**kwargs)
     api = mock.MagicMock(
-        spec=["create", "update", "get", "command", "read_file", "write_file", "delete_sandbox"]
+        spec=[
+            "create",
+            "update",
+            "get_without_preload_content",
+            "command",
+            "read_file",
+            "write_file",
+            "delete_sandbox",
+        ]
     )
     backend._boat_api = api
     return backend, api
@@ -156,7 +181,7 @@ def test_constructor_rejects_invalid_values(kwargs, message):
 def test_request_timeout_bounds_every_api_call():
     backend, api = _backend_with_api(request_timeout=12.5, ready_timeout=45)
     api.create.return_value = _created("bx_1")
-    api.get.return_value = _sandbox_info("ready")
+    api.get_without_preload_content.return_value = _sandbox_info("ready")
     api.command.return_value = _command_response()
 
     backend.create(spec=SandboxSpec(block_network=False))
@@ -174,7 +199,7 @@ def test_request_timeout_bounds_every_api_call():
     assert sent(api.write_file) == [120 + 12.5]
     # One that answers at once gets request_timeout alone.
     assert sent(api.update) == [12.5]
-    assert sent(api.get) == [12.5, 12.5]
+    assert sent(api.get_without_preload_content) == [12.5, 12.5]
     assert sent(api.delete_sandbox) == [12.5]
 
 
@@ -250,7 +275,7 @@ class TestCreate:
     def test_spec_and_sizing_are_passed_at_creation(self, no_env):
         backend, api = _backend_with_api(machine_type="small", ttl_seconds=120, no_env=no_env)
         api.create.return_value = _created("bx_created1")
-        api.get.return_value = _sandbox_info("ready")
+        api.get_without_preload_content.return_value = _sandbox_info("ready")
 
         sandbox_id = backend.create(spec=SandboxSpec(block_network=False, env={"TOKEN": "value"}))
 
@@ -260,13 +285,13 @@ class TestCreate:
         assert request.ttl_seconds == 120
         assert request.no_env is no_env
         assert request.env == {"TOKEN": "value"}
-        api.get.assert_called_once_with("bx_created1", _request_timeout=30.0)
+        api.get_without_preload_content.assert_called_once_with("bx_created1", _request_timeout=30.0)
         assert api.update.called
 
     def test_none_spec_is_allowed(self):
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_created1")
-        api.get.return_value = _sandbox_info("ready")
+        api.get_without_preload_content.return_value = _sandbox_info("ready")
 
         backend.create()
 
@@ -278,13 +303,13 @@ class TestCreate:
         [
             pytest.param(TimeoutError("read timed out"), "ready: TimeoutError", id="poll_failed"),
             pytest.param(
-                [_sandbox_info("starting"), _sandbox_info("error")],
+                [_sandbox_info("provisioning"), _sandbox_info("error")],
                 "entered state 'error' before it was ready",
                 id="failed_while_starting",
             ),
             pytest.param(
                 # Boat reports a cancelled create once, then answers 404 for it.
-                [_sandbox_info("starting"), _sandbox_info("cancelled"), _api_error(404)],
+                [_sandbox_info("provisioning"), _sandbox_info("cancelled"), _sandbox_not_found()],
                 "entered state 'cancelled' before it was ready",
                 id="cancelled_while_starting",
             ),
@@ -293,7 +318,7 @@ class TestCreate:
     def test_a_sandbox_that_never_becomes_ready_is_destroyed(self, clock, polls, match):
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_stuck01")
-        api.get.side_effect = polls
+        api.get_without_preload_content.side_effect = polls
 
         with pytest.raises(SandboxTerminalError, match=match):
             backend.create(spec=SandboxSpec(block_network=False))
@@ -305,20 +330,22 @@ class TestCreate:
     def test_each_readiness_poll_is_bounded_by_what_is_left_of_ready_timeout(self, clock):
         backend, api = _backend_with_api(ready_timeout=5)
         api.create.return_value = _created("bx_stuck01")
-        api.get.return_value = _sandbox_info("starting")
+        api.get_without_preload_content.return_value = _sandbox_info("provisioning")
 
         with pytest.raises(SandboxTerminalError, match="not ready within 5 seconds"):
             backend.create(spec=SandboxSpec(block_network=False))
 
         # Without an HTTP timeout, one stalled response would hold create forever.
-        assert [call.kwargs["_request_timeout"] for call in api.get.call_args_list] == [5.0, 3.0, 1.0]
+        assert [
+            call.kwargs["_request_timeout"] for call in api.get_without_preload_content.call_args_list
+        ] == [5.0, 3.0, 1.0]
         assert clock[0] == 5.0
         api.delete_sandbox.assert_called_once_with("bx_stuck01", "bx_stuck01", _request_timeout=mock.ANY)
 
     def test_an_unnameable_sandbox_is_still_created(self):
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_created1")
-        api.get.return_value = _sandbox_info("ready")
+        api.get_without_preload_content.return_value = _sandbox_info("ready")
         api.update.side_effect = _api_error(500)
 
         assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_created1"
@@ -365,17 +392,45 @@ class TestCreate:
     @pytest.mark.parametrize("state", ["ready", "idle", "running"])
     def test_confirm_exists_accepts_a_runnable_state(self, state):
         backend, api = _backend_with_api()
-        api.get.return_value = _sandbox_info(state)
+        api.get_without_preload_content.return_value = _sandbox_info(state)
 
         backend._confirm_sandbox_exists("bx_1")
 
     @pytest.mark.parametrize("state", ["archiving", "archived", "error"])
     def test_confirm_exists_rejects_a_sandbox_that_cannot_run(self, state):
         backend, api = _backend_with_api()
-        api.get.return_value = _sandbox_info(state)
+        api.get_without_preload_content.return_value = _sandbox_info(state)
 
         with pytest.raises(SandboxTerminalError, match="not runnable"):
             backend._confirm_sandbox_exists("bx_1")
+
+    @pytest.mark.parametrize(
+        ("operation", "match"),
+        [
+            pytest.param(
+                lambda backend: backend._wait_until_ready("bx_23456789"),
+                "entered state 'cancelled' before it was ready",
+                id="waiting_for_ready",
+            ),
+            pytest.param(
+                lambda backend: backend._confirm_sandbox_exists("bx_23456789"),
+                r"not runnable \(state='cancelled'\)",
+                id="confirming_it_exists",
+            ),
+        ],
+    )
+    @mock.patch.object(RESTClientObject, "request", autospec=True)
+    def test_a_cancelled_sandbox_is_read_through_the_real_client(self, request, operation, match):
+        # Boat's cancelled body leaves out fields the SDK's Sandbox model requires, so only
+        # a real client shows that the state is read without that model rejecting it.
+        request.return_value = RESTResponse(_sandbox_info("cancelled"))
+        backend = BoatSandboxBackend()
+        backend._boat_api = BoatApi(
+            ApiClient(Configuration(host="https://boat.invalid/api/v1", access_token="k"))
+        )
+
+        with pytest.raises(SandboxTerminalError, match=match):
+            operation(backend)
 
 
 class TestRunCommand:
@@ -467,7 +522,7 @@ class TestRunCommand:
     def test_spec_environment_is_exported_after_shell_profile(self):
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_env01")
-        api.get.return_value = _sandbox_info("ready")
+        api.get_without_preload_content.return_value = _sandbox_info("ready")
         api.command.return_value = _command_response()
 
         backend.create(spec=SandboxSpec(block_network=False, env={"SPEC_MARKER": "kept"}))
@@ -726,9 +781,9 @@ class TestFiles:
         api.command.return_value = _command_response()
         api.write_file.side_effect = error
         if sandbox_gone:
-            api.get.side_effect = _api_error(404)
+            api.get_without_preload_content.return_value = _sandbox_not_found()
         else:
-            api.get.return_value = _sandbox_info("idle")
+            api.get_without_preload_content.return_value = _sandbox_info("idle")
 
         with pytest.raises(SandboxError, match=match) as raised:
             backend.write_file("bx_1", "/opt/app/main.py", b"x")

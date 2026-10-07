@@ -246,16 +246,29 @@ class BoatSandboxBackend(SandboxBackend):
         """HTTP timeout for a call that waits ``seconds`` on an operation before it answers."""
         return seconds + self._request_timeout
 
+    def _get_state(self, sandbox_id: str, *, timeout: float) -> str:
+        """
+        Return the state Boat reports for a sandbox, read from the raw response.
+
+        Boat reports a cancelled sandbox once with only ``id``, ``state`` and
+        ``error``, and the SDK's ``Sandbox`` model rejects that body for lacking
+        fields it requires, so ``BoatApi.get`` would fail before the state could
+        be seen.
+        """
+        from boat_sdk.exceptions import ApiException
+
+        response = self._get_api().get_without_preload_content(sandbox_id, _request_timeout=timeout)
+        if not 200 <= response.status <= 299:
+            raise ApiException.from_response(http_resp=response, body=None, data=None)
+        return json.loads(response.data)["sandbox"]["state"]
+
     def _wait_until_ready(self, sandbox_id: str) -> None:
         # Not boat_sdk.wait_until_ready: it polls with no HTTP timeout, so one stalled
         # response would hold create past ready_timeout indefinitely.
         deadline = time.monotonic() + self._ready_timeout
         while (remaining := deadline - time.monotonic()) > 0:
             with _translate_boat_errors("wait for a sandbox to become ready"):
-                response = self._get_api().get(
-                    sandbox_id, _request_timeout=min(self._request_timeout, remaining)
-                )
-            state = response.sandbox.state
+                state = self._get_state(sandbox_id, timeout=min(self._request_timeout, remaining))
             if state in _READY_STATES:
                 return
             if state in _TERMINAL_STATES:
@@ -485,8 +498,7 @@ class BoatSandboxBackend(SandboxBackend):
 
     def _confirm_sandbox_exists(self, sandbox: str) -> None:
         with _translate_boat_errors("confirm that a sandbox still exists"):
-            response = self._get_api().get(sandbox, _request_timeout=self._request_timeout)
-        state = response.sandbox.state
+            state = self._get_state(sandbox, timeout=self._request_timeout)
         if state not in _READY_STATES:
             raise SandboxTerminalError(f"Boat sandbox {sandbox!r} is not runnable (state={state!r}).")
 
