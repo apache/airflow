@@ -128,6 +128,7 @@ def test_missing_sdk_error_is_actionable():
         ({"ttl_seconds": 0}, "ttl_seconds"),
         ({"ttl_seconds": 0.5}, "whole number of seconds"),
         ({"ttl_seconds": True}, "ttl_seconds"),
+        ({"ttl_seconds": 2_592_001}, "at most 2592000"),
         ({"ready_timeout": 0}, "ready_timeout"),
         ({"ready_timeout": False}, "ready_timeout"),
         ({"request_timeout": 0}, "request_timeout"),

@@ -65,6 +65,8 @@ _READY_STATES = frozenset({"ready", "idle", "running"})
 _TERMINAL_STATES = frozenset({"archiving", "archived", "error"})
 _READY_POLL_INTERVAL = 2.0
 _MACHINE_TYPES = frozenset({"small", "default", "large"})
+# CreateSandboxRequest's bound on ttlSeconds: 30 days.
+_MAX_TTL_SECONDS = 2_592_000
 
 
 def _api_error_detail(body: Any) -> str:
@@ -170,7 +172,8 @@ class BoatSandboxBackend(SandboxBackend):
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
         Default ``"default"``.
     :param ttl_seconds: Server-side archive TTL in seconds after which the
-        sandbox is archived even if the worker never destroyed it. Default ``3600``.
+        sandbox is archived even if the worker never destroyed it: a whole number
+        from 1 to 2592000 (30 days). Default ``3600``.
     :param ready_timeout: Seconds to wait for a newly created sandbox to become
         ready. Default ``300``.
     :param request_timeout: HTTP timeout in seconds for a Boat API call that answers
@@ -195,10 +198,14 @@ class BoatSandboxBackend(SandboxBackend):
         if machine_type not in _MACHINE_TYPES:
             raise ValueError(f"machine_type must be one of {sorted(_MACHINE_TYPES)}, got {machine_type!r}.")
         _validate_positive_finite(ttl_seconds, "ttl_seconds")
-        # int() would floor a fractional value, and the API reads 0 as "never
-        # archive" -- silently discarding the only backstop against a leak.
+        # Refused rather than floored: int() would quietly shorten the archive backstop,
+        # and turn a sub-second value into 0, which the SDK only rejects at create time.
         if int(ttl_seconds) != ttl_seconds:
             raise ValueError(f"ttl_seconds must be a whole number of seconds, got {ttl_seconds!r}.")
+        if ttl_seconds > _MAX_TTL_SECONDS:
+            raise ValueError(
+                f"ttl_seconds must be at most {_MAX_TTL_SECONDS} (30 days), got {ttl_seconds!r}."
+            )
         _validate_positive_finite(ready_timeout, "ready_timeout")
         _validate_positive_finite(request_timeout, "request_timeout")
         if not isinstance(no_env, bool):
