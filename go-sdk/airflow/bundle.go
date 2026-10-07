@@ -19,6 +19,8 @@ package airflow
 
 import (
 	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -242,6 +244,10 @@ func serializeRecovering(dag *DagRef, fileloc, relativeFileloc string) (s bundle
 	s.DagID = dag.dagID
 	defer func() {
 		if r := recover(); r != nil {
+			slog.Error(
+				"Dag serialization panicked",
+				"dag_id", dag.dagID, "panic", r, "stack", string(debug.Stack()),
+			)
 			s.Data, s.Err = nil, fmt.Errorf("%v", r)
 		}
 	}()
