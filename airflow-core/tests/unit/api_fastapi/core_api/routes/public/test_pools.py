@@ -272,6 +272,14 @@ class TestGetPools(TestPoolsEndpoint):
         assert pools["unlimited_pool"]["slots"] == -1
         assert pools["unlimited_pool"]["open_slots"] == -1
 
+    def test_should_not_query_on_event_loop(self, test_client, event_loop_queries):
+        """Regression for #74239: the slot counts of each pool must not be queried during serialization."""
+        self.create_pools()
+        response = test_client.get("/pools")
+        assert response.status_code == 200
+        assert response.json()["pools"][1]["open_slots"] == POOL1_SLOT
+        assert event_loop_queries == []
+
 
 class TestPatchPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(

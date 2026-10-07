@@ -1936,6 +1936,7 @@ class DagRun(Base, LoggingMixin):
         from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
         tis = self.get_task_instances(session=session)
+        expanded_task_ids = {ti.task_id for ti in tis if ti.map_index >= 0}
 
         # check for removed or restored tasks
         task_ids = set()
@@ -1992,7 +1993,8 @@ class DagRun(Base, LoggingMixin):
                     )
                     ti.state = TaskInstanceState.REMOVED
                     continue
-                if ti.map_index < 0:
+                # A sole unmapped instance must remain available for scheduler expansion.
+                if ti.map_index < 0 and ti.task_id in expanded_task_ids:
                     self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = TaskInstanceState.REMOVED
                     continue
