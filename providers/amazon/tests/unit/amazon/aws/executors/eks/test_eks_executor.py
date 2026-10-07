@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.executors.eks.eks_executor import (
     _CLIENT_FACTORY_PATH,
     MIN_CNCF_KUBERNETES_VERSION,
 )
+from airflow.providers.amazon.get_provider_info import get_provider_info
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.common.compat.sdk import conf
 
@@ -147,3 +148,10 @@ class TestAwsEksExecutor:
         AwsEksExecutor()
 
         assert os.environ[CLIENT_FACTORY_ENV_VAR] == _CLIENT_FACTORY_PATH
+
+
+def test_executor_is_declared_in_provider_info():
+    assert (
+        "airflow.providers.amazon.aws.executors.eks.eks_executor.AwsEksExecutor"
+        in get_provider_info()["executors"]
+    )

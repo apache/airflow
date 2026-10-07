@@ -1566,6 +1566,32 @@ def get_provider_info():
                     },
                 },
             },
+            "aws_eks_executor": {
+                "description": "This section only applies if you are using the AwsEksExecutor in\nAirflow's ``[core]`` configuration. It requires the ``cncf.kubernetes``\nextra of this provider. The executor supplies the Kubernetes client for\nthe configured Amazon EKS cluster; all pod-level settings are still read\nfrom the ``[kubernetes_executor]`` section.\n",
+                "options": {
+                    "cluster_name": {
+                        "description": "The name of the Amazon EKS cluster to run Airflow tasks on. Required.\n",
+                        "version_added": "9.38.0",
+                        "type": "string",
+                        "example": "airflow-eks-cluster",
+                        "default": None,
+                    },
+                    "region_name": {
+                        "description": "The name of the AWS Region where the EKS cluster is located. If not\nspecified then the default boto3 behaviour is used.\n",
+                        "version_added": "9.38.0",
+                        "type": "string",
+                        "example": "us-east-1",
+                        "default": None,
+                    },
+                    "conn_id": {
+                        "description": "The Airflow connection (i.e. credentials) used by the EKS executor to\nmake API calls to Amazon EKS.\n",
+                        "version_added": "9.38.0",
+                        "type": "string",
+                        "example": "aws_default",
+                        "default": "aws_default",
+                    },
+                },
+            },
             "aws_auth_manager": {
                 "description": "This section only applies if you are using the AwsAuthManager. In other words, if you set\n``[core] auth_manager = airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager`` in\nAirflow's configuration.\n",
                 "options": {
@@ -1611,6 +1637,7 @@ def get_provider_info():
             "airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor",
             "airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor",
             "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor",
+            "airflow.providers.amazon.aws.executors.eks.eks_executor.AwsEksExecutor",
         ],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
         "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
