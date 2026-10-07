@@ -31,6 +31,9 @@ import type {
   SetXCom,
   GetConnection,
   SkipDownstreamTasks,
+  TriggerDagRun,
+  GetDagRunState,
+  GetDag,
   ConnectionResult as WireConnectionResult,
 } from "./protocol.js";
 
@@ -86,6 +89,16 @@ export interface CoordinatorClient extends TaskClient {
 
   /** Mark direct downstream tasks of the running task as skipped; none is a no-op. */
   skipDownstreamTasks(taskIds: readonly string[]): Promise<void>;
+
+  /**
+   * Trigger a Dag run. `"already_exists"` is the one refusal a trigger task
+   * handles itself; any other error throws.
+   */
+  triggerDagRun(msg: Omit<TriggerDagRun, "type">): Promise<"triggered" | "already_exists">;
+  /** The state of a Dag run, as `GetDagRunState` reports it. */
+  getDagRunState(dagId: string, runId: string): Promise<string>;
+  /** Whether a Dag is paused. */
+  isDagPaused(dagId: string): Promise<boolean>;
 }
 
 export function createCoordinatorClient(
@@ -99,11 +112,16 @@ export function createCoordinatorClient(
     request: unknown,
     extract: (body: Record<string, unknown> | null) => T,
     absent: AbsentRowPolicy,
+    allowedError?: string,
   ): Promise<T | null> {
     logs?.debug(`${op} request`);
     const frame = await comm.request(request);
     const err = parseFrameError(frame);
     if (err) {
+      if (err.code === allowedError) {
+        logs?.debug(`${op} answered ${err.code}`);
+        return null;
+      }
       if (absent === "null" && isNotFound(err)) {
         logs?.debug(`${op} not found`, { error: err.code });
         return null;
@@ -212,6 +230,45 @@ export function createCoordinatorClient(
       if (taskIds.length === 0) return;
       const msg: SkipDownstreamTasks = { type: "SkipDownstreamTasks", tasks: [...taskIds] };
       await rpc("SkipDownstreamTasks", null, msg, () => undefined, "throw");
+    },
+
+    // ---- Dag runs ----
+
+    async triggerDagRun(msg: Omit<TriggerDagRun, "type">) {
+      const request: TriggerDagRun = { type: "TriggerDagRun", ...msg };
+      const triggered = await rpc(
+        "TriggerDagRun",
+        null,
+        request,
+        () => "triggered" as const,
+        "throw",
+        "DAGRUN_ALREADY_EXISTS",
+      );
+      return triggered ?? "already_exists";
+    },
+
+    async getDagRunState(dagId: string, runId: string): Promise<string> {
+      const msg: GetDagRunState = { type: "GetDagRunState", dag_id: dagId, run_id: runId };
+      const state = await rpc(
+        "GetDagRunState",
+        "DagRunStateResult",
+        msg,
+        (body) => body!.state as string,
+        "throw",
+      );
+      return state!;
+    },
+
+    async isDagPaused(dagId: string): Promise<boolean> {
+      const msg: GetDag = { type: "GetDag", dag_id: dagId };
+      const paused = await rpc(
+        "GetDag",
+        "DagResult",
+        msg,
+        (body) => body!.is_paused === true,
+        "throw",
+      );
+      return paused!;
     },
 
     // ---- Connections ----
