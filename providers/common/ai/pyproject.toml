@@ -127,7 +127,7 @@ dependencies = [
     "pydantic-ai-skills>=1.2.0",
 ]
 # Islo-hosted microVM sandboxes for SandboxToolset: like modal, needs no host-level
-# installation, only an islo connection.
+# installation, only ISLO_API_KEY in the worker environment.
 "islo" = ["islo>=0.3.19"]
 "avro" = [
     'fastavro>=1.10.0; python_version < "3.14"',

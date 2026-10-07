@@ -31,12 +31,12 @@ Modal (hosted)
 :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` runs each
 sandbox in Modal, provisioned over the API. Of the backends that ship with the
 provider, **this is the managed one to use in production**, and with
-:ref:`OpenSandbox <sandbox-backend-opensandbox>` one of the two that run on
-Kubernetes: nothing has to be installed on the worker, model-written code never
-executes on the worker host, and Modal reclaims a sandbox at its own lifetime
-whether or not the worker survives. It needs the ``modal`` extra and Modal
-credentials, from a ``modal`` connection or the worker environment, as under
-:ref:`Quick start <sandbox-quick-start>`.
+:ref:`OpenSandbox <sandbox-backend-opensandbox>` and :ref:`Islo <sandbox-backend-islo>`
+one of the three that run on Kubernetes: nothing has to be installed on the
+worker, model-written code never executes on the worker host, and Modal reclaims
+a sandbox at its own lifetime whether or not the worker survives. It needs the
+``modal`` extra and Modal credentials, from a ``modal`` connection or the worker
+environment, as under :ref:`Quick start <sandbox-quick-start>`.
 
 Constructor parameters:
 
@@ -241,23 +241,29 @@ per-host or per-address rule), a ``PATH`` entry in ``env`` (the runner sets
 ``PATH`` for every command itself), and ``owner`` (this backend keeps no
 per-sandbox metadata, so it cannot be attached to from another task).
 
-File reads and writes use Islo's native streaming APIs; directory listings and
-command-output bounding run ``sh``, ``tail``, ``stat`` and GNU ``find`` in the
-sandbox. The compute API caps each output stream at 1 MiB and keeps the tail. The
-backend captures each stream to a scratch file in the sandbox and returns only its
-last ``max_output_bytes`` -- where a traceback and the exit status live -- so the
-worker sees a window sized to the caller's budget, a budget above the server cap
-is clamped to it, and total output is bounded by the sandbox's own ephemeral disk
-rather than by worker memory.
+File reads, writes and exports move file contents through Islo's native
+streaming APIs. Everything else runs through a shell wrapper in the sandbox, so
+the image needs ``sh``, ``mkdir`` and ``rm`` for the wrapper, ``tail`` to bound
+command output, ``dirname`` to create a written file's parent directory,
+``stat`` to size an over-budget read and to check a file before it is exported,
+and GNU ``find`` for directory listings. The compute API caps each output stream
+at 1 MiB and keeps the tail. The backend captures each stream to a scratch file in
+the sandbox and returns only its last ``max_output_bytes`` -- where a traceback
+and the exit status live -- so the worker sees a window sized to the caller's
+budget, a budget above the server cap is clamped to it, and total output is
+bounded by the sandbox's own ephemeral disk rather than by worker memory.
 
 The backend enforces the command deadline itself, because the API's
-``timeout_secs`` is accepted but not enforced. Polling rides out transient API
-errors until the deadline. If no terminal state arrives by then, the backend
-deletes the microVM and reports the command as timed out with
-``sandbox_terminated`` set, so the toolset provisions a fresh sandbox for the next
-call. A deletion the API refused is logged rather than failing the task, and
-``delete_after`` reclaims the microVM later; with ``delete_after=None`` nothing
-does, and the warning says so.
+``timeout_secs`` is accepted but not enforced, and times it from the API's answer
+to the start request, so a slow start does not use it up. Polling rides out
+transient API errors until the deadline. If the command is still running when
+the deadline passes, the backend deletes the microVM and reports the command as
+timed out with ``sandbox_terminated`` set, so the toolset provisions a fresh
+sandbox for the next call. A deletion the API refused is logged rather than
+failing the task, and ``delete_after`` reclaims the microVM later; with
+``delete_after=None`` nothing does, and the warning says so. If the API was still
+failing at the deadline, nothing is known about the command, so the task fails
+instead and Airflow's retry takes over.
 
 A missing file, a directory passed as a file, a relative path, and a write onto a
 directory or a read-only mount come back to the model as a recoverable error it
@@ -418,8 +424,8 @@ commands. The default ``export_file``, behind ``SandboxToolset(exports=...)``,
 copies a file in 4 MiB slices, one command each, and needs ``stat``, ``tail``,
 ``head`` and ``base64`` in the guest. It relies on ``run_command`` returning each
 slice's output intact, or setting ``stdout_truncated`` when it could not. Override
-it when the vendor can stream a download, as the ``sbx`` and OpenSandbox backends do. Override the others
-only when the vendor has a native file API:
+it when the vendor can stream a download, as the ``sbx``, OpenSandbox and Islo
+backends do. Override the others only when the vendor has a native file API:
 
 .. code-block:: python
 

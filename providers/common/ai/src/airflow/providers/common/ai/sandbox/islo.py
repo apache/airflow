@@ -197,13 +197,16 @@ class IsloSandboxBackend(SandboxBackend):
     the Modal provider; an ``islo`` connection type belongs in a future Islo provider,
     not in this one.
 
-    File reads and writes use Islo's native streaming APIs. Directory listings
-    and command-output bounding need ``sh``, ``tail``, ``stat`` and GNU ``find``
-    in the sandbox image, which the server default image and any Debian or
-    Ubuntu based image provide. Each command's output is captured to a scratch
-    file in the sandbox and only its last ``max_output_bytes`` are returned, so
-    the worker sees a bounded tail while the sandbox's own ephemeral disk
-    absorbs the rest.
+    File reads, writes and exports move file contents through Islo's native
+    streaming APIs. Everything else runs through a shell wrapper in the sandbox,
+    so the image needs ``sh``, ``mkdir`` and ``rm`` for the wrapper, ``tail`` to
+    bound command output, ``dirname`` to create a written file's parent
+    directory, ``stat`` to size an over-budget read and to check a file before it
+    is exported, and GNU ``find`` for directory listings. The server default
+    image and any Debian or Ubuntu based image provide them. Each command's
+    output is captured to a scratch file in the sandbox and only its last
+    ``max_output_bytes`` are returned, so the worker sees a bounded tail while
+    the sandbox's own ephemeral disk absorbs the rest.
 
     Islo sets ``PATH`` for every command itself and drops a ``PATH`` given at
     creation, so a spec that names it is refused rather than silently ignored.
