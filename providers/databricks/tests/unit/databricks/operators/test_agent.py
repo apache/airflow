@@ -22,7 +22,10 @@ from uuid import UUID
 import pytest
 
 from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.providers.databricks.exceptions import DatabricksAgentInvocationError
+from airflow.providers.databricks.exceptions import (
+    DatabricksAgentInvocationError,
+    DatabricksAgentInvocationTimeout,
+)
 from airflow.providers.databricks.hooks.agent import DatabricksAgentHook
 from airflow.providers.databricks.operators.agent import DatabricksAgentInvokeOperator
 from airflow.providers.databricks.triggers.agent import DatabricksAgentInvocationTrigger
@@ -52,7 +55,17 @@ def test_invalid_wait_options(field, value):
         DatabricksAgentInvokeOperator(task_id="invoke", app_url=APP_URL, input={}, **{field: value})
 
 
-def test_idempotency_identity(operator):
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("map_index", 0),
+        ("run_id", "next"),
+        ("task_id", "other"),
+        ("dag_id", "other"),
+        ("app_url", "https://other.databricksapps.com"),
+    ],
+)
+def test_idempotency_identity(operator, field, value):
     operator.invocation_id = None
     ti = mock.Mock(spec=["dag_id", "task_id", "run_id", "map_index", "try_number"])
     ti.dag_id, ti.task_id, ti.run_id, ti.map_index, ti.try_number = "dag", "task", "run", -1, 1
@@ -60,9 +73,11 @@ def test_idempotency_identity(operator):
     assert str(UUID(first)) == first
     ti.try_number = 2
     assert operator._get_invocation_id({"ti": ti}) == first
-    for field, value in [("map_index", 0), ("run_id", "next"), ("task_id", "other"), ("dag_id", "other")]:
+    if field == "app_url":
+        operator.app_url = value
+    else:
         setattr(ti, field, value)
-        assert operator._get_invocation_id({"ti": ti}) != first
+    assert operator._get_invocation_id({"ti": ti}) != first
 
 
 def test_template_fields():
@@ -107,11 +122,15 @@ def test_immediate_result(operator, status):
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.time.sleep", autospec=True)
-def test_waits_for_result(sleep, operator):
+@mock.patch("airflow.providers.databricks.operators.agent.time.monotonic", autospec=True, return_value=0)
+def test_waits_for_result(monotonic, sleep, operator):
     result = {"status": "completed", "output": "answer"}
     operator.hook.get_invocation.side_effect = [{"status": "running"}, result]
     assert operator.execute({}) == result
-    assert operator.hook.get_invocation.call_args_list == [mock.call(INVOCATION_ID, "conversation")] * 2
+    assert (
+        operator.hook.get_invocation.call_args_list
+        == [mock.call(INVOCATION_ID, "conversation", timeout_seconds=3600)] * 2
+    )
     sleep.assert_called_once_with(10)
 
 
@@ -122,13 +141,38 @@ def test_polling_failure(operator, result):
         operator.execute({})
 
 
-@mock.patch(
-    "airflow.providers.databricks.operators.agent.time.monotonic", autospec=True, side_effect=[0, 3601]
-)
-def test_timeout(monotonic, operator):
+@mock.patch("airflow.providers.databricks.operators.agent.time.monotonic", autospec=True)
+@pytest.mark.parametrize("elapsed", [3600, 3601])
+def test_timeout_before_poll(monotonic, operator, elapsed):
+    monotonic.side_effect = [0, elapsed]
     operator.hook.get_invocation.return_value = {"status": "running"}
-    with pytest.raises(DatabricksAgentInvocationError, match="Timed out"):
+    with pytest.raises(DatabricksAgentInvocationTimeout, match=INVOCATION_ID):
         operator.execute({})
+    operator.hook.get_invocation.assert_not_called()
+
+
+@mock.patch("airflow.providers.databricks.operators.agent.time.monotonic", autospec=True)
+@pytest.mark.parametrize("elapsed", [3600, 3601])
+def test_rejects_late_terminal_result(monotonic, operator, elapsed):
+    monotonic.side_effect = [0, 0, elapsed]
+    operator.hook.get_invocation.return_value = {"status": "completed", "output": "late"}
+    with pytest.raises(DatabricksAgentInvocationTimeout, match=INVOCATION_ID):
+        operator.execute({})
+    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", timeout_seconds=3600)
+
+
+@mock.patch("airflow.providers.databricks.operators.agent.time.sleep", autospec=True)
+@mock.patch(
+    "airflow.providers.databricks.operators.agent.time.monotonic",
+    autospec=True,
+    side_effect=[0, 3599, 3599, 3600],
+)
+def test_timeout_after_sleep(monotonic, sleep, operator):
+    operator.hook.get_invocation.return_value = {"status": "running"}
+    with pytest.raises(DatabricksAgentInvocationTimeout, match=INVOCATION_ID):
+        operator.execute({})
+    operator.hook.get_invocation.assert_called_once_with(INVOCATION_ID, "conversation", timeout_seconds=1)
+    sleep.assert_called_once_with(1)
 
 
 def test_defers(operator):
@@ -158,20 +202,47 @@ def test_execute_complete(operator, status):
 
 
 @pytest.mark.parametrize(
-    "event", [None, {}, {"status": "error"}, {"status": "success", "invocation_id": "other"}]
+    "event",
+    [
+        None,
+        {},
+        {"status": "error"},
+        {"status": "success", "invocation_id": "other"},
+        {"status": "unknown", "invocation_id": INVOCATION_ID},
+    ],
 )
 def test_invalid_trigger_event(operator, event):
-    with pytest.raises(DatabricksAgentInvocationError, match="trigger failed"):
+    with pytest.raises(
+        DatabricksAgentInvocationError, match=f"{INVOCATION_ID} trigger returned an invalid event"
+    ):
         operator.execute_complete({}, event, invocation_id=INVOCATION_ID)
+    operator.hook.get_invocation.assert_not_called()
 
 
-@pytest.mark.parametrize("status", ["running", "failed"])
-def test_trigger_terminal_failure(operator, status):
+@pytest.mark.parametrize(
+    "error_type", ["api_error", "invalid_response", "unexpected_error", None, "private error text"]
+)
+def test_trigger_polling_error(operator, error_type):
+    expected = error_type if error_type in ("api_error", "invalid_response") else "unexpected_error"
+    with pytest.raises(DatabricksAgentInvocationError, match=rf"{INVOCATION_ID} failed \({expected}\)"):
+        operator.execute_complete(
+            {},
+            {"status": "error", "invocation_id": INVOCATION_ID, "error_type": error_type},
+            invocation_id=INVOCATION_ID,
+        )
+    operator.hook.get_invocation.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("status", "message"), [("running", "terminal"), ("failed", "failed"), (None, "missing")]
+)
+def test_trigger_terminal_failure(operator, status, message):
     operator.hook.get_invocation.return_value = {"status": status}
-    with pytest.raises(DatabricksAgentInvocationError, match="terminal|failed"):
+    with pytest.raises(DatabricksAgentInvocationError, match=message) as exc:
         operator.execute_complete(
             {}, {"status": "success", "invocation_id": INVOCATION_ID}, invocation_id=INVOCATION_ID
         )
+    assert INVOCATION_ID in str(exc.value)
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.DatabricksAgentHook", autospec=True)

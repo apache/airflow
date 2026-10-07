@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers.databricks.triggers.agent import DatabricksAgentInvocationTrigger
 
 APP_URL = "https://agent.databricksapps.com"
@@ -69,7 +70,9 @@ async def test_run(hook_class, sleep, status):
         app_url=APP_URL, invocation_id=INVOCATION_ID, databricks_conn_id="oauth", session_id="conversation"
     )
     events = [event async for event in trigger.run()]
-    assert [event.payload for event in events] == [{"status": "success", "invocation_id": INVOCATION_ID}]
+    assert [event.payload for event in events] == [
+        {"status": "success", "invocation_id": INVOCATION_ID, "error_type": None}
+    ]
     hook_class.assert_called_once_with(APP_URL, "oauth")
     assert hook.a_get_invocation.await_args_list == [mock.call(INVOCATION_ID, "conversation")] * 2
     sleep.assert_awaited_once_with(10)
@@ -77,12 +80,21 @@ async def test_run(hook_class, sleep, status):
 
 
 @mock.patch("airflow.providers.databricks.triggers.agent.DatabricksAgentHook", autospec=True)
-@pytest.mark.parametrize("failure", [RuntimeError("unavailable"), {}])
+@pytest.mark.parametrize(
+    ("failure", "error_type"),
+    [
+        (RuntimeError("private details"), "unexpected_error"),
+        ({}, "invalid_response"),
+        (DatabricksApiError("private API response"), "api_error"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_polling_failure(hook_class, failure):
+async def test_polling_failure(hook_class, failure, error_type):
     hook = hook_class.return_value
     hook.__aenter__.return_value = hook
     hook.a_get_invocation.side_effect = [failure]
     trigger = DatabricksAgentInvocationTrigger(app_url=APP_URL, invocation_id=INVOCATION_ID)
     events = [event async for event in trigger.run()]
-    assert [event.payload for event in events] == [{"status": "error", "invocation_id": INVOCATION_ID}]
+    assert [event.payload for event in events] == [
+        {"status": "error", "invocation_id": INVOCATION_ID, "error_type": error_type}
+    ]

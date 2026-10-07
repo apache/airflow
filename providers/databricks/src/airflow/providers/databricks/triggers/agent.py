@@ -19,14 +19,25 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from typing import Any
 
+from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers.databricks.hooks.agent import DatabricksAgentHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class DatabricksAgentInvocationTrigger(BaseTrigger):
-    """Wait for an agent invocation to complete, fail or request human input."""
+    """
+    Wait for an agent invocation to complete, fail or request human input.
+
+    :param app_url: HTTPS base URL of the deployed app.
+    :param invocation_id: UUID identifying the invocation to poll.
+    :param databricks_conn_id: Databricks connection using service principal OAuth.
+        Defaults to ``databricks_default``.
+    :param session_id: Conversation ID sent as the routing key. Defaults to ``None``.
+    :param polling_period_seconds: Seconds between status checks. Defaults to ``10``.
+    """
 
     def __init__(
         self,
@@ -58,17 +69,27 @@ class DatabricksAgentInvocationTrigger(BaseTrigger):
             },
         )
 
-    async def run(self):
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
             async with DatabricksAgentHook(self.app_url, self.databricks_conn_id) as hook:
                 while True:
                     result = await hook.a_get_invocation(self.invocation_id, self.session_id)
                     if result.get("status") in ("completed", "failed", "interrupted"):
-                        yield TriggerEvent({"status": "success", "invocation_id": self.invocation_id})
+                        yield TriggerEvent(
+                            {"status": "success", "invocation_id": self.invocation_id, "error_type": None}
+                        )
                         return
                     if not result.get("status"):
                         raise ValueError("Databricks agent response is missing its status")
                     await asyncio.sleep(self.polling_period_seconds)
-        except Exception:
-            self.log.exception("Databricks agent invocation polling failed")
-            yield TriggerEvent({"status": "error", "invocation_id": self.invocation_id})
+        except Exception as err:
+            self.log.exception("Polling Databricks agent invocation %s failed", self.invocation_id)
+            if isinstance(err, DatabricksApiError):
+                error_type = "api_error"
+            elif isinstance(err, ValueError):
+                error_type = "invalid_response"
+            else:
+                error_type = "unexpected_error"
+            yield TriggerEvent(
+                {"status": "error", "invocation_id": self.invocation_id, "error_type": error_type}
+            )

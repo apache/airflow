@@ -56,6 +56,10 @@ By default, the operator waits for the result. Set ``deferrable=True`` to releas
 the worker while waiting, or ``wait_for_termination=False`` to return the initial
 submission response immediately. ``polling_period_seconds`` controls polling.
 The timeout limits the wait after submission; it does not cancel the remote run.
+Synchronous polling bounds each request and its retries by the remaining wait
+and raises :class:`~airflow.providers.databricks.exceptions.DatabricksAgentInvocationTimeout`
+when that budget expires. OAuth refresh has a separate HTTP timeout and can delay
+reporting that the wait expired. In deferrable mode, Airflow enforces the timeout on the deferred task.
 
 .. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_agent.py
     :language: python
