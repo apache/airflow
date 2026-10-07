@@ -692,6 +692,12 @@ class SSHHookAsync(BaseHook):
                 host_key = f"ssh-rsa {host_key}"
             self.known_hosts = f"{self.host or conn.host} {host_key}".encode()
 
+    def _should_use_known_hosts(self) -> bool:
+        """Leave a missing default file unset so AsyncSSH reports an untrusted host."""
+        if self.known_hosts == os.path.expanduser(self.default_known_hosts):
+            return os.path.isfile(self.known_hosts)
+        return True
+
     async def _get_conn(self):
         """
         Asynchronously connect to the SSH server.
@@ -722,7 +728,7 @@ class SSHHookAsync(BaseHook):
         if self.known_hosts:
             if isinstance(self.known_hosts, str) and self.known_hosts.lower() == "none":
                 conn_config["known_hosts"] = None
-            else:
+            elif self._should_use_known_hosts():
                 conn_config["known_hosts"] = self.known_hosts
         if self.private_key:
             _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)

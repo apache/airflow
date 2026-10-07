@@ -518,7 +518,6 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [new_local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
-<<<<<<< HEAD
         conns = [self._build_worker_hook().get_conn() for _ in range(workers)]
         try:
             self.log.info("Retrieving files concurrently with %s threads", workers)
@@ -612,7 +611,6 @@ class SFTPHook(SSHHook):
         remote_file_chunks = [new_remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [local_file_paths[i::workers] for i in range(workers)]
         self.log.info("Opening %s new SFTP connections", workers)
-<<<<<<< HEAD
         conns = [self._build_worker_hook().get_conn() for _ in range(workers)]
         try:
             self.log.info("Storing files concurrently with %s threads", workers)
@@ -973,6 +971,12 @@ class SFTPHookAsync(BaseHook):
                 host_key = f"ssh-rsa {host_key}"
             self.known_hosts = f"{self.host or conn.host} {host_key}".encode()
 
+    def _should_use_known_hosts(self) -> bool:
+        """Leave a missing default file unset so AsyncSSH reports an untrusted host."""
+        if self.known_hosts == os.path.expanduser(self.default_known_hosts):
+            return os.path.isfile(self.known_hosts)
+        return True
+
     async def _get_conn(self) -> asyncssh.SSHClientConnection:
         """
         Asynchronously connect to the SFTP server as an SSH client.
@@ -1007,7 +1011,7 @@ class SFTPHookAsync(BaseHook):
         if self.known_hosts:
             if self.known_hosts.lower() == "none":
                 conn_config.update(known_hosts=None)
-            else:
+            elif self._should_use_known_hosts():
                 conn_config.update(known_hosts=self.known_hosts)
         if self.private_key:
             _private_key = asyncssh.import_private_key(self.private_key, self.passphrase)

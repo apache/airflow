@@ -22,6 +22,7 @@ import json
 import os
 import shutil
 import stat
+from contextlib import nullcontext
 from io import BytesIO, StringIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, call, patch
@@ -729,6 +730,41 @@ class TestSFTPHook:
             )
             assert mock_build.call_count == workers
 
+    def test_concurrent_transfer_passes_effective_host_key_policy_to_worker(self, tmp_path):
+        connection = Connection(
+            conn_id="sftp_default",
+            conn_type="sftp",
+            host="connection.example.com",
+            login="user",
+            extra=json.dumps({"host_key": f"ssh-rsa {TEST_HOST_KEY}", "no_host_key_check": True}),
+        )
+        built_hooks = []
+        original_build = SFTPHook._build_worker_hook
+
+        def spy_build(hook_self):
+            worker_hook = original_build(hook_self)
+            built_hooks.append(worker_hook)
+            return worker_hook
+
+        with (
+            patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection", return_value=connection),
+            patch.object(SFTPHook, "get_managed_conn", return_value=nullcontext()),
+            patch.object(SFTPHook, "path_exists", return_value=False),
+            patch.object(SFTPHook, "create_directory"),
+            patch.object(SFTPHook, "get_conn", return_value=MagicMock(spec=SFTPClient)),
+            patch.object(SFTPHook, "_build_worker_hook", autospec=True, side_effect=spy_build) as mock_build,
+        ):
+            parent_hook = SFTPHook(ssh_conn_id="sftp_default", no_host_key_check=False)
+            parent_hook.store_directory_concurrently(
+                remote_full_path="/remote/target",
+                local_full_path=str(tmp_path),
+                workers=1,
+            )
+
+        mock_build.assert_called_once()
+        assert parent_hook.no_host_key_check is False
+        assert built_hooks[0].no_host_key_check is False
+
     def test_validate_within_directory_rejects_escape(self):
         base = os.path.join(self.temp_dir, "download")
         with pytest.raises(ValueError, match="outside the destination directory"):
@@ -1224,9 +1260,10 @@ class TestSFTPHookAsync:
         mock_connect.assert_called_with(**expected_connection_details)
 
     @pytest.mark.asyncio
+    @patch("airflow.providers.sftp.hooks.sftp.os.path.isfile", return_value=False)
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
-    async def test_connection_port_default_to_22(self, mock_get_connection, mock_connect):
+    async def test_connection_port_default_to_22(self, mock_get_connection, mock_connect, mock_isfile):
         from unittest.mock import Mock, call
 
         mock_get_connection.return_value = Mock(
@@ -1248,14 +1285,15 @@ class TestSFTPHookAsync:
                 port=22,
                 username="username",
                 password="password",
-                known_hosts=DEFAULT_KNOWN_HOSTS_PATH,
             ),
         ]
+        mock_isfile.assert_called_once_with(DEFAULT_KNOWN_HOSTS_PATH)
 
     @pytest.mark.asyncio
+    @patch("airflow.providers.sftp.hooks.sftp.os.path.isfile", return_value=True)
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.get_async_connection")
-    async def test_init_argument_not_ignored(self, mock_get_connection, mock_connect):
+    async def test_init_argument_not_ignored(self, mock_get_connection, mock_connect, mock_isfile):
         from unittest.mock import Mock, call
 
         mock_get_connection.return_value = Mock(
@@ -1283,6 +1321,7 @@ class TestSFTPHookAsync:
                 known_hosts=DEFAULT_KNOWN_HOSTS_PATH,
             ),
         ]
+        mock_isfile.assert_called_once_with(DEFAULT_KNOWN_HOSTS_PATH)
 
     @pytest.mark.asyncio
     async def test_list_directory_path_does_not_exist(self, sftp_hook_mocked):

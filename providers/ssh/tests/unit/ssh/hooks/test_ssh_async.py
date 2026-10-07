@@ -197,6 +197,24 @@ class TestSSHHookAsync:
                 assert call_kwargs["username"] == "testuser"
                 assert result == mock_ssh_client
 
+    @mock.patch("airflow.providers.ssh.hooks.ssh.os.path.isfile", return_value=False)
+    @mock.patch("asyncssh.connect", new_callable=mock.AsyncMock)
+    @mock.patch(
+        "airflow.providers.ssh.hooks.ssh.get_async_connection",
+        new_callable=mock.AsyncMock,
+    )
+    @pytest.mark.asyncio
+    async def test_get_conn_omits_missing_default_known_hosts(
+        self, mock_get_connection, mock_connect, mock_isfile
+    ):
+        mock_get_connection.return_value = Connection(host="test.host", extra="{}")
+
+        hook = SSHHookAsync(ssh_conn_id="test_conn")
+        await hook._get_conn()
+
+        mock_isfile.assert_called_once_with(hook.known_hosts)
+        assert "known_hosts" not in mock_connect.call_args.kwargs
+
     @pytest.mark.asyncio
     async def test_run_command(self):
         """Test running a command."""
