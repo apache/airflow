@@ -667,19 +667,10 @@ class TestRunCommand:
         with pytest.raises(SandboxTerminalError, match="no result for the command"):
             backend.run_command("bx_1", "echo hi", timeout=5, max_output_bytes=8)
 
-    def test_a_timeout_above_the_api_cap_is_the_models_to_fix(self):
-        backend, api = _backend_with_api()
-
-        with pytest.raises(SandboxError, match="Ask for a shorter timeout") as error:
-            backend.run_command("bx_1", "sleep 1", timeout=601, max_output_bytes=1024)
-
-        assert not isinstance(error.value, SandboxTerminalError)
-        api.command.assert_not_called()
-
     @pytest.mark.parametrize(
         ("timeout", "applied", "boat_timeout"),
-        [(2.2, 3.0, 18), (600, 585.0, 600)],
-        ids=["rounded_up", "shortened_under_the_api_cap"],
+        [(2.2, 3.0, 18), (600, 585.0, 600), (86_400, 585.0, 600)],
+        ids=["rounded_up", "shortened_under_the_api_cap", "clamped_above_the_api_cap"],
     )
     @pytest.mark.parametrize("timed_out", [False, True], ids=["finished", "boat_deadline"])
     def test_the_deadline_the_command_got_is_reported(self, timed_out, timeout, applied, boat_timeout):

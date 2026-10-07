@@ -322,13 +322,12 @@ retry. Reads deliberately keep the inherited bounded shell implementation, so
 ``max_bytes`` is enforced inside the guest before file contents reach worker
 memory.
 
-Command timeouts are capped at 600 seconds. The deadline is enforced inside the
-sandbox by GNU coreutils ``timeout``, which sends ``SIGTERM`` and then
-``SIGKILL`` five seconds later, so a command that runs out of time returns what
-it printed, and the sandbox and its files survive. Boat's own deadline is set
-15 seconds past the requested one and cannot exceed 600 seconds, so a command
-that asks for more than 585 seconds gets 585, and the result reports that
-deadline. Only when Boat's own deadline ends the call, because the one in the
+A command's deadline is enforced inside the sandbox by GNU coreutils
+``timeout``, which sends ``SIGTERM`` and then ``SIGKILL`` five seconds later, so
+a command that runs out of time returns the tail of what it printed, and the
+sandbox and its files survive. Boat's own deadline is set 15 seconds past that
+one, and Boat's API caps it at 600 seconds, so any command that asks for more
+than 585 seconds gets 585, and the result reports that deadline to the model. Only when Boat's own deadline ends the call, because the one in the
 guest did not, is the sandbox torn down, as is a sandbox that never becomes
 ready. A file read, listing, or write that Boat's deadline ends that way fails
 the task, since there is no sandbox left for the model to retry against. If the

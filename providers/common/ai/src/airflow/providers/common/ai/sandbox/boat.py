@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 _DEFAULT_BASE_URL = "https://boat.dev/api/v1"
+# CommandRequest's bound on timeoutSeconds.
 _MAX_COMMAND_TIMEOUT = 600
 # The deadline is enforced inside the guest by GNU ``timeout``, which sends SIGTERM and
 # then SIGKILL this many seconds later. Boat's own deadline sits _SERVER_TIMEOUT_GRACE
@@ -445,13 +446,9 @@ class BoatSandboxBackend(SandboxBackend):
     ) -> SandboxExecResult:
         _validate_positive_finite(timeout, "timeout")
         _validate_positive_finite(max_output_bytes, "max_output_bytes")
-        if timeout > _MAX_COMMAND_TIMEOUT:
-            raise SandboxError(
-                f"Boat commands are capped at {_MAX_COMMAND_TIMEOUT} seconds; got timeout={timeout}. "
-                "Ask for a shorter timeout."
-            )
-        # GNU timeout reads 0 as "no timeout", so round up; a command near the API cap is
-        # shortened so Boat's own deadline still fits above it.
+        # GNU timeout reads 0 as "no timeout", so round up. Any longer request is shortened
+        # so Boat's own deadline, above this one, still fits under the API cap; the result's
+        # applied_timeout tells the model what the command got.
         timeout_seconds = min(
             max(1, math.ceil(timeout)), _MAX_COMMAND_TIMEOUT - _KILL_AFTER - _SERVER_TIMEOUT_GRACE
         )
