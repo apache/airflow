@@ -65,27 +65,3 @@ def validate_prompt(value: Any, *, decorator_name: str) -> None:
         f"The returned value from the {decorator_name} callable must be "
         f"str or Sequence[UserContent], got {type(value).__name__}."
     )
-
-
-def reject_sequence_with_unsupported_feature(
-    value: Any,
-    *,
-    decorator_name: str,
-    feature_name: str,
-    feature_enabled: bool,
-) -> None:
-    """
-    Preflight check raised before the agent runs.
-
-    Raises ``TypeError`` when *value* is a non-string Sequence and
-    *feature_enabled* is True. Used to fail fast on combinations
-    (e.g., ``enable_hitl_review=True`` + Sequence prompt) that would
-    otherwise fail later -- after the LLM call -- when the downstream
-    HITL/approval consumer tries to stringify the prompt.
-    """
-    if feature_enabled and not isinstance(value, str):
-        raise TypeError(
-            f"{decorator_name}: Sequence[UserContent] prompts are not supported "
-            f"with {feature_name}=True. Return a str prompt, or disable "
-            f"{feature_name}."
-        )
