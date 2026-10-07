@@ -96,9 +96,9 @@ class LangChainHook(BaseHook):
         self,
         llm_conn_id: str | None = None,
         embed_conn_id: str | None = None,
+        *,
         llm_model: str | None = None,
         embed_model: str | None = None,
-        *,
         embedding_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:

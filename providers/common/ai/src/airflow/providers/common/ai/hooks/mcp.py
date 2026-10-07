@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -213,10 +213,10 @@ class MCPHook(BaseHook):
         try:
             from fastmcp.client.transports import SSETransport, StdioTransport, StreamableHttpTransport
             from pydantic_ai.mcp import MCPToolset
-        except ImportError:
-            raise ImportError(
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
                 'MCP support requires the `mcp` package. Install it with: pip install "pydantic-ai-slim[mcp]"'
-            )
+            ) from e
 
         conn = self.get_connection(self.mcp_conn_id)
         extra = conn.extra_dejson
@@ -239,7 +239,23 @@ class MCPHook(BaseHook):
             args = extra.get("args", [])
             if isinstance(args, str):
                 args = [args]
+            if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
+                raise ValueError(
+                    f"'args' in extra for connection {self.mcp_conn_id!r} must be a string or a "
+                    f"list of strings, got {args!r}."
+                )
             timeout = extra.get("timeout", 10)
+            # ``None`` and ``0`` are kept valid: fastmcp's ``normalize_timeout_to_seconds``
+            # treats both as "no init timeout".
+            if timeout is not None and (
+                isinstance(timeout, bool)
+                or not isinstance(timeout, (int, float))
+                or not 0 <= timeout < float("inf")
+            ):
+                raise ValueError(
+                    f"'timeout' in extra for connection {self.mcp_conn_id!r} must be a non-negative "
+                    f"finite number of seconds, got {timeout!r}."
+                )
             toolset = MCPToolset(
                 StdioTransport(command=command, args=args, env=self._stdio_env(extra)),
                 init_timeout=timeout,
