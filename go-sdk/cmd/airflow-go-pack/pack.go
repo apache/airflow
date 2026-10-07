@@ -505,7 +505,7 @@ func renderManifest(meta airflowmetadata.Manifest, layout sourceLayout) ([]byte,
 			taskItems = append(taskItems, quotedScalar(t))
 		}
 		dagsNode.Content = append(dagsNode.Content,
-			scalar(id),
+			quotedScalar(id),
 			&yaml.Node{
 				Kind: yaml.MappingNode,
 				Content: []*yaml.Node{
@@ -525,7 +525,7 @@ func renderManifest(meta airflowmetadata.Manifest, layout sourceLayout) ([]byte,
 	for _, id := range dagPaths {
 		dagPathsNode.Content = append(
 			dagPathsNode.Content,
-			scalar(id),
+			quotedScalar(id),
 			quotedScalar(layout.dagPaths[id]),
 		)
 	}
@@ -578,8 +578,8 @@ func renderManifest(meta airflowmetadata.Manifest, layout sourceLayout) ([]byte,
 	return buf.Bytes(), nil
 }
 
-// scalar emits a plain (unquoted) node. It is used for structural keys
-// (e.g. "sdk", "tasks") and for the Dag ID mapping keys.
+// scalar emits a plain (unquoted) node. It is for structural keys only (e.g. "sdk", "tasks").
+// Dag IDs are data, so they go through quotedScalar.
 func scalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value}
 }
@@ -588,10 +588,10 @@ func intScalar(value int) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(value)}
 }
 
-// quotedScalar emits a double-quoted node. Data-bearing string *values* — task
-// IDs, the source paths, and the SDK fields — go through this so a value
-// that looks like a number, bool, or date (e.g. a task named "123" or "true")
-// round-trips as a string rather than being retyped by the YAML parser.
+// quotedScalar emits a double-quoted node. Data-bearing strings, such as Dag IDs, task IDs,
+// the source paths, and the SDK fields, go through this so a value that looks like a number,
+// bool, or date (e.g. a Dag named "2024" or "on") round-trips as a string rather than being
+// retyped by the YAML parser.
 func quotedScalar(value string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: value, Style: yaml.DoubleQuotedStyle}
 }
