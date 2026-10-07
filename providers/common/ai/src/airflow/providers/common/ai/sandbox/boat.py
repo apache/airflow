@@ -61,6 +61,8 @@ _SERVER_TIMEOUT_GRACE = 10
 _IN_GUEST_TIMEOUT_EXITS = frozenset({124, 137})
 _MAX_ERROR_DETAIL = 300
 _READY_STATES = frozenset({"ready", "idle", "running"})
+_TERMINAL_STATES = frozenset({"archiving", "archived", "error"})
+_READY_POLL_INTERVAL = 2.0
 _MACHINE_TYPES = frozenset({"small", "default", "large"})
 
 
@@ -223,15 +225,25 @@ class BoatSandboxBackend(SandboxBackend):
         return max(self._request_timeout, seconds + 30.0)
 
     def _wait_until_ready(self, sandbox_id: str) -> None:
-        from boat_sdk import wait_until_ready
-
-        with _translate_boat_errors("wait for a sandbox to become ready"):
-            wait_until_ready(
-                self._get_api(),
-                sandbox_id,
-                timeout_seconds=self._ready_timeout,
-                poll_interval_seconds=2.0,
-            )
+        # Not boat_sdk.wait_until_ready: it polls with no HTTP timeout, so one stalled
+        # response would hold create past ready_timeout indefinitely.
+        deadline = time.monotonic() + self._ready_timeout
+        while (remaining := deadline - time.monotonic()) > 0:
+            with _translate_boat_errors("wait for a sandbox to become ready"):
+                response = self._get_api().get(
+                    sandbox_id, _request_timeout=min(self._request_timeout, remaining)
+                )
+            state = response.sandbox.state
+            if state in _READY_STATES:
+                return
+            if state in _TERMINAL_STATES:
+                raise SandboxTerminalError(
+                    f"Boat sandbox {sandbox_id!r} entered state {state!r} before it was ready."
+                )
+            time.sleep(min(_READY_POLL_INTERVAL, max(0.0, deadline - time.monotonic())))
+        raise SandboxTerminalError(
+            f"Boat sandbox {sandbox_id!r} was not ready within {self._ready_timeout:g} seconds."
+        )
 
     @staticmethod
     def _check_spec(spec: SandboxSpec | None) -> None:

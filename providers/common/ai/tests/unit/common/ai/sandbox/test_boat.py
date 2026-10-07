@@ -39,6 +39,7 @@ from airflow.providers.common.ai.sandbox.base import (
 from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
 
 _MONOTONIC = "airflow.providers.common.ai.sandbox.boat.time.monotonic"
+_SLEEP = "airflow.providers.common.ai.sandbox.boat.time.sleep"
 
 
 def _api_error(status: int, body: str | None = None) -> ApiException:
@@ -73,6 +74,10 @@ def _created(sandbox_id: str):
     return SimpleNamespace(sandbox=SimpleNamespace(id=sandbox_id))
 
 
+def _sandbox_info(state: str):
+    return SimpleNamespace(sandbox=SimpleNamespace(id="bx_1", state=state))
+
+
 def _backend_with_api(**kwargs) -> tuple[BoatSandboxBackend, mock.MagicMock]:
     backend = BoatSandboxBackend(**kwargs)
     api = mock.MagicMock(
@@ -80,6 +85,21 @@ def _backend_with_api(**kwargs) -> tuple[BoatSandboxBackend, mock.MagicMock]:
     )
     backend._boat_api = api
     return backend, api
+
+
+@pytest.fixture
+def clock():
+    """A monotonic clock that moves only when the backend sleeps."""
+    now = [0.0]
+
+    def sleep(seconds):
+        now[0] += seconds
+
+    with (
+        mock.patch(_MONOTONIC, autospec=True, side_effect=lambda: now[0]),
+        mock.patch(_SLEEP, autospec=True, side_effect=sleep),
+    ):
+        yield now
 
 
 def test_missing_sdk_error_is_actionable():
@@ -186,12 +206,10 @@ class TestCreate:
             backend.create(spec=SandboxSpec(block_network=False, allow_egress_to_cidrs=["203.0.113.0/24"]))
 
     @pytest.mark.parametrize("no_env", [True, False])
-    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
-    def test_spec_and_sizing_are_passed_at_creation(self, wait_ready, no_env):
-        backend, api = _backend_with_api(
-            machine_type="small", ttl_seconds=120, ready_timeout=45, no_env=no_env
-        )
+    def test_spec_and_sizing_are_passed_at_creation(self, no_env):
+        backend, api = _backend_with_api(machine_type="small", ttl_seconds=120, no_env=no_env)
         api.create.return_value = _created("bx_created1")
+        api.get.return_value = _sandbox_info("ready")
 
         sandbox_id = backend.create(spec=SandboxSpec(block_network=False, env={"TOKEN": "value"}))
 
@@ -201,38 +219,59 @@ class TestCreate:
         assert request.ttl_seconds == 120
         assert request.no_env is no_env
         assert request.env == {"TOKEN": "value"}
-        wait_ready.assert_called_once_with(
-            mock.ANY, "bx_created1", timeout_seconds=45, poll_interval_seconds=2.0
-        )
+        api.get.assert_called_once_with("bx_created1", _request_timeout=30.0)
         assert api.update.called
 
-    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
-    def test_none_spec_is_allowed(self, _wait_ready):
+    def test_none_spec_is_allowed(self):
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_created1")
+        api.get.return_value = _sandbox_info("ready")
 
         backend.create()
 
         request = api.create.call_args.kwargs["create_sandbox_request"]
         assert request.env is None
 
-    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
-    def test_a_sandbox_that_never_becomes_ready_is_destroyed(self, wait_ready):
+    @pytest.mark.parametrize(
+        ("polls", "match"),
+        [
+            pytest.param(TimeoutError("read timed out"), "ready: TimeoutError", id="poll_failed"),
+            pytest.param(
+                [_sandbox_info("starting"), _sandbox_info("error")],
+                "entered state 'error' before it was ready",
+                id="failed_while_starting",
+            ),
+        ],
+    )
+    def test_a_sandbox_that_never_becomes_ready_is_destroyed(self, clock, polls, match):
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_stuck01")
-        wait_ready.side_effect = TimeoutError("never became ready")
+        api.get.side_effect = polls
 
-        with pytest.raises(SandboxTerminalError):
+        with pytest.raises(SandboxTerminalError, match=match):
             backend.create(spec=SandboxSpec(block_network=False))
 
         # The id never reached the caller, so create is the only place that can
         # still tear this sandbox down.
         api.delete_sandbox.assert_called_once_with("bx_stuck01", "bx_stuck01", _request_timeout=mock.ANY)
 
-    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
-    def test_an_unnameable_sandbox_is_still_created(self, _wait_ready):
+    def test_each_readiness_poll_is_bounded_by_what_is_left_of_ready_timeout(self, clock):
+        backend, api = _backend_with_api(ready_timeout=5)
+        api.create.return_value = _created("bx_stuck01")
+        api.get.return_value = _sandbox_info("starting")
+
+        with pytest.raises(SandboxTerminalError, match="not ready within 5 seconds"):
+            backend.create(spec=SandboxSpec(block_network=False))
+
+        # Without an HTTP timeout, one stalled response would hold create forever.
+        assert [call.kwargs["_request_timeout"] for call in api.get.call_args_list] == [5.0, 3.0, 1.0]
+        assert clock[0] == 5.0
+        api.delete_sandbox.assert_called_once_with("bx_stuck01", "bx_stuck01", _request_timeout=mock.ANY)
+
+    def test_an_unnameable_sandbox_is_still_created(self):
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_created1")
+        api.get.return_value = _sandbox_info("ready")
         api.update.side_effect = _api_error(500)
 
         assert backend.create(spec=SandboxSpec(block_network=False)) == "bx_created1"
@@ -279,14 +318,14 @@ class TestCreate:
     @pytest.mark.parametrize("state", ["ready", "idle", "running"])
     def test_confirm_exists_accepts_a_runnable_state(self, state):
         backend, api = _backend_with_api()
-        api.get.return_value = SimpleNamespace(sandbox=SimpleNamespace(id="bx_1", state=state))
+        api.get.return_value = _sandbox_info(state)
 
         backend._confirm_sandbox_exists("bx_1")
 
     @pytest.mark.parametrize("state", ["archiving", "archived", "error"])
     def test_confirm_exists_rejects_a_sandbox_that_cannot_run(self, state):
         backend, api = _backend_with_api()
-        api.get.return_value = SimpleNamespace(sandbox=SimpleNamespace(id="bx_1", state=state))
+        api.get.return_value = _sandbox_info(state)
 
         with pytest.raises(SandboxTerminalError, match="not runnable"):
             backend._confirm_sandbox_exists("bx_1")
@@ -361,10 +400,10 @@ class TestRunCommand:
         assert result.stderr == "err"
         assert result.exit_code == 0
 
-    @mock.patch("boat_sdk.wait_until_ready", autospec=True)
-    def test_spec_environment_is_exported_after_shell_profile(self, _wait_ready):
+    def test_spec_environment_is_exported_after_shell_profile(self):
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_env01")
+        api.get.return_value = _sandbox_info("ready")
         api.command.return_value = _command_response()
 
         backend.create(spec=SandboxSpec(block_network=False, env={"SPEC_MARKER": "kept"}))
@@ -559,7 +598,7 @@ class TestFiles:
         if sandbox_gone:
             api.get.side_effect = _api_error(404)
         else:
-            api.get.return_value = SimpleNamespace(sandbox=SimpleNamespace(id="bx_1", state="idle"))
+            api.get.return_value = _sandbox_info("idle")
 
         with pytest.raises(SandboxError, match=match) as raised:
             backend.write_file("bx_1", "/opt/app/main.py", b"x")
