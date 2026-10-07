@@ -25,12 +25,16 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.util.jar.Attributes
 import java.util.jar.JarFile
+import java.util.jar.JarOutputStream
+import java.util.jar.Manifest
 
 class AirflowSdkPluginTest {
   private fun main(describeBody: String) =
@@ -185,11 +189,110 @@ class AirflowSdkPluginTest {
     project(dir, mainBody = "")
     val result = gradle(dir, "jar")
 
-    assertTrue(result.output.contains("does main call Server.serve?"), result.output)
+    assertTrue(result.output.contains("does main pass its args to Server.create?"), result.output)
     assertEquals(
       mapOf("entrypoint_path" to "com/example/Main.java", "dag_source_paths" to emptyMap<String, String>()),
       sourcesJson(File(dir, "build/libs/bundle-test.jar")),
     )
+  }
+
+  @Test
+  fun findsASourceWhosePackageDoesNotMatchItsDirectory(
+    @TempDir dir: File,
+  ) {
+    project(dir)
+    File(dir, "src/extra/com/example/dags/Reports.java").delete()
+    dir.write("src/main/java/dags/Reports.java", "package com.example.dags; public class Reports {}")
+    gradle(dir, "jar")
+
+    assertEquals(
+      mapOf(
+        "entrypoint_path" to "com/example/Main.java",
+        "dag_source_paths" to
+          mapOf(
+            "orders" to "com/example/Main.java",
+            "reports" to "dags/Reports.java",
+            "reports_backfill" to "dags/Reports.java",
+          ),
+      ),
+      sourcesJson(File(dir, "build/libs/bundle-test.jar")),
+    )
+  }
+
+  @Test
+  fun warnsWhenTheEntrypointSourceCannotBeFound(
+    @TempDir dir: File,
+  ) {
+    project(dir)
+    dir.write(
+      "build.gradle",
+      File(dir, "build.gradle").readText() +
+        "\ncompileJava.doLast { delete 'src/main/java/com/example/Main.java' }\n",
+    )
+    val result = gradle(dir, "jar")
+
+    assertTrue(result.output.contains("No source file found for entrypoint class com.example.Main"), result.output)
+    assertNull(sourcesJson(File(dir, "build/libs/bundle-test.jar"))["entrypoint_path"])
+  }
+
+  @Test
+  fun rerunsAfterAFailedDescribeRun(
+    @TempDir dir: File,
+  ) {
+    project(dir, mainBody = "")
+    gradle(dir, "jar")
+    val again = gradle(dir, "jar")
+
+    assertNotEquals(TaskOutcome.UP_TO_DATE, again.task(":packDagSources")!!.outcome)
+    assertTrue(again.output.contains("only its entrypoint source is packed"), again.output)
+  }
+
+  @Test
+  fun shadowJarCarriesTheSourcesPayloadByDefault(
+    @TempDir dir: File,
+  ) {
+    dir.write("settings.gradle", "rootProject.name = 'bundle-test'\n")
+    dir.write(
+      "build.gradle",
+      """
+      plugins { id 'org.apache.airflow.sdk' }
+      repositories { maven { url = uri('repo') } }
+      dependencies { implementation 'org.apache.airflow:airflow-sdk:1.0' }
+      airflowBundle { mainClass = 'com.example.Main' }
+      """.trimIndent(),
+    )
+    dir.write("src/main/java/com/example/Main.java", main(describeDags))
+    dir.write("src/main/java/com/example/dags/Reports.java", "package com.example.dags; public class Reports {}")
+    stubSdk(File(dir, "repo/org/apache/airflow/airflow-sdk/1.0"))
+
+    gradle(dir, "shadowJar")
+
+    val jar = File(dir, "build/libs/bundle-test-all.jar")
+    assertTrue(entries(jar).contains("META-INF/airflow/sources.json"))
+    JarFile(jar).use {
+      assertEquals("META-INF/airflow/sources.json", it.manifest.mainAttributes.getValue("Airflow-Java-SDK-Sources"))
+      assertEquals("1", it.manifest.mainAttributes.getValue("Airflow-Supervisor-Schema-Version"))
+    }
+  }
+
+  private fun stubSdk(dir: File) {
+    dir.mkdirs()
+    File(dir, "airflow-sdk-1.0.pom").writeText(
+      """
+      <project>
+        <modelVersion>4.0.0</modelVersion>
+        <groupId>org.apache.airflow</groupId>
+        <artifactId>airflow-sdk</artifactId>
+        <version>1.0</version>
+      </project>
+      """.trimIndent(),
+    )
+    val manifest =
+      Manifest().apply {
+        mainAttributes[Attributes.Name.MANIFEST_VERSION] = "1.0"
+        mainAttributes.putValue("Airflow-Supervisor-Schema-Version", "1")
+      }
+    JarOutputStream(File(dir, "airflow-sdk-1.0.jar").outputStream(), manifest).close()
   }
 
   @Test
