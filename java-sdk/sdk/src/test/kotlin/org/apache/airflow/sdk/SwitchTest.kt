@@ -90,6 +90,23 @@ internal class SwitchTest {
   }
 
   @Test
+  @DisplayName("Should reject a task that triggers a Dag run as a case")
+  fun shouldRejectTriggerTaskAsCase() {
+    val dag = DagDef("d")
+    val trigger = dag.task("trigger_x", TriggerDagRun("x"))
+    val switch = dag.Switch(PickPath::class.java)
+
+    val error = assertThrows(IllegalArgumentException::class.java) { switch.Case(trigger) }
+
+    assertEquals(
+      "Switch 'pickPath' cannot choose 'trigger_x': a switch names its case by its class, and a " +
+        "task that triggers a Dag run has none. Put the trigger downstream of an ordinary task and " +
+        "let the switch choose that task, since Airflow skips the downstream of a skipped task",
+      error.message,
+    )
+  }
+
+  @Test
   @DisplayName("Should reject a case declared in another Dag")
   fun shouldRejectCaseFromAnotherDag() {
     val (_, switch, _) = dagWithCases()
