@@ -192,6 +192,10 @@ class TestLLMSQLQueryOperator:
 
         assert issubclass(LLMSQLQueryOperator, LLMOperator)
 
+    def test_output_type_rejected(self):
+        with pytest.raises(TypeError, match="LLMSQLQueryOperator does not accept 'output_type'"):
+            LLMSQLQueryOperator(task_id="test", prompt="get users", llm_conn_id="my_llm", output_type=int)
+
     def test_template_fields_include_parent_and_sql_specific(self):
         expected = {
             "prompt",
