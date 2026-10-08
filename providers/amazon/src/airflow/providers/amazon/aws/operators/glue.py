@@ -454,7 +454,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                 self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
                 if self.is_job_active(state):
                     return previous_job_run_id
-            except ClientError:
+            except (ClientError, BotoCoreError):
                 self.log.exception(
                     "Failed to get previous Glue job run state; submitting a fresh Glue job run"
                 )
