@@ -72,10 +72,12 @@ class HookToolset(AirflowToolset):
         is not modified; each task instance gets a copy.
     :param allowed_methods: Method names to expose as tools. Required —
         auto-discovery is intentionally not supported for safety.
-    :param tool_prefix: Optional prefix prepended to each tool name
-        (e.g. ``"s3_"`` → ``"s3_list_keys"``).
-    :param tool_name_prefix: Deprecated alias of ``tool_prefix``. Passing both with
-        different values raises ``ValueError``.
+    :param tool_prefix: Optional prefix joined to each tool name with an underscore
+        (e.g. ``"s3"`` → ``"s3_list_keys"``). Must be a valid Python identifier.
+    :param tool_name_prefix: Deprecated. Concatenated to each tool name as given
+        (``"s3_"`` → ``"s3_list_keys"``, ``"s3"`` → ``"s3list_keys"``) and not validated.
+        Passing it with ``tool_prefix`` raises ``ValueError`` unless it equals
+        ``"<tool_prefix>_"``.
     :param pinned_arguments: Experimental. Arguments the Dag author fixes, such as the bucket a
         storage hook may use: ``{"bucket_name": "reports"}``. Each is left out of the
         arguments the model sees, refused if the model supplies it anyway, and passed to
@@ -104,18 +106,25 @@ class HookToolset(AirflowToolset):
         pinned_arguments: dict[str, Any] | None = None,
         max_retries: int | None = None,
     ) -> None:
+        if tool_prefix and not tool_prefix.isidentifier():
+            # The prefixed names are rendered as Python function signatures under
+            # code mode, so a name that is not an identifier breaks there.
+            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
         if tool_name_prefix is not None:
-            if tool_prefix and tool_prefix != tool_name_prefix:
+            if tool_prefix and f"{tool_prefix}_" != tool_name_prefix:
                 raise ValueError(
-                    f"tool_prefix={tool_prefix!r} and tool_name_prefix={tool_name_prefix!r} differ. "
-                    "Pass only tool_prefix; tool_name_prefix is its deprecated alias."
+                    f"tool_prefix={tool_prefix!r} and tool_name_prefix={tool_name_prefix!r} conflict. "
+                    f"Pass only tool_prefix; tool_name_prefix is its deprecated alias and must equal "
+                    f"{tool_prefix + '_'!r} when both are given."
                 )
             warnings.warn(
                 "Parameter `tool_name_prefix` is deprecated. Use the parameter `tool_prefix` instead.",
                 category=AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            tool_prefix = tool_name_prefix
+            name_prefix = tool_name_prefix
+        else:
+            name_prefix = f"{tool_prefix}_" if tool_prefix else ""
         self._max_retries = validate_max_retries(max_retries)
         if not allowed_methods:
             raise ValueError("allowed_methods must be a non-empty list.")
@@ -152,7 +161,7 @@ class HookToolset(AirflowToolset):
 
         self._hook = hook
         self._allowed_methods = allowed_methods
-        self._tool_prefix = tool_prefix
+        self._name_prefix = name_prefix
         # The attribute holding the hook's connection ID, e.g. ``postgres_conn_id``. Some hooks
         # name one attribute in conn_name_attr but keep the ID in ``conn_id`` (WasbHook,
         # KubernetesHook), so fall back to that.
@@ -187,7 +196,7 @@ class HookToolset(AirflowToolset):
         tools: dict[str, ToolsetTool[Any]] = {}
         for method_name in self._allowed_methods:
             method = getattr(self._hook, method_name)
-            tool_name = f"{self._tool_prefix}{method_name}" if self._tool_prefix else method_name
+            tool_name = f"{self._name_prefix}{method_name}"
 
             json_schema = _build_json_schema_from_signature(method)
             description = _extract_description(method)
@@ -245,7 +254,7 @@ class HookToolset(AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        method_name = name.removeprefix(self._tool_prefix) if self._tool_prefix else name
+        method_name = name.removeprefix(self._name_prefix)
         method: Callable[..., Any] = getattr(self._hook, method_name)
         # The framework bridges validate arguments without args_validator_func, so check again here.
         self._refuse_pinned(ctx, **tool_args)
