@@ -5053,3 +5053,86 @@ def test_failure_listener_receives_failed_try_before_rotation(
         assert ti.id == original_id
         assert ti.try_number == 1
         assert ti.external_executor_id == "previous-worker"
+
+
+class TestInProcessSupervisorFromThreads:
+    """
+    Under the in-process supervisor (dag.test(), dag_maker) a task's own threads make SDK calls
+    while others are being served: every call must go through and get its own answer.
+    """
+
+    @staticmethod
+    def _run(dag_maker, session):
+        dag_run = dag_maker.create_dagrun()
+        (ti,) = dag_run.task_instance_scheduling_decisions(session=session).schedulable_tis
+        with contextlib.suppress(BaseException):
+            dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
+        ti.refresh_from_db(session=session)
+        return dag_run, ti
+
+    def test_threads_of_a_task_push_and_read_xcoms(self, dag_maker, session):
+        from concurrent.futures import ThreadPoolExecutor
+
+        from airflow.models.xcom import XComModel
+
+        with dag_maker(dag_id="in_process_comms_threads", session=session, serialized=True):
+
+            @task
+            def produce(ti=None):
+                def work(x):
+                    for n in range(5):
+                        ti.xcom_push(key=f"k{n}_{x}", value=x)
+                        assert ti.xcom_pull(task_ids="produce", key=f"k{n}_{x}") == x
+                    return x
+
+                with ThreadPoolExecutor(max_workers=4) as pool:
+                    return sorted(pool.map(work, range(8)))
+
+            produce()
+
+        dag_run, ti = self._run(dag_maker, session)
+
+        assert ti.state == TaskInstanceState.SUCCESS
+        keys = set(
+            session.scalars(
+                select(XComModel.key).where(
+                    XComModel.dag_id == "in_process_comms_threads",
+                    XComModel.run_id == dag_run.run_id,
+                    XComModel.task_id == "produce",
+                )
+            )
+        )
+        assert {f"k{n}_{x}" for n in range(5) for x in range(8)} <= keys
+
+    def test_threads_of_a_task_read_variables_while_another_is_served(self, dag_maker, session):
+        """
+        A Variable lookup must not miss while another thread's request is served: hiding the comms
+        from the whole process sent it to the fallback secrets backends, which do not have a
+        Variable stored in the metadata database.
+        """
+        from concurrent.futures import ThreadPoolExecutor
+
+        from airflow.models.variable import Variable
+        from airflow.sdk import Variable as SdkVariable
+
+        Variable.set(key="in_process_db_variable", value="v", session=session)
+        session.commit()
+
+        with dag_maker(dag_id="in_process_variables_threads", session=session, serialized=True):
+
+            @task
+            def read(ti=None):
+                def work(x):
+                    for _ in range(25):
+                        assert SdkVariable.get("in_process_db_variable") == "v"
+                        ti.xcom_push(key=f"k_{x}", value=x)
+                    return x
+
+                with ThreadPoolExecutor(max_workers=4) as pool:
+                    return sorted(pool.map(work, range(8)))
+
+            read()
+
+        _, ti = self._run(dag_maker, session)
+
+        assert ti.state == TaskInstanceState.SUCCESS

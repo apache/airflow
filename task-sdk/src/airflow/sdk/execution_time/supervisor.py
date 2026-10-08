@@ -2459,19 +2459,31 @@ class InProcessSupervisorComms:
     log: FilteringBoundLogger = attrs.field(repr=False, factory=structlog.get_logger)
     supervisor: InProcessTestSupervisor
     messages: deque[BaseModel | None] = attrs.field(factory=deque)
+    # Held from handling a request to taking its answer: answers are matched to requests by their
+    # order in ``messages`` only, so two threads sending at once would take each other's.
+    _lock: threading.RLock = attrs.field(factory=threading.RLock, repr=False)
 
     def _get_response(self) -> BaseModel | None:
         """Get a message from the supervisor. Blocks until a message is available."""
         return self.messages.popleft()
 
     def send(self, msg: BaseModel):
-        """Send a request to the supervisor."""
+        """
+        Send a request to the supervisor.
+
+        Safe to call from several threads: requests are served one at a time, each thread getting
+        its own answer. Only the code serving the request stops seeing the comms meanwhile
+        (``task_runner.serving_supervisor_request``, also entered by the in-process API server for
+        its own threads), so the task's other threads keep theirs.
+        """
+        from airflow.sdk.execution_time.task_runner import serving_supervisor_request
+
         self.log.debug("Sending request", msg=msg)
 
-        with set_supervisor_comms(None):
-            self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
-
-        return self._get_response()
+        with self._lock:
+            with serving_supervisor_request():
+                self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+            return self._get_response()
 
 
 @attrs.define
@@ -2689,9 +2701,10 @@ def set_supervisor_comms(temp_comms):
     by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
     in place of the real inter-process communication layer.
 
-    Some parts of the code (e.g. models.Variable.get) check for the presence
-    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
-    This override ensures those code paths behave correctly during in-process tests.
+    Some parts of the code (e.g. models.Variable.get) ask `task_runner.supervisor_comms()`, in
+    airflow-core through `airflow.utils.helpers.in_task_execution_context()`, to determine if the code
+    is running in a Task SDK execution context. That reads the comms set here, so this override ensures
+    those code paths behave correctly during in-process tests.
     """
     from airflow.sdk.execution_time import task_runner
 
@@ -2919,7 +2932,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     try:
         from airflow.sdk.execution_time import task_runner
 
-        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
+        if task_runner.supervisor_comms() is not None:
             # Client context: task runner with SUPERVISOR_COMMS
             return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
     except (ImportError, AttributeError):

@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import itertools
 import re
+import sys
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
@@ -263,6 +265,47 @@ class TestHelpers:
             AttributeError, match="module 'airflow.utils.helpers' has no attribute 'non_existent_func'"
         ):
             _ = helpers.non_existent_func
+
+
+class TestInTaskExecutionContext:
+    """Whether models.Variable/Connection take the Execution API path, per thread."""
+
+    MODULE = "airflow.sdk.execution_time.task_runner"
+
+    def test_false_when_the_task_runner_was_never_imported(self, monkeypatch):
+        from airflow.utils.helpers import in_task_execution_context
+
+        monkeypatch.delitem(sys.modules, self.MODULE, raising=False)
+        assert in_task_execution_context() is False
+
+    @pytest.mark.parametrize(("comms", "expected"), [("comms", True), (None, False)])
+    def test_follows_the_task_runners_answer_for_this_thread(self, monkeypatch, comms, expected):
+        from types import SimpleNamespace
+
+        from airflow.utils.helpers import in_task_execution_context
+
+        monkeypatch.setitem(sys.modules, self.MODULE, SimpleNamespace(supervisor_comms=lambda: comms))
+        assert in_task_execution_context() is expected
+
+    @pytest.mark.parametrize(
+        ("module_attrs", "expected"), [({"SUPERVISOR_COMMS": "comms"}, True), ({}, False)]
+    )
+    def test_falls_back_to_the_attribute_for_an_older_task_sdk(self, monkeypatch, module_attrs, expected):
+        from types import SimpleNamespace
+
+        from airflow.utils.helpers import in_task_execution_context
+
+        monkeypatch.setitem(sys.modules, self.MODULE, SimpleNamespace(**module_attrs))
+        assert in_task_execution_context() is expected
+
+    def test_the_thread_serving_an_in_process_request_is_the_server_side(self):
+        from airflow.sdk.execution_time import task_runner
+        from airflow.utils.helpers import in_task_execution_context
+
+        with patch.object(task_runner, "SUPERVISOR_COMMS", "comms", create=True):
+            assert in_task_execution_context() is True
+            with task_runner.serving_supervisor_request():
+                assert in_task_execution_context() is False
 
 
 class MockJobRunner(BaseJobRunner):

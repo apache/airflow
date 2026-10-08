@@ -269,7 +269,7 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
         from airflow.sdk.execution_time import task_runner
         from airflow.sdk.execution_time.comms import MaskSecret
 
-        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+        if comms := task_runner.supervisor_comms():
             comms.send(MaskSecret(value=secret, name=name))
 
 
@@ -287,7 +287,7 @@ async def amask_secret(secret: JsonValue, name: str | None = None) -> None:
         from airflow.sdk.execution_time import task_runner
         from airflow.sdk.execution_time.comms import MaskSecret
 
-        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+        if comms := task_runner.supervisor_comms():
             await comms.asend(MaskSecret(value=secret, name=name))
 
 

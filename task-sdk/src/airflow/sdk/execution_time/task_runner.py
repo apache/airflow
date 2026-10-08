@@ -1150,6 +1150,41 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
+# The in-process supervisor of dag.test() serves a task's requests in the task's own process. The
+# code serving a request (models.Variable, models.Connection, the secrets backends, mask forwarding)
+# has to act as the server side there, so it must not see the comms. That code runs in the sender's
+# thread (the supervisor's _handle_request) and in the in-process API server, on its event loop and
+# its worker threads for sync routes. Both set this flag around the request: the sender here, the
+# server around each request it handles (InProcessExecutionAPI), and the server's threads inherit it
+# from there. Being a ContextVar, it hides the comms from the code serving the request only: the
+# task's other threads keep theirs while it is served.
+_serving_supervisor_request: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_serving_supervisor_request", default=False
+)
+
+
+def supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
+    """
+    Return the comms to the supervisor, or ``None``.
+
+    ``None`` outside a task execution context, and in the code serving a request of the in-process
+    supervisor (see :func:`serving_supervisor_request`). Code that decides whether it runs inside a
+    task should ask this instead of checking for ``SUPERVISOR_COMMS``.
+    """
+    if _serving_supervisor_request.get():
+        return None
+    return globals().get("SUPERVISOR_COMMS")
+
+
+@contextmanager
+def serving_supervisor_request() -> Iterator[None]:
+    """Hide the comms from the code serving a request of the in-process supervisor, and only from it."""
+    token = _serving_supervisor_request.set(True)
+    try:
+        yield
+    finally:
+        _serving_supervisor_request.reset(token)
+
 
 # State machine!
 # 1. Start up (receive details from supervisor)
