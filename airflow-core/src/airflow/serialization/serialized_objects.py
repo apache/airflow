@@ -628,7 +628,7 @@ class BaseSerialization:
         elif isinstance(var, XComArg):
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, LazySelectSequence):
-            return cls.serialize(list(var))
+            return cls.serialize(list(var), strict=strict)
         elif isinstance(var, (BaseAsset, SerializedAssetBase)):
             serialized_asset = encode_asset_like(var)
             return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
