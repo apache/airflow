@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import os
+import sys
 from unittest import mock
 
 import pytest
@@ -30,10 +32,11 @@ from airflow.providers.amazon.aws.executors.eks.eks_executor import (
 )
 from airflow.providers.amazon.get_provider_info import get_provider_info
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, conf
 
 from tests_common.test_utils.config import conf_vars
 
+EKS_EXECUTOR_MODULE = "airflow.providers.amazon.aws.executors.eks.eks_executor"
 CLIENT_FACTORY_ENV_VAR = "AIRFLOW__KUBERNETES_EXECUTOR__CLIENT_FACTORY"
 ASYNC_CLIENT_FACTORY_ENV_VAR = "AIRFLOW__KUBERNETES_EXECUTOR__ASYNC_CLIENT_FACTORY"
 
@@ -137,6 +140,17 @@ class TestAwsEksExecutor:
         mock_start.assert_called_once_with(executor)
         executor.kube_client.list_namespaced_pod.assert_not_called()
 
+
+class TestCncfKubernetesRequirement:
+    def test_import_fails_without_cncf_kubernetes(self, monkeypatch):
+        monkeypatch.delitem(sys.modules, EKS_EXECUTOR_MODULE)
+        monkeypatch.setitem(
+            sys.modules, "airflow.providers.cncf.kubernetes.executors.kubernetes_executor", None
+        )
+
+        with pytest.raises(AirflowOptionalProviderFeatureException, match=MIN_CNCF_KUBERNETES_VERSION):
+            importlib.import_module(EKS_EXECUTOR_MODULE)
+
     @pytest.mark.parametrize(
         "provider_info",
         [
@@ -144,26 +158,18 @@ class TestAwsEksExecutor:
             pytest.param({}, id="no-config"),
         ],
     )
-    @conf_vars({("aws_eks_executor", "cluster_name"): "test-eks-cluster"})
-    def test_cncf_without_client_factory_seam_raises(self, provider_info):
+    def test_import_fails_with_cncf_kubernetes_without_client_factory(self, monkeypatch, provider_info):
+        monkeypatch.delitem(sys.modules, EKS_EXECUTOR_MODULE)
+
         with mock.patch(
-            "airflow.providers.amazon.aws.executors.eks.eks_executor.get_cncf_kubernetes_provider_info",
+            "airflow.providers.cncf.kubernetes.get_provider_info.get_provider_info",
             return_value=provider_info,
         ):
-            with pytest.raises(ImportError, match=MIN_CNCF_KUBERNETES_VERSION):
-                AwsEksExecutor()
-
-        assert CLIENT_FACTORY_ENV_VAR not in os.environ
-
-    @conf_vars({("aws_eks_executor", "cluster_name"): "test-eks-cluster"})
-    @mock.patch(
-        "airflow.providers.amazon.aws.executors.eks.eks_executor.get_cncf_kubernetes_provider_info",
-        return_value={"config": {"kubernetes_executor": {"options": {"client_factory": {}}}}},
-    )
-    def test_cncf_with_client_factory_seam_constructs(self, _):
-        AwsEksExecutor()
-
-        assert os.environ[CLIENT_FACTORY_ENV_VAR] == _CLIENT_FACTORY_PATH
+            with pytest.raises(
+                AirflowOptionalProviderFeatureException,
+                match=rf">={MIN_CNCF_KUBERNETES_VERSION}.*The installed version is",
+            ):
+                importlib.import_module(EKS_EXECUTOR_MODULE)
 
 
 def test_executor_is_declared_in_provider_info():

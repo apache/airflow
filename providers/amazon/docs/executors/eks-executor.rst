@@ -52,13 +52,6 @@ version:
     pip install 'apache-airflow-providers-amazon[cncf.kubernetes]' \
         'apache-airflow-providers-cncf-kubernetes>=10.24.0'
 
-The extra by itself declares a much older floor, because the Amazon provider's other
-Kubernetes integrations still work with it. A fresh install resolves to the newest
-``cncf.kubernetes`` regardless, so naming the version matters when an older one is
-already pinned in your environment. If the installed version is too old, the executor
-raises an error when it starts up rather than falling back to a client it cannot
-authenticate with.
-
 The AWS credentials the executor uses must be allowed to call ``eks:DescribeCluster``
 on the cluster, and the IAM principal behind those credentials must be granted
 access inside the cluster itself. On modern clusters this means an EKS access entry;

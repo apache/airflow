@@ -21,7 +21,19 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.amazon.aws.executors.eks.utils import (
+    CONFIG_DEFAULTS,
+    CONFIG_GROUP_NAME,
+    AllEksConfigKeys,
+)
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, conf
+
+MIN_CNCF_KUBERNETES_VERSION = "10.24.0"
+_CNCF_KUBERNETES_REQUIRED = (
+    f"AwsEksExecutor requires apache-airflow-providers-cncf-kubernetes>={MIN_CNCF_KUBERNETES_VERSION}. "
+    "Install it with: pip install 'apache-airflow-providers-amazon[cncf.kubernetes]' "
+    f"'apache-airflow-providers-cncf-kubernetes>={MIN_CNCF_KUBERNETES_VERSION}'"
+)
 
 try:
     from kubernetes.client.rest import ApiException
@@ -32,24 +44,21 @@ try:
         get_provider_info as get_cncf_kubernetes_provider_info,
     )
 except ImportError as e:
-    raise ImportError(
-        "AwsEksExecutor requires the cncf.kubernetes provider; install it with "
-        "pip install 'apache-airflow-providers-amazon[cncf.kubernetes]'"
-    ) from e
+    raise AirflowOptionalProviderFeatureException(_CNCF_KUBERNETES_REQUIRED) from e
 
-from airflow.providers.amazon.aws.executors.eks.utils import (
-    CONFIG_DEFAULTS,
-    CONFIG_GROUP_NAME,
-    AllEksConfigKeys,
-)
+# Checks for the client_factory option rather than the version number, because an unreleased
+# source tree still reports the previous cncf.kubernetes release.
+if "client_factory" not in (
+    get_cncf_kubernetes_provider_info().get("config", {}).get("kubernetes_executor", {}).get("options", {})
+):
+    raise AirflowOptionalProviderFeatureException(
+        f"{_CNCF_KUBERNETES_REQUIRED}. The installed version is {cncf_kubernetes_version}."
+    )
 
 # Import paths, because cncf.kubernetes re-resolves the factories in each process (see _client_factory).
 _FACTORY_MODULE = "airflow.providers.amazon.aws.executors.eks._client_factory"
 _CLIENT_FACTORY_PATH = f"{_FACTORY_MODULE}._get_eks_kube_client"
 _ASYNC_CLIENT_FACTORY_PATH = f"{_FACTORY_MODULE}._get_eks_async_kube_client"
-# Only used in the error message below. The check looks for the client_factory option instead of
-# comparing versions, because an unreleased source tree still reports the previous release.
-MIN_CNCF_KUBERNETES_VERSION = "10.24.0"
 
 
 class AwsEksExecutor(KubernetesExecutor):
@@ -67,7 +76,6 @@ class AwsEksExecutor(KubernetesExecutor):
 
     def __init__(self, *args, **kwargs):
         self._validate_eks_config()
-        self._require_client_factory_support()
         self._ensure_client_factory()
         super().__init__(*args, **kwargs)
 
@@ -108,18 +116,6 @@ class AwsEksExecutor(KubernetesExecutor):
                 f"({e.status} {e.reason}). Check the EKS access entry and RBAC for the executor's IAM role."
             ) from e
         self.log.info("EKS Executor health check has succeeded.")
-
-    @staticmethod
-    def _require_client_factory_support() -> None:
-        # A cncf.kubernetes without the seam imports fine but never reads client_factory, so it
-        # would build a default client from kubeconfig and fail later as an authentication error.
-        provider_config = get_cncf_kubernetes_provider_info().get("config", {})
-        if "client_factory" not in provider_config.get("kubernetes_executor", {}).get("options", {}):
-            raise ImportError(
-                "AwsEksExecutor requires apache-airflow-providers-cncf-kubernetes>="
-                f"{MIN_CNCF_KUBERNETES_VERSION}, which honors the [kubernetes_executor] "
-                f"client_factory setting. The installed {cncf_kubernetes_version} ignores it."
-            )
 
     @staticmethod
     def _validate_eks_config() -> None:
