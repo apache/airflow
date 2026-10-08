@@ -1093,19 +1093,19 @@ class NewTaskResponse(BaseModel):
     task_display_name: Annotated[str, Field(title="Task Display Name")]
 
 
-class PluginAppliesToResponse(BaseModel):
+class PluginAppliesToResponse(RootModel[dict[str, list[str]]]):
     """
-    Serializer for the optional Dag/task scoping criteria of a UI plugin.
+    Serializer for the optional scoping criteria of a UI plugin.
+
+    An open map of dotted field path to the values that path may take -- not a closed set of
+    criteria. ``{"state": ["failed"], "dag.tags.name": ["ml"]}`` scopes to failed entities of
+    ml-tagged Dags. An unqualified path is rooted at the entity the ``destination`` is about;
+    a path may instead name a related record (``dag``, ``dag_run``, ``task``, ``task_instance``)
+    as its first segment. Matching is equality against the listed values, OR within a path and
+    AND across paths, and is evaluated client-side.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    dag_tags: Annotated[list[str] | None, Field(title="Dag Tags")] = None
-    dag_ids: Annotated[list[str] | None, Field(title="Dag Ids")] = None
-    task_ids: Annotated[list[str] | None, Field(title="Task Ids")] = None
-    operators: Annotated[list[str] | None, Field(title="Operators")] = None
-    operator_names: Annotated[list[str] | None, Field(title="Operator Names")] = None
+    root: dict[str, list[str]]
 
 
 class PluginImportErrorResponse(BaseModel):
@@ -3204,6 +3204,7 @@ class DAGDetailsResponse(BaseModel):
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     team_name: Annotated[str | None, Field(title="Team Name")] = None
+    latest_dag_version: DagVersionResponse | None
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]
@@ -3215,9 +3216,6 @@ class DAGDetailsResponse(BaseModel):
             description="Return max_active_tasks as concurrency.\n\nDeprecated: Use max_active_tasks instead.",
             title="Concurrency",
         ),
-    ]
-    latest_dag_version: Annotated[
-        DagVersionResponse | None, Field(description="Return the latest DagVersion.")
     ]
 
 

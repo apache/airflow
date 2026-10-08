@@ -38,7 +38,9 @@ Python tasks are imported and run in-process. Go is compiled, so the model is di
 
 A single binary that bundles one or more Dags' task functions is called a **bundle**. You build one with
 the SDK's packer, `airflow-go-pack`, which compiles your code and appends a metadata footer (the manifest
-of `dag_id`s and `task_id`s, plus the Dag source) to the executable. The result is a **self-contained
+of `dag_id`s and `task_id`s, plus the source files) to the executable. The source files are the
+entrypoint (the file with `func main`) and the file that declares each Dag built with `airflow.Dag`.
+A Dag declared outside your module, such as in a dependency, uses the entrypoint as its source. The result is a **self-contained
 executable bundle**: a single runnable file that *is* the bundle, with no separate manifest or archive to
 ship alongside it.
 
@@ -389,6 +391,10 @@ Python supervisor / task runner
   protocol on the comm socket, with structured JSON-line logs on the logs socket.
 - The Python runtime is the worker. It proxies every `GetConnection` / `GetVariable` / `GetXCom` /
   `SetXCom` call through to the Execution API. The Go binary just runs the task function.
+- When the first frame on the comm socket is a `DagFileParseRequest` from the Dag processor, the
+  binary runs no task. It answers with one `DagFileParsingResult` that holds the Dags from
+  `airflow.Dag` that the binary registered. The Dags are serialized as
+  [Serializing a native Dag](#serializing-a-native-dag) describes. The binary then exits.
 
 The Go side of the protocol is implemented in `pkg/execution/`. On the Python side it is the
 `ExecutableCoordinator` in `task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py`.

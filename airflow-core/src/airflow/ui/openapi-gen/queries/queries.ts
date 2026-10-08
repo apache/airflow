@@ -1893,16 +1893,22 @@ export const useTaskServiceGetTasks = <TData = Common.TaskServiceGetTasksDefault
 /**
 * Get Task
 * Get simplified representation of a task.
+*
+* Pass ``version_number`` (e.g. a task instance's ``dag_version.version_number``) to get the task
+* as defined in that Dag version. Without it the latest version is used. Returns 404 if that
+* version of the Dag does not exist.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.taskId
+* @param data.versionNumber
 * @returns TaskResponse Successful Response
 * @throws ApiError
 */
-export const useTaskServiceGetTask = <TData = Common.TaskServiceGetTaskDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, taskId }: {
+export const useTaskServiceGetTask = <TData = Common.TaskServiceGetTaskDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, taskId, versionNumber }: {
   dagId: string;
   taskId: unknown;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId }, queryKey), queryFn: () => TaskService.getTask({ dagId, taskId }) as TData, ...options });
+  versionNumber?: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId, versionNumber }, queryKey), queryFn: () => TaskService.getTask({ dagId, taskId, versionNumber }) as TData, ...options });
 /**
 * Get Variable
 * Get a variable entry.

@@ -158,5 +158,5 @@ def _object_fragment_to_core_schema(fragment: dict[str, Any]) -> core_schema.Cor
 
 
 def build_args_validator(parameters_json_schema: dict[str, Any]) -> SchemaValidator:
-    """Build an argument validator from the schema advertised to the model."""
+    """Build an argument validator from a tool's JSON parameters schema."""
     return SchemaValidator(_object_fragment_to_core_schema(parameters_json_schema))

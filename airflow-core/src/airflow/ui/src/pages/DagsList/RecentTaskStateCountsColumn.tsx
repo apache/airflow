@@ -20,6 +20,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
+import type { DataTableFeatures } from "src/components/DataTable/features";
+
 import type { RecentTasks } from "src/queries/useRecentTaskStateCounts";
 
 import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
@@ -28,7 +30,7 @@ import { RecentTaskStateCountsHeader } from "./RecentTaskStateCountsHeader";
 /** The Dags table's "Recent tasks" column, or no column when the user turned it off. */
 export const buildRecentTaskStateCountsColumns = (
   recentTasks: RecentTasks,
-): Array<ColumnDef<DAGWithLatestDagRunsResponse>> =>
+): Array<ColumnDef<DataTableFeatures, DAGWithLatestDagRunsResponse>> =>
   recentTasks.show
     ? [
         {

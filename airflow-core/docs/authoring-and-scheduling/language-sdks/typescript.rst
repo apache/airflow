@@ -391,6 +391,102 @@ there. Set it once on the Dag and each task inherits it:
 ``queue`` on a task wins over the Dag's. See :ref:`typescript-sdk/coordinator-config` for the
 ``queue_to_coordinator`` entry that sends that queue to the coordinator.
 
+Conditional branching
+~~~~~~~~~~~~~~~~~~~~~
+
+``dag.if`` takes a handler that returns a boolean, and names the task each outcome runs:
+
+.. code-block:: typescript
+
+    async function hasRows({ rows }: { rows: number }): Promise<boolean> {
+      return rows > 0;
+    }
+
+    const gate = dag.if(hasRows, { rows: extracted });
+    gate.then(loaded).else(reportedEmpty);
+
+``dag.if`` declares the condition as a task: its id is the function's name, and a trailing spec sets
+its id or other options, as in ``dag.if(hasRows, { rows }, { taskId: "has_rows" })``. The compiler
+checks that the handler returns a boolean. ``else`` is optional: a one-sided condition skips its own
+branch when the condition fails and follows nothing. The condition is also a node, so
+``notified.after(gate)`` orders a task after it.
+
+A guarded task takes no argument for the control edge, because a condition's boolean decides whether
+the task runs rather than what it runs on. Read a value from the condition with
+``getClient().getXCom``.
+
+The side not taken is skipped when the run reaches it, and stays skipped if you clear it later. Only
+the branches named here are skipped, so a task that several branches converge on still runs — unlike
+Python's ``@task.branch``, which skips every immediate downstream it did not follow.
+
+Multi-way branching
+~~~~~~~~~~~~~~~~~~~
+
+``dag.switch`` is the multi-way form: a handler that returns one of the cases it is given.
+
+.. code-block:: typescript
+
+    async function pickPath({ rows }: { rows: number }): Promise<TaskRef> {
+      return rows > 1000 ? handleLong : handleShort;
+    }
+
+    dag.switch(pickPath, { rows: extracted }).case(handleLong).case(handleShort);
+
+``dag.switch`` declares the decider the way ``dag.if`` does. A case is the task reference itself, so
+the compiler checks the candidate exists and renaming a handler cannot silently rewire a Dag. The
+task's own value is the chosen task's id, which a downstream task can read from its XCom.
+
+There is no default case. A decider that returns anything outside its cases fails the task, naming
+what it chose and what it could have chosen.
+
+Exactly one case is selected. Python's branch callable may return a list of task ids, and no language
+SDK offers that yet: put the paths that run together behind one task, or gate each with its own
+condition.
+
+Triggering another Dag
+~~~~~~~~~~~~~~~~~~~~~~
+
+``triggerDagRun`` starts another Dag's run. Pass it to ``dag.task`` in place of a handler:
+
+.. code-block:: typescript
+
+    import { triggerDagRun } from "apache-airflow-ts-sdk";
+
+    const trigger = dag.task(triggerDagRun({ dagId: "downstream_etl", waitForCompletion: true }), {
+      taskId: "trigger_downstream",
+    })();
+
+    trigger.after(loaded);
+
+The task has no handler to take an id from, so ``taskId`` is required, and the factory takes no
+inputs. The trailing spec carries the task's other options, as for any task.
+
+The task runs in the TypeScript runtime, like the Dag's other tasks, and inherits the Dag's queue. It
+behaves as ``TriggerDagRunOperator`` does. ``waitForCompletion`` polls the run every ``pokeInterval``
+seconds until it reaches one of ``allowedStates`` or ``failedStates``. With ``deferrable`` as well, the
+task defers to ``DagStateTrigger`` instead of holding a worker slot, and resumes in this runtime when
+the run finishes. ``DagStateTrigger`` runs in the Python triggerer, so the triggerer needs the standard
+provider installed.
+
+The task pushes the ``trigger_run_id`` XCom, and the task's "Triggered DAG" link opens the run it
+started.
+
+The task follows these config options, with Python's fallback when one is unset:
+
+- ``[api] base_url`` is the base of the "Triggered DAG" link. It falls back to ``/``.
+- ``[operators] default_deferrable`` is the default of ``deferrable``. It falls back to ``false``.
+- ``[triggerer] queues_enabled`` decides whether the deferred trigger gets the task's queue. It falls
+  back to ``false``, so the trigger gets none.
+
+Some of what ``TriggerDagRunOperator`` does is not offered:
+
+- ``logical_date`` and ``run_after``. The triggered run's logical date is the time the task triggers
+  it, as in Python when neither is set.
+- Jinja. Values are sent as written, so ``{{ ds }}`` in ``conf`` reaches the triggered run as that
+  literal string.
+- OpenLineage parent injection (``openlineage_inject_parent_info``). The runtime does not add the
+  parent task's OpenLineage details to ``conf``.
+
 ``new Dag`` and ``dag.task`` both take a trailing spec of Airflow options:
 ``{ schedule: "@daily", tags: ["etl"] }`` for the Dag, ``{ retries: 2, retryDelay: 30 }`` for a task.
 
