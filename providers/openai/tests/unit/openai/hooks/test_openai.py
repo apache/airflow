@@ -1151,7 +1151,38 @@ async def test_aget_conn_invalid_auth_type():
     ],
 )
 async def test_acreate_embeddings(input_text, response_items, expected):
+    client = _async_client(response_items)
+    with patch.object(OpenAIHook, "aget_conn", new=AsyncMock(return_value=client)) as mock_aget_conn:
+        assert (
+            await OpenAIHook(conn_id="openai_async").acreate_embeddings(input_text, dimensions=1024)
+            == expected
+        )
+
+    mock_aget_conn.assert_awaited_once_with()
+    client.embeddings.create.assert_awaited_once_with(
+        model="text-embedding-3-small", input=input_text, dimensions=1024
+    )
+    client.__aexit__.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_acreate_embeddings_concurrent_calls_each_close_their_own_client():
+    """Concurrent calls on one hook each build a client and close it; none is shared or left open."""
+    clients = [_async_client([(0, [0.1, 0.2])]) for _ in range(3)]
+    hook = OpenAIHook(conn_id="openai_async")
+    with patch.object(OpenAIHook, "aget_conn", new=AsyncMock(side_effect=clients)):
+        results = await asyncio.gather(*(hook.acreate_embeddings(f"text {i}") for i in range(3)))
+
+    assert results == [[0.1, 0.2]] * 3
+    for client in clients:
+        client.embeddings.create.assert_awaited_once()
+        client.__aexit__.assert_awaited_once()
+
+
+def _async_client(response_items: list[tuple[int, list[float]]]) -> MagicMock:
+    """An ``AsyncOpenAI`` stand-in whose ``embeddings.create`` answers with the given (index, vector) items."""
     client = MagicMock(spec=AsyncOpenAI)
+    client.__aenter__.return_value = client
     client.embeddings.create = AsyncMock(
         return_value=CreateEmbeddingResponse(
             data=[
@@ -1163,13 +1194,4 @@ async def test_acreate_embeddings(input_text, response_items, expected):
             usage={"prompt_tokens": 4, "total_tokens": 4},
         )
     )
-    hook = OpenAIHook(conn_id="openai_async")
-    with patch.object(OpenAIHook, "aget_conn", new=AsyncMock(return_value=client)) as mock_aget_conn:
-        assert await hook.acreate_embeddings(input_text, dimensions=1024) == expected
-        # The client is created once per hook, like the sync ``conn``.
-        await hook.acreate_embeddings(input_text)
-
-    mock_aget_conn.assert_awaited_once()
-    client.embeddings.create.assert_any_await(
-        model="text-embedding-3-small", input=input_text, dimensions=1024
-    )
+    return client

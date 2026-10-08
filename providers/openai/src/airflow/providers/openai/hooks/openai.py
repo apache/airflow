@@ -171,7 +171,6 @@ class OpenAIHook(BaseHook):
     def __init__(self, conn_id: str = default_conn_name, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
-        self._async_conn: AsyncOpenAI | None = None
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
@@ -216,15 +215,12 @@ class OpenAIHook(BaseHook):
         resolved without any synchronous call to the Task SDK. ``get_connection`` and the
         secret masking of ``extra_dejson`` send to the supervisor synchronously, which raises
         ``DeadlockImminentError`` on an event loop with another async call in flight.
+
+        Each call builds a new client. Close it when done, with ``async with`` or
+        ``await client.close()``, to release its HTTP connections.
         """
         conn = await get_async_connection(self.conn_id, hook=self)
         return AsyncOpenAI(**self._client_kwargs(conn, await get_async_extra_dejson(conn)))
-
-    async def _aget_cached_conn(self) -> AsyncOpenAI:
-        """Return the hook's ``AsyncOpenAI`` client, created on first use like :attr:`conn`."""
-        if self._async_conn is None:
-            self._async_conn = await self.aget_conn()
-        return self._async_conn
 
     def _client_kwargs(self, conn: Connection, extras: dict[str, Any]) -> dict[str, Any]:
         """Return the keyword arguments of the OpenAI client, for :meth:`get_conn` and :meth:`aget_conn`."""
@@ -615,14 +611,15 @@ class OpenAIHook(BaseHook):
         """
         Generate embeddings for the given text using the given model, asynchronously.
 
-        The async counterpart of :meth:`create_embeddings`, through :meth:`aget_conn`.
+        The async counterpart of :meth:`create_embeddings`, on a client from :meth:`aget_conn`
+        that is closed when the call returns.
 
         :param text: The text to generate embeddings for.
         :param model: The model to use for generating embeddings.
         :return: One embedding for a single text or token array; one embedding per item for a batch.
         """
-        client = await self._aget_cached_conn()
-        response = await client.embeddings.create(model=model, input=text, **kwargs)
+        async with await self.aget_conn() as client:
+            response = await client.embeddings.create(model=model, input=text, **kwargs)
         return self._embeddings_result(text, response)
 
     @staticmethod
