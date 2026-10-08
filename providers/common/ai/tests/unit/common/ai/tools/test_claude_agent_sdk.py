@@ -364,7 +364,7 @@ class TestOptions:
     def test_safe_defaults(self):
         tools, _ = _build_tools(_tool(ToolResult("ok")))
 
-        options = tools.options()
+        options = tools.build_options()
 
         assert options.tools == []
         assert options.setting_sources == []
@@ -375,7 +375,7 @@ class TestOptions:
     def test_explicit_kwargs_override_the_defaults(self):
         tools, _ = _build_tools(_tool(ToolResult("ok")))
 
-        options = tools.options(tools=["Bash"], setting_sources=["project"], strict_mcp_config=False)
+        options = tools.build_options(tools=["Bash"], setting_sources=["project"], strict_mcp_config=False)
 
         assert options.tools == ["Bash"]
         assert options.setting_sources == ["project"]
@@ -384,7 +384,7 @@ class TestOptions:
     def test_other_kwargs_pass_through(self):
         tools, _ = _build_tools(_tool(ToolResult("ok")))
 
-        options = tools.options(model="claude-sonnet-5", max_turns=10)
+        options = tools.build_options(model="claude-sonnet-5", max_turns=10)
 
         assert options.model == "claude-sonnet-5"
         assert options.max_turns == 10
@@ -393,7 +393,7 @@ class TestOptions:
         tools, _ = _build_tools(_tool(ToolResult("ok")))
         other_server = mock.sentinel.other_server
 
-        options = tools.options(mcp_servers={"other": other_server}, allowed_tools=["other_tool"])
+        options = tools.build_options(mcp_servers={"other": other_server}, allowed_tools=["other_tool"])
 
         assert options.mcp_servers == {"other": other_server, "airflow": tools.server}
         assert options.allowed_tools == ["other_tool", *tools.allowed_tools]
@@ -402,7 +402,7 @@ class TestOptions:
         tools, _ = _build_tools(_tool(ToolResult("ok")))
 
         with pytest.raises(ValueError, match="already has a server named 'airflow'"):
-            tools.options(mcp_servers={"airflow": mock.sentinel.other_server})
+            tools.build_options(mcp_servers={"airflow": mock.sentinel.other_server})
 
 
 def test_missing_sdk_raises_optional_feature_exception() -> None:

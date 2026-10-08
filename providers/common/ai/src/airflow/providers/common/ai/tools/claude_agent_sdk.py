@@ -22,16 +22,23 @@ Give Airflow tools to an agent loop run by the Claude Agent SDK.
 
 from __future__ import annotations
 
-import copy
-import logging
-from typing import TYPE_CHECKING, Any
-
 try:
-    from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, create_sdk_mcp_server, tool
+    from claude_agent_sdk import (
+        ClaudeAgentOptions,
+        McpSdkServerConfig,
+        Message,
+        ResultMessage,
+        create_sdk_mcp_server,
+        tool,
+    )
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(e)
+
+import copy
+import logging
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
@@ -40,8 +47,6 @@ from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterable, Awaitable, Callable
-
-    from claude_agent_sdk import McpSdkServerConfig, Message
 
     from airflow.providers.common.ai.tools import ToolProvider
 
@@ -66,7 +71,7 @@ class AirflowTools:
     and ``HookToolset``, or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. They are served
     through an in-process MCP server; add it and :attr:`allowed_tools` to
-    ``ClaudeAgentOptions``, or build them with :meth:`options`, and drive the SDK's
+    ``ClaudeAgentOptions``, or build them with :meth:`build_options`, and drive the SDK's
     ``query()`` with :meth:`run`:
 
     .. code-block:: python
@@ -77,7 +82,7 @@ class AirflowTools:
         from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
         tools = AirflowTools(SQLToolset(db_conn_id="warehouse", allowed_tables=["orders"]))
-        options = tools.options(model="claude-sonnet-5", max_turns=10)
+        options = tools.build_options(model="claude-sonnet-5", max_turns=10)
         result = await tools.run(query(prompt="...", options=options))
 
     Each tool keeps the source tool's name, description and argument schema, and every
@@ -109,7 +114,7 @@ class AirflowTools:
         ]
         self.server: McpSdkServerConfig = create_sdk_mcp_server(name=server_name, tools=sdk_tools)
 
-    def options(self, **kwargs: Any) -> ClaudeAgentOptions:
+    def build_options(self, **kwargs: Any) -> ClaudeAgentOptions:
         """
         Build ``ClaudeAgentOptions`` wired to this instance's tools, with safe defaults.
 

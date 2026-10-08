@@ -57,7 +57,7 @@ timestamps trimmed:
 
 Only ``AirflowTools`` and ``tools.run(query(...))`` come from Airflow. ``query()``, the
 system prompt, the model and ``max_turns`` are the SDK's own.
-:meth:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.options` builds
+:meth:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.build_options` builds
 ``ClaudeAgentOptions`` with the Airflow tools wired in and safe defaults for the fields
 that matter most for this adapter; see `Built-in tools run on the worker host`_. You can
 also build ``ClaudeAgentOptions`` yourself and add
@@ -125,7 +125,7 @@ Set ``max_turns``
 
 Because an argument-validation failure from the SDK itself is invisible to Airflow's
 tools, a model that keeps sending malformed arguments is not stopped by the retry
-budget above. Always set ``max_turns`` on ``options()`` (or on
+budget above. Always set ``max_turns`` on ``build_options()`` (or on
 ``ClaudeAgentOptions`` directly) so such a loop still ends.
 
 Drive the loop with ``tools.run``
@@ -146,7 +146,7 @@ Built-in tools run on the worker host
 ``ClaudeAgentOptions()`` on its own loads every settings source on the worker
 (``~/.claude``, project settings, a project ``.mcp.json``) and leaves the CLI's built-in
 tools on, including a worker-host ``Bash`` -- the bundled CLI runs as a subprocess on the
-same worker that runs the task, with its environment variables. ``options()`` closes all
+same worker that runs the task, with its environment variables. ``build_options()`` closes all
 of that by default: no built-in tools, no settings sources, and ``strict_mcp_config=True``
 so only the MCP server ``AirflowTools`` builds is used. If you build ``ClaudeAgentOptions``
 yourself instead, set those fields the same way.

@@ -21,7 +21,7 @@ The agent loop is the SDK's own ``query()``, which runs the bundled Claude Code 
 subprocess. Airflow supplies the API key, from a connection, and the tools:
 :class:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools` serves a
 ``SQLToolset`` to the CLI through an in-process MCP server, with read-only SQL validation,
-bounded results and Airflow's secret masker applied to every result. ``AirflowTools.options``
+bounded results and Airflow's secret masker applied to every result. ``AirflowTools.build_options``
 also turns off the CLI's built-in tools and every settings source on the worker, so the only
 tools the model can call are Airflow's.
 
@@ -39,6 +39,10 @@ from __future__ import annotations
 
 import os
 
+from claude_agent_sdk import query
+
+from airflow.providers.common.ai.tools.claude_agent_sdk import AirflowTools
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import BaseHook, dag, task
 
 LLM_CONN_ID = os.environ.get("LLM_CONN_ID", "anthropic_default")
@@ -55,14 +59,9 @@ def example_claude_agent_sdk():
 
     @task
     async def ask_the_warehouse(question: str = DEFAULT_QUESTION) -> str | None:
-        from claude_agent_sdk import query
-
-        from airflow.providers.common.ai.tools.claude_agent_sdk import AirflowTools
-        from airflow.providers.common.ai.toolsets.sql import SQLToolset
-
         llm = BaseHook.get_connection(LLM_CONN_ID)
         tools = AirflowTools(SQLToolset(db_conn_id=DB_CONN_ID))
-        options = tools.options(
+        options = tools.build_options(
             model=LLM_MODEL,
             system_prompt=(
                 "You are a SQL analyst. Use list_tables and get_schema to explore the "
