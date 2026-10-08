@@ -28,10 +28,10 @@ README = textwrap.dedent(
     files in the orphan `constraints-main` and `constraints-2-0` branches.
 
     pip install 'apache-airflow==3.3.0' \\
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.10.txt"
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.11.txt"
 
     pip install 'apache-airflow[postgres,google]==3.3.0' \\
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.10.txt"
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.0/constraints-3.11.txt"
     """
 )
 

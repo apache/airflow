@@ -26,7 +26,7 @@ These tests validate the Execution API endpoints for DAG Run operations:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -145,7 +145,7 @@ def test_dag_run_get_previous(sdk_client, dag_info):
 
     response = sdk_client.dag_runs.get_previous(
         dag_id=dag_info["dag_id"],
-        logical_date=datetime.now(timezone.utc) + timedelta(seconds=10),
+        logical_date=datetime.now(UTC) + timedelta(seconds=10),
     )
 
     console.print(" Previous DAG Run Response ".center(72, "="))
@@ -169,7 +169,7 @@ def test_dag_run_get_previous_not_found(sdk_client):
 
     response = sdk_client.dag_runs.get_previous(
         dag_id="not_exist",
-        logical_date=datetime.now(timezone.utc) + timedelta(seconds=10),
+        logical_date=datetime.now(UTC) + timedelta(seconds=10),
     )
 
     console.print(" Non-existent Previous DAG Run Response ".center(72, "="))

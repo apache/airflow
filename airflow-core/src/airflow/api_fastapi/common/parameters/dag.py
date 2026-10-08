@@ -216,6 +216,89 @@ def teams_filter_factory(
     return depends_teams_filter
 
 
+class _RelativeFilelocPrefixFilter(BaseParam[str | None]):
+    """
+    Filter Dags by the folder they live in, derived from ``relative_fileloc``.
+
+    The value is treated as a directory path relative to the bundle root (e.g.
+    ``team_a/etl``). It matches every Dag whose file lives directly in that folder
+    or in any of its subfolders, using an escaped ``LIKE 'team_a/etl/%'`` so a
+    folder name is never a substring/prefix of another (``team_a`` won't match
+    ``team_alpha``). Dags at the bundle root (no ``/`` in ``relative_fileloc``)
+    are not matched by any folder value and appear only when no folder is selected.
+    """
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        if not self.value:
+            return select
+
+        directory = self.value.rstrip("/")
+        escaped = _escape_like_pattern(directory)
+        return select.where(DagModel.relative_fileloc.like(f"{escaped}/%", escape=_LIKE_ESCAPE_CHAR))
+
+    @classmethod
+    def depends(
+        cls,
+        relative_fileloc_prefix: str | None = Query(
+            default=None,
+            description=(
+                "Filter Dags by the folder (directory of ``relative_fileloc``) they live in. "
+                "Matches the given folder and all of its subfolders."
+            ),
+        ),
+    ) -> _RelativeFilelocPrefixFilter:
+        return cls().set_value(relative_fileloc_prefix)
+
+
+class _DagIdTagsFilter(BaseParam[_TagFilterModel]):
+    """Filter rows by Dag tags through their ``dag_id``."""
+
+    def __init__(
+        self,
+        dag_id_attribute: ColumnElement | InstrumentedAttribute,
+        value: _TagFilterModel | None = None,
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(value, skip_none)
+        self.dag_id_attribute = dag_id_attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value or not self.value.tags:
+            return select
+
+        conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
+        operator = or_ if not self.value.tags_match_mode or self.value.tags_match_mode == "any" else and_
+        return select.where(
+            self.dag_id_attribute.in_(sql_select(DagModel.dag_id).where(operator(*conditions)))
+        )
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use tags_filter_factory instead, depends is not implemented.")
+
+
+def tags_filter_factory(
+    dag_id_attribute: ColumnElement | InstrumentedAttribute,
+) -> Callable[[list[str], Literal["any", "all"] | None], _DagIdTagsFilter]:
+    """Build a ``tags`` filter that scopes rows by Dag tags through the given ``dag_id`` column."""
+
+    def depends_tags_filter(
+        tags: list[str] = Query(default_factory=list),
+        tags_match_mode: Literal["any", "all"] | None = None,
+    ) -> _DagIdTagsFilter:
+        return _DagIdTagsFilter(dag_id_attribute).set_value(
+            _TagFilterModel(tags=tags, tags_match_mode=tags_match_mode)
+        )
+
+    return depends_tags_filter
+
+
 QueryPausedFilter = Annotated[
     FilterParam[bool | None],
     Depends(filter_param_factory(DagModel.is_paused, bool | None, filter_name="paused")),
@@ -320,6 +403,10 @@ QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
 
 QueryTeamsFilter = Annotated[_TeamsFilter, Depends(_TeamsFilter.depends)]
+
+QueryRelativeFilelocPrefixFilter = Annotated[
+    _RelativeFilelocPrefixFilter, Depends(_RelativeFilelocPrefixFilter.depends)
+]
 
 
 # DagTags

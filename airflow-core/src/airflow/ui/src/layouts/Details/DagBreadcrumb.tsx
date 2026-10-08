@@ -103,7 +103,7 @@ export const DagBreadcrumb = () => {
     undefined,
     {
       enabled: Boolean(runId),
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
 
@@ -127,7 +127,7 @@ export const DagBreadcrumb = () => {
     undefined,
     {
       enabled: Boolean(runId) && Boolean(taskId) && !hasExpandedInstances,
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
 

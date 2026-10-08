@@ -122,7 +122,7 @@ def get_pools(
     pools = session.scalars(pools_select)
 
     return PoolCollectionResponse(
-        pools=pools,
+        pools=[PoolResponse.model_validate(pool) for pool in pools],
         total_entries=total_entries,
     )
 

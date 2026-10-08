@@ -35,6 +35,7 @@ from airflow.providers.common.ai.mixins.approval import (
 )
 from airflow.providers.common.ai.operators import llm as llm_module
 from airflow.providers.common.ai.operators.llm import DecisionPolicy, LLMOperator
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -48,9 +49,9 @@ from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureEx
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
 if AIRFLOW_V_3_3_PLUS:
-    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer
+    # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer
     # to HITLTrigger. Both exceptions carry method_name/kwargs/timeout, so the approval
-    # tests assert against whichever pause signal the running core uses.
+    # tests assert against whichever pause signal the running Airflow version uses.
     from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
 else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
@@ -58,11 +59,11 @@ else:
 AWAIT_INPUT_FLAG_PATH = "airflow.providers.common.ai.mixins.approval.AIRFLOW_V_3_3_PLUS"
 
 # Returning the Pydantic instance through XCom (rather than a dict) only happens
-# on cores that register declared ``output_type`` classes from the worker-side
-# DAG walk. On older cores the operator dumps to a dict, so these tests skip.
+# on ``apache-airflow-task-sdk`` versions that register declared ``output_type`` classes from the worker-side
+# DAG walk. On older ``apache-airflow-task-sdk`` versions the operator dumps to a dict, so these tests skip.
 requires_typed_xcom = pytest.mark.skipif(
     not _CORE_WALKER,
-    reason="Requires a core with the worker-side deserialization-class walk.",
+    reason="Requires an ``apache-airflow-task-sdk`` version with the worker-side deserialization-class walk.",
 )
 
 
@@ -341,7 +342,7 @@ class TestLLMOperator:
     def test_declares_output_type_for_deserialization(self):
         """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization.
 
-        Registration happens in the core walk over the loaded DAG (covered by the
+        Registration happens in the worker-side walk over the loaded DAG (covered by the
         task-runner tests), not as an ``__init__`` side effect.
         """
         assert "output_type" in LLMOperator.deserialization_allowed_class_fields
@@ -403,7 +404,23 @@ class TestLLMOperatorConfidenceGate:
             output = op.execute(context)
 
         assert Summary.model_validate(output).text == "t"
-        assert "the decision record was not pushed to XCom" in caplog.text
+        assert "'decision' was not pushed to XCom" in caplog.text
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_resolved_model_name_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
+        """The model that actually answered is exposed on its own namespaced XCom key."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = self._result(make_mock_run_result, Summary(text="t"), None)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
+        context = MagicMock(spec=dict)
+
+        op.execute(context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes[MODEL_NAME_XCOM_KEY] == "jev-1.13.0"
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="a reviewing decision_policy needs the HITL flow, Airflow >= 3.1"
@@ -607,7 +624,7 @@ class TestLLMOperatorConfidenceGate:
             LLMOperator(
                 task_id="t", prompt="p", llm_conn_id="c", decision_policy=DecisionPolicy(min_confidence=0.7)
             )
-        # "fail" never opens a review, so it builds on any core.
+        # "fail" never opens a review, so it builds on any Airflow version.
         LLMOperator(
             task_id="t",
             prompt="p",
@@ -706,11 +723,11 @@ class TestLLMOperatorConfidenceGate:
 
 
 class TestLLMOperatorApprovalVersionGate:
-    """__init__ rejects require_approval on cores without human-in-the-loop support.
+    """__init__ rejects require_approval on Airflow versions without human-in-the-loop support.
 
-    Deliberately carries no class-level 3.1 skipif. These tests simulate an old core by
+    Deliberately carries no class-level 3.1 skipif. These tests simulate an older Airflow version by
     patching the flag, so they must not inherit the sibling class's skip -- and on a
-    genuine pre-3.1 core, such as the 3.0.6 providers-compatibility job, they are the
+    genuine pre-3.1 Airflow version, such as the 3.0.6 providers-compatibility job, they are the
     only tests that exercise the gate natively.
     """
 
@@ -741,7 +758,7 @@ class TestLLMOperatorApprovalVersionGate:
     def test_old_core_reports_the_blocking_argument(self, kwargs, expected_exception, match):
         """Which of two applicable errors __init__ reports, and in which order.
 
-        Dropping on_approval_timeout would not make the operator work on an older core,
+        Dropping on_approval_timeout would not make the operator work on an older Airflow version,
         so the version has to beat the combination rule. A bad literal is wrong on every
         core, so it keeps its own precise message -- which also pins the guard below the
         literal check, since hoisting it would swap that message for the version one.
@@ -901,7 +918,7 @@ class TestLLMOperatorApproval:
     def test_execute_with_approval_defers_on_legacy_core(
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
-        """On cores < 3.3 (flag pinned), execute() falls back to deferring to HITLTrigger."""
+        """On Airflow versions < 3.3 (flag pinned), execute() falls back to deferring to HITLTrigger."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = make_mock_run_result("LLM response")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent

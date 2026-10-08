@@ -10,8 +10,6 @@
   "filters": {
     "allRunTypes": "All Run Types",
     "allStates": "All States",
-    "anyRunState": "Any run",
-    "anyRunStatePlaceholder": "Select any run state…",
     "favorite": {
       "all": "All",
       "favorite": "Favorite",
@@ -19,8 +17,6 @@
     },
     "favoriteState": "Favorite state",
     "favoriteStatePlaceholder": "Select favorite state…",
-    "lastRunState": "Last run",
-    "lastRunStatePlaceholder": "Select last run state…",
     "noTimetableTypesFound": "No timetable types found",
     "paused": {
       "active": "Not paused",
@@ -31,9 +27,24 @@
     "pausedState": "Paused state",
     "requiresHitlAction": "Requires HITL action",
     "runIdPatternFilter": "Search Dag Runs",
+    "runState": "Run state",
+    "runStatePlaceholder": "Select run state…",
     "timetableType": "Timetable type"
   },
+  "folders": {
+    "all": "All Dags",
+    "empty": "No folders",
+    "hide": "Hide folders",
+    "show": "Show folders",
+    "title": "Folders"
+  },
   "ownerLink": "Owner link for {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Status of tasks from all running Dag runs or, if none is running, from the most recent run. You can turn this off in your user settings.",
+    "label": "Recent tasks",
+    "loading": "Loading recent task state counts",
+    "tooltip": "{{state}}: {{formattedCount}} — click to filter tasks"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No tasks found.",
@@ -73,6 +84,7 @@
         "failed": "Press shift+f to mark as failed",
         "success": "Press shift+s to mark as success"
       },
+      "skippedInfo": "Marking a task instance as skipped records that it was intentionally not run. Downstream tasks are still evaluated by their trigger rules: with the default \"all_success\" rule they will also be skipped. Only task instances that have not started running can be skipped, and only this task instance is affected.",
       "title": "Mark {{type}} as {{state}}"
     },
     "options": {

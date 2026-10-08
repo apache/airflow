@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.toolsets import ObjectStorageToolset
 from airflow.providers.common.compat.sdk import dag, task
 
@@ -46,3 +47,37 @@ def example_object_storage_toolset():
 
 
 example_object_storage_toolset()
+
+
+# [START howto_toolset_object_storage_restricted]
+@dag(tags=["example"])
+def example_object_storage_toolset_restricted():
+    AgentOperator(
+        task_id="read_finance_reports",
+        prompt="Summarize the September finance report.",
+        llm_conn_id="pydanticai_default",
+        toolsets=[
+            ObjectStorageToolset(
+                # Resolve every path the model names under this root. The toolset never writes.
+                "s3://acme-reports/finance/",
+                # Credentials scoped to that prefix keep the limit if the path check has a gap.
+                conn_id="aws_reports_reader",
+                # List at most 50 entries per call; the model pages through the rest.
+                max_files=50,
+                # Refuse a file larger than 1 MiB, measured after decompression.
+                max_read_bytes=1024 * 1024,
+                # Return at most 16 KiB from one read; the model pages through a longer text file.
+                max_output_bytes=16 * 1024,
+                # Name the tools reports_list_files, reports_get_file_info and reports_read_file.
+                tool_prefix="reports",
+                # Let the model correct an invalid call up to 2 times.
+                max_retries=2,
+            )
+        ],
+    )
+
+
+# [END howto_toolset_object_storage_restricted]
+
+
+example_object_storage_toolset_restricted()

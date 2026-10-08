@@ -123,6 +123,7 @@ class TestSQLToolsetGetTools:
         ("name", "valid_args"),
         [
             ("get_schema", {"table_name": "users"}),
+            ("get_schema", {"table_name": "users", "name_contains": "cust"}),
             ("query", {"sql": "SELECT 1"}),
             ("check_query", {"sql": "SELECT 1"}),
         ],
@@ -187,20 +188,73 @@ class TestSQLToolsetGetSchema:
         result = asyncio.run(
             ts.call_tool("get_schema", {"table_name": "users"}, ctx=MagicMock(), tool=MagicMock())
         )
-        columns = json.loads(result)
-        assert columns == [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "VARCHAR"}]
+        data = json.loads(result)
+        assert data == {
+            "columns": [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "VARCHAR"}],
+            "column_count": 2,
+        }
         mock_hook.get_table_schema.assert_called_once_with("users", schema=None)
 
+    def test_name_contains_filters_the_columns(self):
+        """``name_contains`` threads from the tool call through to the bounded result."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(
+            table_schema=[
+                {"name": "id", "type": "INTEGER"},
+                {"name": "customer_name", "type": "VARCHAR"},
+            ]
+        )
+
+        result = asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "users", "name_contains": "name"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        data = json.loads(result)
+        assert data["columns"] == [{"name": "customer_name", "type": "VARCHAR"}]
+        assert data["name_contains"] == "name"
+        assert data["total_columns"] == 2
+
+    @patch("airflow.providers.common.ai.toolsets.sql.build_schema_result", return_value="{}")
+    def test_get_schema_forwards_the_toolsets_bounds(self, mock_build):
+        """The toolset's own max_columns/max_result_bytes reach build_schema_result, not defaults."""
+        ts = SQLToolset("pg_default", max_columns=7, max_result_bytes=123)
+        ts._hook = _make_mock_db_hook()
+
+        asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "users", "name_contains": "id"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        kwargs = mock_build.call_args.kwargs
+        assert kwargs["max_columns"] == 7
+        assert kwargs["max_result_bytes"] == 123
+        assert kwargs["name_contains"] == "id"
+
     def test_blocks_table_not_in_allowed_list(self):
+        """The allow-list guard fires before any introspection or filtering."""
         ts = SQLToolset("pg_default", allowed_tables=["orders"])
         ts._hook = _make_mock_db_hook()
 
         result = asyncio.run(
-            ts.call_tool("get_schema", {"table_name": "secrets"}, ctx=MagicMock(), tool=MagicMock())
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "secrets", "name_contains": "pw"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
         )
         data = json.loads(result)
         assert "error" in data
         assert "secrets" in data["error"]
+        # The guard must short-circuit before touching the database.
+        ts._hook.get_table_schema.assert_not_called()
 
     def test_introspection_error_raises_model_retry(self):
         """A failure while reading a table's schema is returned to the agent as a retry."""
@@ -629,7 +683,7 @@ class TestSQLToolsetMultiSchema:
                 )
             )
         )
-        assert result == [{"name": "id", "type": "INTEGER"}]
+        assert result == {"columns": [{"name": "id", "type": "INTEGER"}], "column_count": 1}
         ts._hook.get_table_schema.assert_called_once_with("DEPLOYMENT_IMAGE_DETAILS", schema="MODEL_ASTRO")
 
     def test_get_schema_blocks_table_outside_allowed_schema(self):

@@ -275,9 +275,9 @@ export const MarkdownCodeBlock = ({
     return <MarkdownMathBlock style={style} value={value} />;
   }
 
-  if (language === "mermaid") {
-    return <MarkdownMermaid chart={value} fallbackStyle={style} />;
-  }
-
-  return <MarkdownPlainCodeBlock language={language} style={style} value={value} />;
+  return language === "mermaid" ? (
+    <MarkdownMermaid chart={value} fallbackStyle={style} />
+  ) : (
+    <MarkdownPlainCodeBlock language={language} style={style} value={value} />
+  );
 };

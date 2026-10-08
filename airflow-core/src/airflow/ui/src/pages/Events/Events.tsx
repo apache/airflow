@@ -26,10 +26,12 @@ import { useEventLogServiceGetEventLogs } from "openapi/queries";
 import type { EventLogResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import RenderedJsonField from "src/components/RenderedJsonField";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
@@ -50,7 +52,7 @@ type EventsColumn = {
 const eventsColumn = (
   { dagId, multiTeam, open, runId, taskId }: EventsColumn,
   translate: (key: string) => string,
-): Array<ColumnDef<EventLogResponse>> => [
+): Array<ColumnDef<DataTableFeatures, EventLogResponse>> => [
   {
     accessorKey: "when",
     cell: ({ row: { original } }) => <Time datetime={original.when} />,
@@ -81,6 +83,9 @@ const eventsColumn = (
     ? [
         {
           accessorKey: "team_name",
+          cell: ({ row: { original } }: { row: { original: EventLogResponse } }) => (
+            <TeamName teamName={original.team_name} />
+          ),
           enableSorting: false,
           header: translate("common:dagDetails.team"),
           meta: {

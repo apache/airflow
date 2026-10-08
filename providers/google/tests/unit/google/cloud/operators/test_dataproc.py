@@ -632,6 +632,7 @@ class DataprocClusterTestBase(DataprocTestBase):
             ]
 
 
+@pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
 class TestsClusterGenerator:
     def test_image_version(self):
         with pytest.raises(ValueError, match="custom_image and image_version"):
@@ -982,6 +983,10 @@ class TestsClusterGenerator:
         cluster = generator.make()
         assert cluster["engine"] == "DEFAULT"
 
+    def test_deprecation_warning(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="ClusterGenerator"):
+            ClusterGenerator(project_id=GCP_PROJECT)
+
 
 class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
@@ -994,7 +999,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
                 num_workers=2,
                 zone="zone",
             )
-        assert_warning("Passing cluster parameters by keywords", warnings)
+        assert_warning("Since passing cluster parameters by keyword", warnings)
 
         assert op.project_id == GCP_PROJECT
         assert op.cluster_name == "cluster_name"

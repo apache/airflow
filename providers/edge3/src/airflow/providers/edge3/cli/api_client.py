@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime
@@ -24,6 +25,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urljoin
+from uuid import UUID
 
 from aiohttp import ClientConnectionError, ClientResponseError, ServerTimeoutError, request
 from retryhttp import retry, wait_retry_after
@@ -174,13 +176,18 @@ async def jobs_fetch(
     queues: list[str] | None,
     free_concurrency: int,
     team_name: str | None = None,
+    *,
+    supports_task_instance_uuid: bool = False,
 ) -> EdgeJobFetched | None:
     """Fetch a job to execute on the edge worker."""
     result = await _make_generic_request(
         "POST",
         f"jobs/fetch/{quote(hostname)}",
         WorkerQueuesBody(
-            queues=queues, free_concurrency=free_concurrency, team_name=team_name
+            queues=queues,
+            free_concurrency=free_concurrency,
+            team_name=team_name,
+            supports_task_instance_uuid=supports_task_instance_uuid,
         ).model_dump_json(exclude_unset=True),
     )
     if result:
@@ -188,11 +195,14 @@ async def jobs_fetch(
     return None
 
 
-async def jobs_set_state(key: TaskInstanceKey, state: TaskInstanceState) -> None:
+async def jobs_set_state(
+    key: TaskInstanceKey, state: TaskInstanceState, *, task_instance_id: UUID | None = None
+) -> None:
     """Set the state of a job."""
     await _make_generic_request(
         "PATCH",
         f"jobs/state/{key.dag_id}/{key.task_id}/{key.run_id}/{key.try_number}/{key.map_index}/{state}",
+        json.dumps({"task_instance_id": str(task_instance_id)}) if task_instance_id else None,
     )
 
 

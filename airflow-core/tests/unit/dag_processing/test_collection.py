@@ -61,6 +61,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
@@ -73,9 +74,17 @@ from airflow.partition_mappers.window import DayWindow
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetWatcher
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetAlias,
+    AssetAll,
+    AssetAndTimeSchedule,
+    AssetWatcher,
+)
 from airflow.sdk.definitions.deadline import AsyncCallback, BaseDeadlineReference, DeadlineAlert
 from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule, PartitionedAssetTimetable
+from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -793,6 +802,7 @@ class TestUpdateDagParsingResults:
                     bundle_version=None,
                     version_data=None,
                     min_update_interval=mock.ANY,
+                    dag_source_code=None,
                     session=mock_session,
                     _prefetched=mock.ANY,
                 ),
@@ -903,6 +913,55 @@ class TestUpdateDagParsingResults:
 
         assert warning is None
 
+    @pytest.mark.usefixtures("clean_db")
+    def test_stale_importer_warnings_are_replaced(self, testing_dag_bundle, session):
+        session.add(DagModel(dag_id="imported_dag", bundle_name="testing", fileloc="/dags/imported.py"))
+        session.flush()
+        session.add_all(
+            [
+                DagWarning(dag_id="imported_dag", warning_type="test:stale", message="Stale"),
+                DagWarning(
+                    dag_id="imported_dag", warning_type=DagWarningType.ASSET_CONFLICT, message="Conflict"
+                ),
+            ]
+        )
+        session.flush()
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(DAG(dag_id="imported_dag"))],
+            import_errors={},
+            parse_duration=None,
+            warnings={DagWarning("imported_dag", "test:current", "Current")},
+            session=session,
+        )
+
+        warning_types = session.scalars(
+            select(DagWarning.warning_type).where(DagWarning.dag_id == "imported_dag")
+        ).all()
+        assert sorted(warning_types) == [DagWarningType.ASSET_CONFLICT.value, "test:current"]
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_dag_source_codes_are_written_to_dag_code(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="yaml_dag")
+        dag.fileloc = "/dags/yaml_dag.yaml"
+        dag.relative_fileloc = "yaml_dag.yaml"
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+            dag_source_codes={dag.dag_id: DagSourceCode(source_code="dag_id: yaml_dag\n", language="yaml")},
+        )
+
+        dag_code = DagCode.get_latest_dagcode("yaml_dag", session=session)
+        assert (dag_code.source_code, dag_code.language) == ("dag_id: yaml_dag\n", "yaml")
+
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
 
@@ -912,6 +971,31 @@ class TestUpdateDagParsingResults:
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.last_parse_duration == parse_duration
+
+    def test_timetable_asset_gated_written_to_db_on_sync(self, testing_dag_bundle, session):
+        asset = Asset("test")
+        gated_dag = DAG(
+            dag_id="asset_gated",
+            schedule=AssetAndTimeSchedule(
+                timetable=CronTriggerTimetable("@daily", timezone="UTC"),
+                assets=asset,
+            ),
+            catchup=False,
+        )
+        regular_dag = DAG(dag_id="regular", schedule=None)
+
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            [LazyDeserializedDAG.from_dag(gated_dag), LazyDeserializedDAG.from_dag(regular_dag)],
+            {},
+            None,
+            set(),
+            session,
+        )
+
+        assert session.get(DagModel, gated_dag.dag_id).timetable_asset_gated is True
+        assert session.get(DagModel, regular_dag.dag_id).timetable_asset_gated is False
 
     @patch.object(ParseImportError, "full_file_path")
     @patch.object(SerializedDagModel, "write_dag")

@@ -81,11 +81,28 @@ How it works
   tool approval (see :doc:`tool_approval`) continues as
   ``<task-instance id>-resumed``, which is the ``run_id`` the operator pushes;
   ``usage`` covers both parts.
+  Airflow 2 has no task-instance id, so there the key is
+  ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
+  identity keys without ``airflow.task_instance.id``.
+* **Model name.** The model that actually answered is exposed on XCom under the
+  namespaced key ``__AIRFLOW__COMMON_AI_MODEL_NAME__``, separate from ``run_id`` /
+  ``usage`` above, so a downstream task, a Jinja template, or a REST client can read which
+  model responded without parsing the decision record or a span
+  (``ti.xcom_pull(task_ids="my_agent", key="__AIRFLOW__COMMON_AI_MODEL_NAME__")``).
+  Only ``AgentOperator`` /
+  ``@task.agent`` and ``LLMOperator`` / ``@task.llm`` push it today; like ``run_id`` and
+  ``usage``, with ``enable_hitl_review`` it is the initial run's model, not a
+  human-feedback regeneration's, since ``regenerate_with_feedback`` doesn't re-push it.
+  ``LLMOperator``'s subclasses that override ``execute()`` instead of calling
+  ``super().execute()`` -- ``LLMBranchOperator``, ``LLMSQLQueryOperator``,
+  ``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator`` -- don't publish it yet;
+  this is upcoming work.
 * **Scope.** The ``run_id`` / ``usage`` XComs come only from ``AgentOperator`` and
   ``@task.agent``, and so do the ``airflow.*`` identity attributes, apart from a Strands or
-  ADK agent run inside ``agent_framework_tracing`` (see below). The other LLM
+  ADK agent run inside ``agent_framework_tracing`` (see below). ``LLMOperator`` /
+  ``@task.llm`` additionally pushes the model name above. The other LLM
   operators still emit GenAI spans correlated to the task span by nesting, but
-  without the identity attributes or the run join key.
+  without the identity attributes, the run join key, or the model name.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).

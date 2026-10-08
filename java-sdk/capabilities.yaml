@@ -52,8 +52,8 @@ states:
     supported: true
     since: "3.3"
 
-# Runtime capabilities reflect the task-facing Client surface; native-Dag authoring is not
-# implemented yet, so every native capability is unsupported.
+# Runtime capabilities reflect the task-facing Client surface. Native-Dag capabilities describe
+# what a Java-authored Dag can declare and deliver through Dag serialization.
 capabilities:
   mixed-lang-stub-target:
     supported: true
@@ -83,8 +83,9 @@ capabilities:
     supported: false
     note: "no task-facing retry-policy API yet"
   task-state-store:
-    supported: false
-    note: "no task-facing state-store API yet"
+    supported: true
+    since: "3.3"
+    note: "Client.getTaskStateStore() get/set/delete/clear"
   asset-state-store:
     supported: false
     note: "no task-facing state-store API yet"
@@ -95,20 +96,23 @@ capabilities:
     supported: false
     note: "no task-facing asset-event API yet"
   native-dag-authoring:
-    supported: false
-    note: "native Dag authoring not implemented yet"
+    supported: true
+    since: "3.4"
   task-args:
-    supported: false
+    supported: true
+    since: "3.4"
   dag-params:
     supported: false
   taskflow-dependencies:
-    supported: false
+    supported: true
+    since: "3.4"
   branching:
     supported: false
   dag-test:
     supported: false
   task-group:
-    supported: false
+    supported: true
+    since: "3.4"
   dynamic-task-mapping:
     supported: false
   asset-inlets-outlets:

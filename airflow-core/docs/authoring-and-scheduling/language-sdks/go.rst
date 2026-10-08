@@ -28,7 +28,8 @@ to a compiled Go *bundle* that is launched by
 :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` for each task instance.
 
 Because Go is a compiled language, every task must be compiled ahead of time and registered inside a single,
-self-contained native executable called a **bundle**. The bundle also embeds its Dag source and a metadata
+self-contained native executable called a **bundle**. The bundle also embeds the source file of each Dag built with ``airflow.Dag``
+plus the entrypoint file (the one with ``func main``), and a metadata
 manifest (the ``dag_id`` and ``task_id`` map) in a footer appended to the executable, so the executable *is*
 the bundle: one runnable file to ship, with no separate manifest or archive. The
 :ref:`airflow-go-pack <go-sdk/build>` tool builds and packs that bundle.
@@ -48,7 +49,8 @@ Prerequisites
 
 * Go 1.24 or later to build and pack bundles. This is a build-time requirement only; the worker that runs a
   packed bundle needs no Go toolchain, because the bundle is a self-contained native executable.
-* The packed bundle must be accessible from the Airflow worker, under a directory the coordinator scans.
+* The packed bundle must be accessible from the Airflow worker and the Dag processor, in the Dag bundle the
+  coordinator scans, and built for the operating system and CPU architecture of both.
 * The ``apache-airflow-task-sdk`` package (installed with Airflow) provides the coordinator; no additional
   Python packages are needed.
 
@@ -59,6 +61,8 @@ A Python task runner launches the Go bundle directly, with no separate Go worker
 is the same coordinator mechanism the Java SDK uses. Because the mature Python supervisor handles the
 Airflow-facing concerns, Go tasks inherit remote task logs (S3/GCS), the full range of task states, and
 alternate XCom backends rather than implementing them again in Go.
+
+.. _go-sdk/quick-start:
 
 Quick start
 -----------
@@ -178,33 +182,73 @@ to pass on with ``bundle.Register(reports.Handlers()...)``.
 Coordinator configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Register the coordinator and route the queue to it under ``[sdk]`` in ``airflow.cfg`` (or the equivalent
-``AIRFLOW__SDK__*`` environment variables):
+Register a Dag bundle for the packed bundles, register the coordinator, and route the queue to it in
+``airflow.cfg`` (or the equivalent ``AIRFLOW__*`` environment variables):
 
 .. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {}},
+        {
+          "name": "go-task-handlers",
+          "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+          "kwargs": {"path": "/opt/airflow/go-task-handlers"}
+        }
+      ]
 
     [sdk]
     coordinators = {
       "go": {
         "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
-        "kwargs": {"executables_root": ["~/airflow/executable-bundles"]}
+        "kwargs": {"task_handler_bundle_name": "go-task-handlers"}
       }
     }
     queue_to_coordinator = {"golang": "go"}
 
-``executables_root`` is one or more directories the coordinator scans for bundles; ``queue_to_coordinator``
-routes stub tasks with ``queue="golang"`` to this Go coordinator. See :ref:`go-sdk/coordinator-config` for
-the full list of accepted ``kwargs``.
+``task_handler_bundle_name`` names the Dag bundle the coordinator scans for packed bundles;
+``queue_to_coordinator`` routes stub tasks with ``queue="golang"`` to this Go coordinator. See
+:ref:`go-sdk/coordinator-config` for the full list of accepted ``kwargs`` and how bundles are located.
 
 There is no separate Go worker to run: the Airflow worker forks the bundle binary once per task instance.
 
 .. note::
 
-  The coordinator is part of the Airflow worker, so the ``[sdk]`` config (and the bundle files in
-  ``executables_root``) only need to be present wherever tasks actually execute. With ``CeleryExecutor``,
-  setting it on the Celery workers is sufficient. With ``LocalExecutor``, tasks run inside the scheduler
-  process, so it must be set where the scheduler can read it. The API server and Dag processor do not need
-  it.
+  The ``[sdk]`` config and the packed bundle files must be present wherever tasks execute and on the Dag
+  processor. With ``CeleryExecutor``, tasks execute on the Celery workers; with ``LocalExecutor``, they run
+  inside the scheduler process. The Dag processor checks the stub tasks of each Python Dag against the task
+  handlers the packed bundles register, so it runs them too and needs bundles built for its operating
+  system and CPU architecture. The API server does not need any of it. Register the Dag bundle in
+  ``[dag_processor] dag_bundle_config_list`` on every component, like your other Dag bundles: the worker
+  and the Dag processor resolve ``task_handler_bundle_name`` through it, and wherever the ``[sdk]`` config
+  is read it is rejected if the name is missing there.
+
+A Dag processor with this ``[sdk]`` configuration also parses the bundle binaries of every Dag bundle (see
+:ref:`go-sdk/native-dag-parsing`). Keep it from parsing the binaries that only register task handlers with
+that Dag bundle's ``.airflowignore``, whose pattern syntax follows ``[core] dag_ignore_file_syntax``. Tasks do
+not read ``.airflowignore``, so the binaries still run.
+
+With ``task_handler_bundle_name`` set to its own Dag bundle, as above, ``go-task-handlers`` holds only handler
+binaries, so ignore everything in it:
+
+.. code-block:: bash
+
+    # [core] dag_ignore_file_syntax = glob (the default)
+    echo '*' > /opt/airflow/go-task-handlers/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp; a bare * is not a valid pattern and is dropped
+    echo '.' > /opt/airflow/go-task-handlers/.airflowignore
+
+With ``task_handler_bundle_name`` unset, the binaries sit in the same Dag bundle as the Python Dag file. Go
+binaries have no extension, so put them in a folder such as ``bin/`` and ignore that folder:
+
+.. code-block:: bash
+
+    # [core] dag_ignore_file_syntax = glob (the default)
+    echo 'bin/*' >> /opt/airflow/dags/.airflowignore
+
+    # [core] dag_ignore_file_syntax = regexp
+    echo '^bin/' >> /opt/airflow/dags/.airflowignore
 
 Writing tasks
 -------------
@@ -259,7 +303,7 @@ and lets a test pass a fake.
 The ``sdk.Client`` surface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``actx.Client()`` returns an ``sdk.Client``, which composes three smaller interfaces, so a helper can depend
+``actx.Client()`` returns an ``sdk.Client``, which composes four smaller interfaces, so a helper can depend
 on just one:
 
 * ``VariableClient`` - ``GetVariable`` (returns the Variable as a string), ``UnmarshalJSONVariable``
@@ -268,6 +312,9 @@ on just one:
   ``Host``, ``Port``, ``Login``, ``Password``, ``Path``, ``Extra`` (a ``map[string]any``), plus a
   ``GetURI()`` helper.
 * ``XComClient`` - ``GetXCom`` to read an upstream task's XCom and ``PushXCom`` to publish one.
+* ``TaskStateStoreClient`` - ``TaskStateStore``, returning the store for this task instance:
+  ``Get``, ``UnmarshalJSONValue`` (decodes a JSON value into a pointer you provide), ``Set``,
+  ``Delete``, and ``Clear``. See :ref:`go-sdk/task-state-store`.
 
 ``GetXCom`` returns the stored value as an ``any``; see :ref:`go-sdk/types` for how the stored JSON maps to
 Go types.
@@ -291,8 +338,98 @@ before storing it.
   precedence over the stored value when the Variable is read back. Calling ``SetVariable`` with an empty
   description clears any existing description.
 
-Not-found lookups return sentinel errors - ``VariableNotFound``, ``ConnectionNotFound``, ``XComNotFound`` -
-so you can branch on a missing value with ``errors.Is`` rather than parsing an error string.
+Not-found lookups return sentinel errors - ``VariableNotFound``, ``ConnectionNotFound``, ``XComNotFound``,
+``TaskStateNotFound`` - so you can branch on a missing value with ``errors.Is`` rather than parsing an error
+string.
+
+.. _go-sdk/task-state-store:
+
+The task state store
+~~~~~~~~~~~~~~~~~~~~~~
+
+``actx.Client().TaskStateStore()`` returns a persistent key/value store private to one task instance,
+and the Go SDK's entry point to durable execution. It is the same store the Python SDK exposes as
+``context["task_state_store"]``; see :doc:`/core-concepts/task-state-store` for the concept and its
+configuration.
+
+The store is scoped to ``dag_id``, ``run_id``, ``task_id``, and ``map_index``. It deliberately does *not*
+include ``try_number``, so a value written by one attempt is still readable by the next one: a task that
+records an external job ID or its own progress can resume after a worker crash or a retry instead of
+redoing the work. The Execution API confines every call to the task instance the caller is running as, so
+there is no way to address another task's store - pass results between tasks with XCom instead.
+
+The usual shape is to look for a checkpoint first and only do the expensive work when it is missing:
+
+.. code-block:: go
+
+    import (
+        "errors"
+
+        "github.com/apache/airflow/go-sdk/airflow"
+        "github.com/apache/airflow/go-sdk/sdk"
+    )
+
+    func runSparkJob(actx airflow.Context) error {
+        store := actx.Client().TaskStateStore()
+
+        var jobID string
+        stored, err := store.Get(actx, "job_id")
+        switch {
+        case errors.Is(err, sdk.TaskStateNotFound):
+            // First attempt: submit the job and remember its ID before doing anything else.
+            if jobID, err = sparkClient.SubmitJob(actx); err != nil {
+                return err
+            }
+            if err := store.Set(actx, "job_id", jobID, sdk.WithRetention(sdk.NeverExpire)); err != nil {
+                return err
+            }
+        case err != nil:
+            return err
+        default:
+            // Get returns an any; the value was stored by this task as a string.
+            jobID = stored.(string)
+            actx.Logger().InfoContext(actx, "reattaching to job submitted by an earlier attempt", "job_id", jobID)
+        }
+
+        return sparkClient.WaitForCompletion(actx, jobID)
+    }
+
+``value`` must not be nil and must be JSON-representable - a string, number, bool, slice, map, or a struct,
+which is stored as an object built from its exported fields and their ``json`` tags. A custom
+``MarshalJSON`` is not called, so a type that relies on one is stored as the shape of its fields, and a
+struct with no exported fields is stored as ``{}``. Read a scalar back with ``Get``, which returns it as an ``any`` (the
+numeric caveat in :ref:`go-sdk/types` applies here too); for an object or array,
+``UnmarshalJSONValue`` decodes it straight into a pointer you provide.
+
+A value the store cannot hold is rejected before it is sent, so you get an error naming the problem rather
+than a round trip that fails on the server. The one that catches people out is ``time.Time``, which JSON has
+no spelling for - store ``value.Format(time.RFC3339)`` and parse it back with ``time.Parse``. Non-finite
+floats and ``[]byte`` are refused for the same reason. This mirrors the Python SDK, where the same values
+fail Pydantic validation before the write leaves the worker.
+
+Keys expire, so retention is part of writing a value:
+
+* ``Set`` without options uses the deployment's ``[state_store] default_retention_days`` (30 days by
+  default). The Go runtime cannot read Airflow's config, so the supervisor resolves that value and passes
+  it in the environment when it launches the bundle. A deployment that sets it to something unusable - a
+  negative number, or a value that is not a whole number of days - fails the write, exactly as it does for
+  a Python task, rather than quietly substituting a different lifetime.
+* ``sdk.WithRetention`` takes an explicit, positive ``time.Duration``, or ``sdk.NeverExpire`` for a key
+  that is skipped by garbage collection entirely. A zero or negative retention is rejected rather than
+  given a meaning of its own: to follow the deployment default omit the option, and to drop a key call
+  ``Delete``.
+
+``Delete`` removes one key (deleting a key that does not exist is not an error) and ``Clear`` removes
+every key stored for this task instance.
+
+.. note::
+
+  The Go SDK does not implement the worker-side state backend (``[workers] state_store_backend``), which
+  offloads large values to external storage and records only a reference marker in the database. If a
+  deployment configures one, a Go task reading a key that was written through that backend receives the raw
+  reference marker rather than the original value, and a Go task writing a key stores the whole value in the
+  database instead of offloading it. This is the same behaviour as a Python worker that does not have the
+  backend configured.
 
 .. _go-sdk/runtime-context:
 
@@ -422,7 +559,7 @@ surface as Go values when read back via ``GetXCom``.
 Building and packaging
 ----------------------
 
-A plain ``go build`` produces a runnable binary, but a *deployable* bundle (binary + embedded source +
+A plain ``go build`` produces a runnable binary, but a *deployable* bundle (binary + embedded source files +
 manifest) must be produced with ``airflow-go-pack``. The packer compiles the bundle and appends the embedded
 metadata footer, so the coordinator can read its ``dag_id``\ s without executing the binary, producing a
 single runnable file. The on-disk format the packer emits (the ``AFBNDL01`` footer and the
@@ -444,24 +581,24 @@ Build and pack in one step; any flags after ``--`` are forwarded verbatim to ``g
 
     go tool airflow-go-pack ./example/bundle -- -trimpath -tags=prod
 
-Use ``--output <path>`` to write the packed bundle straight into a directory the coordinator scans
-(``executables_root``):
+Use ``--output <path>`` to write the packed bundle straight into the directory of the Dag bundle the
+coordinator scans (see `Deploying`_):
 
 .. code-block:: bash
 
-    go tool airflow-go-pack --output ~/airflow/executable-bundles/sample-dag-bundle ./example/bundle
+    go tool airflow-go-pack --output /opt/airflow/go-task-handlers/sample-dag-bundle ./example/bundle
 
 Cross-platform builds
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The worker that runs a bundle often uses a different operating system or CPU architecture than your build
-machine (for example, deploying to a Linux host from an Apple-silicon ``darwin/arm64`` laptop). Pass
-``--goos`` / ``--goarch`` and the packer cross-builds for you:
+The worker and the Dag processor that run a bundle often use a different operating system or CPU
+architecture than your build machine (for example, deploying to a Linux host from an Apple-silicon
+``darwin/arm64`` laptop). Pass ``--goos`` / ``--goarch`` and the packer cross-builds for you:
 
 .. code-block:: bash
 
     go tool airflow-go-pack --goos linux --goarch amd64 \
-      --output ~/airflow/executable-bundles/sample-dag-bundle \
+      --output /opt/airflow/go-task-handlers/sample-dag-bundle \
       ./example/bundle
 
 Alternatively, pack a pre-built binary with ``--executable`` / ``--source``. The packer normally execs the
@@ -485,11 +622,41 @@ with ``--airflow-metadata``:
 Deploying
 ~~~~~~~~~
 
-Copy or mount the packed bundle into a directory listed in the coordinator's ``executables_root``. The
-:class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` scans those directories recursively,
+Copy or mount the packed bundle into the Dag bundle named by the coordinator's ``task_handler_bundle_name``.
+The :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` scans that Dag bundle recursively,
 matches the incoming ``dag_id`` against each bundle's manifest, verifies the bundle's integrity hash, and
-launches the matching bundle. Bundles are identified by the trailer magic, not by filename (no extension on
-Linux/macOS, ``.exe`` on Windows), so the file name on the worker is irrelevant.
+launches the matching bundle. This scan identifies bundles by the trailer magic, not by file name. The Dag
+processor also requires a file name without an extension, see :ref:`go-sdk/native-dag-parsing`.
+
+The matching bundle is marked executable before it is launched, so any Dag bundle works, including an
+object-store one such as ``S3DagBundle`` that has no concept of file permissions and so cannot preserve
+the execute bit the build produced.
+
+.. _go-sdk/native-dag-parsing:
+
+Parsing native Dags
+~~~~~~~~~~~~~~~~~~~
+
+Once an :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator` is configured, the Dag processor
+parses every bundle binary in each Dag bundle and runs it to collect the Dags it defines. The Dag processor
+recognizes a bundle binary only when its file name has no extension, such as ``bin/orders``, not
+``bin/orders.bin``. A binary that only registers task handlers is parsed too: each parse runs it and finds
+no Dags, and a binary built with a Go SDK that cannot answer the Dag-parse request records an import error.
+Keep those out of the Dag processor with ``.airflowignore``, as described in :ref:`Quick start <go-sdk/quick-start>`.
+
+With one :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator`, it parses the binaries of every Dag
+bundle. With several, for example a second one for another ``task_handler_bundle_name``, map each Dag bundle that
+holds native Go Dags to one of them in ``[sdk] dag_bundle_to_coordinator``. A binary in a Dag bundle that has no
+entry, or whose entry names no :class:`~airflow.sdk.coordinators.executable.ExecutableCoordinator`, fails to parse
+with an import error:
+
+.. code-block:: ini
+
+    [sdk]
+    dag_bundle_to_coordinator = {"dags-folder": "go"}
+
+* The Code view shows each native Dag's own source file, taken from the sources the bundle embeds.
+* A task of a native Go Dag runs the bundle binary its Dag was parsed from.
 
 .. _go-sdk/coordinator-config:
 
@@ -506,16 +673,13 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
    * - Parameter
      - Default
      - Description
-   * - ``executables_root``
-     - *(optional)*
-     - One or more directories scanned recursively for executable bundles. Accepts a string,
-       a path, or a list of strings/paths. When omitted, bundles are located through a Dag
-       bundle instead (see the note below). Explicitly setting this option to ``null`` or
-       an empty list is invalid.
-   * - ``dag_bundle_name``
-     - *(auto: task's own bundle)*
-     - Name of a configured Dag bundle to load executable bundles from. Mutually exclusive
-       with ``executables_root``.
+   * - ``task_handler_bundle_name``
+     - *(task's own Dag bundle)*
+     - Name of the Dag bundle scanned recursively for executable bundles. It is used only by
+       mixed-language Dags, to locate the task handlers for the ``@task.stub`` tasks of a Python Dag;
+       Dags defined natively in a language SDK do not use it. It must be registered in
+       ``[dag_processor] dag_bundle_config_list``. It is checked when the ``[sdk]`` configuration is
+       loaded, so a typo fails there rather than on the first task.
    * - ``task_startup_timeout``
      - ``10.0``
      - Seconds to wait for the bundle subprocess to connect after launch. Increase this if your
@@ -523,15 +687,14 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 
 .. note::
 
-  **Locating bundles.** ``executables_root`` and ``dag_bundle_name`` are mutually exclusive,
-  and both are optional:
+  **Locating bundles.** The packed bundles for the ``@task.stub`` tasks of a Python Dag are read from a Dag
+  bundle, so they are delivered, refreshed and versioned by the same machinery as your Dags.
 
-  * Set ``executables_root`` to scan explicit filesystem directories you manage yourself.
-  * Set ``dag_bundle_name`` to load bundles from a configured Dag bundle, so they are delivered
-    and versioned through the same bundle machinery as your Dags. The task uses the version that
-    bundle is on when it starts, pinned for the whole task.
-  * Leave both unset (the default) to load bundles from the **task's own** Dag bundle, pinned
-    to the version the run was created with.
+  * The expected layout is a separate Dag bundle for the packed bundles, named by
+    ``task_handler_bundle_name``, rather than the Dag bundle that holds your ``.py`` files. The task
+    uses the version that Dag bundle is on when it starts, pinned for the whole task.
+  * If ``task_handler_bundle_name`` is unset, packed bundles are read from the **task's own** Dag
+    bundle, pinned to the version the run was created with.
 
 .. _go-sdk/limitations:
 

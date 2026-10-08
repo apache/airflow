@@ -75,7 +75,7 @@ let server: SetupServer;
 
 beforeAll(() => {
   server = setupServer(...(handlers as Array<HttpHandler>));
-  server.listen({ onUnhandledRequest: "bypass" });
+  server.listen({ onUnhandledFrame: "bypass" });
 });
 
 beforeEach(() => server.resetHandlers());

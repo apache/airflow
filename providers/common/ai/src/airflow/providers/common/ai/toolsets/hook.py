@@ -33,7 +33,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
     serialize_for_llm,
 )
-from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
@@ -80,6 +80,10 @@ class HookToolset(AirflowToolset):
         as a method taking ``bucket`` or only ``**kwargs``, raises ``ValueError``, because
         the model could still choose the value through it. Expose such a method from a
         second ``HookToolset``.
+    :param max_retries: How many times the model may correct a call with invalid arguments,
+        or one that supplies a pinned argument, before the run fails. An exception from the
+        hook itself fails the run straight away. ``None`` (the default) uses the agent's
+        tool retry budget, its ``retries``, as pydantic-ai's own toolsets do.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -93,7 +97,9 @@ class HookToolset(AirflowToolset):
         allowed_methods: list[str],
         tool_name_prefix: str = "",
         pinned_arguments: dict[str, Any] | None = None,
+        max_retries: int | None = None,
     ) -> None:
+        self._max_retries = validate_max_retries(max_retries)
         if not allowed_methods:
             raise ValueError("allowed_methods must be a non-empty list.")
 
@@ -160,6 +166,7 @@ class HookToolset(AirflowToolset):
         return f"hook-{name}-{self.conn_id}" if self.conn_id else f"hook-{name}"
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
+        max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
         for method_name in self._allowed_methods:
             method = getattr(self._hook, method_name)
@@ -174,6 +181,12 @@ class HookToolset(AirflowToolset):
                 if param_name in json_schema.get("properties", {}):
                     json_schema["properties"][param_name]["description"] = param_desc
             _drop_properties(json_schema, self._pinned)
+            # The validator accepts the pinned names, with any value, so a model that sends one
+            # anyway is told it is fixed rather than given a generic extra-input or type error.
+            args_schema = {
+                **json_schema,
+                "properties": json_schema["properties"] | {name: {} for name in self._pinned},
+            }
 
             # sequential=True keeps pydantic-ai from running these calls concurrently
             # within a turn; run_blocking's process-wide lock serializes them with the
@@ -192,10 +205,20 @@ class HookToolset(AirflowToolset):
             tools[tool_name] = ToolsetTool(
                 toolset=self,
                 tool_def=tool_def,
-                max_retries=1,
-                args_validator=build_args_validator(json_schema),
+                max_retries=max_retries,
+                args_validator=build_args_validator(args_schema),
+                # Refused during validation, so an approval gate never asks about such a call.
+                args_validator_func=self._refuse_pinned if self._pinned else None,
             )
         return tools
+
+    def _refuse_pinned(self, ctx: RunContext[Any], /, **tool_args: Any) -> None:
+        if supplied := sorted(self._pinned.keys() & tool_args.keys()):
+            one = len(supplied) == 1
+            raise ModelRetry(
+                f"{', '.join(supplied)} {'is' if one else 'are'} fixed for this tool: call it again "
+                f"without {'it' if one else 'them'}."
+            )
 
     async def execute_tool(
         self,
@@ -207,12 +230,8 @@ class HookToolset(AirflowToolset):
     ) -> Any:
         method_name = name.removeprefix(self._tool_name_prefix) if self._tool_name_prefix else name
         method: Callable[..., Any] = getattr(self._hook, method_name)
-        if supplied := sorted(self._pinned.keys() & tool_args.keys()):
-            one = len(supplied) == 1
-            raise ModelRetry(
-                f"{', '.join(supplied)} {'is' if one else 'are'} fixed for this tool: call it again "
-                f"without {'it' if one else 'them'}."
-            )
+        # The framework bridges validate arguments without args_validator_func, so check again here.
+        self._refuse_pinned(ctx, **tool_args)
         # A copy per call, so a method that modifies an argument it is given cannot change the pin.
         result = await self.run_blocking(method, **tool_args, **copy.deepcopy(self._pinned))
         return serialize_for_llm(result)

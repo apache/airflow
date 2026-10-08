@@ -84,6 +84,7 @@ TEST_COMMANDS = [
     "dags get example_bash_operator",
     "dags get-details example_bash_operator",
     "dags get-stats example_bash_operator",
+    "dags get-tags",
     "dags get-version example_bash_operator 1",
     "dags list-import-errors",
     "dags list-version example_bash_operator",
@@ -107,6 +108,8 @@ TEST_COMMANDS = [
     'tasks failed-deps example_bash_operator runme_0 --logical-date "{date_param}"',
     'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
     'tasks states-for-dag-run example_bash_operator --logical-date "{date_param}"',
+    'tasks state example_bash_operator runme_0 "manual__{date_param}"',
+    'tasks state example_bash_operator runme_0 --logical-date "{date_param}"',
     'tasks clear example_bash_operator --dag-run-id "manual__{date_param}" --task-ids runme_0 -o json',
     # Task Instances commands
     'taskinstances get example_bash_operator "manual__{date_param}" runme_0',

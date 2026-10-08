@@ -134,6 +134,24 @@ describe("deleteVariable", () => {
   });
 });
 
+describe("skipDownstreamTasks", () => {
+  it("sends SkipDownstreamTasks with the task ids", async () => {
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.skipDownstreamTasks(["load_fallback"]);
+
+    expect(sent).toEqual([{ type: "SkipDownstreamTasks", tasks: ["load_fallback"] }]);
+  });
+
+  it("sends nothing for an empty list", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.skipDownstreamTasks([]);
+
+    expect(sent).toEqual([]);
+  });
+});
+
 describe("writes do not read a supervisor 404 as absence", () => {
   it.each([
     ["setVariable", "PutVariable", (c: TaskClient) => c.setVariable("k", "v")],

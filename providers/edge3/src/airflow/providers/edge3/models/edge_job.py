@@ -25,6 +25,7 @@ from sqlalchemy import (
     String,
     text,
 )
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import Mapped
 
 from airflow.models.base import StringID
@@ -73,6 +74,13 @@ class EdgeJobModel(Base, LoggingMixin):
         Integer, primary_key=True, nullable=False, server_default=text("-1")
     )
     try_number: Mapped[int] = mapped_column(Integer, primary_key=True, default=0)
+    task_instance_id: Mapped[str] = mapped_column(
+        String(36).with_variant(mysql.VARCHAR(36, charset="ascii", collation="ascii_bin"), "mysql"),
+        primary_key=True,
+        nullable=False,
+        default="",
+        server_default="",
+    )
     state: Mapped[str] = mapped_column(String(20))
     queue: Mapped[str] = mapped_column(String(256))
     concurrency_slots: Mapped[int] = mapped_column(Integer)
@@ -97,6 +105,7 @@ class EdgeJobModel(Base, LoggingMixin):
         edge_worker: str | None = None,
         last_update: datetime | None = None,
         team_name: str | None = None,
+        task_instance_id: str = "",
     ):
         self.dag_id = dag_id
         self.task_id = task_id
@@ -111,6 +120,7 @@ class EdgeJobModel(Base, LoggingMixin):
         self.edge_worker = edge_worker
         self.last_update = last_update
         self.team_name = team_name
+        self.task_instance_id = task_instance_id
         super().__init__()
 
     __table_args__ = (Index("rj_order", state, queued_dttm, queue),)

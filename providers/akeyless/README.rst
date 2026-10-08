@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-akeyless``
 
-Release: ``0.3.1``
+Release: ``0.3.2``
 
 
 `Akeyless <https://www.akeyless.io/>`__ Vault Platform provider for Apache Airflow.
@@ -38,7 +38,7 @@ This is a provider package for ``akeyless`` provider. All classes for this provi
 are in ``airflow.providers.akeyless`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-akeyless/0.3.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-akeyless/0.3.2/>`_.
 
 Installation
 ------------
@@ -47,7 +47,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-akeyless``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -70,4 +70,4 @@ Extra         Dependencies
 ============  ============================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-akeyless/0.3.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-akeyless/0.3.2/changelog.html>`_.

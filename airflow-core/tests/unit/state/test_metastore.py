@@ -23,8 +23,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+import pytest_asyncio
 from sqlalchemy import Delete, select
 
+from airflow import settings
 from airflow._shared.state import AssetStateStoreWriterKind
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
@@ -575,6 +577,13 @@ class TestMetastoreBackendAssetScope:
         )
 
 
+@pytest_asyncio.fixture(scope="class", loop_scope="class")
+async def dispose_async_engine():
+    yield
+    await settings.dispose_async_engine()
+
+
+@pytest.mark.usefixtures("dispose_async_engine")
 @pytest.mark.asyncio(loop_scope="class")
 class TestMetastoreBackendAsync:
     async def test_aset_and_aget_task_roundtrip(self, backend: MetastoreBackend, dag_run_committed: DagRun):

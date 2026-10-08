@@ -118,8 +118,8 @@ class TestPluginsCommand:
                         "url_route": "test_iframe_plugin",
                         "category": "browse",
                         "applies_to": {
-                            "dag_tags": ["ml", "production"],
-                            "dag_ids": ["example_dag"],
+                            "dag.tags.name": ["ml", "production"],
+                            "dag.dag_id": ["example_dag"],
                         },
                     },
                 ],

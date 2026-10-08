@@ -26,6 +26,7 @@ import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse, ReprocessBehavior } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
@@ -41,6 +42,8 @@ const {
   COMPLETED_AT_LTE: COMPLETED_AT_LTE_PARAM,
   CREATED_AT_GTE: CREATED_AT_GTE_PARAM,
   CREATED_AT_LTE: CREATED_AT_LTE_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
   FROM_DATE_GTE: FROM_DATE_GTE_PARAM,
   FROM_DATE_LTE: FROM_DATE_LTE_PARAM,
   MAX_ACTIVE_RUNS_GTE: MAX_ACTIVE_RUNS_GTE_PARAM,
@@ -68,7 +71,7 @@ const getColumns = ({
   formatElapsed,
   onSelectBackfill,
   translate,
-}: ColumnProps): Array<ColumnDef<BackfillResponse>> => [
+}: ColumnProps): Array<ColumnDef<DataTableFeatures, BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -173,6 +176,8 @@ export const Backfills = () => {
   const completedAtLte = searchParams.get(COMPLETED_AT_LTE_PARAM);
   const maxActiveRunsGte = searchParams.get(MAX_ACTIVE_RUNS_GTE_PARAM);
   const maxActiveRunsLte = searchParams.get(MAX_ACTIVE_RUNS_LTE_PARAM);
+  const durationGte = searchParams.get(DURATION_GTE_PARAM);
+  const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const reprocessBehaviorParam = searchParams.get(REPROCESS_BEHAVIOR_PARAM);
   const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
 
@@ -182,6 +187,8 @@ export const Backfills = () => {
     createdAtGte: createdAtGte ?? undefined,
     createdAtLte: createdAtLte ?? undefined,
     dagId,
+    durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
+    durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
     fromDateGte: fromDateGte ?? undefined,
     fromDateLte: fromDateLte ?? undefined,
     limit: pagination.pageSize,

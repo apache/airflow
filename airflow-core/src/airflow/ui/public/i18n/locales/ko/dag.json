@@ -197,7 +197,7 @@
         "title": "Dag 재구문 분석 실패"
       },
       "success": {
-        "description": "Dag이(가) 곧 재구문 분석될 예정입니다.",
+        "description": "Dag가 곧 재구문 분석될 예정입니다.",
         "title": "재구문 분석 요청이 성공적으로 제출되었습니다."
       }
     }
@@ -216,7 +216,6 @@
     "renderedTemplates": "렌더링된 템플릿",
     "requiredActions": "필수 작업",
     "runs": "실행",
-    "storage": "스토리지",
     "taskInstances": "태스크 인스턴스",
     "taskStateStore": "태스크 상태 저장소",
     "tasks": "태스크",
