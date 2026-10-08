@@ -220,15 +220,27 @@ abstract class PackDagSources : DefaultTask() {
       } catch (e: Exception) {
         e.message ?: e.javaClass.simpleName
       }
-    if (failure == null && describe.isFile) {
-      @Suppress("UNCHECKED_CAST")
-      (runCatching { JsonSlurper().parse(describe) }.getOrNull() as? Map<String, Any?>)?.let { parsed ->
-        return parsed.mapNotNull { (id, cls) -> (cls as? String)?.let { id to it } }.toMap(linkedMapOf())
+    val log = output.trim()
+    val parsed =
+      describe
+        .takeIf { it.isFile }
+        ?.let {
+          @Suppress("UNCHECKED_CAST")
+          (runCatching { JsonSlurper().parse(it) }.getOrNull() as? Map<String, Any?>)
+        }
+    if (parsed != null) {
+      if (failure != null) {
+        logger.warn(
+          "'{}' wrote each Dag's source but {}; its sources are used anyway.{}",
+          main,
+          failure,
+          if (log.isEmpty()) "" else "\n$log",
+        )
       }
+      return parsed.mapNotNull { (id, cls) -> (cls as? String)?.let { id to it } }.toMap(linkedMapOf())
     }
     describeFailed = true
     val why = failure ?: "it wrote no valid --describe-sources file; does main pass its args to Server.create?"
-    val log = output.trim()
     logger.warn(
       "Could not read each Dag's source from '{}' ({}); only its entrypoint source is packed.{}",
       main,

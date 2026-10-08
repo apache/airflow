@@ -183,6 +183,24 @@ class AirflowSdkPluginTest {
   }
 
   @Test
+  fun usesTheDescribeFileEvenWhenTheRunExitsNonZero(
+    @TempDir dir: File,
+  ) {
+    project(dir, mainBody = describeDags + "\nSystem.exit(3);")
+    val result = gradle(dir, "jar")
+
+    assertTrue(result.output.contains("its sources are used anyway"), result.output)
+    assertEquals(
+      mapOf(
+        "orders" to "com/example/Main.java",
+        "reports" to "com/example/dags/Reports.java",
+        "reports_backfill" to "com/example/dags/Reports.java",
+      ),
+      sourcesJson(File(dir, "build/libs/bundle-test.jar"))["dag_source_paths"],
+    )
+  }
+
+  @Test
   fun fallsBackToEntrypointOnlyWhenMainWritesNothing(
     @TempDir dir: File,
   ) {
