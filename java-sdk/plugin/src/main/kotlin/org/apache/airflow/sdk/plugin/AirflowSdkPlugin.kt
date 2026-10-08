@@ -108,7 +108,6 @@ abstract class AirflowBundleExtension {
  * the `airflow-sdk` JAR instead. The bundle JAR still contains `Main-Class`.
  *
  */
-
 class AirflowSdkPlugin : Plugin<Project> {
   override fun apply(project: Project) {
     project.plugins.apply("java")
