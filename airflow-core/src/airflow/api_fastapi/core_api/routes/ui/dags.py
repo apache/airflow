@@ -228,9 +228,6 @@ def get_dags(
 
     recent_dag_runs: list = []
     if dags:
-        # One page-scoped query, so dag_run access goes through idx_dag_run_dag_id
-        # instead of one backward idx_dag_run_run_after scan per Dag (unbounded for
-        # Dags whose last run is old — see #74401).
         ranked = (
             select(
                 DagRun.id,
