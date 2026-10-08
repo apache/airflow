@@ -46,6 +46,7 @@ from airflow.exceptions import (
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.pool import Pool
+from airflow.sdk.exceptions import TaskGroupCycleDeprecationWarning  # noqa: SDK001
 from airflow.sdk.importers import DagImportError, get_importer_registry
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
@@ -496,8 +497,6 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        from airflow.sdk.exceptions import TaskGroupCycleDeprecationWarning  # noqa: SDK001
-
         task_group_cycle_warning = None
         with warnings.catch_warnings(record=True) as captured_warnings:
             # DeprecationWarning is ignored by default outside __main__, which would hide it here too.
