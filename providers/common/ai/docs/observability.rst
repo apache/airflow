@@ -84,23 +84,11 @@ How it works
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
   identity keys without ``airflow.task_instance.id``.
-* **Model name.** The model that actually answered is exposed on XCom under a
-  namespaced key (``MODEL_NAME_XCOM_KEY`` in ``utils/logging.py``), separate from
-  ``run_id`` / ``usage`` above, so a downstream task or the UI can read which model
-  responded without parsing the decision record or a span. ``AgentOperator`` /
-  ``@task.agent`` push it alongside ``run_id`` and ``usage``, and like those two, with
-  ``enable_hitl_review`` it is the initial run's model, not a human-feedback
-  regeneration's, since ``regenerate_with_feedback`` doesn't re-push it.
-  ``LLMOperator`` / ``@task.llm`` and ``LLMBranchOperator`` / ``@task.llm_branch`` push
-  the model name too, though without the ``run_id`` / ``usage`` pair (see the Scope
-  bullet below); they have no regeneration step, so no such caveat applies there.
 * **Scope.** The ``run_id`` / ``usage`` XComs come only from ``AgentOperator`` and
   ``@task.agent``, and so do the ``airflow.*`` identity attributes, apart from a Strands or
-  ADK agent run inside ``agent_framework_tracing`` (see below). ``LLMOperator`` /
-  ``@task.llm`` and ``LLMBranchOperator`` / ``@task.llm_branch`` additionally push the
-  model name above. The remaining LLM operators (SQL / file-analysis / schema-compare)
-  still emit GenAI spans correlated to the task span by nesting, but without the
-  identity attributes, the run join key, or the model name.
+  ADK agent run inside ``agent_framework_tracing`` (see below). The other LLM
+  operators still emit GenAI spans correlated to the task span by nesting, but
+  without the identity attributes or the run join key.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).

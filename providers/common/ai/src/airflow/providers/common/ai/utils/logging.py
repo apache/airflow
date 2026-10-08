@@ -94,9 +94,8 @@ def _log_cache_and_cost(logger: Logger | logging.Logger, usage: RunUsage) -> Non
         logger.info("LLM run cost: $%s (USD, best-effort)", format(usage.cost, "f"))
 
 
-# XCom key the run's resolved model name is published under, so downstream tasks and the UI
-# can read which model actually answered without parsing the decision record. See the "Model
-# name" entry in docs/observability.rst for exactly which operators publish it.
+# XCom key the LLM and agent operators publish the run's resolved model name under, so downstream
+# tasks and the UI can read which model actually answered without parsing the decision record.
 MODEL_NAME_XCOM_KEY = "__AIRFLOW__COMMON_AI_MODEL_NAME__"
 
 
