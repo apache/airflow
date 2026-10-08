@@ -25,7 +25,6 @@
         "title": "Το Backfill δημιουργήθηκε"
       }
     },
-    "unpause": "Αναίρεση παύσης του {{dag_display_name}} κατά την ενεργοποίηση",
     "validation": {
       "datesRequired": "Πρέπει να δοθούν και η ημερομηνία έναρξης και λήξης του διαστήματος δεδομένων.",
       "startBeforeEnd": "Η ημερομηνία έναρξης πρέπει να είναι μικρότερη ή ίση με την ημερομηνία λήξης."
@@ -42,7 +41,6 @@
   },
   "close": "Κλείσιμο",
   "configForm": {
-    "advancedOptions": "Προχωρημένες Επιλογές",
     "configJson": "Ρυθμίσεις JSON",
     "invalidJson": "Μη έγκυρη μορφή JSON: {{errorMessage}}"
   },
@@ -152,8 +150,7 @@
         "title": "Η Εκτέλεση Dag Ενεργοποιήθηκε"
       }
     },
-    "triggerAgainWithConfig": "Ενεργοποίηση ξανά με αυτές τις ρυθμίσεις",
-    "unpause": "Αναίρεση παύσης του {{dagDisplayName}} κατά την ενεργοποίηση"
+    "triggerAgainWithConfig": "Ενεργοποίηση ξανά με αυτές τις ρυθμίσεις"
   },
   "trimText": {
     "details": "Λεπτομέρειες",

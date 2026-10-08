@@ -84,7 +84,7 @@ To resolve these conflicts:
 
 .. note::
 
-    The ERD diagram (``airflow_erd.svg``) is no longer committed to the repository. It is
+    The ERD diagram (``airflow_erd.mmd``) is no longer committed to the repository. It is
     automatically generated during the documentation build by the ``generate_erd`` Sphinx extension.
 
 Running migration CI tests locally

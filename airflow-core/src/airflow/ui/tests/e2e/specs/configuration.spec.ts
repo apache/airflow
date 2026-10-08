@@ -31,8 +31,14 @@ test.describe("Configuration Page", () => {
 
     const firstRow = configurationPage.rows.nth(0);
 
-    await expect(firstRow.locator("td").nth(0)).not.toBeEmpty();
-    await expect(firstRow.locator("td").nth(1)).not.toBeEmpty();
-    await expect(firstRow.locator("td").nth(2)).not.toBeEmpty();
+    await expect(firstRow.getByTestId("table-cell-section")).not.toBeEmpty();
+    await expect(firstRow.getByTestId("table-cell-key")).not.toBeEmpty();
+
+    // Many options legitimately have an empty value, so check a row that always has one.
+    const dagsFolderRow = configurationPage.getRowByKey("dags_folder");
+
+    await expect(dagsFolderRow).toHaveCount(1);
+    await expect(dagsFolderRow.getByTestId("table-cell-section")).toHaveText("core");
+    await expect(dagsFolderRow.getByTestId("table-cell-value")).not.toBeEmpty();
   });
 });

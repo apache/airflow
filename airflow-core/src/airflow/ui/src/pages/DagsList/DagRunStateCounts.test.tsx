@@ -19,12 +19,19 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { BaseWrapper } from "src/utils/Wrapper";
 
-import "../../i18n/config";
 import { DagRunStateCounts } from "./DagRunStateCounts";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    i18n: { language: "en" },
+    // eslint-disable-next-line id-length
+    t: (key: string) => key,
+  }),
+}));
 
 const renderCounts = (
   counts: Record<string, number> | undefined,
@@ -93,7 +100,7 @@ describe("DagRunStateCounts", () => {
 
   it("suffixes counts that reached the cap with '+'", () => {
     renderCounts({ failed: 5, queued: 0, running: 1, success: 1000 }, { stateCountLimit: 1000 });
-    expect(screen.getByTestId("run-state-count-success-my_dag")).toHaveTextContent("1000+");
+    expect(screen.getByTestId("run-state-count-success-my_dag")).toHaveTextContent("1,000+");
     expect(screen.getByTestId("run-state-count-failed-my_dag")).toHaveTextContent("5");
     expect(screen.getByTestId("run-state-count-running-my_dag")).toHaveTextContent("1");
   });

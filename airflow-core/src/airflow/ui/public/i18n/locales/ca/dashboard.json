@@ -1,4 +1,22 @@
 {
+  "alerts": {
+    "seeLessContext": "Veure menys",
+    "seeMoreContext": "Veure més",
+    "showMoreAlerts_one": "+{{count}} alerta més",
+    "showMoreAlerts_other": "+{{count}} alertes més"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "No hi ha terminis propers",
+      "title": "Propers"
+    },
+    "recentlyMissed": {
+      "empty": "No hi ha terminis no complerts",
+      "title": "Terminis no complerts"
+    },
+    "showMore": "Mostrar-ne més",
+    "title": "Terminis"
+  },
   "deferredSlotsNotCounted": "Diferides no comptades en slots: {{count}}",
   "deferredSlotsNotCountedTooltip": "Les tasques diferides que es mostren a la barra compten per als slots del Pool. Les tasques diferides que es mostren sota la barra provenen de Pools que no compten les tasques diferides per als slots.",
   "favorite": {
@@ -10,14 +28,29 @@
   "group": "Grup",
   "health": {
     "dagProcessor": "Processador de Dags",
+    "degraded": "Degradat",
+    "degradedHint": {
+      "dagProcessor": "Algunes col·leccions de Dags configurades no tenen cap Dag Processor que les analitzi.",
+      "triggerer": "Alguns equips no tenen cap triggerer que executi les seves tasques diferides."
+    },
+    "down": "Inactiu",
     "health": "Estat de salut",
     "healthy": "Saludable",
+    "instances": {
+      "bundles": "Col·leccions",
+      "hostname": "Host",
+      "team": "Equip",
+      "title_one": "{{title}} — {{status}} ({{count}} instància)",
+      "title_other": "{{title}} — {{status}} ({{count}} instàncies)",
+      "unknownHostname": "Host desconegut"
+    },
     "lastHeartbeat": "Últim batec",
     "metaDatabase": "Base de dades meta",
     "scheduler": "Programador",
     "status": "Estat",
     "triggerer": "Triggerer",
-    "unhealthy": "No saludable"
+    "unhealthy": "No saludable",
+    "unknownStatus": "Desconegut"
   },
   "history": "Historial",
   "importErrors": {

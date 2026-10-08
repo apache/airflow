@@ -17,10 +17,11 @@
  * under the License.
  */
 import { Skeleton } from "@chakra-ui/react";
+import type { RowData } from "@tanstack/react-table";
 
 import type { MetaColumn } from "./types";
 
-export const createSkeletonMock = <TData,>(
+export const createSkeletonMock = <TData extends RowData>(
   mode: "card" | "table",
   skeletonCount: number,
   columnDefs: Array<MetaColumn<TData>>,

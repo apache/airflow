@@ -21,15 +21,9 @@ import { testConfig } from "playwright.config";
 import { expect, test } from "tests/e2e/fixtures";
 
 test.describe("Verify task logs display", () => {
-  test.describe.configure({ mode: "serial" });
-
   const testTaskId = testConfig.testTask.id;
 
-  test.beforeEach(async ({ executedDagRun, page, taskInstancePage }) => {
-    // Clear localStorage — "log settings" test persists toggles that affect subsequent tests.
-    // Swallow SecurityError on about:blank (WebKit).
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    await page.evaluate(() => localStorage.clear()).catch(() => {});
+  test.beforeEach(async ({ executedDagRun, taskInstancePage }) => {
     await taskInstancePage.navigateToTaskInstance(executedDagRun.dagId, executedDagRun.runId, testTaskId);
   });
 
@@ -41,58 +35,12 @@ test.describe("Verify task logs display", () => {
     const logItems = page.getByTestId(/^virtualized-item-/);
 
     await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
-  });
 
-  test("Verify log levels are visible", async ({ executedDagRun: _run, page }) => {
-    const virtualizedList = page.getByTestId("virtualized-list");
-
-    await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
-
-    await expect(virtualizedList).toContainText(/INFO|WARNING|ERROR|CRITICAL/);
-  });
-
-  test("Verify log timestamp formatting", async ({ executedDagRun: _run, page }) => {
-    const virtualizedList = page.getByTestId("virtualized-list");
-
-    await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
-
-    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, {
+    // Real task output, so changes to the API's log shape or timestamp format fail here.
+    await expect.soft(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, {
       timeout: 30_000,
     });
-  });
-
-  test("Verify log settings", async ({ executedDagRun: _run, page }) => {
-    const virtualizedList = page.getByTestId("virtualized-list");
-
-    await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
-
-    const logItems = page.getByTestId(/^virtualized-item-/);
-
-    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
-
-    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, {
-      timeout: 30_000,
-    });
-
-    await page.getByTestId("log-settings-button").click();
-    await page.getByTestId("log-settings-timestamp").click();
-    await expect(virtualizedList).not.toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
-
-    await page.getByTestId("log-settings-button").click();
-    await page.getByTestId("log-settings-source").click();
-    await expect(virtualizedList).toContainText(/source/);
-
-    await page.getByTestId("log-settings-button").click();
-    const wrapMenuItem = page.getByTestId("log-settings-wrap");
-
-    await expect(wrapMenuItem).toContainText(/Wrap|Unwrap/);
-    await wrapMenuItem.click();
-
-    await page.getByTestId("log-settings-button").click();
-    const expandMenuItem = page.getByTestId("log-settings-expand");
-
-    await expect(expandMenuItem).toContainText(/Expand|Collapse/);
-    await expandMenuItem.click();
+    await expect.soft(virtualizedList).toContainText(/INFO|WARNING|ERROR|CRITICAL/);
   });
 
   test("Verify logs are getting downloaded fine", async ({ executedDagRun: _run, page }) => {

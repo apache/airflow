@@ -64,6 +64,12 @@ TEAM_MENU_ITEMS = {
     MenuItem.ASSETS,
     MenuItem.DOCS,
 }
+# A Dag bundle is visible to whoever can read a Dag inside it, so this entry belongs with ``DAGS``
+# in the base team set rather than the admin one: every team role that can already reach the
+# bundles through the API should be able to find the page. Guarded because this provider also runs
+# against Airflow versions predating the menu item.
+if hasattr(MenuItem, "DAG_BUNDLES"):
+    TEAM_MENU_ITEMS.add(MenuItem.DAG_BUNDLES)
 TEAM_ADMIN_MENU_ITEMS = TEAM_MENU_ITEMS | {
     MenuItem.CONNECTIONS,
     MenuItem.POOLS,
@@ -551,6 +557,14 @@ def _get_permissions_to_create(
         )
         perm_configs.append(
             {
+                "name": "AdminViewAccess",
+                "type": "scope-based",
+                "scope_names": ["GET"],
+                "resources": [KeycloakResource.ADMIN_VIEW.value],
+            }
+        )
+        perm_configs.append(
+            {
                 "name": "MenuAccess",
                 "type": "scope-based",
                 "scope_names": ["MENU"],
@@ -878,6 +892,9 @@ def _attach_team_permissions(
         ],
         _dry_run=_dry_run,
     )
+    # ``View`` only covers the views every team role may read. Views over records that are not tied
+    # to a team (e.g. audit log rows not tied to a Dag) live on ``AdminView``, which team roles do not
+    # get -- see ``_attach_superadmin_permissions``.
     for role_name in TEAM_ROLE_NAMES:
         _attach_policy_to_scope_permission(
             client,
@@ -981,6 +998,16 @@ def _attach_superadmin_permissions(
         policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
         scope_names=["GET"],
         resource_names=[KeycloakResource.VIEW.value],
+        decision_strategy="AFFIRMATIVE",
+        _dry_run=_dry_run,
+    )
+    _attach_policy_to_scope_permission(
+        client,
+        client_uuid,
+        permission_name="AdminViewAccess",
+        policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
+        scope_names=["GET"],
+        resource_names=[KeycloakResource.ADMIN_VIEW.value],
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )

@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import warnings
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from botocore.exceptions import ClientError, WaiterError
 
@@ -31,9 +31,6 @@ from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher, _parse_log_level
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-if TYPE_CHECKING:
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class ClusterActiveTrigger(AwsBaseWaiterTrigger):
@@ -46,7 +43,13 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
         Will fail after that many unsuccessful attempts.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region_name: The AWS region where the cluster is located.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = EcsHook
 
     def __init__(
         self,
@@ -55,6 +58,8 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -70,11 +75,10 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
             **kwargs,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
 class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
@@ -87,7 +91,13 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
         Will fail after that many unsuccessful attempts.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region_name: The AWS region where the cluster is located.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = EcsHook
 
     def __init__(
         self,
@@ -96,6 +106,8 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -110,11 +122,10 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
             **kwargs,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
 class TaskDoneTrigger(BaseTrigger):

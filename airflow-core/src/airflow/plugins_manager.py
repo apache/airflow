@@ -19,23 +19,37 @@
 
 from __future__ import annotations
 
+import difflib
 import inspect
+import json
 import logging
+import types
 from collections.abc import Iterable
 from functools import cache
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Annotated, Any, Union, get_args, get_origin
 
 from airflow import settings
 from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager import (
     AirflowPlugin as AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
+    AppliesToDict as AppliesToDict,
+    BaseDestinationLiteral as BaseDestinationLiteral,
+    ExternalViewDict as ExternalViewDict,
+    FastAPIAppDict as FastAPIAppDict,
+    FastAPIRootMiddlewareDict as FastAPIRootMiddlewareDict,
     PluginsDirectorySource as PluginsDirectorySource,
+    ReactAppDict as ReactAppDict,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     is_valid_plugin,
 )
 from airflow.configuration import conf
+from airflow.serialization.helpers import (
+    is_core_partition_mapper_import_path,
+    is_core_timetable_import_path,
+)
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
@@ -88,6 +102,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     Plugins are only loaded if they have not been previously loaded.
     """
     from airflow._shared.observability.metrics import stats
+    from airflow.providers_manager import provider_incompatibility_reason
 
     if not settings.PLUGINS_FOLDER:
         raise ValueError("Plugins folder is not set")
@@ -128,34 +143,179 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
                 ignore_file_syntax=ignore_file_syntax,
             )
         )
-        __register_plugins(*_load_entrypoint_plugins())
+        __register_plugins(*_load_entrypoint_plugins(provider_incompatibility_reason))
 
         if not settings.LAZY_LOAD_PROVIDERS:
             __register_plugins(*_load_providers_plugins())
 
-    log.debug("Loading %d plugin(s) took %.2f ms", len(plugins), timer.duration)
+    if import_errors:
+        log.warning(
+            "Failed to load %d plugin file(s): %s",
+            len(import_errors),
+            sorted(import_errors.keys()),
+        )
+    elif not plugins:
+        log.debug("No plugins loaded (plugins folder is empty or contains no valid plugins)")
+    else:
+        log.debug("Loading %d plugin(s) took %.2f ms", len(plugins), timer.duration)
     return plugins, import_errors
 
 
-_DAG_APPLIES_TO_CRITERIA = frozenset({"dag_tags", "dag_ids"})
-_TASK_APPLIES_TO_CRITERIA = frozenset({"task_ids", "operators", "operator_names"})
-_APPLIES_TO_CRITERIA = _DAG_APPLIES_TO_CRITERIA | _TASK_APPLIES_TO_CRITERIA
-
-# Which `applies_to` criteria each destination can resolve a record for. A destination
-# missing from this mapping cannot evaluate any criterion. Kept in sync with the table in
+# The records each destination can resolve, and therefore the path roots it can evaluate. A
+# destination missing from this mapping can evaluate nothing. Kept in sync with the table in
 # docs/administration-and-deployment/plugins.rst.
-_EVALUABLE_CRITERIA_BY_DESTINATION: dict[str, frozenset[str]] = {
-    "dag": _DAG_APPLIES_TO_CRITERIA,
-    "dag_run": _DAG_APPLIES_TO_CRITERIA,
-    "dag_overview": _DAG_APPLIES_TO_CRITERIA,
-    "task": _APPLIES_TO_CRITERIA,
-    "task_overview": _APPLIES_TO_CRITERIA,
-    "task_instance": _APPLIES_TO_CRITERIA,
+_APPLIES_TO_ROOTS: dict[str, frozenset[str]] = {
+    "dag": frozenset({"dag"}),
+    "dag_overview": frozenset({"dag"}),
+    "dag_run": frozenset({"dag", "dag_run"}),
+    "task": frozenset({"dag", "task"}),
+    "task_overview": frozenset({"dag", "task"}),
+    "task_instance": frozenset({"dag", "dag_run", "task", "task_instance"}),
     "nav": frozenset(),
     "base": frozenset(),
     "dashboard": frozenset(),
     "asset": frozenset(),
 }
+
+# Which record an unqualified path is rooted at -- the entity the destination is about.
+_APPLIES_TO_ENTITY_ROOT: dict[str, str] = {
+    "dag": "dag",
+    "dag_overview": "dag",
+    "dag_run": "dag_run",
+    "task": "task",
+    "task_overview": "task",
+    "task_instance": "task_instance",
+}
+
+_APPLIES_TO_ROOT_NAMES = frozenset({"dag", "dag_run", "task", "task_instance"})
+
+
+def _applies_to_path_root(path: str, destination: str) -> str | None:
+    """
+    Return the record a path is rooted at, or ``None`` if the destination has no entity.
+
+    A path may name a related record as its first segment; otherwise it is rooted at the
+    entity the destination is about.
+    """
+    head, _, rest = path.partition(".")
+    if head in _APPLIES_TO_ROOT_NAMES and rest:
+        return head
+    return _APPLIES_TO_ENTITY_ROOT.get(destination)
+
+
+# Sentinel for an annotation that does not describe what it contains, so a path cannot be
+# checked past it.
+_OPAQUE = object()
+
+
+@cache
+def _applies_to_root_models() -> dict[str, Any]:
+    """
+    Return the response model backing each path root, for validating paths at plugin load.
+
+    Imported lazily because ``datamodels.plugins`` imports this module; a module-level import
+    would be circular. Only ``_get_ui_plugins`` reaches this, so components that load plugins
+    without serving the UI never pay for it.
+
+    These are the models the UI actually fetches for the ``applies_to`` context -- keep them in
+    step with ``AppliesToContext`` in ``src/utils/pluginAppliesTo.ts``.
+    """
+    from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+    from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+    from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceResponse
+    from airflow.api_fastapi.core_api.datamodels.tasks import TaskResponse
+
+    return {
+        "dag": DAGResponse,
+        "dag_run": DAGRunResponse,
+        "task": TaskResponse,
+        "task_instance": TaskInstanceResponse,
+    }
+
+
+def _unwrap_applies_to_annotation(annotation: Any) -> Any:
+    """
+    Reduce a field annotation to the type a further path segment reads through.
+
+    ``Annotated`` and ``X | None`` wrappers are stripped, and a list is stepped into, because
+    traversing one fans out across its elements. Returns ``_OPAQUE`` for a union of several
+    real types, whose fields depend on which member a record actually holds.
+    """
+    while True:
+        origin = get_origin(annotation)
+        if origin is Annotated:
+            annotation = get_args(annotation)[0]
+        elif origin in (Union, types.UnionType):
+            members = [arg for arg in get_args(annotation) if arg is not type(None)]
+            if len(members) != 1:
+                return _OPAQUE
+            annotation = members[0]
+        elif origin in (list, set, frozenset, tuple):
+            args = get_args(annotation)
+            if not args:
+                return _OPAQUE
+            annotation = args[0]
+        else:
+            return annotation
+
+
+def _applies_to_serialized_fields(model: Any) -> dict[str, Any] | None:
+    """
+    Map each field name *as the API serializes it* to the annotation behind it.
+
+    ``applies_to`` paths are resolved in the browser against the JSON a response model produces,
+    so validation has to use the serialized names rather than the Python attribute names:
+    ``TaskInstanceResponse.run_id`` reaches the browser as ``dag_run_id``, and computed fields
+    such as ``DAGResponse.is_backfillable`` have no entry in ``model_fields`` at all.
+
+    Returns ``None`` for anything that is not a model.
+    """
+    fields = getattr(model, "model_fields", None)
+    if fields is None:
+        return None
+
+    serialized = {
+        field.serialization_alias or field.alias or name: field.annotation for name, field in fields.items()
+    }
+    for name, computed in getattr(model, "model_computed_fields", {}).items():
+        serialized[computed.alias or name] = computed.return_type
+    return serialized
+
+
+def _describe_applies_to_path_error(path: str, root: str) -> str | None:
+    """
+    Return why ``path`` names no field on its root record, or ``None`` if it is not knowably wrong.
+
+    The walk stops -- accepting whatever follows -- at a field the models do not describe the
+    contents of, such as the bare ``dict`` behind ``class_ref`` or a Dag Run's ``conf``. So this
+    catches a misspelling of a modelled field, not every bad path.
+    """
+    segments = path.split(".")
+    # A qualified path's first segment names the record, which `root` has already resolved.
+    if segments[0] == root and len(segments) > 1:
+        segments = segments[1:]
+
+    current: Any = _applies_to_root_models()[root]
+    for segment in segments:
+        if current is _OPAQUE or current is Any:
+            return None
+        base = get_origin(current) or current
+        if isinstance(base, type) and issubclass(base, dict):
+            return None
+
+        fields = _applies_to_serialized_fields(current)
+        if fields is None:
+            name = getattr(current, "__name__", repr(current))
+            return f"'{path}' reads '{segment}' from {name}, which has no fields"
+        if segment not in fields:
+            model = getattr(current, "__name__", repr(current))
+            hint = ""
+            if close := difflib.get_close_matches(segment, list(fields), n=1):
+                hint = f" (did you mean '{close[0]}'?)"
+            return f"'{path}' names no field '{segment}' on {model}{hint}"
+
+        current = _unwrap_applies_to_annotation(fields[segment])
+    return None
 
 
 def _describe_applies_to_error(applies_to: Any) -> str | None:
@@ -163,32 +323,57 @@ def _describe_applies_to_error(applies_to: Any) -> str | None:
     if not isinstance(applies_to, dict):
         return f"expected a dictionary, got {type(applies_to).__name__}"
     if non_string_keys := [key for key in applies_to if not isinstance(key, str)]:
-        return f"criterion names must be strings, got {sorted(non_string_keys, key=repr)!r}"
-    if unknown_keys := set(applies_to) - _APPLIES_TO_CRITERIA:
-        return f"unknown criteria {sorted(unknown_keys)}, expected any of {sorted(_APPLIES_TO_CRITERIA)}"
-    for criterion, values in applies_to.items():
+        return f"field paths must be strings, got {sorted(non_string_keys, key=repr)!r}"
+    if empty_keys := [key for key in applies_to if not key.strip()]:
+        return f"field paths must not be empty, got {empty_keys!r}"
+    for path, values in applies_to.items():
         if values is None:
             continue
         if not isinstance(values, (list, tuple)) or not all(isinstance(value, str) for value in values):
-            return f"'{criterion}' must be a list of strings, got {values!r}"
+            return f"'{path}' must be a list of strings, got {values!r}"
     return None
 
 
-def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: str) -> None:
+def _is_applies_to_path_known_elsewhere(path: str) -> bool:
     """
-    Warn about scoping a UI plugin cannot honour, and strip it if it is malformed.
+    Whether an unqualified ``path`` names a real field on some record other than this one.
 
-    A malformed block is removed so the view still loads unscoped, matching the default for
-    a view that omits ``applies_to`` entirely. Criteria the destination cannot evaluate are
-    only warned about — they are skipped at match time by design, so that one block can be
-    shared across a plugin's Dag- and task-level destinations.
+    ``class_ref.class_name`` means nothing on a task instance but everything on a task, and an
+    author targeting both pages from one block writes exactly that. Such a path is skipped at
+    match time by design, so it must not be reported as a misspelling.
+
+    Only asked about unqualified paths: one that names its record explicitly has no other
+    reading, so a bad field there is simply wrong.
+    """
+    return any(_describe_applies_to_path_error(path, root) is None for root in _applies_to_root_models())
+
+
+def _validate_applies_to(plugin_name: str | None, view: ExternalViewDict | ReactAppDict, kind: str) -> bool:
+    """
+    Check a UI plugin's scoping, returning whether the view should be loaded at all.
+
+    Three failures, wanting three different things:
+
+    * **Malformed** block -- not a dictionary, a non-string path, a value that is not a list of
+      strings. Dropped, and the view loads unscoped, as it would without ``applies_to`` at all.
+      Nothing of the author's intent survives to act on.
+    * **Unevaluable** path -- its root record is one this destination does not have, or it names
+      a field only a sibling record has. Warned about and kept: both are skipped at match time
+      by design, which is what lets one block be shared across a plugin's destinations.
+    * **A path naming a field no record has.** The author asked to narrow by something that
+      cannot exist, so the view can never appear for the reason they intended. Returning
+      ``False`` withholds it rather than letting the browser skip the path and show it
+      everywhere. A view that disappears gets noticed; one on every page looks deliberate.
+
+    The view gets a new dict rather than an edited one, because a plugin may pass the same
+    ``applies_to`` object to several views and it is not this function's to rewrite.
     """
     if "applies_to" not in view:
-        return
+        return True
 
     applies_to = view["applies_to"]
     if applies_to is None:
-        return
+        return True
 
     if error := _describe_applies_to_error(applies_to):
         log.warning(
@@ -199,39 +384,91 @@ def _validate_applies_to(plugin_name: str | None, view: dict[str, Any], kind: st
             error,
         )
         del view["applies_to"]
-        return
+        return True
+
+    # A null value means "no values configured", which the matcher already ignores the same way
+    # it ignores an empty list. Carrying it through would fail `PluginAppliesToResponse`
+    # serialization and drop the whole plugin -- including its other, valid views -- from the
+    # plugins API.
+    #
+    # The view gets a new dict rather than an edited one, because a plugin may pass the same
+    # `applies_to` object to several views and it is not this function's to rewrite.
+    applies_to = {path: list(values) for path, values in applies_to.items() if values is not None}
+    view["applies_to"] = applies_to
 
     destination = view.get("destination", "nav")
-    if destination not in _EVALUABLE_CRITERIA_BY_DESTINATION:
+    if destination not in _APPLIES_TO_ROOTS:
         # An unrecognised destination already fails serialization; warning here too would
         # only add noise pointing at the wrong problem.
-        return
+        return True
 
-    configured = {criterion for criterion, values in applies_to.items() if values}
-    if unevaluable := configured - _EVALUABLE_CRITERIA_BY_DESTINATION[destination]:
+    available = _APPLIES_TO_ROOTS[destination]
+    unevaluable = sorted(
+        path
+        for path, values in applies_to.items()
+        if values and _applies_to_path_root(path, destination) not in available
+    )
+    if unevaluable:
         log.warning(
             "Plugin '%s' has %s '%s' with destination '%s', which cannot evaluate %s. "
-            "Those criteria will be ignored.",
+            "Those paths will be ignored.",
             plugin_name,
             kind,
             view.get("name"),
             destination,
-            sorted(unevaluable),
+            unevaluable,
         )
+
+    # A path naming a field no record has is indistinguishable at match time from one the page
+    # simply cannot judge, so the UI skips it -- which *widens* the scope instead of narrowing
+    # it. Catching the misspelling here is the only place it can be told apart.
+    for path, values in applies_to.items():
+        root = _applies_to_path_root(path, destination)
+        if not values or root is None or root not in available:
+            continue
+        error = _describe_applies_to_path_error(path, root)
+        if error is None:
+            continue
+        head, _, rest = path.partition(".")
+        if not (head in _APPLIES_TO_ROOT_NAMES and rest) and _is_applies_to_path_known_elsewhere(path):
+            # A real field, just not on this destination's record. Saying the scope widened
+            # would be untrue: the block's other paths are what scope this destination.
+            log.warning(
+                "Plugin '%s' has %s '%s' with an 'applies_to' path '%s' that no %s has. It is "
+                "skipped here; it only scopes the destinations whose record does have it.",
+                plugin_name,
+                kind,
+                view.get("name"),
+                path,
+                root,
+            )
+            continue
+        log.error(
+            "Plugin '%s' has %s '%s' with an 'applies_to' path that matches no field: %s. "
+            "It could never scope the way it asks to, so the %s will not be loaded.",
+            plugin_name,
+            kind,
+            view.get("name"),
+            error,
+            kind.split()[-1],
+        )
+        return False
+
+    return True
 
 
 @cache
-def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
+def _get_ui_plugins() -> tuple[list[ExternalViewDict], list[ReactAppDict]]:
     """Collect extension points for the UI."""
     log.debug("Initialize UI plugin")
 
     seen_url_routes: dict[str, str | None] = {}
 
-    external_views: list[Any] = []
-    react_apps: list[Any] = []
+    external_views: list[ExternalViewDict] = []
+    react_apps: list[ReactAppDict] = []
     for plugin in _get_plugins()[0]:
-        external_views_to_remove = []
-        react_apps_to_remove = []
+        external_views_to_remove: list[ExternalViewDict] = []
+        react_apps_to_remove: list[ReactAppDict] = []
         for external_view in plugin.external_views:
             if not isinstance(external_view, dict):
                 log.warning(
@@ -240,7 +477,9 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
                 )
                 external_views_to_remove.append(external_view)
                 continue
-            _validate_applies_to(plugin.name, external_view, "an external view")
+            if not _validate_applies_to(plugin.name, external_view, "an external view"):
+                external_views_to_remove.append(external_view)
+                continue
             url_route = external_view.get("url_route")
             if url_route is None:
                 continue
@@ -265,7 +504,9 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
                 )
                 react_apps_to_remove.append(react_app)
                 continue
-            _validate_applies_to(plugin.name, react_app, "a React App")
+            if not _validate_applies_to(plugin.name, react_app, "a React App"):
+                react_apps_to_remove.append(react_app)
+                continue
             url_route = react_app.get("url_route")
             if url_route is None:
                 continue
@@ -282,10 +523,10 @@ def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
             react_apps.append(react_app)
             seen_url_routes[url_route] = plugin.name
 
-        for item in external_views_to_remove:
-            plugin.external_views.remove(item)
-        for item in react_apps_to_remove:
-            plugin.react_apps.remove(item)
+        for external_view in external_views_to_remove:
+            plugin.external_views.remove(external_view)
+        for react_app in react_apps_to_remove:
+            plugin.react_apps.remove(react_app)
     return external_views, react_apps
 
 
@@ -339,6 +580,106 @@ def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
     return fastapi_apps, fastapi_root_middlewares
 
 
+PluginTranslations = dict[str, dict[str, dict[str, Any]]]
+
+
+def merge_translations(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Deep-merge ``override`` onto ``base`` (recursing into nested dicts) and return a new dict."""
+    merged = dict(base)
+    for key, value in override.items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            merged[key] = merge_translations(existing, value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _load_translation_source(source: Any) -> PluginTranslations:
+    """Load one ``ui_translations`` entry (inline mapping or ``<language>/<namespace>.json`` tree)."""
+    result: PluginTranslations = {}
+
+    if isinstance(source, dict):
+        for language, namespaces in source.items():
+            for namespace, keys in namespaces.items():
+                if not isinstance(keys, dict):
+                    raise ValueError(f"translations for {language!r}/{namespace!r} must be a mapping")
+                result.setdefault(language, {})[namespace] = keys
+        return result
+
+    directory = Path(source)
+    if not directory.is_dir():
+        raise ValueError(f"translation source {source!r} is neither a directory nor an inline mapping")
+    for language_dir in sorted(directory.iterdir()):
+        if not language_dir.is_dir():
+            continue
+        for namespace_file in sorted(language_dir.glob("*.json")):
+            try:
+                content = json.loads(namespace_file.read_text("utf-8"))
+            except (OSError, ValueError):
+                log.warning("Skipping unreadable UI translation file %s", namespace_file)
+                continue
+            result.setdefault(language_dir.name, {})[namespace_file.stem] = content
+    return result
+
+
+@cache
+def get_ui_translations() -> PluginTranslations:
+    """
+    Collect and deep-merge the ``language -> namespace -> keys`` UI translations from all plugins.
+
+    Never raises: a broken source (unreadable file, bad ``ui_translations`` value) is skipped with a
+    warning so it cannot stop the API server starting or keep other plugins from loading.
+    """
+    plugin_translations: PluginTranslations = {}
+    for plugin in _get_plugins()[0]:
+        try:
+            for source in plugin.ui_translations:
+                contributed = _load_translation_source(source)
+                for language, namespaces in contributed.items():
+                    language_translations = plugin_translations.setdefault(language, {})
+                    for namespace, keys in namespaces.items():
+                        language_translations[namespace] = merge_translations(
+                            language_translations.get(namespace, {}), keys
+                        )
+        except Exception:
+            log.exception("Skipping invalid UI translations from plugin %s", plugin.name)
+            continue
+    return plugin_translations
+
+
+def warn_about_unknown_translation_keys(plugin_translations: PluginTranslations, reference_dir: Path) -> None:
+    """Warn about plugin keys absent from the English reference (likely stale). Only logs; never raises."""
+
+    def _warn(keys: dict[str, Any], reference: Any, language: str, namespace: str, prefix: str = "") -> None:
+        for key, value in keys.items():
+            in_reference = isinstance(reference, dict) and key in reference
+            if isinstance(value, dict):
+                _warn(
+                    value,
+                    reference.get(key) if in_reference else None,
+                    language,
+                    namespace,
+                    f"{prefix}{key}.",
+                )
+            elif not in_reference:
+                log.warning(
+                    "Plugin UI translation for %s/%s sets key %r, which is not in the English "
+                    "reference and may be stale.",
+                    language,
+                    namespace,
+                    f"{prefix}{key}",
+                )
+
+    for language, namespaces in plugin_translations.items():
+        for namespace, keys in namespaces.items():
+            try:
+                reference = json.loads((reference_dir / f"{namespace}.json").read_text("utf-8"))
+            except (OSError, ValueError):
+                reference = {}
+            _warn(keys, reference, language, namespace)
+
+
 @cache
 def _get_extra_operators_links_plugins() -> tuple[list[Any], list[Any]]:
     """Create and get modules for loaded extension from extra operators links plugins."""
@@ -360,6 +701,84 @@ def get_global_operator_extra_links() -> list[Any]:
 def get_operator_extra_links() -> list[Any]:
     """Get operator extra links registered by plugins."""
     return _get_extra_operators_links_plugins()[1]
+
+
+@cache
+def _get_extra_link_class_teams() -> dict[type, frozenset[str | None]]:
+    """
+    Map every plugin-registered extra link class to the teams that registered it.
+
+    Keyed by class because neither of the alternatives works: ``BaseOperatorLink`` sets
+    ``__hash__ = None`` and compares equal across instances, and two distinct link
+    classes may share a ``name`` (plugin links deliberately override operator links of
+    the same name), so a name key would conflate them.
+
+    A class registered by several plugins maps to all of their teams, which
+    :func:`is_extra_link_visible_to_team` then resolves least restrictively.
+    """
+    teams: dict[type, set[str | None]] = {}
+    for plugin in _get_plugins()[0]:
+        for link in (*plugin.global_operator_extra_links, *plugin.operator_extra_links):
+            teams.setdefault(type(link), set()).add(plugin.team_name)
+    return {link_class: frozenset(team_names) for link_class, team_names in teams.items()}
+
+
+def is_extra_link_visible_to_team(link: Any, team_name: str | None) -> bool:
+    """
+    Whether ``link`` should be shown on a task instance belonging to ``team_name``.
+
+    A team-scoped plugin's links are shown only on that team's task instances, so they
+    appear neither on another team's Dags nor on teamless (global) ones. Links from
+    global plugins, and links the operator defines itself, stay visible everywhere.
+
+    :param link: The operator link object, whose class identifies the registering plugin.
+    :param team_name: Team owning the Dag the link would be rendered for, or ``None``
+        when the Dag is not team-owned.
+    """
+    link_teams = _get_extra_link_class_teams().get(type(link))
+    # Not registered by any plugin (defined by the operator), or registered by at least
+    # one global plugin: either way it is not restricted to a team.
+    if link_teams is None or None in link_teams:
+        return True
+    return team_name in link_teams
+
+
+@cache
+def get_scheduling_class_teams() -> dict[str, frozenset[str | None]]:
+    """
+    Map the qualname of every plugin-registered scheduling class to the teams that registered it.
+
+    Covers timetables, partition mappers, windows, deadline references and priority weight
+    strategies: the registries a Dag names directly, with no team-aware lookup in between.
+
+    Keyed by qualname because that is what a serialized Dag records and what the scheduler
+    resolves through ``get_timetables_plugins()`` and its siblings. Class identity is not
+    stable enough to key on: the plugin loader executes a plugin file again under its own
+    module entry, so a Dag importing a class from that file can hold a different class
+    object with the same qualname as the one that was registered.
+
+    A qualname registered by several plugins maps to all of their teams, and is then
+    resolved least restrictively.
+
+    Airflow's own timetables, partition mappers and windows are left out even if a plugin
+    lists them: the decoder imports anything under those core paths directly and never
+    consults plugins, so a plugin cannot own them.
+    """
+    teams: dict[str, set[str | None]] = {}
+    for plugin in _get_plugins()[0]:
+        for scheduling_class in (
+            *plugin.timetables,
+            *plugin.partition_mappers,
+            *plugin.windows,
+            *plugin.deadline_references,
+            *plugin.priority_weight_strategies,
+        ):
+            name = qualname(scheduling_class)
+            # The partition mapper prefix also covers core windows.
+            if is_core_timetable_import_path(name) or is_core_partition_mapper_import_path(name):
+                continue
+            teams.setdefault(name, set()).add(plugin.team_name)
+    return {name: frozenset(team_names) for name, team_names in teams.items()}
 
 
 @cache

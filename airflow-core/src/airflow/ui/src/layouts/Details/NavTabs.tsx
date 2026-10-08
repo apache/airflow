@@ -28,6 +28,7 @@ export type NavTab = {
   readonly label: string;
   /** Additional route segments that should also mark this tab as active. */
   readonly matchPaths?: Array<string>;
+  readonly search?: string;
   readonly value: string;
 };
 
@@ -52,7 +53,7 @@ export const NavTabs = ({ tabs }: Props) => {
       mb={2}
       ref={containerRef}
     >
-      {tabs.map(({ icon, label, matchPaths, value }) => {
+      {tabs.map(({ icon, label, matchPaths, search, value }) => {
         const isPathMatch = (matchPaths ?? []).includes(lastSegment);
 
         return (
@@ -62,6 +63,7 @@ export const NavTabs = ({ tabs }: Props) => {
             title={label}
             to={{
               pathname: value,
+              search,
             }}
           >
             {({ isActive }) => {

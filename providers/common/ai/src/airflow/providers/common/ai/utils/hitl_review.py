@@ -27,7 +27,7 @@ task instance.  See the *XCom key constants* below for the key naming scheme.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Literal
 
@@ -85,7 +85,7 @@ class ConversationEntry(BaseModel):
     role: Literal["assistant", "human"]
     content: str
     iteration: int
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class AgentSessionData(BaseModel):

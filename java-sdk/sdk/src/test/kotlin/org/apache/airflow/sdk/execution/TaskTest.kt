@@ -169,6 +169,19 @@ class TaskTest {
     }
   }
 
+  @Test
+  @DisplayName("Should thread the task definition into the execution context")
+  fun shouldThreadTaskDefIntoContext() {
+    val result =
+      runTask(
+        bundleWith("asserting", TaskDefAssertingTask::class.java),
+        startupDetails(taskId = "asserting"),
+        noOpClient(),
+      )
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+  }
+
   private fun bundleWith(
     taskId: String,
     taskClass: Class<out Task>,
@@ -214,6 +227,14 @@ class TaskTest {
 
         override fun getVariable(key: String) = throw UnsupportedOperationException("not used in test")
 
+        override fun setVariable(
+          key: String,
+          value: String,
+          description: String?,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun deleteVariable(key: String): Unit = throw UnsupportedOperationException("not used in test")
+
         override fun getXCom(
           key: String,
           dagId: String,
@@ -231,6 +252,25 @@ class TaskTest {
           runId: String,
           mapIndex: Int,
         ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun getTaskStateStore(
+          tiId: UUID,
+          key: String,
+        ) = throw UnsupportedOperationException("not used in test")
+
+        override fun setTaskStateStore(
+          tiId: UUID,
+          key: String,
+          value: Any,
+          expiresAt: OffsetDateTime?,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun deleteTaskStateStore(
+          tiId: UUID,
+          key: String,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
       },
     )
 
@@ -289,5 +329,16 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw IllegalStateException("should not be reachable")
+  }
+
+  class TaskDefAssertingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+      check(context.taskDef?.id == context.ti.taskId) {
+        "expected the runner to thread the task definition into the context"
+      }
+    }
   }
 }

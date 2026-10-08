@@ -22,6 +22,7 @@ import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import ColumnElement, and_, case, exists, func, select, true
 
+from airflow.api_fastapi.common.asset_expression import redact_asset_expression
 from airflow.api_fastapi.common.db.assets import generate_assets_with_last_event_query
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -30,6 +31,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryAssetGroupPrefixPatternSearch,
     QueryAssetNamePatternSearch,
     QueryAssetNamePrefixPatternSearch,
+    QueryHasEventsFilter,
     QueryLimit,
     QueryOffset,
     QueryUriExactMatch,
@@ -46,8 +48,10 @@ from airflow.api_fastapi.core_api.datamodels.ui.assets import (
     NextRunAssetEventResponse,
     NextRunAssetsResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.routes.public.assets import OnlyActiveFilter
 from airflow.api_fastapi.core_api.security import (
+    ReadableAssetsFilterDep,
     requires_access_asset,
     requires_access_asset_alias,
     requires_access_dag,
@@ -90,6 +94,7 @@ def get_assets(
     group_pattern: QueryAssetGroupPatternSearch,
     group_prefix_pattern: QueryAssetGroupPrefixPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
+    has_events: QueryHasEventsFilter,
     only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     last_asset_event_timestamp_range: Annotated[
         RangeFilter,
@@ -109,6 +114,7 @@ def get_assets(
             ).dynamic_depends(default="-last_asset_event_timestamp")
         ),
     ],
+    readable_assets_filter: ReadableAssetsFilterDep,
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets. Like the public endpoint, but also supports sorting by group and last asset event timestamp."""
@@ -124,7 +130,9 @@ def get_assets(
             group_pattern,
             group_prefix_pattern,
             dag_ids,
+            has_events,
             last_asset_event_timestamp_range,
+            readable_assets_filter,
         ],
         order_by=order_by,
         offset=offset,
@@ -142,15 +150,21 @@ def get_assets(
 
 @assets_router.get(
     "/next_run_assets/{dag_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def next_run_assets(
     dag_id: str,
+    readable_assets_filter: ReadableAssetsFilterDep,
     session: SessionDep,
 ) -> NextRunAssetsResponse:
     dag_model = DagModel.get_dagmodel(dag_id, session=session)
     if dag_model is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+
+    asset_expression = redact_asset_expression(
+        dag_model.asset_expression, readable_asset_ids=readable_assets_filter.value or set()
+    )
 
     latest_run = dag_model.get_last_dagrun(session=session)
     event_filter = (
@@ -214,6 +228,17 @@ def next_run_assets(
         .group_by(AssetModel.id, AssetModel.uri, AssetModel.name, AssetActive.name)
         .order_by(AssetModel.uri)
     )
+    query = readable_assets_filter.to_orm(query)
+
+    # Counted before the readable filter narrows ``query``: the UI derives the
+    # schedule's shape (total, and whether to render the multi-asset popover) from
+    # this, so that shape stays the same for every caller regardless of which
+    # assets they may read.
+    scheduling_asset_count = session.scalar(
+        select(func.count())
+        .select_from(DagScheduleAssetReference)
+        .where(DagScheduleAssetReference.dag_id == dag_id)
+    )
 
     if not is_partitioned:
         query = query.join(
@@ -238,7 +263,11 @@ def next_run_assets(
             )
             for row in raw_rows
         ]
-        model_data: dict[str, Any] = {"asset_expression": dag_model.asset_expression, "events": events}
+        model_data: dict[str, Any] = {
+            "asset_expression": asset_expression,
+            "events": events,
+            "scheduling_asset_count": scheduling_asset_count,
+        }
         return NextRunAssetsResponse.model_validate(model_data)
 
     # Partitioned Dags: enrich with per-asset received/required counts and rollup flag.
@@ -273,8 +302,9 @@ def next_run_assets(
             for row in raw_rows
         ]
         model_data = {
-            "asset_expression": dag_model.asset_expression,
+            "asset_expression": asset_expression,
             "events": events,
+            "scheduling_asset_count": scheduling_asset_count,
             "pending_partition_count": pending_partition_count,
         }
         return NextRunAssetsResponse.model_validate(model_data)
@@ -347,8 +377,9 @@ def next_run_assets(
         )
 
     model_data = {
-        "asset_expression": dag_model.asset_expression,
+        "asset_expression": asset_expression,
         "events": events,
+        "scheduling_asset_count": scheduling_asset_count,
         "pending_partition_count": pending_partition_count,
     }
     return NextRunAssetsResponse.model_validate(model_data)

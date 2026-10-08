@@ -1,5 +1,8 @@
 {
   "additional_data": "Dades addicionals",
+  "alias_one": "Àlies",
+  "alias_other": "Àlies",
+  "aliases": "Àlies",
   "asset_many": "Assets",
   "asset_one": "Asset",
   "assetStateStore": {
@@ -13,7 +16,9 @@
     "deleteWarning": "L'Asset perdrà aquesta entrada de magatzem persistent.",
     "edit": "Editar magatzem d'Asset",
     "emptyState": "El magatzem d'Asset emmagatzema valors limitats a una identitat d'Asset, compartits entre totes les execucions de Dag. Els workers poden escriure al magatzem d'Asset mitjançant el Task SDK.",
-    "lastUpdatedBy": "Last Updated By",
+    "entry_one": "Entrada",
+    "entry_other": "Entrades",
+    "lastUpdatedBy": "Darrera actualització feta per",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "Watcher",
     "title": "Magatzem d'Asset"
@@ -42,7 +47,11 @@
     "title": "Crear esdeveniment d'Asset per {{name}}"
   },
   "events": "Esdeveniments",
-  "extra": "Extra",
+  "filters": {
+    "groupPlaceholder": "Cercar grup",
+    "hasEvents": "Té esdeveniments",
+    "lastEventDateRange": "Data del darrer esdeveniment"
+  },
   "group": "Grup",
   "lastAssetEvent": "Darrer esdeveniment d'Asset",
   "name": "Nom",
@@ -50,5 +59,8 @@
   "scheduledDags": "Dags programats",
   "scheduling": "Programats",
   "searchPlaceholder": "Cercar Assets",
-  "taskDependencies": "Dependències de tasca"
+  "taskDependencies": "Dependències de tasca",
+  "watcher_one": "Observador",
+  "watcher_other": "Observadors",
+  "watchers": "Observadors"
 }

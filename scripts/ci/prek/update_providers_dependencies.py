@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "pyyaml>=6.0.3",
 #   "rich>=13.6.0",
-#   "tomli>=2.0.1",
 # ]
 # ///
 from __future__ import annotations
@@ -28,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tomllib
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -66,11 +66,7 @@ ALL_PROVIDER_FILES: list[Path] = []
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
-    return tomllib.loads(pyproject_toml_file_path.read_text())
+    return tomllib.loads(pyproject_toml_file_path.read_text(encoding="utf-8"))
 
 
 def find_all_providers_and_provider_files():
@@ -95,7 +91,7 @@ def find_all_providers_and_provider_files():
                         f"The provider {provider_name} does not have 'src' folder"
                         f" in {provider_yaml_file.parent}"
                     )
-                provider_info = yaml.safe_load(provider_yaml_file.read_text())
+                provider_info = yaml.safe_load(provider_yaml_file.read_text(encoding="utf-8"))
                 if provider_info["state"] == "suspended":
                     suspended_paths.append(
                         provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH).as_posix()
@@ -226,13 +222,13 @@ if __name__ == "__main__":
         console.print("[red]Errors found during verification. Exiting!")
         console.print()
         sys.exit(1)
-    old_dependencies = (
-        DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else "{}"
+    old_content = (
+        DEPENDENCIES_JSON_FILE_PATH.read_text(encoding="utf-8")
+        if DEPENDENCIES_JSON_FILE_PATH.exists()
+        else ""
     )
-    new_dependencies = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
-    old_content = DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else ""
     new_content = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
-    DEPENDENCIES_JSON_FILE_PATH.write_text(new_content)
+    DEPENDENCIES_JSON_FILE_PATH.write_text(new_content, encoding="utf-8")
     if new_content != old_content:
         console.print()
         console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")

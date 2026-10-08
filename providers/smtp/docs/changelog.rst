@@ -27,6 +27,55 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Reconnect SMTP connections after leaving a hook context manager (#74416)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+3.0.4
+.....
+
+Misc
+~~~~
+
+* ``Fix late-binding loop variable in the SMTP OAuth2 callback (#70640)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump the minimum common-compat version (#72503)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
 3.0.3
 .....
 

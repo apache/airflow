@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render } from "@testing-library/react";
 import type * as ReactRouterDom from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

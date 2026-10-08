@@ -21,21 +21,25 @@
 export const TIMEZONE_KEY = "timezone";
 export const DEFAULT_DAG_VIEW_KEY = "default_dag_view";
 export const DAGS_LIST_DISPLAY_KEY = "dags_list_display";
-export const CALENDAR_GRANULARITY_KEY = "calendar-granularity";
-export const CALENDAR_VIEW_MODE_KEY = "calendar-view-mode";
+export const DAGS_LIST_SHOW_FOLDERS_KEY = "dags_list_show_folders";
 export const LOG_WRAP_KEY = "log_wrap";
 export const LOG_SHOW_TIMESTAMP_KEY = "log_show_timestamp";
 export const LOG_SHOW_SOURCE_KEY = "log_show_source";
+export const LOG_SHOW_LOG_LEVEL_KEY = "log_show_log_level";
 export const VERSION_INDICATOR_DISPLAY_MODE_KEY = "version_indicator_display_mode";
 export const COLLAPSED_UI_ALERTS_KEY = "collapsed_ui_alerts";
 export const SHOW_ALL_DEPENDENCIES_KEY = "show_all_dependencies";
 export const DEFAULT_GRAPH_DIRECTION_KEY = "default_graph_direction";
+export const DEFAULT_TASK_GROUPS_EXPANDED_KEY = "default_task_groups_expanded";
 export const CLEAR_RUN_DEFAULT_OPTIONS_KEY = "clear_run_default_options";
 export const CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY = "clear_task_instance_default_options";
 export const CLEAR_PREVENT_RUNNING_TASK_KEY = "clear_prevent_running_task";
+export const CLEAR_KEEP_TASK_STATE_KEY = "clear_keep_task_state";
 export const MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY = "mark_task_instance_default_options";
 export const DEFAULT_TASK_INSTANCE_TAB_KEY = "default_task_instance_tab";
 export const DEFAULT_LANDING_PAGE_KEY = "default_landing_page";
+export const DEFAULT_MATCH_ANYWHERE_KEY = "default_match_anywhere";
+export const DAGS_LIST_SHOW_RECENT_TASKS_KEY = "dags_list_show_recent_tasks";
 
 // Dag-scoped keys
 export const dagRunsLimitKey = (dagId: string) => `dag_runs_limit-${dagId}`;

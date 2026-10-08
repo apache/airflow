@@ -27,6 +27,7 @@
   "breadcrumb": "Breadcrumb",
   "browse": {
     "auditLog": "Audit Log",
+    "dagBundles": "Dag Bundles",
     "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",
@@ -39,7 +40,10 @@
   "createdAssetEvent_other": "Created $t(common:assetEvent_other)",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag Bundle",
+  "dagBundle_other": "Dag Bundles",
   "dagDetails": {
+    "activeRuns": "Active Runs",
     "catchup": "Catchup",
     "dagRunTimeout": "Dag Run Timeout",
     "defaultArgs": "Default Args",
@@ -140,12 +144,15 @@
   "filter": "Filter",
   "filters": {
     "addFilter": "Add Filter",
+    "completedAt": "Completed At",
     "date": "Date",
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
     "endTime": "End Time",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
+    "maxActiveRunsFrom": "Max Active Runs From",
+    "maxActiveRunsTo": "Max Active Runs To",
     "removeFilter": "Remove Filter",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
@@ -161,6 +168,11 @@
   "generateToken": "Generate Token",
   "includedIn": "Included in",
   "key": "Key",
+  "logLevel": {
+    "hide": "Hide Log Levels",
+    "hotkey": "l",
+    "show": "Show Log Levels"
+  },
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
@@ -187,6 +199,7 @@
     "plugins": "Plugins",
     "security": "Security"
   },
+  "no": "No",
   "noItemsFound": "No {{modelName}} found",
   "note": {
     "add": "Add a note",
@@ -259,6 +272,10 @@
   "selected": "Selected",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "Keep task state store entries by default when clearing task instances, instead of discarding them.",
+        "label": "Keep task state on clear"
+      },
       "preventRunningTask": {
         "helper": "Skip tasks that are currently running when clearing task instances.",
         "label": "Prevent clearing running tasks"
@@ -272,6 +289,13 @@
         "label": "Default task clear selection"
       },
       "title": "Clearing"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Show the recent task states of each Dag on the Dags list. Turn off to skip loading them, which can help on deployments with many Dags.",
+        "label": "Show recent tasks"
+      },
+      "title": "Dags List"
     },
     "description": "These preferences are saved in this browser only and apply across the whole app.",
     "general": {
@@ -290,6 +314,10 @@
         "helper": "Layout direction for Dag and asset graphs you haven't set individually.",
         "label": "Default graph direction"
       },
+      "taskGroupsExpanded": {
+        "helper": "Expand task groups in Dags where you haven't saved a group selection. Existing selections are kept.",
+        "label": "Expand task groups by default"
+      },
       "title": "Graph"
     },
     "marking": {
@@ -298,6 +326,13 @@
         "label": "Default mark selection"
       },
       "title": "Marking"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Per-searchbar choices and shared links still take precedence.",
+        "label": "Match anywhere by default"
+      },
+      "title": "Search"
     },
     "taskInstance": {
       "defaultTab": {
@@ -341,6 +376,7 @@
       "toggleExpand": "Expand or collapse all groups",
       "toggleFullscreen": "Toggle fullscreen",
       "toggleGraphGrid": "Toggle graph / grid view",
+      "toggleLogLevel": "Toggle log levels",
       "toggleSource": "Toggle source",
       "toggleTaskGroup": "Expand or collapse $t(taskGroup_one)",
       "toggleTimestamp": "Toggle timestamps",
@@ -437,6 +473,11 @@
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
     "scheduledWhen": "Scheduled At",
+    "stateReason": "Reason for state",
+    "stateReasonSummary": {
+      "failed": "Stopped on try {{tryNumber}} of {{totalTries}}",
+      "upForRetry": "Retrying after try {{tryNumber}} of {{totalTries}}"
+    },
     "trigger": "Trigger",
     "triggerer": {
       "assigned": "Assigned triggerer",
@@ -458,9 +499,14 @@
     "title": "Teams"
   },
   "timeRange": {
+    "anyTime": "Any time",
+    "in": "in",
+    "last7Days": "Last 7 days",
     "last12Hours": "Last 12 Hours",
     "last24Hours": "Last 24 Hours",
+    "last30Days": "Last 30 days",
     "lastHour": "Last Hour",
+    "latestRun": "Latest run",
     "pastWeek": "Past Week"
   },
   "timestamp": {
@@ -553,5 +599,6 @@
     "tooltip": "Press {{hotkey}} to toggle wrap",
     "unwrap": "Unwrap",
     "wrap": "Wrap"
-  }
+  },
+  "yes": "Yes"
 }

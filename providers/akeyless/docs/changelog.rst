@@ -18,8 +18,50 @@
 Changelog
 =========
 
+.. warning::
+  In multi-team mode with ``use_team_secrets_path`` enabled (the default) and no ``global_secrets_path``
+  set, a connection or variable looked up with no team is no longer resolved when its id contains the
+  path separator. Such an id resolves under the same base path that team-scoped secrets are stored
+  under, so it could name a team's secret. Set ``global_secrets_path`` to give secrets used outside any
+  team a namespace of their own, in which nested ids keep working.
+
+0.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refuse nested secret ids looked up with no team in multi-team mode (#73789)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+0.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refuse Akeyless secret ids that address another team's namespace (#72646)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump common-compat lower bound for akeyless, hashicorp and smtp (#72503)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
+
 0.3.0
------
+.....
 
 Features
 ~~~~~~~~
@@ -37,7 +79,7 @@ Doc-only
 
 
 0.2.0
------
+.....
 
 .. note::
     The Akeyless connection field ``jwt`` has been renamed to ``jwt_token`` so the credential
@@ -54,7 +96,7 @@ Breaking changes
    * ``Prepare providers release 2026-05-05 (#66424)``
 
 0.1.0
------
+.....
 
 Initial release.
 

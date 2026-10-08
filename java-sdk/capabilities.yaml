@@ -21,7 +21,7 @@ min_airflow_version: "3.3"
 
 # Keep in sync with airflowSupervisorSchemaVersion in gradle.properties, which is what stamps the
 # JAR manifest. The render hook fails if the two disagree.
-supervisor_schema_version: "2026-06-16"
+supervisor_schema_version: "2026-10-30"
 
 # The runtime terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); it does
 # not yet emit skipped, DeferTask, RescheduleTask, or AwaitInputTask.
@@ -52,13 +52,16 @@ states:
     supported: true
     since: "3.3"
 
-# Runtime capabilities reflect the task-facing Client surface; native-Dag authoring is not
-# implemented yet, so every native capability is unsupported.
+# Runtime capabilities reflect the task-facing Client surface. Native-Dag capabilities describe
+# what a Java-authored Dag can declare and deliver through Dag serialization.
 capabilities:
   mixed-lang-stub-target:
     supported: true
     since: "3.3"
     note: "@task.stub"
+  taskflow-binding:
+    supported: false
+    note: "bind @task.stub literal/XCom args to the native handler"
   task-logging:
     supported: true
     since: "3.3"
@@ -70,8 +73,8 @@ capabilities:
     supported: true
     since: "3.3"
   variable-read-write:
-    supported: false
-    note: "getVariable only; no write over the comm socket yet"
+    supported: true
+    since: "3.3"
   self-contained-bundle:
     supported: true
     since: "3.3"
@@ -80,8 +83,9 @@ capabilities:
     supported: false
     note: "no task-facing retry-policy API yet"
   task-state-store:
-    supported: false
-    note: "no task-facing state-store API yet"
+    supported: true
+    since: "3.3"
+    note: "Client.getTaskStateStore() get/set/delete/clear"
   asset-state-store:
     supported: false
     note: "no task-facing state-store API yet"
@@ -92,20 +96,23 @@ capabilities:
     supported: false
     note: "no task-facing asset-event API yet"
   native-dag-authoring:
-    supported: false
-    note: "native Dag authoring not implemented yet"
+    supported: true
+    since: "3.4"
   task-args:
-    supported: false
+    supported: true
+    since: "3.4"
   dag-params:
     supported: false
   taskflow-dependencies:
-    supported: false
+    supported: true
+    since: "3.4"
   branching:
     supported: false
   dag-test:
     supported: false
   task-group:
-    supported: false
+    supported: true
+    since: "3.4"
   dynamic-task-mapping:
     supported: false
   asset-inlets-outlets:

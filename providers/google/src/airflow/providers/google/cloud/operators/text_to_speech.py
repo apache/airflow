@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -112,7 +111,6 @@ class CloudTextToSpeechSynthesizeOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.retry = retry
         self.timeout = timeout
-        self._validate_inputs()
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
@@ -125,9 +123,10 @@ class CloudTextToSpeechSynthesizeOperator(GoogleCloudBaseOperator):
             "target_filename",
         ]:
             if getattr(self, parameter) == "":
-                raise AirflowException(f"The required parameter '{parameter}' is empty")
+                raise ValueError(f"The required parameter '{parameter}' is empty")
 
     def execute(self, context: Context) -> None:
+        self._validate_inputs()
         hook = CloudTextToSpeechHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
