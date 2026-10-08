@@ -9,7 +9,10 @@
   "config": {
     "columns": {
       "section": "קטגוריה"
-    }
+    },
+    "config_one": "הגדרה",
+    "config_other": "הגדרות",
+    "config_two": "שתי הגדרות"
   },
   "connections": {
     "add": "הוסף חיבור חדש",
@@ -35,6 +38,7 @@
     "form": {
       "connectionIdRequired": "נדרש מזהה חיבור",
       "connectionIdRequirement": "מזהה חיבור אינו יכול להכיל רווחים בלבד",
+      "connectionTypeFields": "שדות {{connectionType}}",
       "connectionTypeRequired": "נדרש סוג חיבור",
       "extraFieldsJson": "שדות נוספים JSON",
       "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת העזר המתאימה",
@@ -97,7 +101,10 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "עבודה",
+    "job_other": "עבודות",
+    "job_two": "שתי עבודות"
   },
   "plugins": {
     "columns": {
@@ -106,6 +113,9 @@
     "importError_one": "שגיאה בייבוא תוסף",
     "importError_other": "שגיאות בייבוא תוסף",
     "importError_two": "שגיאות בייבוא תוסף",
+    "plugin_one": "תוסף",
+    "plugin_other": "תוספים",
+    "plugin_two": "שני תוספים",
     "searchPlaceholder": "חפש לפי קובץ"
   },
   "pools": {
@@ -140,7 +150,10 @@
     "columns": {
       "packageName": "שם חבילה",
       "version": "גירסה"
-    }
+    },
+    "provider_one": "חבילת עזר",
+    "provider_other": "חבילות עזר",
+    "provider_two": "שתי חבילות עזר"
   },
   "variables": {
     "add": "הוסף משתנה",

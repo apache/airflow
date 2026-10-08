@@ -6,6 +6,7 @@
     "title": "תלויות החוסמות את תזמון המשימה"
   },
   "calendar": {
+    "backfill": "השלמה למפרע",
     "daily": "יומי",
     "hourly": "שעתי",
     "legend": {
@@ -42,6 +43,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "חייב להסתיים תוך {{interval}} מ-{{reference}}",
+    "completionRuleDynamic": "יש להשלים בתוך מרווח זמן משתנה הנמדד מ-{{reference}}",
     "count_one": "מועד אחד",
     "count_other": "{{count}} מועדים",
     "count_two": "{{count}} מועדים",
@@ -94,10 +96,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "מסך מלא",
-      "tooltip": "לחץ {{hotkey}} למסך מלא"
-    },
     "info": "INFO",
     "noTryNumber": "אין מספר ניסיון",
     "search": {
@@ -106,7 +104,11 @@
       "placeholder": "חפש רישומים..."
     },
     "settings": "הגדרות רישום",
+    "tryNotStarted": "הניסיון הזה עדיין לא התחיל.",
+    "viewFailedTry": "הצג יומנים של ניסיון {{tryNumber}} שנכשל",
     "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
+    "viewPreviousTry": "הצג יומנים של ניסיון קודם {{tryNumber}}",
+    "waitingToRetry": "ניסיון {{tryNumber}} ממתין לניסיון חוזר.",
     "warning": "WARNING"
   },
   "notFound": {
@@ -154,13 +156,7 @@
       "label": "מספר הרצות Dag"
     },
     "dependencies": {
-      "label": "תלויות",
-      "options": {
-        "allDagDependencies": "כל תלויות ה-Dag",
-        "externalConditions": "תנאים חיצוניים",
-        "onlyTasks": "משימות בלבד"
-      },
-      "placeholder": "תלויות"
+      "allDagDependencies": "כל התלויות של ה-Dag"
     },
     "graphDirection": {
       "label": "כיוון התרשים"
@@ -236,6 +232,7 @@
     "taskInstances": "מופעי משימות",
     "taskStateStore": "מאגר מצבי משימות",
     "tasks": "משימות",
+    "versions": "גרסאות",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -253,6 +250,9 @@
     "deleteWarning": "המשימה תאבד את הזיכרון השמור הזה. אם המשימה משתמשת במפתח זה למעקב אחר עבודה חיצונית (לדוגמה, מזהה עבודה חיצוני), היא לא תוכל להמשיך אותה.",
     "edit": "ערוך מאגר מצבי משימות",
     "emptyStore": "מאגר מצבי המשימות שומר ערכים הנשמרים בין ניסיונות חוזרים. עובדים יכולים לכתוב למאגר מצבי המשימות באמצעות Task SDK.",
+    "entry_one": "רשומה",
+    "entry_other": "רשומות",
+    "entry_two": "שתי רשומות",
     "expiresAt": {
       "column": "תקף עד",
       "custom": "מותאם אישית",
@@ -261,5 +261,69 @@
       "never": "לעולם לא"
     },
     "title": "מאגר מצבי משימות"
+  },
+  "versions": {
+    "aboutThisComparison": "מידע על ההשוואה",
+    "base": "השווה מתוך",
+    "categories": {
+      "asset": "נכס",
+      "authorization": "הרשאה",
+      "callback": "קריאה חוזרת",
+      "deadline": "מועד יעד",
+      "dependency": "תלות",
+      "metadata": "נתוני מטא",
+      "param": "פרמטר",
+      "provenance": "מקור",
+      "schedule": "תזמון",
+      "task": "משימה",
+      "unknown": "לא ידוע"
+    },
+    "codeAccess": "הערכים דורשים גישה לקוד ה-Dag",
+    "columns": {
+      "after": "אחרי",
+      "before": "לפני",
+      "category": "קטגוריה",
+      "impact": "השפעה",
+      "occurrences": "מופעים",
+      "operation": "פעולה",
+      "path": "נתיב"
+    },
+    "heading": "גרסה {{base}} → גרסה {{target}}",
+    "impacts": {
+      "authorization": "הרשאה",
+      "execution": "ביצוע",
+      "metadata": "נתוני מטא",
+      "provenance": "מקור",
+      "unknown": "לא ידוע"
+    },
+    "maxChanges": "מספר השינויים המרבי",
+    "maxChangesDefault": "ברירת מחדל",
+    "noChanges": "הגרסאות האלה מכילות את אותו מצב.",
+    "observedState": "המצב שנצפה",
+    "observedStateBoundary": "ההשוואה מתייחסת למצב המאוחסן כעת, ולא לראיות מזמן היצירה. אין אפשרות להשוות את המקור בגרסאות היסטוריות; השתמש בכרטיסייה Code כדי להשוות את המקור.",
+    "operations": {
+      "added": "נוסף",
+      "changed": "השתנה",
+      "removed": "הוסר"
+    },
+    "record_one": "רשומה",
+    "record_other": "רשומות",
+    "record_two": "שתי רשומות",
+    "selectPrompt": "בחר שתי גרסאות כדי לראות את ההבדלים ביניהן.",
+    "summary_one": "{{count}} שינוי · סכימה לאחר סריאליזציה {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count}} שינויים · סכימה מסודרת {{baseSchema}} → {{targetSchema}}",
+    "summary_two": "{{count}} שינויים · סכימה לאחר סריאליזציה {{baseSchema}} → {{targetSchema}}",
+    "target": "השווה אל",
+    "truncated": {
+      "description": "שינויים בנתיבים שלא הוצגו הושמטו כדי לעמוד במגבלה, ולכן הספירה היא חסם תחתון.",
+      "title": "חלק מהשינויים לא הוחזרו"
+    },
+    "unavailable": {
+      "description": "לא ניתן להשוות בין הגרסאות האלה. סיבה:",
+      "title": "ההשוואה אינה זמינה",
+      "withoutReason": "לא ניתן להשוות בין הגרסאות האלה."
+    },
+    "valuesHidden": "הערכים מוסתרים",
+    "valuesShown": "הערכים מוצגים"
   }
 }
