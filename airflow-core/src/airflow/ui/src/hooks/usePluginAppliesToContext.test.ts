@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 import {
+  UseDagRunServiceGetDagRunKeyFn,
   UseDagServiceGetDagKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   UseTaskServiceGetTaskKeyFn,
@@ -55,6 +56,7 @@ const { calls, record } = vi.hoisted(() => {
 
 vi.mock("openapi/queries", async (importOriginal) => ({
   ...(await importOriginal<typeof OpenapiQueries>()),
+  useDagRunServiceGetDagRun: record("dagRun"),
   useDagServiceGetDag: record("dag"),
   useTaskInstanceServiceGetMappedTaskInstance: record("taskInstance"),
   useTaskServiceGetTask: record("task"),
@@ -69,6 +71,7 @@ describe("usePluginAppliesToContext", () => {
     renderHook(() => usePluginAppliesToContext(false));
 
     expect(calls.dag?.options?.enabled).toBe(false);
+    expect(calls.dagRun?.options?.enabled).toBe(false);
     expect(calls.task?.options?.enabled).toBe(false);
     expect(calls.taskInstance?.options?.enabled).toBe(false);
   });
@@ -77,6 +80,7 @@ describe("usePluginAppliesToContext", () => {
     renderHook(() => usePluginAppliesToContext(true));
 
     expect(calls.dag?.options?.enabled).toBe(true);
+    expect(calls.dagRun?.options?.enabled).toBe(true);
     expect(calls.task?.options?.enabled).toBe(true);
     expect(calls.taskInstance?.options?.enabled).toBe(true);
   });
@@ -89,12 +93,16 @@ describe("usePluginAppliesToContext", () => {
     renderHook(() => usePluginAppliesToContext(true));
 
     expect(calls.dag?.key).toBeUndefined();
+    expect(calls.dagRun?.key).toBeUndefined();
     expect(calls.task?.key).toBeUndefined();
     expect(calls.taskInstance?.key).toBeUndefined();
 
     expect(UseDagServiceGetDagKeyFn(calls.dag?.params as { dagId: string })).toStrictEqual(
       UseDagServiceGetDagKeyFn({ dagId }),
     );
+    expect(
+      UseDagRunServiceGetDagRunKeyFn(calls.dagRun?.params as { dagId: string; dagRunId: string }),
+    ).toStrictEqual(UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId: runId }));
     expect(
       UseTaskServiceGetTaskKeyFn(calls.task?.params as { dagId: string; taskId: unknown }),
     ).toStrictEqual(UseTaskServiceGetTaskKeyFn({ dagId, taskId }));
@@ -123,6 +131,8 @@ describe("usePluginAppliesToContext", () => {
     renderHook(() => usePluginAppliesToContext(true));
 
     expect(calls.dag?.options?.enabled).toBe(true);
+    // A group route still has a run, so the run record stays resolvable.
+    expect(calls.dagRun?.options?.enabled).toBe(true);
     expect(calls.task?.options?.enabled).toBe(false);
     expect(calls.taskInstance?.options?.enabled).toBe(false);
   });
@@ -141,6 +151,8 @@ describe("usePluginAppliesToContext", () => {
     renderHook(() => usePluginAppliesToContext(true));
 
     expect(calls.dag?.options?.enabled).toBe(true);
+    // No run in the route, so a `dag_run.*` path is unevaluable here.
+    expect(calls.dagRun?.options?.enabled).toBe(false);
     expect(calls.task?.options?.enabled).toBe(false);
     expect(calls.taskInstance?.options?.enabled).toBe(false);
   });

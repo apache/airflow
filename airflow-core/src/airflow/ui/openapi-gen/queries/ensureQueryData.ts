@@ -1893,16 +1893,22 @@ export const ensureUseTaskServiceGetTasksData = (queryClient: QueryClient, { dag
 /**
 * Get Task
 * Get simplified representation of a task.
+*
+* Pass ``version_number`` (e.g. a task instance's ``dag_version.version_number``) to get the task
+* as defined in that Dag version. Without it the latest version is used. Returns 404 if that
+* version of the Dag does not exist.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.taskId
+* @param data.versionNumber
 * @returns TaskResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseTaskServiceGetTaskData = (queryClient: QueryClient, { dagId, taskId }: {
+export const ensureUseTaskServiceGetTaskData = (queryClient: QueryClient, { dagId, taskId, versionNumber }: {
   dagId: string;
   taskId: unknown;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId }), queryFn: () => TaskService.getTask({ dagId, taskId }) });
+  versionNumber?: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId, versionNumber }), queryFn: () => TaskService.getTask({ dagId, taskId, versionNumber }) });
 /**
 * Get Variable
 * Get a variable entry.
