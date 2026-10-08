@@ -17,6 +17,7 @@
  * under the License.
  */
 import type {
+  AssetResponse,
   DAGResponse,
   DAGRunResponse,
   ExternalViewResponse,
@@ -35,6 +36,7 @@ export type PluginView = ExternalViewResponse | ReactAppResponse;
  * the route *does* have is still being fetched.
  */
 export type AppliesToContext = {
+  asset?: AssetResponse;
   dag?: DAGResponse;
   dagRun?: DAGRunResponse;
   isLoading: boolean;
@@ -42,11 +44,12 @@ export type AppliesToContext = {
   taskInstance?: TaskInstanceResponse;
 };
 
-type RootName = "dag" | "dagRun" | "task" | "taskInstance";
+type RootName = "asset" | "dag" | "dagRun" | "task" | "taskInstance";
 
 // A path may name a related record as its first segment. Keyed by the wire spelling, since
 // that is what a plugin author writes.
 const ROOT_BY_PREFIX: Record<string, RootName> = {
+  asset: "asset",
   dag: "dag",
   dag_run: "dagRun",
   task: "task",
@@ -57,6 +60,7 @@ const ROOT_BY_PREFIX: Record<string, RootName> = {
 // destination missing here can evaluate nothing, so all of its paths are skipped.
 // Kept in sync with `_APPLIES_TO_ENTITY_ROOT` in `airflow/plugins_manager.py`.
 const ENTITY_ROOT_BY_DESTINATION: Record<string, RootName> = {
+  asset: "asset",
   dag: "dag",
   dag_overview: "dag",
   dag_run: "dagRun",
