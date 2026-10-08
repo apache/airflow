@@ -22,7 +22,7 @@ import inspect
 import os
 import re
 from collections.abc import Iterator
-from datetime import datetime as std_datetime, timedelta, timezone as std_timezone
+from datetime import UTC, datetime as std_datetime, timedelta
 from pathlib import Path
 from unittest import mock, mock as async_mock
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -1171,7 +1171,7 @@ class TestAwsS3Hook:
     @pytest.mark.asyncio
     @mock.patch.object(S3Hook, "_list_keys_async", autospec=True)
     async def test_s3_key_hook_is_keys_unchanged_success_async(self, mock_list_keys, time_machine):
-        frozen_dt = std_datetime(2026, 1, 1, 12, 0, 5, tzinfo=std_timezone.utc)
+        frozen_dt = std_datetime(2026, 1, 1, 12, 0, 5, tzinfo=UTC)
         time_machine.move_to(frozen_dt, tick=False)
         mock_list_keys.return_value = ["test"]
 
@@ -1293,7 +1293,7 @@ class TestAwsS3Hook:
             previous_objects=set(),
             inactivity_seconds=0,
             allow_delete=False,
-            last_activity_time=std_datetime.now(std_timezone.utc),
+            last_activity_time=std_datetime.now(UTC),
         )
         assert response.get("status") == "pending"
 
@@ -1490,6 +1490,25 @@ class TestAwsS3Hook:
         with pytest.raises(ClientError) as ctx:
             assert mock_hook.delete_bucket(bucket_name="not-exists-bucket-name", force_delete=True)
         assert ctx.value.response["Error"]["Code"] == "NoSuchBucket"
+
+    @mock_aws
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.time.sleep")
+    def test_delete_bucket_force_delete_retries_after_late_write(self, mock_sleep, s3_bucket):
+        hook = S3Hook()
+        hook.load_string("data", key="key", bucket_name=s3_bucket)
+        late_writes = []
+
+        def put_late_object(**kwargs):
+            if not late_writes:
+                late_writes.append("late_key")
+                hook.conn.put_object(Bucket=s3_bucket, Key="late_key", Body=b"late")
+
+        hook.conn.meta.events.register("before-call.s3.DeleteBucket", put_late_object)
+        hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
+
+        assert late_writes == ["late_key"]
+        assert not hook.check_for_bucket(s3_bucket)
+        mock_sleep.assert_called_once_with(500)
 
     def test_provide_bucket_name(self):
         with mock.patch.object(

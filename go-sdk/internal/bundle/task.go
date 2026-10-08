@@ -31,8 +31,8 @@ import (
 )
 
 // Task is one registered task that the coordinator runtime can execute. Bundle
-// authors do not implement this directly. airflow.TaskHandler wraps a plain Go
-// function into a Task.
+// authors do not implement this directly. airflow.TaskHandler, airflow.DagRef.Task,
+// airflow.DagRef.If and airflow.DagRef.Switch wrap a plain Go function into a Task.
 type Task interface {
 	Execute(ctx context.Context, logger *slog.Logger, args []binding.Arg) error
 }
@@ -40,7 +40,7 @@ type Task interface {
 // Bundle looks up a registered task by dag_id and task_id. The coordinator
 // runtime uses Bundle to find the task the supervisor asked for.
 type Bundle interface {
-	LookupTask(dagId, taskId string) (Task, bool)
+	LookupTask(dagID, taskID string) (Task, bool)
 }
 
 // TaskHandlerInfo identifies a registered task handler by its dag_id and task_id.
@@ -57,23 +57,76 @@ type EnumerableBundle interface {
 	ListTaskHandlers() []TaskHandlerInfo
 }
 
+// SerializedDag is one Dag from airflow.Dag, serialized for the Dag processor. Data is nil when
+// Err is set.
+type SerializedDag struct {
+	DagID string
+	Data  map[string]any
+	Err   error
+}
+
+// DagSerializer serializes the Dags from airflow.Dag that a bundle registered, in registration
+// order.
+type DagSerializer interface {
+	SerializeDags(fileloc, relativeFileloc string) []SerializedDag
+}
+
+// DagSourceLister reports the source file that declared each Dag of a bundle, by dag_id.
+type DagSourceLister interface {
+	ListDagSourceFiles() map[string]string
+}
+
 type taskFunction struct {
 	fn       reflect.Value
 	fullName string
 	plan     *binding.Plan
+	// decide is nil unless the task comes from NewPositionalBranchFunction.
+	decide DecideFunc
 }
 
 var _ Task = (*taskFunction)(nil)
 
 // NewTaskFunction validates and wraps a Go function as a Task.
-func NewTaskFunction(fn any) (Task, error) {
+func NewTaskFunction(fn any) (Task, error) { return newTaskFunction(fn, binding.Analyze, nil) }
+
+// NewPositionalTaskFunction is like NewTaskFunction, but the Task binds each argument to one
+// parameter, in order, as binding.AnalyzePositional describes.
+func NewPositionalTaskFunction(fn any) (Task, error) {
+	return newTaskFunction(fn, binding.AnalyzePositional, nil)
+}
+
+// DecideFunc takes the result of the function of a task from NewPositionalBranchFunction. It
+// returns value, which the task pushes as its return_value XCom, and the task_ids of the tasks to
+// skip. When value is a nil pointer, the task does not push the return_value XCom. A non-nil error
+// fails the task.
+type DecideFunc func(result any) (value any, skipped []string, err error)
+
+// NewPositionalBranchFunction is like NewPositionalTaskFunction, but the Task also skips tasks
+// that are downstream of it. fn must return a result and an error. Before fn runs, Execute checks
+// that the runtime can skip tasks. When fn returns a nil error, Execute passes the result to
+// decide and pushes the value that decide returns. If decide also returns task_ids, Execute
+// records them in the skipmixin_key XCom of the task and skips those tasks. When fn or decide
+// returns an error, the task fails without pushing an XCom.
+func NewPositionalBranchFunction(fn any, decide DecideFunc) (Task, error) {
+	return newTaskFunction(fn, binding.AnalyzePositional, decide)
+}
+
+func newTaskFunction(
+	fn any,
+	analyze func(fnType reflect.Type, fnName string) (*binding.Plan, error),
+	decide DecideFunc,
+) (Task, error) {
 	// The kind comes first: Value.Pointer panics on an int, and Value.Type on an untyped nil.
 	v := reflect.ValueOf(fn)
 	if v.Kind() != reflect.Func {
 		return nil, fmt.Errorf("expected a func as input but was %s", v.Kind())
 	}
-	f := &taskFunction{fn: v, fullName: runtime.FuncForPC(v.Pointer()).Name()}
-	if err := f.validateFn(v.Type()); err != nil {
+	f := &taskFunction{
+		fn:       v,
+		fullName: runtime.FuncForPC(v.Pointer()).Name(),
+		decide:   decide,
+	}
+	if err := f.validateFn(v.Type(), analyze); err != nil {
 		return nil, err
 	}
 	return f, nil
@@ -89,11 +142,17 @@ func (f *taskFunction) Execute(
 	if err != nil {
 		return err
 	}
+	var branch *branchRun
+	if f.decide != nil {
+		if branch, err = startBranch(ctx); err != nil {
+			return err
+		}
+	}
 	reflectArgs, err := f.plan.Resolve(ctx, logger, sdkClient, args)
 	if err != nil {
 		return err
 	}
-	return f.call(ctx, sdkClient, reflectArgs, logger)
+	return f.call(ctx, sdkClient, reflectArgs, logger, branch)
 }
 
 func clientFrom(ctx context.Context) (sdk.Client, error) {
@@ -109,6 +168,7 @@ func (f *taskFunction) call(
 	sdkClient sdk.Client,
 	reflectArgs []reflect.Value,
 	logger *slog.Logger,
+	branch *branchRun,
 ) error {
 	slog.Debug("Attempting to call fn", "fn", f.fn, "args", reflectArgs)
 	retValues := f.fn.Call(reflectArgs)
@@ -123,12 +183,89 @@ func (f *taskFunction) call(
 			)
 		}
 	}
+	if branch != nil {
+		// The task pushes the value that decide returns, and decide runs only on a result that fn
+		// returned without an error. So the task pushes no XCom when fn or decide fails.
+		if err != nil {
+			return err
+		}
+		value, skipped, err := f.decide(retValues[0].Interface())
+		if err != nil {
+			return err
+		}
+		rv := reflect.ValueOf(value)
+		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
+			f.sendXcom(ctx, value, sdkClient, logger)
+		}
+		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
+	}
 	// If there are two results, convert the first only if it's not a nil pointer
 	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
 		res := retValues[0].Interface()
 		f.sendXcom(ctx, res, sdkClient, logger)
 	}
 	return err
+}
+
+// skipMixinXComKey is the key of the XCom that lists the tasks a task skipped. When one of those
+// tasks is cleared, NotPreviouslySkippedDep in Airflow core reads the XCom and skips the cleared
+// task again instead of running it. SkipMixin in the standard provider writes the same key.
+const skipMixinXComKey = "skipmixin_key"
+
+type skipDownstreamTasksKey struct{}
+
+// WithSkipDownstreamTasks returns a copy of ctx that carries skip, the function that a task from
+// NewPositionalBranchFunction calls to skip tasks downstream of it. The runtime passes skip in the
+// context and not in sdk.Client, so that task functions cannot call it. Airflow core reads the
+// skipmixin_key XCom only from a task that has _can_skip_downstream set in the serialized Dag. A
+// task skipped by a task without that flag would run when someone clears it.
+func WithSkipDownstreamTasks(
+	ctx context.Context,
+	skip func(ctx context.Context, taskIDs []string) error,
+) context.Context {
+	return context.WithValue(ctx, skipDownstreamTasksKey{}, skip)
+}
+
+// branchRun holds the skip function and the task instance that a run of a task from
+// NewPositionalBranchFunction uses to skip tasks after fn returns.
+type branchRun struct {
+	skip func(ctx context.Context, taskIDs []string) error
+	ti   sdk.TaskInstance
+}
+
+// startBranch runs before fn, so that a runtime that cannot skip tasks fails the task before fn
+// has any effect.
+func startBranch(ctx context.Context) (*branchRun, error) {
+	skip, ok := ctx.Value(skipDownstreamTasksKey{}).(func(context.Context, []string) error)
+	if !ok {
+		return nil, errors.New("the task runtime cannot skip downstream tasks")
+	}
+	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
+	if !ok {
+		return nil, errors.New("task runtime context is missing")
+	}
+	return &branchRun{skip: skip, ti: runtimeContext.TaskInstance()}, nil
+}
+
+// skipDownstream records taskIDs in the skipmixin_key XCom, and then skips those tasks.
+func (b *branchRun) skipDownstream(
+	ctx context.Context,
+	client sdk.Client,
+	taskIDs []string,
+	logger *slog.Logger,
+) error {
+	if len(taskIDs) == 0 {
+		return nil
+	}
+	err := client.PushXCom(ctx, b.ti, skipMixinXComKey, map[string][]string{"skipped": taskIDs})
+	if err != nil {
+		return fmt.Errorf("recording the skipped tasks in the %s XCom: %w", skipMixinXComKey, err)
+	}
+	logger.InfoContext(ctx, "Skipping downstream tasks", "task_ids", taskIDs)
+	if err := b.skip(ctx, taskIDs); err != nil {
+		return fmt.Errorf("skipping the downstream tasks %q: %w", taskIDs, err)
+	}
+	return nil
 }
 
 func (f *taskFunction) sendXcom(
@@ -154,8 +291,11 @@ func (f *taskFunction) sendXcom(
 	}
 }
 
-func (f *taskFunction) validateFn(fnType reflect.Type) error {
-	// binding.Analyze turns a ... tail into one []T parameter, so Execute would have to call
+func (f *taskFunction) validateFn(
+	fnType reflect.Type,
+	analyze func(fnType reflect.Type, fnName string) (*binding.Plan, error),
+) error {
+	// analyze turns a ... tail into one []T parameter, so Execute would have to call
 	// the function with CallSlice rather than Call to fill it. That is only worth doing for a
 	// signature []T cannot already express, and ...T is not one: both take a single argument.
 	if fnType.IsVariadic() {
@@ -181,15 +321,26 @@ func (f *taskFunction) validateFn(fnType reflect.Type) error {
 			fnType.Out(0).Kind(),
 		)
 	}
-	if !isError(fnType.Out(fnType.NumOut() - 1)) {
+	last := fnType.Out(fnType.NumOut() - 1)
+	if !isError(last) {
 		return fmt.Errorf(
 			"expected task function %s last return value to return error but found %v",
 			f.fullName,
-			fnType.Out(fnType.NumOut()-1).Kind(),
+			last.Kind(),
+		)
+	}
+	// The last result must be error itself, not just a type that implements error. A nil *MyErr,
+	// for example, becomes a non-nil error when call converts it. The task would then fail even
+	// though the function returned nil.
+	if last != errorType {
+		return fmt.Errorf(
+			"task function %s must declare its last result as error, not %s",
+			f.fullName,
+			last,
 		)
 	}
 
-	plan, err := binding.Analyze(fnType, f.fullName)
+	plan, err := analyze(fnType, f.fullName)
 	if err != nil {
 		return err
 	}

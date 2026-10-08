@@ -23,6 +23,7 @@ import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import { Dag, finalizeDag, getDagTaskRecords, isDag } from "./dag.js";
 import { getTaskHandlerFunction, isTaskHandler, TaskHandler } from "./task-handler.js";
 import type { TaskFunction } from "./task.js";
+import type { TriggerDagRunTask } from "./trigger-dag-run.js";
 
 // Assigned inside Bundle's static block, as Dag does for its tasks.
 let dagsOf: (bundle: Bundle) => ReadonlyMap<string, Dag>;
@@ -211,12 +212,30 @@ export function validateOwnBundle(value: unknown, accessor: string): asserts val
   );
 }
 
+/** Internal: the `triggerDagRun(...)` task at `taskId` of a Dag this bundle
+ *  declared in TypeScript, which the runtime runs without a handler. */
+export function getBundleTrigger(
+  bundle: Bundle,
+  dagId: string,
+  taskId: string,
+): TriggerDagRunTask | undefined {
+  const dag = dagsOf(bundle).get(dagId);
+  return dag === undefined ? undefined : getDagTaskRecords(dag).get(taskId)?.trigger;
+}
+
 /** Internal: finalize every Dag this bundle declared in TypeScript, so no task
  *  can be added or wired afterwards. */
 export function finalizeBundleDags(bundle: Bundle): void {
   for (const dag of dagsOf(bundle).values()) {
     finalizeDag(dag);
   }
+}
+
+/** Internal: the Dags declared in TypeScript that this bundle owns, keyed by
+ *  dag_id, in registration order. Excludes Dags named only by task handlers,
+ *  since those Dags live in Python and have no TypeScript source. */
+export function bundleDags(bundle: Bundle): ReadonlyMap<string, Dag> {
+  return dagsOf(bundle);
 }
 
 /** Internal: the task IDs this bundle can dispatch, per Dag: the Dags declared

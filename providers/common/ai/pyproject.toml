@@ -21,19 +21,18 @@
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
 requires = [
-    "hatchling==1.32.0",
+    "hatchling==1.32.4",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
-    "trove-classifiers==2026.6.1.19",
+    "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "0.10.0"
+version = "0.11.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -53,28 +52,30 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=3.0.0",
-    "apache-airflow-providers-common-compat>=1.15.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.21.0",
     "apache-airflow-providers-standard>=1.20.0",
     # 2.33.0 is the first release that works with anthropic>=1: it moved to httpx2 alongside
     # the SDK and stopped passing temperature/top_p/top_k as messages.create() kwargs, both
     # of which raise TypeError on 2.31 and earlier. The cost API this provider relies on
     # (RunUsage.cost, UsageLimits.cost_limit) landed earlier, in 2.23.0.
     "pydantic-ai-slim>=2.33.0",
+    # Airflow 3 brings structlog in through the Task SDK; Airflow 2 does not. 24.2.0 is the first
+    # release whose render_to_log_kwargs hands ``stacklevel`` to stdlib logging under that name.
+    "structlog>=24.2.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -101,13 +102,18 @@ dependencies = [
 "mcp" = ["pydantic-ai-slim[mcp]>=2.33.0"]
 # Modal-hosted sandboxes for SandboxToolset, the backend to use where the worker host
 # cannot run microVMs -- Kubernetes, most notably. Needs no host-level installation,
-# only Modal credentials.
-"modal" = ["modal>=1.5.0"]
+# only Modal credentials, which the Modal provider's `modal` connection supplies.
+"modal" = [
+    "apache-airflow-providers-modal",
+    "modal>=1.5.2",
+]
+"opensandbox" = ["opensandbox>=1.1.0"]
 # Code mode: collapse tool calls into a single `run_code` tool that the model
 # drives by writing Python, executed in the Monty sandbox (pydantic-monty).
-# Enables AgentOperator(code_mode=True). Monty is pre-1.0; pinned here as an
-# opt-in extra so its churn never breaks the base provider install.
-"code-mode" = ["pydantic-ai-harness[codemode]>=0.3.0"]
+# Provides the CodeMode capability for AgentOperator(capabilities=[CodeMode()]).
+# pydantic-ai-harness is pre-1.0; an opt-in extra so its churn never breaks the
+# base provider install.
+"code-mode" = ["pydantic-ai-harness[codemode]>=0.24.0"]
 # Shield capabilities such as InputGuard, OutputGuard, ToolGuard, and CostTracking.
 "shields" = ["pydantic-ai-shields>=0.3.4"]
 # Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset;
@@ -127,11 +133,11 @@ dependencies = [
     "pyarrow>=22.0.0; python_version >= '3.14'",
 ]
 "sql" = [
-    "apache-airflow-providers-common-sql>=1.33.0",
+    "apache-airflow-providers-common-sql>=2.2.0",
     "sqlglot>=30.0.0",
 ]
 "common.sql" = [
-    "apache-airflow-providers-common-sql>=1.33.0"
+    "apache-airflow-providers-common-sql>=2.2.0"
 ]
 "langchain" = [
     "langchain>=1.0.0",
@@ -159,6 +165,7 @@ dev = [
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-git",
+    "apache-airflow-providers-modal",
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
@@ -173,6 +180,7 @@ dev = [
     # needs them so the adapter tests, which build real SDK models, run instead of skipping.
     "openai>=2.47.0",
     "anthropic>=1.0.0",
+    "opensandbox>=1.1.0",
 ]
 
 # To build docs:
@@ -201,8 +209,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.10.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.10.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.11.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.11.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

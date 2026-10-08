@@ -43,6 +43,7 @@ from in_container_utils import (
     AIRFLOW_ROOT_PATH,
 )
 from jsonpath_ng.ext import parse
+from provider_suspension import remove_suspended_doc_urls, remove_suspended_import_errors
 from rich.console import Console
 from tabulate import tabulate
 
@@ -53,7 +54,7 @@ from airflow.providers_manager import ProvidersManager
 # check_provider_conn_fields lives in scripts/ci/prek/ which is not on sys.path when
 # this script runs inside Breeze; resolve it relative to this file.
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "ci" / "prek"))
-from check_provider_conn_fields import check_conn_fields_for_entry
+from check_provider_conn_fields import check_conn_fields_for_entry, check_ui_field_behaviour_for_entry
 
 # Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
 # so that users can get a very specific error message when they try to use them.
@@ -86,6 +87,8 @@ INTERNAL_UNREGISTERED_TOOLSET_CLASSES = {
     # Wraps a toolset with per-step result caching for durable execution; applied
     # automatically by AgentOperator, not part of the public toolsets how-to guide.
     "airflow.providers.common.ai.durable.caching_toolset.CachingToolset",
+    # Masks what a Dag author's toolset returns; applied automatically by AgentOperator.
+    "airflow.providers.common.ai.utils.toolset_base.MaskingToolset",
 }
 
 if __name__ != "__main__":
@@ -570,15 +573,40 @@ def check_conn_fields_match_form_widgets(yaml_files: dict[str, dict]) -> tuple[i
     return num_checks, num_errors
 
 
-def _get_widget_keys(hook_class_name: str) -> set[str] | None:
+@run_check(
+    "Checking that ui-field-behaviour in provider.yaml matches get_ui_field_behaviour() of the hook class"
+)
+def check_ui_field_behaviour_matches_hook(yaml_files: dict[str, dict]) -> tuple[int, int]:
     """
-    Import *hook_class_name* and return the keys of ``get_connection_form_widgets()``.
+    For every connection-type entry whose hook overrides ``get_ui_field_behaviour()``,
+    verify the ``ui-field-behaviour`` section in the provider YAML says the same thing.
+    Airflow 3.2+ shows the YAML and older versions the hook method, so a drifted
+    hidden-fields/relabeling/placeholders value is an error, and so is a missing section,
+    since the hook method is deprecated in favour of it.
+    """
+    num_checks = 0
+    num_errors = 0
 
-    Returns ``None`` when the hook or its UI dependencies cannot be imported,
-    or when the hook does not override ``get_connection_form_widgets()`` (meaning it
-    has no custom connection fields and the conn-fields check should be skipped).
-    Raises for unexpected errors so ``check_conn_fields_for_entry`` can convert them
-    to an error string.
+    for yaml_file_path, provider_data in yaml_files.items():
+        for conn_type_entry in provider_data.get("connection-types", []):
+            num_checks += 1
+            for error in check_ui_field_behaviour_for_entry(
+                conn_type_entry, yaml_file_path, _get_ui_field_behaviour
+            ):
+                errors.append(error)
+                num_errors += 1
+
+    return num_checks, num_errors
+
+
+def _call_overridden_hook_method(hook_class_name: str, method_name: str) -> Any:
+    """
+    Import *hook_class_name* and return the result of calling *method_name* on the hook class.
+
+    Returns ``None`` when the hook or its UI dependencies cannot be imported, or when the hook
+    does not override *method_name* in its own ``__dict__``: a hook that inherits the method has
+    no provider-specific definition to diff against, so the check is skipped for it. Raises for
+    unexpected errors so the ``check_*_for_entry`` helpers can convert them to an error string.
     """
     try:
         module_name, class_name = hook_class_name.rsplit(".", maxsplit=1)
@@ -587,21 +615,32 @@ def _get_widget_keys(hook_class_name: str) -> set[str] | None:
     except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
         return None
 
-    # Only validate hooks that override get_connection_form_widgets() in their own __dict__,
-    # because that method is the source-of-truth for what conn-fields should be declared.
-    # Hooks that inherit it without overriding have no provider-specific widget definition
-    # to diff against, so the check is intentionally skipped for them.  As of writing this
-    # includes HttpHook, the common/ai hooks, and AzureComputeHook — any provider whose hook
-    # falls into this category will NOT be validated here, even if it declares conn-fields.
-    if "get_connection_form_widgets" not in hook_class.__dict__:
+    if method_name not in hook_class.__dict__:
         return None
 
     with warnings.catch_warnings(record=True):
         try:
-            form_widgets: dict[str, Any] = hook_class.get_connection_form_widgets()
-            return set(form_widgets.keys())
+            return getattr(hook_class, method_name)()
         except (ImportError, AirflowOptionalProviderFeatureException, AttributeError):
             return None
+
+
+def _get_ui_field_behaviour(hook_class_name: str) -> dict[str, Any] | None:
+    """Return the hook's ``get_ui_field_behaviour()`` dict, or ``None`` to skip the entry."""
+    return _call_overridden_hook_method(hook_class_name, "get_ui_field_behaviour")
+
+
+def _get_widget_keys(hook_class_name: str) -> set[str] | None:
+    """
+    Return the keys of the hook's ``get_connection_form_widgets()``, or ``None`` to skip the entry.
+
+    ``get_connection_form_widgets()`` is the source of truth for what conn-fields should declare.
+    Hooks that inherit it without overriding are skipped; as of writing this includes HttpHook,
+    the common/ai hooks, and AzureComputeHook, so any provider whose hook falls into this
+    category will NOT be validated here, even if it declares conn-fields.
+    """
+    form_widgets = _call_overridden_hook_method(hook_class_name, "get_connection_form_widgets")
+    return None if form_widgets is None else set(form_widgets.keys())
 
 
 @run_check("Checking that hook classes defining conn_type are registered in connection-types")
@@ -1048,13 +1087,7 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
         if f.name != "index.rst" and "_partials" not in f.parts and f.parts[2] == "docs"
     }
 
-    if suspended_providers:
-        expected_doc_urls = {
-            doc_url
-            for doc_url in expected_doc_urls
-            for suspend_provider in suspended_providers
-            if suspend_provider not in doc_url
-        }
+    expected_doc_urls = remove_suspended_doc_urls(expected_doc_urls, suspended_providers)
 
     if suspended_logos:
         console.print("[yellow]Suspended logos:[/]")
@@ -1197,6 +1230,7 @@ if __name__ == "__main__":
     check_hook_class_name_entries_in_connection_types(all_parsed_yaml_files)
     check_retry_policy_modules_exist_and_belong_to_package(all_parsed_yaml_files)
     check_conn_fields_match_form_widgets(all_parsed_yaml_files)
+    check_ui_field_behaviour_matches_hook(all_parsed_yaml_files)
     check_hook_classes_with_conn_type_are_registered(all_parsed_yaml_files)
     check_executor_classes(all_parsed_yaml_files)
     check_queue_classes(all_parsed_yaml_files)
@@ -1218,15 +1252,8 @@ if __name__ == "__main__":
         check_invalid_integration(all_parsed_yaml_files)
         check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
 
-    # remove errors related to suspended module imports.
     print("suspended_providers ", suspended_providers)
-    if suspended_providers and errors:
-        errors = [
-            error
-            for error in errors
-            for module in suspended_providers
-            if f"No module named '{module.replace('apache-', '', 1).replace('-', '.')}'" not in error
-        ]
+    errors = remove_suspended_import_errors(errors, suspended_providers)
 
     if errors:
         error_num = len(errors)

@@ -437,7 +437,7 @@ If your Dag logic needs the user-specified date for a manual run, use
 
 .. code-block:: python
 
-   from airflow.decorators import get_current_context, task
+   from airflow.sdk import get_current_context, task
 
 
    @task

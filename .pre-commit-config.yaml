@@ -327,16 +327,134 @@ repos:
         additional_dependencies: ['PyYAML>=6.0', 'rich>=13.6.0']
         pass_filenames: false
         require_serial: true
-      - id: sync-ts-sdk-dag-schema
-        name: Sync TypeScript SDK Dag serialization schema with airflow-core
-        description: "Copy airflow-core's serialization schema when TS SDK's vendored dag-schema.json drifts"
-        entry: ./ts-sdk/scripts/ci/prek/sync_dag_schema.py
+      - id: sync-ts-sdk-schemas
+        name: Sync TypeScript SDK vendored schemas with the distributions that own them
+        description: "Copy airflow-core's Dag schema and the Task SDK's supervisor schema when TS SDK's vendored copies drift"
+        entry: ./scripts/ci/prek/sync_ts_sdk_schemas.py
         language: python
         pass_filenames: false
+        # Triggered by the Python sources, not just the vendored copies, so a schema change
+        # (e.g. a new supervisor comms message) refreshes the vendored copy and regenerates the
+        # types in the same commit, the way sync-go-sdk-schemas already does for the Go SDK.
+        # The script itself is listed so a change to its paths or report logic re-runs it.
         files: >
           (?x)
           ^airflow-core/src/airflow/serialization/schema\.json$|
-          ^ts-sdk/schema/dag-schema\.json$
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^ts-sdk/schema/.*\.json$|
+          ^scripts/ci/prek/sync_ts_sdk_schemas\.py$
+      - id: sync-java-sdk-dag-schema
+        name: Sync Java SDK Dag serialization schema with airflow-core
+        description: "Copy airflow-core's serialization schema when Java SDK's vendored dag-schema.json drifts"
+        entry: ./java-sdk/gradlew -p ./java-sdk :sdk:syncDagSchema -PfailOnDagSchemaDrift
+        language: system
+        pass_filenames: false
+        # Runs on every commit: a stale vendored copy is exactly the drift that broke a
+        # vendored Go copy unnoticed (see sync-go-sdk-schemas below), so this fails
+        # loudly instead of silently falling behind. -PfailOnDagSchemaDrift is what makes
+        # it fail here; generateDagDsl's own dependency on this same task never passes it,
+        # so an ordinary in-repo build keeps refreshing the copy without breaking on a
+        # schema someone is mid-edit on. The task refreshes the file and fails when it
+        # had to, so `git add` the refreshed copy and recommit.
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^java-sdk/sdk/schema/dag-schema\.json$
+      - id: sync-go-sdk-schemas
+        name: Sync Go SDK vendored schemas with the distributions that own them
+        description: "Copy airflow-core's Dag schema and task-sdk's supervisor schema when go-sdk's vendored copies drift"
+        entry: ./scripts/ci/prek/sync_go_sdk_schemas.py
+        language: python
+        pass_filenames: false
+        # Runs on every commit: it used to be manual, "a go-sdk maintainer's deliberate
+        # step," so a Python-only schema change could ship with the vendored Go copy
+        # silently left behind — no hook caught it, because this one was never invoked
+        # and check-go-sdk-generated-drift below only watched the Go side. This refreshes
+        # the copy and fails when it had to, so `git add` the refreshed file(s) and
+        # recommit; check-go-sdk-generated-drift then catches the generated code that
+        # needs regenerating from the refreshed copy.
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^go-sdk/schema/.*\.json$|
+          ^scripts/ci/prek/sync_go_sdk_schemas\.py$
+      - id: check-go-sdk-generated-drift
+        name: Check Go SDK generated files against the schemas they generate from
+        description: "Regenerate the Dag specs and the coordinator-protocol models, and fail when a committed file differs"
+        entry: ./scripts/ci/prek/check_go_sdk_generated_drift.py
+        # golang so prek provisions the toolchain the generators need, the way the
+        # other checks that shell out to `go` in go-sdk get theirs.
+        language: golang
+        # Also triggered by the Python schemas themselves, not just the vendored copies:
+        # sync-go-sdk-schemas (which runs first, see hook order above) refreshes the
+        # vendored copy in the same commit a Python schema changes, and this regenerates
+        # from whatever that copy now holds, so the two together catch both a stale copy
+        # and generated code that copy was never regenerated from.
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^go-sdk/schema/.*\.json$|
+          ^go-sdk/airflow/spec\.gen\.go$|
+          ^go-sdk/airflow/spec_fields\.gen\.go$|
+          ^go-sdk/airflow/spec\.go$|
+          ^go-sdk/internal/genspec/.*\.go$|
+          ^go-sdk/internal/genlicense/.*\.go$|
+          ^go-sdk/pkg/execution/genmodels/.*\.go$|
+          ^scripts/ci/prek/check_go_sdk_generated_drift\.py$
+        pass_filenames: false
+        require_serial: true
+      # check-ts-sdk-serialization-conformance in ts-sdk/ covers the SDK's own files; this runs the same
+      # check when the shared harness or Airflow's serializer changes, which that project cannot see.
+      - id: check-ts-sdk-serialization-conformance-shared
+        name: Check the TS SDK serializes Dags the way Airflow does, after a shared change
+        description: "Serialize the shared test Dags with the TS SDK and with Airflow, and compare the two"
+        entry: ./ts-sdk/scripts/ci/prek/check_serialization_conformance.py
+        language: node
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^scripts/ci/lang_sdk_serialization/.*$
+      - id: check-go-sdk-serialization-conformance
+        name: Check the Go SDK serializes Dags the way Airflow does
+        description: "Serialize the shared test Dags with the Go SDK and with Airflow, and compare the two"
+        entry: ./scripts/ci/prek/check_go_sdk_serialization_conformance.py
+        # golang so prek provisions the toolchain that builds the Go serializer.
+        language: golang
+        pass_filenames: false
+        require_serial: true
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^go-sdk/airflow/.*\.go$|
+          ^go-sdk/schema/dag-schema\.json$|
+          ^scripts/ci/lang_sdk_serialization/.*$|
+          ^scripts/ci/prek/check_go_sdk_serialization_conformance\.py$
+      - id: check-java-sdk-serialization-conformance
+        name: Check the Java SDK serializes Dags the way Airflow does
+        description: "Serialize the shared test Dags with the Java SDK and with Airflow, and compare the two"
+        entry: ./java-sdk/scripts/ci/prek/check_serialization_conformance.py
+        language: system
+        pass_filenames: false
+        require_serial: true
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/serialization/serialized_objects\.py$|
+          ^airflow-core/src/airflow/serialization/schema\.json$|
+          ^java-sdk/scripts/ci/prek/check_serialization_conformance\.py$|
+          ^java-sdk/sdk/schema/dag-schema\.json$|
+          ^java-sdk/sdk/build\.gradle\.kts$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/(Bundle|DagDef|Deps|Arg|TaskGroupRef)\.kt$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/execution/Serde\.kt$|
+          ^java-sdk/sdk/src/main/kotlin/org/apache/airflow/sdk/internal/(Refs|Fields)\.kt$|
+          ^java-sdk/sdk/src/test/kotlin/org/apache/airflow/sdk/conformance/.*$|
+          ^scripts/ci/lang_sdk_serialization/.*$
       - id: check-go-version-in-sync
         name: Check Go toolchain version is consistent across build files
         entry: ./scripts/ci/prek/check_go_version_in_sync.py
@@ -455,7 +573,7 @@ repos:
           ^scripts/ci/prek/upgrade_dependency_floors\.py$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['packaging>=25', 'requests>=2.31.0', 'rich>=13.6.0', 'tomli>=2.0.1']
+        additional_dependencies: ['packaging>=25', 'requests>=2.31.0', 'rich>=13.6.0']
   - repo: https://github.com/adamchainz/blacken-docs
     rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:
@@ -463,7 +581,6 @@ repos:
         name: Run black on docs
         args:
           - --line-length=110
-          - --target-version=py310
           - --target-version=py311
           - --target-version=py312
           - --target-version=py313
@@ -587,7 +704,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 4e065481e8571d0b270c5f4e2332b74cc8342758  # frozen: nightly
+    rev: 2c1fb3ad1373b1eb5148176bb6dcd4773f2a564d  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -687,7 +804,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.16.7']
+        additional_dependencies: ['ruff==0.16.8']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -1197,7 +1314,7 @@ repos:
           ^providers/.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['packaging>=25', 'pyyaml', 'tomli>=2.0.1', 'rich>=13.6.0']
+        additional_dependencies: ['packaging>=25', 'pyyaml', 'rich>=13.6.0']
       - id: check-provider-config-fallback-defaults
         name: Check provider_config_fallback_defaults.cfg is in sync with provider.yaml files
         language: python
@@ -1216,7 +1333,7 @@ repos:
         entry: ./scripts/ci/prek/check_dependency_lower_bounds.py
         files: (^|/)pyproject\.toml$
         require_serial: true
-        additional_dependencies: ['packaging>=25', 'tomli>=2.0.1', 'rich>=13.6.0']
+        additional_dependencies: ['packaging>=25', 'rich>=13.6.0']
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python
@@ -1394,6 +1511,13 @@ repos:
         language: python
         pass_filenames: true
         files: \.py$
+      - id: check-xcom-model-columns
+        name: Check XComModel columns are read through xcom_entity, not directly in SQLAlchemy queries
+        entry: ./scripts/ci/prek/check_xcom_model_columns.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|providers/.*)/src/airflow/.*\.py$
+        exclude: ^airflow-core/src/airflow/(models/xcom\.py|api_fastapi/common/parameters/xcom\.py)$
       - id: check-no-new-airflow-exceptions
         name: Check that no new raise AirflowException usages are added
         entry: ./scripts/ci/prek/check_new_airflow_exception_usage.py

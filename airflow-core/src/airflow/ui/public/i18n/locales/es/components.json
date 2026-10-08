@@ -35,7 +35,6 @@
         "title": "Backfill generado"
       }
     },
-    "unpause": "Reanudar {{dag_display_name}} al activarse",
     "validation": {
       "datesRequired": "Ambos intervalos de Fecha Inicial y Fecha Final deben ser proporcionados.",
       "startBeforeEnd": "El intervalo de Fecha Inicial debe ser menor o igual a la Fecha Final."
@@ -53,7 +52,6 @@
   },
   "close": "Cerrar",
   "configForm": {
-    "advancedOptions": "Opciones Avanzadas",
     "configJson": "Configuración JSON",
     "invalidJson": "Formato JSON inválido: {{errorMessage}}"
   },
@@ -171,8 +169,7 @@
         "title": "Ejecución del Dag Activada"
       }
     },
-    "triggerAgainWithConfig": "Activar de nuevo con esta configuración",
-    "unpause": "Reanudar {{dagDisplayName}} al activarse"
+    "triggerAgainWithConfig": "Activar de nuevo con esta configuración"
   },
   "trimText": {
     "details": "Detalles",

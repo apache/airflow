@@ -19,7 +19,8 @@
 #
 # An init container stages the Java jar from the localstack ``java-artifacts``
 # bucket into a shared emptyDir at /opt/airflow/artifacts via the DagBundle
-# interface (stage_artifacts.py). That path is the coordinator's jars_root. The
+# interface (stage_artifacts.py). That path is the java-task-handlers Dag bundle the
+# coordinator's task_handler_bundle_name names. The
 # base image is the prod image plus a headless JRE (built from Dockerfile.java)
 # so the JavaCoordinator can exec ``java`` -- distinct from the Go queue's plain
 # prod image. Image placeholders are rendered by ``breeze k8s setup-lang-sdk-test``.

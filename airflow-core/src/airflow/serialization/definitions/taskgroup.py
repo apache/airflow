@@ -236,10 +236,8 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
         """
         Sort children topologically — a task always comes after its upstream dependencies.
 
-        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm. Cycles are
-        treated as corrupt input: ``DAG.check_cycle`` rejects cyclic Dags before
-        serialization, so a cycle reaching this code indicates malformed serialized data,
-        and we raise ``ValueError`` rather than silently looping forever.
+        See ``TaskGroup.topological_sort`` in task-sdk for the algorithm, including how siblings
+        that depend on each other in a cycle are ordered.
         """
         children = self.children
         if not children:
@@ -329,44 +327,16 @@ class SerializedTaskGroup(TaskGroupMixin, DAGNode):
                 emitted[i] = 1
                 order_append(nodes[i])
             if len(next_pending) == len(pending):
-                raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                return self._sort_cyclic_projection(nodes, projected)
             pending = next_pending
         return order
 
     def _sort_via_pass_numbering(
         self, nodes: list[DAGNode], projected: list[tuple[int, ...]]
     ) -> list[DAGNode]:
-        n = len(nodes)
-        in_degree = [len(deps) for deps in projected]
-        successors: list[list[int]] = [[] for _ in range(n)]
-        for i, deps in enumerate(projected):
-            for d in deps:
-                successors[d].append(i)
-
-        pass_of = [0] * n
-        queue: deque[int] = deque(i for i in range(n) if in_degree[i] == 0)
-        processed = 0
-        while queue:
-            i = queue.popleft()
-            my_pass = 1
-            for d in projected[i]:
-                d_pass = pass_of[d]
-                if d < i:
-                    if d_pass > my_pass:
-                        my_pass = d_pass
-                elif d_pass + 1 > my_pass:
-                    my_pass = d_pass + 1
-            pass_of[i] = my_pass
-            processed += 1
-            for s in successors[i]:
-                in_degree[s] -= 1
-                if in_degree[s] == 0:
-                    queue.append(s)
-
-        if processed != n:
-            raise ValueError(f"A cyclic dependency occurred in dag: {self.dag_id}")
-
-        sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
+        sorted_indices = self._compute_pass_order(projected)
+        if len(sorted_indices) != len(nodes):
+            return self._sort_cyclic_projection(nodes, projected)
         return [nodes[i] for i in sorted_indices]
 
     def add(self, node: DAGNode) -> DAGNode:
