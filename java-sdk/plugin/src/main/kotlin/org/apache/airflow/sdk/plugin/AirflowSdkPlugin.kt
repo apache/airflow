@@ -126,7 +126,7 @@ class AirflowSdkPlugin : Plugin<Project> {
           task.onlyIf { ext.mainClass.isPresent }
           task.mainClass.set(ext.mainClass)
           task.classesDirs.from(main.output.classesDirs)
-          task.runtimeClasspath.from(main.output, main.runtimeClasspath)
+          task.runtimeClasspath.from(main.runtimeClasspath)
           task.sourceDirs.from(main.allSource.srcDirs)
           task.launcher.convention(
             project.extensions
