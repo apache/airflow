@@ -136,6 +136,36 @@ internal class ConditionTest {
   }
 
   @Test
+  @DisplayName("Should reject registering a decider class as an ordinary task")
+  fun shouldRejectDeciderRegisteredAsTask() {
+    val dag = DagDef("d")
+    dag.task<Unit>("has_rows", HasRows::class.java)
+
+    val error = assertThrows(IllegalArgumentException::class.java) { Bundle().register(dag) }
+
+    assertEquals(
+      "Task 'has_rows' runs '${HasRows::class.java.name}', which decides which task runs, but nothing names " +
+        "what it chooses; declare it with If(...), in Dag 'd'",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject a task that chooses which task runs but decides nothing")
+  fun shouldRejectChooserThatDecidesNothing() {
+    val dag = DagDef("d")
+    val task = dag.task<Boolean>("gate", NoopTask::class.java)
+    ConditionRef.of(task)
+
+    val error = assertThrows(IllegalArgumentException::class.java) { Bundle().register(dag) }
+
+    assertEquals(
+      "Task 'gate' chooses which task runs, but '${NoopTask::class.java.name}' decides nothing, in Dag 'd'",
+      error.message,
+    )
+  }
+
+  @Test
   @DisplayName("Should reuse the condition when a task already declared as one is declared again")
   fun shouldReuseConditionDeclaredTwice() {
     val (_, condition, sides) = dagWithSides()
