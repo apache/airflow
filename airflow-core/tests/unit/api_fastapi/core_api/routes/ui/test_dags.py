@@ -208,6 +208,61 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert dags_by_id[DAG2_ID]["has_unfinished_runs"] is False
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_recent_dag_runs_returns_exactly_n_newest_in_order(self, test_client, session):
+        """A Dag with more runs than dag_runs_limit returns exactly the N newest, newest first."""
+        # the setup fixture gives DAG1 five runs with run_after 2021..2025 (run_id_1..run_id_5);
+        # ask for 3 and expect the three newest, in descending run_after order
+        response = test_client.get(
+            "/dags",
+            params={"dag_ids": [DAG1_ID], "dag_runs_limit": 3},
+        )
+
+        assert response.status_code == 200
+        dag_runs = response.json()["dags"][0]["latest_dag_runs"]
+        assert [run["run_id"] for run in dag_runs] == ["run_id_5", "run_id_4", "run_id_3"]
+        run_afters = [run["run_after"] for run in dag_runs]
+        assert run_afters == sorted(run_afters, reverse=True)
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_recent_dag_runs_tie_breaks_on_id_desc(self, test_client, session):
+        """Two runs tied on run_after: the later-inserted one (higher id) wins, deterministically."""
+        tie_run_after = pendulum.datetime(2030, 6, 1, tz="UTC")
+        session.add_all(
+            [
+                DagRun(
+                    dag_id=DAG1_ID,
+                    run_id="tie_first_inserted",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=tie_run_after - pendulum.duration(days=1),
+                    run_after=tie_run_after,
+                    state=DagRunState.SUCCESS,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+                DagRun(
+                    dag_id=DAG1_ID,
+                    run_id="tie_second_inserted",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=tie_run_after - pendulum.duration(days=2),
+                    run_after=tie_run_after,
+                    state=DagRunState.SUCCESS,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/dags",
+            params={"dag_ids": [DAG1_ID], "dag_runs_limit": 1},
+        )
+
+        assert response.status_code == 200
+        dag_runs = response.json()["dags"][0]["latest_dag_runs"]
+        # both ties are newer than the fixture's 2021..2025 runs, so with limit 1 the tie winner
+        # is returned; the newer insert (higher id) must be the deterministic pick
+        assert dag_runs[0]["run_id"] == "tie_second_inserted"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize(
         ("query_params", "expected_ids"),
         [
