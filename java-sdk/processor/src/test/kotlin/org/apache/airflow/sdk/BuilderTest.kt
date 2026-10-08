@@ -2625,6 +2625,37 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("reject a task that triggers a Dag run and throws a checked exception")
+  fun rejectTriggerDagRunThrowingCheckedException() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TriggerDagRun;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public TriggerDagRun triggerDownstream() throws java.io.IOException {
+            return new TriggerDagRun("downstream_etl");
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Task method 'triggerDownstream' returns a TriggerDagRun, so it runs when the Dag is " +
+        "built, where a checked exception cannot be thrown; it must not throw: java.io.IOException",
+    )
+  }
+
+  @Test
   @DisplayName("reject a switch that does not return the class of a task")
   fun rejectNonTaskClassSwitch() {
     val compilation =

@@ -468,6 +468,11 @@ class BuilderProcessor : AbstractProcessor() {
           "@Builder.Task method '${inner.simpleName}' returns a TriggerDagRun, so it runs when the Dag " +
             "is built rather than when the task runs; it takes no parameters"
         }
+        val checked = inner.thrownTypes.filterNot { isUnchecked(it) }
+        require(checked.isEmpty()) {
+          "@Builder.Task method '${inner.simpleName}' returns a TriggerDagRun, so it runs when the Dag " +
+            "is built, where a checked exception cannot be thrown; it must not throw: ${checked.joinToString()}"
+        }
       }
       val localId = annotated.ifBlank { inner.simpleName.toString() }
       require(tasks.none { it.method.simpleName.contentEquals(inner.simpleName) }) {
