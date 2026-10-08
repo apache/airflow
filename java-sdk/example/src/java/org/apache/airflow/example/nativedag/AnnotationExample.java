@@ -66,6 +66,26 @@ public class AnnotationExample {
     return transformed > 0;
   }
 
+  @Builder.Task(id = "report_long")
+  public void reportLong() {
+    log.log(INFO, "Long report");
+  }
+
+  @Builder.Task(id = "report_short")
+  public void reportShort() {
+    log.log(INFO, "Short report");
+  }
+
+  // A branch: it names the one case that runs, and every other case is
+  // skipped. TaskIds is generated beside the builder, so a case that is not a
+  // task of this Dag does not compile.
+  @Builder.Branch(id = "pick_report")
+  public TaskId pickReport(long transformed) {
+    return transformed > 100
+        ? AnnotationExampleBuilder.TaskIds.REPORT_LONG
+        : AnnotationExampleBuilder.TaskIds.REPORT_SHORT;
+  }
+
   // A task group: everything it declares is prefixed with its id, so this is
   // the task "checks.audit".
   @Builder.TaskGroup(id = "checks")
@@ -84,6 +104,7 @@ public class AnnotationExample {
       var extracted = extract();
       var transformed = transform(extracted, lit(1.5));
       hasRows(transformed).then(load(transformed)).orElse(loadEmpty());
+      pickReport(transformed).option(reportLong()).option(reportShort());
       // Ordering-only edge: the checks group runs after extract, with no data
       // flowing.
       extracted.before(checks());

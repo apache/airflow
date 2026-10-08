@@ -23,6 +23,7 @@ package org.apache.airflow.sdk
 
 import com.squareup.javapoet.ClassName
 import com.squareup.javapoet.CodeBlock
+import com.squareup.javapoet.FieldSpec
 import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.MethodSpec
 import com.squareup.javapoet.ParameterizedTypeName
@@ -49,6 +50,7 @@ import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.annotation.processing.SupportedSourceVersion
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.AnnotationMirror
 import javax.lang.model.element.AnnotationValue
 import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
@@ -97,6 +99,7 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
   "org.apache.airflow.sdk.Builder.Dag",
   "org.apache.airflow.sdk.Builder.Task",
   "org.apache.airflow.sdk.Builder.If",
+  "org.apache.airflow.sdk.Builder.Branch",
   "org.apache.airflow.sdk.Builder.TaskGroup",
   "org.apache.airflow.sdk.Builder.TaskHandler",
   "org.apache.airflow.sdk.Builder.Deps",
@@ -275,7 +278,36 @@ class BuilderProcessor : AbstractProcessor() {
     builderClass.addMethod(buildMethod.build())
 
     declarations.forEach { builderClass.addType(buildTask(it)) }
+    // Only a branch needs to name a task in code, so a Dag without one keeps
+    // the generated builder to the classes that run its tasks.
+    if (declarations.any { it.kind == TaskKind.BRANCH }) builderClass.addType(buildTaskIds(declarations))
     return builderClass.build()
+  }
+
+  /**
+   * Generates the `TaskIds` holder a `@Builder.Branch` method names its case
+   * with: one constant per task of the Dag, so a choice that is not a task of
+   * this Dag does not compile.
+   */
+  private fun buildTaskIds(declarations: List<TaskDeclaration>): TypeSpec {
+    val holder =
+      TypeSpec
+        .classBuilder(TASK_IDS)
+        .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+        .addJavadoc(
+          "The task ids of this Dag, for a {@code @Builder.Branch} method to name its case with.\n\n" +
+            "<p>Every task of the Dag has one, so naming a task that is not a case of the branch\n" +
+            "compiles and fails when the branch runs.\n",
+        )
+    declarations.forEach { decl ->
+      holder.addField(
+        FieldSpec
+          .builder(TASK_ID_TYPE, constantName(decl.id), Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+          .initializer($$"$T.of($S)", TASK_ID_TYPE, decl.id)
+          .build(),
+      )
+    }
+    return holder.build()
   }
 
   /**
@@ -357,24 +389,22 @@ class BuilderProcessor : AbstractProcessor() {
     builderName: ClassName,
     inGroup: Boolean,
   ): MethodSpec {
-    val condition = decl.kind == TaskKind.CONDITION
     val method =
       MethodSpec
         .methodBuilder(decl.method.simpleName.toString())
         .addModifiers(Modifier.PUBLIC, Modifier.DEFAULT)
         .returns(
-          if (condition) {
-            CONDITION_REF_TYPE
-          } else {
-            ParameterizedTypeName.get(TASK_HANDLE_TYPE, TypeName.get(decl.method.returnType).boxIfPossible())
-          },
+          decl.kind.refType
+            ?: ParameterizedTypeName.get(TASK_HANDLE_TYPE, TypeName.get(decl.method.returnType).boxIfPossible()),
         )
     decl.dataParams.forEach { method.addParameter(inType(it.type), it.name) }
     val def = taskDefCode(decl, CodeBlock.of($$"$T.$L", builderName, decl.className))
     // The view knows the group it belongs to, so the recorder is told where
     // the task goes instead of deriving it from the task's ID.
     val group = if (inGroup) CodeBlock.of("groupId()") else CodeBlock.of($$"$S", "")
-    val wrap = { call: CodeBlock -> if (condition) CodeBlock.of($$"$T.of($L)", CONDITION_REF_TYPE, call) else call }
+    val wrap = { call: CodeBlock ->
+      decl.kind.refType?.let { CodeBlock.of($$"$T.of($L)", it, call) } ?: call
+    }
     if (decl.dataParams.isEmpty()) {
       method.addStatement($$"return $L", wrap(CodeBlock.of($$"$T.node($L, $L)", REFS_TYPE, group, def)))
     } else {
@@ -435,17 +465,19 @@ class BuilderProcessor : AbstractProcessor() {
     val tasks = mutableListOf<TaskDeclaration>()
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
-      val task = inner.getAnnotation(Builder.Task::class.java)
-      val condition = inner.getAnnotation(Builder.If::class.java)
-      if (task == null && condition == null) continue
-      require(task == null || condition == null) {
-        "Method '${inner.simpleName}' carries both @Builder.Task and @Builder.If; a condition is a " +
-          "task, so it carries @Builder.If alone"
-      }
-      val kind = if (condition != null) TaskKind.CONDITION else TaskKind.TASK
+      val declared =
+        TaskKind.entries.filter { kind -> inner.annotationMirrors.any { it.names(kind.annotation) } }
+      if (declared.isEmpty()) continue
+      val kind =
+        declared.singleOrNull()
+          ?: throw IllegalArgumentException(
+            "Method '${inner.simpleName}' carries ${declared.joinToString { it.spelling }}; a task is " +
+              "declared by one of them alone",
+          )
+      val annotated = declaredId(inner, kind)
       if (inner.isVarArgs) throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
       checkDeciderReturn(kind, inner)
-      val localId = (condition?.id ?: task!!.id).ifBlank { inner.simpleName.toString() }
+      val localId = annotated.ifBlank { inner.simpleName.toString() }
       require(tasks.none { it.method.simpleName.contentEquals(inner.simpleName) }) {
         "Class ${el.simpleName} overloads task method '${inner.simpleName}'; a method's name is the " +
           "name of its generated task class and of its wiring-view method, so rename one and keep its " +
@@ -565,6 +597,29 @@ class BuilderProcessor : AbstractProcessor() {
     scope.allGroups().forEach { group ->
       require(group.fullId !in taskIds) {
         "Dag has both a task and a task group with ID '${group.fullId}'; rename one"
+      }
+    }
+    if (declarations.any { it.kind == TaskKind.BRANCH }) {
+      val byConstant = mutableMapOf<String, TaskDeclaration>()
+      declarations.forEach { decl ->
+        val constant = constantName(decl.id)
+        require(SourceVersion.isName(constant)) {
+          "Task '${decl.id}' becomes the constant '$constant' of the generated TaskIds, which is not " +
+            "a Java name; give the task an id a branch can name it by, with ${decl.kind.spelling}(id = \"...\")"
+        }
+        byConstant.put(constant, decl)?.let { first ->
+          throw IllegalArgumentException(
+            "Tasks '${first.id}' and '${decl.id}' both become the constant " +
+              "'$constant' of the generated TaskIds; rename one so a branch can tell them apart",
+          )
+        }
+      }
+      declarations.firstOrNull { it.className == TASK_IDS }?.let { decl ->
+        throw IllegalArgumentException(
+          "Task method '${decl.method.simpleName}' generates the class '$TASK_IDS', which is the " +
+            "holder of this Dag's task ids; rename the method and keep its task id with " +
+            "${decl.kind.spelling}(id = \"${decl.id.substringAfterLast('.')}\")",
+        )
       }
     }
     val byClassName = mutableMapOf<String, TaskDeclaration>()
@@ -712,24 +767,45 @@ class BuilderProcessor : AbstractProcessor() {
     kind: TaskKind,
     method: ExecutableElement,
   ) {
-    if (kind != TaskKind.CONDITION) return
     val returns = method.returnType
-    val boolean = returns.kind == TypeKind.BOOLEAN || with(processingEnv) { isType(returns, BOXED_BOOLEAN_TYPE) }
-    require(boolean) {
-      "@Builder.If method '${method.simpleName}' returns $returns, but a condition returns boolean: " +
-        "true runs the task named by then, false the one named by orElse"
+    when (kind) {
+      TaskKind.TASK -> return
+      TaskKind.CONDITION ->
+        require(returns.kind == TypeKind.BOOLEAN || with(processingEnv) { isType(returns, BOXED_BOOLEAN_TYPE) }) {
+          "@Builder.If method '${method.simpleName}' returns $returns, but a condition returns boolean: " +
+            "true runs the task named by then, false the one named by orElse"
+        }
+      TaskKind.BRANCH ->
+        require(with(processingEnv) { isType(returns, TASK_ID_TYPE) }) {
+          "@Builder.Branch method '${method.simpleName}' returns $returns, but a branch returns a " +
+            "TaskId: name the case it chose with a constant of the generated TaskIds"
+        }
     }
   }
 
+  /** The `id` the declaring annotation sets, empty when it leaves it out. */
+  private fun declaredId(
+    method: ExecutableElement,
+    kind: TaskKind,
+  ): String {
+    val mirror = method.annotationMirrors.first { it.names(kind.annotation) }
+    val id = mirror.elementValues.entries.firstOrNull { it.key.simpleName.contentEquals("id") }
+    return id?.value?.value as String? ?: ""
+  }
+
   private fun buildTask(decl: TaskDeclaration): TypeSpec {
-    val condition = decl.kind == TaskKind.CONDITION
     val executeSpec =
       MethodSpec
-        .methodBuilder(if (condition) "decide" else "execute")
+        .methodBuilder(decl.kind.bodyMethod)
         .addAnnotation(Override::class.java)
         .addModifiers(Modifier.PUBLIC)
-        .returns(if (condition) TypeName.BOOLEAN else TypeName.VOID)
-        .addParameter(CONTEXT_TYPE, "context")
+        .returns(
+          when (decl.kind) {
+            TaskKind.TASK -> TypeName.VOID
+            TaskKind.CONDITION -> TypeName.BOOLEAN
+            TaskKind.BRANCH -> TASK_ID_TYPE
+          },
+        ).addParameter(CONTEXT_TYPE, "context")
         .addParameter(CLIENT_TYPE, "client")
         .addException(Exception::class.java)
 
@@ -775,8 +851,8 @@ class BuilderProcessor : AbstractProcessor() {
     }
 
     when {
-      // The SDK pushes a condition's result itself, after it has skipped the side not taken.
-      condition -> $$"return new $T().$L($L)"
+      // The SDK pushes a decider's choice itself, after it has skipped what the choice rules out.
+      decl.kind != TaskKind.TASK -> $$"return new $T().$L($L)"
       inner.returnType.kind == TypeKind.VOID -> $$"new $T().$L($L)"
       else -> $$"client.setXCom(new $T().$L($L))"
     }.also {
@@ -790,7 +866,7 @@ class BuilderProcessor : AbstractProcessor() {
 
     return TypeSpec
       .classBuilder(decl.className)
-      .addSuperinterface(if (condition) CONDITION_TASK_TYPE else ClassName.get(Task::class.java))
+      .addSuperinterface(decl.kind.taskInterface)
       .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
       .addMethod(executeSpec.build())
       .build()
@@ -966,8 +1042,15 @@ private val DAG_SOURCE_TYPE = ClassName.get(DagSource::class.java)
 private val REFS_TYPE = ClassName.get(Refs::class.java)
 private val ARG_TYPE = ClassName.get(Arg::class.java)
 private val TASK_HANDLE_TYPE = ClassName.get(TaskRef::class.java)
+private val TASK_TYPE = ClassName.get(Task::class.java)
 private val CONDITION_TASK_TYPE = ClassName.get(ConditionTask::class.java)
 private val CONDITION_REF_TYPE = ClassName.get(ConditionRef::class.java)
+private val BRANCH_TASK_TYPE = ClassName.get(TaskIdBranchTask::class.java)
+private val BRANCH_REF_TYPE = ClassName.get(BranchRef::class.java)
+private val TASK_ID_TYPE = ClassName.get(TaskId::class.java)
+
+/** Name of the generated holder of a Dag's task ids, which no task class may take. */
+private const val TASK_IDS = "TaskIds"
 private val BOXED_BOOLEAN_TYPE = ClassName.get("java.lang", "Boolean")
 private val DEPS_TYPE = ClassName.get(Deps::class.java)
 private val GROUP_TYPE = DEPS_TYPE.nestedClass("TaskGroup")
@@ -983,10 +1066,18 @@ private const val DAG_ANNOTATION = "org.apache.airflow.sdk.Builder.Dag"
 private enum class TaskKind(
   val annotation: String,
   val spelling: String,
+  /** Method the generated class implements, and the type its wiring view hands back. */
+  val bodyMethod: String,
+  val taskInterface: ClassName,
+  val refType: ClassName?,
 ) {
-  TASK("org.apache.airflow.sdk.Builder.Task", "@Builder.Task"),
-  CONDITION("org.apache.airflow.sdk.Builder.If", "@Builder.If"),
+  TASK("org.apache.airflow.sdk.Builder.Task", "@Builder.Task", "execute", TASK_TYPE, null),
+  CONDITION("org.apache.airflow.sdk.Builder.If", "@Builder.If", "decide", CONDITION_TASK_TYPE, CONDITION_REF_TYPE),
+  BRANCH("org.apache.airflow.sdk.Builder.Branch", "@Builder.Branch", "choose", BRANCH_TASK_TYPE, BRANCH_REF_TYPE),
 }
+
+/** Whether this annotation is the one [name] qualifies. */
+private fun AnnotationMirror.names(name: String): Boolean = (annotationType.asElement() as TypeElement).qualifiedName.contentEquals(name)
 
 private val RESERVED_VIEW_NAMES =
   setOf(
@@ -1017,6 +1108,17 @@ private val RESERVED_GROUP_VIEW_NAMES: Set<String> =
 
 private val DAG_STRUCTURAL_ATTRIBUTES = setOf("id", "to")
 private val TASK_STRUCTURAL_ATTRIBUTES = setOf("id")
+
+/**
+ * The `TaskIds` constant for a task id: its words in upper case, joined by
+ * underscores, so `handleLong` and `checks.audit` become `HANDLE_LONG` and
+ * `CHECKS_AUDIT`.
+ */
+private fun constantName(id: String): String =
+  id
+    .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
+    .replace(Regex("[^A-Za-z0-9]+"), "_")
+    .uppercase()
 
 private fun TypeName.boxIfPossible(): TypeName = if (this == TypeName.VOID || isPrimitive) box() else this
 

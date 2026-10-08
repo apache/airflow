@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk.execution
 
+import org.apache.airflow.sdk.BranchRef
+import org.apache.airflow.sdk.BranchTask
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionTask
@@ -26,6 +28,8 @@ import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
+import org.apache.airflow.sdk.TaskId
+import org.apache.airflow.sdk.TaskIdBranchTask
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
 import org.apache.airflow.sdk.execution.comm.RetryTask
@@ -239,6 +243,59 @@ class TaskTest {
     Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
   }
 
+  @Test
+  @DisplayName("Should push the case a branch chose and skip every other one")
+  fun shouldSkipTheCasesNotChosen() {
+    TestBranch.choice = HandleLongTask::class.java
+    val transport = RecordingTransport()
+
+    val result = runTask(branchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertEquals(listOf("handle_short"), transport.skipped)
+    Assertions.assertEquals(
+      listOf("skipmixin_key" to mapOf("skipped" to listOf("handle_short")), "return_value" to "handle_long"),
+      transport.xComs,
+    )
+  }
+
+  @Test
+  @DisplayName("Should fail a branch that chose a task it cannot run")
+  fun shouldFailBranchThatChoseAnUnknownCase() {
+    TestBranch.choice = SuccessTask::class.java
+    val transport = RecordingTransport()
+
+    val result = runTask(branchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    Assertions.assertEquals(emptyList<String>(), transport.skipped)
+    Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
+  }
+
+  @Test
+  @DisplayName("Should let a generated branch name its case by task ID")
+  fun shouldChooseByTaskId() {
+    val dag = DagDef("test_dag")
+    val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
+    val short = dag.task<Unit>("handle_short", HandleShortTask::class.java)
+    BranchRef.of(dag.task<Unit>("pick", TestTaskIdBranch::class.java)).option(long).option(short)
+    val transport = RecordingTransport()
+
+    runTask(Bundle(listOf(dag)), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+
+    Assertions.assertEquals(listOf("handle_long"), transport.skipped)
+    Assertions.assertEquals("handle_short", transport.xComs.last().second)
+  }
+
+  private fun branchBundle(): Bundle {
+    val dag = DagDef("test_dag")
+    val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
+    val short = dag.task<Unit>("handle_short", HandleShortTask::class.java)
+    dag.Branch("pick", TestBranch::class.java).option(long).option(short)
+    return Bundle(listOf(dag))
+  }
+
   private fun conditionBundle(withElse: Boolean): Bundle {
     val dag = DagDef("test_dag")
     val load = dag.task<Unit>("load", SuccessTask::class.java)
@@ -352,6 +409,40 @@ class TaskTest {
     companion object {
       var decision: Boolean? = true
     }
+  }
+
+  class HandleLongTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  class HandleShortTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  /** Chooses whatever [choice] holds, so a test can drive it to a case or past one. */
+  class TestBranch : BranchTask {
+    override fun choose(
+      context: Context,
+      client: Client,
+    ): Class<out Task> = choice
+
+    companion object {
+      var choice: Class<out Task> = HandleLongTask::class.java
+    }
+  }
+
+  /** The shape the annotation processor generates: a branch that names its case by ID. */
+  class TestTaskIdBranch : TaskIdBranchTask {
+    override fun choose(
+      context: Context,
+      client: Client,
+    ): TaskId = TaskId.of("handle_short")
   }
 
   /** Records what a deciding task pushed and asked to skip, in order. */

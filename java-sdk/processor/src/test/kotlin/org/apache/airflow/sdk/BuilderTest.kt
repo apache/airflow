@@ -2260,6 +2260,262 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("generate a branch that names its case with a generated task-id constant")
+  fun generateBranchTask() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskId;
+
+        @Builder.Dag(id = "etl")
+        public class TestExample {
+          @Builder.Branch(id = "pick_path")
+          public TaskId pickPath() {
+            return TestExampleBuilder.TaskIds.HANDLE_LONG;
+          }
+
+          @Builder.Task
+          public void handleLong() {}
+
+          @Builder.Task
+          public void handleShort() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              pickPath().option(handleLong()).option(handleShort());
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Override;
+         import java.util.List;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TaskId;
+         import org.apache.airflow.sdk.TaskIdBranchTask;
+         import org.apache.airflow.sdk.internal.DagSource;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = DagSource.declaredBy(new DagDef("etl"), TestExample.class);
+             return Refs.record(dag, List.of("pick_path", "handleLong", "handleShort"), List.of(), new TestExample.Wiring()::depends);
+           }
+
+           public static final class PickPath implements TaskIdBranchTask {
+             @Override
+             public TaskId choose(Context context, Client client) throws Exception {
+               return new TestExample().pickPath();
+             }
+           }
+
+           public static final class HandleLong implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().handleLong();
+             }
+           }
+
+           public static final class HandleShort implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().handleShort();
+             }
+           }
+
+           /**
+            * The task ids of this Dag, for a {@code @Builder.Branch} method to name its case with.
+            */
+           public static final class TaskIds {
+             public static final TaskId PICK_PATH = TaskId.of("pick_path");
+
+             public static final TaskId HANDLE_LONG = TaskId.of("handleLong");
+
+             public static final TaskId HANDLE_SHORT = TaskId.of("handleShort");
+           }
+         }
+        """,
+      )
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleDeps")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleDeps",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Void;
+         import org.apache.airflow.sdk.BranchRef;
+         import org.apache.airflow.sdk.Deps;
+         import org.apache.airflow.sdk.TaskDef;
+         import org.apache.airflow.sdk.TaskRef;
+         import org.apache.airflow.sdk.internal.Refs;
+
+         public interface TestExampleDeps extends Deps {
+           default BranchRef pickPath() {
+             return BranchRef.of(Refs.node("", new TaskDef("pick_path", TestExampleBuilder.PickPath.class)));
+           }
+
+           default TaskRef<Void> handleLong() {
+             return Refs.node("", new TaskDef("handleLong", TestExampleBuilder.HandleLong.class));
+           }
+
+           default TaskRef<Void> handleShort() {
+             return Refs.node("", new TaskDef("handleShort", TestExampleBuilder.HandleShort.class));
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("reject a task method whose generated class would take the TaskIds name")
+  fun rejectTaskNamedTaskIds() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskId;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Branch
+          public TaskId pick() {
+            return TestExampleBuilder.TaskIds.TASK_IDS;
+          }
+
+          @Builder.Task
+          public void taskIds() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task method 'taskIds' generates the class 'TaskIds', which is the holder of this Dag's task ids",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a task id whose generated constant is not a Java name")
+  fun rejectTaskIdWithoutAJavaName() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskId;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Branch
+          public TaskId pick() {
+            return null;
+          }
+
+          @Builder.Task(id = "2nd_pass")
+          public void second() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task '2nd_pass' becomes the constant '2ND_PASS' of the generated TaskIds, which is not a Java name",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a branch that does not return a task id")
+  fun rejectNonTaskIdBranch() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Branch
+          public String pickPath() {
+            return "handleLong";
+          }
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Builder.Branch method 'pickPath' returns java.lang.String, but a branch returns a TaskId",
+    )
+  }
+
+  @Test
+  @DisplayName("reject two tasks whose generated task-id constants would collide")
+  fun rejectCollidingTaskIdConstants() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.TaskId;
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Branch
+          public TaskId pick() {
+            return TestExampleBuilder.TaskIds.HANDLE_LONG;
+          }
+
+          @Builder.Task
+          public void handleLong() {}
+
+          @Builder.Task(id = "handle_long")
+          public void other() {}
+
+          @Builder.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Tasks 'handleLong' and 'handle_long' both become the constant 'HANDLE_LONG' of the generated TaskIds",
+    )
+  }
+
+  @Test
   @DisplayName("reject a condition that does not return a boolean")
   fun rejectNonBooleanCondition() {
     val compilation =
@@ -2314,7 +2570,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "Method 'hasRows' carries both @Builder.Task and @Builder.If",
+      "Method 'hasRows' carries @Builder.Task, @Builder.If; a task is declared by one of them alone",
     )
   }
 

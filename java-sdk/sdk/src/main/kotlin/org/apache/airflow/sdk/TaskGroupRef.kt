@@ -107,6 +107,36 @@ class TaskGroupRef internal constructor(
   ): ConditionRef = ConditionRef.of(task(id, definition))
 
   /**
+   * Declares a branch in this group, as [DagDef.Branch] does for the Dag.
+   *
+   * @param definition Class that implements [BranchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The branch, to list its cases on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Branch(definition: Class<out BranchTask>): BranchRef = Branch(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a branch in this group under the task ID `<group ID>.<id>`.
+   *
+   * @param id Task ID within this group.
+   * @param definition Class that implements [BranchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The branch, to list its cases on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   *
+   * @see Branch
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Branch(
+    id: String,
+    definition: Class<out BranchTask>,
+  ): BranchRef = BranchRef.of(task<Any?>(id, definition))
+
+  /**
    * Nests a task group inside this one.
    *
    * @param id Group ID within this group; the nested group's ID is
