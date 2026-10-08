@@ -169,7 +169,6 @@ const DeleteCell = ({ row: { original } }: CellProps) => (
 
 export const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
-  runStateContext: RunStateCountsContext,
   { multiTeam, showRecentTasks }: GetColumnsParams,
 ): Array<ColumnDef<DataTableFeatures, DAGWithLatestDagRunsResponse>> => [
   {
