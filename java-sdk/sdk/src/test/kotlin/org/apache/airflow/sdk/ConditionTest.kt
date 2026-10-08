@@ -141,7 +141,7 @@ internal class ConditionTest {
 
     assertEquals(
       "Task 'has_rows' runs '${HasRows::class.java.name}', which decides which task runs, but nothing names " +
-        "what it chooses; declare it with If(...), in Dag 'd'",
+        "what it chooses; declare it with If(...) or Branch(...), in Dag 'd'",
       error.message,
     )
   }

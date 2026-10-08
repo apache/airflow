@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import org.apache.airflow.sdk.Arg
+import org.apache.airflow.sdk.BranchRef
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionRef
@@ -41,6 +42,8 @@ import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Deps
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskGroupRef
+import org.apache.airflow.sdk.TaskId
+import org.apache.airflow.sdk.TaskIdBranchTask
 import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.execution.serializeDag
 import org.apache.airflow.sdk.internal.Field
@@ -62,6 +65,15 @@ class ConformanceCondition : ConditionTask {
     context: Context,
     client: Client,
   ) = true
+}
+
+// Names its case by task ID: every conformance task runs the same class, so a
+// branch that named a case by class could not tell two of them apart.
+class ConformanceBranch : TaskIdBranchTask {
+  override fun choose(
+    context: Context,
+    client: Client,
+  ) = TaskId.of("")
 }
 
 fun main(args: Array<String>) {
@@ -90,20 +102,27 @@ private fun buildDag(case: JsonNode): DagDef {
   }
 
   val tasks = linkedMapOf<String, TaskRef<*>>()
-  // A condition names tasks that may be declared after it, so the sides are wired once every task exists.
-  val conditions = mutableListOf<Pair<ConditionRef, JsonNode>>()
+  // A decider names tasks that may be declared after it, so its cases are wired once every task exists.
+  val deciders = mutableListOf<Pair<Deps.Flow, JsonNode>>()
   case.path("tasks").forEach { task ->
     val groupId = task.path("group").asText("")
     val localId = task.path("task_id").asText()
     val branch = task.path("branch")
-    val definition = if (branch.isMissingNode) ConformanceTask::class.java else ConformanceCondition::class.java
+    val definition =
+      when {
+        branch.isMissingNode -> ConformanceTask::class.java
+        branch.has("cases") -> ConformanceBranch::class.java
+        else -> ConformanceCondition::class.java
+      }
     val ref =
       if (groupId.isEmpty()) {
         dag.task<Any?>(localId, definition)
       } else {
         groups.getValue(groupId).task<Any?>(localId, definition)
       }
-    if (!branch.isMissingNode) conditions += asCondition(ref) to branch
+    if (!branch.isMissingNode) {
+      deciders += (if (branch.has("cases")) BranchRef.of(ref) else asCondition(ref)) to branch
+    }
     task.path("spec").fields().forEach { (key, value) -> ref.config(key, toValue(SchemaFields.TASK, key, value)) }
     // A task's `upstream` handles and its `literals` are its call arguments, in that order, so the
     // Dag carries the binding spec a stub call would. Names are positional, as the Go SDK names
@@ -117,9 +136,15 @@ private fun buildDag(case: JsonNode): DagDef {
     tasks[ref.def.id] = ref
   }
 
-  conditions.forEach { (condition, branch) ->
-    condition.Then(tasks.getValue(branch.path("then").asText()))
-    branch.path("else").takeIf { !it.isMissingNode }?.let { condition.Else(tasks.getValue(it.asText())) }
+  deciders.forEach { (decider, branch) ->
+    when (decider) {
+      is BranchRef -> branch.path("cases").forEach { decider.option(tasks.getValue(it.asText())) }
+      is ConditionRef -> {
+        decider.Then(tasks.getValue(branch.path("then").asText()))
+        branch.path("else").takeIf { !it.isMissingNode }?.let { decider.Else(tasks.getValue(it.asText())) }
+      }
+      else -> throw IllegalStateException("Unknown decider: $decider")
+    }
   }
 
   case.path("order_edges").forEach { edge ->

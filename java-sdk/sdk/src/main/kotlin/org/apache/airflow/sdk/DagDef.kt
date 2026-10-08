@@ -202,6 +202,47 @@ class DagDef(
   ): ConditionRef = ConditionRef.of(task(id, definition))
 
   /**
+   * Declares a task that chooses one of several tasks to run; every other one
+   * is skipped.
+   *
+   * The task's ID is the class's simple name with its first character
+   * lowercased, so `PickPath.class` becomes `pickPath`. Use
+   * [Branch(id, definition)][Branch] to set it, and [BranchRef.config] for the
+   * task's other settings:
+   *
+   * ```java
+   * dag.Branch(PickPath.class).option(handleLong).option(handleShort);
+   * ```
+   *
+   * @param definition Class that implements [BranchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The branch, to list its cases on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Branch(definition: Class<out BranchTask>): BranchRef = Branch(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a task that chooses one of several tasks to run, under the task
+   * ID [id].
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [BranchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The branch, to list its cases on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   *
+   * @see Branch
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Branch(
+    id: String,
+    definition: Class<out BranchTask>,
+  ): BranchRef = BranchRef.of(task<Any?>(id, definition))
+
+  /**
    * Declares a task group of this Dag.
    *
    * ```java
