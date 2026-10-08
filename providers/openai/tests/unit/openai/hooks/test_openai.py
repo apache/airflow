@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, mock_open, patch
@@ -1011,12 +1010,9 @@ def _async_conn(
     With ``aextra_dejson=False`` it lacks ``Connection.aextra_dejson()``, like on Airflow < 3.3.2,
     where ``get_async_extra_dejson`` reads ``extra_dejson`` from a worker thread instead.
     """
-    conn = Mock(
-        spec=["password", "host", "extra", "extra_dejson"] + (["aextra_dejson"] if aextra_dejson else [])
-    )
+    conn = Mock(spec=["password", "host", "extra_dejson"] + (["aextra_dejson"] if aextra_dejson else []))
     conn.password = password
     conn.host = host
-    conn.extra = json.dumps(extra)
     if aextra_dejson:
         conn.aextra_dejson = AsyncMock(return_value=extra)
     type(conn).extra_dejson = PropertyMock(side_effect=lambda: _read_off_the_event_loop(extra))
@@ -1067,6 +1063,7 @@ async def test_aget_conn_api_key(password, extra, expected_kwargs):
         client = await OpenAIHook(conn_id="openai_async").aget_conn()
 
     mock_get_async_connection.assert_awaited_once_with("openai_async")
+    conn.aextra_dejson.assert_awaited_once_with()
     mock_client.assert_called_once_with(**expected_kwargs)
     assert client is mock_client.return_value
 
@@ -1102,6 +1099,7 @@ async def test_aget_conn_workload_identity(mock_client):
     ):
         await OpenAIHook(conn_id="openai_async").aget_conn()
 
+    conn.aextra_dejson.assert_awaited_once_with()
     build.assert_called_once_with(extra)
     mock_client.assert_called_once_with(workload_identity={"provider": "custom"}, base_url="https://host/v1")
 
@@ -1114,6 +1112,8 @@ async def test_aget_conn_invalid_auth_type():
         pytest.raises(ValueError, match="Unsupported auth_type 'magic'"),
     ):
         await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    conn.aextra_dejson.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio
