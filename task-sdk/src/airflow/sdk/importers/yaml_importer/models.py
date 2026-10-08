@@ -27,7 +27,7 @@ constructors validate those at import time.
 from __future__ import annotations
 
 import itertools
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import (
     AliasChoices,
@@ -40,6 +40,11 @@ from pydantic import (
     TypeAdapter,
     model_validator,
 )
+
+if TYPE_CHECKING:
+    from pydantic import GetJsonSchemaHandler
+    from pydantic.json_schema import JsonSchemaValue
+    from pydantic_core import CoreSchema
 
 XCOM_KEYS = ("$x", "$xcom")
 TEMPLATE_KEYS = ("$t", "$template")
@@ -70,6 +75,16 @@ class XComTarget(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+def _marker_json_schema(schema: JsonSchemaValue, keys: tuple[str, ...]) -> JsonSchemaValue:
+    """Emit a ``$``-marker object's schema."""
+    (value_schema,) = schema.get("properties", {}).values()
+    schema["properties"] = {key: value_schema for key in keys}
+    schema.pop("required", None)
+    schema["oneOf"] = [{"required": [key]} for key in keys]
+    schema["additionalProperties"] = False
+    return schema
+
+
 class XComRef(BaseModel):
     """An upstream task's XCom output."""
 
@@ -78,7 +93,13 @@ class XComRef(BaseModel):
         validation_alias=AliasChoices(*XCOM_KEYS),
     )
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid")
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        return _marker_json_schema(handler(core_schema), XCOM_KEYS)
 
 
 class TemplateRef(BaseModel):
@@ -86,7 +107,13 @@ class TemplateRef(BaseModel):
 
     source: str = Field(serialization_alias="$t", validation_alias=AliasChoices(*TEMPLATE_KEYS))
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid")
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        return _marker_json_schema(handler(core_schema), TEMPLATE_KEYS)
 
 
 class ConstRef(BaseModel):
@@ -94,7 +121,13 @@ class ConstRef(BaseModel):
 
     value: Any = Field(serialization_alias="$const", validation_alias=AliasChoices(CONST_KEY))
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid")
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        return _marker_json_schema(handler(core_schema), (CONST_KEY,))
 
 
 def _value_discriminator(v: Any) -> str:
@@ -141,6 +174,19 @@ class _Literal(RootModel[Any]):
             return [_ValueAdapter.validate_python(item) for item in v]
         return v
 
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        schema = handler(core_schema)
+        schema["not"] = {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 1,
+            "propertyNames": {"enum": [*XCOM_KEYS, *TEMPLATE_KEYS, CONST_KEY]},
+        }
+        return schema
+
 
 Value = Annotated[
     Annotated[XComRef, Tag("xcom")]
@@ -153,19 +199,26 @@ Value = Annotated[
 _ValueAdapter: TypeAdapter[Any] = TypeAdapter(Value)
 
 
-class _TaskBase(BaseModel):
+class Task(BaseModel):
     """
-    Fields common to both ``use:`` and ``run:`` task kinds.
+    A ready-made operator (``uses``) or task with custom code (``run``).
 
-    Unknown keys are BaseOperator arguments (pass-through).
+    Exactly one body (either ``uses`` or ``run``) may be present once
+    templates (``extends``) are merged. Unknown keys are operator arguments;
+    they pass through untyped.
     """
 
     id_: str = Field(alias="id")
     needs: list[str] = Field(default_factory=list)
     extends: list[str] = Field(default_factory=list)
     with_: dict[str, Value] = Field(default_factory=dict, alias="with")
+    uses: str | None = None
+    run: dict[str, Value] | None = None
 
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(
+        extra="allow",
+        json_schema_extra={"description": "A ready-made operator (uses) or task with custom code (run)."},
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -185,50 +238,17 @@ class _TaskBase(BaseModel):
                 )
         return data
 
-
-class OperatorTask(_TaskBase):
-    """
-    A ready-made operator.
-
-    This should have ``uses`` (import path) + ``with``.
-    """
-
-    uses: str
-
-    model_config = ConfigDict(
-        json_schema_extra={"description": "A ready-made operator."},
-    )
-
-
-class CodeTask(_TaskBase):
-    """
-    A task running custom code.
-
-    This should have ``run`` holding function arguments, and optionally
-    ``queue`` to route it.
-    """
-
-    run: dict[str, Value] = Field(default_factory=dict)
-
-    model_config = ConfigDict(
-        json_schema_extra={"description": "A task running custom code."},
-    )
-
-
-def _task_discriminator(v: Any) -> str:
-    if isinstance(v, OperatorTask):
-        return "operator"
-    if isinstance(v, CodeTask):
-        return "code"
-    if isinstance(v, dict) and "uses" in v:
-        return "operator"
-    return "code"
-
-
-Task = Annotated[
-    Annotated[OperatorTask, Tag("operator")] | Annotated[CodeTask, Tag("code")],
-    Discriminator(_task_discriminator),
-]
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        schema = handler(core_schema)
+        value_schema = schema["properties"]["with"]["additionalProperties"]
+        schema["properties"]["uses"] = {"type": "string"}
+        schema["properties"]["run"] = {"type": "object", "additionalProperties": value_schema}
+        schema["not"] = {"required": ["uses", "run"]}
+        schema["anyOf"] = [{"required": ["uses"]}, {"required": ["run"]}, {"required": ["extends"]}]
+        return schema
 
 
 class TaskTemplate(BaseModel):
@@ -256,7 +276,7 @@ class TimetableSchedule(BaseModel):
     uses: str
     with_: dict[str, Any] = Field(default_factory=dict, alias="with")
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid")
 
 
 Schedule = str | None | TimetableSchedule
@@ -322,7 +342,7 @@ class DagDocument(BaseModel):
     templates: dict[str, TaskTemplate] = Field(default_factory=dict)
     tasks: list[Task] = Field(default_factory=list)
 
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="allow")
 
     @model_validator(mode="before")
     @classmethod
@@ -367,7 +387,7 @@ class DagDocument(BaseModel):
         ids = {t.id_ for t in self.tasks}
         for t in self.tasks:
             refs = set(t.needs)
-            for v in itertools.chain(t.with_.values(), getattr(t, "run", {}).values()):
+            for v in itertools.chain(t.with_.values(), (t.run or {}).values()):
                 refs.update(_iter_xcom_task_ids(v))
             if missing := refs - ids:
                 raise ValueError(f"task {t.id_!r} references unknown task(s): {sorted(missing)}")

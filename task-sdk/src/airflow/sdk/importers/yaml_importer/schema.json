@@ -1,91 +1,49 @@
 {
   "$defs": {
-    "CodeTask": {
-      "additionalProperties": true,
-      "description": "A task running custom code.",
-      "properties": {
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
-        "needs": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Needs",
-          "type": "array"
-        },
-        "extends": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Extends",
-          "type": "array"
-        },
-        "with": {
-          "additionalProperties": {
-            "oneOf": [
-              {
-                "$ref": "#/$defs/XComRef"
-              },
-              {
-                "$ref": "#/$defs/TemplateRef"
-              },
-              {
-                "$ref": "#/$defs/ConstRef"
-              },
-              {
-                "$ref": "#/$defs/_Literal"
-              }
-            ]
-          },
-          "title": "With",
-          "type": "object"
-        },
-        "run": {
-          "additionalProperties": {
-            "oneOf": [
-              {
-                "$ref": "#/$defs/XComRef"
-              },
-              {
-                "$ref": "#/$defs/TemplateRef"
-              },
-              {
-                "$ref": "#/$defs/ConstRef"
-              },
-              {
-                "$ref": "#/$defs/_Literal"
-              }
-            ]
-          },
-          "title": "Run",
-          "type": "object"
-        }
-      },
-      "required": [
-        "id"
-      ],
-      "title": "CodeTask",
-      "type": "object"
-    },
     "ConstRef": {
       "additionalProperties": false,
       "description": "Force a literal; the value is taken verbatim.",
+      "oneOf": [
+        {
+          "required": [
+            "$const"
+          ]
+        }
+      ],
       "properties": {
         "$const": {
           "title": "$Const"
         }
       },
-      "required": [
-        "$const"
-      ],
       "title": "ConstRef",
       "type": "object"
     },
-    "OperatorTask": {
+    "Task": {
       "additionalProperties": true,
-      "description": "A ready-made operator.",
+      "anyOf": [
+        {
+          "required": [
+            "uses"
+          ]
+        },
+        {
+          "required": [
+            "run"
+          ]
+        },
+        {
+          "required": [
+            "extends"
+          ]
+        }
+      ],
+      "description": "A ready-made operator (uses) or task with custom code (run).",
+      "not": {
+        "required": [
+          "uses",
+          "run"
+        ]
+      },
       "properties": {
         "id": {
           "title": "Id",
@@ -126,15 +84,32 @@
           "type": "object"
         },
         "uses": {
-          "title": "Uses",
           "type": "string"
+        },
+        "run": {
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/XComRef"
+              },
+              {
+                "$ref": "#/$defs/TemplateRef"
+              },
+              {
+                "$ref": "#/$defs/ConstRef"
+              },
+              {
+                "$ref": "#/$defs/_Literal"
+              }
+            ]
+          },
+          "type": "object"
         }
       },
       "required": [
-        "id",
-        "uses"
+        "id"
       ],
-      "title": "OperatorTask",
+      "title": "Task",
       "type": "object"
     },
     "TaskTemplate": {
@@ -147,15 +122,28 @@
     "TemplateRef": {
       "additionalProperties": false,
       "description": "A Jinja template.",
+      "oneOf": [
+        {
+          "required": [
+            "$t"
+          ]
+        },
+        {
+          "required": [
+            "$template"
+          ]
+        }
+      ],
       "properties": {
         "$t": {
           "title": "$T",
           "type": "string"
+        },
+        "$template": {
+          "title": "$T",
+          "type": "string"
         }
       },
-      "required": [
-        "$t"
-      ],
       "title": "TemplateRef",
       "type": "object"
     },
@@ -182,6 +170,18 @@
     "XComRef": {
       "additionalProperties": false,
       "description": "An upstream task's XCom output.",
+      "oneOf": [
+        {
+          "required": [
+            "$x"
+          ]
+        },
+        {
+          "required": [
+            "$xcom"
+          ]
+        }
+      ],
       "properties": {
         "$x": {
           "anyOf": [
@@ -193,11 +193,19 @@
             }
           ],
           "title": "$X"
+        },
+        "$xcom": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/XComTarget"
+            }
+          ],
+          "title": "$X"
         }
       },
-      "required": [
-        "$x"
-      ],
       "title": "XComRef",
       "type": "object"
     },
@@ -230,6 +238,20 @@
     },
     "_Literal": {
       "description": "A literal value.\n\nContainers recurse so nested markers are still resolved; scalars pass\nthrough.",
+      "not": {
+        "maxProperties": 1,
+        "minProperties": 1,
+        "propertyNames": {
+          "enum": [
+            "$x",
+            "$xcom",
+            "$t",
+            "$template",
+            "$const"
+          ]
+        },
+        "type": "object"
+      },
       "title": "_Literal"
     }
   },
@@ -268,14 +290,7 @@
     },
     "tasks": {
       "items": {
-        "oneOf": [
-          {
-            "$ref": "#/$defs/OperatorTask"
-          },
-          {
-            "$ref": "#/$defs/CodeTask"
-          }
-        ]
+        "$ref": "#/$defs/Task"
       },
       "title": "Tasks",
       "type": "array"
