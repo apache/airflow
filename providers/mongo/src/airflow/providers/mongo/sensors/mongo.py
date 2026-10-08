@@ -48,7 +48,7 @@ class MongoSensor(BaseSensorOperator):
     :param mongo_db: Target MongoDB name.
     """
 
-    template_fields: Sequence[str] = ("collection", "query")
+    template_fields: Sequence[str] = ("collection", "query", "mongo_conn_id")
 
     def __init__(
         self, *, collection: str, query: dict, mongo_conn_id: str = "mongo_default", mongo_db=None, **kwargs

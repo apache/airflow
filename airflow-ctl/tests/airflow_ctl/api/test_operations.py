@@ -36,6 +36,8 @@ from airflowctl.api.datamodels.generated import (
     AssetCollectionResponse,
     AssetEventResponse,
     AssetResponse,
+    AssetStateStoreCollectionResponse,
+    AssetStateStoreResponse,
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
@@ -135,7 +137,7 @@ class HelloCollectionResponse(BaseModel):
 
 class TestBaseOperations:
     def test_build_query_params_skips_none_and_serializes_datetime(self):
-        logical_date = datetime.datetime(2025, 1, 1, 12, 30, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2025, 1, 1, 12, 30, tzinfo=datetime.UTC)
 
         assert _build_query_params(
             logical_date=logical_date,
@@ -321,7 +323,11 @@ class TestAssetsOperations:
         queued_events=[asset_queued_event_response],
         total_entries=1,
     )
-
+    asset_state_store_response = AssetStateStoreResponse(
+        key="my_key",
+        value={"my_val": 0},  # type: ignore[arg-type]
+        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+    )
     dag_run_response = DAGRunResponse(
         dag_display_name=dag_id,
         dag_run_id=dag_id,
@@ -462,6 +468,8 @@ class TestAssetsOperations:
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}/materialize"
+            # The endpoint requires a request body, so the client must send one.
+            assert json.loads(request.content) == {}
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -530,6 +538,73 @@ class TestAssetsOperations:
         response = client.assets.delete_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
         assert response == self.asset_id
 
+    def test_list_state_store(self):
+        collection_response = AssetStateStoreCollectionResponse(
+            asset_state_store=[self.asset_state_store_response],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store"
+            return httpx.Response(200, json=json.loads(collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.list_state_store(self.asset_id)
+        assert response == collection_response
+
+    def test_get_state_store(self):
+        key = self.asset_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store/{key}"
+            return httpx.Response(200, json=json.loads(self.asset_state_store_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.get_state_store(self.asset_id, key)
+        assert response == self.asset_state_store_response
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ('{"index": 0}', {"index": 0}),
+            ("hello", "hello"),
+        ],
+    )
+    def test_set_state_store(self, value, expected):
+        key = self.asset_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store/{key}"
+            assert json.loads(request.content) == {"value": expected}
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.set_state_store(self.asset_id, key, value)
+        assert response == key
+
+    def test_delete_state_store(self):
+        key = self.asset_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store/{key}"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_state_store(self.asset_id, key)
+        assert response == key
+
+    def test_clear_state_store(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/state-store"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.clear_state_store(self.asset_id)
+        assert response == self.asset_id
+
 
 class TestBackfillOperations:
     backfill_id: NonNegativeInt = 1
@@ -561,30 +636,34 @@ class TestBackfillOperations:
         total_entries=1,
     )
 
-    def test_create(self):
-        expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
+    @pytest.mark.parametrize(
+        ("operation", "path"), [("create", "backfills"), ("create_dry_run", "backfills/dry_run")]
+    )
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_fields"),
+        [({}, {}), ({"drain_dag": False}, {}), ({"drain_dag": True}, {"drain_dag": True})],
+    )
+    def test_create(self, operation, path, request_fields, expected_fields):
+        expected_body = {
+            "dag_id": "dag_id",
+            "from_date": "2024-12-31T23:59:59",
+            "to_date": "2025-01-01T00:00:00",
+            "dag_run_conf": {},
+            "reprocess_behavior": "completed",
+            "max_active_runs": 1,
+            **expected_fields,
+        }
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/backfills"
+            assert request.url.path == f"/api/v2/{path}"
             assert request.headers.get("content-type", "").startswith("application/json")
             assert json.loads(request.content.decode()) == expected_body
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.create(backfill=self.backfill_body)
-        assert response == self.backfill_response
-
-    def test_create_dry_run(self):
-        expected_body = self.backfill_body.model_dump(mode="json", exclude_none=True)
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/backfills/dry_run"
-            assert request.headers.get("content-type", "").startswith("application/json")
-            assert json.loads(request.content.decode()) == expected_body
-            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
-
-        client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.backfills.create_dry_run(backfill=self.backfill_body)
+        response = getattr(client.backfills, operation)(
+            backfill=self.backfill_body.model_copy(update=request_fields)
+        )
         assert response == self.backfill_response
 
     def test_get(self):
@@ -607,6 +686,7 @@ class TestBackfillOperations:
 
     def test_pause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/pause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -616,6 +696,7 @@ class TestBackfillOperations:
 
     def test_unpause(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/unpause"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -625,6 +706,7 @@ class TestBackfillOperations:
 
     def test_cancel(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
             assert request.url.path == f"/api/v2/backfills/{self.backfill_id}/cancel"
             return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
 
@@ -895,16 +977,33 @@ class TestConnectionsOperations:
             assert request_body == {
                 "connection_id": self.connection_id,
                 "conn_type": self.conn_type,
-                "description": None,
-                "host": None,
-                "login": None,
                 "schema": self.schema_,
-                "port": None,
-                "password": None,
-                "extra": None,
-                "team_name": None,
             }
             assert "schema_" not in request_body
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.connections.update(connection=connection)
+        assert response == self.connection_response
+
+    def test_update_omits_unset_fields_from_request_body(self):
+        # The API treats every key present in a PATCH body as an intentional value, so sending
+        # unset fields as null clears the stored login, port, schema and description.
+        connection = ConnectionBody(
+            connection_id=self.connection_id,
+            conn_type=self.conn_type,
+            host="new-host",
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/connections/{self.connection_id}"
+            assert json.loads(request.content.decode()) == {
+                "connection_id": self.connection_id,
+                "conn_type": self.conn_type,
+                "host": "new-host",
+            }
             return httpx.Response(
                 200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
             )
@@ -928,6 +1027,10 @@ class TestConnectionsOperations:
         assert response == connection_test_response
 
     def test_test_uses_schema_alias_in_request_body(self):
+        # The exact body matters beyond the alias: the server fills unset fields from the stored
+        # connection, keyed off ``model_fields_set``. Sending them as null makes a stored host/port
+        # read as "changed" and the request is rejected with 400; a connection without a host gets
+        # tested with its credentials wiped.
         connection = ConnectionBody(
             connection_id=self.connection_id,
             conn_type=self.conn_type,
@@ -944,14 +1047,7 @@ class TestConnectionsOperations:
             assert request_body == {
                 "connection_id": self.connection_id,
                 "conn_type": self.conn_type,
-                "description": None,
-                "host": None,
-                "login": None,
                 "schema": self.schema_,
-                "port": None,
-                "password": None,
-                "extra": None,
-                "team_name": None,
             }
             assert "schema_" not in request_body
             return httpx.Response(200, json=json.loads(connection_test_response.model_dump_json()))
@@ -1059,8 +1155,10 @@ class TestDagOperations:
         import_error_id=0,
         timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
         filename="filename",
+        source_reference=None,
         bundle_name="bundle_name",
         stack_trace="stack_trace",
+        file_token="file_token",
     )
 
     import_error_collection_response = ImportErrorCollectionResponse(
@@ -1267,13 +1365,25 @@ class TestDagOperations:
         response = client.dags.list_warning()
         assert response == self.dag_warning_collection_response
 
-    def test_trigger(self):
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_fields"),
+        [
+            ({}, {}),
+            ({"drain_dag": False, "bundle_version": None}, {}),
+            ({"drain_dag": True}, {"drain_dag": True}),
+            ({"bundle_version": "version-1"}, {"bundle_version": "version-1"}),
+        ],
+    )
+    def test_trigger(self, request_fields, expected_fields):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
+            assert json.loads(request.content) == {"logical_date": None, "conf": {}, **expected_fields}
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
+        response = client.dags.trigger(
+            dag_id=self.dag_id, trigger_dag_run=TriggerDAGRunPostBody(logical_date=None, **request_fields)
+        )
         assert response == self.dag_run_response
 
 
@@ -1374,7 +1484,7 @@ class TestDagRunOperations:
         assert response == self.dag_run_collection_response
 
     def test_list_with_logical_date_filters_and_order(self):
-        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert dict(request.url.params) == {
@@ -1396,8 +1506,8 @@ class TestDagRunOperations:
         assert response == self.dag_run_collection_response
 
     def test_list_with_clear_filters(self):
-        logical_date_start = datetime.datetime(2025, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
-        logical_date_end = datetime.datetime(2025, 1, 2, 23, 59, 59, tzinfo=datetime.timezone.utc)
+        logical_date_start = datetime.datetime(2025, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+        logical_date_end = datetime.datetime(2025, 1, 2, 23, 59, 59, tzinfo=datetime.UTC)
         partition_day_start = datetime.date(2025, 2, 1)
         partition_day_end = datetime.date(2025, 2, 4)
 
@@ -1727,6 +1837,19 @@ class TestPoolsOperations:
         response = client.pools.update(pool_body=self.pool_patch_body)
         assert response == self.pool_response
 
+    def test_update_omits_unset_fields_from_request_body(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/pools/{self.pool_name}"
+            assert json.loads(request.content.decode()) == {
+                "pool": self.pool_name,
+                "description": "description",
+            }
+            return httpx.Response(200, json=json.loads(self.pool_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.pools.update(pool_body=self.pool_patch_body)
+        assert response == self.pool_response
+
 
 class TestProvidersOperations:
     provider_response = ProviderResponse(
@@ -1754,7 +1877,7 @@ class TestTaskInstancesOperations:
         dag_id="dag_id",
         dag_run_id="dag_run_id",
         map_index=-1,
-        run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+        run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
         state=TaskInstanceState.SUCCESS,
         try_number=1,
         max_tries=0,
@@ -1894,7 +2017,7 @@ class TestTasksOperations:
     )
 
     def test_clear(self):
-        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_none=True)
+        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_defaults=True)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
@@ -1907,6 +2030,23 @@ class TestTasksOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.tasks.clear(self.dag_id, self.clear_task_instances)
         assert response == self.task_instance_collection_response
+
+    def test_clear_omits_default_valued_fields(self):
+        """A payload built entirely from field defaults must not send keep_task_state.
+
+        This covers cases like a server with 3.3.2 and earlier doesn't have this field and rejects unknown keys,
+        so sending it unconditionally would break every clear against those servers.
+        """
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content.decode())
+            assert "keep_task_state" not in body
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        client.tasks.clear(self.dag_id, ClearTaskInstancesBody())
 
 
 class TestVariablesOperations:
@@ -1994,6 +2134,18 @@ class TestVariablesOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.variables.update(variable=self.variable)
+        assert response == self.variable_response
+
+    def test_update_omits_unset_fields_from_request_body(self):
+        variable = VariableBody.model_validate({"key": self.key, "value": "new-value"})
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/variables/{self.key}"
+            assert json.loads(request.content.decode()) == {"key": self.key, "value": "new-value"}
+            return httpx.Response(200, json=json.loads(self.variable_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.variables.update(variable=variable)
         assert response == self.variable_response
 
 

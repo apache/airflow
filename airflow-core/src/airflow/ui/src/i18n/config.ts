@@ -23,6 +23,10 @@ import { initReactI18next } from "react-i18next";
 
 import { VersionService } from "openapi/requests/services.gen";
 
+// Also configures the generated client, which must happen before the version
+// request below. See src/basePath.
+import { basePath } from "src/basePath";
+
 import { registerDayjsLocaleSync } from "./dayjsLocale";
 
 export const supportedLanguages = [
@@ -60,10 +64,6 @@ export const namespaces = [
   "components",
   "hitl",
 ] as const;
-
-const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
-const baseUrl = new URL(baseHref, globalThis.location.origin);
-const basePath = new URL(baseUrl).pathname.replace(/\/$/u, "");
 
 const supportedCodes: Array<string> = supportedLanguages.map((lang) => lang.code);
 
@@ -131,7 +131,17 @@ export const i18nBaseOptions = {
   supportedLngs: supportedCodes,
 };
 
-const initI18n = (version: string) => {
+// Plugin-contributed languages listed by the server; fail soft to none if it cannot be fetched.
+export const resolveExtraLanguages = (): Promise<Array<string>> =>
+  Promise.resolve()
+    .then(() => fetch(`${basePath}/static/i18n/languages.json`))
+    .then((response) =>
+      response.ok ? (response.json() as Promise<{ languages?: Array<string> }>) : { languages: [] },
+    )
+    .then((data) => data.languages ?? [])
+    .catch(() => []);
+
+const initI18n = (version: string, extraLanguages: Array<string>) => {
   const queryString = version ? `?v=${version}` : "";
 
   // Subscribed before init so it precedes every react-i18next component listener, and
@@ -147,6 +157,7 @@ const initI18n = (version: string) => {
       backend: {
         loadPath: `${basePath}/static/i18n/locales/{{lng}}/{{ns}}.json${queryString}`,
       },
+      supportedLngs: [...new Set([...supportedCodes, ...extraLanguages])],
     });
 };
 
@@ -160,6 +171,8 @@ export const resolveI18nVersion = (): Promise<string> =>
     .then((data) => data.version)
     .catch(() => Date.now().toString());
 
-void resolveI18nVersion().then(initI18n);
+void Promise.all([resolveI18nVersion(), resolveExtraLanguages()]).then(([version, extraLanguages]) =>
+  initI18n(version, extraLanguages),
+);
 
 export { default } from "i18next";

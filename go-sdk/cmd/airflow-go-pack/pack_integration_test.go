@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -67,8 +68,8 @@ func TestPack_CrossArchExecutableWithMetadataFile(t *testing.T) {
 		t.Skipf("no cross-arch mapping for host arch %q", runtime.GOARCH)
 	}
 
-	// The example bundle is a real BundleProvider that answers
-	// --airflow-metadata, so it exercises the genuine metadata path.
+	// The example bundle is a real bundle that answers --airflow-metadata,
+	// so it exercises the genuine metadata path.
 	exampleDir, err := filepath.Abs(filepath.Join("..", "..", "example", "bundle"))
 	require.NoError(t, err)
 	sourceFile := filepath.Join(exampleDir, "main.go")
@@ -144,17 +145,26 @@ sdk:
   language: "go"
   version: "` + sdkVersion + `"
   supervisor_schema_version: "` + execution.SupervisorSchemaVersion + `"
-source: "main.go"
+entrypoint_path: "example/bundle/main.go"
+dag_source_paths: {}
+sources:
+  - path: "example/bundle/main.go"
+    offset: 0
+    length: ` + strconv.Itoa(len(srcBytes)) + `
+    sha256: "` + sha256Hex(srcBytes) + `"
 dags:
-  concurrent_xcom_dag:
+  "concurrent_xcom_dag":
     tasks:
       - "pull_xcoms_concurrently"
-  simple_dag:
+  "simple_dag":
     tasks:
       - "extract"
       - "transform"
       - "load"
-  taskflow_binding_dag:
+  "task_state_dag":
+    tasks:
+      - "roundtrip_task_state"
+  "taskflow_binding_dag":
     tasks:
       - "make_config"
       - "make_numbers"
@@ -162,10 +172,15 @@ dags:
       - "via_flat_args"
       - "via_struct_no_tags"
       - "via_struct_arg_tag"
-      - "via_struct_unmatched_arg"
+      - "via_struct_default_arg"
+      - "via_struct_more_args"
+      - "via_struct_fewer_args"
       - "via_flat_map"
       - "via_struct_map"
       - "via_plain_map"
+  "variable_write_dag":
+    tasks:
+      - "write_and_delete_variable"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 
@@ -217,7 +232,7 @@ func TestPack_CrossCompileBuildModeForwardsFlags(t *testing.T) {
 
 	source, metadata, err := bundlefooter.Read(outPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(metadata), "simple_dag:",
+	assert.Contains(t, string(metadata), `"simple_dag":`,
 		"manifest must be read from the host introspection build")
 
 	// Independently build the target-arch artefact with the same forwarded

@@ -26,6 +26,8 @@ import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { StatsCard } from "src/components/StatsCard";
 
+import { formatNumber } from "src/utils";
+
 import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
 
 export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
@@ -62,7 +64,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
           title={translate("plugins.importError", { count: importErrorsCount })}
         >
           <LuPlug size={8} />
-          {importErrorsCount}
+          {formatNumber(importErrorsCount, i18n.language)}
         </StateBadge>
       ) : (
         <StatsCard

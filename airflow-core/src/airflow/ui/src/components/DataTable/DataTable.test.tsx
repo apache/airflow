@@ -18,16 +18,17 @@
  */
 import { Text } from "@chakra-ui/react";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
 
 import { DataTable } from "./DataTable.tsx";
+import type { DataTableFeatures } from "./features.ts";
 import type { CardDef } from "./types.ts";
 
-const columns: Array<ColumnDef<{ name: string }>> = [
+const columns: Array<ColumnDef<DataTableFeatures, { name: string }>> = [
   {
     accessorKey: "name",
     cell: (info) => info.getValue(),
@@ -36,7 +37,7 @@ const columns: Array<ColumnDef<{ name: string }>> = [
 ];
 
 // The columns menu is only shown by default once a table has many columns
-const wideColumns: Array<ColumnDef<{ name: string }>> = [
+const wideColumns: Array<ColumnDef<DataTableFeatures, { name: string }>> = [
   ...columns,
   ...["Second", "Third", "Fourth", "Fifth", "Sixth"].map((header) => ({
     cell: () => header,
@@ -451,21 +452,24 @@ describe("DataTable", () => {
     expect(screen.getByLabelText(columnsMenuLabel)).toBeInTheDocument();
   });
 
-  it("hides a column when unchecked in the columns menu", async () => {
+  it("hides a column when unchecked in the columns menu and shows it again when rechecked", async () => {
     render(<DataTable columns={wideColumns} data={data} modelName="task" total={2} />, {
       wrapper: ChakraWrapper,
     });
 
-    const trigger = screen.getByLabelText(columnsMenuLabel);
+    const table = screen.getByTestId("table-list");
 
-    fireEvent.pointerDown(trigger);
-    fireEvent.click(trigger);
+    fireEvent.click(screen.getByLabelText(columnsMenuLabel));
 
-    const menuItem = await waitFor(() => screen.getByRole("menuitem", { name: "Second" }));
+    const menuItem = await screen.findByRole("menuitem", { name: "Second" });
 
     fireEvent.click(menuItem);
+    await waitFor(() => expect(within(table).queryByRole("columnheader", { name: "Second" })).toBeNull());
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(wideColumns.length - 1);
 
-    await waitFor(() => expect(within(screen.getByTestId("table-list")).queryByText("Second")).toBeNull());
+    fireEvent.click(menuItem);
+    expect(await within(table).findByRole("columnheader", { name: "Second" })).toBeInTheDocument();
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(wideColumns.length);
   });
 
   // Each slot needs its own entry in the header row condition, or its content vanishes whenever

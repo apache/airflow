@@ -121,9 +121,6 @@ services:
         source: ../../../scripts
         target: /opt/airflow/scripts
       - type: bind
-        source: ../../../uv.lock
-        target: /opt/airflow/uv.lock
-      - type: bind
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint
       - type: bind
@@ -138,4 +135,10 @@ services:
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
 volumes:
   root-airflow-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
   airflow-cache-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

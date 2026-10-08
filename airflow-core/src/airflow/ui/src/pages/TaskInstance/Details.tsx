@@ -38,14 +38,16 @@ import Time from "src/components/Time";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useShowTeam } from "src/hooks/useShowTeam";
-import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
+import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";
 import { TriggererInfo } from "./TriggererInfo";
+import { stateReasonDisplay } from "./stateReason";
 
 export const Details = () => {
   const { t: translate } = useTranslation();
+  const { renderDuration } = useDurationFormat();
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -90,7 +92,7 @@ export const Details = () => {
     },
     undefined,
     {
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
 
@@ -107,12 +109,19 @@ export const Details = () => {
       return value;
     }
 
-    if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-      return value.toString();
-    }
-
-    return translate("common:none", { defaultValue: "None" });
+    return typeof value === "number" || typeof value === "boolean" || typeof value === "bigint"
+      ? value.toString()
+      : translate("common:none", { defaultValue: "None" });
   };
+
+  // Keyed off the selected try's own state, so an earlier failed try keeps its reason while the
+  // current one is running again.
+  const tryStateReason =
+    tryInstance?.state_reason !== null &&
+    tryInstance?.state_reason !== undefined &&
+    stateReasonDisplay(tryInstance.state) !== undefined
+      ? tryInstance.state_reason
+      : undefined;
 
   // omit kwargs from trigger
   const triggerWithoutKwargs = taskInstance?.trigger
@@ -139,11 +148,11 @@ export const Details = () => {
           taskInstance={taskInstance}
         />
       )}
-      <ExtraLinks refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false} />
+      <ExtraLinks refetchInterval={isStatePending(tryInstance?.state) && refetchInterval} />
       {taskInstance === undefined ||
       ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
         <BlockingDeps
-          refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false}
+          refetchInterval={isStatePending(tryInstance?.state) && refetchInterval}
           taskInstance={taskInstance}
         />
       )}
@@ -161,6 +170,12 @@ export const Details = () => {
               </Flex>
             </Table.Cell>
           </Table.Row>
+          {tryStateReason === undefined ? undefined : (
+            <Table.Row>
+              <Table.Cell>{translate("taskInstance.stateReason")}</Table.Cell>
+              <Table.Cell>{tryStateReason}</Table.Cell>
+            </Table.Row>
+          )}
           <Table.Row>
             <Table.Cell>{translate("taskId")}</Table.Cell>
             <Table.Cell>

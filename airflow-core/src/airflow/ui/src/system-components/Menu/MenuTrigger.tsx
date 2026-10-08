@@ -31,7 +31,7 @@ export const Trigger = forwardRef<HTMLButtonElement, MenuTriggerProps>((props, r
 
   if (Boolean(tooltipLabel)) {
     return (
-      <Tooltip content={tooltipLabel} ids={Boolean(triggerId) ? { trigger: triggerId } : undefined}>
+      <Tooltip content={tooltipLabel} ids={Boolean(triggerId) ? { trigger: triggerId } : undefined} portalled>
         <ChakraMenu.Trigger asChild ref={ref} {...rest}>
           {children}
         </ChakraMenu.Trigger>

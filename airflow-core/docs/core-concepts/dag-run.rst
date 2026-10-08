@@ -28,7 +28,7 @@ Dag Run Status
 
 A Dag Run status is determined when the execution of the Dag is finished.
 The execution of the Dag depends on its containing tasks and their dependencies.
-The status is assigned to the Dag Run when all of the tasks are in the one of the terminal states (i.e. if there is no possible transition to another state) like ``success``, ``failed`` or ``skipped``.
+The status is assigned to the Dag Run when all of the tasks are in one of the terminal states (i.e. if there is no possible transition to another state) like ``success``, ``failed`` or ``skipped``.
 The Dag Run is having the status assigned based on the so-called "leaf nodes" or simply "leaves". Leaf nodes are the tasks with no children.
 
 There are two possible terminal states for the Dag Run:
@@ -250,8 +250,17 @@ There are multiple options you can select to re-run -
 * **Downstream** - The downstream tasks in the current Dag
 * **Recursive** - All the tasks in the child Dags and parent Dags
 * **Failed** - Only the failed tasks in the Dag's most recent run
+* **Keep task state and resume** - Preserve the task's ``task_state_store`` entries instead of
+  discarding them, so the next attempt resumes from a checkpoint or reconnects to an external job
+  instead of starting over. See :doc:`resumable-tasks` for details.
 
-You can also clear the task through CLI using the command:
+Clearing an individual task instance discards its task state store entries by default, so the next
+attempt starts from the beginning instead of resuming a checkpoint or reconnecting to an external
+job. See :doc:`resumable-tasks` for when to keep it instead.
+
+You can also clear the task through CLI using ``airflowctl tasks clear``, which discards task state
+the same way and accepts ``--keep-task-state`` to opt back in. The legacy, deprecated
+``airflow tasks clear`` command below always keeps task state:
 
 .. code-block:: bash
 

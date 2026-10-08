@@ -4,7 +4,7 @@
   "title": "Airflow Executable SDK Bundle Metadata",
   "description": "Build-time manifest declaring DAG and task identifiers exposed by an Airflow native-executable SDK bundle. See the Executable Bundle Spec documentation in the Airflow Task SDK.",
   "type": "object",
-  "required": ["airflow_bundle_metadata_version", "sdk", "source", "dags"],
+  "required": ["airflow_bundle_metadata_version", "sdk", "dags"],
   "additionalProperties": true,
   "properties": {
     "airflow_bundle_metadata_version": {
@@ -35,10 +35,25 @@
         }
       }
     },
-    "source": {
+    "entrypoint_path": {
       "type": "string",
-      "description": "Original filename of the primary DAG source file (e.g. 'example.go'). The file's bytes are embedded in the bundle's source region; this field is a display name used by the Airflow UI.",
+      "description": "Path of the entrypoint source file (e.g. 'example/bundle/main.go'). It must be one of the sources paths. Shown for a Dag that dag_source_paths does not map.",
       "minLength": 1
+    },
+    "dag_source_paths": {
+      "type": "object",
+      "description": "Mapping of dag_id to the path of the file that defines the Dag. Every value must be one of the sources paths.",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "sources": {
+      "type": "array",
+      "description": "The embedded source files, in the order they appear in the source region. A bundle without it embeds no source. Paths must be unique.",
+      "items": {
+        "$ref": "#/$defs/sourceEntry"
+      }
     },
     "dags": {
       "type": "object",
@@ -50,6 +65,34 @@
     }
   },
   "$defs": {
+    "sourceEntry": {
+      "type": "object",
+      "description": "One embedded source file inside the bundle's source region.",
+      "required": ["path", "offset", "length", "sha256"],
+      "additionalProperties": true,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The file's path as the author knows it (e.g. 'example/bundle/main.go').",
+          "minLength": 1
+        },
+        "offset": {
+          "type": "integer",
+          "description": "The file's start, in bytes from the start of the source region.",
+          "minimum": 0
+        },
+        "length": {
+          "type": "integer",
+          "description": "The file's length in bytes.",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "description": "Lower-case hexadecimal SHA-256 of the file's bytes.",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
     "dagEntry": {
       "type": "object",
       "description": "Static description of a single DAG declared in the bundle.",

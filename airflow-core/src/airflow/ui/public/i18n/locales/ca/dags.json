@@ -15,12 +15,28 @@
       "favorite": "Favorits",
       "unfavorite": "No favorits"
     },
+    "favoriteState": "Estat de favorit",
+    "favoriteStatePlaceholder": "Seleccionar l'estat de favorit…",
+    "noTimetableTypesFound": "No s'han trobat tipus de calendari",
     "paused": {
       "active": "Actius",
       "all": "Tots",
       "paused": "Pausats"
     },
-    "runIdPatternFilter": "Cerca execucions de Dag"
+    "pausedPlaceholder": "Seleccionar l'estat de pausa…",
+    "pausedState": "Estat de pausa",
+    "requiresHitlAction": "Requereix una acció HITL",
+    "runIdPatternFilter": "Cerca execucions de Dag",
+    "runState": "Estat de l'execució",
+    "runStatePlaceholder": "Seleccionar l'estat de l'execució…",
+    "timetableType": "Tipus de calendari"
+  },
+  "folders": {
+    "all": "Tots els Dags",
+    "empty": "No hi ha carpetes",
+    "hide": "Amagar carpetes",
+    "show": "Mostrar carpetes",
+    "title": "Carpetes"
   },
   "ownerLink": "Enllaç del propietari {{owner}}",
   "runAndTaskActions": {
@@ -68,13 +84,39 @@
       "downstream": "Aigües avall",
       "existingTasks": "Rellançar tasques existents",
       "future": "Futur",
+      "keepTaskState": "Conservar l'estat de la tasca i reprendre",
       "onlyFailed": "Rellançar només tasques fallides",
       "past": "Passat",
       "preventRunningTasks": "Evitar rellançar tasques en execució",
       "queueNew": "Afegir noves tasques a la cua",
       "runOnLatestVersion": "Executar amb la última versió de la col·lecció",
+      "runOnLatestVersionForced": "Sempre utilitza la versió més recent: no hi ha cap versió anterior a la qual tornar",
       "upstream": "Aigües amunt"
     }
+  },
+  "runStateCounts": {
+    "label": "Estats de les execucions",
+    "loading": "Carregant el recompte d'estats de les execucions",
+    "tooltip": "{{state}}: {{formattedCount}} — feu clic per a filtrar les execucions"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Cancel·lar el drenatge",
+    "drain": "Drenar i pausar",
+    "drainPrompt": "Aquest DAG té execucions en curs. El drenatge permet que acabin abans de posar el DAG en pausa; si el poses en pausa ara, la planificació s'atura immediatament sense esperar que acabin.",
+    "pauseNow": "Pausar ara",
+    "pauseSelected": "Pausar / Drenar"
+  },
+  "schedulingBanner": {
+    "message": "Aquest DAG s'està drenant. Es posarà en pausa quan acabin les execucions del DAG que estan en curs."
+  },
+  "schedulingState": {
+    "active": "Actiu",
+    "draining": "Drenant",
+    "drainingBadgeTooltip": "Aquest Dag es pausarà quan les execucions en curs hagin finalitzat.",
+    "drainingTooltip": "Drenatge de {{dagDisplayName}} — es posarà en pausa quan acabin les execucions del DAG que estan en curs. Feu clic per reprendre'l.",
+    "label": "Estat de programació",
+    "paused": "Pausat",
+    "placeholder": "Seleccionar l'estat de programació…"
   },
   "search": {
     "advanced": "Cerca avançada",
@@ -88,9 +130,9 @@
       "asc": "Ordenar per nom mostrat (A-Z)",
       "desc": "Ordenar per nom mostrat (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Ordenar per data d'inici de l'última execució (Més antic-Més recent)",
-      "desc": "Ordenar per data d'inici de l'última execució (Més recent-Més antic)"
+    "lastRunAfter": {
+      "asc": "Ordenar per «Executar després de» de l'última execució (més antic-més recent)",
+      "desc": "Ordenar per «Executar després de» de l'última execució (més recent-més antic)"
     },
     "lastRunState": {
       "asc": "Ordenar per estat de l'última execució (A-Z)",

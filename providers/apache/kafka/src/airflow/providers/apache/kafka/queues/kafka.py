@@ -35,30 +35,9 @@ class KafkaMessageQueueProvider(BaseMessageQueueProvider):
     """
     Configuration for Apache Kafka integration with common-messaging.
 
-    [START kafka_message_queue_provider_description]
-
-    * It uses ``kafka`` as scheme for identifying Kafka queues.
-    * For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger`.
-
-    .. code-block:: python
-
-        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
-        from airflow.sdk import Asset, AssetWatcher
-
-        trigger = MessageQueueTrigger(
-            scheme="kafka",
-            # Additional Kafka AwaitMessageTrigger parameters as needed
-            topics=["my_topic"],
-            apply_function="module.apply_function",
-            bootstrap_servers="localhost:9092",
-        )
-
-        asset = Asset("kafka_queue_asset", watchers=[AssetWatcher(name="kafka_watcher", trigger=trigger)])
-
-    For a complete example, see:
-    :mod:`tests.system.common.messaging.kafka_message_queue_trigger`
-
-    [END kafka_message_queue_provider_description]
+    Dispatches ``scheme="kafka"`` to
+    :class:`~airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger`,
+    which also defines the accepted parameters.
     """
 
     scheme = "kafka"

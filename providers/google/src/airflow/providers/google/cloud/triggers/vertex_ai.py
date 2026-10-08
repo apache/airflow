@@ -401,3 +401,70 @@ class CustomPythonPackageTrainingJobTrigger(BaseVertexAIJobTrigger):
             poll_interval=self.poll_interval,
         )
         return pipeline
+
+
+class CustomJobTrigger(BaseTrigger):
+    """Trigger that waits until a Vertex AI Custom job completes."""
+
+    def __init__(
+        self,
+        project_id: str,
+        location: str,
+        custom_job_id: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        poll_interval: int = 10,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.location = location
+        self.custom_job_id = custom_job_id
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.poll_interval = poll_interval
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.google.cloud.triggers.vertex_ai.CustomJobTrigger",
+            {
+                "project_id": self.project_id,
+                "location": self.location,
+                "custom_job_id": self.custom_job_id,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
+                "poll_interval": self.poll_interval,
+            },
+        )
+
+    @cached_property
+    def async_hook(self) -> CustomJobAsyncHook:
+        return CustomJobAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        try:
+            custom_job = await self.async_hook.wait_for_custom_job(
+                project_id=self.project_id,
+                location=self.location,
+                job_id=self.custom_job_id,
+                poll_interval=self.poll_interval,
+            )
+        except (AirflowException, RuntimeError) as ex:
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": str(ex),
+                }
+            )
+            return
+
+        message = f"Custom Job {custom_job.name} completed with status {custom_job.state.name}"
+        yield TriggerEvent(
+            {
+                "status": "success",
+                "message": message,
+                "custom_job": types.custom_job.CustomJob.to_dict(custom_job),
+            }
+        )

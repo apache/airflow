@@ -27,6 +27,59 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add KafkaSharedStreamProducer and KafkaSharedStreamTrigger (#68625)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Document how to use the Kafka message queue trigger (#73588)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Stop Kafka hook tests from leaving live clients behind (#74285)``
+   * ``Fix flaky Kafka trigger tests by awaiting the event instead of a fixed sleep (#74124)``
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Prepare providers release 2026-09-22 (#73506)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+2.0.0
+.....
+
+.. note::
+  ``librdkafka`` callbacks given as dotted-path strings on a Kafka connection extra (``error_cb``,
+  ``throttle_cb``, ``stats_cb``, ``log_cb``, ``oauth_cb``, ``on_commit``) are no longer imported
+  unless the full importable path of the callback is listed in the new ``[apache_kafka]
+  callback_allowlist`` option, which is empty by default. A connection that relies on such a
+  callback now raises ``ValueError`` until its path is added to the allowlist. Callbacks passed as
+  actual callables, and managed authentication (Amazon MSK IAM, Google Managed Kafka), are unaffected.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Add an allowlist config option for Kafka connection string callbacks (#72208)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve documentation for the KafkaEventProducer plugin (#71085)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.16.0
 ......
 

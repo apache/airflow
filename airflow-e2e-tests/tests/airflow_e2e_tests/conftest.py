@@ -45,6 +45,7 @@ from airflow_e2e_tests.constants import (
     GO_SDK_DAGS_PATH,
     GO_SDK_EXAMPLE_BUNDLE_PKG,
     GO_SDK_ROOT_PATH,
+    GO_SDK_STATE_STORE_RETENTION_DAYS,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
     JAVA_SDK_EXAMPLE_DAGS_PATH,
@@ -293,6 +294,22 @@ _SPARK_JAVA_MODULE_OPTIONS = [
 ]
 
 
+def _build_dag_bundle_config(artifact_bundles: dict[str, str]) -> str:
+    """Return a ``dag_bundle_config_list`` of the Dags folder plus a ``LocalDagBundle`` per artifact path.
+
+    Registration is what makes a coordinator's ``task_handler_bundle_name`` resolvable on the
+    worker. The artifact directories are mounted only there; the Dag processor finds no files
+    in them.
+    """
+    local_bundle = "airflow.dag_processing.bundles.local.LocalDagBundle"
+    bundles = [{"name": "dags-folder", "classpath": local_bundle, "kwargs": {}}]
+    bundles.extend(
+        {"name": name, "classpath": local_bundle, "kwargs": {"path": path}}
+        for name, path in artifact_bundles.items()
+    )
+    return json.dumps(bundles)
+
+
 def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=False):
     """Run the Java SDK Gradle wrapper natively or inside the pinned JDK container.
 
@@ -416,7 +433,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     copyfile(JAVA_DOCKERFILE_PATH, tmp_dir / "Dockerfile.java")
 
     # Copy each bundle's JARs into its own directory; the compose bind-mounts
-    # expose them to the worker, and each JavaCoordinator globs its own dir.
+    # expose them to the worker, where each is registered as its own Dag bundle.
     copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "java-jars")
     copytree(SCALA_SPARK_EXAMPLE_LIBS_PATH, tmp_dir / "scala-jars")
     copytree(JAVA_TEST_BUNDLE_LIBS_PATH, tmp_dir / "java-test-jars")
@@ -456,20 +473,27 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     )
 
     # One JavaCoordinator per queue on the same worker image, each serving its
-    # own bundle. The scala-jdk entry pins main_class (Spark's large classpath
-    # makes Main-Class discovery ambiguous) and carries Spark's Java 17 module
-    # openings, a small driver heap, and a longer startup timeout for its large
-    # dependency classpath.
+    # own artifact bundle (one bundle is one classpath). The scala-jdk entry pins
+    # main_class (Spark's large classpath makes Main-Class discovery ambiguous)
+    # and carries Spark's Java 17 module openings, a small driver heap, and a
+    # longer startup timeout for its large dependency classpath.
+    dag_bundle_config = _build_dag_bundle_config(
+        {
+            "java-task-handlers": "/opt/airflow/java-jars",
+            "scala-task-handlers": "/opt/airflow/scala-jars",
+            "java-test-task-handlers": "/opt/airflow/java-test-jars",
+        }
+    )
     coordinator_config = json.dumps(
         {
             "java-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"jars_root": ["/opt/airflow/java-jars"]},
+                "kwargs": {"task_handler_bundle_name": "java-task-handlers"},
             },
             "scala-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
                 "kwargs": {
-                    "jars_root": ["/opt/airflow/scala-jars"],
+                    "task_handler_bundle_name": "scala-task-handlers",
                     "main_class": "org.apache.airflow.example.ScalaSparkBundleBuilder",
                     "jvm_args": ["-Xmx512m", *_SPARK_JAVA_MODULE_OPTIONS],
                     "task_startup_timeout": 60.0,
@@ -477,7 +501,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             },
             "java-test-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"jars_root": ["/opt/airflow/java-test-jars"]},
+                "kwargs": {"task_handler_bundle_name": "java-test-task-handlers"},
             },
         }
     )
@@ -502,6 +526,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
         f"AIRFLOW_CONN_TEST_HTTP='{test_http_conn}'\n"
@@ -598,9 +623,9 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     """Set up the go_sdk E2E test mode.
 
     Compiles the Go SDK example bundle into a self-contained executable bundle
-    via the ``airflow-go-pack`` tooling, drops it into the directory the
-    ``ExecutableCoordinator`` scans, copies the Python stub Dag, and writes the
-    coordinator configuration.
+    via the ``airflow-go-pack`` tooling, drops it into the directory registered
+    as the ``go-task-handlers`` Dag bundle, copies the Python stub Dag, and
+    writes the coordinator configuration.
 
     The packed bundle is a statically linked native executable (built with
     ``CGO_ENABLED=0``), so the stock Airflow worker image can exec it directly
@@ -624,13 +649,14 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
 
     # Coordinator registry: maps the logical name "go-sdk" to ExecutableCoordinator,
-    # which scans executables_root for the packed bundle by dag_id.
+    # which scans the go-task-handlers Dag bundle for the packed bundle by dag_id.
     # Queue mapping: routes tasks on the "golang" queue to "go-sdk".
+    dag_bundle_config = _build_dag_bundle_config({"go-task-handlers": "/opt/airflow/go-bundles"})
     coordinator_config = json.dumps(
         {
             "go-sdk": {
                 "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
-                "kwargs": {"executables_root": ["/opt/airflow/go-bundles"]},
+                "kwargs": {"task_handler_bundle_name": "go-task-handlers"},
             }
         }
     )
@@ -639,6 +665,7 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
         # Connection and variable read by the Go example bundle tasks.
@@ -646,6 +673,12 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+    # Config file, not an env var: the supervisor copies the worker environment into the Go
+    # subprocess, so an env var would reach Go even without the propagation under test.
+    (tmp_dir / "config" / "airflow.cfg").write_text(
+        f"[state_store]\ndefault_retention_days = {GO_SDK_STATE_STORE_RETENTION_DAYS}\n"
+    )
 
 
 def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):
@@ -722,18 +755,21 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     # version from the metadata airflow-ts-pack embedded in the bundle.
     ts_bundles_dir = tmp_dir / "ts-bundles"
     ts_bundles_dir.mkdir()
-    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.mjs", ts_bundles_dir / "bundle.mjs")
+    # Deliberately renamed: the coordinator routes on embedded metadata, not on a fixed name.
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
 
-    copyfile(
-        TS_SDK_EXAMPLE_PATH / "dags" / "typescript_example.py", tmp_dir / "dags" / "typescript_example.py"
-    )
+    # Both of the example bundle's Dags: one bundle.mjs provides for two dag_ids,
+    # and the tests check that dispatch tells their same-named tasks apart.
+    for dag_file in ("typescript_example.py", "typescript_taskflow_example.py"):
+        copyfile(TS_SDK_EXAMPLE_PATH / "dags" / dag_file, tmp_dir / "dags" / dag_file)
 
+    dag_bundle_config = _build_dag_bundle_config({"ts-task-handlers": "/opt/airflow/ts-bundles"})
     coordinator_config = json.dumps(
         {
             "ts": {
                 "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
                 "kwargs": {
-                    "bundles_root": ["/opt/airflow/ts-bundles"],
+                    "task_handler_bundle_name": "ts-task-handlers",
                     "node_executable": "/opt/nodejs/node",
                 },
             }
@@ -745,6 +781,7 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
         f"AIRFLOW_UID={os.getuid()}\n"
         f"NODE_IMAGE={NODE_IMAGE}\n"
         # single-quoted so Docker Compose reads the JSON literally
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
         "AIRFLOW_CONN_TYPESCRIPT_EXAMPLE_HTTP=http://user:pass@example.com/\n"
@@ -770,7 +807,7 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     _E2ETestState.airflow_dags_path = tmp_dir / "dags"
 
     # openlineage sources its dags from the provider system tests (via _setup_openlineage_integration),
-    # so it must not also load the stock e2e dags — the harness triggers every dag it finds.
+    # so it must not also load the stock e2e dags, since the harness triggers every dag it finds.
     if E2E_TEST_MODE != "openlineage":
         console.print(f"[yellow]Copying dags to:[/ {tmp_dir / 'dags'}")
         copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)

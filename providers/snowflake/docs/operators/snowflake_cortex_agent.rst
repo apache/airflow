@@ -64,3 +64,22 @@ An example usage of the ``SnowflakeCortexAgentOperator`` is as follows:
    Parameters passed to the operator take precedence over the corresponding
    values configured in the Airflow connection metadata, such as ``database``,
    ``schema`` and ``role``.
+
+Authentication
+^^^^^^^^^^^^^^
+
+``SnowflakeCortexAgentHook`` (and the operator built on it) authenticate according to the connection's
+``authenticator`` extra:
+
+- **OAuth**: set ``authenticator`` to ``oauth`` and configure a refresh token, a client
+  credentials grant, or ``azure_conn_id``, as on the Snowflake connection generally.
+- **PAT (Programmatic Access Token)**: set ``authenticator`` to ``programmatic_access_token`` and
+  put the PAT value in the connection's Password field.
+- **Key-pair JWT**: the default when neither of the above is set. Configure
+  ``private_key_file`` or ``private_key_content`` (optionally with a passphrase in Password), and
+  set Login to the Snowflake user name the key is registered to.
+
+See the :doc:`Snowflake connection </connections/snowflake>` page for the full field reference.
+A hook instance keeps its resolved key-pair JWT and reuses it within its renewal window instead of
+signing a new one on every request. This benefits code that calls ``SnowflakeCortexAgentHook``
+several times on the same instance; the operator makes one request per ``execute`` call.

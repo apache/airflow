@@ -291,10 +291,15 @@ ARG_DR_STATE = Arg(
     metavar=", ".join(dagrun_states),
     choices=dagrun_states,
 )
+ARG_DR_LIMIT = Arg(
+    ("--limit",),
+    type=positive_int(allow_zero=False),
+    help="Return a limited number of Dag runs, ordered by most recent run_after first",
+)
 
 # list_jobs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
-ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
+ARG_LIMIT = Arg(("--limit",), type=positive_int(allow_zero=True), help="Return a limited number of records")
 job_states = tuple(state.value for state in JobState)
 ARG_JOB_STATE = Arg(
     ("--state",),
@@ -370,6 +375,11 @@ ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
 # teams
 ARG_TEAM_NAME = Arg(("name",), help="Team name")
+ARG_TEAMS_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Show what would be synchronized without making changes.",
+    action="store_true",
+)
 
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
@@ -796,6 +806,11 @@ ARG_SSL_CERT_REQS = Arg(
     help="(Optional) Set certificate verification options.",
     choices=("none", "optional", "required"),
 )
+ARG_SSL_CIPHERS = Arg(
+    ("--ssl-ciphers",),
+    default=conf.get("api", "ssl_ciphers", fallback=""),
+    help="(Optional) OpenSSL cipher list to use when SSL is enabled.",
+)
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
 # scheduler
@@ -916,9 +931,6 @@ ARG_ANONYMIZE = Arg(
     ("--anonymize",),
     help="Minimize any personal identifiable information. Use it when sharing output with others.",
     action="store_true",
-)
-ARG_FILE_IO = Arg(
-    ("--file-io",), help="Send output to file.io service and returns link.", action="store_true"
 )
 
 # config
@@ -1056,11 +1068,12 @@ ARG_TRIGGERER_TEAM_NAME = Arg(
     help="Team name to scope this triggerer to. Requires core.multi_team to be enabled.",
 )
 
+DEFAULT_DAG_LIST_COLUMNS = ("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version")
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
-    help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
-    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version"),
+    help=f"List of columns to render. (default: {list(DEFAULT_DAG_LIST_COLUMNS)})",
+    default=DEFAULT_DAG_LIST_COLUMNS,
 )
 
 ARG_ASSET_LIST_COLUMNS = Arg(
@@ -1250,13 +1263,15 @@ DAGS_COMMANDS = (
             "dagruns with the given state. If no_backfill option is given, it will filter out all "
             "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
             "dagruns that were executed before this date. If end_date is given, it will filter out "
-            "all the dagruns that were executed after this date. "
+            "all the dagruns that were executed after this date. If limit is given, it will return "
+            "only the most recent N runs after filters and sorting are applied."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dag_runs"),
         args=(
             ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_DR_STATE,
+            ARG_DR_LIMIT,
             ARG_OUTPUT,
             ARG_VERBOSE,
             ARG_START_DATE,
@@ -1588,7 +1603,6 @@ POOLS_COMMANDS = (
             ARG_POOL_DESCRIPTION,
             ARG_POOL_INCLUDE_DEFERRED,
             ARG_POOL_TEAM_NAME,
-            ARG_OUTPUT,
             ARG_VERBOSE,
         ),
     ),
@@ -1596,7 +1610,7 @@ POOLS_COMMANDS = (
         name="delete",
         help="Delete pool",
         func=lazy_load_command("airflow.cli.commands.pool_command.pool_delete"),
-        args=(ARG_POOL_NAME, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_POOL_NAME, ARG_VERBOSE),
     ),
     ActionCommand(
         name="import",
@@ -1681,7 +1695,7 @@ TEAMS_COMMANDS = (
         help="Sync teams",
         description=("Sync missing teams from the dag bundle config into the database.\n"),
         func=lazy_load_command("airflow.cli.commands.team_command.team_sync"),
-        args=(ARG_VERBOSE,),
+        args=(ARG_TEAMS_DRY_RUN, ARG_VERBOSE),
     ),
     ActionCommand(
         name="verify",
@@ -1689,6 +1703,13 @@ TEAMS_COMMANDS = (
         description=("Verify that the multi-team configuration is internally consistent.\n"),
         func=lazy_load_command("airflow.cli.commands.team_command.team_verify"),
         args=(ARG_VERBOSE,),
+    ),
+    ActionCommand(
+        name="inspect",
+        help="Inspect a team",
+        description="Display resources associated with a team.\n",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_inspect"),
+        args=(ARG_TEAM_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 STATE_STORE_COMMANDS = (
@@ -2213,6 +2234,7 @@ core_commands: list[CLICommand] = [
             ARG_SSL_KEY,
             ARG_SSL_CA_FILE,
             ARG_SSL_CERT_REQS,
+            ARG_SSL_CIPHERS,
             ARG_DEV,
             ARG_API_SERVER_ALLOW_PROXY_FORWARDING,
         ),
@@ -2321,7 +2343,6 @@ core_commands: list[CLICommand] = [
         func=lazy_load_command("airflow.cli.commands.info_command.show_info"),
         args=(
             ARG_ANONYMIZE,
-            ARG_FILE_IO,
             ARG_VERBOSE,
             ARG_OUTPUT,
         ),

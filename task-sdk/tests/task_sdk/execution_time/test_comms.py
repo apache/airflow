@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import threading
 import uuid
 
@@ -340,6 +341,65 @@ class TestCommsDecoder:
         server2.join(timeout=2)
 
         assert result is not None
+
+    def test_send_from_paused_event_loop_thread_raises_when_asend_in_flight(self, socket_pair):
+        """
+        Regression: send() called from the loop's own thread while the loop is *paused* (between
+        two run_until_complete() calls) and an asend() is parked mid-I/O must raise
+        DeadlockImminentError instead of blocking forever.
+
+        The running-loop check alone does not cover this: asyncio.get_running_loop() raises while
+        the loop is paused, so send() fell through to a blocking acquire of _thread_lock. The
+        holder, an asend() coroutine, can only release it once the loop runs again, on this very
+        thread, which is now blocked. Seen in production as an IterableOperator freezing with
+        every thread idle: AsyncAwareExecutor.map pulled the next sub-task's input through a sync
+        XCom read between two run_until_complete() calls while a sub-task's asend() was in flight.
+        """
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+
+        def _read_request(sock) -> _RequestFrame:
+            length = int.from_bytes(sock.recv(4), "big")
+            body = b""
+            while len(body) < length:
+                body += sock.recv(length - len(body))
+            return msgspec.msgpack.decode(body, type=_RequestFrame)
+
+        def _respond(sock, req: _RequestFrame) -> None:
+            assert req.body is not None
+            resp = {"type": "VariableResult", "key": req.body["key"], "value": "v"}
+            encoded = msgspec.msgpack.encode(_ResponseFrame(req.id, resp, None))
+            sock.sendall(len(encoded).to_bytes(4, "big") + encoded)
+
+        loop = asyncio.new_event_loop()
+        try:
+            # Park an asend() mid-I/O: its request gets written, but no response is sent yet, so
+            # the coroutine sits in the thread reading the response while holding _thread_lock.
+            in_flight = loop.create_task(decoder.asend(GetVariable(key="parked")))
+            parked_request = loop.run_until_complete(asyncio.to_thread(_read_request, w))
+            assert parked_request.body["key"] == "parked"
+            assert not in_flight.done()
+            assert decoder._thread_lock.locked()
+
+            # The loop is now paused and this thread is its thread. Before the fix this call
+            # blocked forever on _thread_lock.
+            with pytest.raises(DeadlockImminentError) as exc_info:
+                decoder.send(GetVariable(key="should_fail"))
+            assert "deadlock is imminent" in str(exc_info.value)
+
+            # Let the parked asend() finish; the channel must be fully usable afterwards.
+            _respond(w, parked_request)
+            result = loop.run_until_complete(asyncio.wait_for(in_flight, timeout=5))
+            assert result.key == "parked"
+
+            server = threading.Thread(target=lambda: _respond(w, _read_request(w)), daemon=True)
+            server.start()
+            result = decoder.send(GetVariable(key="after"))
+            server.join(timeout=2)
+            assert result.key == "after"
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
 
     def test_read_frame_recovers_from_short_read_on_header(self):
         msg = VariableResult(key="k", value="v", type="VariableResult")
